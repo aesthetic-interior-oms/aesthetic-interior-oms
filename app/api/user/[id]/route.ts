@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { requireDatabaseRoles } from "@/lib/authz";
 
 type RouteParams = { params: { id: string } };
 
@@ -14,6 +15,11 @@ type UpdateUserBody = {
 
 export async function GET(_req: Request, { params }: RouteParams) {
   try {
+    const authz = await requireDatabaseRoles(["admin"]);
+    if (!authz.ok) {
+      return authz.response;
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: params.id },
       include: {
@@ -34,6 +40,11 @@ export async function GET(_req: Request, { params }: RouteParams) {
 
 export async function PATCH(req: Request, { params }: RouteParams) {
   try {
+    const authz = await requireDatabaseRoles(["admin"]);
+    if (!authz.ok) {
+      return authz.response;
+    }
+
     const body = (await req.json()) as UpdateUserBody;
     const { fullName, email, phone, clerkUserId, roleNames, departmentNames } = body;
 
@@ -126,6 +137,11 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 
 export async function DELETE(_req: Request, { params }: RouteParams) {
   try {
+    const authz = await requireDatabaseRoles(["admin"]);
+    if (!authz.ok) {
+      return authz.response;
+    }
+
     const existing = await prisma.user.findUnique({ where: { id: params.id } });
     if (!existing) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

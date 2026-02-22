@@ -1,5 +1,6 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { requireDatabaseRoles } from "@/lib/authz";
 
 type CreateUserBody = {
   fullName?: string;
@@ -12,6 +13,11 @@ type CreateUserBody = {
 
 export async function GET() {
   try {
+    const authz = await requireDatabaseRoles(["admin"]);
+    if (!authz.ok) {
+      return authz.response;
+    }
+
     const users = await prisma.user.findMany({
       orderBy: { created_at: "desc" },
       include: {
@@ -32,6 +38,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const authz = await requireDatabaseRoles(["admin"]);
+    if (!authz.ok) {
+      return authz.response;
+    }
+
     const body = (await req.json()) as CreateUserBody;
     const { fullName, email, phone, clerkUserId, roleNames = [], departmentNames = [] } = body;
 
