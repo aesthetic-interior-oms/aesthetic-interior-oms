@@ -8,7 +8,7 @@ type ClerkEmailAddress = {
 };
 
 type ClerkPhoneNumber = {
-  phone_number: string;z
+  phone_number: string;
 };
 
 type ClerkUserData = {
