@@ -13,6 +13,19 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Plus, Search } from 'lucide-react'
+import LeadCreateModal from '../../../../components/crm/junior/LeadCreateModal'
+import { DialogDemo } from '@/components/crm/junior/dialogdemo'
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+
 
 const statuses = ['NEW', 'CONTACTED', 'FOLLOWUP', 'VISIT_SCHEDULED', 'REJECTED', 'CONVERTED']
 
@@ -41,6 +54,7 @@ type LeadSummary = {
 }
 
 export default function LeadsPage() {
+  console.log('LeadsPage rendered')
   const [leads, setLeads] = useState<LeadSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -71,6 +85,17 @@ export default function LeadsPage() {
     return acc
   }, {} as Record<string, number>)
 
+  const refreshLeads = () => {
+    setLoading(true)
+    fetch('/api/lead')
+      .then(res => res.json())
+      .then(data => {
+        setLeads(data.data || [])
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -78,10 +103,41 @@ export default function LeadsPage() {
           <h1 className="text-3xl font-bold text-foreground">Leads</h1>
           <p className="mt-1 text-muted-foreground">Manage and track all your leads</p>
         </div>
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" />
-          Add Lead
-        </Button>
+        {/* {console.log('Rendering LeadCreateModal')} */}
+        <LeadCreateModal onCreated={refreshLeads} />
+        {/* <DialogDemo/> */}
+
+           <Dialog>
+          <DialogTrigger asChild>
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Add Lead
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Lead</DialogTitle>
+              <DialogDescription>Enter a user name and email to create a lead.</DialogDescription>
+            </DialogHeader>
+            <form className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="lead-name" className="text-sm font-medium">
+                  User Name
+                </label>
+                <Input id="lead-name" name="name" placeholder="John Doe" />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="lead-email" className="text-sm font-medium">
+                  Email
+                </label>
+                <Input id="lead-email" name="email" type="email" placeholder="john@example.com" />
+              </div>
+              <DialogFooter>
+                <Button type="button">Save</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Status Overview */}
@@ -182,6 +238,9 @@ export default function LeadsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Add the modal here */}
+      {/* LeadCreateModal is now self-  contained with its own trigger button */}
     </div>
   )
 }

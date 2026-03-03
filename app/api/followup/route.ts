@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
             select: { id: true, name: true, email: true },
           },
           assignedTo: {
-            select: { id: true, name: true, email: true },
+            select: { id: true, fullName: true, email: true },
           },
         },
       })
