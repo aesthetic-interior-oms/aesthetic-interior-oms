@@ -2,6 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MapPin, Clock, Calendar, CheckCircle2, Clock3, AlertCircle } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 
 const visitHistory = [
   {
@@ -76,6 +77,19 @@ export default function MyVisitsPage() {
       <div>
         <h1 className="text-3xl font-bold text-foreground">My Visits</h1>
         <p className="text-muted-foreground mt-1">Track your visit history and upcoming appointments</p>
+
+        <Dialog>
+  <DialogTrigger>Open</DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Are you absolutely sure?</DialogTitle>
+      <DialogDescription>
+        This action cannot be undone. This will permanently delete your account
+        and remove your data from our servers.
+      </DialogDescription>
+    </DialogHeader>
+  </DialogContent>
+</Dialog>
       </div>
 
       {/* Tabs */}

@@ -2,7 +2,7 @@ import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { requireDatabaseRoles } from "@/lib/authz";
 
-type RouteParams = { params: { id: string } };
+type RouteParams = { params: Promise<{ id: string }> };
 
 type UpdateUserBody = {
   fullName?: string;
@@ -13,15 +13,16 @@ type UpdateUserBody = {
   departmentNames?: string[];
 };
 
-export async function GET(_req: Request, { params }: RouteParams) {
+export async function GET(_req: Request, { params: paramsPromise }: RouteParams) {
   try {
+    const { id } = await paramsPromise;
     const authz = await requireDatabaseRoles(["admin"]);
     if (!authz.ok) {
       return authz.response;
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         userRoles: { include: { role: true } },
         userDepartments: { include: { department: true } },
@@ -38,8 +39,9 @@ export async function GET(_req: Request, { params }: RouteParams) {
   }
 }
 
-export async function PATCH(req: Request, { params }: RouteParams) {
+export async function PATCH(req: Request, { params: paramsPromise }: RouteParams) {
   try {
+    const { id } = await paramsPromise;
     const authz = await requireDatabaseRoles(["admin"]);
     if (!authz.ok) {
       return authz.response;
@@ -49,13 +51,13 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     const { fullName, email, phone, clerkUserId, roleNames, departmentNames } = body;
 
     const updated = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({ where: { id: params.id } });
+      const user = await tx.user.findUnique({ where: { id } });
       if (!user) {
         throw new Error("NOT_FOUND");
       }
 
       await tx.user.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           ...(fullName !== undefined ? { fullName } : {}),
           ...(email !== undefined ? { email } : {}),
@@ -78,10 +80,10 @@ export async function PATCH(req: Request, { params }: RouteParams) {
           throw new Error(`Unknown role(s): ${missing.join(", ")}`);
         }
 
-        await tx.userRole.deleteMany({ where: { userId: params.id } });
+        await tx.userRole.deleteMany({ where: { userId: id } });
         if (roles.length > 0) {
           await tx.userRole.createMany({
-            data: roles.map((role) => ({ userId: params.id, roleId: role.id })),
+            data: roles.map((role) => ({ userId: id, roleId: role.id })),
             skipDuplicates: true,
           });
         }
@@ -101,11 +103,11 @@ export async function PATCH(req: Request, { params }: RouteParams) {
           throw new Error(`Unknown department(s): ${missing.join(", ")}`);
         }
 
-        await tx.userDepartment.deleteMany({ where: { userId: params.id } });
+        await tx.userDepartment.deleteMany({ where: { userId: id } });
         if (departments.length > 0) {
           await tx.userDepartment.createMany({
             data: departments.map((department) => ({
-              userId: params.id,
+              userId: id,
               departmentId: department.id,
             })),
             skipDuplicates: true,
@@ -114,7 +116,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
       }
 
       return tx.user.findUniqueOrThrow({
-        where: { id: params.id },
+        where: { id },
         include: {
           userRoles: { include: { role: true } },
           userDepartments: { include: { department: true } },
@@ -135,19 +137,20 @@ export async function PATCH(req: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: RouteParams) {
+export async function DELETE(_req: Request, { params: paramsPromise }: RouteParams) {
   try {
+    const { id } = await paramsPromise;
     const authz = await requireDatabaseRoles(["admin"]);
     if (!authz.ok) {
       return authz.response;
     }
 
-    const existing = await prisma.user.findUnique({ where: { id: params.id } });
+    const existing = await prisma.user.findUnique({ where: { id } });
     if (!existing) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    await prisma.user.delete({ where: { id: params.id } });
+    await prisma.user.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

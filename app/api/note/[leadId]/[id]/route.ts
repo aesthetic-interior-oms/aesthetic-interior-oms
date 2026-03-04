@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 
+// Route context for accessing dynamic route parameters [leadId] and [id]
 type RouteContext = { params: { id: string } | Promise<{ id: string }> }
 
+// Type for request body when updating notes
 type UpdateNoteBody = {
   content?: unknown
 }
 
+// Safely extract and validate note ID from route parameters
 async function resolveNoteId(context: RouteContext): Promise<string | null> {
   const resolved = await context.params
   const id = resolved?.id
@@ -17,12 +20,14 @@ async function resolveNoteId(context: RouteContext): Promise<string | null> {
   return trimmed.length > 0 ? trimmed : null
 }
 
+// Convert and validate a value to a non-empty string, or return null
 function toOptionalString(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
 }
 
+// Reusable query to include related lead and user data on note responses
 const noteInclude = {
   lead: {
     select: { id: true, name: true, email: true },
@@ -32,7 +37,8 @@ const noteInclude = {
   },
 } as const
 
-// GET /api/note/[id] - get single note
+// GET - Retrieve a single note by ID with related lead and user information
+//GET /api/note/[leadId]/[id]
 export async function GET(_request: NextRequest, context: RouteContext) {
   const id = await resolveNoteId(context)
 
@@ -57,7 +63,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   }
 }
 
-// PUT /api/note/[id] - full update (content)
+// PUT - Full update: replaces the entire note content (requires content field)
+//PUT /api/note/[leadId]/[id]
 export async function PUT(request: NextRequest, context: RouteContext) {
   const id = await resolveNoteId(context)
 
@@ -95,7 +102,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 }
 
-// PATCH /api/note/[id] - partial update
+// PATCH - Partial update: only updates fields that are provided in the request body
 export async function PATCH(request: NextRequest, context: RouteContext) {
   const id = await resolveNoteId(context)
 
@@ -150,7 +157,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 }
 
-// DELETE /api/note/[id] - delete note
+// DELETE - Remove a note from the database
+//DELETE /api/note/[leadId]/[id]
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   const id = await resolveNoteId(context)
 
