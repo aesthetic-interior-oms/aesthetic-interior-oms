@@ -2,21 +2,24 @@ import prisma from '@/lib/prisma';
 import { FollowUpStatus, Prisma } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> };
+type RouteContext = { params: { leadId: string; id: string } | Promise<{ leadId: string; id: string }> };
 
-async function resolveFollowUpId(context: RouteContext): Promise<string | null> {
+async function resolveParams(context: RouteContext): Promise<{ leadId: string | null; id: string | null }> {
   const resolvedParams = await context.params;
-  const id = resolvedParams?.id;
-  if (typeof id !== 'string') return null;
-  const trimmed = id.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  const leadId = resolvedParams?.leadId?.trim() || null;
+  const id = resolvedParams?.id?.trim() || null;
+  
+  return {
+    leadId: leadId && leadId.length > 0 ? leadId : null,
+    id: id && id.length > 0 ? id : null,
+  };
 }
 
-// GET /api/followup/[id] - Get a single follow-up by ID
+// GET /api/followup/[leadId]/[id] - Get a single follow-up by ID
 export async function GET(_request: NextRequest, context: RouteContext) {
-  const id = await resolveFollowUpId(context);
-  if (!id) {
-    return NextResponse.json({ success: false, error: 'Invalid follow-up id' }, { status: 400 });
+  const { leadId, id } = await resolveParams(context);
+  if (!id || !leadId) {
+    return NextResponse.json({ success: false, error: 'Invalid lead id or follow-up id' }, { status: 400 });
   }
 
   try {
@@ -46,6 +49,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       );
     }
 
+    // Verify that the follow-up belongs to the specified lead
+    if (followUp.leadId !== leadId) {
+      return NextResponse.json(
+        { success: false, error: 'Follow-up does not belong to the specified lead' },
+        { status: 403 }
+      );
+    }
+
     return NextResponse.json({ success: true, data: followUp });
   } catch (error: any) {
     console.error('Error fetching follow-up:', error);
@@ -56,11 +67,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   }
 }
 
-// PUT /api/followup/[id] - Update a follow-up
+// PUT /api/followup/[leadId]/[id] - Update a follow-up
 export async function PUT(request: NextRequest, context: RouteContext) {
-  const id = await resolveFollowUpId(context);
-  if (!id) {
-    return NextResponse.json({ success: false, error: 'Invalid follow-up id' }, { status: 400 });
+  const { leadId, id } = await resolveParams(context);
+  if (!id || !leadId) {
+    return NextResponse.json({ success: false, error: 'Invalid lead id or follow-up id' }, { status: 400 });
   }
 
   try {
@@ -79,6 +90,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return NextResponse.json(
         { success: false, error: 'Follow-up not found' },
         { status: 404 }
+      );
+    }
+
+    // Verify that the follow-up belongs to the specified lead
+    if (existingFollowUp.leadId !== leadId) {
+      return NextResponse.json(
+        { success: false, error: 'Follow-up does not belong to the specified lead' },
+        { status: 403 }
       );
     }
 
@@ -146,11 +165,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 }
 
-// PATCH /api/followup/[id] - Partial update a follow-up
+// PATCH /api/followup/[leadId]/[id] - Partial update a follow-up
 export async function PATCH(request: NextRequest, context: RouteContext) {
-  const id = await resolveFollowUpId(context);
-  if (!id) {
-    return NextResponse.json({ success: false, error: 'Invalid follow-up id' }, { status: 400 });
+  const { leadId, id } = await resolveParams(context);
+  if (!id || !leadId) {
+    return NextResponse.json({ success: false, error: 'Invalid lead id or follow-up id' }, { status: 400 });
   }
 
   try {
@@ -162,6 +181,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json(
         { success: false, error: 'Follow-up not found' },
         { status: 404 }
+      )
+    }
+
+    // Verify that the follow-up belongs to the specified lead
+    if (existingFollowUp.leadId !== leadId) {
+      return NextResponse.json(
+        { success: false, error: 'Follow-up does not belong to the specified lead' },
+        { status: 403 }
       )
     }
 
@@ -199,11 +226,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 }
 
-// DELETE /api/followup/[id] - Delete a follow-up
+// DELETE /api/followup/[leadId]/[id] - Delete a follow-up
 export async function DELETE(_request: NextRequest, context: RouteContext) {
-  const id = await resolveFollowUpId(context);
-  if (!id) {
-    return NextResponse.json({ success: false, error: 'Invalid follow-up id' }, { status: 400 });
+  const { leadId, id } = await resolveParams(context);
+  if (!id || !leadId) {
+    return NextResponse.json({ success: false, error: 'Invalid lead id or follow-up id' }, { status: 400 });
   }
 
   try {
@@ -213,6 +240,14 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
       return NextResponse.json(
         { success: false, error: 'Follow-up not found' },
         { status: 404 }
+      );
+    }
+
+    // Verify that the follow-up belongs to the specified lead
+    if (existingFollowUp.leadId !== leadId) {
+      return NextResponse.json(
+        { success: false, error: 'Follow-up does not belong to the specified lead' },
+        { status: 403 }
       );
     }
 
