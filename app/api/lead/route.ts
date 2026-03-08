@@ -1,23 +1,16 @@
 import prisma from '@/lib/prisma';
-import { LeadStage, LeadSubStatus, Prisma, LeadStatus } from '@/generated/prisma/client';
-import { isSubStatusAllowedForStage } from '@/lib/lead-stage';
+import { LeadStage, Prisma, LeadStatus } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { logLeadCreated } from '@/lib/activity-log-service';
+import { requireDatabaseRoles } from '@/lib/authz';
 
 // Type definition for the request body when creating a lead
 type CreateLeadBody = {
   name?: unknown;
   phone?: unknown;
   email?: unknown;
-  source?: unknown;
-  status?: unknown;
-   stage?: unknown;
-  subStatus?: unknown;
-  budget?: unknown;
   location?: unknown;
-  remarks?: unknown;
-  assignedTo?: unknown;
-  userId?: unknown;
+  budget?: unknown;
 };
 
 // Utility function to safely convert unknown values to optional strings
@@ -34,34 +27,6 @@ function toBudget(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-// Utility function to convert string to LeadStatus enum
-// Returns LeadStatus.NEW as default if value is invalid
-function toLeadStatus(value: unknown): LeadStatus {
-  if (typeof value !== 'string') return LeadStatus.NEW;
-  const normalized = value.trim().toUpperCase();
-  return Object.values(LeadStatus).includes(normalized as LeadStatus)
-    ? (normalized as LeadStatus)
-    : LeadStatus.NEW;
-}
-
-function toLeadStage(value: unknown): LeadStage {
-  if (typeof value !== 'string') return LeadStage.NEW;
-  const normalized = value.trim().toUpperCase();
-  return Object.values(LeadStage).includes(normalized as LeadStage)
-    ? (normalized as LeadStage)
-    : LeadStage.NEW;
-}
-
-function toLeadSubStatus(value: unknown): LeadSubStatus | null {
-  if (value === undefined || value === null || value === '') return null;
-  if (typeof value !== 'string') return null;
-
-  const normalized = value.trim().toUpperCase();
-  return Object.values(LeadSubStatus).includes(normalized as LeadSubStatus)
-    ? (normalized as LeadSubStatus)
-    : null;
 }
 
 // GET endpoint - Retrieve all leads from the database
@@ -90,9 +55,16 @@ export async function GET() {
 
 // POST endpoint - Create a new lead
 // Validates required fields (name, email) and checks for duplicate emails
+// Automatically gets the current user from authentication
 // Uses database transaction to ensure atomicity when creating lead and activity log
 export async function POST(request: NextRequest) {
   try {
+    // Verify user authentication and get user ID
+    const authResult = await requireDatabaseRoles([]);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+
     // Parse incoming JSON request body
     const body = (await request.json()) as CreateLeadBody;
 
@@ -122,16 +94,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-     const stage = toLeadStage(body.stage);
-    const subStatus = toLeadSubStatus(body.subStatus);
-
-    if (!isSubStatusAllowedForStage(stage, subStatus)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid subStatus for selected stage' },
-        { status: 400 }
-      );
-    }
-
     // Create lead and activity log in a transaction
     // Transaction ensures both operations succeed or both fail
     const lead = await prisma.$transaction(async (tx) => {
@@ -141,14 +103,10 @@ export async function POST(request: NextRequest) {
           name,
           phone: toOptionalString(body.phone),
           email,
-          source: toOptionalString(body.source),
-          status: toLeadStatus(body.status),
-          stage,
-          subStatus,
-          budget: toBudget(body.budget),
           location: toOptionalString(body.location),
-          remarks: toOptionalString(body.remarks),
-          assignedTo: toOptionalString(body.assignedTo),
+          budget: toBudget(body.budget),
+          status: LeadStatus.NEW,
+          stage: LeadStage.NEW,
         },
         // Include assignee details in the response
         include: {
@@ -158,15 +116,12 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Log the lead creation activity if userId is provided
-      const userId = toOptionalString(body.userId);
-      if (userId) {
-        await logLeadCreated(tx, {
+      // Log the lead creation activity with the authenticated user
+      await logLeadCreated(tx, {
         leadId: newLead.id,
-        userId,
+        userId: authResult.actorUserId,
         leadName: name,
       });
-      }
 
       return newLead;
     });
