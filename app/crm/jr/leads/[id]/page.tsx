@@ -97,10 +97,21 @@ export default function LeadDetailPage() {
   // Fetch current user
   useEffect(() => {
     console.log('[LeadDetail] phase=fetch_user_start timestamp=', new Date().toISOString());
-    fetch('/api/me')
+    
+    // Check if we're in a browser environment
+    if (typeof window === 'undefined') {
+      console.log('[LeadDetail] phase=ssr_skip reason=server_side_rendering');
+      return;
+    }
+    
+    // Log the fetch URL for debugging
+    const fetchUrl = '/api/me';
+    console.log('[LeadDetail] phase=fetch_user_url url=', fetchUrl, 'window.location.origin=', window.location.origin);
+    
+    fetch(fetchUrl)
       .then(res => {
-        console.log('[LeadDetail] phase=fetch_user_response status=', res.status);
-        return res.json()
+        console.log('[LeadDetail] phase=fetch_user_response status=', res.status, 'ok=', res.ok);
+        return res.json();
       })
       .then(data => {
         console.log('[LeadDetail] phase=fetch_user_parsed data.id=', data.id, 'data.error=', data.error);
@@ -112,7 +123,12 @@ export default function LeadDetailPage() {
         }
       })
       .catch((error) => {
-        console.error('[LeadDetail] phase=fetch_user_error error=', error.message, 'stack=', error.stack)
+        console.error('[LeadDetail] phase=fetch_user_error error=', error.message, 'stack=', error.stack, 'error=', error);
+        // Check if it's a network error
+        if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+          console.error('[LeadDetail] DIAGNOSIS: Network error - likely server not running or not accessible');
+          console.error('[LeadDetail] DIAGNOSIS: Check if the dev server is running at http://192.168.0.147:3000');
+        }
       })
   }, [])
 

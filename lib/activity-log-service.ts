@@ -38,7 +38,7 @@ export async function logLeadCreated(
   await logActivity(writer, {
     leadId: input.leadId,
     userId: input.userId,
-    type: ActivityType.NOTE,
+    type: ActivityType.LEAD_CREATED,
     description: `Lead "${input.leadName}" was created`,
   });
 }

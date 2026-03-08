@@ -16,8 +16,8 @@ datasource db {
 model Lead {
   id         String         @id @default(cuid())
   name       String
-  phone      String?
-  email      String
+  phone      String         @unique
+  email      String?
   source     String?
   status     LeadStatus     @default(NEW)
   stage      LeadStage      @default(NEW)
@@ -38,6 +38,7 @@ model Lead {
 
   @@index([assignedTo])
   @@index([email])
+  @@index([phone])
 }
 
 model LeadAssignment {
@@ -218,4 +219,7 @@ enum ActivityType {
   STATUS_CHANGE
   NOTE
   FOLLOWUP_SET
+  FOLLOWUP_COMPLETED
+  VISIT_SCHEDULED
+  LEAD_CREATED
 }

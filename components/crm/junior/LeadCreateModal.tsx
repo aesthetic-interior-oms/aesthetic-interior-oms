@@ -22,6 +22,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
     phone: '',
     location: '',
     budget: '',
+    source: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -40,6 +41,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
       phone: form.phone || undefined,
       location: form.location || undefined,
       budget: form.budget ? Number(form.budget) : undefined,
+      source: form.source || undefined,
     }
     const res = await fetch('/api/lead', {
       method: 'POST',
@@ -56,6 +58,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
         phone: '',
         location: '',
         budget: '',
+        source: '',
       })
       if (onCreated) onCreated()
     } else {
@@ -137,6 +140,28 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
               placeholder="City, Country"
               className="border-gray-200"
             />
+          </div>
+
+          {/* Source */}
+          <div className="space-y-2">
+            <label htmlFor="source" className="text-sm font-medium text-foreground">Source</label>
+            <select 
+              id="source"
+              name="source" 
+              value={form.source} 
+              onChange={handleChange} 
+              className="w-full px-3 py-2 border border-gray-200 rounded-md bg-background text-foreground text-sm"
+            >
+              <option value="">Select a source</option>
+              <option value="Website">Website</option>
+              <option value="Referral">Referral</option>
+              <option value="Social Media">Social Media</option>
+              <option value="Direct Call">Direct Call</option>
+              <option value="Showroom Visit">Showroom Visit</option>
+              <option value="Advertisement">Advertisement</option>
+              <option value="Walk-in">Walk-in</option>
+              <option value="Other">Other</option>
+            </select>
           </div>
 
           {/* Budget */}

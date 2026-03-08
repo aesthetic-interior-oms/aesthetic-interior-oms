@@ -9,6 +9,7 @@ type CreateLeadBody = {
   name?: unknown;
   phone?: unknown;
   email?: unknown;
+  source?: unknown;
   location?: unknown;
   budget?: unknown;
 };
@@ -70,26 +71,27 @@ export async function POST(request: NextRequest) {
 
     // Extract and validate required fields
     const name = toOptionalString(body.name);
+    const phone = toOptionalString(body.phone);
     const email = toOptionalString(body.email)?.toLowerCase();
 
     // Return 400 error if required fields are missing or invalid
-    if (!name || !email) {
+    if (!name || !phone) {
       return NextResponse.json(
-        { success: false, error: 'Name and email are required' },
+        { success: false, error: 'Name and phone are required' },
         { status: 400 }
       );
     }
 
-    // Check if a lead with the same email already exists to prevent duplicates
+    // Check if a lead with the same phone already exists to prevent duplicates
     const existingLead = await prisma.lead.findFirst({
-      where: { email },
+      where: { phone },
       select: { id: true },
     });
 
-    // Return 409 Conflict if email already exists
+    // Return 409 Conflict if phone already exists
     if (existingLead) {
       return NextResponse.json(
-        { success: false, error: 'A lead with this email already exists' },
+        { success: false, error: 'A lead with this phone number already exists' },
         { status: 409 }
       );
     }
@@ -101,8 +103,9 @@ export async function POST(request: NextRequest) {
       const newLead = await tx.lead.create({
         data: {
           name,
-          phone: toOptionalString(body.phone),
+          phone,
           email,
+          source: toOptionalString(body.source),
           location: toOptionalString(body.location),
           budget: toBudget(body.budget),
           status: LeadStatus.NEW,
@@ -137,7 +140,7 @@ export async function POST(request: NextRequest) {
     // Handle specific Prisma unique constraint violation (P2002 error code)
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return NextResponse.json(
-        { success: false, error: 'A lead with this email already exists' },
+        { success: false, error: 'A lead with this phone number already exists' },
         { status: 409 }
       );
     }
