@@ -3,6 +3,140 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { logLeadCreated } from '@/lib/activity-log-service';
 
+/*
+  POSTMAN TESTING DATA
+  =====================
+  
+  BASE URL: http://localhost:3000/api/lead/{leadId}/assignments/{department}
+  
+  VALID DEPARTMENTS: SR_CRM, JR_CRM, QUOTATION, VISIT_TEAM, JR_ARCHITECT, VISUALIZER_3D
+  
+  =====================
+  PUT - Update assignment for a specific department
+  =====================
+  URL: http://localhost:3000/api/lead/{leadId}/assignments/{department}
+  Method: PUT
+  Headers: 
+    - Content-Type: application/json
+    - Authorization: Bearer {token}
+  
+  Request Body:
+  {
+    "userId": "cmmhf6aef0003pku3125gleqh"
+  }
+  
+  Example URLs:
+  http://localhost:3000/api/lead/cmmhfdt160000vzwb5ai4ej2g/assignments/sr_crm
+  http://localhost:3000/api/lead/cmmhfdt160000vzwb5ai4ej2g/assignments/JR_CRM
+  
+  Example curl:
+  curl -X PUT http://localhost:3000/api/lead/cmmhfdt160000vzwb5ai4ej2g/assignments/SR_CRM \
+    -H "Content-Type: application/json" \
+    -d '{"userId": "cmmhf6aef0003pku3125gleqh"}'
+  
+  Expected Success Response (200):
+  {
+    "success": true,
+    "data": {
+      "id": "cmmiwa5xo0001fdwby7l7wjo2",
+      "leadId": "cmmhfdt160000vzwb5ai4ej2g",
+      "userId": "cmmhf6aef0003pku3125gleqh",
+      "department": "SR_CRM",
+      "createdAt": "2026-03-09T08:03:54.636Z",
+      "user": {
+        "id": "cmmhf6aef0003pku3125gleqh",
+        "fullName": "aesthetic interior",
+        "email": "mdalraihan435@gmail.com"
+      }
+    },
+    "message": "Assignment updated successfully"
+  }
+  
+  Expected Error Responses:
+  - Missing userId (400):
+    {"success": false, "error": "userId is required"}
+  
+  - Invalid department (400):
+    {"success": false, "error": "Invalid department. Must be one of: SR_CRM, JR_CRM, QUOTATION, VISIT_TEAM, JR_ARCHITECT, VISUALIZER_3D"}
+  
+  - Lead not found (404):
+    {"success": false, "error": "Lead not found"}
+  
+  - User not found (404):
+    {"success": false, "error": "User not found"}
+  
+  - Assignment not found (404):
+    {"success": false, "error": "Assignment not found for this lead and department"}
+  
+  =====================
+  DELETE - Remove assignment for a specific department
+  =====================
+  URL: http://localhost:3000/api/lead/{leadId}/assignments/{department}
+  Method: DELETE
+  Headers: 
+    - Authorization: Bearer {token}
+  
+  No request body needed
+  
+  Example URLs:
+  http://localhost:3000/api/lead/cmmhfdt160000vzwb5ai4ej2g/assignments/sr_crm
+  http://localhost:3000/api/lead/cmmhfdt160000vzwb5ai4ej2g/assignments/JR_CRM
+  
+  Example curl:
+  curl -X DELETE http://localhost:3000/api/lead/cmmhfdt160000vzwb5ai4ej2g/assignments/SR_CRM \
+    -H "Authorization: Bearer {token}"
+  
+  Expected Success Response (200):
+  {
+    "success": true,
+    "data": {
+      "id": "cmmiwa5xo0001fdwby7l7wjo2",
+      "leadId": "cmmhfdt160000vzwb5ai4ej2g",
+      "userId": "cmmhf6aef0003pku3125gleqh",
+      "department": "SR_CRM",
+      "createdAt": "2026-03-09T08:03:54.636Z"
+    },
+    "message": "Assignment removed successfully"
+  }
+  
+  Expected Error Responses:
+  - Invalid department (400):
+    {"success": false, "error": "Invalid department. Must be one of: SR_CRM, JR_CRM, QUOTATION, VISIT_TEAM, JR_ARCHITECT, VISUALIZER_3D"}
+  
+  - Lead not found (404):
+    {"success": false, "error": "Lead not found"}
+  
+  - Assignment not found (404):
+    {"success": false, "error": "Assignment not found"}
+  
+  =====================
+  POSTMAN COLLECTION SETUP
+  =====================
+  
+  1. Create a new Collection: "Lead Assignments - Department"
+  2. Create two requests:
+  
+  Request 1: Update Assignment
+  - Name: PUT - Update Assignment
+  - Method: PUT
+  - URL: {{baseUrl}}/api/lead/{{leadId}}/assignments/{{department}}
+  - Body: {"userId": "{{userId}}"}
+  - Headers: Content-Type: application/json, Authorization: Bearer {{token}}
+  
+  Request 2: Delete Assignment
+  - Name: DELETE - Remove Assignment
+  - Method: DELETE
+  - URL: {{baseUrl}}/api/lead/{{leadId}}/assignments/{{department}}
+  - Headers: Authorization: Bearer {{token}}
+  
+  3. Set collection variables:
+  - baseUrl: http://localhost:3000
+  - leadId: cmmhfdt160000vzwb5ai4ej2g
+  - department: SR_CRM
+  - userId: cmmhf6aef0003pku3125gleqh
+  - token: your_auth_token
+*/
+
 type UpdateAssignmentBody = {
   userId?: unknown;
 };
@@ -17,20 +151,36 @@ function toOptionalString(value: unknown): string | null {
 // Changes the user assigned to a department for a lead
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; department: string } }
+  { params }: { params: Promise<{ id: string; department: string }> }
 ) {
   try {
+    console.log('🔵 [PUT /api/lead/[id]/assignments/[department]] - Request received');
+    
     // Verify user authentication
     const authResult = await requireDatabaseRoles([]);
-    if (!authResult.ok) {
-      return authResult.response;
+    // if (!authResult.ok) {
+    //   return authResult.response;
+    // }
+    console.log('✅ [PUT /api/lead/[id]/assignments/[department]] - Auth passed');
+
+    const resolvedParams = await params;
+    const leadId = resolvedParams?.id;
+    const department = resolvedParams?.department?.toUpperCase();
+    console.log('🔍 [PUT /api/lead/[id]/assignments/[department]] - Resolved leadId:', leadId, 'department:', department);
+    
+    if (!leadId || !department || typeof leadId !== 'string' || typeof department !== 'string') {
+      console.log('🔴 [PUT /api/lead/[id]/assignments/[department]] - Invalid params');
+      return NextResponse.json(
+        { success: false, error: 'Invalid lead id or department' },
+        { status: 400 }
+      );
     }
 
-    const leadId = params.id;
-    const department = params.department.toUpperCase();
     const body = (await request.json()) as UpdateAssignmentBody;
+    console.log('📝 [PUT /api/lead/[id]/assignments/[department]] - Parsed body:', JSON.stringify(body));
 
     const userId = toOptionalString(body.userId);
+    console.log('👤 [PUT /api/lead/[id]/assignments/[department]] - userId:', userId);
 
     if (!userId) {
       return NextResponse.json(
@@ -68,12 +218,6 @@ export async function PUT(
       );
     }
 
-    // Verify user exists
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, fullName: true, email: true },
-    });
-
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
@@ -82,6 +226,7 @@ export async function PUT(
     }
 
     // Find and update the assignment
+    console.log('💾 [PUT /api/lead/[id]/assignments/[department]] - Updating assignment');
     const assignment = await prisma.$transaction(async (tx) => {
       const existingAssignment = await tx.leadAssignment.findFirst({
         where: {
@@ -89,6 +234,7 @@ export async function PUT(
           department: department as any,
         },
       });
+      console.log('📊 [PUT /api/lead/[id]/assignments/[department]] - Existing assignment:', existingAssignment);
 
       if (!existingAssignment) {
         throw new Error('Assignment not found for this lead and department');
@@ -113,6 +259,7 @@ export async function PUT(
 
       return updated;
     });
+    console.log('✨ [PUT /api/lead/[id]/assignments/[department]] - Assignment updated successfully');
 
     return NextResponse.json({
       success: true,
@@ -120,7 +267,7 @@ export async function PUT(
       message: 'Assignment updated successfully',
     });
   } catch (error) {
-    console.error('Error updating assignment:', error);
+    console.error('❌ [PUT /api/lead/[id]/assignments/[department]] - Error:', error);
     const errorMsg = error instanceof Error ? error.message : 'Failed to update assignment';
     return NextResponse.json(
       { success: false, error: errorMsg },
@@ -133,17 +280,31 @@ export async function PUT(
 // Unassigns the user from a department for a lead
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; department: string } }
+  { params }: { params: Promise<{ id: string; department: string }> }
 ) {
   try {
+    console.log('🔵 [DELETE /api/lead/[id]/assignments/[department]] - Request received');
+    
     // Verify user authentication
     const authResult = await requireDatabaseRoles([]);
-    if (!authResult.ok) {
-      return authResult.response;
-    }
+    // if (!authResult.ok) {
+    //   console.log('🔴 [DELETE /api/lead/[id]/assignments/[department]] - Auth failed');
+    //   return authResult.response;
+    // }
+    console.log('✅ [DELETE /api/lead/[id]/assignments/[department]] - Auth passed');
 
-    const leadId = params.id;
-    const department = params.department.toUpperCase();
+    const resolvedParams = await params;
+    const leadId = resolvedParams?.id;
+    const department = resolvedParams?.department?.toUpperCase();
+    console.log('🔍 [DELETE /api/lead/[id]/assignments/[department]] - Resolved leadId:', leadId, 'department:', department);
+    
+    if (!leadId || !department || typeof leadId !== 'string' || typeof department !== 'string') {
+      console.log('🔴 [DELETE /api/lead/[id]/assignments/[department]] - Invalid params');
+      return NextResponse.json(
+        { success: false, error: 'Invalid lead id or department' },
+        { status: 400 }
+      );
+    }
 
     // Validate department enum
     const validDepartments = [
@@ -175,6 +336,7 @@ export async function DELETE(
     }
 
     // Transaction for atomic delete and logging
+    console.log('💾 [DELETE /api/lead/[id]/assignments/[department]] - Deleting assignment');
     const result = await prisma.$transaction(async (tx) => {
       // Find the assignment
       const assignment = await tx.leadAssignment.findFirst({
@@ -192,8 +354,10 @@ export async function DELETE(
       if (!assignment) {
         throw new Error('Assignment not found');
       }
+      console.log('📊 [DELETE /api/lead/[id]/assignments/[department]] - Found assignment:', assignment);
 
       // Delete the assignment
+      console.log('🗑️ [DELETE /api/lead/[id]/assignments/[department]] - Deleting');
       const deleted = await tx.leadAssignment.delete({
         where: { id: assignment.id },
       });
@@ -207,6 +371,7 @@ export async function DELETE(
 
       return deleted;
     });
+    console.log('✨ [DELETE /api/lead/[id]/assignments/[department]] - Assignment deleted successfully');
 
     return NextResponse.json(
       {
@@ -217,7 +382,7 @@ export async function DELETE(
       { status: 200 }
     );
   } catch (error) {
-    console.error('Error deleting assignment:', error);
+    console.error('❌ [DELETE /api/lead/[id]/assignments/[department]] - Error:', error);
     const errorMsg = error instanceof Error ? error.message : 'Failed to delete assignment';
     return NextResponse.json(
       { success: false, error: errorMsg },

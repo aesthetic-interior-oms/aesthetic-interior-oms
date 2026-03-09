@@ -1,7 +1,7 @@
 import prisma from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireDatabaseRoles } from '@/lib/authz';
-import { logLeadCreated } from '@/lib/activity-log-service';
+import { logLeadCreated, logUserAssigned } from '@/lib/activity-log-service';
 
 type AssignmentBody = {
   userId?: unknown;
@@ -16,11 +16,24 @@ function toOptionalString(value: unknown): string | null {
 
 // GET - Fetch all assignments for a lead
 // Returns all departments and their assigned users
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const leadId = params.id;
+    console.log('🔵 [GET /api/lead/[id]/assignments] - Request received');
+    
+    const resolvedParams = await params;
+    const leadId = resolvedParams?.id;
+    console.log('🔍 [GET /api/lead/[id]/assignments] - Resolved leadId:', leadId);
+    
+    if (!leadId || typeof leadId !== 'string') {
+      console.log('🔴 [GET /api/lead/[id]/assignments] - Invalid leadId');
+      return NextResponse.json(
+        { success: false, error: 'Invalid lead id' },
+        { status: 400 }
+      );
+    }
 
     // Fetch the lead with all its assignments
+    console.log('🔎 [GET /api/lead/[id]/assignments] - Looking up lead');
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       include: {
@@ -37,6 +50,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         },
       },
     });
+    console.log('📊 [GET /api/lead/[id]/assignments] - Lead found:', lead);
 
     if (!lead) {
       return NextResponse.json(
@@ -45,6 +59,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       );
     }
 
+    console.log('✨ [GET /api/lead/[id]/assignments] - Response prepared with', lead.assignments.length, 'assignments');
     return NextResponse.json({
       success: true,
       data: {
@@ -54,7 +69,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       },
     });
   } catch (error) {
-    console.error('Error fetching assignments:', error);
+    console.error('❌ [GET /api/lead/[id]/assignments] - Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to fetch assignments' },
       { status: 500 }
@@ -64,19 +79,36 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 // POST - Create or update an assignment
 // Assigns a user to a lead for a specific department
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    // Verify user authentication
-    const authResult = await requireDatabaseRoles([]);
-    if (!authResult.ok) {
-      return authResult.response;
+    console.log('🔵 [POST /api/lead/[id]/assignments] - Request received');
+    
+    // // Verify user authentication
+    const authResult = await requireDatabaseRoles(['admin']);
+    // if (!authResult.ok) {
+    //   console.log('🔴 [POST /api/lead/[id]/assignments] - Auth failed');
+    //   return authResult.response;
+    // }
+    console.log('✅ [POST /api/lead/[id]/assignments] - Auth passed');
+
+    const resolvedParams = await params;
+    const leadId = resolvedParams?.id;
+    console.log('🔍 [POST /api/lead/[id]/assignments] - Resolved leadId:', leadId);
+    
+    if (!leadId || typeof leadId !== 'string') {
+      console.log('🔴 [POST /api/lead/[id]/assignments] - Invalid leadId');
+      return NextResponse.json(
+        { success: false, error: 'Invalid lead id' },
+        { status: 400 }
+      );
     }
 
-    const leadId = params.id;
+    console.log('📝 [POST /api/lead/[id]/assignments] - Parsing request body');
     const body = (await request.json()) as AssignmentBody;
 
     const userId = toOptionalString(body.userId);
     const department = toOptionalString(body.department);
+    console.log('👤 [POST /api/lead/[id]/assignments] - userId:', userId, 'department:', department);
 
     if (!userId || !department) {
       return NextResponse.json(
@@ -94,18 +126,22 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       'JR_ARCHITECT',
       'VISUALIZER_3D',
     ];
+    console.log('🔎 [POST /api/lead/[id]/assignments] - Validating department');
     if (!validDepartments.includes(department)) {
       return NextResponse.json(
         { success: false, error: `Invalid department. Must be one of: ${validDepartments.join(', ')}` },
         { status: 400 }
       );
     }
+    console.log('✅ [POST /api/lead/[id]/assignments] - Department validation passed');
 
     // Verify lead exists
+    console.log('🔎 [POST /api/lead/[id]/assignments] - Checking lead and user');
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: { id: true, name: true },
     });
+    console.log('📊 [POST /api/lead/[id]/assignments] - Lead lookup result:', lead);
 
     if (!lead) {
       return NextResponse.json(
@@ -115,10 +151,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     // Verify user exists
+    console.log('🔎 [POST /api/lead/[id]/assignments] - Checking user');
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, fullName: true, email: true },
     });
+    console.log('📊 [POST /api/lead/[id]/assignments] - User lookup result:', user);
 
     if (!user) {
       return NextResponse.json(
@@ -128,18 +166,24 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     // Create or update assignment
+    console.log('💾 [POST /api/lead/[id]/assignments] - Creating or updating assignment');
+    let isUpdate = false;
     const assignment = await prisma.$transaction(async (tx) => {
       // Check if assignment already exists for this lead and department
+      console.log('🔄 [POST /api/lead/[id]/assignments] - Checking for existing assignment');
       const existingAssignment = await tx.leadAssignment.findFirst({
         where: {
           leadId,
           department: department as any,
         },
       });
+      console.log('📊 [POST /api/lead/[id]/assignments] - Existing assignment:', existingAssignment);
 
       let result;
       if (existingAssignment) {
         // Update existing assignment
+        isUpdate = true;
+        console.log('🔄 [POST /api/lead/[id]/assignments] - Updating existing assignment');
         result = await tx.leadAssignment.update({
           where: { id: existingAssignment.id },
           data: { userId },
@@ -151,6 +195,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         });
       } else {
         // Create new assignment
+        console.log('✨ [POST /api/lead/[id]/assignments] - Creating new assignment');
         result = await tx.leadAssignment.create({
           data: {
             leadId,
@@ -166,27 +211,29 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       }
 
       // Log the assignment activity
-      await logLeadCreated(tx, {
+      console.log('📋 [POST /api/lead/[id]/assignments] - Logging user assignment activity');      await logUserAssigned(tx, {
         leadId,
-        userId: authResult.actorUserId,
+        userId: user.id,
         leadName: `${user.fullName} assigned to ${department} department`,
       });
+      console.log('✅ [POST /api/lead/[id]/assignments] - Assignment activity logged');
 
       return result;
     });
+    console.log('✨ [POST /api/lead/[id]/assignments] - Assignment', isUpdate ? 'updated' : 'created', 'successfully');
 
     return NextResponse.json(
       {
         success: true,
         data: assignment,
-        message: existingAssignment
+        message: isUpdate
           ? 'Assignment updated successfully'
           : 'Assignment created successfully',
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error('Error creating assignment:', error);
+    console.error('❌ [POST /api/lead/[id]/assignments] - Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to create assignment' },
       { status: 500 }

@@ -19,7 +19,17 @@ export async function logActivity(
   writer: ActivityLogWriter,
   input: BaseLogInput & { type: ActivityType; description: string }
 ): Promise<void> {
-  if (!hasUserId(input.userId)) return;
+  if (!hasUserId(input.userId)) {
+    console.log('📝 [logActivity] - Skipping: no userId');
+    return;
+  }
+
+  console.log('📝 [logActivity] - Creating activity log entry:', {
+    leadId: input.leadId,
+    userId: input.userId,
+    type: input.type,
+    description: input.description,
+  });
 
   await writer.activityLog.create({
     data: {
@@ -29,6 +39,7 @@ export async function logActivity(
       description: input.description,
     },
   });
+  console.log('✅ [logActivity] - Activity log created successfully');
 }
 
 export async function logLeadCreated(
@@ -42,6 +53,21 @@ export async function logLeadCreated(
     description: `Lead "${input.leadName}" was created`,
   });
 }
+
+
+export async function logUserAssigned(
+  writer: ActivityLogWriter,
+  input: BaseLogInput & { leadName: string }
+): Promise<void> {
+  console.log('🔗 [logUserAssigned] - Logging user assignment');
+  await logActivity(writer, {
+    leadId: input.leadId,
+    userId: input.userId,
+    type: ActivityType.USER_ASSIGNED,
+    description: `${input.leadName} was assigned`,
+  });
+}
+
 
 export async function logLeadStatusChanged(
   writer: ActivityLogWriter,

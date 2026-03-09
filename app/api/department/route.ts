@@ -1,11 +1,20 @@
 import prisma from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireDatabaseRoles } from '@/lib/authz';
-import { auth } from '@clerk/nextjs/server';
 
 type CreateDepartmentBody = {
   name?: unknown;
   description?: unknown;
+};
+
+type UpdateDepartmentBody = {
+  id?: unknown;
+  name?: unknown;
+  description?: unknown;
+};
+
+type DeleteDepartmentBody = {
+  id?: unknown;
 };
 
 function toOptionalString(value: unknown): string | null {
@@ -20,6 +29,29 @@ async function parseJsonBody(request: NextRequest): Promise<CreateDepartmentBody
   } catch {
     return null;
   }
+}
+
+async function parseUpdateJsonBody(request: NextRequest): Promise<UpdateDepartmentBody | null> {
+  try {
+    return (await request.json()) as UpdateDepartmentBody;
+  } catch {
+    return null;
+  }
+}
+
+async function parseDeleteJsonBody(request: NextRequest): Promise<DeleteDepartmentBody | null> {
+  try {
+    return (await request.json()) as DeleteDepartmentBody;
+  } catch {
+    return null;
+  }
+}
+
+function resolveDepartmentIdFromQuery(request: NextRequest): string | null {
+  const raw = request.nextUrl.searchParams.get('id');
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 // GET - Fetch all departments
@@ -170,4 +202,163 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// PUT - Update a department by id from query/body
+// Supports clients that call /api/department?id=<id> instead of /api/department/<id>
+export async function PUT(request: NextRequest) {
+  try {
+    const authResult = await requireDatabaseRoles(['admin']);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+
+    const body = await parseUpdateJsonBody(request);
+    if (!body) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid JSON body' },
+        { status: 400 }
+      );
+    }
+
+    const queryId = resolveDepartmentIdFromQuery(request);
+    const bodyId = toOptionalString(body.id);
+    const departmentId = queryId || bodyId;
+
+    if (!departmentId) {
+      return NextResponse.json(
+        { success: false, error: 'Department id is required (query: id or body: id)' },
+        { status: 400 }
+      );
+    }
+
+    const hasName = Object.prototype.hasOwnProperty.call(body, 'name');
+    const hasDescription = Object.prototype.hasOwnProperty.call(body, 'description');
+    if (!hasName && !hasDescription) {
+      return NextResponse.json(
+        { success: false, error: 'At least one field (name or description) is required' },
+        { status: 400 }
+      );
+    }
+
+    const name = toOptionalString(body.name);
+    const description = toOptionalString(body.description);
+    if (hasName && !name) {
+      return NextResponse.json(
+        { success: false, error: 'Name cannot be empty' },
+        { status: 400 }
+      );
+    }
+
+    const existingDepartment = await prisma.department.findUnique({
+      where: { id: departmentId },
+      select: { id: true, name: true },
+    });
+
+    if (!existingDepartment) {
+      return NextResponse.json(
+        { success: false, error: 'Department not found' },
+        { status: 404 }
+      );
+    }
+
+    if (name && name !== existingDepartment.name) {
+      const duplicateName = await prisma.department.findUnique({
+        where: { name },
+        select: { id: true },
+      });
+
+      if (duplicateName) {
+        return NextResponse.json(
+          { success: false, error: 'Department with this name already exists' },
+          { status: 409 }
+        );
+      }
+    }
+
+    const updatedDepartment = await prisma.department.update({
+      where: { id: departmentId },
+      data: {
+        ...(name && { name }),
+        ...(body.description !== undefined && { description: description || null }),
+      },
+      include: {
+        _count: {
+          select: {
+            userDepartments: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: updatedDepartment,
+      message: 'Department updated successfully',
+    });
+  } catch {
+    return NextResponse.json(
+      { success: false, error: 'Failed to update department' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Delete a department by id from query/body
+// Supports clients that call /api/department?id=<id> instead of /api/department/<id>
+export async function DELETE(request: NextRequest) {
+  try {
+    const authResult = await requireDatabaseRoles(['admin']);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+
+    const queryId = resolveDepartmentIdFromQuery(request);
+    const body = await parseDeleteJsonBody(request);
+    const bodyId = toOptionalString(body?.id);
+    const departmentId = queryId || bodyId;
+
+    if (!departmentId) {
+      return NextResponse.json(
+        { success: false, error: 'Department id is required (query: id or body: id)' },
+        { status: 400 }
+      );
+    }
+
+    const existingDepartment = await prisma.department.findUnique({
+      where: { id: departmentId },
+      select: { id: true },
+    });
+
+    if (!existingDepartment) {
+      return NextResponse.json(
+        { success: false, error: 'Department not found' },
+        { status: 404 }
+      );
+    }
+
+    const deletedDepartment = await prisma.department.delete({
+      where: { id: departmentId },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: deletedDepartment,
+      message: 'Department deleted successfully',
+    });
+  } catch {
+    return NextResponse.json(
+      { success: false, error: 'Failed to delete department' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      Allow: 'GET, POST, PUT, DELETE, OPTIONS',
+    },
+  });
 }
