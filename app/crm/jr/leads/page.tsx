@@ -27,15 +27,14 @@ import {
 } from '@/components/ui/dialog'
 
 
-const statuses = ['NEW', 'CONTACTED', 'FOLLOWUP', 'VISIT_SCHEDULED', 'REJECTED', 'CONVERTED']
+const stages = ['NEW', 'CONTACT_ATTEMPTED', 'NURTURING', 'VISIT_SCHEDULED', 'CLOSED']
 
-const statusColors: Record<string, string> = {
+const stageColors: Record<string, string> = {
   NEW: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100',
-  CONTACTED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200',
-  FOLLOWUP: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200',
+  CONTACT_ATTEMPTED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200',
+  NURTURING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200',
   VISIT_SCHEDULED: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200',
-  REJECTED: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
-  CONVERTED: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
+  CLOSED: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
 }
 
 type LeadSummary = {
@@ -43,7 +42,7 @@ type LeadSummary = {
   name: string
   phone: string | null
   email: string
-  status: string
+  stage: string
   location: string | null
   created_at: string
   assignee?: {
@@ -58,7 +57,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<LeadSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [stageFilter, setStageFilter] = useState('ALL')
 
   useEffect(() => {
     setLoading(true)
@@ -76,12 +75,12 @@ export default function LeadsPage() {
       lead.name.toLowerCase().includes(search.toLowerCase()) ||
       (lead.phone || '').includes(search) ||
       (lead.email || '').toLowerCase().includes(search.toLowerCase())
-    const matchesStatus = statusFilter === 'ALL' || lead.status === statusFilter
-    return matchesSearch && matchesStatus
+    const matchesStage = stageFilter === 'ALL' || lead.stage === stageFilter
+    return matchesSearch && matchesStage
   })
 
-  const statusCounts = statuses.reduce((acc, status) => {
-    acc[status] = leads.filter((l) => l.status === status).length
+  const stageCounts = stages.reduce((acc, stage) => {
+    acc[stage] = leads.filter((l) => l.stage === stage).length
     return acc
   }, {} as Record<string, number>)
 
@@ -110,13 +109,13 @@ export default function LeadsPage() {
            
       </div>
 
-      {/* Status Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {statuses.map((status) => (
-          <Card key={status} className="text-center bg-card border-border">
+      {/* Stage Overview */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        {stages.map((stage) => (
+          <Card key={stage} className="text-center bg-card border-border">
             <CardContent className="pt-6">
-              <div className="text-2xl font-bold text-foreground">{statusCounts[status]}</div>
-              <p className="mt-1 text-xs text-muted-foreground">{status}</p>
+              <div className="text-2xl font-bold text-foreground">{stageCounts[stage]}</div>
+              <p className="mt-1 text-xs text-muted-foreground">{stage}</p>
             </CardContent>
           </Card>
         ))}
@@ -133,15 +132,15 @@ export default function LeadsPage() {
             className="pl-10"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={stageFilter} onValueChange={setStageFilter}>
           <SelectTrigger className="w-full md:w-48">
-            <SelectValue placeholder="Filter by status" />
+            <SelectValue placeholder="Filter by stage" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">All Status</SelectItem>
-            {statuses.map((status) => (
-              <SelectItem key={status} value={status}>
-                {status}
+            <SelectItem value="ALL">All Stages</SelectItem>
+            {stages.map((stage) => (
+              <SelectItem key={stage} value={stage}>
+                {stage}
               </SelectItem>
             ))}
           </SelectContent>
@@ -165,7 +164,7 @@ export default function LeadsPage() {
                     <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Phone</th>
                     <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Assignee</th>
                     <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Location</th>
-                    <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Status</th>
+                    <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Stage</th>
                     <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Action</th>
                   </tr>
                 </thead>
@@ -189,8 +188,8 @@ export default function LeadsPage() {
                       </td>
                       <td className="py-4 px-4">{lead.location || '—'}</td>
                       <td className="py-4 px-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[lead.status]}`}>
-                          {lead.status}
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${stageColors[lead.stage]}`}>
+                          {lead.stage}
                         </span>
                       </td>
                       <td className="py-4 px-4 text-center">
@@ -210,7 +209,7 @@ export default function LeadsPage() {
       </Card>
 
       {/* Add the modal here */}
-      {/* LeadCreateModal is now self-  contained with its own trigger button */}
+      {/* LeadCreateModal is now self-contained with its own trigger button */}
     </div>
   )
 }

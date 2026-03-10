@@ -26,7 +26,7 @@ import { requireDatabaseRoles } from '@/lib/authz';
         "email": "moinul@example.com",
         "source": "Website",
         "location": "Dhaka",
-        "status": "NEW",
+        
         "stage": "NEW",
         "budget": 500000,
         "created_at": "2026-03-09T08:03:54.636Z",
@@ -233,7 +233,6 @@ export async function POST(request: NextRequest) {
           source: toOptionalString(body.source),
           location: toOptionalString(body.location),
           budget: toBudget(body.budget),
-          status: LeadStatus.NEW,
           stage: LeadStage.NEW,
         },
         // Include assignee details in the response
