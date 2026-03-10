@@ -236,7 +236,7 @@
 */
 
 import prisma from '@/lib/prisma';
-import { LeadStage, LeadStatus, LeadSubStatus, Prisma } from '@/generated/prisma/client';
+import { LeadStage, LeadSubStatus, Prisma } from '@/generated/prisma/client';
 import { isSubStatusAllowedForStage } from '@/lib/lead-stage';
 import { NextRequest, NextResponse } from 'next/server';
 import { logLeadAssignmentChanged, logLeadStatusChanged } from '@/lib/activity-log-service';
@@ -286,13 +286,13 @@ function toBudget(value: unknown): number | null | undefined {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function toLeadStatus(value: unknown): LeadStatus | undefined {
+function toLeadStatus(value: unknown): LeadStage | undefined {
   if (value === undefined) return undefined;
-  if (typeof value !== 'string') return LeadStatus.NEW;
+  if (typeof value !== 'string') return LeadStage.NEW;
   const normalized = value.trim().toUpperCase();
-  return Object.values(LeadStatus).includes(normalized as LeadStatus)
-    ? (normalized as LeadStatus)
-    : LeadStatus.NEW;
+  return Object.values(LeadStage).includes(normalized as LeadStage)
+    ? (normalized as LeadStage)
+    : LeadStage.NEW;
 }
 
 function toLeadStage(value: unknown): LeadStage | undefined {
@@ -448,8 +448,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           phone,
           email: email ?? existingLead.email,
           source: toOptionalString(body.source),
-          status: status ?? existingLead.status,
-             stage,
+          stage: stage ?? existingLead.stage,
+             
           subStatus,
           budget: toBudget(body.budget) ?? null,
           location: toOptionalString(body.location),
@@ -464,11 +464,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       });
 
       // Add status history + activity when valid userId is present.
-      if (status && status !== existingLead.status && userId) {
+      if (status && status !== existingLead.stage && userId) {
         await tx.leadStatusHistory.create({
           data: {
             leadId: id,
-            oldStatus: existingLead.status,
+            oldStatus: existingLead.stage,
             newStatus: status,
             changedById: userId,
           },
@@ -477,7 +477,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
              await logLeadStatusChanged(tx, {
           leadId: id,
           userId,
-          from: existingLead.status,
+          from: existingLead.stage,
           to: status,
         });
       }
@@ -581,7 +581,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           ...(body.phone !== undefined ? { phone: toOptionalString(body.phone) } : {}),
           ...(nextEmail !== undefined ? { email: nextEmail } : {}),
           ...(body.source !== undefined ? { source: toOptionalString(body.source) } : {}),
-          ...(status !== undefined ? { status } : {}),
            ...(stage !== undefined ? { stage } : {}),
           ...(body.subStatus !== undefined ? { subStatus } : {}),
           ...(body.budget !== undefined ? { budget: toBudget(body.budget) ?? null } : {}),
@@ -596,11 +595,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         },
       });
 
-      if (status && status !== existingLead.status && userId) {
+      if (status && status !== existingLead.stage && userId) {
         await tx.leadStatusHistory.create({
           data: {
             leadId: id,
-            oldStatus: existingLead.status,
+            oldStatus: existingLead.stage,
             newStatus: status,
             changedById: userId,
           },
@@ -609,7 +608,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
          await logLeadStatusChanged(tx, {
           leadId: id,
           userId,
-          from: existingLead.status,
+          from: existingLead.stage,
           to: status,
         });
       }
