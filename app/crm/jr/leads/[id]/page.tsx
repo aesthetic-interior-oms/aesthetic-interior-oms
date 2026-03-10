@@ -285,10 +285,10 @@ export default function LeadDetailPage() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen w-full overflow-x-hidden bg-background">
       {/* Header Bar */}
       <div className="border-b border-border bg-card sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="w-full px-4 py-4 sm:px-6 lg:px-8 xl:px-10 2xl:px-12 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4 min-w-0">
             <Button onClick={() => router.back()} variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0">
               <ArrowLeft className="w-5 h-5" />
@@ -315,7 +315,7 @@ export default function LeadDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 xl:px-10 2xl:px-12">
         {loading && (
           <div className="flex items-center justify-center py-16">
             <div className="text-center">
@@ -337,9 +337,9 @@ export default function LeadDetailPage() {
         )}
 
         {!loading && lead && (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-8">
-            {/* Main Content - 3 columns */}
-            <div className="lg:col-span-3 space-y-6 w-full">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-12 xl:gap-8 2xl:gap-10">
+            {/* Main Content */}
+            <div className="space-y-6 w-full xl:col-span-8 2xl:col-span-9">
               {/* Contact Information */}
               <Card className="border-border w-full">
                 <CardHeader>
@@ -382,7 +382,7 @@ export default function LeadDetailPage() {
                     </div>
                   </div>
                   <div className="border-t border-border mt-6 pt-6">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Source</p>
                         <Badge variant="secondary" className="mt-2">{lead.source || 'Unknown'}</Badge>
@@ -427,18 +427,18 @@ export default function LeadDetailPage() {
 
               {/* Tabs for Notes, Activity, and Followups */}
               <Tabs defaultValue="notes" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 mb-6">
-                  <TabsTrigger value="notes" className="flex items-center gap-2">
+                <TabsList className="mb-6 grid h-auto w-full grid-cols-3 gap-1 p-1">
+                  <TabsTrigger value="notes" className="flex min-w-0 items-center justify-center gap-1 px-2 py-2 text-xs sm:gap-2 sm:text-sm">
                     <MessageSquare className="w-4 h-4" />
                     <span className="hidden sm:inline">Notes</span>
                     <span className="sm:hidden">Notes</span>
                   </TabsTrigger>
-                  <TabsTrigger value="activity" className="flex items-center gap-2">
+                  <TabsTrigger value="activity" className="flex min-w-0 items-center justify-center gap-1 px-2 py-2 text-xs sm:gap-2 sm:text-sm">
                     <History className="w-4 h-4" />
                     <span className="hidden sm:inline">Activity</span>
                     <span className="sm:hidden">Activity</span>
                   </TabsTrigger>
-                  <TabsTrigger value="followups" className="flex items-center gap-2">
+                  <TabsTrigger value="followups" className="flex min-w-0 items-center justify-center gap-1 px-2 py-2 text-xs sm:gap-2 sm:text-sm">
                     <Calendar className="w-4 h-4" />
                     <span className="hidden sm:inline">Followups</span>
                     <span className="sm:hidden">Followups</span>
@@ -567,7 +567,7 @@ export default function LeadDetailPage() {
                   {followups.map((followup) => (
                     <Card key={followup.id} className="border-border hover:shadow-sm transition-shadow">
                       <CardContent className="pt-4 pb-4">
-                        <div className="flex items-start justify-between gap-4">
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                               <Calendar className="w-4 h-4 text-primary" />
@@ -598,10 +598,10 @@ export default function LeadDetailPage() {
               </Tabs>
             </div>
 
-            {/* Right Sidebar - 1 column */}
-            <div className="space-y-4 h-fit">
+            {/* Right Sidebar */}
+            <div className="space-y-4 h-fit xl:sticky xl:top-24 self-start">
               {/* Lead Status Card */}
-              <Card className="border-border sticky top-24">
+              <Card className="border-border">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-primary" />
