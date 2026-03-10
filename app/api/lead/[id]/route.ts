@@ -248,7 +248,7 @@ type UpdateLeadBody = {
   phone?: unknown;
   email?: unknown;
   source?: unknown;
-  status?: unknown;
+  
   stage?: unknown;
   subStatus?: unknown;
   budget?: unknown;
@@ -427,7 +427,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       }
     }
 
-    const status = toLeadStatus(body.status);
+   
      const stage = toLeadStage(body.stage) ?? existingLead.stage;
     const subStatus = toLeadSubStatus(body.subStatus) ?? null;
 
@@ -464,12 +464,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       });
 
       // Add status history + activity when valid userId is present.
-      if (status && status !== existingLead.stage && userId) {
+      if (stage && stage !== existingLead.stage && userId) {
         await tx.leadStatusHistory.create({
           data: {
             leadId: id,
             oldStatus: existingLead.stage,
-            newStatus: status,
+            newStatus: stage,
             changedById: userId,
           },
         });
@@ -478,7 +478,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           leadId: id,
           userId,
           from: existingLead.stage,
-          to: status,
+          to: stage,
         });
       }
 
@@ -558,7 +558,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
     }
 
-    const status = toLeadStatus(body.status);
+
      const stage = toLeadStage(body.stage);
     const subStatus = toLeadSubStatus(body.subStatus) ?? null;
     const userId = toOptionalString(body.userId);
@@ -595,12 +595,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         },
       });
 
-      if (status && status !== existingLead.stage && userId) {
+      if (stage && stage !== existingLead.stage && userId) {
         await tx.leadStatusHistory.create({
           data: {
             leadId: id,
             oldStatus: existingLead.stage,
-            newStatus: status,
+            newStatus: stage,
             changedById: userId,
           },
         });
@@ -609,7 +609,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           leadId: id,
           userId,
           from: existingLead.stage,
-          to: status,
+          to: stage,
         });
       }
 
