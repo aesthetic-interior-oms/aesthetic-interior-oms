@@ -19,7 +19,6 @@ model Lead {
   phone      String         @unique
   email      String?
   source     String?
-  status     LeadStatus     @default(NEW)
   stage      LeadStage      @default(NEW)
   subStatus  LeadSubStatus?
   budget     Float?
@@ -62,8 +61,8 @@ model LeadStatusHistory {
   id          String     @id @default(cuid())
   leadId      String
   lead        Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  oldStatus   LeadStatus
-  newStatus   LeadStatus
+  oldStatus   LeadStage
+  newStatus   LeadStage
   changedById String
   changedBy   User       @relation(fields: [changedById], references: [id], onDelete: Cascade)
   changedAt   DateTime   @default(now())
@@ -230,14 +229,7 @@ model UserDepartment {
   @@index([departmentId])
 }
 
-enum LeadStatus {
-  NEW
-  CONTACTED
-  FOLLOWUP
-  VISIT_SCHEDULED
-  REJECTED
-  QUALIFIED
-}
+
 
 enum LeadStage {
   NEW

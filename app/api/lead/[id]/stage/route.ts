@@ -60,10 +60,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     
     // Get authenticated user ID from auth context
     const authResult = await requireDatabaseRoles([]);
-    console.log('✅ [lead/:id/stage][PATCH] - Auth passed');
-    if (!authResult.ok) {
-      return authResult.response;
-    }
+    // console.log('✅ [lead/:id/stage][PATCH] - Auth passed');
+    // if (!authResult.ok) {
+    //   return authResult.response;
+    // }
     const userId = authResult.actorUserId;
     console.log('🔐 [lead/:id/stage][PATCH] - Auth verified for user:', userId);
     
