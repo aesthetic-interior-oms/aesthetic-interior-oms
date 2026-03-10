@@ -13,15 +13,41 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, Plus } from 'lucide-react'
+import { 
+  ArrowLeft, 
+  Plus, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  Calendar,
+  DollarSign,
+  User,
+  Clock,
+  FileText,
+  CheckCircle2,
+  AlertCircle,
+  TrendingUp,
+  History,
+  MessageSquare,
+} from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
-const statusColors: Record<string, string> = {
-  NEW: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100',
-  CONTACTED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200',
-  FOLLOWUP: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200',
-  VISIT_SCHEDULED: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200',
-  REJECTED: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200',
-  CONVERTED: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
+const stageColors: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
+  LEAD_CREATED: { bg: 'bg-blue-50 dark:bg-blue-950', text: 'text-blue-700 dark:text-blue-200', icon: '🎯' },
+  CONTACT_ATTEMPTED: { bg: 'bg-yellow-50 dark:bg-yellow-950', text: 'text-yellow-700 dark:text-yellow-200', icon: '📞' },
+  CONTACTED: { bg: 'bg-cyan-50 dark:bg-cyan-950', text: 'text-cyan-700 dark:text-cyan-200', icon: '✓' },
+  NURTURING: { bg: 'bg-purple-50 dark:bg-purple-950', text: 'text-purple-700 dark:text-purple-200', icon: '🌱' },
+  QUALIFIED: { bg: 'bg-green-50 dark:bg-green-950', text: 'text-green-700 dark:text-green-200', icon: '⭐' },
+  VISIT_SCHEDULED: { bg: 'bg-indigo-50 dark:bg-indigo-950', text: 'text-indigo-700 dark:text-indigo-200', icon: '📅' },
+  CONVERTED: { bg: 'bg-emerald-50 dark:bg-emerald-950', text: 'text-emerald-700 dark:text-emerald-200', icon: '🎉' },
+  REJECTED: { bg: 'bg-red-50 dark:bg-red-950', text: 'text-red-700 dark:text-red-200', icon: '✗' },
+}
+
+const substageColors: Record<string, string> = {
+  NO_ANSWER: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200',
+  WARM_LEAD: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
+  COLD_LEAD: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100',
+  INTERESTED: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
 }
 
 type LeadDetails = {
@@ -30,7 +56,8 @@ type LeadDetails = {
   phone: string | null
   email: string
   source: string | null
-  status: string
+  stage: string
+  subStatus: string | null
   budget: number | null
   location: string | null
   remarks: string | null
@@ -61,19 +88,27 @@ type Note = {
 }
 
 type Activity = {
-  id: string | number
-  action: string
+  id: string
+  type: string
   description: string
-  user: string
-  date: string
+  createdAt: string
+  user: {
+    id: string
+    fullName: string
+    email: string
+  }
 }
 
 type Followup = {
-  id: string | number
-  date: string
-  type: string
-  note: string
+  id: string
+  followupDate: string
+  notes: string
   status: string
+  assignedTo: {
+    id: string
+    fullName: string
+    email: string
+  }
 }
 
 export default function LeadDetailPage() {
@@ -84,12 +119,12 @@ export default function LeadDetailPage() {
   const [lead, setLead] = useState<LeadDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [notesLoading, setNotesLoading] = useState(false)
-  const [status, setStatus] = useState('NEW')
+  const [stage, setStage] = useState('LEAD_CREATED')
   const [newNote, setNewNote] = useState('')
   const [submittingNote, setSubmittingNote] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
-  // These will be replaced with real API data in the future
+  // Real API data
   const [notes, setNotes] = useState<Note[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [followups, setFollowups] = useState<Followup[]>([])
@@ -144,7 +179,7 @@ export default function LeadDetailPage() {
       .then(data => {
         console.log('[LeadDetail] phase=fetch_lead_parsed leadId=', leadId, 'success=', data.success, 'hasData=', Boolean(data.data));
         setLead(data.data)
-        setStatus(data.data?.status || 'NEW')
+        setStage(data.data?.stage || 'LEAD_CREATED')
         setActivities(data.data?.activities || [])
         setFollowups(data.data?.followUps || [])
         setLoading(false)
@@ -250,253 +285,398 @@ export default function LeadDetailPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button onClick={() => router.back()} variant="outline" size="sm" className="gap-2">
-          <ArrowLeft className="w-4 h-4" />
-          Back
-        </Button>
+    <main className="min-h-screen bg-background">
+      {/* Header Bar */}
+      <div className="border-b border-border bg-card sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button onClick={() => router.back()} variant="ghost" size="icon" className="h-9 w-9">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">{lead?.name || 'Lead Details'}</h1>
+              <p className="text-sm text-muted-foreground mt-1">{lead?.location || 'Location not provided'}</p>
+            </div>
+          </div>
+          {lead && (
+            <div className="flex items-center gap-3">
+              <Badge className={`px-3 py-1 text-sm font-medium ${stageColors[lead.stage]?.bg || stageColors.LEAD_CREATED?.bg}`}>
+                <span className="mr-2">{stageColors[lead.stage]?.icon || '•'}</span>
+                {lead.stage}
+              </Badge>
+              {lead.subStatus && (
+                <Badge variant="outline" className={`${substageColors[lead.subStatus]}`}>
+                  {lead.subStatus}
+                </Badge>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Lead Info */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-2xl text-foreground">{lead.name}</CardTitle>
-                  <p className="mt-1 text-muted-foreground">{lead.location || '—'}</p>
-                </div>
-                <span className={`px-4 py-2 rounded-full text-sm font-medium ${statusColors[status]}`}>
-                  {status}
-                </span>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {loading && (
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center">
+              <div className="w-10 h-10 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading lead details...</p>
+            </div>
+          </div>
+        )}
+
+        {!loading && !lead && (
+          <Card className="border-destructive">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-destructive" />
+                <p className="text-foreground font-medium">Lead not found</p>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-semibold text-foreground">{lead.phone || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-semibold text-foreground">{lead.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Source</p>
-                  <p className="font-semibold text-foreground capitalize">{lead.source || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Budget</p>
-                  <p className="font-semibold text-foreground">{lead.budget !== null ? lead.budget : '—'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Assignee</p>
-                  <p className="font-semibold text-foreground">
-                    {lead.assignee ? lead.assignee.fullName : 'Unassigned'}
-                  </p>
-                  {lead.assignee && (
-                    <span className="text-xs text-muted-foreground">{lead.assignee.email}</span>
-                  )}
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Created</p>
-                  <p className="font-semibold text-foreground">{new Date(lead.created_at).toLocaleString()}</p>
-                </div>
-              </div>
-              {lead.remarks && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Remarks</p>
-                  <p className="font-semibold text-foreground">{lead.remarks}</p>
-                </div>
-              )}
             </CardContent>
           </Card>
+        )}
 
-          {/* Tabs */}
-          <Tabs defaultValue="notes" className="w-full">
-            <TabsList>
-              <TabsTrigger value="notes">Notes</TabsTrigger>
-              <TabsTrigger value="activity">Activity</TabsTrigger>
-              <TabsTrigger value="followups">Followups</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="notes" className="space-y-4 mt-6">
-              {/* Add Note */}
-              <Card>
+        {!loading && lead && (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Main Content - 3 columns */}
+            <div className="lg:col-span-3 space-y-6">
+              {/* Contact Information */}
+              <Card className="border-border">
                 <CardHeader>
-                  <CardTitle className="text-base">Add Note</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-primary" />
+                    Contact Information
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <Textarea
-                    placeholder="Add a note..."
-                    value={newNote}
-                    onChange={(e) => setNewNote(e.target.value)}
-                    rows={3}
-                  />
-                  <Button 
-                    onClick={handleAddNote} 
-                    className="w-full"
-                    disabled={!newNote.trim() || submittingNote}
-                  >
-                    {submittingNote ? 'Adding...' : 'Add Note'}
-                  </Button>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex items-start gap-3">
+                      <Phone className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone</p>
+                        <p className="text-base font-semibold text-foreground mt-1">{lead.phone || '—'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Mail className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</p>
+                        <p className="text-base font-semibold text-foreground mt-1 truncate">{lead.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <MapPin className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Location</p>
+                        <p className="text-base font-semibold text-foreground mt-1">{lead.location || '—'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <DollarSign className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Budget</p>
+                        <p className="text-base font-semibold text-foreground mt-1">
+                          {lead.budget ? `৳${lead.budget.toLocaleString()}` : '—'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="border-t border-border mt-6 pt-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Source</p>
+                        <Badge variant="secondary" className="mt-2">{lead.source || 'Unknown'}</Badge>
+                      </div>
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Created</p>
+                        <p className="text-sm text-foreground mt-2">{new Date(lead.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
-              {/* Notes List */}
-              <div className="space-y-3">
-                {notesLoading && (
-                  <div className="text-muted-foreground text-sm">Loading notes...</div>
-                )}
-                {!notesLoading && notes.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    <p>No notes yet. Add your first note!</p>
+              {/* Assignment Information */}
+              <Card className="border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-primary" />
+                    Assignment Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {lead.assignee ? (
+                      <div className="flex items-center gap-4 p-4 bg-secondary/50 rounded-lg border border-border">
+                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-bold flex-shrink-0">
+                          {lead.assignee.fullName.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-foreground">{lead.assignee.fullName}</p>
+                          <p className="text-sm text-muted-foreground truncate">{lead.assignee.email}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-900">
+                        <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">Not assigned yet</p>
+                      </div>
+                    )}
                   </div>
-                )}
-                {!notesLoading && notes.map((note) => (
-                  <Card key={note.id} className="hover:shadow-md transition-shadow duration-200">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start gap-4">
-                        {/* User Avatar */}
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 dark:from-blue-500 dark:to-blue-700 flex items-center justify-center text-white text-sm font-medium">
-                          {note.user.fullName.charAt(0).toUpperCase()}
-                        </div>
-                        
-                        {/* Note Content */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div>
-                              <p className="font-semibold text-foreground">{note.user.fullName}</p>
-                              <p className="text-xs text-muted-foreground">{note.user.email}</p>
+                </CardContent>
+              </Card>
+
+              {/* Tabs for Notes, Activity, and Followups */}
+              <Tabs defaultValue="notes" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 mb-6">
+                  <TabsTrigger value="notes" className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    <span className="hidden sm:inline">Notes</span>
+                    <span className="sm:hidden">Notes</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="activity" className="flex items-center gap-2">
+                    <History className="w-4 h-4" />
+                    <span className="hidden sm:inline">Activity</span>
+                    <span className="sm:hidden">Activity</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="followups" className="flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
+                    <span className="hidden sm:inline">Followups</span>
+                    <span className="sm:hidden">Followups</span>
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Notes Tab */}
+                <TabsContent value="notes" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Add Note</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <Textarea
+                        placeholder="Write your notes here..."
+                        value={newNote}
+                        onChange={(e) => setNewNote(e.target.value)}
+                        rows={4}
+                        className="resize-none"
+                      />
+                      <Button 
+                        onClick={handleAddNote} 
+                        className="w-full"
+                        disabled={!newNote.trim() || submittingNote}
+                      >
+                        {submittingNote ? 'Adding...' : 'Add Note'}
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  <div className="space-y-3">
+                    {notesLoading && (
+                      <Card>
+                        <CardContent className="pt-6 text-center">
+                          <div className="inline-block w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                          <p className="text-muted-foreground text-sm mt-3">Loading notes...</p>
+                        </CardContent>
+                      </Card>
+                    )}
+                    {!notesLoading && notes.length === 0 && (
+                      <Card>
+                        <CardContent className="pt-8 pb-8 text-center">
+                          <MessageSquare className="w-8 h-8 text-muted-foreground mx-auto mb-3 opacity-50" />
+                          <p className="text-muted-foreground text-sm">No notes yet. Add your first note to get started!</p>
+                        </CardContent>
+                      </Card>
+                    )}
+                    {!notesLoading && notes.map((note) => (
+                      <Card key={note.id} className="hover:shadow-md transition-all duration-200 border-border">
+                        <CardContent className="pt-4 pb-4">
+                          <div className="flex gap-4">
+                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 dark:from-blue-500 dark:to-blue-700 flex items-center justify-center text-white text-sm font-bold">
+                              {note.user.fullName.charAt(0).toUpperCase()}
                             </div>
-                            <p className="text-xs text-muted-foreground flex-shrink-0 whitespace-nowrap">
-                              {new Date(note.createdAt).toLocaleDateString()} {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </p>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline justify-between gap-2 mb-1">
+                                <p className="font-semibold text-foreground text-sm">{note.user.fullName}</p>
+                                <p className="text-xs text-muted-foreground flex-shrink-0">
+                                  {new Date(note.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <p className="text-xs text-muted-foreground mb-2">{note.user.email}</p>
+                              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
+                                {note.content}
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words">
-                            {note.content}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </TabsContent>
 
-            <TabsContent value="activity" className="mt-6">
-              <div className="space-y-3">
-                {activities.length === 0 && (
-                  <div className="text-muted-foreground text-sm">No activity yet.</div>
-                )}
-                {activities.map((activity) => (
-                  <Card key={activity.id}>
-                    <CardContent className="pt-6">
-                      <div className="flex items-start gap-4">
-                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-2 flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="font-semibold text-foreground">{activity.action}</p>
-                          <p className="text-sm text-muted-foreground">{activity.description}</p>
-                          <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-                            <span>{activity.user}</span>
-                            <span>{activity.date}</span>
+                {/* Activity Tab */}
+                <TabsContent value="activity" className="space-y-3">
+                  {activities.length === 0 && (
+                    <Card>
+                      <CardContent className="pt-8 pb-8 text-center">
+                        <History className="w-8 h-8 text-muted-foreground mx-auto mb-3 opacity-50" />
+                        <p className="text-muted-foreground text-sm">No activity recorded yet.</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {activities.map((activity) => (
+                    <Card key={activity.id} className="border-border hover:shadow-sm transition-shadow">
+                      <CardContent className="pt-4 pb-4">
+                        <div className="flex gap-4">
+                          <div className="flex-shrink-0 pt-1">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
+                              {activity.type === 'USER_ASSIGNED' && <User className="w-4 h-4 text-primary" />}
+                              {activity.type === 'FOLLOWUP_SET' && <Calendar className="w-4 h-4 text-primary" />}
+                              {activity.type === 'STATUS_CHANGE' && <TrendingUp className="w-4 h-4 text-primary" />}
+                              {activity.type === 'LEAD_CREATED' && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                              {!['USER_ASSIGNED', 'FOLLOWUP_SET', 'STATUS_CHANGE', 'LEAD_CREATED'].includes(activity.type) && 
+                                <AlertCircle className="w-4 h-4 text-primary" />}
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 mb-1">
+                              <div>
+                                <p className="font-semibold text-foreground text-sm capitalize">{activity.type.replace(/_/g, ' ')}</p>
+                                <p className="text-xs text-muted-foreground">{activity.user.fullName}</p>
+                              </div>
+                              <p className="text-xs text-muted-foreground flex-shrink-0 whitespace-nowrap">
+                                {new Date(activity.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-2">{activity.description}</p>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </TabsContent>
 
-            <TabsContent value="followups" className="mt-6">
-              <div className="space-y-3">
-                {followups.length === 0 && (
-                  <div className="text-muted-foreground text-sm">No followups yet.</div>
-                )}
-                {followups.map((followup) => (
-                  <Card key={followup.id}>
-                    <CardContent className="pt-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold text-foreground">{followup.date}</p>
-                          <p className="text-sm capitalize text-muted-foreground">{followup.type}: {followup.note}</p>
+                {/* Followups Tab */}
+                <TabsContent value="followups" className="space-y-3">
+                  {followups.length === 0 && (
+                    <Card>
+                      <CardContent className="pt-8 pb-8 text-center">
+                        <Calendar className="w-8 h-8 text-muted-foreground mx-auto mb-3 opacity-50" />
+                        <p className="text-muted-foreground text-sm">No followups scheduled.</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {followups.map((followup) => (
+                    <Card key={followup.id} className="border-border hover:shadow-sm transition-shadow">
+                      <CardContent className="pt-4 pb-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Calendar className="w-4 h-4 text-primary" />
+                              <p className="font-semibold text-foreground">
+                                {new Date(followup.followupDate).toLocaleDateString('en-US', { 
+                                  weekday: 'short', 
+                                  month: 'short', 
+                                  day: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-3">{followup.notes}</p>
+                            <div className="flex items-center gap-2 text-xs">
+                              <User className="w-3.5 h-3.5 text-muted-foreground" />
+                              <span className="text-muted-foreground">{followup.assignedTo.fullName}</span>
+                            </div>
+                          </div>
+                          <Badge className={followup.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200' : 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200'}>
+                            {followup.status}
+                          </Badge>
                         </div>
-                        <span className="rounded bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200">
-                          {followup.status}
-                        </span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </TabsContent>
+              </Tabs>
+            </div>
 
-        {/* Action Panel */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Assigned To</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="font-semibold text-foreground">
-                {lead.assignee ? lead.assignee.fullName : 'Unassigned'}
-              </p>
-              {lead.assignee && (
-                <span className="text-xs text-muted-foreground">{lead.assignee.email}</span>
+            {/* Right Sidebar - 1 column */}
+            <div className="space-y-4 h-fit">
+              {/* Lead Status Card */}
+              <Card className="border-border sticky top-24">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-primary" />
+                    Lead Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Current Stage</p>
+                    <Badge className={`w-full text-center justify-center py-2 ${stageColors[lead.stage]?.bg}`}>
+                      {lead.stage}
+                    </Badge>
+                  </div>
+                  {lead.subStatus && (
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Sub Status</p>
+                      <Badge variant="outline" className={`w-full text-center justify-center py-2 ${substageColors[lead.subStatus]}`}>
+                        {lead.subStatus}
+                      </Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Timeline Card */}
+              <Card className="border-border">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-primary" />
+                    Timeline
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Created</p>
+                    <p className="text-foreground font-medium mt-1">
+                      {new Date(lead.created_at).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                  <div className="border-t border-border pt-3">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Last Updated</p>
+                    <p className="text-foreground font-medium mt-1">
+                      {new Date(lead.updated_at).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Remarks Card */}
+              {lead.remarks && (
+                <Card className="border-border">
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-primary" />
+                      Remarks
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-foreground leading-relaxed">
+                      {lead.remarks}
+                    </p>
+                  </CardContent>
+                </Card>
               )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Change Status</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="NEW">New</SelectItem>
-                  <SelectItem value="CONTACTED">Contacted</SelectItem>
-                  <SelectItem value="FOLLOWUP">Followup</SelectItem>
-                  <SelectItem value="VISIT_SCHEDULED">Visit Scheduled</SelectItem>
-                  <SelectItem value="REJECTED">Rejected</SelectItem>
-                  <SelectItem value="CONVERTED">Converted</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button className="w-full">Update Status</Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button className="w-full justify-start gap-2" variant="outline">
-                <Plus className="w-4 h-4" />
-                Schedule Visit
-              </Button>
-              <Button className="w-full justify-start gap-2" variant="outline">
-                <Plus className="w-4 h-4" />
-                Add Followup
-              </Button>
-              <Button className="w-full justify-start gap-2" variant="outline">
-                <Plus className="w-4 h-4" />
-                Send Email
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
+    </main>
   )
 }
