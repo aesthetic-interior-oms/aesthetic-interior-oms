@@ -286,14 +286,7 @@ function toBudget(value: unknown): number | null | undefined {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function toLeadStatus(value: unknown): LeadStage | undefined {
-  if (value === undefined) return undefined;
-  if (typeof value !== 'string') return LeadStage.NEW;
-  const normalized = value.trim().toUpperCase();
-  return Object.values(LeadStage).includes(normalized as LeadStage)
-    ? (normalized as LeadStage)
-    : LeadStage.NEW;
-}
+
 
 function toLeadStage(value: unknown): LeadStage | undefined {
   if (value === undefined) return undefined;

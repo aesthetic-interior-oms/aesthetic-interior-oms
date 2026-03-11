@@ -1,134 +1,530 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { 
+  Plus, 
+  CheckCircle2, 
+  Clock, 
+  AlertCircle, 
+  Calendar,
+  Phone,
+  Mail,
+  User,
+  ArrowRight
+} from 'lucide-react'
 
-const sampleFollowups = [
-  { id: 1, lead: 'Acme Corp', type: 'call', date: '2024-02-25', status: 'pending', note: 'Follow up on proposal' },
-  { id: 2, lead: 'Tech Startup', type: 'meeting', date: '2024-02-25', status: 'pending', note: 'Site visit discussion' },
-  { id: 3, lead: 'Retail Store', type: 'call', date: '2024-02-24', status: 'done', note: 'Discussed requirements' },
-  { id: 4, lead: 'Hospital Group', type: 'meeting', date: '2024-02-23', status: 'missed', note: 'Missed meeting' },
-  { id: 5, lead: 'Hotel Chain', type: 'call', date: '2024-02-26', status: 'pending', note: 'Initial consultation' },
+type FollowUpStatus = 'PENDING' | 'DONE' | 'LATELY_DONE' | 'MISSED'
+
+type FollowUp = {
+  id: string
+  leadId: string
+  assignedToId: string
+  followupDate: string
+  status: FollowUpStatus
+  notes: string | null
+  createdAt: string
+  lead: {
+    id: string
+    name: string
+    email: string
+    phone: string
+    stage: string
+    subStatus: string | null
+  }
+  assignedTo: {
+    id: string
+    fullName: string
+    email: string
+  }
+}
+
+const mockFollowups: FollowUp[] = [
+  {
+    id: 'cmmk75l980000ruwb4bm0o7p3',
+    leadId: 'cmmiyhpn20002cvwb4y1o90y7',
+    assignedToId: 'cmminh23n000010u3dv81zzq1',
+    followupDate: '2026-03-10T10:00:00.000Z',
+    status: 'PENDING',
+    notes: 'Follow up on proposal',
+    createdAt: '2026-03-10T05:56:03.164Z',
+    lead: {
+      id: 'cmmiyhpn20002cvwb4y1o90y7',
+      name: 'Tajrian Nice',
+      email: 'tajrian@gmail.com',
+      phone: '01676566931',
+      stage: 'NEW',
+      subStatus: null,
+    },
+    assignedTo: {
+      id: 'cmminh23n000010u3dv81zzq1',
+      fullName: 'Mahi Chowdhury',
+      email: 'mdalraihan450@gmail.com',
+    },
+  },
+  {
+    id: 'cmmken6j40000zwu3wxtauf4d',
+    leadId: 'cmmhfdt160000vzwb5ai4ej2g',
+    assignedToId: 'cmminh23n000010u3dv81zzq1',
+    followupDate: '2026-04-20T10:00:00.000Z',
+    status: 'PENDING',
+    notes: 'Mark as future client - follow up in April',
+    createdAt: '2026-03-10T09:25:41.200Z',
+    lead: {
+      id: 'cmmhfdt160000vzwb5ai4ej2g',
+      name: 'Moinul Islam',
+      email: 'moinul@email.com',
+      phone: '01676566927',
+      stage: 'CONTACT_ATTEMPTED',
+      subStatus: 'NO_ANSWER',
+    },
+    assignedTo: {
+      id: 'cmminh23n000010u3dv81zzq1',
+      fullName: 'Mahi Chowdhury',
+      email: 'mdalraihan450@gmail.com',
+    },
+  },
+  {
+    id: 'cmmk75l980001ruwb4bm0o7p3',
+    leadId: 'cmmiyhpn20003cvwb4y1o90y7',
+    assignedToId: 'cmminh23n000010u3dv81zzq1',
+    followupDate: '2026-03-15T14:30:00.000Z',
+    status: 'PENDING',
+    notes: 'Site visit for interior design consultation',
+    createdAt: '2026-03-11T08:00:00.000Z',
+    lead: {
+      id: 'cmmiyhpn20003cvwb4y1o90y7',
+      name: 'Sarah Ahmed',
+      email: 'sarah.ahmed@company.com',
+      phone: '01712345678',
+      stage: 'QUALIFIED',
+      subStatus: 'WARM_LEAD',
+    },
+    assignedTo: {
+      id: 'cmminh23n000010u3dv81zzq1',
+      fullName: 'Mahi Chowdhury',
+      email: 'mdalraihan450@gmail.com',
+    },
+  },
+  {
+    id: 'cmmk75l980002ruwb4bm0o7p3',
+    leadId: 'cmmiyhpn20004cvwb4y1o90y7',
+    assignedToId: 'cmminh23n000010u3dv81zzq1',
+    followupDate: '2026-03-12T11:00:00.000Z',
+    status: 'DONE',
+    notes: 'Discussed project requirements and budget',
+    createdAt: '2026-03-11T09:15:00.000Z',
+    lead: {
+      id: 'cmmiyhpn20004cvwb4y1o90y7',
+      name: 'Hassan Khan',
+      email: 'hassan.khan@business.com',
+      phone: '01987654321',
+      stage: 'VISIT_SCHEDULED',
+      subStatus: null,
+    },
+    assignedTo: {
+      id: 'cmminh23n000010u3dv81zzq1',
+      fullName: 'Mahi Chowdhury',
+      email: 'mdalraihan450@gmail.com',
+    },
+  },
+  {
+    id: 'cmmk75l980003ruwb4bm0o7p3',
+    leadId: 'cmmiyhpn20005cvwb4y1o90y7',
+    assignedToId: 'cmminh23n000010u3dv81zzq1',
+    followupDate: '2026-03-08T09:00:00.000Z',
+    status: 'MISSED',
+    notes: 'Missed scheduled meeting - need to reschedule',
+    createdAt: '2026-03-07T12:00:00.000Z',
+    lead: {
+      id: 'cmmiyhpn20005cvwb4y1o90y7',
+      name: 'Fatima Begum',
+      email: 'fatima@residence.com',
+      phone: '01555123456',
+      stage: 'CONTACT_ATTEMPTED',
+      subStatus: 'INTERESTED',
+    },
+    assignedTo: {
+      id: 'cmminh23n000010u3dv81zzq1',
+      fullName: 'Mahi Chowdhury',
+      email: 'mdalraihan450@gmail.com',
+    },
+  },
 ]
 
+const statusConfig: Record<FollowUpStatus, { icon: React.ReactNode; color: string; bgColor: string; label: string }> = {
+  PENDING: { 
+    icon: <Clock className="w-4 h-4" />, 
+    color: 'text-yellow-700 dark:text-yellow-200',
+    bgColor: 'bg-yellow-100 dark:bg-yellow-900/40',
+    label: 'Pending'
+  },
+  DONE: { 
+    icon: <CheckCircle2 className="w-4 h-4" />, 
+    color: 'text-green-700 dark:text-green-200',
+    bgColor: 'bg-green-100 dark:bg-green-900/40',
+    label: 'Done'
+  },
+  LATELY_DONE: { 
+    icon: <CheckCircle2 className="w-4 h-4" />, 
+    color: 'text-blue-700 dark:text-blue-200',
+    bgColor: 'bg-blue-100 dark:bg-blue-900/40',
+    label: 'Lately Done'
+  },
+  MISSED: { 
+    icon: <AlertCircle className="w-4 h-4" />, 
+    color: 'text-red-700 dark:text-red-200',
+    bgColor: 'bg-red-100 dark:bg-red-900/40',
+    label: 'Missed'
+  },
+}
+
 export default function FollowupsPage() {
-  const [activeTab, setActiveTab] = useState('today')
+  const [followups, setFollowups] = useState<FollowUp[]>(mockFollowups)
+  const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState('pending')
 
-  const today = new Date().toISOString().split('T')[0]
+  useEffect(() => {
+    // In production, fetch from API: /api/followup
+    // For now, using mock data
+  }, [])
 
-  const todayFollowups = sampleFollowups.filter((f) => f.date === today && f.status === 'pending')
-  const upcomingFollowups = sampleFollowups.filter((f) => f.date > today && f.status === 'pending')
-  const overdueFollowups = sampleFollowups.filter((f) => f.date < today && f.status === 'pending')
-  const completedFollowups = sampleFollowups.filter((f) => f.status === 'done')
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
-  const FollowupCard = ({ followup }: { followup: typeof sampleFollowups[0] }) => (
-    <Card className="mb-3">
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h3 className="font-semibold text-foreground">{followup.lead}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">{followup.note}</p>
-            <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-              <span className="rounded bg-blue-100 px-2 py-1 capitalize text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">
-                {followup.type}
-              </span>
-              <span>{followup.date}</span>
+  const categorizeFollowups = () => {
+    const pending = followups.filter((f) => f.status === 'PENDING')
+    const overdue = pending.filter((f) => new Date(f.followupDate) < today)
+    const todayFollowups = pending.filter((f) => {
+      const fDate = new Date(f.followupDate)
+      fDate.setHours(0, 0, 0, 0)
+      return fDate.getTime() === today.getTime()
+    })
+    const upcoming = pending.filter((f) => {
+      const fDate = new Date(f.followupDate)
+      fDate.setHours(0, 0, 0, 0)
+      return fDate > today
+    })
+    const completed = followups.filter((f) => f.status === 'DONE' || f.status === 'LATELY_DONE')
+    const missed = followups.filter((f) => f.status === 'MISSED')
+
+    return { pending, overdue, todayFollowups, upcoming, completed, missed }
+  }
+
+  const { pending, overdue, todayFollowups, upcoming, completed, missed } = categorizeFollowups()
+
+  const FollowupCard = ({ followup }: { followup: FollowUp }) => {
+    const config = statusConfig[followup.status]
+    const followupDateTime = new Date(followup.followupDate)
+    
+    return (
+      <Card className="hover:shadow-md transition-shadow duration-200 border-border">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-start gap-4">
+            {/* Status Icon */}
+            <div className={`flex-shrink-0 mt-1 p-2 rounded-lg ${config.bgColor}`}>
+              <div className={config.color}>{config.icon}</div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              {/* Lead Name and Email */}
+              <Link href={`/crm/jr/leads/${followup.leadId}`} className="group">
+                <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                  {followup.lead.name}
+                </h3>
+              </Link>
+              <div className="flex flex-col md:flex-row md:items-center gap-2 mt-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <Mail className="w-3.5 h-3.5" />
+                  <span className="truncate">{followup.lead.email}</span>
+                </div>
+                <div className="hidden md:block">•</div>
+                <div className="flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>{followup.lead.phone}</span>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {followup.notes && (
+                <p className="text-sm text-muted-foreground mt-3 line-clamp-2">{followup.notes}</p>
+              )}
+
+              {/* Meta Info */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 pt-4 border-t border-border">
+                <div className="flex items-center gap-4 text-xs">
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>
+                      {followupDateTime.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                      })} at {followupDateTime.toLocaleTimeString('en-US', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <User className="w-3.5 h-3.5" />
+                    <span>{followup.assignedTo.fullName}</span>
+                  </div>
+                </div>
+                <Link href={`/crm/jr/leads/${followup.leadId}`}>
+                  <Button size="sm" variant="outline" className="gap-1">
+                    View <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Status Badge */}
+            <div className="flex-shrink-0">
+              <Badge className={`${config.bgColor} ${config.color} text-xs font-medium`}>
+                {config.label}
+              </Badge>
             </div>
           </div>
-          <Button size="sm" variant="outline">
-            {followup.status === 'done' ? (
-              <CheckCircle className="w-4 h-4 text-green-600" />
-            ) : followup.status === 'missed' ? (
-              <AlertCircle className="w-4 h-4 text-red-600" />
-            ) : (
-              <Clock className="w-4 h-4 text-yellow-600" />
-            )}
-          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const StatCard = ({ label, count, icon, color }: { label: string; count: number; icon: React.ReactNode; color: string }) => (
+    <Card className="bg-card border-border">
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">{label}</p>
+            <p className="text-3xl font-bold text-foreground mt-2">{count}</p>
+          </div>
+          <div className={`p-3 rounded-lg ${color}`}>
+            {icon}
+          </div>
         </div>
       </CardContent>
     </Card>
   )
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Followups</h1>
-          <p className="mt-1 text-muted-foreground">Track all your followup tasks</p>
+    <main className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b border-border bg-card sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-6 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">Followups</h1>
+              <p className="text-sm text-muted-foreground mt-1">Track and manage all your followup tasks</p>
+            </div>
+            <Button className="gap-2">
+              <Plus className="w-4 h-4" />
+              Add Followup
+            </Button>
+          </div>
         </div>
-        <Button className="gap-2">
-          <Plus className="w-4 h-4" />
-          Add Followup
-        </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="today">Today ({todayFollowups.length})</TabsTrigger>
-          <TabsTrigger value="upcoming">Upcoming ({upcomingFollowups.length})</TabsTrigger>
-          <TabsTrigger value="overdue">Overdue ({overdueFollowups.length})</TabsTrigger>
-          <TabsTrigger value="completed">Completed ({completedFollowups.length})</TabsTrigger>
-        </TabsList>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <StatCard 
+            label="Today" 
+            count={todayFollowups.length}
+            icon={<Calendar className="w-5 h-5 text-blue-600" />}
+            color="bg-blue-50 dark:bg-blue-950"
+          />
+          <StatCard 
+            label="Upcoming" 
+            count={upcoming.length}
+            icon={<Clock className="w-5 h-5 text-purple-600" />}
+            color="bg-purple-50 dark:bg-purple-950"
+          />
+          <StatCard 
+            label="Overdue" 
+            count={overdue.length}
+            icon={<AlertCircle className="w-5 h-5 text-red-600" />}
+            color="bg-red-50 dark:bg-red-950"
+          />
+          <StatCard 
+            label="Completed" 
+            count={completed.length}
+            icon={<CheckCircle2 className="w-5 h-5 text-green-600" />}
+            color="bg-green-50 dark:bg-green-950"
+          />
+          <StatCard 
+            label="Missed" 
+            count={missed.length}
+            icon={<AlertCircle className="w-5 h-5 text-orange-600" />}
+            color="bg-orange-50 dark:bg-orange-950"
+          />
+          <StatCard 
+            label="All Pending" 
+            count={pending.length}
+            icon={<Clock className="w-5 h-5 text-yellow-600" />}
+            color="bg-yellow-50 dark:bg-yellow-950"
+          />
+        </div>
 
-        <TabsContent value="today" className="mt-6">
-          {todayFollowups.length > 0 ? (
-            todayFollowups.map((followup) => (
-              <FollowupCard key={followup.id} followup={followup} />
-            ))
-          ) : (
-            <Card>
-              <CardContent className="pt-12 text-center">
-                <p className="text-muted-foreground">No followups for today</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+        {/* Tabs */}
+        {/* Tabs */}
+<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
 
-        <TabsContent value="upcoming" className="mt-6">
-          {upcomingFollowups.length > 0 ? (
-            upcomingFollowups.map((followup) => (
-              <FollowupCard key={followup.id} followup={followup} />
-            ))
-          ) : (
-            <Card>
-              <CardContent className="pt-12 text-center">
-                <p className="text-muted-foreground">No upcoming followups</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+  <TabsList className="grid w-full grid-cols-5 mb-8 bg-muted/40 backdrop-blur rounded-xl p-1.5 h-auto shadow-sm border">
 
-        <TabsContent value="overdue" className="mt-6">
-          {overdueFollowups.length > 0 ? (
-            overdueFollowups.map((followup) => (
-              <FollowupCard key={followup.id} followup={followup} />
-            ))
-          ) : (
-            <Card>
-              <CardContent className="pt-12 text-center">
-                <p className="text-muted-foreground">No overdue followups</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+    <TabsTrigger
+      value="pending"
+      className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
+    >
+      <span className="hidden sm:inline">Pending</span>
+      <span className="sm:hidden">P</span>
+      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+        {pending.length}
+      </Badge>
+    </TabsTrigger>
 
-        <TabsContent value="completed" className="mt-6">
-          {completedFollowups.length > 0 ? (
-            completedFollowups.map((followup) => (
-              <FollowupCard key={followup.id} followup={followup} />
-            ))
-          ) : (
-            <Card>
-              <CardContent className="pt-12 text-center">
-                <p className="text-muted-foreground">No completed followups</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-      </Tabs>
-    </div>
+    <TabsTrigger
+      value="today"
+      className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
+    >
+      <span className="hidden sm:inline">Today</span>
+      <span className="sm:hidden">T</span>
+      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+        {todayFollowups.length}
+      </Badge>
+    </TabsTrigger>
+
+    <TabsTrigger
+      value="overdue"
+      className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
+    >
+      <span className="hidden sm:inline">Overdue</span>
+      <span className="sm:hidden">O</span>
+      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+        {overdue.length}
+      </Badge>
+    </TabsTrigger>
+
+    <TabsTrigger
+      value="completed"
+      className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
+    >
+      <span className="hidden sm:inline">Completed</span>
+      <span className="sm:hidden">C</span>
+      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+        {completed.length}
+      </Badge>
+    </TabsTrigger>
+
+    <TabsTrigger
+      value="missed"
+      className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
+    >
+      <span className="hidden sm:inline">Missed</span>
+      <span className="sm:hidden">M</span>
+      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+        {missed.length}
+      </Badge>
+    </TabsTrigger>
+
+  </TabsList>
+
+  {/* Pending */}
+  <TabsContent value="pending" className="space-y-4">
+    {pending.length === 0 ? (
+      <Card className="border-dashed">
+        <CardContent className="pt-14 pb-14 text-center">
+          <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+          <p className="text-muted-foreground text-sm font-medium">
+            No pending followups
+          </p>
+        </CardContent>
+      </Card>
+    ) : (
+      pending.map((followup) => (
+        <FollowupCard key={followup.id} followup={followup} />
+      ))
+    )}
+  </TabsContent>
+
+  {/* Today */}
+  <TabsContent value="today" className="space-y-4">
+    {todayFollowups.length === 0 ? (
+      <Card className="border-dashed">
+        <CardContent className="pt-14 pb-14 text-center">
+          <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+          <p className="text-muted-foreground text-sm font-medium">
+            No followups for today
+          </p>
+        </CardContent>
+      </Card>
+    ) : (
+      todayFollowups.map((followup) => (
+        <FollowupCard key={followup.id} followup={followup} />
+      ))
+    )}
+  </TabsContent>
+
+  {/* Overdue */}
+  <TabsContent value="overdue" className="space-y-4">
+    {overdue.length === 0 ? (
+      <Card className="border-dashed">
+        <CardContent className="pt-14 pb-14 text-center">
+          <CheckCircle2 className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+          <p className="text-muted-foreground text-sm font-medium">
+            No overdue followups
+          </p>
+        </CardContent>
+      </Card>
+    ) : (
+      overdue.map((followup) => (
+        <FollowupCard key={followup.id} followup={followup} />
+      ))
+    )}
+  </TabsContent>
+
+  {/* Completed */}
+  <TabsContent value="completed" className="space-y-4">
+    {completed.length === 0 ? (
+      <Card className="border-dashed">
+        <CardContent className="pt-14 pb-14 text-center">
+          <CheckCircle2 className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+          <p className="text-muted-foreground text-sm font-medium">
+            No completed followups
+          </p>
+        </CardContent>
+      </Card>
+    ) : (
+      completed.map((followup) => (
+        <FollowupCard key={followup.id} followup={followup} />
+      ))
+    )}
+  </TabsContent>
+
+  {/* Missed */}
+  <TabsContent value="missed" className="space-y-4">
+    {missed.length === 0 ? (
+      <Card className="border-dashed">
+        <CardContent className="pt-14 pb-14 text-center">
+          <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40" />
+          <p className="text-muted-foreground text-sm font-medium">
+            No missed followups
+          </p>
+        </CardContent>
+      </Card>
+    ) : (
+      missed.map((followup) => (
+        <FollowupCard key={followup.id} followup={followup} />
+      ))
+    )}
+  </TabsContent>
+
+</Tabs>
+      </div>
+    </main>
   )
 }

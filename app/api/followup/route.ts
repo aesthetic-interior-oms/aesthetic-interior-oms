@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           lead: {
-            select: { id: true, name: true, email: true, phone: true, status: true },
+            select: { id: true, name: true, email: true, phone: true, stage: true, subStatus:true },
           },
           assignedTo: {
             select: { id: true, fullName: true, email: true },
