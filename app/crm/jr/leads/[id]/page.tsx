@@ -1,9 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, MessageSquare, History, Calendar } from 'lucide-react'
 import { LeadInfoCard } from '@/components/crm/junior/lead-info-card'
 import { LeadNotesTab } from '@/components/crm/junior/lead-notes-tab'
@@ -96,6 +107,7 @@ export default function LeadDetailPage() {
   const [loading, setLoading] = useState(true)
   const [notesLoading, setNotesLoading] = useState(false)
   const [stage, setStage] = useState('NEW')
+  const [subStatus, setSubStatus] = useState<string | null>(null)
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [assignmentsLoading, setAssignmentsLoading] = useState(false)
   const [newNote, setNewNote] = useState('')
@@ -104,6 +116,11 @@ export default function LeadDetailPage() {
   const [notes, setNotes] = useState<Note[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [followups, setFollowups] = useState<Followup[]>([])
+  const [addFollowupOpen, setAddFollowupOpen] = useState(false)
+  const [followupDate, setFollowupDate] = useState('')
+  const [followupNotes, setFollowupNotes] = useState('')
+  const [addFollowupError, setAddFollowupError] = useState<string | null>(null)
+  const [addingFollowup, setAddingFollowup] = useState(false)
 
   // Fetch current user
   useEffect(() => {
@@ -125,8 +142,8 @@ export default function LeadDetailPage() {
       .then(data => {
         setLead(data.data)
         setStage(data.data?.stage || 'NEW')
+        setSubStatus(data.data?.subStatus ?? null)
         setActivities(data.data?.activities || [])
-        setFollowups(data.data?.followUps || [])
         setLoading(false)
       })
       .catch((error) => {
@@ -135,8 +152,24 @@ export default function LeadDetailPage() {
       })
   }, [leadId])
 
-  // Fetch assignments
+  const refreshFollowups = useCallback(() => {
+    fetch(`/api/followup/${leadId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data)) {
+          setFollowups(data.data)
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching followups:', error)
+      })
+  }, [leadId])
+
   useEffect(() => {
+    refreshFollowups()
+  }, [refreshFollowups])
+
+  const refreshAssignments = useCallback(() => {
     setAssignmentsLoading(true)
     fetch(`/api/lead/${leadId}/assignments`)
       .then(res => res.json())
@@ -152,6 +185,11 @@ export default function LeadDetailPage() {
       })
   }, [leadId])
 
+  // Fetch assignments
+  useEffect(() => {
+    refreshAssignments()
+  }, [refreshAssignments])
+
   // Fetch notes
   useEffect(() => {
     setNotesLoading(true)
@@ -166,6 +204,26 @@ export default function LeadDetailPage() {
         setNotesLoading(false)
       })
   }, [leadId])
+
+  const hasPendingFollowup = useMemo(
+    () => followups.some((followup) => followup.status === 'PENDING'),
+    [followups],
+  )
+
+  const handleAddFollowupOpenChange = (open: boolean) => {
+    setAddFollowupOpen(open)
+    if (!open) {
+      setFollowupDate('')
+      setFollowupNotes('')
+      setAddFollowupError(null)
+    }
+  }
+
+  const handleAddFollowup = () => {
+    if (hasPendingFollowup) return
+    setAddFollowupError(null)
+    setAddFollowupOpen(true)
+  }
 
   // Handle adding a new note
   const handleAddNote = async () => {
@@ -194,19 +252,70 @@ export default function LeadDetailPage() {
     }
   }
 
-  const handleUpdateStage = async () => {
+  const handleUpdateStage = async (reason: string) => {
     try {
-      const response = await fetch(`/api/lead/${leadId}`, {
+      const response = await fetch(`/api/lead/${leadId}/stage`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stage }),
+        body: JSON.stringify({
+          stage,
+          subStatus: subStatus || null,
+          reason,
+          userId: currentUserId,
+        }),
       })
       const data = await response.json()
-      if (data.success) {
-        setLead(data.data)
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update stage')
       }
+      setLead(data.data)
+      setStage(data.data?.stage || stage)
+      setSubStatus(data.data?.subStatus ?? null)
     } catch (error) {
       console.error('Error updating stage:', error)
+      throw error
+    }
+  }
+
+  const handleCreateFollowup = async () => {
+    if (!currentUserId) {
+      setAddFollowupError('Unable to determine your user id.')
+      return
+    }
+    if (!followupDate) {
+      setAddFollowupError('Please select a follow-up date.')
+      return
+    }
+    if (hasPendingFollowup) {
+      setAddFollowupError('There is already a pending follow-up.')
+      return
+    }
+
+    setAddingFollowup(true)
+    setAddFollowupError(null)
+    try {
+      const response = await fetch(`/api/followup/${leadId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedToId: currentUserId,
+          followupDate,
+          notes: followupNotes.trim() || undefined,
+          userId: currentUserId,
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to create follow-up.')
+      }
+
+      handleAddFollowupOpenChange(false)
+      refreshFollowups()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to create follow-up.'
+      setAddFollowupError(message)
+    } finally {
+      setAddingFollowup(false)
     }
   }
 
@@ -248,7 +357,7 @@ export default function LeadDetailPage() {
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Lead Info Card */}
-          <LeadInfoCard lead={lead} stage={stage} />
+          <LeadInfoCard lead={lead} stage={stage} hasPendingFollowup={hasPendingFollowup} />
 
           {/* Tabs Section */}
           <Tabs defaultValue="notes" className="w-full">
@@ -285,7 +394,14 @@ export default function LeadDetailPage() {
             </TabsContent>
 
             <TabsContent value="followups" className="mt-6">
-              <LeadFollowupsTab followups={followups} />
+              <LeadFollowupsTab
+                followups={followups}
+                leadId={leadId}
+                currentUserId={currentUserId}
+                hasPendingFollowup={hasPendingFollowup}
+                onRefreshFollowups={refreshFollowups}
+                onAddFollowup={handleAddFollowup}
+              />
             </TabsContent>
           </Tabs>
         </div>
@@ -293,14 +409,58 @@ export default function LeadDetailPage() {
         {/* Action Panel - Sidebar */}
         <div className="lg:col-span-1">
           <LeadActionsPanel
+            leadId={leadId}
             assignments={assignments}
             assignmentsLoading={assignmentsLoading}
             stage={stage}
+            subStatus={subStatus}
             onStageChange={setStage}
+            onSubStatusChange={setSubStatus}
             onUpdateStage={handleUpdateStage}
+            onAssignmentsRefresh={refreshAssignments}
+            hasPendingFollowup={hasPendingFollowup}
+            onAddFollowup={handleAddFollowup}
           />
         </div>
       </div>
+
+      <Dialog open={addFollowupOpen} onOpenChange={handleAddFollowupOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schedule follow-up</DialogTitle>
+            <DialogDescription>
+              Set a date and optional note for this follow-up.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Follow-up date</Label>
+              <Input
+                type="datetime-local"
+                value={followupDate}
+                onChange={(event) => setFollowupDate(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={followupNotes}
+                onChange={(event) => setFollowupNotes(event.target.value)}
+                placeholder="Optional notes for the follow-up..."
+                rows={4}
+              />
+            </div>
+            {addFollowupError ? (
+              <p className="text-sm text-destructive">{addFollowupError}</p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleCreateFollowup} disabled={addingFollowup}>
+              {addingFollowup ? 'Saving...' : 'Create follow-up'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

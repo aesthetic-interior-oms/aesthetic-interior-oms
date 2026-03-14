@@ -1,65 +1,72 @@
-import Image from "next/image";
+'use client'
+
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { ArrowRight } from 'lucide-react'
+import { SignedOut, SignInButton, SignUpButton } from '@clerk/nextjs'
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/file.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen w-full overflow-hidden ">
+      {/* Background with image and overlay */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `url('/checkbackground.jpg')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundAttachment: 'fixed',
+          backgroundRepeat: 'no-repeat',
+          opacity: 0.1,                }}
+      />
+
+      {/* Dark overlay for better text contrast */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-br from-foreground/20 via-transparent to-foreground/10 " />
+
+      {/* Content Container */}
+      <div className="relative z-10 min-h-screen w-full flex items-center justify-center px-4 py-8 opacity-80">
+        <div className="max-w-2xl w-full">
+          {/* Main Content Tab */}
+          <div className="bg-card backdrop-blur-md border border-border/50 rounded-2xl p-12 md:p-16 shadow-2xl">
+            {/* Company Name */}
+            <div className="mb-8 text-center">
+              <h1 className="text-5xl md:text-6xl font-light tracking-widest mb-4 text-foreground">
+                <span className="block text-5xl">AESTHETIC</span>
+                <span className="text-xl block mt-2 ">I N T E R I O R</span>
+              </h1>
+              <div className="h-1 w-16 bg-primary mx-auto rounded-full" />
+            </div>
+
+            {/* Subtitle */}
+            <p className="text-center text-muted-foreground text-lg md:text-xl mb-4 font-light leading-relaxed">
+              Operations Management System
+            </p>
+
+            {/* Descriptive Text */}
+            <p className="text-center text-foreground/70 text-base mb-12 leading-relaxed max-w-xl mx-auto">
+              Streamline your interior design operations with our comprehensive management platform. 
+              Organize projects, manage teams, and deliver exceptional results with precision and elegance.
+            </p>
+
+            {/* CTA Button */}
+            <div className="flex justify-center gap-4">
+               <SignedOut>
+          <SignInButton forceRedirectUrl="/onboarding">
+            <Button className="bg-gray-100 hover:bg-gray-200 text-black text-sm">Sign In</Button>
+          </SignInButton>
+          <SignUpButton forceRedirectUrl="/onboarding">
+            <Button className="bg-black hover:bg-gray-600 text-white text-sm">Sign Up</Button>
+          </SignUpButton>
+        </SignedOut>
+            </div>
+
+            {/* Footer */}
+            <div className="mt-12 pt-8 border-t border-border/30 text-center text-sm text-muted-foreground">
+              <p>© 2024 Aesthetic Interior. All rights reserved.</p>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/globe.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
     </div>
-  );
+  )
 }
