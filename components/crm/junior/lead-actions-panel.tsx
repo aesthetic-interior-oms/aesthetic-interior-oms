@@ -42,7 +42,9 @@ interface LeadActionsPanelProps {
   assignments: Assignment[]
   assignmentsLoading: boolean
   stage: string
+  originalStage: string
   subStatus: string | null
+  originalSubStatus: string | null
   onStageChange: (value: string) => void
   onSubStatusChange: (value: string | null) => void
   onUpdateStage: (reason: string) => Promise<void>
@@ -56,7 +58,9 @@ export function LeadActionsPanel({
   assignments,
   assignmentsLoading,
   stage,
+  originalStage,
   subStatus,
+  originalSubStatus,
   onStageChange,
   onSubStatusChange,
   onUpdateStage,
@@ -89,7 +93,8 @@ export function LeadActionsPanel({
 
   const subStatusOptions = stageSubStatusMap[stage] ?? []
   const requiresSubStatus = subStatusOptions.length > 0
-  const canUpdateStage = !requiresSubStatus || Boolean(subStatus)
+  const hasStageChanged = stage !== originalStage || (subStatus ?? null) !== (originalSubStatus ?? null)
+  const canUpdateStage = (!requiresSubStatus || Boolean(subStatus)) && hasStageChanged
 
   const validDepartments = [
     'SR_CRM',
@@ -375,7 +380,11 @@ export function LeadActionsPanel({
           {stageError ? <p className="text-xs text-destructive">{stageError}</p> : null}
 
           <Dialog open={reasonOpen} onOpenChange={setReasonOpen}>
-            <Button className="w-full" onClick={openReasonDialog} disabled={!canUpdateStage}>
+            <Button
+              className="w-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
+              onClick={openReasonDialog}
+              disabled={!canUpdateStage}
+            >
               Update Stage
             </Button>
             <DialogContent>
