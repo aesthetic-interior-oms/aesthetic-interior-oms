@@ -40,6 +40,7 @@ function toOptionalString(value: unknown): string | null {
 }
 
 async function validateVisitTeamUser(userId: string) {
+  console.log('[validateVisitTeamUser] Validating user:', userId);
   const visitTeamUser = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -55,7 +56,10 @@ async function validateVisitTeamUser(userId: string) {
     },
   });
 
+  console.log('[validateVisitTeamUser] User found:', visitTeamUser);
+
   if (!visitTeamUser) {
+    console.log('[validateVisitTeamUser] User not found');
     return { ok: false as const, response: NextResponse.json({ success: false, error: 'Visit team user not found' }, { status: 404 }) };
   }
 
@@ -63,7 +67,11 @@ async function validateVisitTeamUser(userId: string) {
     ({ department }) => department.name === 'VISIT_TEAM'
   );
 
+  console.log('[validateVisitTeamUser] User departments:', visitTeamUser.userDepartments);
+  console.log('[validateVisitTeamUser] Is in VISIT_TEAM department:', isInVisitDepartment);
+
   if (!isInVisitDepartment) {
+    console.log('[validateVisitTeamUser] User not in VISIT_TEAM department');
     return {
       ok: false as const,
       response: NextResponse.json(
@@ -73,6 +81,7 @@ async function validateVisitTeamUser(userId: string) {
     };
   }
 
+  console.log('[validateVisitTeamUser] Validation passed');
   return { ok: true as const, visitTeamUser };
 }
 
@@ -142,17 +151,25 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const authResult = await requireDatabaseRoles([]);
+    console.log('[POST] authResult:', JSON.stringify(authResult, null, 2));
+    console.log('[POST] authResult.ok:', authResult.ok);
+    console.log('[POST] authResult.actorUserId:', authResult.actorUserId);
     if (!authResult.ok) {
       return authResult.response;
     }
 
     const actorUserId = authResult.actorUserId;
+    console.log('[POST] actorUserId extracted:', actorUserId);
+    console.log('[POST] actorUserId extracted:', actorUserId);
     const leadId = await resolveLeadId(context);
+    console.log('[POST] leadId resolved:', leadId);
     if (!leadId) {
+      console.log('[POST] Invalid leadId');
       return NextResponse.json({ success: false, error: 'Invalid lead id' }, { status: 400 });
     }
 
     const body = (await request.json()) as ScheduleVisitBody;
+    console.log('[POST] Request body received:', JSON.stringify(body, null, 2));
     const visitTeamUserId = toOptionalString(body.visitTeamUserId);
     const notes = toOptionalString(body.notes);
     const reason = toOptionalString(body.reason);
@@ -160,7 +177,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const parsedScheduledAt = scheduledAtRaw ? new Date(scheduledAtRaw) : null;
     const explicitLocation = toOptionalString(body.location);
 
+    console.log('[POST] Parsed values:', {
+      visitTeamUserId,
+      scheduledAtRaw,
+      parsedScheduledAt,
+      explicitLocation,
+      notes,
+      reason,
+    });
+
     if (!visitTeamUserId || !scheduledAtRaw || !parsedScheduledAt || Number.isNaN(parsedScheduledAt.getTime())) {
+      console.log('[POST] Validation failed - missing required fields');
       return NextResponse.json(
         {
           success: false,
@@ -170,6 +197,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
+    console.log('[POST] Querying lead and validating visit team user...');
     const [lead, visitTeamUserResult] = await Promise.all([
       prisma.lead.findUnique({
         where: { id: leadId },
@@ -178,16 +206,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
       validateVisitTeamUser(visitTeamUserId),
     ]);
 
+    console.log('[POST] Lead found:', lead);
+    console.log('[POST] Visit team user validation result:', visitTeamUserResult.ok);
+
     if (!lead) {
+      console.log('[POST] Lead not found');
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
     }
 
     if (!visitTeamUserResult.ok) {
+      console.log('[POST] Visit team user validation failed');
       return visitTeamUserResult.response;
     }
 
     const locationToUse = explicitLocation ?? lead.location;
+    console.log('[POST] Location to use:', locationToUse);
     if (!locationToUse) {
+      console.log('[POST] No location provided or set on lead');
       return NextResponse.json(
         {
           success: false,
@@ -197,24 +232,28 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
+    console.log('[POST] Starting transaction to create visit...');
     const updatedLead = await prisma.$transaction(async (tx) => {
+      console.log('[POST] Transaction started');
       const leadAfterStageUpdate = await tx.lead.update({
         where: { id: leadId },
         data: {
           stage: LeadStage.VISIT_SCHEDULED,
         },
       });
+      console.log('[POST] Lead stage updated to VISIT_SCHEDULED');
 
       const visit = await tx.visit.create({
         data: {
           leadId,
           assignedToId: visitTeamUserId,
-          createdById: actorUserId,
+          createdById: visitTeamUserId,
           scheduledAt: parsedScheduledAt,
           location: locationToUse,
           notes,
         },
       });
+      console.log('[POST] Visit created:', visit.id);
 
       const existingVisitTeamAssignment = await tx.leadAssignment.findFirst({
         where: {
@@ -224,6 +263,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       });
 
       if (existingVisitTeamAssignment) {
+        console.log('[POST] Updating existing visit team assignment');
         await tx.leadAssignment.update({
           where: { id: existingVisitTeamAssignment.id },
           data: {
@@ -231,29 +271,32 @@ export async function POST(request: NextRequest, context: RouteContext) {
           },
         });
       } else {
+        console.log('[POST] Creating new visit team assignment');
         await tx.leadAssignment.create({
           data: {
             leadId,
-            userId: visitTeamUserId,
+            userId: actorUserId,
             department: LeadAssignmentDepartment.VISIT_TEAM,
           },
         });
       }
 
       if (notes) {
+        console.log('[POST] Creating note');
         await tx.note.create({
           data: {
             leadId,
-            userId: actorUserId,
+            userId: visitTeamUserId,
             content: notes,
           },
         });
       }
 
       if (lead.stage !== LeadStage.VISIT_SCHEDULED) {
+        console.log('[POST] Logging lead stage change');
         await logLeadStageChanged(tx, {
           leadId,
-          userId: actorUserId,
+          userId: visitTeamUserId,
           from: lead.stage,
           to: LeadStage.VISIT_SCHEDULED,
           reason,
@@ -261,19 +304,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
       }
 
       const reasonPart = reason ? ` Reason: ${reason}` : '';
+      console.log('[POST] Logging visit scheduled activity');
       await logActivity(tx, {
         leadId,
-        userId: actorUserId,
+        userId: visitTeamUserId,
         type: ActivityType.VISIT_SCHEDULED,
         description: `Visit ${visit.id} scheduled at ${parsedScheduledAt.toISOString()} and assigned to ${visitTeamUserResult.visitTeamUser.fullName}.${reasonPart}`,
       });
 
+      console.log('[POST] Logging user assigned activity');
       await logUserAssigned(tx, {
         leadId,
-        userId: actorUserId,
+        userId: visitTeamUserId,
         leadName: `${visitTeamUserResult.visitTeamUser.fullName} assigned to VISIT_TEAM department`,
       });
 
+      console.log('[POST] Transaction completed successfully');
       return {
         lead: leadAfterStageUpdate,
         visit,
@@ -287,6 +333,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     });
   } catch (error) {
     console.error('[lead/:id/visit-schedule][POST] Error:', error);
+    console.error('[lead/:id/visit-schedule][POST] Error type:', error instanceof Error ? error.message : 'Unknown error');
+    if (error instanceof Error) {
+      console.error('[lead/:id/visit-schedule][POST] Stack trace:', error.stack);
+    }
     return NextResponse.json(
       { success: false, error: 'Failed to schedule visit' },
       { status: 500 }
