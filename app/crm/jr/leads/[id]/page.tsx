@@ -413,7 +413,9 @@ export default function LeadDetailPage() {
             assignments={assignments}
             assignmentsLoading={assignmentsLoading}
             stage={stage}
+            originalStage={lead.stage}
             subStatus={subStatus}
+            originalSubStatus={lead.subStatus ?? null}
             onStageChange={setStage}
             onSubStatusChange={setSubStatus}
             onUpdateStage={handleUpdateStage}
