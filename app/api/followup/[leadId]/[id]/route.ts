@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
-import { FollowUpStatus, Prisma } from '@/generated/prisma/client';
+import { ActivityType, FollowUpStatus, Prisma } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 
 type RouteContext = { params: { leadId: string; id: string } | Promise<{ leadId: string; id: string }> };
 
@@ -13,6 +14,34 @@ async function resolveParams(context: RouteContext): Promise<{ leadId: string | 
     leadId: leadId && leadId.length > 0 ? leadId : null,
     id: id && id.length > 0 ? id : null,
   };
+}
+
+
+async function resolveActivityUserId(requestedUserId: unknown): Promise<string | null> {
+  const normalizedRequested = typeof requestedUserId === 'string' ? requestedUserId.trim() : ''
+
+  if (normalizedRequested) {
+    const requestedMatch = await prisma.user.findFirst({
+      where: {
+        OR: [{ id: normalizedRequested }, { clerkUserId: normalizedRequested }],
+      },
+      select: { id: true },
+    })
+
+    if (requestedMatch?.id) {
+      return requestedMatch.id
+    }
+  }
+
+  const { userId: clerkUserId } = await auth()
+  if (!clerkUserId) return null
+
+  const authenticatedUser = await prisma.user.findUnique({
+    where: { clerkUserId },
+    select: { id: true },
+  })
+
+  return authenticatedUser?.id ?? null
 }
 
 // GET /api/followup/[leadId]/[id] - Get a single follow-up by ID
@@ -58,10 +87,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     }
 
     return NextResponse.json({ success: true, data: followUp });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching follow-up:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch follow-up', message: error.message },
+      { success: false, error: 'Failed to fetch follow-up', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
@@ -83,6 +112,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       notes,
       userId, // User updating the follow-up (for activity log)
     } = body
+    const activityUserId = await resolveActivityUserId(userId)
 
     // Check if follow-up exists
     const existingFollowUp = await prisma.followUp.findUnique({ where: { id } });
@@ -134,16 +164,17 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
       // Log activity when follow-up is completed
       if (
-        status === FollowUpStatus.COMPLETED &&
-        existingFollowUp.status !== FollowUpStatus.COMPLETED &&
-        userId
+        status !== undefined &&
+        [FollowUpStatus.DONE, FollowUpStatus.LATELY_DONE].includes(status as FollowUpStatus) &&
+        ![FollowUpStatus.DONE, FollowUpStatus.LATELY_DONE].includes(existingFollowUp.status) &&
+        activityUserId
       ) {
         await tx.activityLog.create({
           data: {
             leadId: existingFollowUp.leadId,
-            userId,
-            type: 'FOLLOW_UP_COMPLETED',
-            description: `Follow-up completed for lead`,
+            userId: activityUserId,
+            type: ActivityType.FOLLOWUP_COMPLETED,
+            description: `Follow-up marked as ${(status as FollowUpStatus).toLowerCase()}`,
           },
         })
       }
@@ -156,10 +187,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       data: followUp,
       message: 'Follow-up updated successfully',
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating follow-up:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to update follow-up', message: error.message },
+      { success: false, error: 'Failed to update follow-up', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
@@ -174,6 +205,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
   try {
     const body = await request.json()
+    const activityUserId = await resolveActivityUserId(body.userId)
 
     // Check if follow-up exists
     const existingFollowUp = await prisma.followUp.findUnique({ where: { id } })
@@ -199,17 +231,38 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (body.status !== undefined) updateData.status = body.status
     if (body.notes !== undefined) updateData.notes = body.notes
 
-    const followUp = await prisma.followUp.update({
-      where: { id },
-      data: updateData,
-      include: {
-        lead: {
-          select: { id: true, name: true, email: true },
+    const followUp = await prisma.$transaction(async (tx) => {
+      const updatedFollowUp = await tx.followUp.update({
+        where: { id },
+        data: updateData,
+        include: {
+          lead: {
+            select: { id: true, name: true, email: true },
+          },
+          assignedTo: {
+            select: { id: true, fullName: true, email: true },
+          },
         },
-        assignedTo: {
-          select: { id: true, fullName: true, email: true },
-        },
-      },
+      })
+
+      const nextStatus = body.status as FollowUpStatus | undefined
+      if (
+        nextStatus !== undefined &&
+        [FollowUpStatus.DONE, FollowUpStatus.LATELY_DONE].includes(nextStatus) &&
+        ![FollowUpStatus.DONE, FollowUpStatus.LATELY_DONE].includes(existingFollowUp.status) &&
+        activityUserId
+      ) {
+        await tx.activityLog.create({
+          data: {
+            leadId: existingFollowUp.leadId,
+            userId: activityUserId,
+            type: ActivityType.FOLLOWUP_COMPLETED,
+            description: `Follow-up marked as ${nextStatus.toLowerCase()}`,
+          },
+        })
+      }
+
+      return updatedFollowUp
     })
 
     return NextResponse.json({
@@ -217,10 +270,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       data: followUp,
       message: 'Follow-up updated successfully',
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating follow-up:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to update follow-up', message: error.message },
+      { success: false, error: 'Failed to update follow-up', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
@@ -257,10 +310,10 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
       success: true,
       message: 'Follow-up deleted successfully',
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error deleting follow-up:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to delete follow-up', message: error.message },
+      { success: false, error: 'Failed to delete follow-up', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }
