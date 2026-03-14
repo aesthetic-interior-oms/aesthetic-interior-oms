@@ -1,6 +1,6 @@
 'use client'
 
-import { Menu, Bell, User } from 'lucide-react'
+import { Menu, Bell, User, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs'
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -49,24 +50,36 @@ export function Header({ onMenuClick }: HeaderProps) {
       {isVisits && <div className="flex-1" />}
 
       <div className="flex items-center gap-4 ml-auto">
-        <Button variant="ghost" size="icon">
-          <Bell className="w-5 h-5" />
-        </Button>
+        <SignedOut>
+          <SignInButton forceRedirectUrl="/onboarding">
+            <Button variant="ghost" className="text-sm">Sign In</Button>
+          </SignInButton>
+          <SignUpButton forceRedirectUrl="/onboarding">
+            <Button className="bg-[#6c47ff] hover:bg-[#5936d9] text-white text-sm">Sign Up</Button>
+          </SignUpButton>
+        </SignedOut>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <User className="w-5 h-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem onClick={handleLogout} className="text-red-600">
-              Logout
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <SignedIn>
+          <Button variant="ghost" size="icon">
+            <Bell className="w-5 h-5" />
+          </Button>
+          <UserButton/>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Settings className="w-5 h-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>Profile</DropdownMenuItem>
+              <DropdownMenuItem>Settings</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleLogout} className="text-red-600">
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </SignedIn>
       </div>
     </header>
   )

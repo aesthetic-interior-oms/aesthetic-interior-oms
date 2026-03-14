@@ -30,9 +30,22 @@ const stageColors: Record<string, string> = {
 interface LeadInfoCardProps {
   lead: LeadDetails
   stage: string
+  hasPendingFollowup: boolean
 }
 
-export function LeadInfoCard({ lead, stage }: LeadInfoCardProps) {
+const formatDate = (value: string) => {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return '—'
+  return parsed.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+const formatLabel = (value: string) => value.replace(/_/g, ' ')
+
+export function LeadInfoCard({ lead, stage, hasPendingFollowup }: LeadInfoCardProps) {
   return (
     <Card>
       <CardHeader>
@@ -40,10 +53,20 @@ export function LeadInfoCard({ lead, stage }: LeadInfoCardProps) {
           <div>
             <CardTitle className="text-2xl text-foreground">{lead.name}</CardTitle>
             <p className="mt-1 text-muted-foreground">{lead.location || '—'}</p>
+            {hasPendingFollowup ? (
+              <span className="mt-2 inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+                Pending follow-up
+              </span>
+            ) : null}
           </div>
-          <span className={`px-4 py-2 rounded-full text-sm font-medium ${stageColors[stage]}`}>
-            {stage}
-          </span>
+          <div className="flex flex-col items-end gap-2">
+            <span className={`px-4 py-2 rounded-full text-sm font-medium ${stageColors[stage]}`}>
+              {stage}
+            </span>
+            <span className="px-3 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+              {lead.subStatus ? formatLabel(lead.subStatus) : 'No substatus'}
+            </span>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -90,7 +113,7 @@ export function LeadInfoCard({ lead, stage }: LeadInfoCardProps) {
               <Clock className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
               <div>
                 <p className="text-sm text-muted-foreground">Created</p>
-                <p className="font-semibold text-foreground mt-1">{new Date(lead.created_at).toLocaleDateString()}</p>
+                <p className="font-semibold text-foreground mt-1">{formatDate(lead.created_at)}</p>
               </div>
             </div>
           </div>
