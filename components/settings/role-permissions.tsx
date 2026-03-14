@@ -1,12 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ChevronDown, Lock, Info } from 'lucide-react'
 
-type UserRole = 'Admin' | 'CRM Agent' | 'Senior CRM' | 'JR Architect' | '3D Visualizer' | 'Quotation Team'
+type UserRole = string
+
+interface Department {
+  id: string
+  name: string
+  description: string
+  _count: {
+    userDepartments: number
+  }
+}
 
 interface Permission {
   id: string
@@ -16,7 +25,7 @@ interface Permission {
 }
 
 interface RolePermissionMap {
-  role: UserRole
+  role: string
   permissions: string[]
   description: string
   color: string
@@ -52,85 +61,92 @@ const allPermissions: Permission[] = [
   { id: 'manage_integrations', name: 'Manage Integrations', description: 'Configure external integrations', category: 'System Management' },
 ]
 
-const rolePermissions: RolePermissionMap[] = [
-  {
-    role: 'Admin',
-    description: 'Full system access with all permissions',
-    color: 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200',
-    permissions: [
-      'view_leads', 'create_leads', 'edit_leads', 'delete_leads', 'update_lead_status',
-      'view_followups', 'create_followups', 'edit_followups', 'mark_followup_done',
-      'view_visits', 'schedule_visits', 'update_visit_result',
-      'manage_users', 'manage_roles', 'reset_password',
-      'view_activity_log', 'manage_settings', 'manage_integrations'
-    ]
-  },
-  {
-    role: 'CRM Agent',
-    description: 'Can manage leads and followups for assigned accounts',
-    color: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200',
-    permissions: [
+const permissionCategories = ['Lead Management', 'Followup Management', 'Visit Management', 'User Management', 'System Management']
+
+// Map departments to permissions and colors
+const getDepartmentPermissionMap = (department: Department): RolePermissionMap => {
+  const departmentColorMap: Record<string, string> = {
+    'JR_CRM': 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200',
+    'SR_CRM': 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200',
+    'JR_ARCHITECT': 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200',
+    '3D_VISUALIZER': 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200',
+    'QUOTATION_TEAM': 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200',
+    'VISIT_TEAM': 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200',
+  }
+
+  const departmentPermissionsMap: Record<string, string[]> = {
+    'JR_CRM': [
       'view_leads', 'create_leads', 'edit_leads', 'update_lead_status',
       'view_followups', 'create_followups', 'edit_followups', 'mark_followup_done',
       'view_visits', 'schedule_visits',
       'view_activity_log'
-    ]
-  },
-  {
-    role: 'Senior CRM',
-    description: 'Can manage leads, followups, and supervise other CRM agents',
-    color: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200',
-    permissions: [
+    ],
+    'SR_CRM': [
       'view_leads', 'create_leads', 'edit_leads', 'delete_leads', 'update_lead_status',
       'view_followups', 'create_followups', 'edit_followups', 'mark_followup_done',
       'view_visits', 'schedule_visits', 'update_visit_result',
       'view_activity_log'
-    ]
-  },
-  {
-    role: 'JR Architect',
-    description: 'Can view leads and create design proposals',
-    color: 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200',
-    permissions: [
+    ],
+    'JR_ARCHITECT': [
       'view_leads', 'view_followups', 'view_visits'
-    ]
-  },
-  {
-    role: '3D Visualizer',
-    description: 'Can view leads and create 3D visualizations',
-    color: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200',
-    permissions: [
+    ],
+    '3D_VISUALIZER': [
       'view_leads', 'view_followups', 'view_visits'
-    ]
-  },
-  {
-    role: 'Quotation Team',
-    description: 'Can view leads and create quotations',
-    color: 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200',
-    permissions: [
+    ],
+    'QUOTATION_TEAM': [
       'view_leads', 'view_followups'
-    ]
-  },
-]
+    ],
+    'VISIT_TEAM': [
+      'view_leads', 'view_followups', 'view_visits', 'update_visit_result'
+    ],
+  }
 
-const permissionCategories = ['Lead Management', 'Followup Management', 'Visit Management', 'User Management', 'System Management']
+  return {
+    role: department.name,
+    permissions: departmentPermissionsMap[department.name] || [],
+    description: department.description,
+    color: departmentColorMap[department.name] || 'bg-gray-100 dark:bg-gray-900/40 text-gray-800 dark:text-gray-200'
+  }
+}
 
 export function RolePermissions() {
-  const [expandedRole, setExpandedRole] = useState<UserRole | null>('Admin')
+  const [expandedRole, setExpandedRole] = useState<string | null>('JR_CRM')
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [loading, setLoading] = useState(true)
+  const [rolePermissions, setRolePermissions] = useState<RolePermissionMap[]>([])
 
-  const getRoleColor = (role: UserRole) => {
-    const roleData = rolePermissions.find(r => r.role === role)
-    return roleData?.color || ''
-  }
+  useEffect(() => {
+    const fetchDepartments = async () => {
+      try {
+        const response = await fetch('/api/department')
+        const result = await response.json()
+        
+        if (result.success && Array.isArray(result.data)) {
+          setDepartments(result.data)
+          const mappedPermissions = result.data.map((dept: Department) => getDepartmentPermissionMap(dept))
+          setRolePermissions(mappedPermissions)
+        }
+      } catch (error) {
+        console.error('Failed to fetch departments:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  const getRolePermissions = (role: UserRole) => {
-    const roleData = rolePermissions.find(r => r.role === role)
-    return roleData?.permissions || []
-  }
+    fetchDepartments()
+  }, [])
 
-  const getRoleDescription = (role: UserRole) => {
-    const roleData = rolePermissions.find(r => r.role === role)
-    return roleData?.description || ''
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Card className="border-border">
+          <CardHeader>
+            <CardTitle>Role & Permission Settings</CardTitle>
+            <CardDescription>Loading departments...</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    )
   }
 
   const getPermissionsByCategory = (permissions: string[], category: string) => {
@@ -143,7 +159,7 @@ export function RolePermissions() {
       <Card className="border-border">
         <CardHeader>
           <CardTitle>Role & Permission Settings</CardTitle>
-          <CardDescription>Control what each role can access and perform in the system</CardDescription>
+          <CardDescription>Manage {rolePermissions.length} department roles and their access levels</CardDescription>
         </CardHeader>
       </Card>
 
@@ -153,8 +169,8 @@ export function RolePermissions() {
           <div className="flex gap-3">
             <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
             <div className="text-sm text-blue-800 dark:text-blue-200">
-              <p className="font-medium mb-1">Permission Hierarchy</p>
-              <p>Permissions are inherited from role definitions. Admin has full access to all features. Edit permissions to control access for other roles.</p>
+              <p className="font-medium mb-1">Department Permission Hierarchy</p>
+              <p>Permissions are managed per department. Each department has specific access levels based on their role in the organization. Users inherit permissions from their assigned department.</p>
             </div>
           </div>
         </CardContent>
@@ -174,7 +190,7 @@ export function RolePermissions() {
                     <Badge className={roleData.color}>{roleData.role}</Badge>
                     <div>
                       <p className="text-sm text-muted-foreground">{roleData.description}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{roleData.permissions.length} permissions assigned</p>
+                      <p className="text-xs text-muted-foreground mt-1">{roleData.permissions.length} permissions assigned • {departments.find(d => d.name === roleData.role)?._count.userDepartments || 0} users</p>
                     </div>
                   </div>
                   <ChevronDown
@@ -218,7 +234,7 @@ export function RolePermissions() {
                 })}
 
                 {/* Restricted Categories */}
-                {roleData.role !== 'Admin' && (
+                {roleData.role !== 'ADMIN' && (
                   <div className="border-t border-border pt-6">
                     <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                       <Lock className="w-4 h-4 text-red-500" />
