@@ -1,21 +1,29 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  Plus, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  CheckCircle2,
+  Clock,
+  AlertCircle,
   Calendar,
   Phone,
   Mail,
   User,
-  ArrowRight
+  ArrowRight,
 } from 'lucide-react'
 
 type FollowUpStatus = 'PENDING' | 'DONE' | 'LATELY_DONE' | 'MISSED'
@@ -43,196 +51,166 @@ type FollowUp = {
   }
 }
 
-const mockFollowups: FollowUp[] = [
-  {
-    id: 'cmmk75l980000ruwb4bm0o7p3',
-    leadId: 'cmmiyhpn20002cvwb4y1o90y7',
-    assignedToId: 'cmminh23n000010u3dv81zzq1',
-    followupDate: '2026-03-10T10:00:00.000Z',
-    status: 'PENDING',
-    notes: 'Follow up on proposal',
-    createdAt: '2026-03-10T05:56:03.164Z',
-    lead: {
-      id: 'cmmiyhpn20002cvwb4y1o90y7',
-      name: 'Tajrian Nice',
-      email: 'tajrian@gmail.com',
-      phone: '01676566931',
-      stage: 'NEW',
-      subStatus: null,
-    },
-    assignedTo: {
-      id: 'cmminh23n000010u3dv81zzq1',
-      fullName: 'Mahi Chowdhury',
-      email: 'mdalraihan450@gmail.com',
-    },
-  },
-  {
-    id: 'cmmken6j40000zwu3wxtauf4d',
-    leadId: 'cmmhfdt160000vzwb5ai4ej2g',
-    assignedToId: 'cmminh23n000010u3dv81zzq1',
-    followupDate: '2026-04-20T10:00:00.000Z',
-    status: 'PENDING',
-    notes: 'Mark as future client - follow up in April',
-    createdAt: '2026-03-10T09:25:41.200Z',
-    lead: {
-      id: 'cmmhfdt160000vzwb5ai4ej2g',
-      name: 'Moinul Islam',
-      email: 'moinul@email.com',
-      phone: '01676566927',
-      stage: 'CONTACT_ATTEMPTED',
-      subStatus: 'NO_ANSWER',
-    },
-    assignedTo: {
-      id: 'cmminh23n000010u3dv81zzq1',
-      fullName: 'Mahi Chowdhury',
-      email: 'mdalraihan450@gmail.com',
-    },
-  },
-  {
-    id: 'cmmk75l980001ruwb4bm0o7p3',
-    leadId: 'cmmiyhpn20003cvwb4y1o90y7',
-    assignedToId: 'cmminh23n000010u3dv81zzq1',
-    followupDate: '2026-03-15T14:30:00.000Z',
-    status: 'PENDING',
-    notes: 'Site visit for interior design consultation',
-    createdAt: '2026-03-11T08:00:00.000Z',
-    lead: {
-      id: 'cmmiyhpn20003cvwb4y1o90y7',
-      name: 'Sarah Ahmed',
-      email: 'sarah.ahmed@company.com',
-      phone: '01712345678',
-      stage: 'QUALIFIED',
-      subStatus: 'WARM_LEAD',
-    },
-    assignedTo: {
-      id: 'cmminh23n000010u3dv81zzq1',
-      fullName: 'Mahi Chowdhury',
-      email: 'mdalraihan450@gmail.com',
-    },
-  },
-  {
-    id: 'cmmk75l980002ruwb4bm0o7p3',
-    leadId: 'cmmiyhpn20004cvwb4y1o90y7',
-    assignedToId: 'cmminh23n000010u3dv81zzq1',
-    followupDate: '2026-03-12T11:00:00.000Z',
-    status: 'DONE',
-    notes: 'Discussed project requirements and budget',
-    createdAt: '2026-03-11T09:15:00.000Z',
-    lead: {
-      id: 'cmmiyhpn20004cvwb4y1o90y7',
-      name: 'Hassan Khan',
-      email: 'hassan.khan@business.com',
-      phone: '01987654321',
-      stage: 'VISIT_SCHEDULED',
-      subStatus: null,
-    },
-    assignedTo: {
-      id: 'cmminh23n000010u3dv81zzq1',
-      fullName: 'Mahi Chowdhury',
-      email: 'mdalraihan450@gmail.com',
-    },
-  },
-  {
-    id: 'cmmk75l980003ruwb4bm0o7p3',
-    leadId: 'cmmiyhpn20005cvwb4y1o90y7',
-    assignedToId: 'cmminh23n000010u3dv81zzq1',
-    followupDate: '2026-03-08T09:00:00.000Z',
-    status: 'MISSED',
-    notes: 'Missed scheduled meeting - need to reschedule',
-    createdAt: '2026-03-07T12:00:00.000Z',
-    lead: {
-      id: 'cmmiyhpn20005cvwb4y1o90y7',
-      name: 'Fatima Begum',
-      email: 'fatima@residence.com',
-      phone: '01555123456',
-      stage: 'CONTACT_ATTEMPTED',
-      subStatus: 'INTERESTED',
-    },
-    assignedTo: {
-      id: 'cmminh23n000010u3dv81zzq1',
-      fullName: 'Mahi Chowdhury',
-      email: 'mdalraihan450@gmail.com',
-    },
-  },
-]
-
 const statusConfig: Record<FollowUpStatus, { icon: React.ReactNode; color: string; bgColor: string; label: string }> = {
-  PENDING: { 
-    icon: <Clock className="w-4 h-4" />, 
+  PENDING: {
+    icon: <Clock className="w-4 h-4" />,
     color: 'text-yellow-700 dark:text-yellow-200',
     bgColor: 'bg-yellow-100 dark:bg-yellow-900/40',
-    label: 'Pending'
+    label: 'Pending',
   },
-  DONE: { 
-    icon: <CheckCircle2 className="w-4 h-4" />, 
+  DONE: {
+    icon: <CheckCircle2 className="w-4 h-4" />,
     color: 'text-green-700 dark:text-green-200',
     bgColor: 'bg-green-100 dark:bg-green-900/40',
-    label: 'Done'
+    label: 'Done',
   },
-  LATELY_DONE: { 
-    icon: <CheckCircle2 className="w-4 h-4" />, 
+  LATELY_DONE: {
+    icon: <CheckCircle2 className="w-4 h-4" />,
     color: 'text-blue-700 dark:text-blue-200',
     bgColor: 'bg-blue-100 dark:bg-blue-900/40',
-    label: 'Lately Done'
+    label: 'Lately Done',
   },
-  MISSED: { 
-    icon: <AlertCircle className="w-4 h-4" />, 
+  MISSED: {
+    icon: <AlertCircle className="w-4 h-4" />,
     color: 'text-red-700 dark:text-red-200',
     bgColor: 'bg-red-100 dark:bg-red-900/40',
-    label: 'Missed'
+    label: 'Missed',
   },
 }
 
 export default function FollowupsPage() {
-  const [followups, setFollowups] = useState<FollowUp[]>(mockFollowups)
-  const [loading, setLoading] = useState(false)
+  const [followups, setFollowups] = useState<FollowUp[]>([])
+  const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('pending')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [completeOpen, setCompleteOpen] = useState(false)
+  const [selectedFollowup, setSelectedFollowup] = useState<FollowUp | null>(null)
+  const [completionNote, setCompletionNote] = useState('')
+  const [completing, setCompleting] = useState(false)
+  const [completeError, setCompleteError] = useState<string | null>(null)
 
-  useEffect(() => {
-    // In production, fetch from API: /api/followup
-    // For now, using mock data
+  const refreshFollowups = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/followup?limit=200')
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to load follow-ups.')
+      }
+      setFollowups(Array.isArray(data.data) ? data.data : [])
+    } catch (error) {
+      console.error('Error loading follow-ups:', error)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  useEffect(() => {
+    refreshFollowups()
+  }, [refreshFollowups])
 
-  const categorizeFollowups = () => {
-    const pending = followups.filter((f) => f.status === 'PENDING')
-    const overdue = pending.filter((f) => new Date(f.followupDate) < today)
-    const todayFollowups = pending.filter((f) => {
+  useEffect(() => {
+    fetch('/api/me')
+      .then((res) => res.json())
+      .then((data) => setCurrentUserId(data.id ?? null))
+      .catch((error) => console.error('Error fetching current user:', error))
+  }, [])
+
+  const openCompleteModal = (followup: FollowUp) => {
+    setSelectedFollowup(followup)
+    setCompletionNote('')
+    setCompleteError(null)
+    setCompleteOpen(true)
+  }
+
+  const handleCompleteFollowup = async () => {
+    if (!selectedFollowup) return
+    if (!currentUserId) {
+      setCompleteError('Unable to determine your user id.')
+      return
+    }
+    if (!completionNote.trim()) {
+      setCompleteError('Please add completion notes.')
+      return
+    }
+
+    const nextStatus: FollowUpStatus = selectedFollowup.status === 'MISSED' ? 'LATELY_DONE' : 'DONE'
+
+    setCompleting(true)
+    setCompleteError(null)
+    try {
+      const res = await fetch(`/api/followup/${selectedFollowup.leadId}/${selectedFollowup.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: nextStatus,
+          notes: completionNote.trim(),
+          userId: currentUserId,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to complete follow-up.')
+      }
+
+      setCompleteOpen(false)
+      setSelectedFollowup(null)
+      setCompletionNote('')
+      refreshFollowups()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to complete follow-up.'
+      setCompleteError(message)
+    } finally {
+      setCompleting(false)
+    }
+  }
+
+  const today = useMemo(() => {
+    const date = new Date()
+    date.setHours(0, 0, 0, 0)
+    return date
+  }, [])
+
+  const { pending, overdue, todayFollowups, completed, missed } = useMemo(() => {
+    const pendingFollowups = followups.filter((f) => f.status === 'PENDING')
+    const overdueFollowups = pendingFollowups.filter((f) => new Date(f.followupDate) < today)
+    const todayPendingFollowups = pendingFollowups.filter((f) => {
       const fDate = new Date(f.followupDate)
       fDate.setHours(0, 0, 0, 0)
       return fDate.getTime() === today.getTime()
     })
-    const upcoming = pending.filter((f) => {
+    const upcomingFollowups = pendingFollowups.filter((f) => {
       const fDate = new Date(f.followupDate)
       fDate.setHours(0, 0, 0, 0)
       return fDate > today
     })
-    const completed = followups.filter((f) => f.status === 'DONE' || f.status === 'LATELY_DONE')
-    const missed = followups.filter((f) => f.status === 'MISSED')
+    const completedFollowups = followups.filter((f) => f.status === 'DONE' || f.status === 'LATELY_DONE')
+    const missedFollowups = followups.filter((f) => f.status === 'MISSED')
 
-    return { pending, overdue, todayFollowups, upcoming, completed, missed }
-  }
-
-  const { pending, overdue, todayFollowups, upcoming, completed, missed } = categorizeFollowups()
+    return {
+      pending: pendingFollowups,
+      overdue: overdueFollowups,
+      todayFollowups: todayPendingFollowups,
+      upcoming: upcomingFollowups,
+      completed: completedFollowups,
+      missed: missedFollowups,
+    }
+  }, [followups, today])
 
   const FollowupCard = ({ followup }: { followup: FollowUp }) => {
     const config = statusConfig[followup.status]
     const followupDateTime = new Date(followup.followupDate)
-    
+    const canComplete = followup.status === 'PENDING' || followup.status === 'MISSED'
+
     return (
       <Card className="hover:shadow-md transition-shadow duration-200 border-border">
         <CardContent className="pt-4 pb-4">
           <div className="flex items-start gap-4">
-            {/* Status Icon */}
             <div className={`flex-shrink-0 mt-1 p-2 rounded-lg ${config.bgColor}`}>
               <div className={config.color}>{config.icon}</div>
             </div>
 
-            {/* Content */}
             <div className="flex-1 min-w-0">
-              {/* Lead Name and Email */}
               <Link href={`/crm/jr/leads/${followup.leadId}`} className="group">
                 <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
                   {followup.lead.name}
@@ -250,12 +228,10 @@ export default function FollowupsPage() {
                 </div>
               </div>
 
-              {/* Notes */}
-              {followup.notes && (
+              {followup.notes ? (
                 <p className="text-sm text-muted-foreground mt-3 line-clamp-2">{followup.notes}</p>
-              )}
+              ) : null}
 
-              {/* Meta Info */}
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 pt-4 border-t border-border">
                 <div className="flex items-center gap-4 text-xs">
                   <div className="flex items-center gap-1 text-muted-foreground">
@@ -264,7 +240,8 @@ export default function FollowupsPage() {
                       {followupDateTime.toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
-                      })} at {followupDateTime.toLocaleTimeString('en-US', {
+                      })} at{' '}
+                      {followupDateTime.toLocaleTimeString('en-US', {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
@@ -275,15 +252,21 @@ export default function FollowupsPage() {
                     <span>{followup.assignedTo.fullName}</span>
                   </div>
                 </div>
-                <Link href={`/crm/jr/leads/${followup.leadId}`}>
-                  <Button size="sm" variant="outline" className="gap-1">
-                    View <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link href={`/crm/jr/leads/${followup.leadId}`}>
+                    <Button size="sm" variant="outline" className="gap-1">
+                      View <ArrowRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </Link>
+                  {canComplete ? (
+                    <Button size="sm" onClick={() => openCompleteModal(followup)}>
+                      Complete
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             </div>
 
-            {/* Status Badge */}
             <div className="flex-shrink-0">
               <Badge className={`${config.bgColor} ${config.color} text-xs font-medium`}>
                 {config.label}
@@ -295,236 +278,90 @@ export default function FollowupsPage() {
     )
   }
 
-  const StatCard = ({ label, count, icon, color }: { label: string; count: number; icon: React.ReactNode; color: string }) => (
-    <Card className="bg-card border-border">
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-muted-foreground">{label}</p>
-            <p className="text-3xl font-bold text-foreground mt-2">{count}</p>
-          </div>
-          <div className={`p-3 rounded-lg ${color}`}>
-            {icon}
-          </div>
-        </div>
+  const EmptyState = ({ icon, text }: { icon: React.ReactNode; text: string }) => (
+    <Card className="border-dashed">
+      <CardContent className="pt-14 pb-14 text-center">
+        <div className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40">{icon}</div>
+        <p className="text-muted-foreground text-sm font-medium">{text}</p>
       </CardContent>
     </Card>
   )
 
   return (
     <main className="min-h-screen bg-background">
-      {/* Header */}
       <div className="border-b border-border bg-card sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Followups</h1>
-              <p className="text-sm text-muted-foreground mt-1">Track and manage all your followup tasks</p>
-            </div>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Add Followup
-            </Button>
-          </div>
+          <h1 className="text-3xl font-bold text-foreground">Followups</h1>
+          <p className="text-sm text-muted-foreground mt-1">Track and manage all your followup tasks</p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-          <StatCard 
-            label="Today" 
-            count={todayFollowups.length}
-            icon={<Calendar className="w-5 h-5 text-blue-600" />}
-            color="bg-blue-50 dark:bg-blue-950"
-          />
-          <StatCard 
-            label="Upcoming" 
-            count={upcoming.length}
-            icon={<Clock className="w-5 h-5 text-purple-600" />}
-            color="bg-purple-50 dark:bg-purple-950"
-          />
-          <StatCard 
-            label="Overdue" 
-            count={overdue.length}
-            icon={<AlertCircle className="w-5 h-5 text-red-600" />}
-            color="bg-red-50 dark:bg-red-950"
-          />
-          <StatCard 
-            label="Completed" 
-            count={completed.length}
-            icon={<CheckCircle2 className="w-5 h-5 text-green-600" />}
-            color="bg-green-50 dark:bg-green-950"
-          />
-          <StatCard 
-            label="Missed" 
-            count={missed.length}
-            icon={<AlertCircle className="w-5 h-5 text-orange-600" />}
-            color="bg-orange-50 dark:bg-orange-950"
-          />
-          <StatCard 
-            label="All Pending" 
-            count={pending.length}
-            icon={<Clock className="w-5 h-5 text-yellow-600" />}
-            color="bg-yellow-50 dark:bg-yellow-950"
-          />
-        </div>
+        {loading ? <p className="text-sm text-muted-foreground mb-4">Loading followups...</p> : null}
 
-        {/* Tabs */}
-        {/* Tabs */}
-<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-8">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-8">
+          <TabsList className="grid w-full grid-cols-5 bg-muted/40 backdrop-blur rounded-lg p-1 h-auto shadow-sm border border-border">
+            <TabsTrigger value="pending" className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <span className="hidden sm:inline">Pending</span>
+              <span className="sm:hidden">P</span>
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{pending.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="today" className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <span className="hidden sm:inline">Today</span>
+              <span className="sm:hidden">T</span>
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{todayFollowups.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="overdue" className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <span className="hidden sm:inline">Overdue</span>
+              <span className="sm:hidden">O</span>
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{overdue.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="completed" className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <span className="hidden sm:inline">Completed</span>
+              <span className="sm:hidden">C</span>
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{completed.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="missed" className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              <span className="hidden sm:inline">Missed</span>
+              <span className="sm:hidden">M</span>
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{missed.length}</Badge>
+            </TabsTrigger>
+          </TabsList>
 
-  <TabsList className="grid w-full grid-cols-5 bg-muted/40 backdrop-blur rounded-lg p-1 h-auto shadow-sm border border-border">
-
-    <TabsTrigger
-      value="pending"
-      className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
-    >
-      <span className="hidden sm:inline">Pending</span>
-      <span className="sm:hidden">P</span>
-      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">
-        {pending.length}
-      </Badge>
-    </TabsTrigger>
-
-    <TabsTrigger
-      value="today"
-      className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
-    >
-      <span className="hidden sm:inline">Today</span>
-      <span className="sm:hidden">T</span>
-      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">
-        {todayFollowups.length}
-      </Badge>
-    </TabsTrigger>
-
-    <TabsTrigger
-      value="overdue"
-      className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
-    >
-      <span className="hidden sm:inline">Overdue</span>
-      <span className="sm:hidden">O</span>
-      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">
-        {overdue.length}
-      </Badge>
-    </TabsTrigger>
-
-    <TabsTrigger
-      value="completed"
-      className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
-    >
-      <span className="hidden sm:inline">Completed</span>
-      <span className="sm:hidden">C</span>
-      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">
-        {completed.length}
-      </Badge>
-    </TabsTrigger>
-
-    <TabsTrigger
-      value="missed"
-      className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm"
-    >
-      <span className="hidden sm:inline">Missed</span>
-      <span className="sm:hidden">M</span>
-      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">
-        {missed.length}
-      </Badge>
-    </TabsTrigger>
-
-  </TabsList>
-
-  {/* Pending */}
-  <TabsContent value="pending" className="space-y-4 mt-6">
-    {pending.length === 0 ? (
-      <Card className="border-dashed">
-        <CardContent className="pt-14 pb-14 text-center">
-          <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40" />
-          <p className="text-muted-foreground text-sm font-medium">
-            No pending followups
-          </p>
-        </CardContent>
-      </Card>
-    ) : (
-      pending.map((followup) => (
-        <FollowupCard key={followup.id} followup={followup} />
-      ))
-    )}
-  </TabsContent>
-
-  {/* Today */}
-  <TabsContent value="today" className="space-y-4">
-    {todayFollowups.length === 0 ? (
-      <Card className="border-dashed">
-        <CardContent className="pt-14 pb-14 text-center">
-          <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40" />
-          <p className="text-muted-foreground text-sm font-medium">
-            No followups for today
-          </p>
-        </CardContent>
-      </Card>
-    ) : (
-      todayFollowups.map((followup) => (
-        <FollowupCard key={followup.id} followup={followup} />
-      ))
-    )}
-  </TabsContent>
-
-  {/* Overdue */}
-  <TabsContent value="overdue" className="space-y-4">
-    {overdue.length === 0 ? (
-      <Card className="border-dashed">
-        <CardContent className="pt-14 pb-14 text-center">
-          <CheckCircle2 className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40" />
-          <p className="text-muted-foreground text-sm font-medium">
-            No overdue followups
-          </p>
-        </CardContent>
-      </Card>
-    ) : (
-      overdue.map((followup) => (
-        <FollowupCard key={followup.id} followup={followup} />
-      ))
-    )}
-  </TabsContent>
-
-  {/* Completed */}
-  <TabsContent value="completed" className="space-y-4">
-    {completed.length === 0 ? (
-      <Card className="border-dashed">
-        <CardContent className="pt-14 pb-14 text-center">
-          <CheckCircle2 className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40" />
-          <p className="text-muted-foreground text-sm font-medium">
-            No completed followups
-          </p>
-        </CardContent>
-      </Card>
-    ) : (
-      completed.map((followup) => (
-        <FollowupCard key={followup.id} followup={followup} />
-      ))
-    )}
-  </TabsContent>
-
-  {/* Missed */}
-  <TabsContent value="missed" className="space-y-4">
-    {missed.length === 0 ? (
-      <Card className="border-dashed">
-        <CardContent className="pt-14 pb-14 text-center">
-          <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-40" />
-          <p className="text-muted-foreground text-sm font-medium">
-            No missed followups
-          </p>
-        </CardContent>
-      </Card>
-    ) : (
-      missed.map((followup) => (
-        <FollowupCard key={followup.id} followup={followup} />
-      ))
-    )}
-  </TabsContent>
-
-</Tabs>
+          <TabsContent value="pending" className="space-y-4 mt-6">{pending.length === 0 ? <EmptyState icon={<Clock className="w-12 h-12" />} text="No pending followups" /> : pending.map((f) => <FollowupCard key={f.id} followup={f} />)}</TabsContent>
+          <TabsContent value="today" className="space-y-4">{todayFollowups.length === 0 ? <EmptyState icon={<Calendar className="w-12 h-12" />} text="No followups for today" /> : todayFollowups.map((f) => <FollowupCard key={f.id} followup={f} />)}</TabsContent>
+          <TabsContent value="overdue" className="space-y-4">{overdue.length === 0 ? <EmptyState icon={<CheckCircle2 className="w-12 h-12" />} text="No overdue followups" /> : overdue.map((f) => <FollowupCard key={f.id} followup={f} />)}</TabsContent>
+          <TabsContent value="completed" className="space-y-4">{completed.length === 0 ? <EmptyState icon={<CheckCircle2 className="w-12 h-12" />} text="No completed followups" /> : completed.map((f) => <FollowupCard key={f.id} followup={f} />)}</TabsContent>
+          <TabsContent value="missed" className="space-y-4">{missed.length === 0 ? <EmptyState icon={<AlertCircle className="w-12 h-12" />} text="No missed followups" /> : missed.map((f) => <FollowupCard key={f.id} followup={f} />)}</TabsContent>
+        </Tabs>
       </div>
+
+      <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete follow-up</DialogTitle>
+            <DialogDescription>
+              {selectedFollowup?.status === 'MISSED'
+                ? 'This follow-up will be marked as lately done.'
+                : 'This follow-up will be marked as done.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Textarea
+              value={completionNote}
+              onChange={(event) => setCompletionNote(event.target.value)}
+              placeholder="Follow-up finished successfully"
+              rows={4}
+            />
+            {completeError ? <p className="text-sm text-destructive">{completeError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleCompleteFollowup} disabled={completing}>
+              {completing ? 'Saving...' : 'Complete follow-up'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 }
