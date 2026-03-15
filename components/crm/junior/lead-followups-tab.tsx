@@ -13,7 +13,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar, User } from 'lucide-react'
 
@@ -48,14 +47,12 @@ export function LeadFollowupsTab({
 }: LeadFollowupsTabProps) {
   const [completeOpen, setCompleteOpen] = useState(false)
   const [selectedFollowup, setSelectedFollowup] = useState<Followup | null>(null)
-  const [completionStatus, setCompletionStatus] = useState<'DONE' | 'LATELY_DONE'>('DONE')
   const [note, setNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const openCompleteModal = (followup: Followup) => {
     setSelectedFollowup(followup)
-    setCompletionStatus('DONE')
     setNote('')
     setError(null)
     setCompleteOpen(true)
@@ -80,6 +77,8 @@ export function LeadFollowupsTab({
     setSubmitting(true)
     setError(null)
 
+    const completionStatus = selectedFollowup.status === 'MISSED' ? 'LATELY_DONE' : 'DONE'
+
     try {
       const followupRes = await fetch(
         `/api/followup/${leadId}/${selectedFollowup.id}`,
@@ -88,6 +87,7 @@ export function LeadFollowupsTab({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             status: completionStatus,
+            notes: note.trim(),
             userId: currentUserId,
           }),
         },
@@ -95,19 +95,6 @@ export function LeadFollowupsTab({
       const followupData = await followupRes.json()
       if (!followupRes.ok || !followupData.success) {
         throw new Error(followupData.error || 'Failed to update follow-up.')
-      }
-
-      const noteRes = await fetch(`/api/note/${leadId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUserId,
-          content: note.trim(),
-        }),
-      })
-      const noteData = await noteRes.json()
-      if (!noteRes.ok || !noteData.success) {
-        throw new Error(noteData.error || 'Follow-up updated, but failed to save note.')
       }
 
       setCompleteOpen(false)
@@ -200,23 +187,11 @@ export function LeadFollowupsTab({
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select
-                value={completionStatus}
-                onValueChange={(value) =>
-                  setCompletionStatus(value as 'DONE' | 'LATELY_DONE')
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DONE">Done</SelectItem>
-                  <SelectItem value="LATELY_DONE">Lately Done</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              {selectedFollowup?.status === 'MISSED'
+                ? 'This follow-up will be marked as lately done.'
+                : 'This follow-up will be marked as done.'}
+            </p>
             <div className="space-y-2">
               <Label>Note</Label>
               <Textarea
