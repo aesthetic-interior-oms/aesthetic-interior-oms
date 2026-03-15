@@ -102,21 +102,27 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
+    console.log(`[me][PATCH] phase=start timestamp=${new Date().toISOString()}`);
     const { userId } = await auth();
+    console.log(`[me][PATCH] phase=auth_complete userId=${userId || "null"}`);
     if (!userId) {
+      console.log(`[me][PATCH] phase=auth_failed reason=no_user_id`);
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await parseJsonBody(req);
     if (!body) {
+      console.log(`[me][PATCH] phase=invalid_body reason=parse_failed`);
       return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
     const departmentId = toOptionalString(body.departmentId);
     if (!departmentId) {
+      console.log(`[me][PATCH] phase=invalid_body reason=missing_department_id`);
       return NextResponse.json({ error: "departmentId is required" }, { status: 400 });
     }
 
+    console.log(`[me][PATCH] phase=transaction_start departmentId=${departmentId}`);
     let resolvedDepartmentName: string | null = null;
     const updated = await prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
@@ -154,16 +160,26 @@ export async function PATCH(req: Request) {
         },
       });
     });
+    console.log(`[me][PATCH] phase=transaction_complete userId=${updated.id}`);
 
     const departmentName =
       resolvedDepartmentName ?? updated.userDepartments[0]?.department?.name ?? null;
 
-    await clerkClient.users.updateUserMetadata(userId, {
-      publicMetadata: {
-        departmentId,
-        departmentName,
-      },
-    });
+    try {
+      await clerkClient.users.updateUserMetadata(userId, {
+        publicMetadata: {
+          departmentId,
+          departmentName,
+        },
+      });
+      console.log(`[me][PATCH] phase=clerk_metadata_updated departmentId=${departmentId} departmentName=${departmentName ?? "null"}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[me][PATCH] phase=clerk_metadata_error message=${message}`);
+      if (USE_CLERK_DEPARTMENT_METADATA) {
+        throw error;
+      }
+    }
 
     const needsOnboarding = USE_CLERK_DEPARTMENT_METADATA
       ? false
@@ -178,6 +194,7 @@ export async function PATCH(req: Request) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    console.error(`[me][PATCH] phase=error message=${message}`);
     if (message.includes("USER_NOT_FOUND")) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }

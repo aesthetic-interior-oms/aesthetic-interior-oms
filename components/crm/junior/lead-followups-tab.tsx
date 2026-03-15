@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar, User } from 'lucide-react'
 
@@ -47,14 +46,14 @@ export function LeadFollowupsTab({
 }: LeadFollowupsTabProps) {
   const [completeOpen, setCompleteOpen] = useState(false)
   const [selectedFollowup, setSelectedFollowup] = useState<Followup | null>(null)
-  const [note, setNote] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [completionNote, setCompletionNote] = useState('')
+  const [completing, setCompleting] = useState(false)
+  const [completeError, setCompleteError] = useState<string | null>(null)
 
   const openCompleteModal = (followup: Followup) => {
     setSelectedFollowup(followup)
-    setNote('')
-    setError(null)
+    setCompletionNote('')
+    setCompleteError(null)
     setCompleteOpen(true)
   }
 
@@ -65,17 +64,13 @@ export function LeadFollowupsTab({
 
   const handleComplete = async () => {
     if (!selectedFollowup) return
-    if (!currentUserId) {
-      setError('Unable to determine your user id.')
-      return
-    }
-    if (!note.trim()) {
-      setError('Please add a note for the follow-up completion.')
+    if (!completionNote.trim()) {
+      setCompleteError('Please add completion notes.')
       return
     }
 
-    setSubmitting(true)
-    setError(null)
+    setCompleting(true)
+    setCompleteError(null)
 
     const completionStatus = selectedFollowup.status === 'MISSED' ? 'LATELY_DONE' : 'DONE'
 
@@ -83,12 +78,12 @@ export function LeadFollowupsTab({
       const followupRes = await fetch(
         `/api/followup/${leadId}/${selectedFollowup.id}`,
         {
-          method: 'PATCH',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             status: completionStatus,
-            notes: note.trim(),
-            userId: currentUserId,
+            notes: completionNote.trim(),
+            userId: currentUserId ?? undefined,
           }),
         },
       )
@@ -99,13 +94,13 @@ export function LeadFollowupsTab({
 
       setCompleteOpen(false)
       setSelectedFollowup(null)
-      setNote('')
+      setCompletionNote('')
       onRefreshFollowups()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to complete follow-up.'
-      setError(message)
+      setCompleteError(message)
     } finally {
-      setSubmitting(false)
+      setCompleting(false)
     }
   }
 
@@ -183,29 +178,23 @@ export function LeadFollowupsTab({
           <DialogHeader>
             <DialogTitle>Complete follow-up</DialogTitle>
             <DialogDescription>
-              Mark this follow-up as done and add a note.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
               {selectedFollowup?.status === 'MISSED'
                 ? 'This follow-up will be marked as lately done.'
                 : 'This follow-up will be marked as done.'}
-            </p>
-            <div className="space-y-2">
-              <Label>Note</Label>
-              <Textarea
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                placeholder="Add completion note..."
-                rows={4}
-              />
-            </div>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Textarea
+              value={completionNote}
+              onChange={(event) => setCompletionNote(event.target.value)}
+              placeholder="Follow-up finished successfully"
+              rows={4}
+            />
+            {completeError ? <p className="text-sm text-destructive">{completeError}</p> : null}
           </div>
           <DialogFooter>
-            <Button onClick={handleComplete} disabled={submitting}>
-              {submitting ? 'Saving...' : 'Complete follow-up'}
+            <Button onClick={handleComplete} disabled={completing}>
+              {completing ? 'Saving...' : 'Complete follow-up'}
             </Button>
           </DialogFooter>
         </DialogContent>

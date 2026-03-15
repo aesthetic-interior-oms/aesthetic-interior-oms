@@ -42,68 +42,112 @@ type MeResponse = {
 };
 
 export default function OnboardingPage() {
+  console.log('[OnboardingPage] Component mounted');
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
+  console.log('[OnboardingPage] Clerk status:', { isLoaded, isSignedIn, userId: user?.id, userEmail: user?.emailAddresses[0]?.emailAddress });
+  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  
+  console.log('[OnboardingPage] State:', { loading, saving, departmentsCount: departments.length, selectedDepartmentId });
 
   const selectedDepartment = useMemo(
-    () => departments.find((dept) => dept.id === selectedDepartmentId) ?? null,
+    () => {
+      const selected = departments.find((dept) => dept.id === selectedDepartmentId) ?? null;
+      console.log('[OnboardingPage] selectedDepartment computed:', { selectedDepartmentId, found: !!selected, department: selected });
+      return selected;
+    },
     [departments, selectedDepartmentId],
   );
 
   const resolveRedirect = (departmentName?: string | null) => {
-    if (!departmentName) return DEFAULT_REDIRECT;
-    return DEPARTMENT_ROUTES[departmentName] ?? DEFAULT_REDIRECT;
+    const redirect = !departmentName ? DEFAULT_REDIRECT : DEPARTMENT_ROUTES[departmentName] ?? DEFAULT_REDIRECT;
+    console.log('[OnboardingPage] resolveRedirect:', { departmentName, redirect });
+    return redirect;
   };
 
   useEffect(() => {
-    if (!isLoaded) return;
+    console.log('[OnboardingPage] useEffect triggered:', { isLoaded, isSignedIn });
+    
+    if (!isLoaded) {
+      console.log('[OnboardingPage] Clerk not loaded yet, returning');
+      return;
+    }
 
     if (!isSignedIn) {
+      console.log('[OnboardingPage] User not signed in, setting loading to false');
       setLoading(false);
       return;
     }
 
     const load = async () => {
+      console.log('[OnboardingPage] Starting data load');
       setError(null);
       try {
-        const [meRes, departmentsRes] = await Promise.all([
-          fetch("/api/me", { cache: "no-store" }),
-          fetch("/api/department", { cache: "no-store" }),
-        ]);
-
+        console.log('[OnboardingPage] Fetching /api/me');
+        const meRes = await fetch("/api/me", { cache: "no-store" });
+        console.log('[OnboardingPage] /api/me response:', { status: meRes.status, ok: meRes.ok });
+        
         if (!meRes.ok) {
+          console.error('[OnboardingPage] /api/me failed with status', meRes.status);
           throw new Error("Unable to load your profile.");
         }
 
         const me = (await meRes.json()) as MeResponse;
+        console.log('[OnboardingPage] /api/me data received:', { 
+          id: me.id, 
+          fullName: me.fullName, 
+          needsOnboarding: me.needsOnboarding,
+          departmentsCount: me.userDepartments?.length || 0,
+          departments: me.userDepartments,
+          clerkDepartment: me.clerkDepartment
+        });
+        
         const existingDepartmentName =
           me.userDepartments?.[0]?.department?.name ?? me.clerkDepartment?.name ?? null;
+        console.log('[OnboardingPage] existingDepartmentName:', existingDepartmentName);
 
         if (me.needsOnboarding === false && existingDepartmentName) {
+          console.log('[OnboardingPage] User already has department assigned, redirecting to:', resolveRedirect(existingDepartmentName));
           router.replace(resolveRedirect(existingDepartmentName));
           return;
         }
 
+        console.log('[OnboardingPage] Fetching /api/department');
+        const departmentsRes = await fetch("/api/department", { cache: "no-store" });
+        console.log('[OnboardingPage] /api/department response:', { status: departmentsRes.status, ok: departmentsRes.ok });
+        
         if (!departmentsRes.ok) {
+          console.error('[OnboardingPage] /api/department failed with status', departmentsRes.status);
           throw new Error("Unable to load departments.");
         }
 
         const payload = await departmentsRes.json();
+        console.log('[OnboardingPage] /api/department data received:', { 
+          success: payload?.success, 
+          dataIsArray: Array.isArray(payload?.data),
+          departmentsCount: payload?.data?.length || 0,
+          departments: payload?.data 
+        });
+        
         if (!payload?.success || !Array.isArray(payload.data)) {
+          console.error('[OnboardingPage] Invalid departments payload');
           throw new Error("Unable to load departments.");
         }
 
         setDepartments(payload.data as Department[]);
+        console.log('[OnboardingPage] Departments state updated');
       } catch (err) {
         const message = err instanceof Error ? err.message : "Something went wrong.";
+        console.error('[OnboardingPage] Error during load:', message, err);
         setError(message);
       } finally {
         setLoading(false);
+        console.log('[OnboardingPage] Load complete, setting loading to false');
       }
     };
 
@@ -111,7 +155,10 @@ export default function OnboardingPage() {
   }, [isLoaded, isSignedIn, router]);
 
   const handleSubmit = async () => {
+    console.log('[OnboardingPage] handleSubmit called:', { selectedDepartmentId });
+    
     if (!selectedDepartmentId) {
+      console.error('[OnboardingPage] No department selected');
       setError("Please select a department to continue.");
       return;
     }
@@ -120,28 +167,60 @@ export default function OnboardingPage() {
     setError(null);
 
     try {
+      const requestBody = { departmentId: selectedDepartmentId };
+      console.log('[OnboardingPage] Sending PATCH /api/me with body:', requestBody);
+      
       const res = await fetch("/api/me", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ departmentId: selectedDepartmentId }),
+        body: JSON.stringify(requestBody),
       });
 
+      console.log('[OnboardingPage] PATCH /api/me response:', { status: res.status, ok: res.ok });
+
       if (!res.ok) {
-        const payload = await res.json().catch(() => ({}));
-        const message = payload?.error || "Unable to save your department.";
+        let payload: any = {};
+        const contentType = res.headers.get('content-type');
+        console.log('[OnboardingPage] Response content-type:', contentType);
+        
+        try {
+          const text = await res.text();
+          console.log('[OnboardingPage] Raw response body:', text);
+          if (text && contentType?.includes('application/json')) {
+            payload = JSON.parse(text);
+          }
+        } catch (parseErr) {
+          console.error('[OnboardingPage] Failed to parse response:', parseErr);
+        }
+        
+        const message = payload?.error || payload?.message || "Unable to save your department.";
+        console.error('[OnboardingPage] PATCH /api/me failed:', { status: res.status, error: message, payload });
         throw new Error(message);
       }
 
-      router.replace(resolveRedirect(selectedDepartment?.name ?? null));
+      const responseData = await res.json();
+      console.log('[OnboardingPage] PATCH /api/me success response:', { 
+        id: responseData.id,
+        fullName: responseData.fullName,
+        departmentsCount: responseData.userDepartments?.length,
+        departments: responseData.userDepartments
+      });
+
+      const redirectPath = resolveRedirect(selectedDepartment?.name ?? null);
+      console.log('[OnboardingPage] Redirecting to:', redirectPath);
+      router.replace(redirectPath);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong.";
+      console.error('[OnboardingPage] handleSubmit error:', message, err);
       setError(message);
     } finally {
       setSaving(false);
+      console.log('[OnboardingPage] handleSubmit complete');
     }
   };
 
   if (!isLoaded || loading) {
+    console.log('[OnboardingPage] Rendering loading state:', { isLoaded, loading });
     return (
       <main className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-muted/30 px-6 py-12">
         <Card className="w-full max-w-xl border-border">
@@ -155,6 +234,7 @@ export default function OnboardingPage() {
   }
 
   if (!isSignedIn) {
+    console.log('[OnboardingPage] Rendering not signed in state');
     return (
       <main className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-muted/30 px-6 py-12">
         <Card className="w-full max-w-xl border-border">
@@ -172,6 +252,13 @@ export default function OnboardingPage() {
     );
   }
 
+  console.log('[OnboardingPage] Rendering main form:', { 
+    departmentsCount: departments.length, 
+    selectedDepartmentId,
+    hasError: !!error,
+    userFirstName: user?.firstName 
+  });
+
   return (
     <main className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-muted/30 px-6 py-12">
       <Card className="w-full max-w-xl border-border">
@@ -184,7 +271,13 @@ export default function OnboardingPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Department</Label>
-            <Select value={selectedDepartmentId} onValueChange={setSelectedDepartmentId}>
+            <Select 
+              value={selectedDepartmentId} 
+              onValueChange={(value) => {
+                console.log('[OnboardingPage] Department selected:', { value });
+                setSelectedDepartmentId(value);
+              }}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select your department" />
               </SelectTrigger>
