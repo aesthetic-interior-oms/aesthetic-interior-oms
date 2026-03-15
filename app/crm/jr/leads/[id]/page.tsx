@@ -144,6 +144,7 @@ export default function LeadDetailPage() {
         setStage(data.data?.stage || 'NEW')
         setSubStatus(data.data?.subStatus ?? null)
         setActivities(data.data?.activities || [])
+        setFollowups(data.data?.followUps || [])
         setLoading(false)
       })
       .catch((error) => {
@@ -410,6 +411,7 @@ export default function LeadDetailPage() {
         <div className="lg:col-span-1">
           <LeadActionsPanel
             leadId={leadId}
+            leadLocation={lead.location}
             assignments={assignments}
             assignmentsLoading={assignmentsLoading}
             stage={stage}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import dynamic from 'next/dynamic'
@@ -37,8 +38,16 @@ type Assignment = {
   }
 }
 
+type VisitTeamUser = {
+  id: string
+  fullName: string
+  email: string
+  phone?: string | null
+}
+
 interface LeadActionsPanelProps {
   leadId: string
+  leadLocation?: string | null
   assignments: Assignment[]
   assignmentsLoading: boolean
   stage: string
@@ -55,6 +64,7 @@ interface LeadActionsPanelProps {
 
 export function LeadActionsPanel({
   leadId,
+  leadLocation,
   assignments,
   assignmentsLoading,
   stage,
@@ -79,6 +89,16 @@ export function LeadActionsPanel({
   const [reason, setReason] = useState('')
   const [stageError, setStageError] = useState<string | null>(null)
   const [savingStage, setSavingStage] = useState(false)
+  const [visitOpen, setVisitOpen] = useState(false)
+  const [visitTeamUsers, setVisitTeamUsers] = useState<VisitTeamUser[]>([])
+  const [visitTeamLoading, setVisitTeamLoading] = useState(false)
+  const [visitTeamError, setVisitTeamError] = useState<string | null>(null)
+  const [visitTeamUserId, setVisitTeamUserId] = useState('')
+  const [visitScheduledAt, setVisitScheduledAt] = useState('')
+  const [visitLocation, setVisitLocation] = useState('')
+  const [visitNotes, setVisitNotes] = useState('')
+  const [visitReason, setVisitReason] = useState('')
+  const [visitSaving, setVisitSaving] = useState(false)
 
   const stageSubStatusMap: Record<string, string[]> = useMemo(
     () => ({
@@ -115,6 +135,40 @@ export function LeadActionsPanel({
   )
 
   const formatLabel = (value: string) => value.replace(/_/g, ' ')
+  const visitTeamDepartmentId = process.env.NEXT_PUBLIC_VISIT_TEAM_DEPARTMENT_ID
+
+  useEffect(() => {
+    if (!visitOpen) return
+
+    if (!visitLocation && leadLocation) {
+      setVisitLocation(leadLocation)
+    }
+
+    if (!visitTeamDepartmentId) {
+      setVisitTeamError('Visit team department id is not configured.')
+      return
+    }
+
+    setVisitTeamLoading(true)
+    setVisitTeamError(null)
+
+    fetch(`/api/department/${visitTeamDepartmentId}/users`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data?.users)) {
+          setVisitTeamUsers(data.data.users)
+          return
+        }
+        throw new Error(data.error || 'Failed to load visit team members.')
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'Failed to load visit team members.'
+        setVisitTeamError(message)
+      })
+      .finally(() => {
+        setVisitTeamLoading(false)
+      })
+  }, [leadLocation, visitLocation, visitOpen, visitTeamDepartmentId])
 
   const handleStageChange = (value: string) => {
     setStageError(null)
@@ -148,11 +202,81 @@ export function LeadActionsPanel({
       await onUpdateStage(reason.trim())
       setReasonOpen(false)
       setReason('')
+      if (stage === 'VISIT_SCHEDULED') {
+        setVisitOpen(true)
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update stage.'
       setStageError(message)
     } finally {
       setSavingStage(false)
+    }
+  }
+
+  const resetVisitForm = () => {
+    setVisitTeamUserId('')
+    setVisitScheduledAt('')
+    setVisitLocation(leadLocation ?? '')
+    setVisitNotes('')
+    setVisitReason('')
+    setVisitTeamError(null)
+  }
+
+  const handleVisitOpenChange = (open: boolean) => {
+    setVisitOpen(open)
+    if (!open) {
+      resetVisitForm()
+    }
+  }
+
+  const handleScheduleVisit = async () => {
+    if (!visitTeamUserId) {
+      setVisitTeamError('Please select a visit team member.')
+      return
+    }
+
+    if (!visitScheduledAt) {
+      setVisitTeamError('Please choose a visit date and time.')
+      return
+    }
+
+    if (!visitLocation.trim()) {
+      setVisitTeamError('Please provide a visit location.')
+      return
+    }
+
+    const scheduledIso = new Date(visitScheduledAt).toISOString()
+
+    setVisitSaving(true)
+    setVisitTeamError(null)
+
+    try {
+      const response = await fetch(`/api/lead/${leadId}/visit-schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visitTeamUserId,
+          scheduledAt: scheduledIso,
+          location: visitLocation.trim(),
+          notes: visitNotes.trim() || undefined,
+          reason: visitReason.trim() || undefined,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to schedule visit.')
+      }
+
+      setVisitOpen(false)
+      resetVisitForm()
+      onStageChange('VISIT_SCHEDULED')
+      onSubStatusChange(null)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to schedule visit.'
+      setVisitTeamError(message)
+    } finally {
+      setVisitSaving(false)
     }
   }
 
@@ -420,7 +544,11 @@ export function LeadActionsPanel({
           <CardTitle className="text-base">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button className="w-full justify-start gap-2" variant="outline">
+          <Button
+            className="w-full justify-start gap-2"
+            variant="outline"
+            onClick={() => setVisitOpen(true)}
+          >
             <Plus className="w-4 h-4" />
             Schedule Visit
           </Button>
@@ -446,6 +574,95 @@ export function LeadActionsPanel({
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={visitOpen} onOpenChange={handleVisitOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Schedule visit</DialogTitle>
+            <DialogDescription>
+              Assign a visit team member and set the visit details.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Visit team member</Label>
+              <Select
+                value={visitTeamUserId}
+                onValueChange={setVisitTeamUserId}
+                disabled={visitTeamLoading || visitTeamUsers.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      visitTeamLoading
+                        ? 'Loading team...'
+                        : visitTeamUsers.length === 0
+                          ? 'No visit team members'
+                          : 'Select member'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {visitTeamUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.fullName} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Scheduled date & time</Label>
+              <Input
+                type="datetime-local"
+                value={visitScheduledAt}
+                onChange={(event) => setVisitScheduledAt(event.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Location</Label>
+              <Input
+                value={visitLocation}
+                onChange={(event) => setVisitLocation(event.target.value)}
+                placeholder="Visit location"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={visitNotes}
+                onChange={(event) => setVisitNotes(event.target.value)}
+                placeholder="Optional notes"
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Reason</Label>
+              <Textarea
+                value={visitReason}
+                onChange={(event) => setVisitReason(event.target.value)}
+                placeholder="Reason for scheduling this visit"
+                rows={3}
+              />
+            </div>
+
+            {visitTeamError ? (
+              <p className="text-sm text-destructive">{visitTeamError}</p>
+            ) : null}
+          </div>
+
+          <DialogFooter>
+            <Button onClick={handleScheduleVisit} disabled={visitSaving}>
+              {visitSaving ? 'Saving...' : 'Schedule visit'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

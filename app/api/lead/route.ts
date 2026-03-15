@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma';
-import { LeadStage, Prisma, LeadStatus } from '@/generated/prisma/client';
+import { LeadAssignmentDepartment, LeadStage, Prisma, LeadStatus } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { logLeadCreated } from '@/lib/activity-log-service';
 import { requireDatabaseRoles } from '@/lib/authz';
@@ -147,9 +147,47 @@ function toBudget(value: unknown): number | null {
 export async function GET() {
   try {
     console.log('🔵 [GET /api/lead] - Request received');
-    
-    console.log('🔎 [GET /api/lead] - Fetching all leads');
+
+    const authResult = await requireDatabaseRoles([]);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+
+    const actor = await prisma.user.findUnique({
+      where: { id: authResult.actorUserId },
+      select: {
+        id: true,
+        userDepartments: {
+          select: {
+            department: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    const departmentNames = new Set(
+      (actor?.userDepartments ?? []).map((row) => row.department.name),
+    );
+    const isJuniorCrm = departmentNames.has('JR_CRM');
+
+    const where: Prisma.LeadWhereInput = isJuniorCrm
+      ? {
+          assignments: {
+            some: {
+              userId: authResult.actorUserId,
+              department: LeadAssignmentDepartment.JR_CRM,
+            },
+          },
+        }
+      : {};
+
+    console.log('🔎 [GET /api/lead] - Fetching leads', {
+      scope: isJuniorCrm ? 'assigned_jr_crm' : 'all',
+      actorUserId: authResult.actorUserId,
+    });
+
     const leads = await prisma.lead.findMany({
+      where,
       orderBy: { created_at: 'desc' },
       include: {
         assignee: {
