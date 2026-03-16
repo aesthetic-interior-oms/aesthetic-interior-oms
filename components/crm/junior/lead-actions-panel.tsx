@@ -44,12 +44,37 @@ type VisitTeamUser = {
   email: string
   phone?: string | null
 }
+type ScheduledVisitCard = {
+  id: string
+  scheduledAt: string
+  location: string
+  notes?: string | null
+  assignedToName: string
+  assignedToEmail: string
+}
+type LeadVisitRecord = {
+  id: string
+  scheduledAt: string
+  status: string
+  location: string
+  notes: string | null
+  assignedTo: {
+    id: string
+    fullName: string
+    email: string
+  } | null
+  createdBy: {
+    id: string
+    fullName: string
+  } | null
+}
 
 interface LeadActionsPanelProps {
   leadId: string
   leadLocation?: string | null
   assignments: Assignment[]
   assignmentsLoading: boolean
+  canManageAssignments?: boolean
   stage: string
   originalStage: string
   subStatus: string | null
@@ -67,6 +92,7 @@ export function LeadActionsPanel({
   leadLocation,
   assignments,
   assignmentsLoading,
+  canManageAssignments = true,
   stage,
   originalStage,
   subStatus,
@@ -99,6 +125,9 @@ export function LeadActionsPanel({
   const [visitNotes, setVisitNotes] = useState('')
   const [visitReason, setVisitReason] = useState('')
   const [visitSaving, setVisitSaving] = useState(false)
+  const [scheduledVisitCard, setScheduledVisitCard] = useState<ScheduledVisitCard | null>(null)
+  const [leadVisits, setLeadVisits] = useState<LeadVisitRecord[]>([])
+  const [leadVisitsLoading, setLeadVisitsLoading] = useState(false)
 
   const stageSubStatusMap: Record<string, string[]> = useMemo(
     () => ({
@@ -136,8 +165,6 @@ export function LeadActionsPanel({
   )
 
   const formatLabel = (value: string) => value.replace(/_/g, ' ')
-  const visitTeamDepartmentId = process.env.NEXT_PUBLIC_VISIT_TEAM_DEPARTMENT_ID
-
   useEffect(() => {
     if (!visitOpen) return
 
@@ -145,31 +172,44 @@ export function LeadActionsPanel({
       setVisitLocation(leadLocation)
     }
 
-    if (!visitTeamDepartmentId) {
-      setVisitTeamError('Visit team department id is not configured.')
-      return
-    }
-
     setVisitTeamLoading(true)
     setVisitTeamError(null)
 
-    fetch(`/api/department/${visitTeamDepartmentId}/users`)
+    fetch(`/api/lead/${leadId}/visit-schedule`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.success && Array.isArray(data.data?.users)) {
-          setVisitTeamUsers(data.data.users)
+        if (data.success && Array.isArray(data.data?.visitTeamMembers)) {
+          setVisitTeamUsers(data.data.visitTeamMembers)
+          if (!visitLocation && data.data?.defaultLocation) {
+            setVisitLocation(data.data.defaultLocation)
+          }
           return
         }
-        throw new Error(data.error || 'Failed to load visit team members.')
+        throw new Error(data.error || 'Failed to load visit schedule metadata.')
       })
       .catch((error) => {
-        const message = error instanceof Error ? error.message : 'Failed to load visit team members.'
+        const message = error instanceof Error ? error.message : 'Failed to load visit schedule metadata.'
         setVisitTeamError(message)
       })
       .finally(() => {
         setVisitTeamLoading(false)
       })
-  }, [leadLocation, visitLocation, visitOpen, visitTeamDepartmentId])
+  }, [leadId, leadLocation, visitLocation, visitOpen])
+
+  useEffect(() => {
+    setLeadVisitsLoading(true)
+    fetch(`/api/visit-schedule?leadId=${leadId}`)
+      .then((res) => res.json())
+      .then((payload) => {
+        if (payload.success && Array.isArray(payload.data)) {
+          setLeadVisits(payload.data)
+        } else {
+          setLeadVisits([])
+        }
+      })
+      .catch(() => setLeadVisits([]))
+      .finally(() => setLeadVisitsLoading(false))
+  }, [leadId])
 
   const handleStageChange = (value: string) => {
     setStageError(null)
@@ -269,10 +309,31 @@ export function LeadActionsPanel({
         throw new Error(data.error || 'Failed to schedule visit.')
       }
 
+      const assignedUser = visitTeamUsers.find((user) => user.id === visitTeamUserId)
+      const createdVisit = data.data?.visit
+      if (createdVisit && assignedUser) {
+        setScheduledVisitCard({
+          id: createdVisit.id,
+          scheduledAt: createdVisit.scheduledAt,
+          location: createdVisit.location,
+          notes: createdVisit.notes ?? null,
+          assignedToName: assignedUser.fullName,
+          assignedToEmail: assignedUser.email,
+        })
+      }
+
       setVisitOpen(false)
       resetVisitForm()
       onStageChange('VISIT_SCHEDULED')
       onSubStatusChange(null)
+      fetch(`/api/visit-schedule?leadId=${leadId}`)
+        .then((res) => res.json())
+        .then((payload) => {
+          if (payload.success && Array.isArray(payload.data)) {
+            setLeadVisits(payload.data)
+          }
+        })
+        .catch(() => null)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to schedule visit.'
       setVisitTeamError(message)
@@ -293,14 +354,17 @@ export function LeadActionsPanel({
     try {
       const response = await fetch(`/api/department/available/${value}`)
       const data = await response.json()
-      if (data.success && Array.isArray(data.data?.users)) {
-        setDepartmentUsers(data.data.users)
+      console.log('[LEAD-ACTIONS] Department API response:', data);
+      if (data.success && Array.isArray(data.users)) {
+        setDepartmentUsers(data.users)
+        console.log('[LEAD-ACTIONS] Set users:', data.users);
       } else {
         throw new Error(data.error || 'Failed to load users for department.')
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to load users.'
       setAssignError(message)
+      console.error('[LEAD-ACTIONS] Error loading users:', error);
     } finally {
       setUsersLoading(false)
     }
@@ -356,78 +420,80 @@ export function LeadActionsPanel({
             <User className="w-4 h-4" />
             Department Assignments
           </CardTitle>
-          <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="icon-sm" aria-label="Add assignment">
-                <Plus className="w-4 h-4" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add assignment</DialogTitle>
-                <DialogDescription>
-                  Select a department and assign a user for this lead.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Department</Label>
-                  <Select value={department} onValueChange={handleDepartmentChange}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {validDepartments.map((dept) => (
-                        <SelectItem key={dept} value={dept}>
-                          {dept}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>User</Label>
-                  <Select
-                    value={selectedUserId}
-                    onValueChange={setSelectedUserId}
-                    disabled={!department || usersLoading || departmentUsers.length === 0}
-                  >
-                    <SelectTrigger>
-                      <SelectValue
-                        placeholder={
-                          usersLoading
-                            ? 'Loading users...'
-                            : department
-                              ? 'Select user'
-                              : 'Select department first'
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departmentUsers.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.fullName} ({user.email})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {assignError ? (
-                  <p className="text-sm text-destructive">{assignError}</p>
-                ) : null}
-              </div>
-              <DialogFooter>
-                <Button
-                  onClick={handleAssign}
-                  disabled={assigning || !department || !selectedUserId}
-                >
-                  {assigning ? 'Saving...' : 'Save assignment'}
+          {canManageAssignments ? (
+            <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="icon-sm" aria-label="Add assignment">
+                  <Plus className="w-4 h-4" />
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add assignment</DialogTitle>
+                  <DialogDescription>
+                    Select a department and assign a user for this lead.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Department</Label>
+                    <Select value={department} onValueChange={handleDepartmentChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {validDepartments.map((dept) => (
+                          <SelectItem key={dept} value={dept}>
+                            {dept}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>User</Label>
+                    <Select
+                      value={selectedUserId}
+                      onValueChange={setSelectedUserId}
+                      disabled={!department || usersLoading || departmentUsers.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            usersLoading
+                              ? 'Loading users...'
+                              : department
+                                ? 'Select user'
+                                : 'Select department first'
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {departmentUsers.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.fullName} ({user.email})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {assignError ? (
+                    <p className="text-sm text-destructive">{assignError}</p>
+                  ) : null}
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={handleAssign}
+                    disabled={assigning || !department || !selectedUserId}
+                  >
+                    {assigning ? 'Saving...' : 'Save assignment'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          ) : null}
         </CardHeader>
         <CardContent>
           {assignmentsLoading ? (
@@ -539,7 +605,64 @@ export function LeadActionsPanel({
         </CardContent>
       </Card>
 
+      {leadVisitsLoading ? (
+        <Card>
+          <CardContent className="pt-6 text-sm text-muted-foreground">
+            Loading visit schedule...
+          </CardContent>
+        </Card>
+      ) : leadVisits.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Visit Schedule</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            {leadVisits.map((visit) => (
+              <div key={visit.id} className="rounded-lg border border-border bg-secondary/40 p-3">
+                <div className="flex items-center justify-between">
+                  <div className="font-medium text-foreground">
+                    {visit.assignedTo?.fullName ?? 'Unassigned'}
+                  </div>
+                  <span className="text-xs text-muted-foreground">{visit.status}</span>
+                </div>
+                <div className="text-muted-foreground">
+                  {new Date(visit.scheduledAt).toLocaleString('en-US', {
+                    dateStyle: 'medium',
+                    timeStyle: 'short',
+                  })}
+                </div>
+                <div className="text-muted-foreground">{visit.location}</div>
+                {visit.notes ? (
+                  <p className="text-muted-foreground">{visit.notes}</p>
+                ) : null}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
       {/* Quick Actions */}
+      {scheduledVisitCard ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Visit Scheduled</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="font-medium text-foreground">{scheduledVisitCard.assignedToName}</div>
+            <div className="text-muted-foreground">{scheduledVisitCard.assignedToEmail}</div>
+            <div className="text-muted-foreground">
+              {new Date(scheduledVisitCard.scheduledAt).toLocaleString('en-US', {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              })}
+            </div>
+            <div className="text-muted-foreground">{scheduledVisitCard.location}</div>
+            {scheduledVisitCard.notes ? (
+              <p className="text-muted-foreground">{scheduledVisitCard.notes}</p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Quick Actions</CardTitle>

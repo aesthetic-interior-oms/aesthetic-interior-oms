@@ -23,6 +23,32 @@ export async function GET(request: NextRequest) {
       return authResult.response;
     }
 
+    const actor = await prisma.user.findUnique({
+      where: { id: authResult.actorUserId },
+      select: {
+        id: true,
+        userDepartments: {
+          select: {
+            department: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    const departmentNames = new Set(
+      (actor?.userDepartments ?? []).map((row) => row.department.name),
+    );
+    const isAdmin = departmentNames.has('ADMIN');
+    const isVisitTeam = departmentNames.has('VISIT_TEAM');
+    const isJuniorCrm = departmentNames.has('JR_CRM');
+
+    if (!isAdmin && !isVisitTeam && !isJuniorCrm) {
+      return NextResponse.json(
+        { success: false, error: 'Not authorized to view visit schedules' },
+        { status: 403 },
+      );
+    }
+
     const leadId = toOptionalString(request.nextUrl.searchParams.get('leadId'));
     const assignedToId = toOptionalString(request.nextUrl.searchParams.get('assignedToId'));
     const statusParam = toOptionalString(request.nextUrl.searchParams.get('status'));
@@ -35,7 +61,11 @@ export async function GET(request: NextRequest) {
     const visits = await prisma.visit.findMany({
       where: {
         ...(leadId ? { leadId } : {}),
-        ...(assignedToId ? { assignedToId } : {}),
+        ...(isAdmin || isJuniorCrm
+          ? assignedToId
+            ? { assignedToId }
+            : {}
+          : { assignedToId: authResult.actorUserId }),
         ...(status ? { status } : {}),
       },
       include: {

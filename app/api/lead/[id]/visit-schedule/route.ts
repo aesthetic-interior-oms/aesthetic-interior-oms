@@ -247,7 +247,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         data: {
           leadId,
           assignedToId: visitTeamUserId,
-          createdById: visitTeamUserId,
+          createdById: actorUserId,
           scheduledAt: parsedScheduledAt,
           location: locationToUse,
           notes,
@@ -275,7 +275,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         await tx.leadAssignment.create({
           data: {
             leadId,
-            userId: actorUserId,
+            userId: visitTeamUserId,
             department: LeadAssignmentDepartment.VISIT_TEAM,
           },
         });
@@ -286,7 +286,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         await tx.note.create({
           data: {
             leadId,
-            userId: visitTeamUserId,
+            userId: actorUserId,
             content: notes,
           },
         });
@@ -296,7 +296,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         console.log('[POST] Logging lead stage change');
         await logLeadStageChanged(tx, {
           leadId,
-          userId: visitTeamUserId,
+          userId: actorUserId,
           from: lead.stage,
           to: LeadStage.VISIT_SCHEDULED,
           reason,
@@ -307,7 +307,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       console.log('[POST] Logging visit scheduled activity');
       await logActivity(tx, {
         leadId,
-        userId: visitTeamUserId,
+        userId: actorUserId,
         type: ActivityType.VISIT_SCHEDULED,
         description: `Visit ${visit.id} scheduled at ${parsedScheduledAt.toISOString()} and assigned to ${visitTeamUserResult.visitTeamUser.fullName}.${reasonPart}`,
       });
@@ -315,7 +315,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       console.log('[POST] Logging user assigned activity');
       await logUserAssigned(tx, {
         leadId,
-        userId: visitTeamUserId,
+        userId: actorUserId,
         leadName: `${visitTeamUserResult.visitTeamUser.fullName} assigned to VISIT_TEAM department`,
       });
 

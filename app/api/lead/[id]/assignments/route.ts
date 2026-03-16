@@ -155,7 +155,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     console.log('🔎 [POST /api/lead/[id]/assignments] - Checking user');
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, fullName: true, email: true },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        userDepartments: {
+          select: { department: { select: { name: true } } },
+        },
+      },
     });
     console.log('📊 [POST /api/lead/[id]/assignments] - User lookup result:', user);
 
@@ -163,6 +170,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json(
         { success: false, error: 'User not found' },
         { status: 404 }
+      );
+    }
+
+    const userDepartmentNames = new Set(
+      (user.userDepartments ?? []).map((row) => row.department.name),
+    );
+    if (!userDepartmentNames.has(department)) {
+      return NextResponse.json(
+        { success: false, error: `User is not mapped to ${department} department` },
+        { status: 400 },
       );
     }
 
