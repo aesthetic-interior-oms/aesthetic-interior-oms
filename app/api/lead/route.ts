@@ -196,6 +196,13 @@ export async function GET() {
         assignee: {
           select: { id: true, fullName: true, email: true },
         },
+        assignments: {
+          where: { department: LeadAssignmentDepartment.JR_CRM },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            user: { select: { id: true, fullName: true, email: true } },
+          },
+        },
       },
     });
     console.log('📊 [GET /api/lead] - Found', leads.length, 'leads');

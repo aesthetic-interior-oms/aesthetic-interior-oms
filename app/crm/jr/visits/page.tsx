@@ -1,137 +1,40 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, MapPin, Clock, ChevronLeft, ChevronRight, Phone, Mail, User } from 'lucide-react'
+import { Plus, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 
-// Dummy leads data
-const dummyLeads = [
-  {
-    id: 'lead-001',
-    name: 'Moinul Islam',
-    phone: '+8801234567890',
-    email: 'moinul@example.com',
-    location: 'Dhaka',
-    status: 'NEW',
-    budget: 500000,
-    source: 'Website',
-    remarks: 'Interested in interior design',
-  },
-  {
-    id: 'lead-002',
-    name: 'Acme Corp',
-    phone: '+8801111111111',
-    email: 'contact@acmecorp.com',
-    location: 'Mumbai',
-    status: 'QUALIFIED',
-    budget: 2000000,
-    source: 'Referral',
-    remarks: 'Large commercial project',
-  },
-  {
-    id: 'lead-003',
-    name: 'Tech Startup Inc',
-    phone: '+8801222222222',
-    email: 'sales@techstartup.com',
-    location: 'Bangalore',
-    status: 'NEGOTIATION',
-    budget: 1500000,
-    source: 'Online',
-    remarks: 'Office renovation needed',
-  },
-  {
-    id: 'lead-004',
-    name: 'Retail Store Co',
-    phone: '+8801333333333',
-    email: 'retail@company.com',
-    location: 'Delhi',
-    status: 'QUALIFIED',
-    budget: 750000,
-    source: 'Website',
-    remarks: 'Retail space design',
-  },
-  {
-    id: 'lead-005',
-    name: 'Hotel Chain Ltd',
-    phone: '+8801444444444',
-    email: 'operations@hotelchain.com',
-    location: 'Goa',
-    status: 'PROSPECT',
-    budget: 3000000,
-    source: 'Partner',
-    remarks: 'Hotel renovation project',
-  },
-]
+type VisitRecord = {
+  id: string
+  leadId: string
+  scheduledAt: string
+  location: string
+  status: string
+  notes: string | null
+  lead: {
+    id: string
+    name: string
+    phone: string
+    location: string | null
+  }
+  assignedTo: {
+    id: string
+    fullName: string
+    email: string
+    phone: string
+  } | null
+  createdBy: {
+    id: string
+    fullName: string
+  } | null
+}
 
-// Dummy visits data
-const dummyVisits = [
-  {
-    id: 'visit-001',
-    leadId: 'lead-001',
-    scheduledAt: '2026-03-20T10:00:00.000Z',
-    location: '123 Main Street, Dhaka',
-    status: 'SCHEDULED',
-    notes: 'Bring the latest floor plan',
-    assignedToName: 'Sarah Smith',
-  },
-  {
-    id: 'visit-002',
-    leadId: 'lead-001',
-    scheduledAt: '2026-03-25T14:00:00.000Z',
-    location: '123 Main Street, Dhaka',
-    status: 'SCHEDULED',
-    notes: 'Follow-up discussion on design',
-    assignedToName: 'Sarah Smith',
-  },
-  {
-    id: 'visit-003',
-    leadId: 'lead-002',
-    scheduledAt: '2026-03-18T09:00:00.000Z',
-    location: 'Acme Corp Office, Mumbai',
-    status: 'COMPLETED',
-    notes: 'Discussed project scope',
-    assignedToName: 'John Doe',
-  },
-  {
-    id: 'visit-004',
-    leadId: 'lead-002',
-    scheduledAt: '2026-03-30T11:00:00.000Z',
-    location: 'Acme Corp Office, Mumbai',
-    status: 'SCHEDULED',
-    notes: 'Present final proposal',
-    assignedToName: 'John Doe',
-  },
-  {
-    id: 'visit-005',
-    leadId: 'lead-003',
-    scheduledAt: '2026-03-22T15:30:00.000Z',
-    location: 'Tech Startup HQ, Bangalore',
-    status: 'SCHEDULED',
-    notes: 'Site inspection',
-    assignedToName: 'Emma Watson',
-  },
-  {
-    id: 'visit-006',
-    leadId: 'lead-004',
-    scheduledAt: '2026-03-17T13:00:00.000Z',
-    location: 'Retail Store, Delhi',
-    status: 'COMPLETED',
-    notes: 'Retail space assessment',
-    assignedToName: 'Michael Brown',
-  },
-  {
-    id: 'visit-007',
-    leadId: 'lead-005',
-    scheduledAt: '2026-04-05T10:30:00.000Z',
-    location: 'Hotel Chain Resort, Goa',
-    status: 'SCHEDULED',
-    notes: 'Renovation planning meeting',
-    assignedToName: 'Lisa Anderson',
-  },
-]
-
+type ApiResponse = {
+  success: boolean
+  data?: VisitRecord[]
+}
 
 
 const statusColors: Record<string, string> = {
@@ -157,37 +60,50 @@ export default function VisitsPage() {
   const [activeTab, setActiveTab] = useState('calendar')
   const [currentDate, setCurrentDate] = useState(new Date(2026, 2)) // March 2026
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [visits, setVisits] = useState<VisitRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  // Create lead lookup map for quick access
-  const leadMap = useMemo(() => {
-    const map: Record<string, typeof dummyLeads[0]> = {}
-    dummyLeads.forEach((lead) => {
-      map[lead.id] = lead
-    })
-    return map
+  useEffect(() => {
+    const loadVisits = async () => {
+      try {
+        const response = await fetch('/api/visit-schedule')
+        const payload = (await response.json()) as ApiResponse
+        if (!response.ok || !payload.success) {
+          const message =
+            payload && (payload as any).error
+              ? String((payload as any).error)
+              : `Failed to load visits (status ${response.status})`
+          throw new Error(message)
+        }
+        setVisits(payload.data ?? [])
+        setError(null)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to load visits'
+        console.error('Error loading visits:', error)
+        setError(message)
+        setVisits([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadVisits()
   }, [])
 
-  // Enrich visits with lead data
-  const visitsWithLeads = useMemo(() => {
-    return dummyVisits.map((visit) => ({
-      ...visit,
-      lead: leadMap[visit.leadId],
-    }))
-  }, [leadMap])
-
-  const scheduledVisits = visitsWithLeads.filter((v) => v.status === 'SCHEDULED')
-  const completedVisits = visitsWithLeads.filter((v) => v.status === 'COMPLETED')
+  const scheduledVisits = visits.filter((v) => v.status === 'SCHEDULED')
+  const completedVisits = visits.filter((v) => v.status === 'COMPLETED')
 
   // Group visits by date (YYYY-MM-DD from ISO string)
   const visitsByDate = useMemo(() => {
-    const grouped: Record<string, typeof visitsWithLeads> = {}
-    visitsWithLeads.forEach((visit) => {
+    const grouped: Record<string, VisitRecord[]> = {}
+    visits.forEach((visit) => {
       const dateStr = visit.scheduledAt.split('T')[0]
       if (!grouped[dateStr]) grouped[dateStr] = []
       grouped[dateStr].push(visit)
     })
     return grouped
-  }, [visitsWithLeads])
+  }, [visits])
 
   // Get calendar days for current month
   const getDaysInMonth = (date: Date) => {
@@ -224,7 +140,7 @@ export default function VisitsPage() {
     return visitsByDate[dateStr] || []
   }
 
-  const VisitCard = ({ visit }: { visit: typeof visitsWithLeads[0] }) => (
+  const VisitCard = ({ visit }: { visit: VisitRecord }) => (
     <Card className="mb-3 overflow-hidden">
       <CardContent className="pt-6">
         <div className="flex items-start justify-between gap-4">
@@ -278,6 +194,11 @@ export default function VisitsPage() {
           Schedule Visit
         </Button>
       </div>
+
+      {loading ? <p className="text-sm text-muted-foreground">Loading visits...</p> : null}
+      {!loading && error ? (
+        <p className="text-sm text-destructive">{error}</p>
+      ) : null}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>

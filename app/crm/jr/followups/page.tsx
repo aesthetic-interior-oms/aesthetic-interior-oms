@@ -300,39 +300,79 @@ export default function FollowupsPage() {
         {loading ? <p className="text-sm text-muted-foreground mb-4">Loading followups...</p> : null}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-8">
-          <TabsList className="grid w-full grid-cols-5 bg-muted/40 backdrop-blur rounded-lg p-1 h-auto shadow-sm border border-border">
-            <TabsTrigger value="pending" className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <span className="hidden sm:inline">Pending</span>
-              <span className="sm:hidden">P</span>
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{pending.length}</Badge>
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 mb-8">
+            <TabsTrigger value="pending" className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              <span>Pending</span>
+              <Badge variant="secondary" className="ml-auto text-[10px] px-2 py-0">
+                {pending.length}
+              </Badge>
             </TabsTrigger>
-            <TabsTrigger value="today" className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <span className="hidden sm:inline">Today</span>
-              <span className="sm:hidden">T</span>
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{todayFollowups.length}</Badge>
+            <TabsTrigger value="today" className="flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              <span>Today</span>
+              <Badge variant="secondary" className="ml-auto text-[10px] px-2 py-0">
+                {todayFollowups.length}
+              </Badge>
             </TabsTrigger>
-            <TabsTrigger value="overdue" className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <span className="hidden sm:inline">Overdue</span>
-              <span className="sm:hidden">O</span>
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{overdue.length}</Badge>
+            <TabsTrigger value="overdue" className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              <span>Overdue</span>
+              <Badge variant="secondary" className="ml-auto text-[10px] px-2 py-0">
+                {overdue.length}
+              </Badge>
             </TabsTrigger>
-            <TabsTrigger value="completed" className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <span className="hidden sm:inline">Completed</span>
-              <span className="sm:hidden">C</span>
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{completed.length}</Badge>
+            <TabsTrigger value="completed" className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Completed</span>
+              <Badge variant="secondary" className="ml-auto text-[10px] px-2 py-0">
+                {completed.length}
+              </Badge>
             </TabsTrigger>
-            <TabsTrigger value="missed" className="flex items-center justify-center gap-2 py-2.5 px-2 rounded-md text-sm font-medium transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm">
-              <span className="hidden sm:inline">Missed</span>
-              <span className="sm:hidden">M</span>
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-1">{missed.length}</Badge>
+            <TabsTrigger value="missed" className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              <span>Missed</span>
+              <Badge variant="secondary" className="ml-auto text-[10px] px-2 py-0">
+                {missed.length}
+              </Badge>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="pending" className="space-y-4 mt-6">{pending.length === 0 ? <EmptyState icon={<Clock className="w-12 h-12" />} text="No pending followups" /> : pending.map((f) => <FollowupCard key={f.id} followup={f} />)}</TabsContent>
-          <TabsContent value="today" className="space-y-4">{todayFollowups.length === 0 ? <EmptyState icon={<Calendar className="w-12 h-12" />} text="No followups for today" /> : todayFollowups.map((f) => <FollowupCard key={f.id} followup={f} />)}</TabsContent>
-          <TabsContent value="overdue" className="space-y-4">{overdue.length === 0 ? <EmptyState icon={<CheckCircle2 className="w-12 h-12" />} text="No overdue followups" /> : overdue.map((f) => <FollowupCard key={f.id} followup={f} />)}</TabsContent>
-          <TabsContent value="completed" className="space-y-4">{completed.length === 0 ? <EmptyState icon={<CheckCircle2 className="w-12 h-12" />} text="No completed followups" /> : completed.map((f) => <FollowupCard key={f.id} followup={f} />)}</TabsContent>
-          <TabsContent value="missed" className="space-y-4">{missed.length === 0 ? <EmptyState icon={<AlertCircle className="w-12 h-12" />} text="No missed followups" /> : missed.map((f) => <FollowupCard key={f.id} followup={f} />)}</TabsContent>
+          <TabsContent value="pending" className="space-y-4">
+            {pending.length === 0 ? (
+              <EmptyState icon={<Clock className="w-12 h-12" />} text="No pending followups" />
+            ) : (
+              pending.map((f) => <FollowupCard key={f.id} followup={f} />)
+            )}
+          </TabsContent>
+          <TabsContent value="today" className="space-y-4">
+            {todayFollowups.length === 0 ? (
+              <EmptyState icon={<Calendar className="w-12 h-12" />} text="No followups for today" />
+            ) : (
+              todayFollowups.map((f) => <FollowupCard key={f.id} followup={f} />)
+            )}
+          </TabsContent>
+          <TabsContent value="overdue" className="space-y-4">
+            {overdue.length === 0 ? (
+              <EmptyState icon={<CheckCircle2 className="w-12 h-12" />} text="No overdue followups" />
+            ) : (
+              overdue.map((f) => <FollowupCard key={f.id} followup={f} />)
+            )}
+          </TabsContent>
+          <TabsContent value="completed" className="space-y-4">
+            {completed.length === 0 ? (
+              <EmptyState icon={<CheckCircle2 className="w-12 h-12" />} text="No completed followups" />
+            ) : (
+              completed.map((f) => <FollowupCard key={f.id} followup={f} />)
+            )}
+          </TabsContent>
+          <TabsContent value="missed" className="space-y-4">
+            {missed.length === 0 ? (
+              <EmptyState icon={<AlertCircle className="w-12 h-12" />} text="No missed followups" />
+            ) : (
+              missed.map((f) => <FollowupCard key={f.id} followup={f} />)
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 

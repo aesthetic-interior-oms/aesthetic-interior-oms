@@ -50,6 +50,11 @@ type LeadSummary = {
     fullName: string
     email: string
   } | null
+  assignments?: Array<{
+    id: string
+    department: string
+    user: { id: string; fullName: string; email: string }
+  }>
 }
 
 export default function LeadsPage() {
@@ -69,6 +74,7 @@ export default function LeadsPage() {
       })
       .catch(() => setLoading(false))
   }, [])
+
 
   const filteredLeads = leads.filter((lead) => {
     const matchesSearch =
@@ -162,7 +168,7 @@ export default function LeadsPage() {
                   <tr className="border-b">
                     <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Lead Name</th>
                     <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Phone</th>
-                    <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Assignee</th>
+                    <th className="px-4 py-3 text-left font-semibold text-muted-foreground">JR CRM</th>
                     <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Location</th>
                     <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Stage</th>
                     <th className="px-4 py-3 text-center font-semibold text-muted-foreground">Action</th>
@@ -177,11 +183,10 @@ export default function LeadsPage() {
                       </td>
                       <td className="py-4 px-4">{lead.phone}</td>
                       <td className="py-4 px-4">
-                        {lead.assignee ? (
-                          <>
-                            <div>{lead.assignee.fullName}</div>
-                            <div className="text-xs text-muted-foreground">{lead.assignee.email}</div>
-                          </>
+                        {lead.assignments?.[0]?.user?.fullName ? (
+                          <div className="font-medium text-foreground">
+                            {lead.assignments[0].user.fullName}
+                          </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">Unassigned</span>
                         )}

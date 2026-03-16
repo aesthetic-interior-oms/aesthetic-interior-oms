@@ -11,16 +11,47 @@ const VALID_DEPARTMENTS = [
   'VISUALIZER_3D',
 ] as const;
 
-// GET - Fetch available users for a specific department (by name)
-// Returns users who are members of the given department
-// Used for assignment modal to show available users to assign
+// GET - Fetch all users in a specific department (by name)
+// Returns dropdown-ready list of all department members
 export async function GET(
-    _request: NextRequest,
   request: NextRequest,
-  { params }: { params: { name: string } }
+  context?: { params: { name: string } | Promise<{ name: string }> }
 ) {
   try {
-    const departmentName = params.name.toUpperCase();
+    console.log('[DEPT-API] Context:', context);
+    let nameParam: string | undefined;
+
+    // Handle both sync and async params (different Next.js versions)
+    if (context?.params) {
+      console.log('[DEPT-API] Params type:', typeof context.params);
+      if (context.params instanceof Promise) {
+        const resolvedParams = await context.params;
+        nameParam = resolvedParams.name;
+        console.log('[DEPT-API] Resolved async params:', resolvedParams);
+      } else {
+        nameParam = context.params.name;
+        console.log('[DEPT-API] Sync params:', context.params);
+      }
+    }
+
+    // Fallback: extract from URL pathname if params not available
+    if (!nameParam) {
+      const pathSegments = request.nextUrl.pathname.split('/');
+      nameParam = pathSegments[pathSegments.length - 1];
+      console.log('[DEPT-API] Extracted from URL:', nameParam, 'Path:', request.nextUrl.pathname);
+    }
+
+    console.log('[DEPT-API] nameParam:', nameParam);
+
+    if (!nameParam) {
+      return NextResponse.json(
+        { success: false, error: 'Department name is required' },
+        { status: 400 }
+      );
+    }
+
+    const departmentName = nameParam.toUpperCase();
+    console.log('[DEPT-API] departmentName:', departmentName);
 
    
 
@@ -39,6 +70,8 @@ export async function GET(
       where: { name: departmentName },
       select: { id: true, name: true },
     });
+
+    console.log('[DEPT-API] Department found:', department);
 
     if (!department) {
       return NextResponse.json(
@@ -67,6 +100,9 @@ export async function GET(
       },
     });
 
+    console.log('[DEPT-API] UserDepartments count:', userDepartments.length);
+    console.log('[DEPT-API] UserDepartments data:', JSON.stringify(userDepartments, null, 2));
+
     const users = userDepartments.map((ud) => ({
       id: ud.user.id,
       fullName: ud.user.fullName,
@@ -74,19 +110,20 @@ export async function GET(
       phone: ud.user.phone,
     }));
 
+    console.log('[DEPT-API] Final users array:', JSON.stringify(users, null, 2));
+
     return NextResponse.json({
       success: true,
-      data: {
-        department: departmentName,
-        departmentId: department.id,
-        users,
-        count: users.length,
-      },
+      users,
     });
   } catch (error) {
-    console.error('Error fetching available users:', error);
+    console.error('[DEPT-API] Error fetching department users:', error);
+    console.error('[DEPT-API] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch available users' },
+      { success: false, error: 'Failed to fetch department users' },
       { status: 500 }
     );
   }

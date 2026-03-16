@@ -121,6 +121,7 @@ export default function LeadDetailPage() {
   const [followupNotes, setFollowupNotes] = useState('')
   const [addFollowupError, setAddFollowupError] = useState<string | null>(null)
   const [addingFollowup, setAddingFollowup] = useState(false)
+  const [canManageAssignments, setCanManageAssignments] = useState(false)
 
   // Fetch current user
   useEffect(() => {
@@ -130,6 +131,9 @@ export default function LeadDetailPage() {
       .then(res => res.json())
       .then(data => {
         if (data.id) setCurrentUserId(data.id)
+        const departments = Array.isArray(data?.userDepartments) ? data.userDepartments : []
+        const departmentNames = departments.map((entry: any) => entry?.department?.name)
+        setCanManageAssignments(departmentNames.includes('ADMIN'))
       })
       .catch((error) => console.error('Error fetching user:', error))
   }, [])
@@ -414,6 +418,7 @@ export default function LeadDetailPage() {
             leadLocation={lead.location}
             assignments={assignments}
             assignmentsLoading={assignmentsLoading}
+            canManageAssignments={canManageAssignments}
             stage={stage}
             originalStage={lead.stage}
             subStatus={subStatus}

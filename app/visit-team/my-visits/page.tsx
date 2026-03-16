@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { MapPin, Clock, Calendar, CheckCircle2, AlertCircle } from 'lucide-react'
 
 type VisitStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'RESCHEDULED'
@@ -30,10 +31,6 @@ type VisitRecord = {
 type ApiResponse = {
   success: boolean
   data?: VisitRecord[]
-}
-
-type MeResponse = {
-  id: string
 }
 
 const fallbackVisits: VisitRecord[] = [
@@ -100,17 +97,12 @@ export default function MyVisitsPage() {
   const [visits, setVisits] = useState<VisitRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [source, setSource] = useState<'api' | 'fallback'>('api')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | VisitStatus>('ALL')
 
   useEffect(() => {
     const loadVisits = async () => {
       try {
-        const meRes = await fetch('/api/me')
-        if (!meRes.ok) {
-          throw new Error('Unable to fetch current user')
-        }
-
-        const me = (await meRes.json()) as MeResponse
-        const visitsRes = await fetch(`/api/visit-schedule?assignedToId=${me.id}`)
+        const visitsRes = await fetch('/api/visit-schedule')
 
         if (!visitsRes.ok) {
           throw new Error('Unable to fetch visit schedule')
@@ -138,19 +130,24 @@ export default function MyVisitsPage() {
     loadVisits()
   }, [])
 
+  const filteredVisits = useMemo(
+    () => (statusFilter === 'ALL' ? visits : visits.filter((visit) => visit.status === statusFilter)),
+    [statusFilter, visits],
+  )
+
   const upcomingVisits = useMemo(
-    () => visits.filter((visit) => visit.status === 'SCHEDULED' || visit.status === 'RESCHEDULED'),
-    [visits]
+    () => filteredVisits.filter((visit) => visit.status === 'SCHEDULED' || visit.status === 'RESCHEDULED'),
+    [filteredVisits]
   )
 
   const completedVisits = useMemo(
-    () => visits.filter((visit) => visit.status === 'COMPLETED'),
-    [visits]
+    () => filteredVisits.filter((visit) => visit.status === 'COMPLETED'),
+    [filteredVisits]
   )
 
   const historyVisits = useMemo(
-    () => visits.filter((visit) => visit.status === 'COMPLETED' || visit.status === 'CANCELLED'),
-    [visits]
+    () => filteredVisits.filter((visit) => visit.status === 'COMPLETED' || visit.status === 'CANCELLED'),
+    [filteredVisits]
   )
 
   return (
@@ -165,6 +162,21 @@ export default function MyVisitsPage() {
       {loading ? (
         <div className="text-sm text-muted-foreground">Loading visits...</div>
       ) : null}
+
+      <div className="max-w-xs">
+        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Filter by status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All statuses</SelectItem>
+            <SelectItem value="SCHEDULED">Scheduled</SelectItem>
+            <SelectItem value="RESCHEDULED">Rescheduled</SelectItem>
+            <SelectItem value="COMPLETED">Completed</SelectItem>
+            <SelectItem value="CANCELLED">Cancelled</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       <Tabs defaultValue="upcoming" className="w-full">
         <TabsList className="bg-background border-border">
