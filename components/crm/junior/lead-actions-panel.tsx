@@ -22,8 +22,8 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import dynamic from 'next/dynamic'
-import { MapPin, User, TrendingUp, Plus } from 'lucide-react'
+import { User, TrendingUp, Plus, Mail, MessageCircle } from 'lucide-react'
+import { toast } from 'sonner'
 
 type Assignment = {
   id: string
@@ -72,6 +72,8 @@ type LeadVisitRecord = {
 interface LeadActionsPanelProps {
   leadId: string
   leadLocation?: string | null
+  leadPhone?: string | null
+  leadEmail?: string | null
   assignments: Assignment[]
   assignmentsLoading: boolean
   canManageAssignments?: boolean
@@ -90,6 +92,8 @@ interface LeadActionsPanelProps {
 export function LeadActionsPanel({
   leadId,
   leadLocation,
+  leadPhone,
+  leadEmail,
   assignments,
   assignmentsLoading,
   canManageAssignments = true,
@@ -155,16 +159,13 @@ export function LeadActionsPanel({
     'VISUALIZER_3D',
   ]
 
-  const DUMMY_LAT = 23.8041425
-  const DUMMY_LNG = 90.3700876
-
-  const LeadMapPreview = dynamic(
-    () =>
-      import('@/components/maps/lead-map-preview').then((mod) => mod.LeadMapPreview),
-    { ssr: false },
-  )
-
   const formatLabel = (value: string) => value.replace(/_/g, ' ')
+
+  const normalizedPhone = leadPhone ? leadPhone.replace(/\D/g, '') : ''
+  const canWhatsapp = Boolean(normalizedPhone)
+  const canEmail = Boolean(leadEmail && leadEmail.trim())
+  const whatsappUrl = canWhatsapp ? `https://wa.me/${normalizedPhone}` : ''
+  const emailUrl = canEmail ? `mailto:${leadEmail}` : ''
   useEffect(() => {
     if (!visitOpen) return
 
@@ -291,7 +292,7 @@ export function LeadActionsPanel({
     setVisitSaving(true)
     setVisitTeamError(null)
 
-    try {
+    const schedulePromise = async () => {
       const response = await fetch(`/api/lead/${leadId}/visit-schedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -311,6 +312,17 @@ export function LeadActionsPanel({
 
       const assignedUser = visitTeamUsers.find((user) => user.id === visitTeamUserId)
       const createdVisit = data.data?.visit
+      return { assignedUser, createdVisit }
+    }
+
+    try {
+      const { assignedUser, createdVisit } = await toast.promise(schedulePromise(), {
+        loading: 'Scheduling visit...',
+        success: 'Visit scheduled successfully.',
+        error: (err) =>
+          err instanceof Error ? err.message : 'Failed to schedule visit.',
+      })
+
       if (createdVisit && assignedUser) {
         setScheduledVisitCard({
           id: createdVisit.id,
@@ -685,17 +697,30 @@ export function LeadActionsPanel({
             <Plus className="w-4 h-4" />
             Add Followup
           </Button>
-          <Button className="w-full justify-start gap-2" variant="outline">
-            <Plus className="w-4 h-4" />
+          <Button
+            className="w-full justify-start gap-2"
+            variant="outline"
+            disabled={!canWhatsapp}
+            onClick={() => {
+              if (!whatsappUrl) return
+              window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
+            }}
+          >
+            <MessageCircle className="w-4 h-4" />
+            Send WhatsApp
+          </Button>
+          <Button
+            className="w-full justify-start gap-2"
+            variant="outline"
+            disabled={!canEmail}
+            onClick={() => {
+              if (!emailUrl) return
+              window.open(emailUrl, '_blank', 'noopener,noreferrer')
+            }}
+          >
+            <Mail className="w-4 h-4" />
             Send Email
           </Button>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <MapPin className="w-4 h-4" />
-              Lead location (dummy)
-            </div>
-            <LeadMapPreview lat={DUMMY_LAT} lng={DUMMY_LNG} heightClassName="h-36" />
-          </div>
         </CardContent>
       </Card>
 

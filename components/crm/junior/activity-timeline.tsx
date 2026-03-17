@@ -1,3 +1,6 @@
+'use client'
+
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -9,7 +12,6 @@ import {
   StickyNote,
   CheckCircle2,
 } from "lucide-react"
-import { activityTimeline } from "@/lib/dummy-data"
 
 const actionConfig: Record<
   string,
@@ -45,6 +47,21 @@ const actionConfig: Record<
     color: "text-chart-5",
     bg: "bg-chart-5/10",
   },
+  "Call Made": {
+    icon: Phone,
+    color: "text-chart-5",
+    bg: "bg-chart-5/10",
+  },
+  "Followup Set": {
+    icon: CalendarCheck,
+    color: "text-chart-2",
+    bg: "bg-chart-2/10",
+  },
+  "User Assigned": {
+    icon: UserPlus,
+    color: "text-primary",
+    bg: "bg-primary/10",
+  },
 }
 
 function getInitials(name: string): string {
@@ -71,8 +88,54 @@ function formatTime(dateStr: string): string {
 }
 
 export function ActivityTimeline() {
-  const sortedTimeline = [...activityTimeline].sort(
-    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  const [activities, setActivities] = useState<
+    Array<{
+      id: string
+      userName: string
+      leadName: string
+      action: string
+      description: string
+      createdAt: string
+    }>
+  >([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    fetch("/api/jr/dashboard/activity-log")
+      .then((res) => res.json())
+      .then((payload) => {
+        if (!active) return
+        if (payload?.success && Array.isArray(payload.data)) {
+          setActivities(payload.data)
+          setError(null)
+        } else {
+          setActivities([])
+          setError(payload?.error || "Failed to load activity timeline.")
+        }
+      })
+      .catch((err) => {
+        if (!active) return
+        setActivities([])
+        setError(err instanceof Error ? err.message : "Failed to load activity timeline.")
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const sortedTimeline = useMemo(
+    () =>
+      [...activities].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      ),
+    [activities]
   )
 
   return (
@@ -84,65 +147,73 @@ export function ActivityTimeline() {
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="relative flex flex-col gap-0">
-          {sortedTimeline.map((activity, index) => {
-            const config = actionConfig[activity.action] || {
-              icon: UserPlus,
-              color: "text-muted-foreground",
-              bg: "bg-muted",
-            }
-            const Icon = config.icon
-            const isLast = index === sortedTimeline.length - 1
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading activity...</p>
+        ) : null}
+        {!loading && error ? (
+          <p className="text-sm text-destructive">{error}</p>
+        ) : null}
+        {!loading && !error ? (
+          <div className="relative flex flex-col gap-0">
+            {sortedTimeline.map((activity, index) => {
+              const config = actionConfig[activity.action] || {
+                icon: UserPlus,
+                color: "text-muted-foreground",
+                bg: "bg-muted",
+              }
+              const Icon = config.icon
+              const isLast = index === sortedTimeline.length - 1
 
-            return (
-              <div key={activity.id} className="relative flex gap-3 pb-6 last:pb-0">
-                {/* Timeline line */}
-                {!isLast && (
-                  <div className="absolute left-4 top-9 h-[calc(100%-12px)] w-px bg-border" />
-                )}
+              return (
+                <div key={activity.id} className="relative flex gap-3 pb-6 last:pb-0">
+                  {/* Timeline line */}
+                  {!isLast && (
+                    <div className="absolute left-4 top-9 h-[calc(100%-12px)] w-px bg-border" />
+                  )}
 
-                {/* Icon */}
-                <div
-                  className={`relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full ${config.bg}`}
-                >
-                  <Icon className={`size-4 ${config.color}`} />
-                </div>
+                  {/* Icon */}
+                  <div
+                    className={`relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full ${config.bg}`}
+                  >
+                    <Icon className={`size-4 ${config.color}`} />
+                  </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-card-foreground leading-tight">
-                        {activity.action}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                        {activity.description}
-                      </p>
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-card-foreground leading-tight">
+                          {activity.action}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {activity.description}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {formatTime(activity.createdAt)}
+                      </span>
                     </div>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {formatTime(activity.createdAt)}
-                    </span>
-                  </div>
 
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <Avatar className="size-5">
-                      <AvatarFallback className="bg-secondary text-secondary-foreground text-[10px]">
-                        {getInitials(activity.userName)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-xs text-muted-foreground">
-                      {activity.userName}
-                    </span>
-                    <span className="text-xs text-muted-foreground">{"/"}</span>
-                    <span className="text-xs text-primary font-medium truncate">
-                      {activity.leadName}
-                    </span>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <Avatar className="size-5">
+                        <AvatarFallback className="bg-secondary text-secondary-foreground text-[10px]">
+                          {getInitials(activity.userName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-xs text-muted-foreground">
+                        {activity.userName}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{"/"}</span>
+                      <span className="text-xs text-primary font-medium truncate">
+                        {activity.leadName}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   )

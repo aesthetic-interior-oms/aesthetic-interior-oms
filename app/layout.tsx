@@ -4,6 +4,7 @@ import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "sonner";
 
 
 const geistSans = Geist({
@@ -49,6 +50,7 @@ export default function RootLayout({
         >
           <ThemeProvider defaultTheme="light" storageKey="aesthetic-theme">
             {children}
+            <Toaster richColors />
           </ThemeProvider>
         </body>
       </html>
