@@ -416,6 +416,8 @@ export default function LeadDetailPage() {
           <LeadActionsPanel
             leadId={leadId}
             leadLocation={lead.location}
+            leadPhone={lead.phone}
+            leadEmail={lead.email}
             assignments={assignments}
             assignmentsLoading={assignmentsLoading}
             canManageAssignments={canManageAssignments}

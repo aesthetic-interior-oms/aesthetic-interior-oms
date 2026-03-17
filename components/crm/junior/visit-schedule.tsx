@@ -1,9 +1,12 @@
+'use client'
+
+import { useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MapPin, Clock } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { visitSchedule } from "@/lib/dummy-data"
 
 const visitStatusConfig: Record<
   string,
@@ -32,6 +35,75 @@ function getInitials(name: string): string {
 }
 
 export function VisitScheduleCard() {
+  const [visits, setVisits] = useState<
+    Array<{
+      id: string
+      leadName: string
+      location: string
+      scheduledAt: string
+      status: string
+      assignedTeamMember: string
+    }>
+  >([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    fetch("/api/jr/dashboard/visit-schedule")
+      .then((res) => res.json())
+      .then((payload) => {
+        if (!active) return
+        if (payload?.success && Array.isArray(payload.data)) {
+          setVisits(payload.data)
+          setError(null)
+        } else {
+          setVisits([])
+          setError(payload?.error || "Failed to load visit schedule.")
+        }
+      })
+      .catch((err) => {
+        if (!active) return
+        setVisits([])
+        setError(err instanceof Error ? err.message : "Failed to load visit schedule.")
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const visitCards = useMemo(
+    () =>
+      visits.map((visit) => {
+        const scheduled = new Date(visit.scheduledAt)
+        const endTime = new Date(scheduled.getTime() + 60 * 60 * 1000)
+        return {
+          ...visit,
+          scheduledDate: scheduled.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+          }),
+          startTime: scheduled.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          endTime: endTime.toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          visitStatus:
+            visit.status.charAt(0) + visit.status.slice(1).toLowerCase(),
+        }
+      }),
+    [visits]
+  )
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -41,55 +113,63 @@ export function VisitScheduleCard() {
             Upcoming site visits
           </p>
         </div>
-        <Button variant="outline" size="sm">
-          View All
+        <Button variant="outline" size="sm" asChild>
+          <Link href="/crm/jr/visits">View All</Link>
         </Button>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col gap-3">
-          {visitSchedule.map((visit) => {
-            const statusStyle = visitStatusConfig[visit.visitStatus]
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading visit schedule...</p>
+        ) : null}
+        {!loading && error ? (
+          <p className="text-sm text-destructive">{error}</p>
+        ) : null}
+        {!loading && !error ? (
+          <div className="flex flex-col gap-3">
+            {visitCards.map((visit) => {
+              const statusStyle = visitStatusConfig[visit.visitStatus]
 
-            return (
-              <div
-                key={visit.id}
-                className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-secondary/50"
-              >
-                <Avatar className="size-9 shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                    {getInitials(visit.leadName)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-card-foreground truncate">
-                      {visit.leadName}
+              return (
+                <div
+                  key={visit.id}
+                  className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-secondary/50"
+                >
+                  <Avatar className="size-9 shrink-0">
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                      {getInitials(visit.leadName)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-card-foreground truncate">
+                        {visit.leadName}
+                      </p>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] ${statusStyle?.className || ""}`}
+                      >
+                        {visit.visitStatus}
+                      </Badge>
+                    </div>
+                    <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <MapPin className="size-3" />
+                        {visit.location}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="size-3" />
+                        {visit.startTime} - {visit.endTime}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {visit.scheduledDate} &middot; {visit.assignedTeamMember}
                     </p>
-                    <Badge
-                      variant="outline"
-                      className={`text-[10px] ${statusStyle?.className || ""}`}
-                    >
-                      {visit.visitStatus}
-                    </Badge>
                   </div>
-                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="size-3" />
-                      {visit.location}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="size-3" />
-                      {visit.startTime} - {visit.endTime}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {visit.scheduledDate} &middot; {visit.assignedTeamMember}
-                  </p>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   )
