@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isSubStatusAllowedForStage } from '@/lib/lead-stage';
 import { logLeadStageChanged, logLeadSubStatusChanged } from '@/lib/activity-log-service';
 import { requireDatabaseRoles } from '@/lib/authz';
+import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
@@ -194,6 +195,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           reason,
         });
       }
+
+      await autoCompletePendingFollowups(tx, {
+        leadId,
+        userId,
+        action: 'stage update',
+      });
 
       return updated;
     });

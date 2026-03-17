@@ -16,7 +16,7 @@ datasource db {
 model Lead {
   id         String         @id @default(cuid())
   name       String
-  phone      String         @unique
+  phone      String?        @unique
   email      String?
   source     String?
   stage      LeadStage      @default(NEW)
@@ -234,6 +234,7 @@ model UserDepartment {
 
 enum LeadStage {
   NEW
+  NUMBER_COLLECTED
   CONTACT_ATTEMPTED
   NURTURING
   VISIT_SCHEDULED

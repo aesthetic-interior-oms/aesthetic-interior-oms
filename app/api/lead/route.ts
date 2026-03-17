@@ -123,6 +123,7 @@ type CreateLeadBody = {
   source?: unknown;
   location?: unknown;
   budget?: unknown;
+  assignedToId?: unknown;
 };
 
 // Utility function to safely convert unknown values to optional strings
@@ -242,46 +243,93 @@ export async function POST(request: NextRequest) {
     const name = toOptionalString(body.name);
     const phone = toOptionalString(body.phone);
     const email = toOptionalString(body.email)?.toLowerCase();
+    const source = toOptionalString(body.source);
+    const requestedAssigneeId = toOptionalString(body.assignedToId);
     console.log('📋 [POST /api/lead] - Extracted fields. Name:', name, 'Phone:', phone, 'Email:', email);
 
     // Return 400 error if required fields are missing or invalid
-    if (!name || !phone) {
+    if (!name || !source) {
       return NextResponse.json(
-        { success: false, error: 'Name and phone are required' },
+        { success: false, error: 'Name and source are required' },
         { status: 400 }
       );
     }
 
-    // Check if a lead with the same phone already exists to prevent duplicates
-    console.log('🔄 [POST /api/lead] - Checking for duplicate phone');
-    const existingLead = await prisma.lead.findFirst({
-      where: { phone },
-      select: { id: true },
+    const actor = await prisma.user.findUnique({
+      where: { id: authResult.actorUserId },
+      select: {
+        id: true,
+        userDepartments: { select: { department: { select: { name: true } } } },
+      },
     });
-    console.log('📊 [POST /api/lead] - Duplicate check result:', existingLead);
 
-    // Return 409 Conflict if phone already exists
-    if (existingLead) {
-      return NextResponse.json(
-        { success: false, error: 'A lead with this phone number already exists' },
-        { status: 409 }
+    const departmentNames = new Set(
+      (actor?.userDepartments ?? []).map((row) => row.department.name),
+    );
+    const isJuniorCrm = departmentNames.has('JR_CRM');
+    const isAdmin = departmentNames.has('ADMIN');
+
+    let jrCrmAssigneeId = requestedAssigneeId;
+    if (!jrCrmAssigneeId && isJuniorCrm && !isAdmin) {
+      jrCrmAssigneeId = authResult.actorUserId;
+    }
+
+    if (phone) {
+      // Check if a lead with the same phone already exists to prevent duplicates
+      console.log('🔄 [POST /api/lead] - Checking for duplicate phone');
+      const existingLead = await prisma.lead.findFirst({
+        where: { phone },
+        select: { id: true },
+      });
+      console.log('📊 [POST /api/lead] - Duplicate check result:', existingLead);
+
+      // Return 409 Conflict if phone already exists
+      if (existingLead) {
+        return NextResponse.json(
+          { success: false, error: 'A lead with this phone number already exists' },
+          { status: 409 }
+        );
+      }
+    }
+
+    if (jrCrmAssigneeId) {
+      const jrCrmUser = await prisma.user.findUnique({
+        where: { id: jrCrmAssigneeId },
+        select: {
+          id: true,
+          userDepartments: { select: { department: { select: { name: true } } } },
+        },
+      });
+
+      const jrDepartments = new Set(
+        (jrCrmUser?.userDepartments ?? []).map((row) => row.department.name),
       );
+
+      if (!jrCrmUser || !jrDepartments.has('JR_CRM')) {
+        return NextResponse.json(
+          { success: false, error: 'Selected user is not mapped to JR_CRM department' },
+          { status: 400 }
+        );
+      }
     }
 
     // Create lead and activity log in a transaction
     // Transaction ensures both operations succeed or both fail
     console.log('💾 [POST /api/lead] - Creating lead and activity log in transaction');
     const lead = await prisma.$transaction(async (tx) => {
+      const stage = phone ? LeadStage.NUMBER_COLLECTED : LeadStage.NEW
+
       // Create the new lead with validated data
       const newLead = await tx.lead.create({
         data: {
           name,
-          phone,
+          phone: phone ?? null,
           email,
-          source: toOptionalString(body.source),
+          source,
           location: toOptionalString(body.location),
           budget: toBudget(body.budget),
-          stage: LeadStage.NEW,
+          stage,
+          ...(jrCrmAssigneeId ? { assignedTo: jrCrmAssigneeId } : {}),
         },
         // Include assignee details in the response
         include: {
@@ -291,6 +339,16 @@ export async function POST(request: NextRequest) {
         },
       });
       console.log('✨ [POST /api/lead] - Lead created:', newLead.id);
+
+      if (jrCrmAssigneeId) {
+        await tx.leadAssignment.create({
+          data: {
+            leadId: newLead.id,
+            userId: jrCrmAssigneeId,
+            department: LeadAssignmentDepartment.JR_CRM,
+          },
+        });
+      }
 
       // Log the lead creation activity with the authenticated user
       console.log('📋 [POST /api/lead] - Logging lead creation activity');

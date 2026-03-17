@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 // Import Prisma database client for ORM operations
 import prisma from '@/lib/prisma'
+import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete'
 
 //here get all notes for a lead, create a note for a lead. The leadId is used to filter notes by lead and to associate new notes with the correct lead when creating them.
 
@@ -161,22 +162,32 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // Create the note in the database with associated lead and user data
-    const note = await prisma.note.create({
-      data: {
-        leadId, // Link note to the specific lead
-        userId, // Link note to the user who created it
-        content, // The note content
-      },
-      include: {
-        // Include lead information in response
-        lead: {
-          select: { id: true, name: true, email: true },
+    const note = await prisma.$transaction(async (tx) => {
+      const created = await tx.note.create({
+        data: {
+          leadId, // Link note to the specific lead
+          userId, // Link note to the user who created it
+          content, // The note content
         },
-        // Include user information in response
-        user: {
-          select: { id: true, fullName: true, email: true },
+        include: {
+          // Include lead information in response
+          lead: {
+            select: { id: true, name: true, email: true },
+          },
+          // Include user information in response
+          user: {
+            select: { id: true, fullName: true, email: true },
+          },
         },
-      },
+      })
+
+      await autoCompletePendingFollowups(tx, {
+        leadId,
+        userId,
+        action: 'note added',
+      })
+
+      return created
     })
 
     // Return 201 Created response with the newly created note

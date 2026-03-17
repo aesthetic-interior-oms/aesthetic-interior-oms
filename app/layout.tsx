@@ -4,7 +4,7 @@ import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 
 
 const geistSans = Geist({

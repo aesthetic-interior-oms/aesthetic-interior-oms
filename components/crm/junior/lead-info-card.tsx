@@ -7,7 +7,7 @@ type LeadDetails = {
   id: string
   name: string
   phone: string | null
-  email: string
+  email: string | null
   source: string | null
   stage: string
   subStatus: string | null
@@ -21,6 +21,7 @@ type LeadDetails = {
 
 const stageColors: Record<string, string> = {
   NEW: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100',
+  NUMBER_COLLECTED: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-200',
   CONTACT_ATTEMPTED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200',
   NURTURING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200',
   VISIT_SCHEDULED: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200',
@@ -82,7 +83,7 @@ export function LeadInfoCard({ lead, stage, hasPendingFollowup }: LeadInfoCardPr
             <Mail className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm text-muted-foreground">Email</p>
-              <p className="font-semibold text-foreground mt-1 truncate">{lead.email}</p>
+              <p className="font-semibold text-foreground mt-1 truncate">{lead.email || '—'}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
