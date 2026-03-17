@@ -11,6 +11,7 @@ import {
   logUserAssigned,
 } from '@/lib/activity-log-service';
 import { requireDatabaseRoles } from '@/lib/authz';
+import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
@@ -317,6 +318,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
         leadId,
         userId: actorUserId,
         leadName: `${visitTeamUserResult.visitTeamUser.fullName} assigned to VISIT_TEAM department`,
+      });
+
+      await autoCompletePendingFollowups(tx, {
+        leadId,
+        userId: actorUserId,
+        action: 'visit scheduled',
       });
 
       console.log('[POST] Transaction completed successfully');

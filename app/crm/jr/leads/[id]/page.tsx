@@ -26,7 +26,7 @@ type LeadDetails = {
   id: string
   name: string
   phone: string | null
-  email: string
+  email: string | null
   source: string | null
   stage: string
   subStatus: string | null
@@ -225,7 +225,6 @@ export default function LeadDetailPage() {
   }
 
   const handleAddFollowup = () => {
-    if (hasPendingFollowup) return
     setAddFollowupError(null)
     setAddFollowupOpen(true)
   }
@@ -249,6 +248,7 @@ export default function LeadDetailPage() {
       if (data.success) {
         setNotes([data.data, ...notes])
         setNewNote('')
+        refreshFollowups()
       }
     } catch (error) {
       console.error('Error adding note:', error)
@@ -276,6 +276,7 @@ export default function LeadDetailPage() {
       setLead(data.data)
       setStage(data.data?.stage || stage)
       setSubStatus(data.data?.subStatus ?? null)
+      refreshFollowups()
     } catch (error) {
       console.error('Error updating stage:', error)
       throw error
@@ -291,11 +292,6 @@ export default function LeadDetailPage() {
       setAddFollowupError('Please select a follow-up date.')
       return
     }
-    if (hasPendingFollowup) {
-      setAddFollowupError('There is already a pending follow-up.')
-      return
-    }
-
     setAddingFollowup(true)
     setAddFollowupError(null)
     try {
@@ -403,7 +399,6 @@ export default function LeadDetailPage() {
                 followups={followups}
                 leadId={leadId}
                 currentUserId={currentUserId}
-                hasPendingFollowup={hasPendingFollowup}
                 onRefreshFollowups={refreshFollowups}
                 onAddFollowup={handleAddFollowup}
               />
@@ -429,7 +424,7 @@ export default function LeadDetailPage() {
             onSubStatusChange={setSubStatus}
             onUpdateStage={handleUpdateStage}
             onAssignmentsRefresh={refreshAssignments}
-            hasPendingFollowup={hasPendingFollowup}
+            onFollowupRefresh={refreshFollowups}
             onAddFollowup={handleAddFollowup}
           />
         </div>

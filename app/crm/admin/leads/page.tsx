@@ -15,10 +15,11 @@ import {
 import { Search } from 'lucide-react'
 import LeadCreateModal from '@/components/crm/junior/LeadCreateModal'
 
-const stages = ['NEW', 'CONTACT_ATTEMPTED', 'NURTURING', 'VISIT_SCHEDULED', 'CLOSED']
+const stages = ['NEW', 'NUMBER_COLLECTED', 'CONTACT_ATTEMPTED', 'NURTURING', 'VISIT_SCHEDULED', 'CLOSED']
 
 const stageColors: Record<string, string> = {
   NEW: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100',
+  NUMBER_COLLECTED: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/40 dark:text-cyan-200',
   CONTACT_ATTEMPTED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200',
   NURTURING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200',
   VISIT_SCHEDULED: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200',
@@ -29,7 +30,7 @@ type LeadSummary = {
   id: string
   name: string
   phone: string | null
-  email: string
+  email: string | null
   stage: string
   location: string | null
   created_at: string

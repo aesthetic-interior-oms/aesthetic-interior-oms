@@ -240,6 +240,7 @@ import { LeadStage, LeadSubStatus, Prisma } from '@/generated/prisma/client';
 import { isSubStatusAllowedForStage } from '@/lib/lead-stage';
 import { NextRequest, NextResponse } from 'next/server';
 import { logLeadAssignmentChanged, logLeadStatusChanged } from '@/lib/activity-log-service';
+import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
@@ -483,6 +484,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         });
       }
 
+      await autoCompletePendingFollowups(tx, {
+        leadId: id,
+        userId,
+        action: 'lead update',
+      });
+
       return updatedLead;
     });
 
@@ -605,6 +612,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           to: stage,
         });
       }
+
+      await autoCompletePendingFollowups(tx, {
+        leadId: id,
+        userId,
+        action: 'lead update',
+      });
 
       return lead;
     });

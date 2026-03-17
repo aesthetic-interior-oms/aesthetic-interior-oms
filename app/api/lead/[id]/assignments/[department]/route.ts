@@ -2,6 +2,7 @@ import prisma from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { logLeadCreated, logUserAssigned } from '@/lib/activity-log-service';
+import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 
 /*
   POSTMAN TESTING DATA
@@ -162,6 +163,7 @@ export async function PUT(
     //   return authResult.response;
     // }
     console.log('✅ [PUT /api/lead/[id]/assignments/[department]] - Auth passed');
+    const actorUserId = authResult.ok ? authResult.actorUserId : null;
 
     const resolvedParams = await params;
     const leadId = resolvedParams?.id;
@@ -263,6 +265,12 @@ export async function PUT(
         leadName: `Assignment updated: ${user.fullName} assigned to ${department} department`,
       });
 
+      await autoCompletePendingFollowups(tx, {
+        leadId,
+        userId: actorUserId,
+        action: 'assignment update',
+      });
+
       return updated;
     });
     console.log('✨ [PUT /api/lead/[id]/assignments/[department]] - Assignment updated successfully');
@@ -298,6 +306,7 @@ export async function DELETE(
     //   return authResult.response;
     // }
     console.log('✅ [DELETE /api/lead/[id]/assignments/[department]] - Auth passed');
+    const actorUserId = authResult.ok ? authResult.actorUserId : null;
 
     const resolvedParams = await params;
     const leadId = resolvedParams?.id;
@@ -372,8 +381,14 @@ export async function DELETE(
       // Log the deletion activity
       await logUserAssigned(tx, {
         leadId,
-        userId: authResult.actorId,
+        userId: actorUserId,
         leadName: `${assignment.user.fullName} unassigned from ${department} department`,
+      });
+
+      await autoCompletePendingFollowups(tx, {
+        leadId,
+        userId: actorUserId,
+        action: 'assignment update',
       });
 
       return deleted;

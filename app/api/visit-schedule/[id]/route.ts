@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { ActivityType, LeadAssignmentDepartment, VisitStatus } from '@/generated/prisma/client';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { logActivity } from '@/lib/activity-log-service';
+import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
@@ -191,6 +192,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         description: `Visit ${visit.id} updated.${reasonPart}`,
       });
 
+      await autoCompletePendingFollowups(tx, {
+        leadId: visit.leadId,
+        userId: actorUserId,
+        action: 'visit update',
+      });
+
       return visit;
     });
 
@@ -232,6 +239,12 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         userId: actorUserId,
         type: ActivityType.NOTE,
         description: `Visit ${existing.id} deleted.${reasonPart}`,
+      });
+
+      await autoCompletePendingFollowups(tx, {
+        leadId: existing.leadId,
+        userId: actorUserId,
+        action: 'visit update',
       });
     });
 

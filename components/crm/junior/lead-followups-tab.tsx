@@ -31,7 +31,6 @@ interface LeadFollowupsTabProps {
   followups: Followup[]
   leadId: string
   currentUserId: string | null
-  hasPendingFollowup: boolean
   onRefreshFollowups: () => void
   onAddFollowup: () => void
 }
@@ -40,7 +39,6 @@ export function LeadFollowupsTab({
   followups,
   leadId,
   currentUserId,
-  hasPendingFollowup,
   onRefreshFollowups,
   onAddFollowup,
 }: LeadFollowupsTabProps) {
@@ -113,7 +111,6 @@ export function LeadFollowupsTab({
           <Button
             className="mt-4"
             onClick={onAddFollowup}
-            disabled={hasPendingFollowup}
           >
             Add Followup
           </Button>

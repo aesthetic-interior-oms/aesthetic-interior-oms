@@ -3,6 +3,7 @@ import { ActivityType, FollowUpStatus, LeadSubStatus } from '@/generated/prisma/
 import { isSubStatusAllowedForStage } from '@/lib/lead-stage';
 import { logActivity, logLeadSubStatusChanged } from '@/lib/activity-log-service';
 import { NextRequest, NextResponse } from 'next/server';
+import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 
 type RouteContext = { params: { leadId: string } | Promise<{ leadId: string }> };
 
@@ -193,36 +194,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
-    // Validation: Check if last follow-up is PENDING
-    // Can only create new follow-up if last one is DONE, LATELY_DONE, or no follow-ups exist
-    const lastFollowUp = await prisma.followUp.findFirst({
-      where: { leadId },
-      orderBy: { createdAt: 'desc' },
-      select: { status: true },
-    });
-
-    // Debug: log whether any pending follow-ups remain for this lead
-    const pendingCount = await prisma.followUp.count({
-      where: { leadId, status: FollowUpStatus.PENDING },
-    });
-    console.log(
-      `DEBUG followup check: leadId=${leadId} lastFollowUp=${
-        lastFollowUp?.status ?? 'none'
-      } pendingCount=${pendingCount}`
-    );
-
-    if (lastFollowUp && lastFollowUp.status === FollowUpStatus.PENDING) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Cannot create a new follow-up while the last follow-up is still pending. Please close or mark it as done first.',
-        },
-        { status: 409 }
-      );
-    }
-
     // Create follow-up with transaction to log activity
     const followUp = await prisma.$transaction(async (tx) => {
+      await autoCompletePendingFollowups(tx, {
+        leadId,
+        userId,
+        action: 'follow-up scheduled',
+      });
+
       const newFollowUp = await tx.followUp.create({
         data: {
           leadId,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { User, TrendingUp, Plus, Mail, MessageCircle } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/components/ui/sonner'
 
 type Assignment = {
   id: string
@@ -85,7 +85,7 @@ interface LeadActionsPanelProps {
   onSubStatusChange: (value: string | null) => void
   onUpdateStage: (reason: string) => Promise<void>
   onAssignmentsRefresh: () => void
-  hasPendingFollowup: boolean
+  onFollowupRefresh?: () => void
   onAddFollowup: () => void
 }
 
@@ -105,7 +105,7 @@ export function LeadActionsPanel({
   onSubStatusChange,
   onUpdateStage,
   onAssignmentsRefresh,
-  hasPendingFollowup,
+  onFollowupRefresh,
   onAddFollowup,
 }: LeadActionsPanelProps) {
   const [assignOpen, setAssignOpen] = useState(false)
@@ -132,10 +132,13 @@ export function LeadActionsPanel({
   const [scheduledVisitCard, setScheduledVisitCard] = useState<ScheduledVisitCard | null>(null)
   const [leadVisits, setLeadVisits] = useState<LeadVisitRecord[]>([])
   const [leadVisitsLoading, setLeadVisitsLoading] = useState(false)
+  const locationTouchedRef = useRef(false)
+  const locationPrefilledRef = useRef(false)
 
   const stageSubStatusMap: Record<string, string[]> = useMemo(
     () => ({
       NEW: [],
+      NUMBER_COLLECTED: [],
       CONTACT_ATTEMPTED: ['NUMBER_COLLECTED', 'NO_ANSWER'],
       NURTURING: ['WARM_LEAD', 'FUTURE_CLIENT', 'SMALL_BUDGET'],
       VISIT_SCHEDULED: [],
@@ -167,10 +170,15 @@ export function LeadActionsPanel({
   const whatsappUrl = canWhatsapp ? `https://wa.me/${normalizedPhone}` : ''
   const emailUrl = canEmail ? `mailto:${leadEmail}` : ''
   useEffect(() => {
-    if (!visitOpen) return
+    if (!visitOpen) {
+      locationTouchedRef.current = false
+      locationPrefilledRef.current = false
+      return
+    }
 
-    if (!visitLocation && leadLocation) {
+    if (!locationPrefilledRef.current && leadLocation) {
       setVisitLocation(leadLocation)
+      locationPrefilledRef.current = true
     }
 
     setVisitTeamLoading(true)
@@ -181,8 +189,9 @@ export function LeadActionsPanel({
       .then((data) => {
         if (data.success && Array.isArray(data.data?.visitTeamMembers)) {
           setVisitTeamUsers(data.data.visitTeamMembers)
-          if (!visitLocation && data.data?.defaultLocation) {
+          if (!locationTouchedRef.current && !locationPrefilledRef.current && data.data?.defaultLocation) {
             setVisitLocation(data.data.defaultLocation)
+            locationPrefilledRef.current = true
           }
           return
         }
@@ -195,7 +204,7 @@ export function LeadActionsPanel({
       .finally(() => {
         setVisitTeamLoading(false)
       })
-  }, [leadId, leadLocation, visitLocation, visitOpen])
+  }, [leadId, leadLocation, visitOpen])
 
   useEffect(() => {
     setLeadVisitsLoading(true)
@@ -262,6 +271,8 @@ export function LeadActionsPanel({
     setVisitNotes('')
     setVisitReason('')
     setVisitTeamError(null)
+    locationTouchedRef.current = false
+    locationPrefilledRef.current = Boolean(leadLocation)
   }
 
   const handleVisitOpenChange = (open: boolean) => {
@@ -346,6 +357,7 @@ export function LeadActionsPanel({
           }
         })
         .catch(() => null)
+      onFollowupRefresh?.()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to schedule visit.'
       setVisitTeamError(message)
@@ -415,6 +427,7 @@ export function LeadActionsPanel({
       setSelectedUserId('')
       setDepartmentUsers([])
       onAssignmentsRefresh()
+      onFollowupRefresh?.()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to save assignment.'
       setAssignError(message)
@@ -548,6 +561,7 @@ export function LeadActionsPanel({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="NEW">New</SelectItem>
+              <SelectItem value="NUMBER_COLLECTED">Number Collected</SelectItem>
               <SelectItem value="CONTACT_ATTEMPTED">Contact Attempted</SelectItem>
               <SelectItem value="NURTURING">Nurturing</SelectItem>
               <SelectItem value="VISIT_SCHEDULED">Visit Scheduled</SelectItem>
@@ -692,7 +706,6 @@ export function LeadActionsPanel({
             className="w-full justify-start gap-2"
             variant="outline"
             onClick={onAddFollowup}
-            disabled={hasPendingFollowup}
           >
             <Plus className="w-4 h-4" />
             Add Followup
@@ -775,7 +788,10 @@ export function LeadActionsPanel({
               <Label>Location</Label>
               <Input
                 value={visitLocation}
-                onChange={(event) => setVisitLocation(event.target.value)}
+                onChange={(event) => {
+                  locationTouchedRef.current = true
+                  setVisitLocation(event.target.value)
+                }}
                 placeholder="Visit location"
               />
             </div>

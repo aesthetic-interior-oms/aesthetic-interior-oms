@@ -2,6 +2,7 @@ import prisma from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { logLeadCreated, logUserAssigned } from '@/lib/activity-log-service';
+import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 
 type AssignmentBody = {
   userId?: unknown;
@@ -90,6 +91,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     //   return authResult.response;
     // }
     console.log('✅ [POST /api/lead/[id]/assignments] - Auth passed');
+    const actorUserId = authResult.ok ? authResult.actorUserId : null;
 
     const resolvedParams = await params;
     const leadId = resolvedParams?.id;
@@ -235,6 +237,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         leadName: `${user.fullName} assigned to ${department} department`,
       });
       console.log('✅ [POST /api/lead/[id]/assignments] - Assignment activity logged');
+
+      await autoCompletePendingFollowups(tx, {
+        leadId,
+        userId: actorUserId,
+        action: 'assignment update',
+      });
 
       return result;
     });

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -63,6 +64,8 @@ export default function VisitsPage() {
   const [visits, setVisits] = useState<VisitRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   const formatLocalDateKey = (date: Date) => {
     const year = date.getFullYear()
@@ -98,8 +101,44 @@ export default function VisitsPage() {
     loadVisits()
   }, [])
 
-  const scheduledVisits = visits.filter((v) => v.status === 'SCHEDULED')
-  const completedVisits = visits.filter((v) => v.status === 'COMPLETED')
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    fetch('/api/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.id) {
+          setCurrentUserId(String(data.id))
+        }
+      })
+      .catch((error) => {
+        console.error('Error loading current user:', error)
+      })
+  }, [])
+
+  const normalizedSearch = searchTerm.trim().toLowerCase()
+  const numericSearch = searchTerm.replace(/\D/g, '')
+
+  const filteredVisits = useMemo(() => {
+    if (!normalizedSearch && !numericSearch) return visits
+
+    return visits.filter((visit) => {
+      const leadName = visit.lead?.name?.toLowerCase() ?? ''
+      const leadPhone = visit.lead?.phone?.replace(/\D/g, '') ?? ''
+      const nameMatch = normalizedSearch ? leadName.includes(normalizedSearch) : false
+      const phoneMatch = numericSearch ? leadPhone.includes(numericSearch) : false
+      return nameMatch || phoneMatch
+    })
+  }, [visits, normalizedSearch, numericSearch])
+
+  const scheduledVisits = useMemo(
+    () => filteredVisits.filter((v) => v.status === 'SCHEDULED'),
+    [filteredVisits]
+  )
+  const completedVisits = useMemo(
+    () => filteredVisits.filter((v) => v.status === 'COMPLETED'),
+    [filteredVisits]
+  )
 
   // Group visits by date (YYYY-MM-DD from ISO string)
   const visitsByDate = useMemo(() => {
@@ -150,47 +189,62 @@ export default function VisitsPage() {
     return visitsByDate[dateStr] || []
   }
 
-  const VisitCard = ({ visit }: { visit: VisitRecord }) => (
-    <Card className="mb-3 overflow-hidden">
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <div className="flex flex-col gap-1">
-              <h3 className="font-semibold text-foreground">{visit.lead?.name || 'Unknown'}</h3>
-              <p className="text-xs text-muted-foreground">{visit.lead?.location || 'N/A'}</p>
-            </div>
-            <div className="mt-3 flex flex-col gap-2 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Clock className="w-4 h-4 flex-shrink-0" />
-                <span>
-                  {new Date(visit.scheduledAt).toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}{' '}
-                  at{' '}
-                  {new Date(visit.scheduledAt).toLocaleTimeString('en-US', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-              <div className="flex items-start gap-2 text-muted-foreground">
-                <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>{visit.location}</span>
-              </div>
-              {visit.notes && <p className="text-xs text-muted-foreground italic mt-2">{visit.notes}</p>}
-            </div>
+  const canViewVisit = (visit: VisitRecord) => {
+    const creatorId = visit.createdBy?.id
+    if (!currentUserId || !creatorId) return true
+    return creatorId === currentUserId
+  }
+
+  const VisitCard = ({ visit }: { visit: VisitRecord }) => {
+    const isVisible = canViewVisit(visit)
+
+    return (
+      <Card className="mb-3 overflow-hidden relative">
+        {!isVisible ? (
+          <div className="absolute inset-0 z-10 flex items-center justify-center text-xs font-semibold text-muted-foreground bg-background/70">
+            Restricted to assigned CRM
           </div>
-          <span
-            className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusColors[visit.status]}`}
-          >
-            {visit.status}
-          </span>
-        </div>
-      </CardContent>
-    </Card>
-  )
+        ) : null}
+        <CardContent className={`pt-6 ${!isVisible ? 'blur-xs pointer-events-none select-none' : ''}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex flex-col gap-1">
+                <h3 className="font-semibold text-foreground">{visit.lead?.name || 'Unknown'}</h3>
+                <p className="text-xs text-muted-foreground">{visit.lead?.location || 'N/A'}</p>
+              </div>
+              <div className="mt-3 flex flex-col gap-2 text-sm">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Clock className="w-4 h-4 flex-shrink-0" />
+                  <span>
+                    {new Date(visit.scheduledAt).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}{' '}
+                    at{' '}
+                    {new Date(visit.scheduledAt).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+                <div className="flex items-start gap-2 text-muted-foreground">
+                  <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  <span>{visit.location}</span>
+                </div>
+                {visit.notes && <p className="text-xs text-muted-foreground italic mt-2">{visit.notes}</p>}
+              </div>
+            </div>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusColors[visit.status]}`}
+            >
+              {visit.status}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -293,35 +347,45 @@ export default function VisitsPage() {
                 <CardContent>
                   {selectedDate && visitsByDate[selectedDate] ? (
                     <div className="space-y-3">
-                      {visitsByDate[selectedDate].map((visit) => (
-                        <div
-                          key={visit.id}
-                          className="p-3 border rounded-lg space-y-2 bg-muted/50"
-                        >
-                          <div>
-                            <h4 className="font-semibold text-sm">{visit.lead?.name || 'Unknown'}</h4>
-                            <p className="text-xs text-muted-foreground">{visit.lead?.location}</p>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Clock className="w-3 h-3" />
-                            {new Date(visit.scheduledAt).toLocaleTimeString('en-US', {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <MapPin className="w-3 h-3" />
-                            <span className="line-clamp-2">{visit.location}</span>
-                          </div>
-                          <span
-                            className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                              statusColors[visit.status]
-                            }`}
+                      {visitsByDate[selectedDate].map((visit) => {
+                        const isVisible = canViewVisit(visit)
+                        return (
+                          <div
+                            key={visit.id}
+                            className="p-3 border rounded-lg space-y-2 bg-muted/50 relative overflow-hidden"
                           >
-                            {visit.status}
-                          </span>
-                        </div>
-                      ))}
+                            {!isVisible ? (
+                              <div className="absolute inset-0 z-10 flex items-center justify-center text-[10px] font-semibold text-muted-foreground bg-background/70">
+                                Restricted to assigned CRM
+                              </div>
+                            ) : null}
+                            <div className={!isVisible ? 'blur-xs pointer-events-none select-none' : ''}>
+                              <div>
+                                <h4 className="font-semibold text-sm">{visit.lead?.name || 'Unknown'}</h4>
+                                <p className="text-xs text-muted-foreground">{visit.lead?.location}</p>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock className="w-3 h-3" />
+                                {new Date(visit.scheduledAt).toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <MapPin className="w-3 h-3" />
+                                <span className="line-clamp-2">{visit.location}</span>
+                              </div>
+                              <span
+                                className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                                  statusColors[visit.status]
+                                }`}
+                              >
+                                {visit.status}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
@@ -335,30 +399,45 @@ export default function VisitsPage() {
         </TabsContent>
 
         <TabsContent value="list" className="mt-6">
-          <div className="space-y-6">
-            <div>
-              <h3 className="mb-3 font-semibold text-foreground">Scheduled ({scheduledVisits.length})</h3>
-              {scheduledVisits.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {scheduledVisits.map((visit) => (
-                    <VisitCard key={visit.id} visit={visit} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No scheduled visits</p>
-              )}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search by lead name or phone"
+                className="max-w-sm"
+              />
+              {searchTerm ? (
+                <Button variant="ghost" size="sm" onClick={() => setSearchTerm('')}>
+                  Clear
+                </Button>
+              ) : null}
             </div>
-            <div>
-              <h3 className="mb-3 font-semibold text-foreground">Completed ({completedVisits.length})</h3>
-              {completedVisits.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {completedVisits.map((visit) => (
-                    <VisitCard key={visit.id} visit={visit} />
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">No completed visits</p>
-              )}
+            <div className="space-y-6">
+              <div>
+                <h3 className="mb-3 font-semibold text-foreground">Scheduled ({scheduledVisits.length})</h3>
+                {scheduledVisits.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {scheduledVisits.map((visit) => (
+                      <VisitCard key={visit.id} visit={visit} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No scheduled visits</p>
+                )}
+              </div>
+              <div>
+                <h3 className="mb-3 font-semibold text-foreground">Completed ({completedVisits.length})</h3>
+                {completedVisits.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {completedVisits.map((visit) => (
+                      <VisitCard key={visit.id} visit={visit} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No completed visits</p>
+                )}
+              </div>
             </div>
           </div>
         </TabsContent>

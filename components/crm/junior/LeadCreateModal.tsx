@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,13 @@ import { Plus, Mail, Phone, MapPin, DollarSign } from 'lucide-react'
 
 type LeadCreateModalProps = {
   onCreated?: () => void
+}
+
+type JrCrmUser = {
+  id: string
+  fullName: string
+  email: string
+  phone: string
 }
 
 export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
@@ -23,9 +30,63 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
     location: '',
     budget: '',
     source: '',
+    jrCrmUserId: '',
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [jrCrmUsers, setJrCrmUsers] = useState<JrCrmUser[]>([])
+  const [jrCrmLoading, setJrCrmLoading] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isJuniorCrm, setIsJuniorCrm] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+
+    let active = true
+    setJrCrmLoading(true)
+
+    Promise.all([fetch('/api/me'), fetch('/api/department/available/JR_CRM')])
+      .then(async ([meRes, jrRes]) => {
+        const meData = await meRes.json()
+        const jrData = await jrRes.json()
+
+        if (!active) return
+
+        const departments = Array.isArray(meData?.userDepartments)
+          ? meData.userDepartments.map((entry: any) => entry?.department?.name)
+          : []
+        const isAdminUser = departments.includes('ADMIN')
+        const isJrUser = departments.includes('JR_CRM')
+
+        setCurrentUserId(meData?.id ?? null)
+        setIsAdmin(isAdminUser)
+        setIsJuniorCrm(isJrUser)
+
+        if (jrData?.success && Array.isArray(jrData?.users)) {
+          setJrCrmUsers(jrData.users)
+        } else {
+          setJrCrmUsers([])
+        }
+
+        if (isJrUser && !isAdminUser && meData?.id) {
+          setForm((prev) => ({ ...prev, jrCrmUserId: meData.id }))
+        }
+      })
+      .catch((err) => {
+        console.error('Error loading JR CRM users:', err)
+        if (active) {
+          setJrCrmUsers([])
+        }
+      })
+      .finally(() => {
+        if (active) setJrCrmLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [open])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -33,15 +94,20 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!form.name.trim() || !form.source.trim()) {
+      setError('Name and source are required')
+      return
+    }
     setLoading(true)
     setError('')
     const payload = {
-      name: form.name,
-      email: form.email,
-      phone: form.phone || undefined,
+      name: form.name.trim(),
+      email: form.email.trim() || undefined,
+      phone: form.phone.trim() || undefined,
       location: form.location || undefined,
       budget: form.budget ? Number(form.budget) : undefined,
-      source: form.source || undefined,
+      source: form.source.trim(),
+      assignedToId: form.jrCrmUserId || undefined,
     }
     const res = await fetch('/api/lead', {
       method: 'POST',
@@ -59,6 +125,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
         location: '',
         budget: '',
         source: '',
+        jrCrmUserId: currentUserId && isJuniorCrm && !isAdmin ? currentUserId : '',
       })
       if (onCreated) onCreated()
     } else {
@@ -98,7 +165,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
           {/* Email */}
           <div className="space-y-2">
             <label htmlFor="email" className="text-sm font-medium text-foreground flex items-center gap-2">
-              <Mail className="w-4 h-4" /> Email *
+              <Mail className="w-4 h-4" /> Email
             </label>
             <Input 
               id="email"
@@ -108,7 +175,6 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
               placeholder="john@example.com"
               type="email"
               className="border-gray-200"
-              required 
             />
           </div>
 
@@ -144,13 +210,14 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
 
           {/* Source */}
           <div className="space-y-2">
-            <label htmlFor="source" className="text-sm font-medium text-foreground">Source</label>
+            <label htmlFor="source" className="text-sm font-medium text-foreground">Source *</label>
             <select 
               id="source"
               name="source" 
               value={form.source} 
               onChange={handleChange} 
               className="w-full px-3 py-2 border border-gray-200 rounded-md bg-background text-foreground text-sm"
+              required
             >
               <option value="">Select a source</option>
               <option value="Website">Website</option>
@@ -161,6 +228,28 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
               <option value="Advertisement">Advertisement</option>
               <option value="Walk-in">Walk-in</option>
               <option value="Other">Other</option>
+            </select>
+          </div>
+
+          {/* JR CRM Assignment */}
+          <div className="space-y-2">
+            <label htmlFor="jrCrmUserId" className="text-sm font-medium text-foreground">
+              JR CRM
+            </label>
+            <select
+              id="jrCrmUserId"
+              name="jrCrmUserId"
+              value={form.jrCrmUserId}
+              onChange={handleChange}
+              disabled={jrCrmLoading || (isJuniorCrm && !isAdmin)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-md bg-background text-foreground text-sm disabled:opacity-60"
+            >
+              <option value="">Select JR CRM</option>
+              {jrCrmUsers.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.fullName} ({user.email})
+                </option>
+              ))}
             </select>
           </div>
 
