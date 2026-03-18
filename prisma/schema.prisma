@@ -35,6 +35,8 @@ model Lead {
   statusHistory LeadStatusHistory[]
   assignments   LeadAssignment[]
   visits        Visit[]
+  attachments   LeadAttachment[]
+  notifications Notification[]
 
   @@index([assignedTo])
   @@index([email])
@@ -95,6 +97,7 @@ model FollowUp {
   status       FollowUpStatus @default(PENDING)
   notes        String?
   createdAt    DateTime       @default(now())
+  notifications Notification[]
 
   @@index([leadId])
   @@index([assignedToId])
@@ -132,6 +135,9 @@ model User {
   leadAssignments LeadAssignment[]
   visitsAssigned  Visit[]             @relation("VisitAssignee")
   visitsCreated   Visit[]             @relation("VisitCreator")
+  visitUpdateRequests       VisitUpdateRequest[] @relation("VisitUpdateRequestedBy")
+  resolvedVisitUpdateRequests VisitUpdateRequest[] @relation("VisitUpdateResolvedBy")
+  notifications Notification[]
 }
 
 model Visit {
@@ -140,6 +146,8 @@ model Visit {
   assignedToId  String?
   scheduledAt   DateTime
   status        VisitStatus @default(SCHEDULED)
+  projectSqft   Float?
+  projectStatus ProjectStatus?
   location      String
   notes         String?
   createdById   String
@@ -150,11 +158,33 @@ model Visit {
   assignedTo User?        @relation("VisitAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   createdBy  User         @relation("VisitCreator", fields: [createdById], references: [id], onDelete: Cascade)
   result     VisitResult?
+  updateRequests VisitUpdateRequest[]
 
   @@index([leadId])
   @@index([assignedToId])
   @@index([createdById])
   @@index([scheduledAt])
+}
+
+model VisitUpdateRequest {
+  id                 String                   @id @default(cuid())
+  visitId            String
+  visit              Visit                     @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  type               VisitUpdateRequestType
+  status             VisitUpdateRequestStatus  @default(PENDING)
+  reason             String
+  requestedScheduleAt DateTime?
+  requestedById      String
+  requestedBy        User                      @relation("VisitUpdateRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  resolvedById       String?
+  resolvedBy         User?                     @relation("VisitUpdateResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+  createdAt          DateTime                  @default(now())
+  resolvedAt         DateTime?
+
+  @@index([visitId])
+  @@index([status])
+  @@index([requestedById])
+  @@index([resolvedById])
 }
 
 model VisitResult {
@@ -180,6 +210,45 @@ model Attachment {
   visitResult VisitResult @relation(fields: [visitResultId], references: [id], onDelete: Cascade)
 
   @@index([visitResultId])
+}
+
+model LeadAttachment {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  url       String
+  fileName  String
+  fileType  String
+  category  String
+  sizeBytes Int?
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([category])
+}
+
+model Notification {
+  id           String           @id @default(cuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  leadId       String?
+  lead         Lead?            @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  followUpId   String?
+  followUp     FollowUp?        @relation(fields: [followUpId], references: [id], onDelete: SetNull)
+  type         NotificationType
+  title        String
+  message      String
+  scheduledFor DateTime?
+  isRead       Boolean          @default(false)
+  readAt       DateTime?
+  createdAt    DateTime         @default(now())
+
+  @@index([userId])
+  @@index([leadId])
+  @@index([followUpId])
+  @@index([isRead])
+  @@index([createdAt])
+  @@unique([userId, followUpId, type])
 }
 
 enum LeadAssignmentDepartment {
@@ -238,6 +307,7 @@ enum LeadStage {
   CONTACT_ATTEMPTED
   NURTURING
   VISIT_SCHEDULED
+  VISIT_COMPLETED
   CLOSED
 }
 
@@ -276,4 +346,25 @@ enum VisitStatus {
   COMPLETED
   CANCELLED
   RESCHEDULED
+}
+
+enum ProjectStatus {
+  UNDER_CONSTRUCTION
+  READY
+}
+
+enum VisitUpdateRequestType {
+  RESCHEDULE
+  CANCEL
+}
+
+enum VisitUpdateRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  FOLLOWUP_DUE
+  FOLLOWUP_REMINDER_15M
 }

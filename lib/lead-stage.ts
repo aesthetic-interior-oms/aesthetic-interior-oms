@@ -3,9 +3,10 @@ import { LeadStage, LeadSubStatus } from '@/generated/prisma/client';
 export const stageSubStatusMap: Record<LeadStage, LeadSubStatus[]> = {
   NEW: [],
   NUMBER_COLLECTED: [],
-  CONTACT_ATTEMPTED: ['NUMBER_COLLECTED', 'NO_ANSWER'],
+  CONTACT_ATTEMPTED: ['NO_ANSWER'],
   NURTURING: ['WARM_LEAD', 'FUTURE_CLIENT', 'SMALL_BUDGET'],
   VISIT_SCHEDULED: [],
+  VISIT_COMPLETED: [],
   CLOSED: ['INVALID', 'NOT_INTERESTED', 'LOST', 'DEAD_LEAD'],
 };
 

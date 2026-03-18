@@ -40,6 +40,8 @@ export function VisitScheduleCard() {
       id: string
       leadName: string
       location: string
+      projectSqft?: number | null
+      projectStatus?: string | null
       scheduledAt: string
       status: string
       assignedTeamMember: string
@@ -50,7 +52,6 @@ export function VisitScheduleCard() {
 
   useEffect(() => {
     let active = true
-    setLoading(true)
     fetch("/api/jr/dashboard/visit-schedule")
       .then((res) => res.json())
       .then((payload) => {
@@ -164,6 +165,15 @@ export function VisitScheduleCard() {
                     <p className="text-xs text-muted-foreground mt-1">
                       {visit.scheduledDate} &middot; {visit.assignedTeamMember}
                     </p>
+                    {(visit.projectSqft || visit.projectStatus) ? (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {visit.projectSqft ? `Sqft: ${visit.projectSqft}` : null}
+                        {visit.projectSqft && visit.projectStatus ? ' · ' : null}
+                        {visit.projectStatus
+                          ? `Status: ${visit.projectStatus.replace(/_/g, " ")}`
+                          : null}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               )

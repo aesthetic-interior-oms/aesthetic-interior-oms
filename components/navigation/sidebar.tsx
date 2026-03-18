@@ -74,6 +74,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
 
 const visitsNavItems = [
   { icon: Home, label: 'Dashboard', href: '/visit-team/visit-dashboard' },
+  { icon: Calendar, label: 'Visits', href: '/visit-team/visits' },
   { icon: Calendar, label: 'Visit Schedule', href: '/visit-team/visit-today' },
   { icon: ListTodo, label: 'My Visits', href: '/visit-team/my-visits' },
 ]

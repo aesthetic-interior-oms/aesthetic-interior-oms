@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -48,6 +48,8 @@ type ScheduledVisitCard = {
   id: string
   scheduledAt: string
   location: string
+  projectSqft?: number | null
+  projectStatus?: string | null
   notes?: string | null
   assignedToName: string
   assignedToEmail: string
@@ -57,7 +59,34 @@ type LeadVisitRecord = {
   scheduledAt: string
   status: string
   location: string
+  projectSqft?: number | null
+  projectStatus?: string | null
   notes: string | null
+  updateRequests?: Array<{
+    id: string
+    type: string
+    reason: string
+    createdAt: string
+    requestedScheduleAt?: string | null
+    requestedBy?: {
+      id: string
+      fullName: string
+      email: string
+    } | null
+  }>
+  result?: {
+    id: string
+    summary: string
+    clientMood?: string | null
+    completedAt: string
+    files: Array<{
+      id: string
+      url: string
+      fileName: string
+      fileType: string
+      createdAt: string
+    }>
+  } | null
   assignedTo: {
     id: string
     fullName: string
@@ -77,6 +106,12 @@ interface LeadActionsPanelProps {
   assignments: Assignment[]
   assignmentsLoading: boolean
   canManageAssignments?: boolean
+  canManageStage?: boolean
+  canAddFollowup?: boolean
+  canScheduleVisit?: boolean
+  canSubmitVisitResult?: boolean
+  blurVisitResult?: boolean
+  canManageVisitRequests?: boolean
   stage: string
   originalStage: string
   subStatus: string | null
@@ -84,9 +119,13 @@ interface LeadActionsPanelProps {
   onStageChange: (value: string) => void
   onSubStatusChange: (value: string | null) => void
   onUpdateStage: (reason: string) => Promise<void>
+  onCreateFollowupForStage?: (payload: { followupDate: string; notes?: string }) => Promise<void>
   onAssignmentsRefresh: () => void
   onFollowupRefresh?: () => void
+  onAttachmentRefresh?: () => void
   onAddFollowup: () => void
+  onAddAttachment?: () => void
+  onLeadRefresh?: () => void
 }
 
 export function LeadActionsPanel({
@@ -97,6 +136,12 @@ export function LeadActionsPanel({
   assignments,
   assignmentsLoading,
   canManageAssignments = true,
+  canManageStage = true,
+  canAddFollowup = true,
+  canScheduleVisit = true,
+  canSubmitVisitResult = false,
+  blurVisitResult = false,
+  canManageVisitRequests = false,
   stage,
   originalStage,
   subStatus,
@@ -104,9 +149,13 @@ export function LeadActionsPanel({
   onStageChange,
   onSubStatusChange,
   onUpdateStage,
+  onCreateFollowupForStage,
   onAssignmentsRefresh,
   onFollowupRefresh,
+  onAttachmentRefresh,
   onAddFollowup,
+  onAddAttachment,
+  onLeadRefresh,
 }: LeadActionsPanelProps) {
   const [assignOpen, setAssignOpen] = useState(false)
   const [department, setDepartment] = useState('')
@@ -117,6 +166,8 @@ export function LeadActionsPanel({
   const [assignError, setAssignError] = useState<string | null>(null)
   const [reasonOpen, setReasonOpen] = useState(false)
   const [reason, setReason] = useState('')
+  const [stageFollowupDate, setStageFollowupDate] = useState('')
+  const [stageFollowupNotes, setStageFollowupNotes] = useState('')
   const [stageError, setStageError] = useState<string | null>(null)
   const [savingStage, setSavingStage] = useState(false)
   const [visitOpen, setVisitOpen] = useState(false)
@@ -126,12 +177,24 @@ export function LeadActionsPanel({
   const [visitTeamUserId, setVisitTeamUserId] = useState('')
   const [visitScheduledAt, setVisitScheduledAt] = useState('')
   const [visitLocation, setVisitLocation] = useState('')
+  const [visitProjectSqft, setVisitProjectSqft] = useState('')
+  const [visitProjectStatus, setVisitProjectStatus] = useState('')
+  const [visitAttachmentFile, setVisitAttachmentFile] = useState<File | null>(null)
   const [visitNotes, setVisitNotes] = useState('')
   const [visitReason, setVisitReason] = useState('')
   const [visitSaving, setVisitSaving] = useState(false)
   const [scheduledVisitCard, setScheduledVisitCard] = useState<ScheduledVisitCard | null>(null)
   const [leadVisits, setLeadVisits] = useState<LeadVisitRecord[]>([])
   const [leadVisitsLoading, setLeadVisitsLoading] = useState(false)
+  const [resolvingVisitRequestId, setResolvingVisitRequestId] = useState<string | null>(null)
+  const [visitResultOpen, setVisitResultOpen] = useState(false)
+  const [visitResultVisitId, setVisitResultVisitId] = useState('')
+  const [visitResultSummary, setVisitResultSummary] = useState('')
+  const [visitResultClientMood, setVisitResultClientMood] = useState('')
+  const [visitResultMeasurements, setVisitResultMeasurements] = useState('')
+  const [visitResultFiles, setVisitResultFiles] = useState<File[]>([])
+  const [visitResultError, setVisitResultError] = useState<string | null>(null)
+  const [submittingVisitResult, setSubmittingVisitResult] = useState(false)
   const locationTouchedRef = useRef(false)
   const locationPrefilledRef = useRef(false)
 
@@ -139,7 +202,7 @@ export function LeadActionsPanel({
     () => ({
       NEW: [],
       NUMBER_COLLECTED: [],
-      CONTACT_ATTEMPTED: ['NUMBER_COLLECTED', 'NO_ANSWER'],
+      CONTACT_ATTEMPTED: ['NO_ANSWER'],
       NURTURING: ['WARM_LEAD', 'FUTURE_CLIENT', 'SMALL_BUDGET'],
       VISIT_SCHEDULED: [],
       CLOSED: ['INVALID', 'NOT_INTERESTED', 'LOST', 'DEAD_LEAD'],
@@ -151,6 +214,10 @@ export function LeadActionsPanel({
   const requiresSubStatus = subStatusOptions.length > 0
   const hasStageChanged = stage !== originalStage || (subStatus ?? null) !== (originalSubStatus ?? null)
   const canUpdateStage = (!requiresSubStatus || Boolean(subStatus)) && hasStageChanged
+  const requiresFollowupForStageUpdate =
+    (stage === 'CONTACT_ATTEMPTED' && subStatus === 'NO_ANSWER') ||
+    (stage === 'NURTURING' && (subStatus === 'WARM_LEAD' || subStatus === 'FUTURE_CLIENT'))
+  const noFollowupReasonHint = stage === 'NURTURING' && subStatus === 'SMALL_BUDGET'
 
   const validDepartments = [
     'ADMIN',
@@ -206,7 +273,7 @@ export function LeadActionsPanel({
       })
   }, [leadId, leadLocation, visitOpen])
 
-  useEffect(() => {
+  const refreshLeadVisits = useCallback(() => {
     setLeadVisitsLoading(true)
     fetch(`/api/visit-schedule?leadId=${leadId}`)
       .then((res) => res.json())
@@ -220,6 +287,54 @@ export function LeadActionsPanel({
       .catch(() => setLeadVisits([]))
       .finally(() => setLeadVisitsLoading(false))
   }, [leadId])
+
+  useEffect(() => {
+    refreshLeadVisits()
+  }, [refreshLeadVisits])
+
+  const visitResultCandidates = useMemo(
+    () =>
+      leadVisits.filter(
+        (visit) =>
+          !visit.result &&
+          (visit.status === 'SCHEDULED' || visit.status === 'RESCHEDULED'),
+      ),
+    [leadVisits],
+  )
+
+  const resetVisitResultForm = useCallback(() => {
+    setVisitResultVisitId('')
+    setVisitResultSummary('')
+    setVisitResultClientMood('')
+    setVisitResultMeasurements('')
+    setVisitResultFiles([])
+    setVisitResultError(null)
+  }, [])
+
+  const handleResolveVisitRequest = async (
+    visitId: string,
+    requestId: string,
+    action: 'APPROVE' | 'REJECT',
+  ) => {
+    setResolvingVisitRequestId(requestId)
+    try {
+      const res = await fetch(`/api/visit-schedule/${visitId}/update-request/${requestId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const payload = await res.json()
+      if (!res.ok || !payload.success) {
+        throw new Error(payload.error || 'Failed to resolve request')
+      }
+      refreshLeadVisits()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to resolve request'
+      toast.error(message)
+    } finally {
+      setResolvingVisitRequestId(null)
+    }
+  }
 
   const handleStageChange = (value: string) => {
     setStageError(null)
@@ -238,6 +353,8 @@ export function LeadActionsPanel({
       setStageError('Select a substatus to continue.')
       return
     }
+    setStageFollowupDate('')
+    setStageFollowupNotes('')
     setReasonOpen(true)
   }
 
@@ -246,13 +363,28 @@ export function LeadActionsPanel({
       setStageError('Please enter a reason.')
       return
     }
+    if (requiresFollowupForStageUpdate && !stageFollowupDate) {
+      setStageError('Please select a follow-up date.')
+      return
+    }
 
     setSavingStage(true)
     setStageError(null)
     try {
       await onUpdateStage(reason.trim())
+      if (requiresFollowupForStageUpdate) {
+        if (!onCreateFollowupForStage) {
+          throw new Error('Follow-up handler is not available.')
+        }
+        await onCreateFollowupForStage({
+          followupDate: stageFollowupDate,
+          notes: stageFollowupNotes.trim() || undefined,
+        })
+      }
       setReasonOpen(false)
       setReason('')
+      setStageFollowupDate('')
+      setStageFollowupNotes('')
       if (stage === 'VISIT_SCHEDULED') {
         setVisitOpen(true)
       }
@@ -268,6 +400,9 @@ export function LeadActionsPanel({
     setVisitTeamUserId('')
     setVisitScheduledAt('')
     setVisitLocation(leadLocation ?? '')
+    setVisitProjectSqft('')
+    setVisitProjectStatus('')
+    setVisitAttachmentFile(null)
     setVisitNotes('')
     setVisitReason('')
     setVisitTeamError(null)
@@ -297,6 +432,14 @@ export function LeadActionsPanel({
       setVisitTeamError('Please provide a visit location.')
       return
     }
+    if (!visitProjectSqft.trim() || Number(visitProjectSqft) <= 0) {
+      setVisitTeamError('Please provide project sqft.')
+      return
+    }
+    if (!visitProjectStatus) {
+      setVisitTeamError('Please select project status.')
+      return
+    }
 
     const scheduledIso = new Date(visitScheduledAt).toISOString()
 
@@ -311,6 +454,8 @@ export function LeadActionsPanel({
           visitTeamUserId,
           scheduledAt: scheduledIso,
           location: visitLocation.trim(),
+          projectSqft: Number(visitProjectSqft),
+          projectStatus: visitProjectStatus,
           notes: visitNotes.trim() || undefined,
           reason: visitReason.trim() || undefined,
         }),
@@ -339,30 +484,102 @@ export function LeadActionsPanel({
           id: createdVisit.id,
           scheduledAt: createdVisit.scheduledAt,
           location: createdVisit.location,
+          projectSqft: createdVisit.projectSqft ?? null,
+          projectStatus: createdVisit.projectStatus ?? null,
           notes: createdVisit.notes ?? null,
           assignedToName: assignedUser.fullName,
           assignedToEmail: assignedUser.email,
         })
       }
 
+      if (visitAttachmentFile) {
+        const formData = new FormData()
+        formData.append('file', visitAttachmentFile)
+
+        const attachmentRes = await fetch(`/api/lead/${leadId}/attachments`, {
+          method: 'POST',
+          body: formData,
+        })
+        const attachmentPayload = await attachmentRes.json()
+        if (!attachmentRes.ok || !attachmentPayload.success) {
+          toast.error(
+            attachmentPayload.error || 'Visit scheduled, but failed to upload attachment.',
+          )
+        } else {
+          onAttachmentRefresh?.()
+        }
+      }
+
       setVisitOpen(false)
       resetVisitForm()
       onStageChange('VISIT_SCHEDULED')
       onSubStatusChange(null)
-      fetch(`/api/visit-schedule?leadId=${leadId}`)
-        .then((res) => res.json())
-        .then((payload) => {
-          if (payload.success && Array.isArray(payload.data)) {
-            setLeadVisits(payload.data)
-          }
-        })
-        .catch(() => null)
+      refreshLeadVisits()
       onFollowupRefresh?.()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to schedule visit.'
       setVisitTeamError(message)
     } finally {
       setVisitSaving(false)
+    }
+  }
+
+  const handleVisitResultOpenChange = (open: boolean) => {
+    setVisitResultOpen(open)
+    if (!open) {
+      resetVisitResultForm()
+    } else if (visitResultCandidates.length > 0) {
+      setVisitResultVisitId((prev) => prev || visitResultCandidates[0].id)
+    }
+  }
+
+  const handleSubmitVisitResult = async () => {
+    if (!visitResultVisitId) {
+      setVisitResultError('Please select a visit.')
+      return
+    }
+    if (!visitResultSummary.trim()) {
+      setVisitResultError('Please add a visit summary.')
+      return
+    }
+
+    setSubmittingVisitResult(true)
+    setVisitResultError(null)
+    try {
+      const formData = new FormData()
+      formData.append('summary', visitResultSummary.trim())
+      if (visitResultClientMood.trim()) {
+        formData.append('clientMood', visitResultClientMood.trim())
+      }
+      if (visitResultMeasurements.trim()) {
+        formData.append('measurements', visitResultMeasurements.trim())
+      }
+      visitResultFiles.forEach((file) => {
+        formData.append('files', file)
+      })
+
+      const response = await fetch(`/api/visit-schedule/${visitResultVisitId}/result`, {
+        method: 'POST',
+        body: formData,
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'Failed to submit visit result.')
+      }
+
+      toast.success('Visit result submitted and lead moved to Visit Completed.')
+      setVisitResultOpen(false)
+      resetVisitResultForm()
+      onStageChange('VISIT_COMPLETED')
+      onSubStatusChange(null)
+      onLeadRefresh?.()
+      refreshLeadVisits()
+      onFollowupRefresh?.()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to submit visit result.'
+      setVisitResultError(message)
+    } finally {
+      setSubmittingVisitResult(false)
     }
   }
 
@@ -555,7 +772,7 @@ export function LeadActionsPanel({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Select value={stage} onValueChange={handleStageChange}>
+          <Select value={stage} onValueChange={handleStageChange} disabled={!canManageStage}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -565,6 +782,7 @@ export function LeadActionsPanel({
               <SelectItem value="CONTACT_ATTEMPTED">Contact Attempted</SelectItem>
               <SelectItem value="NURTURING">Nurturing</SelectItem>
               <SelectItem value="VISIT_SCHEDULED">Visit Scheduled</SelectItem>
+              <SelectItem value="VISIT_COMPLETED">Visit Completed</SelectItem>
               <SelectItem value="CLOSED">Closed</SelectItem>
             </SelectContent>
           </Select>
@@ -576,6 +794,7 @@ export function LeadActionsPanel({
                 setStageError(null)
                 onSubStatusChange(value)
               }}
+              disabled={!canManageStage}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select substatus" />
@@ -595,12 +814,28 @@ export function LeadActionsPanel({
           )}
 
           {stageError ? <p className="text-xs text-destructive">{stageError}</p> : null}
+          {!canManageStage ? (
+            <p className="text-xs text-muted-foreground">
+              Stage updates are managed by JR CRM/Admin.
+            </p>
+          ) : null}
 
-          <Dialog open={reasonOpen} onOpenChange={setReasonOpen}>
+          <Dialog
+            open={reasonOpen}
+            onOpenChange={(open) => {
+              setReasonOpen(open)
+              if (!open) {
+                setReason('')
+                setStageFollowupDate('')
+                setStageFollowupNotes('')
+                setStageError(null)
+              }
+            }}
+          >
             <Button
               className="w-full disabled:bg-muted disabled:text-muted-foreground disabled:opacity-100"
               onClick={openReasonDialog}
-              disabled={!canUpdateStage}
+              disabled={!canUpdateStage || !canManageStage}
             >
               Update Stage
             </Button>
@@ -608,17 +843,50 @@ export function LeadActionsPanel({
               <DialogHeader>
                 <DialogTitle>Reason for change</DialogTitle>
                 <DialogDescription>
-                  Add a short reason for updating the stage/substatus.
+                  {requiresFollowupForStageUpdate
+                    ? 'Add a reason and schedule the required follow-up.'
+                    : 'Add a short reason for updating the stage/substatus.'}
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-2">
-                <Label>Reason</Label>
-                <Textarea
-                  value={reason}
-                  onChange={(event) => setReason(event.target.value)}
-                  placeholder="Type the reason for this change..."
-                  rows={4}
-                />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Reason</Label>
+                  <Textarea
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    placeholder="Type the reason for this change..."
+                    rows={4}
+                  />
+                </div>
+                {requiresFollowupForStageUpdate ? (
+                  <div className="space-y-4 rounded-md border border-border bg-secondary/30 p-3">
+                    <p className="text-xs text-muted-foreground">
+                      This substatus requires a follow-up.
+                    </p>
+                    <div className="space-y-2">
+                      <Label>Follow-up date</Label>
+                      <Input
+                        type="datetime-local"
+                        value={stageFollowupDate}
+                        onChange={(event) => setStageFollowupDate(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Follow-up notes</Label>
+                      <Textarea
+                        value={stageFollowupNotes}
+                        onChange={(event) => setStageFollowupNotes(event.target.value)}
+                        placeholder="Optional follow-up notes..."
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                {noFollowupReasonHint ? (
+                  <p className="text-xs text-muted-foreground">
+                    Small budget does not require a follow-up. Add only a specific reason.
+                  </p>
+                ) : null}
               </div>
               {stageError ? <p className="text-xs text-destructive">{stageError}</p> : null}
               <DialogFooter>
@@ -658,8 +926,101 @@ export function LeadActionsPanel({
                   })}
                 </div>
                 <div className="text-muted-foreground">{visit.location}</div>
+                {visit.projectSqft ? (
+                  <div className="text-muted-foreground">Sqft: {visit.projectSqft}</div>
+                ) : null}
+                {visit.projectStatus ? (
+                  <div className="text-muted-foreground">
+                    Project Status: {formatLabel(visit.projectStatus)}
+                  </div>
+                ) : null}
                 {visit.notes ? (
                   <p className="text-muted-foreground">{visit.notes}</p>
+                ) : null}
+                {(visit.updateRequests ?? []).length > 0 ? (
+                  <div className="mt-2 space-y-2 rounded-md border border-amber-200 bg-amber-50/70 p-2">
+                    {(visit.updateRequests ?? []).map((requestItem) => (
+                      <div key={requestItem.id} className="space-y-1">
+                        <p className="text-xs font-semibold text-amber-800">
+                          Pending {formatLabel(requestItem.type)} request
+                        </p>
+                        <p className="text-xs text-amber-800">{requestItem.reason}</p>
+                        {requestItem.requestedBy?.fullName ? (
+                          <p className="text-[11px] text-amber-700">
+                            Requested by {requestItem.requestedBy.fullName}
+                          </p>
+                        ) : null}
+                        {requestItem.requestedScheduleAt ? (
+                          <p className="text-[11px] text-amber-700">
+                            Proposed:{' '}
+                            {new Date(requestItem.requestedScheduleAt).toLocaleString('en-US', {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })}
+                          </p>
+                        ) : null}
+                        {canManageVisitRequests ? (
+                          <div className="flex gap-2 pt-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={resolvingVisitRequestId === requestItem.id}
+                              onClick={() =>
+                                handleResolveVisitRequest(visit.id, requestItem.id, 'APPROVE')
+                              }
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={resolvingVisitRequestId === requestItem.id}
+                              onClick={() =>
+                                handleResolveVisitRequest(visit.id, requestItem.id, 'REJECT')
+                              }
+                            >
+                              Reject
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                {visit.result ? (
+                  <div className="mt-2 space-y-1 rounded-md border border-border bg-background/70 p-2">
+                    <p className="text-xs font-semibold text-foreground">Visit Result</p>
+                    <div className={blurVisitResult ? 'blur-xs pointer-events-none select-none' : ''}>
+                      <p className="text-xs text-muted-foreground">{visit.result.summary}</p>
+                      {visit.result.clientMood ? (
+                        <p className="text-xs text-muted-foreground">
+                          Client Mood: {visit.result.clientMood}
+                        </p>
+                      ) : null}
+                      <p className="text-[11px] text-muted-foreground">
+                        Submitted:{' '}
+                        {new Date(visit.result.completedAt).toLocaleString('en-US', {
+                          dateStyle: 'medium',
+                          timeStyle: 'short',
+                        })}
+                      </p>
+                      {visit.result.files.length > 0 ? (
+                        <div className="pt-1 space-y-1">
+                          {visit.result.files.map((file) => (
+                            <a
+                              key={file.id}
+                              href={file.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block text-[11px] text-primary underline-offset-2 hover:underline"
+                            >
+                              {file.fileName}
+                            </a>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
                 ) : null}
               </div>
             ))}
@@ -683,6 +1044,14 @@ export function LeadActionsPanel({
               })}
             </div>
             <div className="text-muted-foreground">{scheduledVisitCard.location}</div>
+            {scheduledVisitCard.projectSqft ? (
+              <div className="text-muted-foreground">Sqft: {scheduledVisitCard.projectSqft}</div>
+            ) : null}
+            {scheduledVisitCard.projectStatus ? (
+              <div className="text-muted-foreground">
+                Project Status: {formatLabel(scheduledVisitCard.projectStatus)}
+              </div>
+            ) : null}
             {scheduledVisitCard.notes ? (
               <p className="text-muted-foreground">{scheduledVisitCard.notes}</p>
             ) : null}
@@ -694,21 +1063,44 @@ export function LeadActionsPanel({
           <CardTitle className="text-base">Quick Actions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {canScheduleVisit ? (
+            <Button
+              className="w-full justify-start gap-2"
+              variant="outline"
+              onClick={() => setVisitOpen(true)}
+            >
+              <Plus className="w-4 h-4" />
+              Schedule Visit
+            </Button>
+          ) : null}
+          {canSubmitVisitResult ? (
+            <Button
+              className="w-full justify-start gap-2"
+              variant="outline"
+              onClick={() => handleVisitResultOpenChange(true)}
+            >
+              <Plus className="w-4 h-4" />
+              Add Visit Result
+            </Button>
+          ) : null}
+          {canAddFollowup ? (
+            <Button
+              className="w-full justify-start gap-2"
+              variant="outline"
+              onClick={onAddFollowup}
+            >
+              <Plus className="w-4 h-4" />
+              Add Followup
+            </Button>
+          ) : null}
           <Button
             className="w-full justify-start gap-2"
             variant="outline"
-            onClick={() => setVisitOpen(true)}
+            onClick={onAddAttachment}
+            disabled={!onAddAttachment}
           >
             <Plus className="w-4 h-4" />
-            Schedule Visit
-          </Button>
-          <Button
-            className="w-full justify-start gap-2"
-            variant="outline"
-            onClick={onAddFollowup}
-          >
-            <Plus className="w-4 h-4" />
-            Add Followup
+            Add Attachment
           </Button>
           <Button
             className="w-full justify-start gap-2"
@@ -736,6 +1128,101 @@ export function LeadActionsPanel({
           </Button>
         </CardContent>
       </Card>
+
+      <Dialog open={visitResultOpen} onOpenChange={handleVisitResultOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add visit result</DialogTitle>
+            <DialogDescription>
+              Submit the on-site outcome. This will mark the lead as Visit Completed.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Visit</Label>
+              <Select value={visitResultVisitId} onValueChange={setVisitResultVisitId}>
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      visitResultCandidates.length === 0
+                        ? 'No pending visits to complete'
+                        : 'Select a visit'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {visitResultCandidates.map((visit) => (
+                    <SelectItem key={visit.id} value={visit.id}>
+                      {new Date(visit.scheduledAt).toLocaleString('en-US', {
+                        dateStyle: 'medium',
+                        timeStyle: 'short',
+                      })}{' '}
+                      - {visit.location}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Summary</Label>
+              <Textarea
+                value={visitResultSummary}
+                onChange={(event) => setVisitResultSummary(event.target.value)}
+                rows={4}
+                placeholder="Write visit outcome summary..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Client mood (optional)</Label>
+              <Input
+                value={visitResultClientMood}
+                onChange={(event) => setVisitResultClientMood(event.target.value)}
+                placeholder="e.g. Positive, concerned, undecided"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Measurements JSON (optional)</Label>
+              <Textarea
+                value={visitResultMeasurements}
+                onChange={(event) => setVisitResultMeasurements(event.target.value)}
+                rows={3}
+                placeholder='{"roomWidth": 12.5, "roomLength": 18}'
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Attachments (optional)</Label>
+              <Input
+                type="file"
+                multiple
+                onChange={(event) => {
+                  const files = Array.from(event.target.files ?? [])
+                  setVisitResultFiles(files)
+                }}
+              />
+            </div>
+
+            {visitResultError ? <p className="text-sm text-destructive">{visitResultError}</p> : null}
+          </div>
+
+          <DialogFooter>
+            <Button
+              onClick={handleSubmitVisitResult}
+              disabled={
+                submittingVisitResult ||
+                visitResultCandidates.length === 0 ||
+                !visitResultVisitId
+              }
+            >
+              {submittingVisitResult ? 'Saving...' : 'Submit Visit Result'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={visitOpen} onOpenChange={handleVisitOpenChange}>
         <DialogContent>
@@ -785,14 +1272,49 @@ export function LeadActionsPanel({
             </div>
 
             <div className="space-y-2">
-              <Label>Location</Label>
+              <Label>Lead / Visit Location</Label>
               <Input
                 value={visitLocation}
                 onChange={(event) => {
                   locationTouchedRef.current = true
                   setVisitLocation(event.target.value)
                 }}
-                placeholder="Visit location"
+                placeholder="Location (will update lead location)"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Project Sqft</Label>
+              <Input
+                type="number"
+                min="1"
+                value={visitProjectSqft}
+                onChange={(event) => setVisitProjectSqft(event.target.value)}
+                placeholder="Enter project sqft"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Project Status</Label>
+              <Select value={visitProjectStatus} onValueChange={setVisitProjectStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="UNDER_CONSTRUCTION">Under Construction</SelectItem>
+                  <SelectItem value="READY">Ready</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Attachment (optional)</Label>
+              <Input
+                type="file"
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null
+                  setVisitAttachmentFile(file)
+                }}
               />
             </div>
 

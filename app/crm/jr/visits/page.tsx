@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +13,8 @@ type VisitRecord = {
   leadId: string
   scheduledAt: string
   location: string
+  projectSqft: number | null
+  projectStatus: string | null
   status: string
   notes: string | null
   lead: {
@@ -35,6 +38,7 @@ type VisitRecord = {
 type ApiResponse = {
   success: boolean
   data?: VisitRecord[]
+  error?: string
 }
 
 
@@ -49,15 +53,11 @@ const statusColors: Record<string, string> = {
   RESCHEDULED: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200',
 }
 
-const leadStatusColors: Record<string, string> = {
-  NEW: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200',
-  PROSPECT: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200',
-  QUALIFIED: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
-  NEGOTIATION: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-200',
-  CONVERTED: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200',
+type VisitsPageProps = {
+  forceAssignedOnly?: boolean
 }
 
-export default function VisitsPage() {
+export function VisitsPageView({ forceAssignedOnly = false }: VisitsPageProps) {
   const [activeTab, setActiveTab] = useState('calendar')
   const [currentDate, setCurrentDate] = useState(new Date(2026, 2)) // March 2026
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -81,8 +81,8 @@ export default function VisitsPage() {
         const payload = (await response.json()) as ApiResponse
         if (!response.ok || !payload.success) {
           const message =
-            payload && (payload as any).error
-              ? String((payload as any).error)
+            payload?.error
+              ? String(payload.error)
               : `Failed to load visits (status ${response.status})`
           throw new Error(message)
         }
@@ -190,6 +190,7 @@ export default function VisitsPage() {
   }
 
   const canViewVisit = (visit: VisitRecord) => {
+    if (forceAssignedOnly) return true
     const creatorId = visit.createdBy?.id
     if (!currentUserId || !creatorId) return true
     return creatorId === currentUserId
@@ -197,6 +198,9 @@ export default function VisitsPage() {
 
   const VisitCard = ({ visit }: { visit: VisitRecord }) => {
     const isVisible = canViewVisit(visit)
+    const leadHref = forceAssignedOnly
+      ? `/visit-team/leads/${visit.lead.id}`
+      : `/crm/jr/leads/${visit.lead.id}`
 
     return (
       <Card className="mb-3 overflow-hidden relative">
@@ -232,7 +236,20 @@ export default function VisitsPage() {
                   <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>{visit.location}</span>
                 </div>
+                {visit.projectSqft ? (
+                  <p className="text-xs text-muted-foreground">Sqft: {visit.projectSqft}</p>
+                ) : null}
+                {visit.projectStatus ? (
+                  <p className="text-xs text-muted-foreground">
+                    Project Status: {visit.projectStatus.replace(/_/g, ' ')}
+                  </p>
+                ) : null}
                 {visit.notes && <p className="text-xs text-muted-foreground italic mt-2">{visit.notes}</p>}
+                <div className="pt-1">
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href={leadHref}>Open Lead Details</Link>
+                  </Button>
+                </div>
               </div>
             </div>
             <span
@@ -444,4 +461,8 @@ export default function VisitsPage() {
       </Tabs>
     </div>
   )
+}
+
+export default function VisitsPage() {
+  return <VisitsPageView />
 }

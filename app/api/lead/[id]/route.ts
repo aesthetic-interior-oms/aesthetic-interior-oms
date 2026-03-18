@@ -319,8 +319,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   }
   console.log('[DEBUG][lead/:id][GET] Request received for id:', id);
 
-  try {
-    const lead = await prisma.lead.findFirst({
+  const fetchLead = (includeAttachments: boolean) =>
+    prisma.lead.findFirst({
       where: { id },
       include: {
         assignee: {
@@ -334,6 +334,13 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           },
           orderBy: { followupDate: 'desc' },
         },
+        ...(includeAttachments
+          ? {
+              attachments: {
+                orderBy: { createdAt: 'desc' as const },
+              },
+            }
+          : {}),
         notes: {
           include: {
             user: {
@@ -362,6 +369,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       },
     });
 
+  try {
+    const lead = await fetchLead(true);
+
     if (!lead) {
       console.log('[DEBUG][lead/:id][GET] Lead not found:', id);
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
@@ -370,6 +380,27 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     console.log('[DEBUG][lead/:id][GET] Lead fetched successfully:', id);
     return NextResponse.json({ success: true, data: lead });
   } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021') {
+      console.warn('[DEBUG][lead/:id][GET] Attachments table missing, retrying without attachments');
+      try {
+        const lead = await fetchLead(false);
+        if (!lead) {
+          return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({
+          success: true,
+          data: {
+            ...lead,
+            attachments: [],
+          },
+        });
+      } catch (fallbackError) {
+        console.error('[DEBUG][lead/:id][GET] Fallback error:', fallbackError);
+        return NextResponse.json({ success: false, error: 'Failed to fetch lead' }, { status: 500 });
+      }
+    }
+
     console.error('[DEBUG][lead/:id][GET] Error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch lead' }, { status: 500 });
   }

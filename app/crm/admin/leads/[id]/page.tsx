@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, MessageSquare, History, Calendar } from 'lucide-react'
+import { ArrowLeft, MessageSquare, History, Calendar, FileText, ImageIcon, Video } from 'lucide-react'
 import { LeadInfoCard } from '@/components/crm/junior/lead-info-card'
 import { LeadNotesTab } from '@/components/crm/junior/lead-notes-tab'
 import { LeadActivityTab } from '@/components/crm/junior/lead-activity-tab'
@@ -43,6 +43,7 @@ type LeadDetails = {
   } | null
   activities?: Activity[]
   followUps?: Followup[]
+  attachments?: LeadAttachment[]
 }
 
 type Assignment = {
@@ -98,6 +99,16 @@ type Followup = {
   }
 }
 
+type LeadAttachment = {
+  id: string
+  url: string
+  fileName: string
+  fileType: string
+  category: string
+  sizeBytes: number | null
+  createdAt: string
+}
+
 export default function LeadDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -116,12 +127,18 @@ export default function LeadDetailPage() {
   const [notes, setNotes] = useState<Note[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
   const [followups, setFollowups] = useState<Followup[]>([])
+  const [attachments, setAttachments] = useState<LeadAttachment[]>([])
   const [addFollowupOpen, setAddFollowupOpen] = useState(false)
   const [followupDate, setFollowupDate] = useState('')
   const [followupNotes, setFollowupNotes] = useState('')
   const [addFollowupError, setAddFollowupError] = useState<string | null>(null)
   const [addingFollowup, setAddingFollowup] = useState(false)
+  const [addAttachmentOpen, setAddAttachmentOpen] = useState(false)
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
+  const [addAttachmentError, setAddAttachmentError] = useState<string | null>(null)
+  const [addingAttachment, setAddingAttachment] = useState(false)
   const [canManageAssignments, setCanManageAssignments] = useState(false)
+  const [canManageVisitRequests, setCanManageVisitRequests] = useState(false)
 
   // Fetch current user
   useEffect(() => {
@@ -132,8 +149,13 @@ export default function LeadDetailPage() {
       .then(data => {
         if (data.id) setCurrentUserId(data.id)
         const departments = Array.isArray(data?.userDepartments) ? data.userDepartments : []
-        const departmentNames = departments.map((entry: any) => entry?.department?.name)
+        const departmentNames = departments
+          .map((entry: unknown) => (entry as { department?: { name?: string } })?.department?.name)
+          .filter((name): name is string => Boolean(name))
         setCanManageAssignments(departmentNames.includes('ADMIN'))
+        setCanManageVisitRequests(
+          departmentNames.includes('JR_CRM') || departmentNames.includes('ADMIN'),
+        )
       })
       .catch((error) => console.error('Error fetching user:', error))
   }, [])
@@ -149,6 +171,7 @@ export default function LeadDetailPage() {
         setSubStatus(data.data?.subStatus ?? null)
         setActivities(data.data?.activities || [])
         setFollowups(data.data?.followUps || [])
+        setAttachments(data.data?.attachments || [])
         setLoading(false)
       })
       .catch((error) => {
@@ -170,9 +193,26 @@ export default function LeadDetailPage() {
       })
   }, [leadId])
 
+  const refreshAttachments = useCallback(() => {
+    fetch(`/api/lead/${leadId}/attachments`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data)) {
+          setAttachments(data.data)
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching attachments:', error)
+      })
+  }, [leadId])
+
   useEffect(() => {
     refreshFollowups()
   }, [refreshFollowups])
+
+  useEffect(() => {
+    refreshAttachments()
+  }, [refreshAttachments])
 
   const refreshAssignments = useCallback(() => {
     setAssignmentsLoading(true)
@@ -229,6 +269,14 @@ export default function LeadDetailPage() {
     setAddFollowupOpen(true)
   }
 
+  const handleAddAttachmentOpenChange = (open: boolean) => {
+    setAddAttachmentOpen(open)
+    if (!open) {
+      setAttachmentFile(null)
+      setAddAttachmentError(null)
+    }
+  }
+
   // Handle adding a new note
   const handleAddNote = async () => {
     if (!newNote.trim() || !currentUserId) return
@@ -283,11 +331,29 @@ export default function LeadDetailPage() {
     }
   }
 
-  const handleCreateFollowup = async () => {
+  const createFollowup = async (payload: { followupDate: string; notes?: string }) => {
     if (!currentUserId) {
-      setAddFollowupError('Unable to determine your user id.')
-      return
+      throw new Error('Unable to determine your user id.')
     }
+
+    const response = await fetch(`/api/followup/${leadId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assignedToId: currentUserId,
+        followupDate: payload.followupDate,
+        notes: payload.notes,
+        userId: currentUserId,
+      }),
+    })
+
+    const data = await response.json()
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || 'Failed to create follow-up.')
+    }
+  }
+
+  const handleCreateFollowup = async () => {
     if (!followupDate) {
       setAddFollowupError('Please select a follow-up date.')
       return
@@ -295,21 +361,10 @@ export default function LeadDetailPage() {
     setAddingFollowup(true)
     setAddFollowupError(null)
     try {
-      const response = await fetch(`/api/followup/${leadId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          assignedToId: currentUserId,
-          followupDate,
-          notes: followupNotes.trim() || undefined,
-          userId: currentUserId,
-        }),
+      await createFollowup({
+        followupDate,
+        notes: followupNotes.trim() || undefined,
       })
-      const data = await response.json()
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to create follow-up.')
-      }
-
       handleAddFollowupOpenChange(false)
       refreshFollowups()
     } catch (error) {
@@ -318,6 +373,48 @@ export default function LeadDetailPage() {
     } finally {
       setAddingFollowup(false)
     }
+  }
+
+  const handleCreateAttachment = async () => {
+    if (!attachmentFile) {
+      setAddAttachmentError('Please select a file.')
+      return
+    }
+
+    setAddingAttachment(true)
+    setAddAttachmentError(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', attachmentFile)
+
+      const response = await fetch(`/api/lead/${leadId}/attachments`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to upload attachment.')
+      }
+
+      handleAddAttachmentOpenChange(false)
+      refreshAttachments()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to upload attachment.'
+      setAddAttachmentError(message)
+    } finally {
+      setAddingAttachment(false)
+    }
+  }
+
+  const mediaAttachments = attachments.filter((item) => item.category === 'MEDIA')
+  const fileAttachments = attachments.filter((item) => item.category !== 'MEDIA')
+  const formatSize = (sizeBytes: number | null) => {
+    if (!sizeBytes || sizeBytes <= 0) return 'Unknown size'
+    if (sizeBytes < 1024) return `${sizeBytes} B`
+    if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`
+    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
   if (loading) {
@@ -376,6 +473,10 @@ export default function LeadDetailPage() {
                 <Calendar className="w-4 h-4" />
                 <span className="hidden sm:inline">Followups</span>
               </TabsTrigger>
+              <TabsTrigger value="attachments" className="flex items-center justify-center gap-2">
+                <FileText className="w-4 h-4" />
+                <span className="hidden sm:inline">Attachments</span>
+              </TabsTrigger>
             </TabsList>
 
             {/* Tab Content */}
@@ -403,6 +504,64 @@ export default function LeadDetailPage() {
                 onAddFollowup={handleAddFollowup}
               />
             </TabsContent>
+
+            <TabsContent value="attachments" className="mt-6">
+              <div className="space-y-6 rounded-xl border border-border bg-card p-4">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Media</h3>
+                  {mediaAttachments.length === 0 ? (
+                    <p className="mt-2 text-sm text-muted-foreground">No media attachments yet.</p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {mediaAttachments.map((item) => (
+                        <a
+                          key={item.id}
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between rounded-md border border-border px-3 py-2 hover:bg-secondary/40"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {item.fileType.startsWith('video/') ? (
+                              <Video className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            ) : (
+                              <ImageIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            )}
+                            <span className="truncate text-sm text-foreground">{item.fileName}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">{formatSize(item.sizeBytes)}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Files</h3>
+                  {fileAttachments.length === 0 ? (
+                    <p className="mt-2 text-sm text-muted-foreground">No file attachments yet.</p>
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {fileAttachments.map((item) => (
+                        <a
+                          key={item.id}
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-between rounded-md border border-border px-3 py-2 hover:bg-secondary/40"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="truncate text-sm text-foreground">{item.fileName}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">{formatSize(item.sizeBytes)}</span>
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TabsContent>
           </Tabs>
         </div>
 
@@ -416,6 +575,7 @@ export default function LeadDetailPage() {
             assignments={assignments}
             assignmentsLoading={assignmentsLoading}
             canManageAssignments={canManageAssignments}
+            canManageVisitRequests={canManageVisitRequests}
             stage={stage}
             originalStage={lead.stage}
             subStatus={subStatus}
@@ -423,9 +583,18 @@ export default function LeadDetailPage() {
             onStageChange={setStage}
             onSubStatusChange={setSubStatus}
             onUpdateStage={handleUpdateStage}
+            onCreateFollowupForStage={async ({ followupDate: requiredFollowupDate, notes }) => {
+              await createFollowup({
+                followupDate: requiredFollowupDate,
+                notes,
+              })
+              refreshFollowups()
+            }}
             onAssignmentsRefresh={refreshAssignments}
             onFollowupRefresh={refreshFollowups}
+            onAttachmentRefresh={refreshAttachments}
             onAddFollowup={handleAddFollowup}
+            onAddAttachment={() => setAddAttachmentOpen(true)}
           />
         </div>
       </div>
@@ -463,6 +632,38 @@ export default function LeadDetailPage() {
           <DialogFooter>
             <Button onClick={handleCreateFollowup} disabled={addingFollowup}>
               {addingFollowup ? 'Saving...' : 'Create follow-up'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addAttachmentOpen} onOpenChange={handleAddAttachmentOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add attachment</DialogTitle>
+            <DialogDescription>
+              Upload a client file, media, or document to this lead.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Attachment</Label>
+              <Input
+                type="file"
+                onChange={(event) => {
+                  const nextFile = event.target.files?.[0] ?? null
+                  setAttachmentFile(nextFile)
+                  setAddAttachmentError(null)
+                }}
+              />
+            </div>
+            {addAttachmentError ? (
+              <p className="text-sm text-destructive">{addAttachmentError}</p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleCreateAttachment} disabled={addingAttachment}>
+              {addingAttachment ? 'Uploading...' : 'Upload attachment'}
             </Button>
           </DialogFooter>
         </DialogContent>

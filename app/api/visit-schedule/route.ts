@@ -72,6 +72,20 @@ export async function GET(request: NextRequest) {
         lead: { select: { id: true, name: true, phone: true, location: true } },
         assignedTo: { select: { id: true, fullName: true, email: true, phone: true } },
         createdBy: { select: { id: true, fullName: true } },
+        result: {
+          include: {
+            files: {
+              orderBy: { createdAt: 'desc' },
+            },
+          },
+        },
+        updateRequests: {
+          where: { status: 'PENDING' },
+          include: {
+            requestedBy: { select: { id: true, fullName: true, email: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
       orderBy: { scheduledAt: 'desc' },
     });
