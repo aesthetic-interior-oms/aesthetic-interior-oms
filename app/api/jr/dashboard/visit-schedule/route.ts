@@ -50,6 +50,8 @@ export async function GET(request: NextRequest) {
         leadId: visit.leadId,
         leadName: visit.lead?.name ?? 'Unknown',
         location: visit.location,
+        projectSqft: visit.projectSqft,
+        projectStatus: visit.projectStatus,
         scheduledAt: visit.scheduledAt,
         status: visit.status,
         assignedTeamMember: visit.assignedTo?.fullName ?? 'Unassigned',

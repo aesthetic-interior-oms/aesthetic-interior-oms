@@ -3,6 +3,7 @@ import {
   ActivityType,
   LeadAssignmentDepartment,
   LeadStage,
+  ProjectStatus,
 } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 import {
@@ -21,6 +22,8 @@ type ScheduleVisitBody = {
   location?: unknown;
   notes?: unknown;
   reason?: unknown;
+  projectSqft?: unknown;
+  projectStatus?: unknown;
 };
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
@@ -38,6 +41,20 @@ function toOptionalString(value: unknown): string | null {
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function toOptionalNumber(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toProjectStatus(value: unknown): ProjectStatus | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toUpperCase();
+  return Object.values(ProjectStatus).includes(normalized as ProjectStatus)
+    ? (normalized as ProjectStatus)
+    : null;
 }
 
 async function validateVisitTeamUser(userId: string) {
@@ -174,6 +191,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const visitTeamUserId = toOptionalString(body.visitTeamUserId);
     const notes = toOptionalString(body.notes);
     const reason = toOptionalString(body.reason);
+    const projectSqft = toOptionalNumber(body.projectSqft);
+    const projectStatus = toProjectStatus(body.projectStatus);
     const scheduledAtRaw = toOptionalString(body.scheduledAt);
     const parsedScheduledAt = scheduledAtRaw ? new Date(scheduledAtRaw) : null;
     const explicitLocation = toOptionalString(body.location);
@@ -185,6 +204,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       explicitLocation,
       notes,
       reason,
+      projectSqft,
+      projectStatus,
     });
 
     if (!visitTeamUserId || !scheduledAtRaw || !parsedScheduledAt || Number.isNaN(parsedScheduledAt.getTime())) {
@@ -195,6 +216,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
           error: 'visitTeamUserId and a valid ISO scheduledAt are required',
         },
         { status: 400 }
+      );
+    }
+
+    if (!projectSqft || projectSqft <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'projectSqft is required and must be greater than 0' },
+        { status: 400 },
+      );
+    }
+
+    if (!projectStatus) {
+      return NextResponse.json(
+        { success: false, error: 'projectStatus is required and must be UNDER_CONSTRUCTION or READY' },
+        { status: 400 },
       );
     }
 
@@ -240,6 +275,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         where: { id: leadId },
         data: {
           stage: LeadStage.VISIT_SCHEDULED,
+          location: locationToUse,
         },
       });
       console.log('[POST] Lead stage updated to VISIT_SCHEDULED');
@@ -250,6 +286,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
           assignedToId: visitTeamUserId,
           createdById: actorUserId,
           scheduledAt: parsedScheduledAt,
+          projectSqft,
+          projectStatus,
           location: locationToUse,
           notes,
         },

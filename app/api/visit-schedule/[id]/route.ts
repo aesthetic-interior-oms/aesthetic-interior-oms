@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { ActivityType, LeadAssignmentDepartment, VisitStatus } from '@/generated/prisma/client';
+import { ActivityType, LeadAssignmentDepartment, ProjectStatus, VisitStatus } from '@/generated/prisma/client';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { logActivity } from '@/lib/activity-log-service';
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
@@ -14,6 +14,8 @@ type UpdateVisitBody = {
   notes?: unknown;
   status?: unknown;
   reason?: unknown;
+  projectSqft?: unknown;
+  projectStatus?: unknown;
 };
 
 async function resolveVisitId(context: RouteContext): Promise<string | null> {
@@ -36,6 +38,20 @@ function toVisitStatus(value: string | null): VisitStatus | null {
   if (!value) return null;
   return Object.values(VisitStatus).includes(value as VisitStatus)
     ? (value as VisitStatus)
+    : null;
+}
+
+function toOptionalNumber(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toProjectStatus(value: unknown): ProjectStatus | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toUpperCase();
+  return Object.values(ProjectStatus).includes(normalized as ProjectStatus)
+    ? (normalized as ProjectStatus)
     : null;
 }
 
@@ -83,6 +99,13 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         lead: { select: { id: true, name: true, phone: true, location: true } },
         assignedTo: { select: { id: true, fullName: true, email: true, phone: true } },
         createdBy: { select: { id: true, fullName: true } },
+        result: {
+          include: {
+            files: {
+              orderBy: { createdAt: 'desc' },
+            },
+          },
+        },
       },
     });
 
@@ -117,6 +140,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const scheduledAtRaw = toOptionalString(body.scheduledAt);
     const parsedScheduledAt = scheduledAtRaw ? new Date(scheduledAtRaw) : null;
     const statusInput = toVisitStatus(toOptionalString(body.status));
+    const projectSqft = toOptionalNumber(body.projectSqft);
+    const projectStatus = toProjectStatus(body.projectStatus);
 
     if (scheduledAtRaw && (!parsedScheduledAt || Number.isNaN(parsedScheduledAt.getTime()))) {
       return NextResponse.json({ success: false, error: 'scheduledAt must be a valid ISO date-time' }, { status: 400 });
@@ -124,6 +149,15 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     if (body.status !== undefined && !statusInput) {
       return NextResponse.json({ success: false, error: 'Invalid visit status' }, { status: 400 });
+    }
+    if (body.projectSqft !== undefined && (projectSqft === null || projectSqft <= 0)) {
+      return NextResponse.json({ success: false, error: 'projectSqft must be greater than 0' }, { status: 400 });
+    }
+    if (body.projectStatus !== undefined && !projectStatus) {
+      return NextResponse.json(
+        { success: false, error: 'projectStatus must be UNDER_CONSTRUCTION or READY' },
+        { status: 400 },
+      );
     }
 
     if (visitTeamUserId) {
@@ -147,6 +181,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           ...(notes !== null ? { notes } : {}),
           ...(parsedScheduledAt ? { scheduledAt: parsedScheduledAt } : {}),
           ...(statusInput ? { status: statusInput } : {}),
+          ...(body.projectSqft !== undefined ? { projectSqft } : {}),
+          ...(body.projectStatus !== undefined ? { projectStatus } : {}),
         },
       });
 

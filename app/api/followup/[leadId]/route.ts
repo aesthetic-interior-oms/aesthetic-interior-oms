@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma';
-import { ActivityType, FollowUpStatus, LeadSubStatus } from '@/generated/prisma/client';
+import { ActivityType, LeadSubStatus } from '@/generated/prisma/client';
 import { isSubStatusAllowedForStage } from '@/lib/lead-stage';
 import { logActivity, logLeadSubStatusChanged } from '@/lib/activity-log-service';
 import { NextRequest, NextResponse } from 'next/server';
@@ -32,12 +32,6 @@ function toLeadSubStatus(value: unknown): LeadSubStatus | undefined | 'invalid' 
   return Object.values(LeadSubStatus).includes(normalized as LeadSubStatus)
     ? (normalized as LeadSubStatus)
     : 'invalid';
-}
-
-function addDays(date: Date, days: number): Date {
-  const copy = new Date(date);
-  copy.setDate(copy.getDate() + days);
-  return copy;
 }
 
 // GET /api/followup/[leadId] - Get all follow-ups for a specific lead
@@ -86,10 +80,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       data: followUps,
       count: followUps.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching follow-ups for lead:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch follow-ups', message: error.message },
+      { success: false, error: 'Failed to fetch follow-ups', message },
       { status: 500 }
     );
   }
@@ -146,40 +141,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
         { success: false, error: 'Invalid subStatus for selected stage' },
         { status: 400 }
       );
-    }
-
-    const now = new Date();
-    if (requestedSubStatus === LeadSubStatus.FUTURE_CLIENT) {
-      const minDate = addDays(now, 30);
-      if (followupDate < minDate) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Future client follow-up must be scheduled at least 30 days from today',
-          },
-          { status: 400 }
-        );
-      }
-
-      const earliestPending = await prisma.followUp.findFirst({
-        where: {
-          leadId,
-          status: FollowUpStatus.PENDING,
-          followupDate: { gte: now },
-        },
-        orderBy: { followupDate: 'asc' },
-        select: { followupDate: true },
-      });
-
-      if (earliestPending && earliestPending.followupDate < minDate) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'Cannot set future client while a follow-up exists within the next 30 days',
-          },
-          { status: 400 }
-        );
-      }
     }
 
     // Check if assigned user exists
@@ -247,10 +208,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       { success: true, data: followUp, message: 'Follow-up created successfully' },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating follow-up:', error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'Failed to create follow-up', message: error.message },
+      { success: false, error: 'Failed to create follow-up', message },
       { status: 500 }
     );
   }

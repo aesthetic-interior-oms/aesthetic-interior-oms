@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "LeadStage" ADD VALUE 'VISIT_COMPLETED';

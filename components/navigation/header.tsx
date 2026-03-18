@@ -1,6 +1,6 @@
 'use client'
 
-import { Menu, Bell, User, Settings } from 'lucide-react'
+import { Menu, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -12,6 +12,7 @@ import { useRouter } from 'next/navigation'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs'
+import { NotificationBell } from '@/components/navigation/notification-bell'
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -60,9 +61,7 @@ export function Header({ onMenuClick }: HeaderProps) {
         </SignedOut>
 
         <SignedIn>
-          <Button variant="ghost" size="icon">
-            <Bell className="w-5 h-5" />
-          </Button>
+          <NotificationBell />
           <UserButton/>
 
           <DropdownMenu>
