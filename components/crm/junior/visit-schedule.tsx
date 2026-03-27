@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -48,35 +48,42 @@ export function VisitScheduleCard() {
     }>
   >([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [offset, setOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let active = true
-    fetch("/api/jr/dashboard/visit-schedule")
-      .then((res) => res.json())
-      .then((payload) => {
-        if (!active) return
-        if (payload?.success && Array.isArray(payload.data)) {
-          setVisits(payload.data)
-          setError(null)
-        } else {
-          setVisits([])
-          setError(payload?.error || "Failed to load visit schedule.")
-        }
-      })
-      .catch((err) => {
-        if (!active) return
-        setVisits([])
-        setError(err instanceof Error ? err.message : "Failed to load visit schedule.")
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
+  const fetchVisits = useCallback(async (nextOffset: number, append: boolean) => {
+    if (!append) setLoading(true)
+    if (append) setLoadingMore(true)
+    try {
+      const res = await fetch(`/api/jr/dashboard/visit-schedule?limit=20&offset=${nextOffset}`)
+      const payload = await res.json()
+      if (!res.ok || !payload?.success || !Array.isArray(payload.data)) {
+        throw new Error(payload?.error || 'Failed to load visit schedule.')
+      }
 
-    return () => {
-      active = false
+      const nextItems = payload.data as typeof visits
+      setVisits((prev) => (append ? [...prev, ...nextItems] : nextItems))
+      setOffset(
+        typeof payload?.pagination?.nextOffset === 'number'
+          ? payload.pagination.nextOffset
+          : nextOffset + nextItems.length,
+      )
+      setHasMore(Boolean(payload?.pagination?.hasMore))
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load visit schedule.')
+      if (!append) setVisits([])
+    } finally {
+      if (!append) setLoading(false)
+      if (append) setLoadingMore(false)
     }
   }, [])
+
+  useEffect(() => {
+    fetchVisits(0, false)
+  }, [fetchVisits])
 
   const visitCards = useMemo(
     () =>
@@ -178,6 +185,18 @@ export function VisitScheduleCard() {
                 </div>
               )
             })}
+            {hasMore ? (
+              <div className="flex justify-center pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={loadingMore}
+                  onClick={() => fetchVisits(offset, true)}
+                >
+                  {loadingMore ? 'Loading...' : 'Show More'}
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </CardContent>

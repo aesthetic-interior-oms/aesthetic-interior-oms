@@ -44,6 +44,12 @@ type LeadDetails = {
   activities?: Activity[]
   followUps?: Followup[]
   attachments?: LeadAttachment[]
+  visits?: Array<{
+    id: string
+    scheduledAt: string
+    projectSqft: number | null
+    projectStatus: string | null
+  }>
 }
 
 type Assignment = {
@@ -579,6 +585,7 @@ export default function LeadDetailPage() {
             leadLocation={lead.location}
             leadPhone={lead.phone}
             leadEmail={lead.email}
+            hasPendingFollowup={hasPendingFollowup}
             assignments={assignments}
             assignmentsLoading={assignmentsLoading}
             canManageAssignments={canManageAssignments}

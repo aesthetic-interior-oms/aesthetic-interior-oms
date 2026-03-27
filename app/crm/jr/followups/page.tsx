@@ -25,6 +25,7 @@ import {
   User,
   ArrowRight,
 } from 'lucide-react'
+import { CrmPageHeader } from '@/components/crm/shared/page-header'
 
 type FollowUpStatus = 'PENDING' | 'DONE' | 'LATELY_DONE' | 'MISSED'
 
@@ -289,14 +290,12 @@ export default function FollowupsPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="border-b border-border bg-card sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-6">
-          <h1 className="text-3xl font-bold text-foreground">Followups</h1>
-          <p className="text-sm text-muted-foreground mt-1">Track and manage all your followup tasks</p>
-        </div>
-      </div>
+      <CrmPageHeader
+        title="Followups"
+        subtitle="Track and manage all your followup tasks"
+      />
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="mx-auto max-w-[1440px] px-6 py-6">
         {loading ? <p className="text-sm text-muted-foreground mb-4">Loading followups...</p> : null}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mt-8">
