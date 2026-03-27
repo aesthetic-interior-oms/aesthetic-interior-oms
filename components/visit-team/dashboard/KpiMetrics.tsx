@@ -1,7 +1,6 @@
 'use client'
 
 import { DashboardMetrics } from '@/lib/dashboardData'
-import { Motion } from 'react-motion'
 import { motion } from 'framer-motion'
 import { TrendingUp, Clock, AlertCircle, Users } from 'lucide-react'
 

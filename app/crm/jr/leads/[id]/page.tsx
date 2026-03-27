@@ -160,7 +160,7 @@ export default function LeadDetailPage() {
         const departments = Array.isArray(data?.userDepartments) ? data.userDepartments : []
         const departmentNames = departments
           .map((entry: unknown) => (entry as { department?: { name?: string } })?.department?.name)
-          .filter((name): name is string => Boolean(name))
+          .filter((name: string | undefined): name is string => Boolean(name))
         setCanManageAssignments(departmentNames.includes('ADMIN'))
         setCanManageVisitRequests(
           departmentNames.includes('JR_CRM') || departmentNames.includes('ADMIN'),

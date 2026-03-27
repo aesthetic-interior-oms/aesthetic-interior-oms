@@ -171,7 +171,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const authResult = await requireDatabaseRoles([]);
     console.log('[POST] authResult:', JSON.stringify(authResult, null, 2));
     console.log('[POST] authResult.ok:', authResult.ok);
-    console.log('[POST] authResult.actorUserId:', authResult.actorUserId);
     if (!authResult.ok) {
       return authResult.response;
     }

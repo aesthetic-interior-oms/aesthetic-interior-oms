@@ -5,6 +5,12 @@ import prisma from '@/lib/prisma'
 // Import Next.js HTTP request/response utilities for API route handling
 import { NextRequest, NextResponse } from 'next/server'
 
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(...args)
+  }
+}
+
 // Default pagination page (starts at 1)
 const DEFAULT_PAGE = 1
 // Default number of records per page
@@ -28,8 +34,8 @@ function toPositiveInt(value: string | null, fallback: number): number {
 // Valid ActivityType values: [ 'CALL', 'STATUS_CHANGE', 'NOTE', 'FOLLOWUP_SET' ]
 function toActivityType(value: string | null): ActivityType | undefined {
   if (!value) return undefined
-  console.log('🔎 [toActivityType] Valid ActivityType values:', Object.values(ActivityType))
-  console.log('🔎 [toActivityType] Checking if', value, 'is in valid values')
+  debugLog('🔎 [toActivityType] Valid ActivityType values:', Object.values(ActivityType))
+  debugLog('🔎 [toActivityType] Checking if', value, 'is in valid values')
   return Object.values(ActivityType).includes(value as ActivityType)
     ? (value as ActivityType)
     : undefined
@@ -128,7 +134,7 @@ export async function POST(request: NextRequest) {
   try {
     // Parse JSON request body
     const body = await request.json()
-    console.log('📥 [POST /api/activity-log] Incoming request body:', JSON.stringify(body, null, 2))
+    debugLog('📥 [POST /api/activity-log] Incoming request body:', JSON.stringify(body, null, 2))
     
     // Extract and validate request fields
     // Ensure each field is a string and has the correct type
@@ -137,7 +143,7 @@ export async function POST(request: NextRequest) {
     const type = toActivityType(typeof body.type === 'string' ? body.type : null)
     const description = typeof body.description === 'string' ? body.description.trim() : ''
 
-    console.log('🔍 [POST /api/activity-log] Extracted fields:', {
+    debugLog('🔍 [POST /api/activity-log] Extracted fields:', {
       leadId: leadId || 'EMPTY',
       userId: userId || 'EMPTY',
       type: type || 'INVALID',
@@ -153,7 +159,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('✅ [POST /api/activity-log] Validation passed - checking database records')
+    debugLog('✅ [POST /api/activity-log] Validation passed - checking database records')
 
     // Check if both the lead and user exist in the database
     // Use Promise.all for parallel execution to improve performance
@@ -162,7 +168,7 @@ export async function POST(request: NextRequest) {
       prisma.user.findUnique({ where: { id: userId }, select: { id: true } }),
     ])
 
-    console.log('🔎 [POST /api/activity-log] Database lookup results:', {
+    debugLog('🔎 [POST /api/activity-log] Database lookup results:', {
       leadFound: !!lead,
       leadId: leadId,
       userFound: !!user,
@@ -181,7 +187,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
     }
 
-    console.log('💾 [POST /api/activity-log] Creating activity log in database')
+    debugLog('💾 [POST /api/activity-log] Creating activity log in database')
 
     // Create the activity log entry in the database
     const activity = await prisma.activityLog.create({
@@ -202,7 +208,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    console.log('✨ [POST /api/activity-log] Activity log created successfully:', {
+    debugLog('✨ [POST /api/activity-log] Activity log created successfully:', {
       id: activity.id,
       leadId: activity.leadId,
       userId: activity.userId,

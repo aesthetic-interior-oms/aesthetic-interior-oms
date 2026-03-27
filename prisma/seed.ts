@@ -7,9 +7,7 @@ import { PrismaClient } from "@/generated/prisma/client";
 const connectionString = process.env.DATABASE_URL!;
 const pool = new Pool({ connectionString });
 
-// PrismaPg’s constructor takes two params; the second is optional
-// but typed as required in the definition.
-const adapter = new PrismaPg(pool /* , { /* adapter options here */ } */ );
+const adapter = new PrismaPg(pool);
 
 const prisma = new PrismaClient({ adapter });     // ← one argument supplied
 // if you ever call it with no options you can do:
@@ -158,7 +156,6 @@ async function main() {
       phone: "1111111111",
       email: "alice@example.com",
       source: "Website",
-      status: "NEW",
       budget: 50000,
       location: "New York",
       remarks: "Interested in modern design",
@@ -172,7 +169,6 @@ async function main() {
       phone: "2222222222",
       email: "bob@example.com",
       source: "Referral",
-      status: "CONTACTED",
       budget: 75000,
       location: "Los Angeles",
       remarks: "Follow up next week",
@@ -186,7 +182,6 @@ async function main() {
       phone: "3333333333",
       email: "carol@example.com",
       source: "Social Media",
-      status: "FOLLOWUP",
       budget: 100000,
       location: "Chicago",
       remarks: "Waiting for budget approval",
@@ -208,7 +203,7 @@ async function main() {
     data: {
       leadId: lead2.id,
       oldStatus: "NEW",
-      newStatus: "CONTACTED",
+      newStatus: "CONTACT_ATTEMPTED",
       changedById: user2.id,
     },
   });

@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { Webhook } from "svix";
 import prisma from "@/lib/prisma";
 
-console.log("🚀 [CLERK-WEBHOOK] Module loaded - webhook route initialized");
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== "production") {
+    console.log(...args);
+  }
+};
+
+debugLog("🚀 [CLERK-WEBHOOK] Module loaded - webhook route initialized");
 
 type ClerkEmailAddress = {
   id: string;
@@ -55,7 +61,7 @@ const extractMembershipNames = (data: ClerkUserData) => {
 export async function POST(req: Request) {
   const logPrefix = "[clerk-webhook]";
   const requestTimestamp = new Date().toISOString();
-  console.log(`${logPrefix} phase=request_start timestamp=${requestTimestamp}`);
+  debugLog(`${logPrefix} phase=request_start timestamp=${requestTimestamp}`);
 
   const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
   if (!webhookSecret) {
@@ -64,12 +70,12 @@ export async function POST(req: Request) {
   }
 
   const payload = await req.text();
-  console.log(`${logPrefix} phase=payload_received length=${payload.length} timestamp=${requestTimestamp}`);
+  debugLog(`${logPrefix} phase=payload_received length=${payload.length} timestamp=${requestTimestamp}`);
   const svixId = req.headers.get("svix-id");
   const svixTimestamp = req.headers.get("svix-timestamp");
   const svixSignature = req.headers.get("svix-signature");
 
-  console.log(`${logPrefix} phase=headers_received svix_id=${svixId} svix_timestamp=${svixTimestamp} svix_signature_present=${Boolean(
+  debugLog(`${logPrefix} phase=headers_received svix_id=${svixId} svix_timestamp=${svixTimestamp} svix_signature_present=${Boolean(
     svixSignature,
   )} timestamp=${requestTimestamp}`,
   );
@@ -97,14 +103,14 @@ export async function POST(req: Request) {
     console.error(`${logPrefix} phase=verify_failed`);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
-  console.log(
+  debugLog(
     `${logPrefix} phase=verify_success event_type=${event.type} event_user_id=${String(
       event.data?.id ?? "null",
     )}`,
   );
 
   if (event.type === "user.created" || event.type === "user.updated") {
-    console.log(`${logPrefix} phase=direct_user_event type=${event.type}`);
+    debugLog(`${logPrefix} phase=direct_user_event type=${event.type}`);
     const {
       id,
       email_addresses,
@@ -128,7 +134,7 @@ export async function POST(req: Request) {
     const fullName = [first_name, last_name].filter(Boolean).join(" ").trim() || "Unknown User";
     const phone = phone_numbers?.[0]?.phone_number ?? "";
     const resolvedEmail = primaryEmail ?? `${id}@clerk.local`;
-    console.log(
+    debugLog(
       `${logPrefix} phase=normalized_user clerk_user_id=${id} email=${resolvedEmail} has_phone=${Boolean(
         phone,
       )}`,
@@ -138,7 +144,7 @@ export async function POST(req: Request) {
       public_metadata,
       unsafe_metadata,
     });
-    console.log(
+    debugLog(
       `${logPrefix} phase=membership_extracted role_count=${roleNames.length} department_count=${departmentNames.length}`,
     );
 
@@ -155,7 +161,7 @@ export async function POST(req: Request) {
     }
 
     try {
-      console.log(`${logPrefix} phase=db_upsert_start clerk_user_id=${id}`);
+      debugLog(`${logPrefix} phase=db_upsert_start clerk_user_id=${id}`);
       const result = await prisma.$transaction(async (tx) => {
         const user = await tx.user.upsert({
           where: { clerkUserId: id },
@@ -220,7 +226,7 @@ export async function POST(req: Request) {
         return user;
       });
 
-      console.log(
+      debugLog(
         `${logPrefix} phase=user_upsert_success clerk_user_id=${id} db_user_id=${result.id} role_count=${roleNames.length} department_count=${departmentNames.length} timestamp=${requestTimestamp}`,
       );
     } catch (dbError) {
@@ -242,7 +248,7 @@ export async function POST(req: Request) {
     const clerkUserId = event.data?.id as string | undefined;
 
     if (clerkUserId) {
-      console.log(`${logPrefix} phase=user_deleted clerk_user_id=${clerkUserId}`);
+      debugLog(`${logPrefix} phase=user_deleted clerk_user_id=${clerkUserId}`);
       try {
         await prisma.user.updateMany({
           where: { clerkUserId },
@@ -256,7 +262,7 @@ export async function POST(req: Request) {
     }
   }
 
-  console.log(`${logPrefix} phase=request_success type=${event.type}`);
+  debugLog(`${logPrefix} phase=request_success type=${event.type}`);
   return NextResponse.json({ success: true });
 }
 

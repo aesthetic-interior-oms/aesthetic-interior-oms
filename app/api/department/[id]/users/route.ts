@@ -2,6 +2,12 @@ import { requireDatabaseRoles } from '@/lib/authz';
 import prisma from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(...args);
+  }
+};
+
 /*
   POSTMAN TESTING DATA
   =====================
@@ -60,21 +66,20 @@ import { NextRequest, NextResponse } from 'next/server';
 // Returns users who are members of the given department
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    console.log('🔵 [GET /api/department/[id]/users] - Request received');
+    debugLog('🔵 [GET /api/department/[id]/users] - Request received');
 
-    // const authResult = await requireDatabaseRoles([]);
-    // if (!authResult.ok) {
-    //   console.log('🔴 [GET /api/department/[id]/users] - Auth failed');
-    //   return authResult.response;
-    // }
-    console.log('✅ [GET /api/department/[id]/users] - Auth passed');
+    const authResult = await requireDatabaseRoles([]);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+    debugLog('✅ [GET /api/department/[id]/users] - Auth passed');
     
     const resolvedParams = await params;
     const departmentId = resolvedParams?.id;
-    console.log('🔍 [GET /api/department/[id]/users] - Resolved departmentId:', departmentId);
+    debugLog('🔍 [GET /api/department/[id]/users] - Resolved departmentId:', departmentId);
     
     if (!departmentId || typeof departmentId !== 'string') {
-      console.log('🔴 [GET /api/department/[id]/users] - Invalid departmentId');
+      debugLog('🔴 [GET /api/department/[id]/users] - Invalid departmentId');
       return NextResponse.json(
         { success: false, error: 'Invalid department id' },
         { status: 400 }
@@ -82,7 +87,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     }
 
     // Verify department exists
-    console.log('🔎 [GET /api/department/[id]/users] - Looking up department');
+    debugLog('🔎 [GET /api/department/[id]/users] - Looking up department');
     const department = await prisma.department.findUnique({
       where: { id: departmentId },
       select: {
@@ -91,7 +96,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         description: true,
       },
     });
-    console.log('📊 [GET /api/department/[id]/users] - Department found:', department);
+    debugLog('📊 [GET /api/department/[id]/users] - Department found:', department);
 
     if (!department) {
       return NextResponse.json(
@@ -101,7 +106,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     }
 
     // Fetch all users in this department
-    console.log('🔎 [GET /api/department/[id]/users] - Fetching users in department');
+    debugLog('🔎 [GET /api/department/[id]/users] - Fetching users in department');
     const userDepartments = await prisma.userDepartment.findMany({
       where: { departmentId },
       include: {
@@ -121,10 +126,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         },
       },
     });
-    console.log('📊 [GET /api/department/[id]/users] - Found users:', userDepartments.length);
+    debugLog('📊 [GET /api/department/[id]/users] - Found users:', userDepartments.length);
 
     const users = userDepartments.map((ud) => ud.user);
-    console.log('✨ [GET /api/department/[id]/users] - Response prepared with', users.length, 'users');
+    debugLog('✨ [GET /api/department/[id]/users] - Response prepared with', users.length, 'users');
 
     return NextResponse.json({
       success: true,

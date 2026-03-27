@@ -102,10 +102,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ success: false, error: 'Summary is required' }, { status: 400 })
     }
 
-    let measurements: Prisma.JsonValue | undefined
+    let measurements: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined
     if (measurementsRaw) {
       try {
-        measurements = JSON.parse(measurementsRaw) as Prisma.JsonValue
+        const parsed = JSON.parse(measurementsRaw)
+        measurements = parsed === null ? Prisma.JsonNull : (parsed as Prisma.InputJsonValue)
       } catch {
         return NextResponse.json(
           { success: false, error: 'measurements must be valid JSON' },

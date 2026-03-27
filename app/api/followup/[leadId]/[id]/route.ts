@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 
 type RouteContext = { params: { leadId: string; id: string } | Promise<{ leadId: string; id: string }> };
+const completedFollowUpStatuses: FollowUpStatus[] = [FollowUpStatus.DONE, FollowUpStatus.LATELY_DONE];
 
 async function resolveParams(context: RouteContext): Promise<{ leadId: string | null; id: string | null }> {
   const resolvedParams = await context.params;
@@ -61,7 +62,6 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             name: true,
             email: true,
             phone: true,
-            status: true,
             location: true,
           },
         },
@@ -165,8 +165,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       // Log activity when follow-up is completed
       if (
         status !== undefined &&
-        [FollowUpStatus.DONE, FollowUpStatus.LATELY_DONE].includes(status as FollowUpStatus) &&
-        ![FollowUpStatus.DONE, FollowUpStatus.LATELY_DONE].includes(existingFollowUp.status) &&
+        completedFollowUpStatuses.includes(status as FollowUpStatus) &&
+        !completedFollowUpStatuses.includes(existingFollowUp.status) &&
         activityUserId
       ) {
         await tx.activityLog.create({
@@ -225,7 +225,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     // Prepare update data
-    const updateData: Prisma.FollowUpUpdateInput = {}
+    const updateData: Prisma.FollowUpUncheckedUpdateInput = {}
     if (body.assignedToId !== undefined) updateData.assignedToId = body.assignedToId
     if (body.followupDate !== undefined) updateData.followupDate = new Date(body.followupDate)
     if (body.status !== undefined) updateData.status = body.status
@@ -248,8 +248,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       const nextStatus = body.status as FollowUpStatus | undefined
       if (
         nextStatus !== undefined &&
-        [FollowUpStatus.DONE, FollowUpStatus.LATELY_DONE].includes(nextStatus) &&
-        ![FollowUpStatus.DONE, FollowUpStatus.LATELY_DONE].includes(existingFollowUp.status) &&
+        completedFollowUpStatuses.includes(nextStatus) &&
+        !completedFollowUpStatuses.includes(existingFollowUp.status) &&
         activityUserId
       ) {
         await tx.activityLog.create({

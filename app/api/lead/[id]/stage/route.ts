@@ -8,6 +8,12 @@ import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(...args);
+  }
+};
+
 type UpdateLeadStageBody = {
   stage?: unknown;
   subStatus?: unknown;
@@ -51,28 +57,27 @@ function toLeadSubStatus(value: unknown): LeadSubStatus | null | undefined {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
-    console.log('🔵 [lead/:id/stage][PATCH] - Request received');
+    debugLog('🔵 [lead/:id/stage][PATCH] - Request received');
     
     // Get authenticated user ID from auth context
     const authResult = await requireDatabaseRoles([]);
-    // console.log('✅ [lead/:id/stage][PATCH] - Auth passed');
-    // if (!authResult.ok) {
-    //   return authResult.response;
-    // }
+    if (!authResult.ok) {
+      return authResult.response;
+    }
     const userId = authResult.actorUserId;
-    console.log('🔐 [lead/:id/stage][PATCH] - Auth verified for user:', userId);
+    debugLog('🔐 [lead/:id/stage][PATCH] - Auth verified for user:', userId);
     
     const leadId = await resolveLeadId(context);
     if (!leadId) {
       return NextResponse.json({ success: false, error: 'Invalid lead id' }, { status: 400 });
     }
-    console.log('📝 [lead/:id/stage][PATCH] - Lead ID:', leadId);
+    debugLog('📝 [lead/:id/stage][PATCH] - Lead ID:', leadId);
 
     const body = (await request.json()) as UpdateLeadStageBody;
     const nextStage = toLeadStage(body.stage);
     const requestedSubStatus = toLeadSubStatus(body.subStatus);
     const reason = toOptionalString(body.reason);
-    console.log('📋 [lead/:id/stage][PATCH] - Extracted fields. Stage:', nextStage, 'SubStatus:', requestedSubStatus);
+    debugLog('📋 [lead/:id/stage][PATCH] - Extracted fields. Stage:', nextStage, 'SubStatus:', requestedSubStatus);
 
     if (!nextStage) {
       return NextResponse.json({ success: false, error: 'Valid stage is required' }, { status: 400 });

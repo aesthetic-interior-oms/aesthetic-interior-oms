@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { Prisma } from '@/generated/prisma/client';
 
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(...args);
+  }
+};
+
 /*
   POSTMAN TESTING DATA
   =====================
@@ -126,18 +132,15 @@ async function parseJsonBody(request: NextRequest): Promise<MembershipBody | nul
 // Associates a user with a department
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    console.log('🔵 [POST /api/department/[id]/members] - Request received');
-    
-    // Verify user authentication
-    // const authResult = await requireDatabaseRoles(['admin']);
-    // if (!authResult.ok) {
-    //   console.log('🔴 [POST /api/department/[id]/members] - Auth failed');
-    //   return authResult.response;
-    // }
-    console.log('✅ [POST /api/department/[id]/members] - Auth passed');
+    debugLog('🔵 [POST /api/department/[id]/members] - Request received');
+    const authResult = await requireDatabaseRoles(['admin']);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+    debugLog('✅ [POST /api/department/[id]/members] - Auth passed');
 
     const body = await parseJsonBody(request);
-    console.log('📝 [POST /api/department/[id]/members] - Parsed body:', JSON.stringify(body));
+    debugLog('📝 [POST /api/department/[id]/members] - Parsed body:', JSON.stringify(body));
     if (!body) {
       return NextResponse.json(
         { success: false, error: 'Invalid JSON body' },
@@ -147,10 +150,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const resolvedParams = await params;
     const departmentId = resolvedParams?.id;
-    console.log('🔍 [POST /api/department/[id]/members] - Resolved departmentId:', departmentId);
+    debugLog('🔍 [POST /api/department/[id]/members] - Resolved departmentId:', departmentId);
 
     if (!departmentId || typeof departmentId !== 'string') {
-      console.log('🔴 [POST /api/department/[id]/members] - Invalid departmentId');
+      debugLog('🔴 [POST /api/department/[id]/members] - Invalid departmentId');
       return NextResponse.json(
         { success: false, error: 'Invalid department id' },
         { status: 400 }
@@ -158,7 +161,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const userId = toOptionalString(body.userId);
-    console.log('👤 [POST /api/department/[id]/members] - Resolved userId:', userId);
+    debugLog('👤 [POST /api/department/[id]/members] - Resolved userId:', userId);
 
     if (!userId) {
       return NextResponse.json(
@@ -168,12 +171,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     
-    console.log('🔎 [POST /api/department/[id]/members] - Checking department and user existence');
+    debugLog('🔎 [POST /api/department/[id]/members] - Checking department and user existence');
     const [department, user] = await Promise.all([
       prisma.department.findUnique({ where: { id: departmentId }, select: { id: true, name: true } }),
       prisma.user.findUnique({ where: { id: userId }, select: { id: true, fullName: true } }),
     ]);
-    console.log('📊 [POST /api/department/[id]/members] - Department:', department, 'User:', user);
+    debugLog('📊 [POST /api/department/[id]/members] - Department:', department, 'User:', user);
 
     if (!department) {
       return NextResponse.json(
@@ -191,7 +194,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Check if user is already in department
-    console.log('🔄 [POST /api/department/[id]/members] - Checking for existing membership');
+    debugLog('🔄 [POST /api/department/[id]/members] - Checking for existing membership');
     const existingAssignment = await prisma.userDepartment.findUnique({
       where: {
         userId_departmentId: {
@@ -200,7 +203,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         },
       },
     });
-    console.log('📊 [POST /api/department/[id]/members] - Existing assignment:', existingAssignment);
+    debugLog('📊 [POST /api/department/[id]/members] - Existing assignment:', existingAssignment);
 
     if (existingAssignment) {
       return NextResponse.json(
@@ -210,7 +213,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Add user to department
-    console.log('💾 [POST /api/department/[id]/members] - Creating user-department association');
+    debugLog('💾 [POST /api/department/[id]/members] - Creating user-department association');
     const userDepartment = await prisma.userDepartment.create({
       data: {
         userId,
@@ -225,7 +228,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         },
       },
     });
-    console.log('✨ [POST /api/department/[id]/members] - User successfully added to department');
+    debugLog('✨ [POST /api/department/[id]/members] - User successfully added to department');
 
     return NextResponse.json(
       {
@@ -248,18 +251,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 // Disassociates a user from a department
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    console.log('🔵 [DELETE /api/department/[id]/members] - Request received');
-    
-    // Verify user authentication
-    // const authResult = await requireDatabaseRoles(['admin']);
-    // if (!authResult.ok) {
-    //   console.log('🔴 [DELETE /api/department/[id]/members] - Auth failed');
-    //   return authResult.response;
-    // }
-    console.log('✅ [DELETE /api/department/[id]/members] - Auth passed');
+    debugLog('🔵 [DELETE /api/department/[id]/members] - Request received');
+    const authResult = await requireDatabaseRoles(['admin']);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+    debugLog('✅ [DELETE /api/department/[id]/members] - Auth passed');
 
     const body = await parseJsonBody(request);
-    console.log('📝 [DELETE /api/department/[id]/members] - Parsed body:', JSON.stringify(body));
+    debugLog('📝 [DELETE /api/department/[id]/members] - Parsed body:', JSON.stringify(body));
     if (!body) {
       return NextResponse.json(
         { success: false, error: 'Invalid JSON body' },
@@ -269,10 +269,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     const resolvedParams = await params;
     const departmentId = resolvedParams?.id;
-    console.log('🔍 [DELETE /api/department/[id]/members] - Resolved departmentId:', departmentId);
+    debugLog('🔍 [DELETE /api/department/[id]/members] - Resolved departmentId:', departmentId);
 
     if (!departmentId || typeof departmentId !== 'string') {
-      console.log('🔴 [DELETE /api/department/[id]/members] - Invalid departmentId');
+      debugLog('🔴 [DELETE /api/department/[id]/members] - Invalid departmentId');
       return NextResponse.json(
         { success: false, error: 'Invalid department id' },
         { status: 400 }
@@ -280,7 +280,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     const userId = toOptionalString(body.userId);
-    console.log('👤 [DELETE /api/department/[id]/members] - Resolved userId:', userId);
+    debugLog('👤 [DELETE /api/department/[id]/members] - Resolved userId:', userId);
 
     if (!userId) {
       return NextResponse.json(
@@ -290,12 +290,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     // Verify department exists
-    console.log('🔎 [DELETE /api/department/[id]/members] - Checking department and user existence');
+    debugLog('🔎 [DELETE /api/department/[id]/members] - Checking department and user existence');
     const [department, user] = await Promise.all([
       prisma.department.findUnique({ where: { id: departmentId }, select: { id: true, name: true } }),
       prisma.user.findUnique({ where: { id: userId }, select: { id: true, fullName: true } }),
     ]);
-    console.log('📊 [DELETE /api/department/[id]/members] - Department:', department, 'User:', user);
+    debugLog('📊 [DELETE /api/department/[id]/members] - Department:', department, 'User:', user);
 
     if (!department) {
       return NextResponse.json(
@@ -313,7 +313,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     // Remove user from department
-    console.log('🗑️ [DELETE /api/department/[id]/members] - Removing user from department');
+    debugLog('🗑️ [DELETE /api/department/[id]/members] - Removing user from department');
     const result = await prisma.userDepartment.delete({
       where: {
         userId_departmentId: {
@@ -322,7 +322,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         },
       },
     });
-    console.log('✨ [DELETE /api/department/[id]/members] - User successfully removed from department');
+    debugLog('✨ [DELETE /api/department/[id]/members] - User successfully removed from department');
 
     return NextResponse.json(
       {

@@ -626,12 +626,14 @@ export function LeadActionsPanel({
     }
 
     try {
-      const { assignedUser, createdVisit } = await toast.promise(schedulePromise(), {
+      const scheduleRequest = schedulePromise()
+      await toast.promise(scheduleRequest, {
         loading: 'Scheduling visit...',
         success: 'Visit scheduled successfully.',
         error: (err) =>
           err instanceof Error ? err.message : 'Failed to schedule visit.',
       })
+      const { assignedUser, createdVisit } = await scheduleRequest
 
       if (createdVisit && assignedUser) {
         setScheduledVisitCard({

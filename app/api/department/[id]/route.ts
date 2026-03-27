@@ -2,6 +2,12 @@ import prisma from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireDatabaseRoles } from '@/lib/authz';
 
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(...args);
+  }
+};
+
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
 type UpdateDepartmentBody = {
@@ -35,14 +41,14 @@ async function parseJsonBody(request: NextRequest): Promise<UpdateDepartmentBody
 
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    console.log('🔵 [PUT /api/department/[id]] - Request received');
-    // const authResult = await requireDatabaseRoles(['admin']);
-    // if (!authResult.ok) {
-    //   return authResult.response;
-    // }
+    debugLog('🔵 [PUT /api/department/[id]] - Request received');
+    const authResult = await requireDatabaseRoles(['admin']);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
 
     const departmentId = await resolveDepartmentId(context);
-    console.log('🔍 [PUT /api/department/[id]] - Resolved departmentId:', departmentId);
+    debugLog('🔍 [PUT /api/department/[id]] - Resolved departmentId:', departmentId);
     if (!departmentId) {
       return NextResponse.json(
         { success: false, error: 'Invalid department id' },
@@ -51,7 +57,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     const body = await parseJsonBody(request);
-    console.log('📝 [PUT /api/department/[id]] - Parsed body:', JSON.stringify(body));
+    debugLog('📝 [PUT /api/department/[id]] - Parsed body:', JSON.stringify(body));
     if (!body) {
       return NextResponse.json(
         { success: false, error: 'Invalid JSON body' },
@@ -61,7 +67,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const hasName = Object.prototype.hasOwnProperty.call(body, 'name');
     const hasDescription = Object.prototype.hasOwnProperty.call(body, 'description');
-    console.log('📋 [PUT /api/department/[id]] - Has name:', hasName, 'Has description:', hasDescription);
+    debugLog('📋 [PUT /api/department/[id]] - Has name:', hasName, 'Has description:', hasDescription);
 
     if (!hasName && !hasDescription) {
       return NextResponse.json(
@@ -72,7 +78,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const name = toOptionalString(body.name);
     const description = toOptionalString(body.description);
-    console.log('✏️ [PUT /api/department/[id]] - Extracted name:', name, 'description:', description);
+    debugLog('✏️ [PUT /api/department/[id]] - Extracted name:', name, 'description:', description);
 
     if (hasName && !name) {
       return NextResponse.json(
@@ -81,12 +87,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
-    console.log('🔎 [PUT /api/department/[id]] - Looking up existing department');
+    debugLog('🔎 [PUT /api/department/[id]] - Looking up existing department');
     const existingDepartment = await prisma.department.findUnique({
       where: { id: departmentId },
       select: { id: true, name: true },
     });
-    console.log('📊 [PUT /api/department/[id]] - Existing department:', existingDepartment);
+    debugLog('📊 [PUT /api/department/[id]] - Existing department:', existingDepartment);
 
     if (!existingDepartment) {
       return NextResponse.json(
@@ -96,12 +102,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     if (name && name !== existingDepartment.name) {
-      console.log('🔄 [PUT /api/department/[id]] - Checking for duplicate name:', name);
+      debugLog('🔄 [PUT /api/department/[id]] - Checking for duplicate name:', name);
       const duplicateName = await prisma.department.findUnique({
         where: { name },
         select: { id: true },
       });
-      console.log('🔎 [PUT /api/department/[id]] - Duplicate check result:', duplicateName);
+      debugLog('🔎 [PUT /api/department/[id]] - Duplicate check result:', duplicateName);
 
       if (duplicateName) {
         return NextResponse.json(
@@ -111,7 +117,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       }
     }
 
-    console.log('💾 [PUT /api/department/[id]] - Updating department with id:', departmentId);
+    debugLog('💾 [PUT /api/department/[id]] - Updating department with id:', departmentId);
     const updatedDepartment = await prisma.department.update({
       where: { id: departmentId },
       data: {
@@ -126,7 +132,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         },
       },
     });
-    console.log('✨ [PUT /api/department/[id]] - Department updated successfully:', updatedDepartment);
+    debugLog('✨ [PUT /api/department/[id]] - Department updated successfully:', updatedDepartment);
 
     return NextResponse.json({
       success: true,
@@ -144,10 +150,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
-    // const authResult = await requireDatabaseRoles(['admin']);
-    // if (!authResult.ok) {
-    //   return authResult.response;
-    // }
+    const authResult = await requireDatabaseRoles(['admin']);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
 
     const departmentId = await resolveDepartmentId(context);
     if (!departmentId) {

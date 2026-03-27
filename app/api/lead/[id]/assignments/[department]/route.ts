@@ -142,6 +142,12 @@ type UpdateAssignmentBody = {
   userId?: unknown;
 };
 
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(...args);
+  }
+};
+
 function toOptionalString(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -155,23 +161,23 @@ export async function PUT(
   { params }: { params: Promise<{ id: string; department: string }> }
 ) {
   try {
-    console.log('🔵 [PUT /api/lead/[id]/assignments/[department]] - Request received');
+    debugLog('🔵 [PUT /api/lead/[id]/assignments/[department]] - Request received');
     
     // Verify user authentication
     const authResult = await requireDatabaseRoles([]);
-    // if (!authResult.ok) {
-    //   return authResult.response;
-    // }
-    console.log('✅ [PUT /api/lead/[id]/assignments/[department]] - Auth passed');
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+    debugLog('✅ [PUT /api/lead/[id]/assignments/[department]] - Auth passed');
     const actorUserId = authResult.ok ? authResult.actorUserId : null;
 
     const resolvedParams = await params;
     const leadId = resolvedParams?.id;
     const department = resolvedParams?.department?.toUpperCase();
-    console.log('🔍 [PUT /api/lead/[id]/assignments/[department]] - Resolved leadId:', leadId, 'department:', department);
+    debugLog('🔍 [PUT /api/lead/[id]/assignments/[department]] - Resolved leadId:', leadId, 'department:', department);
     
     if (!leadId || !department || typeof leadId !== 'string' || typeof department !== 'string') {
-      console.log('🔴 [PUT /api/lead/[id]/assignments/[department]] - Invalid params');
+      debugLog('🔴 [PUT /api/lead/[id]/assignments/[department]] - Invalid params');
       return NextResponse.json(
         { success: false, error: 'Invalid lead id or department' },
         { status: 400 }
@@ -179,10 +185,10 @@ export async function PUT(
     }
 
     const body = (await request.json()) as UpdateAssignmentBody;
-    console.log('📝 [PUT /api/lead/[id]/assignments/[department]] - Parsed body:', JSON.stringify(body));
+    debugLog('📝 [PUT /api/lead/[id]/assignments/[department]] - Parsed body:', JSON.stringify(body));
 
     const userId = toOptionalString(body.userId);
-    console.log('👤 [PUT /api/lead/[id]/assignments/[department]] - userId:', userId);
+    debugLog('👤 [PUT /api/lead/[id]/assignments/[department]] - userId:', userId);
 
     if (!userId) {
       return NextResponse.json(
@@ -234,7 +240,7 @@ export async function PUT(
     }
 
     // Find and update the assignment
-    console.log('💾 [PUT /api/lead/[id]/assignments/[department]] - Updating assignment');
+    debugLog('💾 [PUT /api/lead/[id]/assignments/[department]] - Updating assignment');
     const assignment = await prisma.$transaction(async (tx) => {
       const existingAssignment = await tx.leadAssignment.findFirst({
         where: {
@@ -242,7 +248,7 @@ export async function PUT(
           department: department as any,
         },
       });
-      console.log('📊 [PUT /api/lead/[id]/assignments/[department]] - Existing assignment:', existingAssignment);
+      debugLog('📊 [PUT /api/lead/[id]/assignments/[department]] - Existing assignment:', existingAssignment);
 
       if (!existingAssignment) {
         throw new Error('Assignment not found for this lead and department');
@@ -273,7 +279,7 @@ export async function PUT(
 
       return updated;
     });
-    console.log('✨ [PUT /api/lead/[id]/assignments/[department]] - Assignment updated successfully');
+    debugLog('✨ [PUT /api/lead/[id]/assignments/[department]] - Assignment updated successfully');
 
     return NextResponse.json({
       success: true,
@@ -297,24 +303,23 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; department: string }> }
 ) {
   try {
-    console.log('🔵 [DELETE /api/lead/[id]/assignments/[department]] - Request received');
+    debugLog('🔵 [DELETE /api/lead/[id]/assignments/[department]] - Request received');
     
     // Verify user authentication
     const authResult = await requireDatabaseRoles([]);
-    // if (!authResult.ok) {
-    //   console.log('🔴 [DELETE /api/lead/[id]/assignments/[department]] - Auth failed');
-    //   return authResult.response;
-    // }
-    console.log('✅ [DELETE /api/lead/[id]/assignments/[department]] - Auth passed');
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+    debugLog('✅ [DELETE /api/lead/[id]/assignments/[department]] - Auth passed');
     const actorUserId = authResult.ok ? authResult.actorUserId : null;
 
     const resolvedParams = await params;
     const leadId = resolvedParams?.id;
     const department = resolvedParams?.department?.toUpperCase();
-    console.log('🔍 [DELETE /api/lead/[id]/assignments/[department]] - Resolved leadId:', leadId, 'department:', department);
+    debugLog('🔍 [DELETE /api/lead/[id]/assignments/[department]] - Resolved leadId:', leadId, 'department:', department);
     
     if (!leadId || !department || typeof leadId !== 'string' || typeof department !== 'string') {
-      console.log('🔴 [DELETE /api/lead/[id]/assignments/[department]] - Invalid params');
+      debugLog('🔴 [DELETE /api/lead/[id]/assignments/[department]] - Invalid params');
       return NextResponse.json(
         { success: false, error: 'Invalid lead id or department' },
         { status: 400 }
@@ -352,7 +357,7 @@ export async function DELETE(
     }
 
     // Transaction for atomic delete and logging
-    console.log('💾 [DELETE /api/lead/[id]/assignments/[department]] - Deleting assignment');
+    debugLog('💾 [DELETE /api/lead/[id]/assignments/[department]] - Deleting assignment');
     const result = await prisma.$transaction(async (tx) => {
       // Find the assignment
       const assignment = await tx.leadAssignment.findFirst({
@@ -370,10 +375,10 @@ export async function DELETE(
       if (!assignment) {
         throw new Error('Assignment not found');
       }
-      console.log('📊 [DELETE /api/lead/[id]/assignments/[department]] - Found assignment:', assignment);
+      debugLog('📊 [DELETE /api/lead/[id]/assignments/[department]] - Found assignment:', assignment);
 
       // Delete the assignment
-      console.log('🗑️ [DELETE /api/lead/[id]/assignments/[department]] - Deleting');
+      debugLog('🗑️ [DELETE /api/lead/[id]/assignments/[department]] - Deleting');
       const deleted = await tx.leadAssignment.delete({
         where: { id: assignment.id },
       });
@@ -393,7 +398,7 @@ export async function DELETE(
 
       return deleted;
     });
-    console.log('✨ [DELETE /api/lead/[id]/assignments/[department]] - Assignment deleted successfully');
+    debugLog('✨ [DELETE /api/lead/[id]/assignments/[department]] - Assignment deleted successfully');
 
     return NextResponse.json(
       {
