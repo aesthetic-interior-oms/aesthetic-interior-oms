@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma';
-import { LeadAssignmentDepartment, LeadStage, Prisma, LeadStatus } from '@/generated/prisma/client';
+import { LeadAssignmentDepartment, LeadStage, Prisma } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { logLeadCreated } from '@/lib/activity-log-service';
 import { requireDatabaseRoles } from '@/lib/authz';

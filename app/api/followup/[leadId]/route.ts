@@ -6,6 +6,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 
 type RouteContext = { params: { leadId: string } | Promise<{ leadId: string }> };
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(...args);
+  }
+};
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
   const resolvedParams = await context.params;
@@ -61,7 +66,6 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             name: true,
             email: true,
             phone: true,
-            status: true,
             location: true,
           },
         },
@@ -73,7 +77,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     });
 
     // Debug: log the follow-up history fetched for this lead
-    console.log(`DEBUG followup history for leadId=${leadId} count=${followUps.length}`, followUps);
+    debugLog(`DEBUG followup history for leadId=${leadId} count=${followUps.length}`, followUps);
 
     return NextResponse.json({
       success: true,

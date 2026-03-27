@@ -1,5 +1,5 @@
 // Import ActivityType and Prisma types from the generated Prisma client
-import { Prisma } from '@/generated/prisma/client'
+import { ActivityType, Prisma } from '@/generated/prisma/client'
 // Import the Prisma database instance to perform database operations
 import prisma from '@/lib/prisma'
 // Import Next.js HTTP request/response utilities for API route handling
@@ -7,6 +7,13 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // Type definition for route context params
 type RouteContext = { params: { leadId: string } | Promise<{ leadId: string }> }
+
+function toActivityType(value: string | null): ActivityType | undefined {
+  if (!value) return undefined
+  return Object.values(ActivityType).includes(value as ActivityType)
+    ? (value as ActivityType)
+    : undefined
+}
 
 // Helper function: Resolves and validates the leadId parameter from route context
 // Returns the leadId as a string if valid, or null if invalid/empty
@@ -43,7 +50,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const skip = (page - 1) * limit
 
     // Extract optional type filter
-    const type = searchParams.get('type')
+    const type = toActivityType(searchParams.get('type'))
 
     // Verify that the lead exists in the database
     const lead = await prisma.lead.findUnique({
@@ -61,7 +68,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     // Build the WHERE clause for filtering activities
     const where: Prisma.ActivityLogWhereInput = {
       leadId, // Filter by the specific lead
-      ...(type && { type }), // Add type filter if provided
+      ...(type ? { type } : {}), // Add type filter if provided
     }
 
     // Execute two database queries in parallel for better performance

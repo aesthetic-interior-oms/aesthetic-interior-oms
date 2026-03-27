@@ -166,9 +166,10 @@ export function VisitsPageView({ forceAssignedOnly = false }: VisitsPageProps) {
 
   const daysInMonth = getDaysInMonth(currentDate)
   const firstDay = getFirstDayOfMonth(currentDate)
-  const calendarDays = Array.from({ length: firstDay }).concat(
-    Array.from({ length: daysInMonth }, (_, i) => i + 1)
-  )
+  const calendarDays: Array<number | null> = [
+    ...Array.from({ length: firstDay }, () => null as null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ]
 
   const monthYear = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 

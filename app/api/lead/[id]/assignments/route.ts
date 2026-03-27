@@ -4,6 +4,12 @@ import { requireDatabaseRoles } from '@/lib/authz';
 import { logLeadCreated, logUserAssigned } from '@/lib/activity-log-service';
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 
+const debugLog = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(...args);
+  }
+};
+
 type AssignmentBody = {
   userId?: unknown;
   department?: unknown;
@@ -19,14 +25,14 @@ function toOptionalString(value: unknown): string | null {
 // Returns all departments and their assigned users
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    console.log('🔵 [GET /api/lead/[id]/assignments] - Request received');
+    debugLog('🔵 [GET /api/lead/[id]/assignments] - Request received');
     
     const resolvedParams = await params;
     const leadId = resolvedParams?.id;
-    console.log('🔍 [GET /api/lead/[id]/assignments] - Resolved leadId:', leadId);
+    debugLog('🔍 [GET /api/lead/[id]/assignments] - Resolved leadId:', leadId);
     
     if (!leadId || typeof leadId !== 'string') {
-      console.log('🔴 [GET /api/lead/[id]/assignments] - Invalid leadId');
+      debugLog('🔴 [GET /api/lead/[id]/assignments] - Invalid leadId');
       return NextResponse.json(
         { success: false, error: 'Invalid lead id' },
         { status: 400 }
@@ -34,7 +40,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     // Fetch the lead with all its assignments
-    console.log('🔎 [GET /api/lead/[id]/assignments] - Looking up lead');
+    debugLog('🔎 [GET /api/lead/[id]/assignments] - Looking up lead');
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       include: {
@@ -51,7 +57,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         },
       },
     });
-    console.log('📊 [GET /api/lead/[id]/assignments] - Lead found:', lead);
+    debugLog('📊 [GET /api/lead/[id]/assignments] - Lead found:', lead);
 
     if (!lead) {
       return NextResponse.json(
@@ -60,7 +66,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       );
     }
 
-    console.log('✨ [GET /api/lead/[id]/assignments] - Response prepared with', lead.assignments.length, 'assignments');
+    debugLog('✨ [GET /api/lead/[id]/assignments] - Response prepared with', lead.assignments.length, 'assignments');
     return NextResponse.json({
       success: true,
       data: {
@@ -82,35 +88,33 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // Assigns a user to a lead for a specific department
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    console.log('🔵 [POST /api/lead/[id]/assignments] - Request received');
+    debugLog('🔵 [POST /api/lead/[id]/assignments] - Request received');
     
-    // // Verify user authentication
     const authResult = await requireDatabaseRoles(['admin']);
-    // if (!authResult.ok) {
-    //   console.log('🔴 [POST /api/lead/[id]/assignments] - Auth failed');
-    //   return authResult.response;
-    // }
-    console.log('✅ [POST /api/lead/[id]/assignments] - Auth passed');
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+    debugLog('✅ [POST /api/lead/[id]/assignments] - Auth passed');
     const actorUserId = authResult.ok ? authResult.actorUserId : null;
 
     const resolvedParams = await params;
     const leadId = resolvedParams?.id;
-    console.log('🔍 [POST /api/lead/[id]/assignments] - Resolved leadId:', leadId);
+    debugLog('🔍 [POST /api/lead/[id]/assignments] - Resolved leadId:', leadId);
     
     if (!leadId || typeof leadId !== 'string') {
-      console.log('🔴 [POST /api/lead/[id]/assignments] - Invalid leadId');
+      debugLog('🔴 [POST /api/lead/[id]/assignments] - Invalid leadId');
       return NextResponse.json(
         { success: false, error: 'Invalid lead id' },
         { status: 400 }
       );
     }
 
-    console.log('📝 [POST /api/lead/[id]/assignments] - Parsing request body');
+    debugLog('📝 [POST /api/lead/[id]/assignments] - Parsing request body');
     const body = (await request.json()) as AssignmentBody;
 
     const userId = toOptionalString(body.userId);
     const department = toOptionalString(body.department);
-    console.log('👤 [POST /api/lead/[id]/assignments] - userId:', userId, 'department:', department);
+    debugLog('👤 [POST /api/lead/[id]/assignments] - userId:', userId, 'department:', department);
 
     if (!userId || !department) {
       return NextResponse.json(
@@ -129,22 +133,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       'JR_ARCHITECT',
       'VISUALIZER_3D',
     ];
-    console.log('🔎 [POST /api/lead/[id]/assignments] - Validating department');
+    debugLog('🔎 [POST /api/lead/[id]/assignments] - Validating department');
     if (!validDepartments.includes(department)) {
       return NextResponse.json(
         { success: false, error: `Invalid department. Must be one of: ${validDepartments.join(', ')}` },
         { status: 400 }
       );
     }
-    console.log('✅ [POST /api/lead/[id]/assignments] - Department validation passed');
+    debugLog('✅ [POST /api/lead/[id]/assignments] - Department validation passed');
 
     // Verify lead exists
-    console.log('🔎 [POST /api/lead/[id]/assignments] - Checking lead and user');
+    debugLog('🔎 [POST /api/lead/[id]/assignments] - Checking lead and user');
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: { id: true, name: true },
     });
-    console.log('📊 [POST /api/lead/[id]/assignments] - Lead lookup result:', lead);
+    debugLog('📊 [POST /api/lead/[id]/assignments] - Lead lookup result:', lead);
 
     if (!lead) {
       return NextResponse.json(
@@ -154,7 +158,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Verify user exists
-    console.log('🔎 [POST /api/lead/[id]/assignments] - Checking user');
+    debugLog('🔎 [POST /api/lead/[id]/assignments] - Checking user');
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -166,7 +170,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         },
       },
     });
-    console.log('📊 [POST /api/lead/[id]/assignments] - User lookup result:', user);
+    debugLog('📊 [POST /api/lead/[id]/assignments] - User lookup result:', user);
 
     if (!user) {
       return NextResponse.json(
@@ -186,24 +190,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     // Create or update assignment
-    console.log('💾 [POST /api/lead/[id]/assignments] - Creating or updating assignment');
+    debugLog('💾 [POST /api/lead/[id]/assignments] - Creating or updating assignment');
     let isUpdate = false;
     const assignment = await prisma.$transaction(async (tx) => {
       // Check if assignment already exists for this lead and department
-      console.log('🔄 [POST /api/lead/[id]/assignments] - Checking for existing assignment');
+      debugLog('🔄 [POST /api/lead/[id]/assignments] - Checking for existing assignment');
       const existingAssignment = await tx.leadAssignment.findFirst({
         where: {
           leadId,
           department: department as any,
         },
       });
-      console.log('📊 [POST /api/lead/[id]/assignments] - Existing assignment:', existingAssignment);
+      debugLog('📊 [POST /api/lead/[id]/assignments] - Existing assignment:', existingAssignment);
 
       let result;
       if (existingAssignment) {
         // Update existing assignment
         isUpdate = true;
-        console.log('🔄 [POST /api/lead/[id]/assignments] - Updating existing assignment');
+        debugLog('🔄 [POST /api/lead/[id]/assignments] - Updating existing assignment');
         result = await tx.leadAssignment.update({
           where: { id: existingAssignment.id },
           data: { userId },
@@ -215,7 +219,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         });
       } else {
         // Create new assignment
-        console.log('✨ [POST /api/lead/[id]/assignments] - Creating new assignment');
+        debugLog('✨ [POST /api/lead/[id]/assignments] - Creating new assignment');
         result = await tx.leadAssignment.create({
           data: {
             leadId,
@@ -231,12 +235,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
 
       // Log the assignment activity
-      console.log('📋 [POST /api/lead/[id]/assignments] - Logging user assignment activity');      await logUserAssigned(tx, {
+      debugLog('📋 [POST /api/lead/[id]/assignments] - Logging user assignment activity');      await logUserAssigned(tx, {
         leadId,
         userId: user.id,
         leadName: `${user.fullName} assigned to ${department} department`,
       });
-      console.log('✅ [POST /api/lead/[id]/assignments] - Assignment activity logged');
+      debugLog('✅ [POST /api/lead/[id]/assignments] - Assignment activity logged');
 
       await autoCompletePendingFollowups(tx, {
         leadId,
@@ -246,7 +250,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
       return result;
     });
-    console.log('✨ [POST /api/lead/[id]/assignments] - Assignment', isUpdate ? 'updated' : 'created', 'successfully');
+    debugLog('✨ [POST /api/lead/[id]/assignments] - Assignment', isUpdate ? 'updated' : 'created', 'successfully');
 
     return NextResponse.json(
       {
