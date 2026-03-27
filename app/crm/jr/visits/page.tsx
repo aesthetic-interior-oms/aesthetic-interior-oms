@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Plus, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { CrmPageHeader } from '@/components/crm/shared/page-header'
 
 type VisitRecord = {
   id: string
@@ -264,12 +265,13 @@ export function VisitsPageView({ forceAssignedOnly = false }: VisitsPageProps) {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Visits</h1>
-          <p className="mt-1 text-muted-foreground">Schedule and manage site visits</p>
-        </div>
+    <div className="min-h-screen bg-background">
+      <CrmPageHeader
+        title="Visits"
+        subtitle="Schedule and manage site visits"
+      />
+      <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-6">
+        <div className="flex items-center justify-end">
         <Button className="gap-2">
           <Plus className="w-4 h-4" />
           Schedule Visit
@@ -459,6 +461,7 @@ export function VisitsPageView({ forceAssignedOnly = false }: VisitsPageProps) {
           </div>
         </TabsContent>
       </Tabs>
+      </main>
     </div>
   )
 }

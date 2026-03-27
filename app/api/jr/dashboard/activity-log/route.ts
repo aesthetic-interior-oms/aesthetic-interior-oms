@@ -3,8 +3,8 @@ import { auth } from '@clerk/nextjs/server'
 import prisma from '@/lib/prisma'
 import { ActivityType } from '@/generated/prisma/client'
 
-const DEFAULT_LIMIT = 8
-const MAX_LIMIT = 30
+const DEFAULT_LIMIT = 20
+const MAX_LIMIT = 20
 
 function toPositiveInt(value: string | null, fallback: number): number {
   const parsed = Number.parseInt(value ?? '', 10)
@@ -44,20 +44,24 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const parsedLimit = toPositiveInt(searchParams.get('limit'), DEFAULT_LIMIT)
     const limit = Math.min(parsedLimit, MAX_LIMIT)
+    const offset = Math.max(0, toPositiveInt(searchParams.get('offset'), 0))
 
     const activities = await prisma.activityLog.findMany({
       where: { userId: actor.id },
       orderBy: { createdAt: 'desc' },
-      take: limit,
+      skip: offset,
+      take: limit + 1,
       include: {
         lead: { select: { id: true, name: true } },
         user: { select: { id: true, fullName: true } },
       },
     })
+    const hasMore = activities.length > limit
+    const sliced = hasMore ? activities.slice(0, limit) : activities
 
     return NextResponse.json({
       success: true,
-      data: activities.map((activity) => ({
+      data: sliced.map((activity) => ({
         id: activity.id,
         userId: activity.userId,
         userName: activity.user?.fullName ?? 'Unknown',
@@ -67,6 +71,12 @@ export async function GET(request: NextRequest) {
         description: activity.description,
         createdAt: activity.createdAt,
       })),
+      pagination: {
+        offset,
+        limit,
+        hasMore,
+        nextOffset: hasMore ? offset + limit : null,
+      },
     })
   } catch (error) {
     console.error('[GET /api/jr/dashboard/activity-log] Error:', error)

@@ -358,6 +358,16 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           orderBy: { createdAt: 'desc' },
           take: 20,
         },
+        visits: {
+          select: {
+            id: true,
+            scheduledAt: true,
+            projectSqft: true,
+            projectStatus: true,
+          },
+          orderBy: { scheduledAt: 'desc' },
+          take: 1,
+        },
         statusHistory: {
           include: {
             changedBy: {

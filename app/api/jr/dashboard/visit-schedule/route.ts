@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import prisma from '@/lib/prisma'
 
-const DEFAULT_LIMIT = 5
+const DEFAULT_LIMIT = 20
 const MAX_LIMIT = 20
 
 function toPositiveInt(value: string | null, fallback: number): number {
@@ -32,20 +32,24 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const parsedLimit = toPositiveInt(searchParams.get('limit'), DEFAULT_LIMIT)
     const limit = Math.min(parsedLimit, MAX_LIMIT)
+    const offset = Math.max(0, toPositiveInt(searchParams.get('offset'), 0))
 
     const visits = await prisma.visit.findMany({
       where: { createdById: actor.id },
       orderBy: { scheduledAt: 'desc' },
-      take: limit,
+      skip: offset,
+      take: limit + 1,
       include: {
         lead: { select: { id: true, name: true } },
         assignedTo: { select: { id: true, fullName: true } },
       },
     })
+    const hasMore = visits.length > limit
+    const sliced = hasMore ? visits.slice(0, limit) : visits
 
     return NextResponse.json({
       success: true,
-      data: visits.map((visit) => ({
+      data: sliced.map((visit) => ({
         id: visit.id,
         leadId: visit.leadId,
         leadName: visit.lead?.name ?? 'Unknown',
@@ -56,6 +60,12 @@ export async function GET(request: NextRequest) {
         status: visit.status,
         assignedTeamMember: visit.assignedTo?.fullName ?? 'Unassigned',
       })),
+      pagination: {
+        offset,
+        limit,
+        hasMore,
+        nextOffset: hasMore ? offset + limit : null,
+      },
     })
   } catch (error) {
     console.error('[GET /api/jr/dashboard/visit-schedule] Error:', error)

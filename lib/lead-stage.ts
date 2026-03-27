@@ -4,10 +4,10 @@ export const stageSubStatusMap: Record<LeadStage, LeadSubStatus[]> = {
   NEW: [],
   NUMBER_COLLECTED: [],
   CONTACT_ATTEMPTED: ['NO_ANSWER'],
-  NURTURING: ['WARM_LEAD', 'FUTURE_CLIENT', 'SMALL_BUDGET'],
+  NURTURING: ['WARM_LEAD', 'FUTURE_CLIENT'],
   VISIT_SCHEDULED: [],
   VISIT_COMPLETED: [],
-  CLOSED: ['INVALID', 'NOT_INTERESTED', 'LOST', 'DEAD_LEAD'],
+  CLOSED: ['SMALL_BUDGET', 'INVALID', 'NOT_INTERESTED', 'LOST', 'DEAD_LEAD'],
 };
 
 export function isSubStatusAllowedForStage(stage: LeadStage, subStatus: LeadSubStatus | null): boolean {

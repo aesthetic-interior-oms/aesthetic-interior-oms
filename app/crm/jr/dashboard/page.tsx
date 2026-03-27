@@ -5,32 +5,16 @@ import { ConversionFunnelChart, FollowupDisciplineChart, LeadSourceChart, LeadTr
 import { RecentLeadsTable } from "@/components/crm/junior/recent-leads-table"
 import { TodaysTasks } from "@/components/crm/junior/todays-tasks"
 import { VisitScheduleCard } from "@/components/crm/junior/visit-schedule"
+import { CrmPageHeader } from "@/components/crm/shared/page-header"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-[1440px] items-center justify-between px-6 py-4">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              OMS Dashboard
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Welcome back! Here is your daily overview.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-muted-foreground">
-              Feb 25, 2026
-            </span>
-            <div className="flex size-9 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-medium">
-              AK
-            </div>
-          </div>
-        </div>
-      </header>
+      <CrmPageHeader
+        title="OMS Dashboard"
+        subtitle="Welcome back! Here is your daily overview."
+      />
 
       <main className="mx-auto max-w-[1440px] px-6 py-6">
         <div className="flex flex-col gap-6">

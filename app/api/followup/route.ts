@@ -17,6 +17,8 @@ export async function GET(request: NextRequest) {
     const assignedToId = searchParams.get('assignedToId')
     const status = searchParams.get('status') as FollowUpStatus | null
     const upcoming = searchParams.get('upcoming') === 'true'
+    const from = searchParams.get('from')
+    const to = searchParams.get('to')
 
     // Build where clause
     const where: Prisma.FollowUpWhereInput = {}
@@ -27,6 +29,27 @@ export async function GET(request: NextRequest) {
     if (upcoming) {
       where.followupDate = { gte: new Date() }
       where.status = FollowUpStatus.PENDING
+    }
+    const fromDate = from ? new Date(from) : null
+    const toDate = to ? new Date(to) : null
+    if (fromDate && Number.isNaN(fromDate.getTime())) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid "from" date' },
+        { status: 400 },
+      )
+    }
+    if (toDate && Number.isNaN(toDate.getTime())) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid "to" date' },
+        { status: 400 },
+      )
+    }
+    if (fromDate || toDate) {
+      where.followupDate = {
+        ...(where.followupDate as Prisma.DateTimeFilter | undefined),
+        ...(fromDate ? { gte: fromDate } : {}),
+        ...(toDate ? { lte: toDate } : {}),
+      }
     }
 
     // Get follow-ups with pagination
@@ -58,13 +81,15 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching follow-ups:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch follow-ups', message: error.message },
+      {
+        success: false,
+        error: 'Failed to fetch follow-ups',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
       { status: 500 }
     )
   }
 }
-
-

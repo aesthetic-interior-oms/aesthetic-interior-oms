@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -99,36 +99,42 @@ export function ActivityTimeline() {
     }>
   >([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [offset, setOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let active = true
-    setLoading(true)
-    fetch("/api/jr/dashboard/activity-log")
-      .then((res) => res.json())
-      .then((payload) => {
-        if (!active) return
-        if (payload?.success && Array.isArray(payload.data)) {
-          setActivities(payload.data)
-          setError(null)
-        } else {
-          setActivities([])
-          setError(payload?.error || "Failed to load activity timeline.")
-        }
-      })
-      .catch((err) => {
-        if (!active) return
-        setActivities([])
-        setError(err instanceof Error ? err.message : "Failed to load activity timeline.")
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
+  const fetchTimeline = useCallback(async (nextOffset: number, append: boolean) => {
+    if (!append) setLoading(true)
+    if (append) setLoadingMore(true)
+    try {
+      const res = await fetch(`/api/jr/dashboard/activity-log?limit=20&offset=${nextOffset}`)
+      const payload = await res.json()
+      if (!res.ok || !payload?.success || !Array.isArray(payload.data)) {
+        throw new Error(payload?.error || 'Failed to load activity timeline.')
+      }
 
-    return () => {
-      active = false
+      const nextItems = payload.data as typeof activities
+      setActivities((prev) => (append ? [...prev, ...nextItems] : nextItems))
+      setOffset(
+        typeof payload?.pagination?.nextOffset === 'number'
+          ? payload.pagination.nextOffset
+          : nextOffset + nextItems.length,
+      )
+      setHasMore(Boolean(payload?.pagination?.hasMore))
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load activity timeline.')
+      if (!append) setActivities([])
+    } finally {
+      if (!append) setLoading(false)
+      if (append) setLoadingMore(false)
     }
   }, [])
+
+  useEffect(() => {
+    fetchTimeline(0, false)
+  }, [fetchTimeline])
 
   const sortedTimeline = useMemo(
     () =>
@@ -142,8 +148,8 @@ export function ActivityTimeline() {
     <Card className="h-full">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-base text-card-foreground">Activity Timeline</CardTitle>
-        <Button variant="outline" size="sm">
-          View All
+        <Button variant="outline" size="sm" disabled={loading || loadingMore} onClick={() => fetchTimeline(0, false)}>
+          Refresh
         </Button>
       </CardHeader>
       <CardContent>
@@ -212,6 +218,18 @@ export function ActivityTimeline() {
                 </div>
               )
             })}
+            {hasMore ? (
+              <div className="mt-2 flex justify-center">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={loadingMore}
+                  onClick={() => fetchTimeline(offset, true)}
+                >
+                  {loadingMore ? 'Loading...' : 'Show More'}
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </CardContent>

@@ -103,6 +103,7 @@ interface LeadActionsPanelProps {
   leadLocation?: string | null
   leadPhone?: string | null
   leadEmail?: string | null
+  hasPendingFollowup?: boolean
   assignments: Assignment[]
   assignmentsLoading: boolean
   canManageAssignments?: boolean
@@ -133,6 +134,7 @@ export function LeadActionsPanel({
   leadLocation,
   leadPhone,
   leadEmail,
+  hasPendingFollowup = false,
   assignments,
   assignmentsLoading,
   canManageAssignments = true,
@@ -166,8 +168,10 @@ export function LeadActionsPanel({
   const [assignError, setAssignError] = useState<string | null>(null)
   const [reasonOpen, setReasonOpen] = useState(false)
   const [reason, setReason] = useState('')
+  const [didClearDefaultReason, setDidClearDefaultReason] = useState(false)
   const [stageFollowupDate, setStageFollowupDate] = useState('')
   const [stageFollowupNotes, setStageFollowupNotes] = useState('')
+  const [stagePhone, setStagePhone] = useState(leadPhone ?? '')
   const [stageError, setStageError] = useState<string | null>(null)
   const [savingStage, setSavingStage] = useState(false)
   const [visitOpen, setVisitOpen] = useState(false)
@@ -203,21 +207,50 @@ export function LeadActionsPanel({
       NEW: [],
       NUMBER_COLLECTED: [],
       CONTACT_ATTEMPTED: ['NO_ANSWER'],
-      NURTURING: ['WARM_LEAD', 'FUTURE_CLIENT', 'SMALL_BUDGET'],
+      NURTURING: ['WARM_LEAD', 'FUTURE_CLIENT'],
       VISIT_SCHEDULED: [],
-      CLOSED: ['INVALID', 'NOT_INTERESTED', 'LOST', 'DEAD_LEAD'],
+      CLOSED: ['SMALL_BUDGET', 'INVALID', 'NOT_INTERESTED', 'LOST', 'DEAD_LEAD'],
     }),
     [],
   )
 
   const subStatusOptions = stageSubStatusMap[stage] ?? []
   const requiresSubStatus = subStatusOptions.length > 0
+  const stageOrder: Record<string, number> = {
+    NEW: 0,
+    NUMBER_COLLECTED: 1,
+    CONTACT_ATTEMPTED: 2,
+    NURTURING: 3,
+    VISIT_SCHEDULED: 4,
+    VISIT_COMPLETED: 5,
+    CLOSED: 6,
+  }
+  const originalStageRank = stageOrder[originalStage] ?? -1
+  const selectedStageRank = stageOrder[stage] ?? -1
+  const isForwardMove = selectedStageRank > originalStageRank
+  const stageLockedAfterVisitScheduled =
+    originalStageRank >= stageOrder.VISIT_SCHEDULED
   const hasStageChanged = stage !== originalStage || (subStatus ?? null) !== (originalSubStatus ?? null)
-  const canUpdateStage = (!requiresSubStatus || Boolean(subStatus)) && hasStageChanged
+  const requiresPhoneForNumberCollected =
+    stage === 'NUMBER_COLLECTED' &&
+    isForwardMove &&
+    originalStageRank < stageOrder.NUMBER_COLLECTED
+  const isNoAnswerSubStatus =
+    stage === 'CONTACT_ATTEMPTED' &&
+    subStatus === 'NO_ANSWER'
+  const shouldCreateFollowupForNoAnswer =
+    isNoAnswerSubStatus
+  const requiresPendingFollowupForNurturing =
+    stage === 'NURTURING'
   const requiresFollowupForStageUpdate =
-    (stage === 'CONTACT_ATTEMPTED' && subStatus === 'NO_ANSWER') ||
-    (stage === 'NURTURING' && (subStatus === 'WARM_LEAD' || subStatus === 'FUTURE_CLIENT'))
-  const noFollowupReasonHint = stage === 'NURTURING' && subStatus === 'SMALL_BUDGET'
+    shouldCreateFollowupForNoAnswer || requiresPendingFollowupForNurturing
+  const showFollowupFieldsInStageModal =
+    isNoAnswerSubStatus || requiresPendingFollowupForNurturing
+  const requiresVisitSchedulingInStageModal = stage === 'VISIT_SCHEDULED'
+  const canUpdateStage =
+    (!requiresSubStatus || Boolean(subStatus)) &&
+    hasStageChanged &&
+    !stageLockedAfterVisitScheduled
 
   const validDepartments = [
     'ADMIN',
@@ -230,14 +263,26 @@ export function LeadActionsPanel({
   ]
 
   const formatLabel = (value: string) => value.replace(/_/g, ' ')
+  const defaultReasonByStage: Record<string, string> = {
+    NEW: 'Lead has been moved to new.',
+    NUMBER_COLLECTED: 'Number has been collected.',
+    CONTACT_ATTEMPTED: 'Contact has been attempted.',
+    NURTURING: 'Lead has been moved to nurturing for follow-up.',
+    VISIT_SCHEDULED: 'Visit has been scheduled.',
+    VISIT_COMPLETED: 'Visit has been completed.',
+    CLOSED: 'Lead has been closed.',
+  }
+  const defaultStageReason =
+    defaultReasonByStage[stage] ?? 'Stage has been updated.'
 
   const normalizedPhone = leadPhone ? leadPhone.replace(/\D/g, '') : ''
   const canWhatsapp = Boolean(normalizedPhone)
   const canEmail = Boolean(leadEmail && leadEmail.trim())
   const whatsappUrl = canWhatsapp ? `https://wa.me/${normalizedPhone}` : ''
   const emailUrl = canEmail ? `mailto:${leadEmail}` : ''
+  const shouldLoadVisitMetadata = visitOpen || (reasonOpen && requiresVisitSchedulingInStageModal)
   useEffect(() => {
-    if (!visitOpen) {
+    if (!shouldLoadVisitMetadata) {
       locationTouchedRef.current = false
       locationPrefilledRef.current = false
       return
@@ -271,7 +316,7 @@ export function LeadActionsPanel({
       .finally(() => {
         setVisitTeamLoading(false)
       })
-  }, [leadId, leadLocation, visitOpen])
+  }, [leadId, leadLocation, shouldLoadVisitMetadata, requiresVisitSchedulingInStageModal])
 
   const refreshLeadVisits = useCallback(() => {
     setLeadVisitsLoading(true)
@@ -349,29 +394,141 @@ export function LeadActionsPanel({
 
   const openReasonDialog = () => {
     setStageError(null)
+    if (stageLockedAfterVisitScheduled) {
+      setStageError('After Visit Scheduled, CRM stage changes are locked.')
+      return
+    }
     if (!canUpdateStage) {
       setStageError('Select a substatus to continue.')
       return
     }
     setStageFollowupDate('')
     setStageFollowupNotes('')
+    setStagePhone(leadPhone ?? '')
+    setReason(defaultStageReason)
+    setDidClearDefaultReason(false)
     setReasonOpen(true)
   }
 
   const handleStageSubmit = async () => {
-    if (!reason.trim()) {
-      setStageError('Please enter a reason.')
-      return
-    }
+    const finalReason = reason.trim() || defaultStageReason
     if (requiresFollowupForStageUpdate && !stageFollowupDate) {
       setStageError('Please select a follow-up date.')
       return
+    }
+    if (requiresPhoneForNumberCollected) {
+      const normalized = stagePhone.replace(/\D/g, '')
+      if (normalized.length < 7) {
+        setStageError('Phone number is required to move to Number Collected.')
+        return
+      }
+    }
+    if (requiresVisitSchedulingInStageModal) {
+      if (!visitTeamUserId) {
+        setStageError('Please select a visit team member.')
+        return
+      }
+      if (!visitScheduledAt) {
+        setStageError('Please choose a visit date and time.')
+        return
+      }
+      if (!visitLocation.trim()) {
+        setStageError('Please provide a visit location.')
+        return
+      }
+      if (!visitProjectSqft.trim() || Number(visitProjectSqft) <= 0) {
+        setStageError('Please provide project sqft.')
+        return
+      }
+      if (!visitProjectStatus) {
+        setStageError('Please select project status.')
+        return
+      }
     }
 
     setSavingStage(true)
     setStageError(null)
     try {
-      await onUpdateStage(reason.trim())
+      if (requiresPhoneForNumberCollected) {
+        const phoneResponse = await fetch(`/api/lead/${leadId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: stagePhone.trim() }),
+        })
+        const phonePayload = await phoneResponse.json()
+        if (!phoneResponse.ok || !phonePayload.success) {
+          throw new Error(phonePayload.error || 'Failed to update phone number.')
+        }
+      }
+
+      if (requiresVisitSchedulingInStageModal) {
+        const scheduledIso = new Date(visitScheduledAt).toISOString()
+        const response = await fetch(`/api/lead/${leadId}/visit-schedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            visitTeamUserId,
+            scheduledAt: scheduledIso,
+            location: visitLocation.trim(),
+            projectSqft: Number(visitProjectSqft),
+            projectStatus: visitProjectStatus,
+            notes: visitNotes.trim() || undefined,
+            reason: finalReason,
+          }),
+        })
+
+        const data = await response.json()
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Failed to schedule visit.')
+        }
+
+        const assignedUser = visitTeamUsers.find((user) => user.id === visitTeamUserId)
+        const createdVisit = data.data?.visit
+        if (createdVisit && assignedUser) {
+          setScheduledVisitCard({
+            id: createdVisit.id,
+            scheduledAt: createdVisit.scheduledAt,
+            location: createdVisit.location,
+            projectSqft: createdVisit.projectSqft ?? null,
+            projectStatus: createdVisit.projectStatus ?? null,
+            notes: createdVisit.notes ?? null,
+            assignedToName: assignedUser.fullName,
+            assignedToEmail: assignedUser.email,
+          })
+        }
+
+        if (visitAttachmentFile) {
+          const formData = new FormData()
+          formData.append('file', visitAttachmentFile)
+
+          const attachmentRes = await fetch(`/api/lead/${leadId}/attachments`, {
+            method: 'POST',
+            body: formData,
+          })
+          const attachmentPayload = await attachmentRes.json()
+          if (!attachmentRes.ok || !attachmentPayload.success) {
+            toast.error(
+              attachmentPayload.error || 'Visit scheduled, but failed to upload attachment.',
+            )
+          } else {
+            onAttachmentRefresh?.()
+          }
+        }
+
+        setReasonOpen(false)
+        setReason('')
+        setStageFollowupDate('')
+        setStageFollowupNotes('')
+        onStageChange('VISIT_SCHEDULED')
+        onSubStatusChange(null)
+        resetVisitForm()
+        refreshLeadVisits()
+        onFollowupRefresh?.()
+        onLeadRefresh?.()
+        return
+      }
+
+      await onUpdateStage(finalReason)
       if (requiresFollowupForStageUpdate) {
         if (!onCreateFollowupForStage) {
           throw new Error('Follow-up handler is not available.')
@@ -385,9 +542,6 @@ export function LeadActionsPanel({
       setReason('')
       setStageFollowupDate('')
       setStageFollowupNotes('')
-      if (stage === 'VISIT_SCHEDULED') {
-        setVisitOpen(true)
-      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to update stage.'
       setStageError(message)
@@ -516,6 +670,7 @@ export function LeadActionsPanel({
       onSubStatusChange(null)
       refreshLeadVisits()
       onFollowupRefresh?.()
+      onLeadRefresh?.()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to schedule visit.'
       setVisitTeamError(message)
@@ -772,18 +927,30 @@ export function LeadActionsPanel({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Select value={stage} onValueChange={handleStageChange} disabled={!canManageStage}>
+          <Select value={stage} onValueChange={handleStageChange} disabled={!canManageStage || stageLockedAfterVisitScheduled}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="NEW">New</SelectItem>
-              <SelectItem value="NUMBER_COLLECTED">Number Collected</SelectItem>
-              <SelectItem value="CONTACT_ATTEMPTED">Contact Attempted</SelectItem>
-              <SelectItem value="NURTURING">Nurturing</SelectItem>
-              <SelectItem value="VISIT_SCHEDULED">Visit Scheduled</SelectItem>
-              <SelectItem value="VISIT_COMPLETED">Visit Completed</SelectItem>
-              <SelectItem value="CLOSED">Closed</SelectItem>
+              <SelectItem value="NUMBER_COLLECTED">
+                Number Collected
+              </SelectItem>
+              <SelectItem value="CONTACT_ATTEMPTED">
+                Contact Attempted
+              </SelectItem>
+              <SelectItem value="NURTURING">
+                Nurturing
+              </SelectItem>
+              <SelectItem value="VISIT_SCHEDULED">
+                Visit Scheduled
+              </SelectItem>
+              <SelectItem value="VISIT_COMPLETED">
+                Visit Completed
+              </SelectItem>
+              <SelectItem value="CLOSED">
+                Closed
+              </SelectItem>
             </SelectContent>
           </Select>
 
@@ -819,6 +986,11 @@ export function LeadActionsPanel({
               Stage updates are managed by JR CRM/Admin.
             </p>
           ) : null}
+          {canManageStage && stageLockedAfterVisitScheduled ? (
+            <p className="text-xs text-muted-foreground">
+              Once the lead reaches Visit Scheduled, CRM stage updates are locked.
+            </p>
+          ) : null}
 
           <Dialog
             open={reasonOpen}
@@ -826,6 +998,7 @@ export function LeadActionsPanel({
               setReasonOpen(open)
               if (!open) {
                 setReason('')
+                setDidClearDefaultReason(false)
                 setStageFollowupDate('')
                 setStageFollowupNotes('')
                 setStageError(null)
@@ -843,26 +1016,159 @@ export function LeadActionsPanel({
               <DialogHeader>
                 <DialogTitle>Reason for change</DialogTitle>
                 <DialogDescription>
-                  {requiresFollowupForStageUpdate
+                  {requiresVisitSchedulingInStageModal
+                    ? 'Add reason and visit details. Submitting will schedule the visit and move stage to Visit Scheduled.'
+                    : showFollowupFieldsInStageModal
                     ? 'Add a reason and schedule the required follow-up.'
                     : 'Add a short reason for updating the stage/substatus.'}
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
+                {requiresPhoneForNumberCollected ? (
+                  <div className="space-y-2 rounded-md border border-border bg-secondary/30 p-3">
+                    <Label>Phone number</Label>
+                    <Input
+                      type="tel"
+                      value={stagePhone}
+                      onChange={(event) => setStagePhone(event.target.value)}
+                      placeholder="Enter lead phone number"
+                    />
+                  </div>
+                ) : null}
                 <div className="space-y-2">
                   <Label>Reason</Label>
                   <Textarea
                     value={reason}
                     onChange={(event) => setReason(event.target.value)}
+                    onPointerDown={() => {
+                      if (!didClearDefaultReason && reason === defaultStageReason) {
+                        setReason('')
+                        setDidClearDefaultReason(true)
+                      }
+                    }}
                     placeholder="Type the reason for this change..."
                     rows={4}
                   />
                 </div>
-                {requiresFollowupForStageUpdate ? (
+                {requiresVisitSchedulingInStageModal ? (
                   <div className="space-y-4 rounded-md border border-border bg-secondary/30 p-3">
-                    <p className="text-xs text-muted-foreground">
-                      This substatus requires a follow-up.
-                    </p>
+                    <div className="space-y-2">
+                      <Label>Visit team member</Label>
+                      <Select
+                        value={visitTeamUserId}
+                        onValueChange={setVisitTeamUserId}
+                        disabled={visitTeamLoading || visitTeamUsers.length === 0}
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={
+                              visitTeamLoading
+                                ? 'Loading team...'
+                                : visitTeamUsers.length === 0
+                                  ? 'No visit team members'
+                                  : 'Select member'
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {visitTeamUsers.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.fullName} ({user.email})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Scheduled date & time</Label>
+                      <Input
+                        type="datetime-local"
+                        value={visitScheduledAt}
+                        onChange={(event) => setVisitScheduledAt(event.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Lead / Visit Location</Label>
+                      <Input
+                        value={visitLocation}
+                        onChange={(event) => {
+                          locationTouchedRef.current = true
+                          setVisitLocation(event.target.value)
+                        }}
+                        placeholder="Location (will update lead location)"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Project Sqft</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={visitProjectSqft}
+                        onChange={(event) => setVisitProjectSqft(event.target.value)}
+                        placeholder="Enter project sqft"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Project Status</Label>
+                      <Select value={visitProjectStatus} onValueChange={setVisitProjectStatus}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select project status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="UNDER_CONSTRUCTION">Under Construction</SelectItem>
+                          <SelectItem value="READY">Ready</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Attachment (optional)</Label>
+                      <Input
+                        type="file"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] ?? null
+                          setVisitAttachmentFile(file)
+                        }}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Notes</Label>
+                      <Textarea
+                        value={visitNotes}
+                        onChange={(event) => setVisitNotes(event.target.value)}
+                        placeholder="Optional notes"
+                        rows={3}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                {showFollowupFieldsInStageModal ? (
+                  <div className="space-y-4 rounded-md border border-border bg-secondary/30 p-3">
+                    {hasPendingFollowup ? (
+                      <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        Existing pending follow-up will be completed automatically before this new follow-up is created.
+                      </div>
+                    ) : null}
+                    {stage === 'NURTURING' ? (
+                      <div className="space-y-2 rounded-md border border-red-300 bg-red-50 px-3 py-2">
+                        <p className="text-xs text-red-700">
+                          Nurturing stage change requires creating a new follow-up.
+                        </p>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={onAddFollowup}
+                        >
+                          Add New Follow-up
+                        </Button>
+                      </div>
+                    ) : null}
                     <div className="space-y-2">
                       <Label>Follow-up date</Label>
                       <Input
@@ -881,11 +1187,6 @@ export function LeadActionsPanel({
                       />
                     </div>
                   </div>
-                ) : null}
-                {noFollowupReasonHint ? (
-                  <p className="text-xs text-muted-foreground">
-                    Small budget does not require a follow-up. Add only a specific reason.
-                  </p>
                 ) : null}
               </div>
               {stageError ? <p className="text-xs text-destructive">{stageError}</p> : null}

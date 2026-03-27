@@ -17,6 +17,12 @@ type LeadDetails = {
   assignedTo: string | null
   created_at: string
   updated_at: string
+  visits?: Array<{
+    id: string
+    scheduledAt: string
+    projectSqft: number | null
+    projectStatus: string | null
+  }>
 }
 
 const stageColors: Record<string, string> = {
@@ -99,6 +105,24 @@ export function LeadInfoCard({ lead, stage, hasPendingFollowup }: LeadInfoCardPr
             <div>
               <p className="text-sm text-muted-foreground">Budget</p>
               <p className="font-semibold text-foreground mt-1">{lead.budget !== null ? `৳${lead.budget.toLocaleString()}` : '—'}</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <FileText className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm text-muted-foreground">Project Size</p>
+              <p className="font-semibold text-foreground mt-1">
+                {lead.visits?.[0]?.projectSqft ? `${lead.visits[0].projectSqft} sqft` : '—'}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <FileText className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm text-muted-foreground">Project Status</p>
+              <p className="font-semibold text-foreground mt-1">
+                {lead.visits?.[0]?.projectStatus ? formatLabel(lead.visits[0].projectStatus) : '—'}
+              </p>
             </div>
           </div>
         </div>
