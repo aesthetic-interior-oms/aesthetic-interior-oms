@@ -50,6 +50,14 @@ export async function POST(request: NextRequest) {
     }
 
     const payload = (await request.json()) as FacebookWebhookPayload
+    const entryCount = (payload.entry ?? []).length
+    const messagingEventCount = (payload.entry ?? []).reduce(
+      (acc, entry) => acc + (entry.messaging?.length ?? 0),
+      0,
+    )
+    console.info(
+      `[POST /api/webhooks/facebook] object=${payload.object ?? 'unknown'} entries=${entryCount} messaging_events=${messagingEventCount}`,
+    )
     if (payload.object !== 'page') {
       return NextResponse.json({ success: true, ignored: true })
     }
@@ -61,6 +69,9 @@ export async function POST(request: NextRequest) {
     // Keep webhook response fast; only sync when there is a relevant event.
     if (hasMessageLikeEvent) {
       const result = await syncRecentFacebookConversationsToLeads({ limit: 20 })
+      console.info(
+        `[POST /api/webhooks/facebook] sync completed fetched=${result.fetchedConversations} created=${result.createdLeads}`,
+      )
       return NextResponse.json({ success: true, synced: result })
     }
 
