@@ -28,6 +28,11 @@ type FacebookConversationResponse = {
   data?: FacebookConversation[]
 }
 
+type FacebookPageProfile = {
+  id?: string
+  name?: string
+}
+
 type SyncFacebookOptions = {
   limit?: number
 }
@@ -49,6 +54,17 @@ function getFacebookConfig() {
 export function isFacebookConfigured(): boolean {
   const { token, pageId } = getFacebookConfig()
   return Boolean(token && pageId)
+}
+
+export function getFacebookConfigStatus() {
+  const { token, pageId, graphVersion } = getFacebookConfig()
+  return {
+    tokenConfigured: Boolean(token),
+    pageIdConfigured: Boolean(pageId),
+    graphVersion,
+    pageId: pageId ?? null,
+    configured: Boolean(token && pageId),
+  }
 }
 
 function conversationMarker(conversationId: string): string {
@@ -89,6 +105,34 @@ export async function fetchRecentFacebookConversations(limit = FB_DEFAULT_LIMIT)
   })
 
   return Array.isArray(payload.data) ? payload.data : []
+}
+
+export async function checkFacebookGraphConnection() {
+  const { pageId } = getFacebookConfig()
+  if (!pageId) {
+    return {
+      ok: false as const,
+      error: 'FB_PAGE_ID is missing',
+    }
+  }
+
+  try {
+    const page = await graphGet<FacebookPageProfile>(`/${pageId}`, {
+      fields: 'id,name',
+    })
+    const conversations = await fetchRecentFacebookConversations(3)
+    return {
+      ok: true as const,
+      pageId: page.id ?? pageId,
+      pageName: page.name ?? null,
+      sampleConversationCount: conversations.length,
+    }
+  } catch (error) {
+    return {
+      ok: false as const,
+      error: error instanceof Error ? error.message : 'Unknown Graph API error',
+    }
+  }
 }
 
 function extractCustomerName(conversation: FacebookConversation, pageId: string): string | null {
