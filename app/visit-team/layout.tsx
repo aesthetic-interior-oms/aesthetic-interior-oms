@@ -10,6 +10,9 @@ export const metadata = {
 
 const CRM_DASHBOARD = "/crm/jr/dashboard";
 
+export const runtime = "nodejs";
+export const preferredRegion = "sin1";
+
 export default async function VisitsLayout({
   children,
 }: {

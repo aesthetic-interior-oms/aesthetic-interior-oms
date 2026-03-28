@@ -5,6 +5,9 @@ import { MainLayout } from "@/components/layout/mainlayout";
 
 const VISIT_DASHBOARD = "/visit-team/visit-dashboard";
 
+export const runtime = "nodejs";
+export const preferredRegion = "sin1";
+
 export default async function CRMLayout({
   children,
 }: {
