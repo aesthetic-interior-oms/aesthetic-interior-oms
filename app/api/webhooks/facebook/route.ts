@@ -21,41 +21,31 @@ type FacebookWebhookPayload = {
   entry?: FacebookWebhookEntry[]
 }
 
-function normalizeToken(value: string | null | undefined) {
-  const trimmed = (value ?? '').trim()
-  // Guard against accidental wrapping quotes in env dashboards/copies.
-  return trimmed.replace(/^['"]+|['"]+$/g, '')
-}
-
-function getVerifyToken() {
-  return normalizeToken(process.env.FB_WEBHOOK_VERIFY_TOKEN ?? '')
-}
-
 // Webhook verification endpoint required by Meta:
 // GET /api/webhooks/facebook?hub.mode=subscribe&hub.verify_token=...&hub.challenge=...
 export async function GET(request: NextRequest) {
   const mode = request.nextUrl.searchParams.get('hub.mode')
-  const token = normalizeToken(request.nextUrl.searchParams.get('hub.verify_token'))
+  const token = request.nextUrl.searchParams.get('hub.verify_token')
   const challenge = request.nextUrl.searchParams.get('hub.challenge')
-  const verifyToken = getVerifyToken()
-  console.info(
-    `[GET /api/webhooks/facebook] mode=${mode ?? 'null'} token_len=${token.length} verify_configured=${Boolean(
-      verifyToken,
-    )} verify_len=${verifyToken.length} has_challenge=${Boolean(challenge)}`,
-  )
+  const verifyToken = process.env.FB_WEBHOOK_VERIFY_TOKEN
 
-  if (mode === 'subscribe' && token && verifyToken && challenge && token === verifyToken) {
-    console.info('[GET /api/webhooks/facebook] verification success')
-    return new NextResponse(challenge ?? '', { status: 200 })
+  if (mode === 'subscribe' && token === verifyToken && challenge) {
+    return new NextResponse(challenge, { status: 200 })
   }
 
-  console.warn(
-    `[GET /api/webhooks/facebook] verification failed mode=${mode ?? 'null'} token_len=${token.length} verify_configured=${Boolean(
-      verifyToken,
-    )} verify_len=${verifyToken.length} has_challenge=${Boolean(challenge)}`,
+  return NextResponse.json(
+    {
+      success: false,
+      error: 'Webhook verification failed',
+      debug: {
+        hasMode: Boolean(mode),
+        hasToken: Boolean(token),
+        hasChallenge: Boolean(challenge),
+        verifyTokenConfigured: Boolean(verifyToken),
+      },
+    },
+    { status: 403 },
   )
-
-  return NextResponse.json({ success: false, error: 'Webhook verification failed' }, { status: 403 })
 }
 
 // Event receiver endpoint (messages/postbacks)
