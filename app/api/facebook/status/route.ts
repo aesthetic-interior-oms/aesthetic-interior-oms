@@ -25,9 +25,11 @@ export async function GET(request: NextRequest) {
   )
   const graphConnection = await checkFacebookGraphConnection()
   console.info(
-    `[GET /api/facebook/status] graph_connection connected=${graphConnection.connected} error_present=${Boolean(
-      graphConnection.error,
-    )}`,
+    `[GET /api/facebook/status] graph_connection ok=${graphConnection.ok} error_present=${Boolean(
+      'error' in graphConnection ? graphConnection.error : null,
+    )} sample_count=${
+      'sampleConversationCount' in graphConnection ? graphConnection.sampleConversationCount : 0
+    }`,
   )
 
   let syncResult: Awaited<ReturnType<typeof syncRecentFacebookConversationsToLeads>> | null = null
