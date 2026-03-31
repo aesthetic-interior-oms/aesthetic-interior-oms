@@ -533,14 +533,24 @@ export default function LeadsPage() {
             {stages.map((stage) => {
               const config = stageStatConfig[stage]
               const Icon = config.icon
+              const isActive = stageFilter === stage
               return (
-                <Card key={stage} className="border-border bg-card">
+                <Card
+                  key={stage}
+                  className={`border-border bg-card transition ${isActive ? 'ring-2 ring-primary/40' : 'hover:border-primary/30'}`}
+                >
                   <CardContent className="flex flex-col items-center justify-center gap-2 p-4 text-center">
-                    <div className={`inline-flex size-10 items-center justify-center rounded-lg ${config.tint}`}>
-                      <Icon className="size-5" />
-                    </div>
-                    <p className="text-xs font-medium text-muted-foreground">{stage.replace(/_/g, ' ')}</p>
-                    <p className="text-3xl font-bold leading-tight text-foreground">{stageCounts[stage] ?? 0}</p>
+                    <button
+                      type="button"
+                      onClick={() => setStageFilter((prev) => (prev === stage ? 'ALL' : stage))}
+                      className="flex w-full flex-col items-center justify-center gap-2 text-center"
+                    >
+                      <div className={`inline-flex size-10 items-center justify-center rounded-lg ${config.tint}`}>
+                        <Icon className="size-5" />
+                      </div>
+                      <p className="text-xs font-medium text-muted-foreground">{stage.replace(/_/g, ' ')}</p>
+                      <p className="text-3xl font-bold leading-tight text-foreground">{stageCounts[stage] ?? 0}</p>
+                    </button>
                   </CardContent>
                 </Card>
               )
@@ -557,19 +567,11 @@ export default function LeadsPage() {
                 className="pl-10"
               />
             </div>
-            <Select value={stageFilter} onValueChange={setStageFilter}>
-              <SelectTrigger className="w-full md:w-56">
-                <SelectValue placeholder="Filter by stage" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Stages</SelectItem>
-                {stages.map((stage) => (
-                  <SelectItem key={stage} value={stage}>
-                    {stage}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {stageFilter !== 'ALL' ? (
+              <Button variant="outline" onClick={() => setStageFilter('ALL')}>
+                Clear Stage ({stageFilter.replace(/_/g, ' ')})
+              </Button>
+            ) : null}
             <Button
               type="button"
               variant="outline"
