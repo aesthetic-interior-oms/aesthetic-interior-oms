@@ -137,20 +137,32 @@ function extractAssignedNameFromMessage(message: string): string | null {
 function extractPhoneFromMessage(message: string): string | null {
   if (!message.trim()) return null
 
-  const matches = message.match(/\+?[\d\s()\-]{8,}/g) ?? []
+  const matches = message.match(/(?:\+?\d[\d\s()\-]{8,}\d)/g) ?? []
   for (const raw of matches) {
     const compact = raw.replace(/[\s()\-]/g, '')
-    const digitsOnly = compact.replace(/\D/g, '')
 
-    if (digitsOnly.length < 8 || digitsOnly.length > 15) {
+    // Bangladesh international format: +8801XXXXXXXXX
+    if (compact.startsWith('+880')) {
+      const localCore = compact.slice(4)
+      if (/^1[3-9]\d{8}$/.test(localCore)) {
+        return `+880${localCore}`
+      }
       continue
     }
 
-    if (compact.startsWith('+')) {
-      return `+${digitsOnly}`
+    // Bangladesh international format without plus: 8801XXXXXXXXX
+    if (compact.startsWith('880')) {
+      const localCore = compact.slice(3)
+      if (/^1[3-9]\d{8}$/.test(localCore)) {
+        return `+880${localCore}`
+      }
+      continue
     }
 
-    return digitsOnly
+    // Bangladesh local format: 01XXXXXXXXX
+    if (/^01[3-9]\d{8}$/.test(compact)) {
+      return compact
+    }
   }
 
   return null

@@ -116,6 +116,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
             fullName: true,
             email: true,
             phone: true,
+            isActive: true,
             created_at: true,
           },
         },
