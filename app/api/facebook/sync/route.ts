@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { isFacebookConfigured, syncRecentFacebookConversationsToLeads } from '@/lib/facebook'
+import { getFacebookConfigStatus } from '@/lib/facebook'
+import { recordFacebookSyncResult, runFacebookSyncWithControl } from '@/lib/facebook-sync-control'
 
 export async function POST() {
   console.info('[POST /api/facebook/sync] started')
@@ -10,7 +11,8 @@ export async function POST() {
     return authResult.response
   }
 
-  if (!isFacebookConfigured()) {
+  const facebookConfig = getFacebookConfigStatus()
+  if (!facebookConfig.configured) {
     console.warn('[POST /api/facebook/sync] config missing, aborting')
     return NextResponse.json(
       { success: false, error: 'Facebook Graph API is not configured' },
@@ -19,8 +21,16 @@ export async function POST() {
   }
 
   try {
-    console.info('[POST /api/facebook/sync] running sync with limit=20')
-    const result = await syncRecentFacebookConversationsToLeads({ limit: 20 })
+    const result = await runFacebookSyncWithControl('MANUAL')
+    if (!result.ran) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Sync skipped: ${result.reason ?? 'unknown reason'}`,
+        },
+        { status: 400 },
+      )
+    }
     console.info(
       `[POST /api/facebook/sync] sync completed fetched=${result.fetchedConversations} created=${result.createdLeads}`,
     )
@@ -30,6 +40,12 @@ export async function POST() {
       message: 'Facebook conversations synced to leads',
     })
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to sync Facebook conversations'
+    await recordFacebookSyncResult({
+      trigger: 'MANUAL',
+      status: 'FAILED',
+      error: message,
+    })
     console.error('[POST /api/facebook/sync] Error:', error)
     return NextResponse.json(
       { success: false, error: 'Failed to sync Facebook conversations' },

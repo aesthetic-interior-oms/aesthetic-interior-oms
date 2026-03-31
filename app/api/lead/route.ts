@@ -5,6 +5,7 @@ import { logLeadCreated } from '@/lib/activity-log-service';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { formatServerTiming, timeAsync } from '@/lib/server-timing';
 import { isFacebookConfigured, syncRecentFacebookConversationsToLeads } from '@/lib/facebook';
+import { maybeRunFacebookFallbackSync } from '@/lib/facebook-sync-control';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'sin1';
@@ -218,6 +219,19 @@ export async function GET(request: NextRequest) {
       !searchParam &&
       !stageParam &&
       isFacebookConfigured();
+
+    const shouldRunFallbackFacebookSync =
+      offset === 0 &&
+      !searchParam &&
+      !stageParam;
+
+    if (shouldRunFallbackFacebookSync) {
+      try {
+        await maybeRunFacebookFallbackSync();
+      } catch (syncError) {
+        console.error('[GET /api/lead] Facebook fallback sync failed:', syncError);
+      }
+    }
 
     if (shouldSyncFacebook) {
       try {

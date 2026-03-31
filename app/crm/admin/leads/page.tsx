@@ -6,13 +6,38 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Search, List, LayoutGrid, CircleDot, PhoneCall, Handshake, Sprout, CalendarCheck, CheckCircle2, Archive } from 'lucide-react'
+import {
+  Search,
+  List,
+  LayoutGrid,
+  CircleDot,
+  PhoneCall,
+  Handshake,
+  Sprout,
+  CalendarCheck,
+  CheckCircle2,
+  Archive,
+  Facebook,
+  Instagram,
+  MessageCircle,
+  Globe,
+  UserCircle2,
+  type LucideIcon,
+} from 'lucide-react'
 import LeadCreateModal from '@/components/crm/junior/LeadCreateModal'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 
@@ -41,11 +66,70 @@ const stageStatConfig: Record<string, { icon: typeof CircleDot; tint: string }> 
   CLOSED: { icon: Archive, tint: 'text-green-700 bg-green-100 dark:bg-green-900/40 dark:text-green-200' },
 }
 
+type DepartmentSummary = {
+  id: string
+  name: string
+}
+
+type DepartmentUser = {
+  id: string
+  fullName: string
+  email: string
+}
+
+const sourceVisualMap: Record<
+  string,
+  { icon: LucideIcon; bgClass: string; iconClass: string; dotClass: string; label: string }
+> = {
+  facebook: {
+    icon: Facebook,
+    bgClass: 'bg-blue-100',
+    iconClass: 'text-blue-700',
+    dotClass: 'bg-blue-500',
+    label: 'Facebook',
+  },
+  instagram: {
+    icon: Instagram,
+    bgClass: 'bg-pink-100',
+    iconClass: 'text-pink-700',
+    dotClass: 'bg-pink-500',
+    label: 'Instagram',
+  },
+  whatsapp: {
+    icon: MessageCircle,
+    bgClass: 'bg-emerald-100',
+    iconClass: 'text-emerald-700',
+    dotClass: 'bg-emerald-500',
+    label: 'WhatsApp',
+  },
+  website: {
+    icon: Globe,
+    bgClass: 'bg-slate-100',
+    iconClass: 'text-slate-700',
+    dotClass: 'bg-slate-500',
+    label: 'Website',
+  },
+}
+
+function getSourceVisual(source: string | null | undefined) {
+  const key = (source ?? '').trim().toLowerCase()
+  return (
+    sourceVisualMap[key] ?? {
+      icon: UserCircle2,
+      bgClass: 'bg-zinc-100',
+      iconClass: 'text-zinc-700',
+      dotClass: 'bg-zinc-500',
+      label: source?.trim() || 'Unknown',
+    }
+  )
+}
+
 type LeadSummary = {
   id: string
   name: string
   phone: string | null
   email: string | null
+  source: string | null
   stage: string
   location: string | null
   created_at: string
@@ -106,6 +190,18 @@ export default function LeadsPage() {
   const [totalCount, setTotalCount] = useState(0)
   const [nextOffset, setNextOffset] = useState<number | null>(0)
   const [hasMore, setHasMore] = useState(true)
+  const [canBatchAssign, setCanBatchAssign] = useState(true)
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
+  const [batchAssignOpen, setBatchAssignOpen] = useState(false)
+  const [departments, setDepartments] = useState<DepartmentSummary[]>([])
+  const [departmentUsers, setDepartmentUsers] = useState<DepartmentUser[]>([])
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState('')
+  const [loadingDepartments, setLoadingDepartments] = useState(false)
+  const [loadingDepartmentUsers, setLoadingDepartmentUsers] = useState(false)
+  const [submittingBatchAssign, setSubmittingBatchAssign] = useState(false)
+  const [batchAssignMessage, setBatchAssignMessage] = useState<string | null>(null)
+  const [batchAssignError, setBatchAssignError] = useState<string | null>(null)
 
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   const inFlightKeyRef = useRef<string | null>(null)
@@ -113,6 +209,26 @@ export default function LeadsPage() {
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 1024px)')
     setViewMode(mediaQuery.matches ? 'card' : 'list')
+  }, [])
+
+  useEffect(() => {
+    const loadMe = async () => {
+      try {
+        const response = await fetch('/api/me', { cache: 'no-store' })
+        if (!response.ok) return
+        const payload = (await response.json()) as {
+          userDepartments?: Array<{ department?: { name?: string } }>
+        }
+        const hasAdminDepartment = (payload.userDepartments ?? []).some(
+          (row) => row.department?.name === 'ADMIN',
+        )
+        setCanBatchAssign(hasAdminDepartment)
+      } catch (error) {
+        console.error('Failed to detect batch assignment permission:', error)
+      }
+    }
+
+    void loadMe()
   }, [])
 
   useEffect(() => {
@@ -252,7 +368,142 @@ export default function LeadsPage() {
     fetchLeads(0, true)
   }, [fetchLeads])
 
+  const fetchDepartments = useCallback(async () => {
+    setLoadingDepartments(true)
+    try {
+      const response = await fetch('/api/department', { cache: 'no-store' })
+      const payload = (await response.json()) as {
+        success: boolean
+        data?: Array<{ id: string; name: string }>
+      }
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error('Failed to load departments')
+      }
+      setDepartments(payload.data)
+    } catch (error) {
+      console.error('Error fetching departments:', error)
+      setBatchAssignError('Failed to load departments')
+    } finally {
+      setLoadingDepartments(false)
+    }
+  }, [])
+
+  const fetchUsersForDepartment = useCallback(async (departmentId: string) => {
+    if (!departmentId) {
+      setDepartmentUsers([])
+      return
+    }
+
+    setLoadingDepartmentUsers(true)
+    try {
+      const response = await fetch(`/api/department/${departmentId}/users`, { cache: 'no-store' })
+      const payload = (await response.json()) as {
+        success: boolean
+        data?: { users: DepartmentUser[] }
+      }
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error('Failed to load department users')
+      }
+      setDepartmentUsers(payload.data.users ?? [])
+    } catch (error) {
+      console.error('Error fetching department users:', error)
+      setDepartmentUsers([])
+      setBatchAssignError('Failed to load users for selected department')
+    } finally {
+      setLoadingDepartmentUsers(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void fetchUsersForDepartment(selectedDepartmentId)
+  }, [fetchUsersForDepartment, selectedDepartmentId])
+
+  const openBatchAssignModal = useCallback(async () => {
+    if (!canBatchAssign) return
+    setBatchAssignError(null)
+    setBatchAssignMessage(null)
+    setSelectedDepartmentId('')
+    setSelectedUserId('')
+    setDepartmentUsers([])
+    setBatchAssignOpen(true)
+
+    if (departments.length === 0) {
+      await fetchDepartments()
+    }
+  }, [canBatchAssign, departments.length, fetchDepartments])
+
+  const submitBatchAssign = useCallback(async () => {
+    const department = departments.find((item) => item.id === selectedDepartmentId)
+    if (!department || !selectedUserId || selectedLeadIds.length === 0) {
+      setBatchAssignError('Select leads, department, and user before submitting')
+      return
+    }
+
+    setSubmittingBatchAssign(true)
+    setBatchAssignError(null)
+    setBatchAssignMessage(null)
+    try {
+      const response = await fetch('/api/lead/assignments/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadIds: selectedLeadIds,
+          department: department.name,
+          userId: selectedUserId,
+        }),
+      })
+
+      const payload = (await response.json()) as {
+        success: boolean
+        message?: string
+        error?: string
+      }
+
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'Failed to assign selected leads')
+      }
+
+      setBatchAssignMessage(payload.message || 'Batch assignment completed')
+      setSelectedLeadIds([])
+      setBatchAssignOpen(false)
+      await fetchLeads(0, true)
+    } catch (error) {
+      setBatchAssignError(error instanceof Error ? error.message : 'Batch assignment failed')
+    } finally {
+      setSubmittingBatchAssign(false)
+    }
+  }, [departments, fetchLeads, selectedDepartmentId, selectedLeadIds, selectedUserId])
+
   const displayedCount = useMemo(() => leads.length, [leads])
+  const allVisibleSelected = useMemo(
+    () => leads.length > 0 && leads.every((lead) => selectedLeadIds.includes(lead.id)),
+    [leads, selectedLeadIds],
+  )
+
+  const toggleLeadSelection = useCallback((leadId: string, checked: boolean) => {
+    setSelectedLeadIds((prev) => {
+      if (checked) {
+        if (prev.includes(leadId)) return prev
+        return [...prev, leadId]
+      }
+      return prev.filter((id) => id !== leadId)
+    })
+  }, [])
+
+  const toggleSelectAllVisible = useCallback((checked: boolean) => {
+    setSelectedLeadIds((prev) => {
+      if (!checked) {
+        const visible = new Set(leads.map((lead) => lead.id))
+        return prev.filter((id) => !visible.has(id))
+      }
+
+      const merged = new Set(prev)
+      for (const lead of leads) {
+        merged.add(lead.id)
+      }
+      return Array.from(merged)
+    })
+  }, [leads])
 
   const renderLoadingSkeleton = () => (
     <div className="space-y-3">
@@ -319,6 +570,14 @@ export default function LeadsPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void openBatchAssignModal()}
+              disabled={selectedLeadIds.length === 0 || !canBatchAssign}
+            >
+              Batch Assign ({selectedLeadIds.length})
+            </Button>
             <div className="inline-flex rounded-md border border-border p-1">
               <Button
                 type="button"
@@ -341,6 +600,22 @@ export default function LeadsPage() {
             </div>
           </div>
 
+          {batchAssignMessage ? (
+            <div className="rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+              {batchAssignMessage}
+            </div>
+          ) : null}
+          {batchAssignError ? (
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {batchAssignError}
+            </div>
+          ) : null}
+          {!canBatchAssign ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Batch assignment is available only for users mapped to the ADMIN department.
+            </div>
+          ) : null}
+
           <Card className="border-border bg-card">
             <CardHeader>
               <CardTitle className="text-foreground">Leads ({displayedCount}/{totalCount})</CardTitle>
@@ -355,9 +630,35 @@ export default function LeadsPage() {
                   {leads.map((lead) => (
                     <Card key={lead.id} className="border-border">
                       <CardContent className="space-y-3 p-4">
-                        <div>
-                          <p className="font-semibold text-foreground">{lead.name}</p>
-                          <p className="text-xs text-muted-foreground">{lead.email || 'No email'}</p>
+                        <div className="flex items-start justify-between gap-2">
+                          <label className="mt-1 inline-flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={selectedLeadIds.includes(lead.id)}
+                              onChange={(event) => toggleLeadSelection(lead.id, event.target.checked)}
+                              disabled={!canBatchAssign}
+                              className="h-4 w-4 rounded border-border"
+                            />
+                          </label>
+                          <div className="flex flex-1 items-start gap-3">
+                            {(() => {
+                              const sourceVisual = getSourceVisual(lead.source)
+                              const SourceIcon = sourceVisual.icon
+                              return (
+                                <div className="relative">
+                                  <div className={`flex h-9 w-9 items-center justify-center rounded-full ${sourceVisual.bgClass}`}>
+                                    <SourceIcon className={`h-4 w-4 ${sourceVisual.iconClass}`} />
+                                  </div>
+                                  <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-white ${sourceVisual.dotClass}`} />
+                                </div>
+                              )
+                            })()}
+                            <div>
+                              <p className="font-semibold text-foreground">{lead.name}</p>
+                              <p className="text-xs text-muted-foreground">{lead.email || 'No email'}</p>
+                              <p className="text-[11px] text-muted-foreground">Source: {lead.source || 'Unknown'}</p>
+                            </div>
+                          </div>
                         </div>
                         <div className="text-sm text-muted-foreground">
                           <p>Phone: {lead.phone || '—'}</p>
@@ -381,6 +682,16 @@ export default function LeadsPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b">
+                        <th className="px-4 py-3 text-left font-semibold text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            checked={allVisibleSelected}
+                            onChange={(event) => toggleSelectAllVisible(event.target.checked)}
+                            disabled={!canBatchAssign}
+                            className="h-4 w-4 rounded border-border"
+                            aria-label="Select all visible leads"
+                          />
+                        </th>
                         <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Lead Name</th>
                         <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Phone</th>
                         <th className="px-4 py-3 text-left font-semibold text-muted-foreground">JR CRM</th>
@@ -393,8 +704,35 @@ export default function LeadsPage() {
                       {leads.map((lead) => (
                         <tr key={lead.id} className="border-b hover:bg-muted/50">
                           <td className="py-4 px-4">
-                            <div className="font-medium text-foreground">{lead.name}</div>
-                            <div className="text-xs text-muted-foreground">{lead.email || 'No email'}</div>
+                            <input
+                              type="checkbox"
+                              checked={selectedLeadIds.includes(lead.id)}
+                              onChange={(event) => toggleLeadSelection(lead.id, event.target.checked)}
+                              disabled={!canBatchAssign}
+                              className="h-4 w-4 rounded border-border"
+                              aria-label={`Select ${lead.name}`}
+                            />
+                          </td>
+                          <td className="py-4 px-4">
+                            <div className="flex items-start gap-3">
+                              {(() => {
+                                const sourceVisual = getSourceVisual(lead.source)
+                                const SourceIcon = sourceVisual.icon
+                                return (
+                                  <div className="relative mt-0.5">
+                                    <div className={`flex h-8 w-8 items-center justify-center rounded-full ${sourceVisual.bgClass}`}>
+                                      <SourceIcon className={`h-4 w-4 ${sourceVisual.iconClass}`} />
+                                    </div>
+                                    <span className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border border-white ${sourceVisual.dotClass}`} />
+                                  </div>
+                                )
+                              })()}
+                              <div>
+                                <div className="font-medium text-foreground">{lead.name}</div>
+                                <div className="text-xs text-muted-foreground">{lead.email || 'No email'}</div>
+                                <div className="text-[11px] text-muted-foreground">Source: {lead.source || 'Unknown'}</div>
+                              </div>
+                            </div>
                           </td>
                           <td className="py-4 px-4">{lead.phone || '—'}</td>
                           <td className="py-4 px-4">{lead.assignments?.[0]?.user?.fullName || 'Unassigned'}</td>
@@ -423,6 +761,80 @@ export default function LeadsPage() {
               ) : null}
             </CardContent>
           </Card>
+
+          <Dialog open={batchAssignOpen} onOpenChange={setBatchAssignOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Batch Assign Leads</DialogTitle>
+                <DialogDescription>
+                  Assign {selectedLeadIds.length} selected lead(s) to a department member in one action.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Department</p>
+                  <Select
+                    value={selectedDepartmentId}
+                    onValueChange={(value) => {
+                      setSelectedDepartmentId(value)
+                      setSelectedUserId('')
+                      setBatchAssignError(null)
+                    }}
+                    disabled={loadingDepartments}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={loadingDepartments ? 'Loading departments...' : 'Select department'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((department) => (
+                        <SelectItem key={department.id} value={department.id}>
+                          {department.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Department Member</p>
+                  <Select
+                    value={selectedUserId}
+                    onValueChange={setSelectedUserId}
+                    disabled={!selectedDepartmentId || loadingDepartmentUsers}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue
+                        placeholder={
+                          !selectedDepartmentId
+                            ? 'Select department first'
+                            : loadingDepartmentUsers
+                              ? 'Loading members...'
+                              : 'Select member'
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departmentUsers.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.fullName} ({user.email})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setBatchAssignOpen(false)} disabled={submittingBatchAssign}>
+                  Cancel
+                </Button>
+                <Button onClick={() => void submitBatchAssign()} disabled={submittingBatchAssign}>
+                  {submittingBatchAssign ? 'Assigning...' : 'Assign Selected Leads'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </main>
     </div>
