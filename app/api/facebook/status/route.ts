@@ -3,8 +3,8 @@ import { requireDatabaseRoles } from '@/lib/authz'
 import {
   checkFacebookGraphConnection,
   getFacebookConfigStatus,
-  syncRecentFacebookConversationsToLeads,
 } from '@/lib/facebook'
+import { getFacebookSyncControlState, runFacebookSyncWithControl } from '@/lib/facebook-sync-control'
 
 export const runtime = 'nodejs'
 export const preferredRegion = 'sin1'
@@ -32,12 +32,12 @@ export async function GET(request: NextRequest) {
     }`,
   )
 
-  let syncResult: Awaited<ReturnType<typeof syncRecentFacebookConversationsToLeads>> | null = null
+  let syncResult: Awaited<ReturnType<typeof runFacebookSyncWithControl>> | null = null
   let syncError: string | null = null
   if (runSync && config.configured) {
     try {
       console.info('[GET /api/facebook/status] running sync via query param')
-      syncResult = await syncRecentFacebookConversationsToLeads({ limit: 20 })
+      syncResult = await runFacebookSyncWithControl('MANUAL')
       console.info(
         `[GET /api/facebook/status] sync completed fetched=${syncResult.fetchedConversations} created=${syncResult.createdLeads}`,
       )
@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
   }
 
   console.info('[GET /api/facebook/status] completed')
+  const syncControl = await getFacebookSyncControlState()
   return NextResponse.json({
     success: true,
     data: {
@@ -63,6 +64,7 @@ export async function GET(request: NextRequest) {
         verifyTokenConfigured: Boolean(process.env.FB_WEBHOOK_VERIFY_TOKEN),
       },
       graphConnection,
+      syncControl,
       syncResult,
       syncError,
       webhookPath: '/api/webhooks/facebook',

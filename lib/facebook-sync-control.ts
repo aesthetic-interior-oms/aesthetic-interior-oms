@@ -1,7 +1,7 @@
 import 'server-only'
 
 import prisma from '@/lib/prisma'
-import { isFacebookConfigured, syncRecentFacebookConversationsToLeads } from '@/lib/facebook'
+import { isFacebookConfigured, syncFacebookConversationsIncremental } from '@/lib/facebook'
 
 const SETTINGS_ROW_ID = 'default'
 const SYNC_LOCK_ID = 92738165
@@ -19,6 +19,8 @@ export type FacebookSyncControlState = {
   lastSyncCreated: number | null
   lastSyncError: string | null
   lastSyncTrigger: string | null
+  incrementalCursor: string | null
+  incrementalWatermark: string | null
   nextScheduledAt: string | null
 }
 
@@ -34,6 +36,8 @@ type RunFacebookSyncResult = {
   reason?: string
   fetchedConversations?: number
   createdLeads?: number
+  nextCursor?: string | null
+  watermarkIso?: string | null
 }
 
 function clampIntervalMinutes(value: number): number {
@@ -57,6 +61,8 @@ function serializeControlRow(row: {
   lastSyncCreated: number | null
   lastSyncError: string | null
   lastSyncTrigger: string | null
+  incrementalCursor: string | null
+  incrementalWatermark: Date | null
 }): FacebookSyncControlState {
   const nextScheduledAt =
     row.fallbackEnabled && row.lastSyncAt
@@ -74,6 +80,8 @@ function serializeControlRow(row: {
     lastSyncCreated: row.lastSyncCreated,
     lastSyncError: row.lastSyncError,
     lastSyncTrigger: row.lastSyncTrigger,
+    incrementalCursor: row.incrementalCursor,
+    incrementalWatermark: row.incrementalWatermark?.toISOString() ?? null,
     nextScheduledAt,
   }
 }
@@ -152,6 +160,8 @@ export async function recordFacebookSyncResult(input: {
   fetchedConversations?: number
   createdLeads?: number
   error?: string | null
+  incrementalCursor?: string | null
+  incrementalWatermarkIso?: string | null
 }) {
   await ensureControlRow()
 
@@ -164,11 +174,21 @@ export async function recordFacebookSyncResult(input: {
       lastSyncCreated: input.createdLeads ?? null,
       lastSyncError: input.error ?? null,
       lastSyncTrigger: input.trigger,
+      ...(typeof input.incrementalCursor !== 'undefined'
+        ? { incrementalCursor: input.incrementalCursor }
+        : {}),
+      ...(typeof input.incrementalWatermarkIso !== 'undefined'
+        ? {
+            incrementalWatermark: input.incrementalWatermarkIso
+              ? new Date(input.incrementalWatermarkIso)
+              : null,
+          }
+        : {}),
     },
   })
 }
 
-export async function runFacebookSyncWithControl(trigger: FacebookSyncTrigger): Promise<RunFacebookSyncResult> {
+async function runIncrementalSync(trigger: FacebookSyncTrigger): Promise<RunFacebookSyncResult> {
   const settings = await ensureControlRow()
 
   if (!settings.enabled) {
@@ -179,18 +199,40 @@ export async function runFacebookSyncWithControl(trigger: FacebookSyncTrigger): 
     return { ran: false, reason: 'facebook_not_configured' }
   }
 
-  const result = await syncRecentFacebookConversationsToLeads({ limit: settings.batchLimit })
+  const result = await syncFacebookConversationsIncremental({
+    limit: settings.batchLimit,
+    afterCursor: settings.incrementalCursor,
+    watermarkIso: settings.incrementalWatermark?.toISOString() ?? null,
+  })
+
   await recordFacebookSyncResult({
     trigger,
     status: 'SUCCESS',
     fetchedConversations: result.fetchedConversations,
     createdLeads: result.createdLeads,
+    incrementalCursor: result.nextCursor,
+    incrementalWatermarkIso: result.maxUpdatedTimeIso,
   })
 
   return {
     ran: true,
     fetchedConversations: result.fetchedConversations,
     createdLeads: result.createdLeads,
+    nextCursor: result.nextCursor,
+    watermarkIso: result.maxUpdatedTimeIso,
+  }
+}
+
+export async function runFacebookSyncWithControl(trigger: FacebookSyncTrigger): Promise<RunFacebookSyncResult> {
+  const acquired = await tryAcquireSyncLock()
+  if (!acquired) {
+    return { ran: false, reason: 'sync_lock_busy' }
+  }
+
+  try {
+    return await runIncrementalSync(trigger)
+  } finally {
+    await releaseSyncLock()
   }
 }
 
@@ -223,19 +265,7 @@ export async function maybeRunFacebookFallbackSync(): Promise<RunFacebookSyncRes
   }
 
   try {
-    const result = await syncRecentFacebookConversationsToLeads({ limit: settings.batchLimit })
-    await recordFacebookSyncResult({
-      trigger: 'SCHEDULED_FALLBACK',
-      status: 'SUCCESS',
-      fetchedConversations: result.fetchedConversations,
-      createdLeads: result.createdLeads,
-    })
-
-    return {
-      ran: true,
-      fetchedConversations: result.fetchedConversations,
-      createdLeads: result.createdLeads,
-    }
+    return await runIncrementalSync('SCHEDULED_FALLBACK')
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown sync failure'
     await recordFacebookSyncResult({

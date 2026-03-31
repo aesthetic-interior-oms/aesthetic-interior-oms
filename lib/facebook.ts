@@ -26,6 +26,13 @@ type FacebookConversation = {
 
 type FacebookConversationResponse = {
   data?: FacebookConversation[]
+  paging?: {
+    cursors?: {
+      before?: string
+      after?: string
+    }
+    next?: string
+  }
 }
 
 type FacebookPageProfile = {
@@ -40,6 +47,29 @@ type SyncFacebookOptions = {
 type SyncFacebookResult = {
   fetchedConversations: number
   createdLeads: number
+}
+
+type FetchFacebookConversationPageOptions = {
+  limit?: number
+  afterCursor?: string | null
+}
+
+type FetchFacebookConversationPageResult = {
+  conversations: FacebookConversation[]
+  nextCursor: string | null
+}
+
+type SyncFacebookIncrementalOptions = {
+  limit?: number
+  afterCursor?: string | null
+  watermarkIso?: string | null
+}
+
+type SyncFacebookIncrementalResult = {
+  fetchedConversations: number
+  createdLeads: number
+  nextCursor: string | null
+  maxUpdatedTimeIso: string | null
 }
 
 const FB_DEFAULT_LIMIT = 20
@@ -102,22 +132,37 @@ async function graphGet<T>(path: string, params: Record<string, string>): Promis
 }
 
 export async function fetchRecentFacebookConversations(limit = FB_DEFAULT_LIMIT): Promise<FacebookConversation[]> {
+  const page = await fetchFacebookConversationPage({ limit })
+  return page.conversations
+}
+
+export async function fetchFacebookConversationPage(
+  options: FetchFacebookConversationPageOptions = {},
+): Promise<FetchFacebookConversationPageResult> {
   const { pageId } = getFacebookConfig()
   if (!pageId) {
     console.warn(`${FB_LOG_PREFIX} fetch_conversations aborted reason=missing_page_id`)
     throw new Error('FB_PAGE_ID is missing')
   }
-  console.info(`${FB_LOG_PREFIX} fetch_conversations start page_id=${pageId} limit=${limit}`)
+  const limit = options.limit ?? FB_DEFAULT_LIMIT
+  const afterCursor = options.afterCursor?.trim() || null
+  console.info(
+    `${FB_LOG_PREFIX} fetch_conversations start page_id=${pageId} limit=${limit} after_cursor=${afterCursor ?? 'null'}`,
+  )
 
   const payload = await graphGet<FacebookConversationResponse>(`/${pageId}/conversations`, {
     fields:
       'id,updated_time,participants.limit(10){id,name},messages.limit(1){id,message,created_time,from{id,name}}',
     limit: String(limit),
+    ...(afterCursor ? { after: afterCursor } : {}),
   })
 
   const conversations = Array.isArray(payload.data) ? payload.data : []
-  console.info(`${FB_LOG_PREFIX} fetch_conversations success count=${conversations.length}`)
-  return conversations
+  const nextCursor = payload.paging?.next ? payload.paging?.cursors?.after ?? null : null
+  console.info(
+    `${FB_LOG_PREFIX} fetch_conversations success count=${conversations.length} next_cursor=${nextCursor ?? 'null'}`,
+  )
+  return { conversations, nextCursor }
 }
 
 export async function checkFacebookGraphConnection() {
@@ -161,6 +206,43 @@ function extractCustomerName(conversation: FacebookConversation, pageId: string)
   return normalized && normalized.length > 0 ? normalized : null
 }
 
+async function importConversationToLead(conversation: FacebookConversation, pageId: string): Promise<boolean> {
+  if (!conversation.id) {
+    return false
+  }
+
+  const marker = conversationMarker(conversation.id)
+  const existing = await prisma.lead.findFirst({
+    where: {
+      source: { equals: 'Facebook', mode: 'insensitive' },
+      remarks: { contains: marker },
+    },
+    select: { id: true },
+  })
+
+  if (existing) {
+    return false
+  }
+
+  const customerName =
+    extractCustomerName(conversation, pageId) ??
+    `Facebook User ${conversation.id.slice(-6)}`
+
+  const lastMessage = conversation.messages?.data?.[0]?.message?.trim() ?? ''
+
+  await prisma.lead.create({
+    data: {
+      name: customerName,
+      source: 'Facebook',
+      remarks: lastMessage
+        ? `${marker}\nImported from Facebook.\nLast message: ${lastMessage}`
+        : `${marker}\nImported from Facebook conversation.`,
+    },
+  })
+
+  return true
+}
+
 export async function syncRecentFacebookConversationsToLeads(
   options: SyncFacebookOptions = {},
 ): Promise<SyncFacebookResult> {
@@ -174,55 +256,75 @@ export async function syncRecentFacebookConversationsToLeads(
     return { fetchedConversations: 0, createdLeads: 0 }
   }
 
-  const conversations = await fetchRecentFacebookConversations(limit)
+  const { conversations } = await fetchFacebookConversationPage({ limit })
   let createdLeads = 0
-  let skippedExisting = 0
-  let skippedNoConversationId = 0
 
   for (const conversation of conversations) {
-    if (!conversation.id) {
-      skippedNoConversationId += 1
-      continue
+    if (await importConversationToLead(conversation, pageId)) {
+      createdLeads += 1
     }
-
-    const marker = conversationMarker(conversation.id)
-    const existing = await prisma.lead.findFirst({
-      where: {
-        source: { equals: 'Facebook', mode: 'insensitive' },
-        remarks: { contains: marker },
-      },
-      select: { id: true },
-    })
-
-    if (existing) {
-      skippedExisting += 1
-      continue
-    }
-
-    const customerName =
-      extractCustomerName(conversation, pageId) ??
-      `Facebook User ${conversation.id.slice(-6)}`
-
-    const lastMessage = conversation.messages?.data?.[0]?.message?.trim() ?? ''
-
-    await prisma.lead.create({
-      data: {
-        name: customerName,
-        source: 'Facebook',
-        remarks: lastMessage
-          ? `${marker}\nImported from Facebook.\nLast message: ${lastMessage}`
-          : `${marker}\nImported from Facebook conversation.`,
-      },
-    })
-
-    createdLeads += 1
   }
 
   console.info(
-    `${FB_LOG_PREFIX} sync completed fetched=${conversations.length} created=${createdLeads} skipped_existing=${skippedExisting} skipped_missing_id=${skippedNoConversationId}`,
+    `${FB_LOG_PREFIX} sync completed fetched=${conversations.length} created=${createdLeads}`,
   )
   return {
     fetchedConversations: conversations.length,
     createdLeads,
+  }
+}
+
+export async function syncFacebookConversationsIncremental(
+  options: SyncFacebookIncrementalOptions = {},
+): Promise<SyncFacebookIncrementalResult> {
+  const { pageId } = getFacebookConfig()
+  const limit = options.limit ?? FB_DEFAULT_LIMIT
+  const afterCursor = options.afterCursor?.trim() || null
+  const watermark = options.watermarkIso ? new Date(options.watermarkIso) : null
+  const watermarkMs = watermark && !Number.isNaN(watermark.getTime()) ? watermark.getTime() : null
+  console.info(
+    `${FB_LOG_PREFIX} sync_incremental start page_id_configured=${Boolean(pageId)} config_ok=${isFacebookConfigured()} limit=${limit} after_cursor=${afterCursor ?? 'null'} watermark=${options.watermarkIso ?? 'null'}`,
+  )
+
+  if (!pageId || !isFacebookConfigured()) {
+    console.warn(`${FB_LOG_PREFIX} sync_incremental skipped reason=incomplete_config`)
+    return {
+      fetchedConversations: 0,
+      createdLeads: 0,
+      nextCursor: null,
+      maxUpdatedTimeIso: options.watermarkIso ?? null,
+    }
+  }
+
+  const { conversations, nextCursor } = await fetchFacebookConversationPage({ limit, afterCursor })
+  let createdLeads = 0
+  let maxUpdatedMs = watermarkMs
+
+  for (const conversation of conversations) {
+    const updatedMs = conversation.updated_time ? new Date(conversation.updated_time).getTime() : null
+    const isValidUpdatedMs = updatedMs !== null && !Number.isNaN(updatedMs)
+
+    if (afterCursor === null && watermarkMs !== null && isValidUpdatedMs && updatedMs <= watermarkMs) {
+      continue
+    }
+
+    if (isValidUpdatedMs) {
+      maxUpdatedMs = maxUpdatedMs === null ? updatedMs : Math.max(maxUpdatedMs, updatedMs)
+    }
+
+    if (await importConversationToLead(conversation, pageId)) {
+      createdLeads += 1
+    }
+  }
+
+  const maxUpdatedTimeIso = maxUpdatedMs === null ? null : new Date(maxUpdatedMs).toISOString()
+  console.info(
+    `${FB_LOG_PREFIX} sync_incremental completed fetched=${conversations.length} created=${createdLeads} next_cursor=${nextCursor ?? 'null'} max_updated=${maxUpdatedTimeIso ?? 'null'}`,
+  )
+  return {
+    fetchedConversations: conversations.length,
+    createdLeads,
+    nextCursor,
+    maxUpdatedTimeIso,
   }
 }

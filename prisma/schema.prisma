@@ -263,6 +263,8 @@ model FacebookSyncControl {
   lastSyncCreated         Int?
   lastSyncError           String?
   lastSyncTrigger         String?
+  incrementalCursor       String?
+  incrementalWatermark    DateTime?
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }
