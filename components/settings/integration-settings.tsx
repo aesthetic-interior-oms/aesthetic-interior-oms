@@ -1,287 +1,370 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  AlertCircle,
-  CheckCircle2,
-  Link2,
-  ExternalLink,
-  Settings,
-  Info,
-  Plus,
-  Edit2,
-  Trash2,
-  Eye,
-  EyeOff,
-} from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { AlertCircle, CheckCircle2, RefreshCw, Save, Settings } from 'lucide-react'
 
-interface Integration {
-  id: string
-  name: string
-  description: string
-  category: string
-  status: 'connected' | 'disconnected' | 'error'
-  apiKey?: string
-  lastSynced?: string
-  icon: string
+type SyncControl = {
+  enabled: boolean
+  fallbackEnabled: boolean
+  fallbackIntervalMinutes: number
+  batchLimit: number
+  lastSyncAt: string | null
+  lastSyncStatus: string | null
+  lastSyncFetched: number | null
+  lastSyncCreated: number | null
+  lastSyncError: string | null
+  lastSyncTrigger: string | null
+  nextScheduledAt: string | null
 }
 
-const integrations: Integration[] = [
-  {
-    id: 'facebook_graph',
-    name: 'Facebook Graph API',
-    description: 'Connect to Facebook for lead generation and audience insights',
-    category: 'Social Media',
-    status: 'connected',
-    lastSynced: '2026-03-11 10:30 AM',
-    icon: '📱'
-  },
-  {
-    id: 'whatsapp',
-    name: 'WhatsApp / Call System',
-    description: 'Integrated messaging and calling for customer communication',
-    category: 'Communication',
-    status: 'disconnected',
-    icon: '💬'
-  },
-  {
-    id: 'email_server',
-    name: 'Email Server',
-    description: 'Configure SMTP server for automated email notifications',
-    category: 'Email',
-    status: 'connected',
-    lastSynced: '2026-03-11 14:45 AM',
-    icon: '📧'
-  },
-  {
-    id: 'sms_gateway',
-    name: 'SMS Gateway',
-    description: 'SMS notifications and customer messaging',
-    category: 'SMS',
-    status: 'disconnected',
-    icon: '📲'
-  },
-  {
-    id: 'google_analytics',
-    name: 'Google Analytics',
-    description: 'Track user behavior and conversion metrics',
-    category: 'Analytics',
-    status: 'error',
-    icon: '📊'
-  },
-  {
-    id: 'slack',
-    name: 'Slack',
-    description: 'Real-time notifications and alerts to Slack channels',
-    category: 'Communication',
-    status: 'disconnected',
-    icon: '💼'
-  },
-]
+type FacebookConfig = {
+  configured: boolean
+  tokenConfigured: boolean
+  pageIdConfigured: boolean
+  graphVersion: string
+  pageId: string | null
+}
 
-const categories = ['Social Media', 'Communication', 'Email', 'SMS', 'Analytics']
+type SettingsResponse = {
+  success: boolean
+  data?: {
+    syncControl: SyncControl
+    facebookConfig: FacebookConfig
+  }
+  error?: string
+}
 
-const statusConfig = {
-  connected: {
-    color: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200',
-    icon: <CheckCircle2 className="w-4 h-4" />,
-    label: 'Connected',
-  },
-  disconnected: {
-    color: 'bg-gray-100 dark:bg-gray-900/40 text-gray-800 dark:text-gray-200',
-    icon: <Link2 className="w-4 h-4" />,
-    label: 'Disconnected',
-  },
-  error: {
-    color: 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200',
-    icon: <AlertCircle className="w-4 h-4" />,
-    label: 'Error',
-  },
+type SyncResponse = {
+  success: boolean
+  data?: {
+    fetchedConversations?: number
+    createdLeads?: number
+    ran?: boolean
+    reason?: string
+  }
+  message?: string
+  error?: string
+}
+
+const INTERVAL_OPTIONS = [5, 10, 15, 30, 60, 120, 240, 720, 1440]
+
+function formatDate(value: string | null): string {
+  if (!value) return 'Never'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Unknown'
+  return date.toLocaleString()
 }
 
 export function IntegrationSettings() {
-  const [integrationList, setIntegrationList] = useState<Integration[]>(integrations)
-  const [showApiKey, setShowApiKey] = useState<Record<string, boolean>>({})
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [syncingNow, setSyncingNow] = useState(false)
+  const [checking, setChecking] = useState(false)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
+  const [statusError, setStatusError] = useState<string | null>(null)
 
-  const toggleApiKey = (id: string) => {
-    setShowApiKey(prev => ({ ...prev, [id]: !prev[id] }))
+  const [config, setConfig] = useState<FacebookConfig | null>(null)
+  const [syncControl, setSyncControl] = useState<SyncControl | null>(null)
+
+  const [enabled, setEnabled] = useState(true)
+  const [fallbackEnabled, setFallbackEnabled] = useState(true)
+  const [fallbackIntervalMinutes, setFallbackIntervalMinutes] = useState(15)
+  const [batchLimit, setBatchLimit] = useState(20)
+
+  const hydrateForm = useCallback((state: SyncControl) => {
+    setEnabled(state.enabled)
+    setFallbackEnabled(state.fallbackEnabled)
+    setFallbackIntervalMinutes(state.fallbackIntervalMinutes)
+    setBatchLimit(state.batchLimit)
+  }, [])
+
+  const loadSettings = useCallback(async () => {
+    setLoading(true)
+    setStatusError(null)
+
+    try {
+      const response = await fetch('/api/facebook/sync-settings', { cache: 'no-store' })
+      const payload = (await response.json()) as SettingsResponse
+
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.error ?? 'Failed to load Facebook sync settings')
+      }
+
+      setConfig(payload.data.facebookConfig)
+      setSyncControl(payload.data.syncControl)
+      hydrateForm(payload.data.syncControl)
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : 'Failed to load settings')
+    } finally {
+      setLoading(false)
+    }
+  }, [hydrateForm])
+
+  useEffect(() => {
+    void loadSettings()
+  }, [loadSettings])
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (!syncControl) return false
+    return (
+      enabled !== syncControl.enabled ||
+      fallbackEnabled !== syncControl.fallbackEnabled ||
+      fallbackIntervalMinutes !== syncControl.fallbackIntervalMinutes ||
+      batchLimit !== syncControl.batchLimit
+    )
+  }, [batchLimit, enabled, fallbackEnabled, fallbackIntervalMinutes, syncControl])
+
+  const saveSettings = async () => {
+    setSaving(true)
+    setStatusMessage(null)
+    setStatusError(null)
+
+    try {
+      const response = await fetch('/api/facebook/sync-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled,
+          fallbackEnabled,
+          fallbackIntervalMinutes,
+          batchLimit,
+        }),
+      })
+
+      const payload = (await response.json()) as SettingsResponse
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.error ?? 'Failed to save settings')
+      }
+
+      setConfig(payload.data.facebookConfig)
+      setSyncControl(payload.data.syncControl)
+      hydrateForm(payload.data.syncControl)
+      setStatusMessage('Facebook sync settings saved.')
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : 'Failed to save settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const runSyncNow = async () => {
+    setSyncingNow(true)
+    setStatusMessage(null)
+    setStatusError(null)
+
+    try {
+      const response = await fetch('/api/facebook/sync', { method: 'POST' })
+      const payload = (await response.json()) as SyncResponse
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error ?? 'Failed to run sync')
+      }
+
+      await loadSettings()
+      setStatusMessage(
+        `Sync completed. Created ${payload.data?.createdLeads ?? 0} leads from ${payload.data?.fetchedConversations ?? 0} conversations.`,
+      )
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : 'Failed to run sync')
+    } finally {
+      setSyncingNow(false)
+    }
+  }
+
+  const checkConnection = async () => {
+    setChecking(true)
+    setStatusMessage(null)
+    setStatusError(null)
+
+    try {
+      const response = await fetch('/api/facebook/status', { cache: 'no-store' })
+      const payload = (await response.json()) as {
+        success?: boolean
+        data?: { graphConnection?: { ok?: boolean; error?: string } }
+      }
+
+      if (!response.ok || !payload.success) {
+        throw new Error('Failed to check connection')
+      }
+
+      const ok = Boolean(payload.data?.graphConnection?.ok)
+      if (ok) {
+        setStatusMessage('Facebook Graph connection looks healthy.')
+      } else {
+        setStatusError(payload.data?.graphConnection?.error ?? 'Facebook Graph check failed')
+      }
+
+      await loadSettings()
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : 'Failed to check connection')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  if (loading || !syncControl || !config) {
+    return (
+      <Card className="border-border">
+        <CardContent className="py-8 text-sm text-muted-foreground">Loading integration settings...</CardContent>
+      </Card>
+    )
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <Card className="border-border">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <CardTitle>Integration Settings</CardTitle>
-              <CardDescription>Connect external services and APIs to enhance functionality</CardDescription>
+              <CardTitle>Facebook Lead Sync Control</CardTitle>
+              <CardDescription>
+                Manage real-time sync behavior and a safe scheduled fallback from this panel.
+              </CardDescription>
             </div>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Add Integration
-            </Button>
+            <Badge className={config.configured ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}>
+              {config.configured ? 'Connected' : 'Not Configured'}
+            </Badge>
           </div>
         </CardHeader>
-      </Card>
-
-      {/* Info Alert */}
-      <Card className="border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30">
-        <CardContent className="pt-6">
-          <div className="flex gap-3">
-            <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-            <div className="text-sm text-blue-800 dark:text-blue-200">
-              <p className="font-medium mb-1">API Keys & Credentials</p>
-              <p>Keep your API keys secure. Never share them with anyone. Rotate keys regularly for security.</p>
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-border p-4">
+              <p className="text-xs text-muted-foreground">Last Sync</p>
+              <p className="mt-1 text-sm font-medium text-foreground">{formatDate(syncControl.lastSyncAt)}</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Status: {syncControl.lastSyncStatus ?? 'N/A'} | Trigger: {syncControl.lastSyncTrigger ?? 'N/A'}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Last fetched: {syncControl.lastSyncFetched ?? 0} | Last created: {syncControl.lastSyncCreated ?? 0}
+              </p>
             </div>
+
+            <div className="rounded-lg border border-border p-4">
+              <p className="text-xs text-muted-foreground">Next Fallback Attempt</p>
+              <p className="mt-1 text-sm font-medium text-foreground">{formatDate(syncControl.nextScheduledAt)}</p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Graph API: {config.graphVersion} | Page ID configured: {config.pageIdConfigured ? 'Yes' : 'No'}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Token configured: {config.tokenConfigured ? 'Yes' : 'No'}
+              </p>
+            </div>
+          </div>
+
+          {syncControl.lastSyncError && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              Last error: {syncControl.lastSyncError}
+            </div>
+          )}
+
+          <div className="space-y-4 rounded-lg border border-border p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Enable Facebook lead sync</p>
+                <p className="text-xs text-muted-foreground">Master switch. If disabled, manual and fallback sync are both paused.</p>
+              </div>
+              <Switch checked={enabled} onCheckedChange={setEnabled} />
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Enable safe fallback scheduler</p>
+                <p className="text-xs text-muted-foreground">
+                  Runs on a secure server schedule and imports missed conversations if webhook-based flow misses anything.
+                </p>
+              </div>
+              <Switch checked={fallbackEnabled} onCheckedChange={setFallbackEnabled} disabled={!enabled} />
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <p className="mb-1 text-xs font-medium text-muted-foreground">Fallback interval</p>
+                <Select
+                  value={String(fallbackIntervalMinutes)}
+                  onValueChange={(value) => setFallbackIntervalMinutes(Number(value))}
+                  disabled={!enabled || !fallbackEnabled}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select interval" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INTERVAL_OPTIONS.map((minutes) => (
+                      <SelectItem key={minutes} value={String(minutes)}>
+                        {minutes} minutes
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <p className="mb-1 text-xs font-medium text-muted-foreground">Batch size per sync (5-100)</p>
+                <Input
+                  type="number"
+                  min={5}
+                  max={100}
+                  value={batchLimit}
+                  onChange={(event) => setBatchLimit(Number(event.target.value))}
+                  disabled={!enabled}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={saveSettings} disabled={saving || !hasUnsavedChanges} className="gap-2">
+                {saving ? <RefreshCw className="size-4 animate-spin" /> : <Save className="size-4" />}
+                Save Settings
+              </Button>
+              <Button variant="outline" onClick={runSyncNow} disabled={syncingNow || !config.configured} className="gap-2">
+                {syncingNow ? <RefreshCw className="size-4 animate-spin" /> : <Settings className="size-4" />}
+                Sync Now
+              </Button>
+              <Button variant="outline" onClick={checkConnection} disabled={checking} className="gap-2">
+                {checking ? <RefreshCw className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                Check Connection
+              </Button>
+            </div>
+
+            {statusMessage && (
+              <div className="rounded-md border border-green-200 bg-green-50 p-3 text-xs text-green-700">
+                {statusMessage}
+              </div>
+            )}
+            {statusError && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                {statusError}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Integrations by Category */}
-      <div className="space-y-6">
-        {categories.map(category => {
-          const categoryIntegrations = integrationList.filter(i => i.category === category)
-          return (
-            <div key={category} className="space-y-4">
-              <h3 className="font-semibold text-foreground text-lg">{category}</h3>
-              {categoryIntegrations.map(integration => {
-                const status = statusConfig[integration.status]
-                return (
-                  <Card key={integration.id} className="border-border overflow-hidden hover:shadow-md transition-shadow">
-                    <CardContent className="pt-6">
-                      <div className="space-y-4">
-                        {/* Header */}
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-4 flex-1">
-                            <div className="text-2xl">{integration.icon}</div>
-                            <div className="flex-1">
-                              <p className="font-semibold text-foreground">{integration.name}</p>
-                              <p className="text-sm text-muted-foreground mt-1">{integration.description}</p>
-                              {integration.lastSynced && (
-                                <p className="text-xs text-muted-foreground mt-2">Last synced: {integration.lastSynced}</p>
-                              )}
-                            </div>
-                          </div>
-                          <Badge className={status.color}>
-                            {status.icon}
-                            <span className="ml-1">{status.label}</span>
-                          </Badge>
-                        </div>
-
-                        {/* API Key Section */}
-                        {integration.status === 'connected' && integration.apiKey && (
-                          <div className="border-t border-border pt-4">
-                            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-2">
-                              API Key
-                            </div>
-                            <div className="flex items-center gap-2 p-2 rounded-lg bg-secondary/50 border border-border/50">
-                              <input
-                                type={showApiKey[integration.id] ? 'text' : 'password'}
-                                value={integration.apiKey}
-                                readOnly
-                                className="flex-1 bg-transparent text-sm font-mono text-foreground placeholder:text-muted-foreground focus:outline-none"
-                              />
-                              <button
-                                onClick={() => toggleApiKey(integration.id)}
-                                className="p-1 hover:bg-secondary rounded"
-                              >
-                                {showApiKey[integration.id] ? (
-                                  <EyeOff className="w-4 h-4 text-muted-foreground" />
-                                ) : (
-                                  <Eye className="w-4 h-4 text-muted-foreground" />
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className="border-t border-border pt-4 flex gap-2">
-                          {integration.status === 'connected' ? (
-                            <>
-                              <Button size="sm" variant="outline" className="gap-1">
-                                <Settings className="w-3.5 h-3.5" />
-                                Configure
-                              </Button>
-                              <Button size="sm" variant="outline" className="gap-1">
-                                <RotateCcw className="w-3.5 h-3.5" />
-                                Sync Now
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                Disconnect
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button size="sm" className="gap-1">
-                                <Link2 className="w-3.5 h-3.5" />
-                                Connect
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="gap-1"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                                Learn More
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Summary */}
-      <Card className="border-border bg-secondary/30">
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Total</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{integrationList.length}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Connected</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">
-                {integrationList.filter(i => i.status === 'connected').length}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Issues</p>
-              <p className="text-2xl font-bold text-red-600 mt-1">
-                {integrationList.filter(i => i.status === 'error').length}
-              </p>
-            </div>
-          </div>
+      <Card className="border-blue-200 bg-blue-50/70">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <AlertCircle className="size-4" />
+            How This Sync Works
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm text-blue-900">
+          <p>1. Facebook sends webhook events instantly when conversations happen.</p>
+          <p>2. If anything is missed, fallback scheduler checks periodically and imports recent conversations safely.</p>
+          <p>3. Duplicate protection is enabled, so the same conversation is not imported twice.</p>
+          <p>4. Batch size controls how many recent conversations are checked in one run.</p>
+          <p>5. Fallback interval controls how often scheduled checks are allowed to run.</p>
         </CardContent>
       </Card>
     </div>
-  )
-}
-
-// Helper component (would need to import from lucide-react in real project)
-function RotateCcw(props: any) {
-  return (
-    <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
-      <path d="M21 3v5h-5"/>
-      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
-      <path d="M3 21v-5h5"/>
-    </svg>
   )
 }
