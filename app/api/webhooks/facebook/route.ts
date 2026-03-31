@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { runFacebookSyncWithControl } from '@/lib/facebook-sync-control'
 
 export const runtime = 'nodejs'
 export const preferredRegion = 'sin1'
@@ -18,6 +19,25 @@ type FacebookWebhookEntry = {
 type FacebookWebhookPayload = {
   object?: string
   entry?: FacebookWebhookEntry[] | unknown[]
+}
+
+function shouldTriggerIncrementalSync(payload: FacebookWebhookPayload | { raw: string }): boolean {
+  if (!('object' in payload)) {
+    return false
+  }
+
+  if (payload.object !== 'page') {
+    return false
+  }
+
+  const entries = Array.isArray(payload.entry) ? payload.entry : []
+  return entries.some((entry) => {
+    if (!entry || typeof entry !== 'object' || !('messaging' in entry)) {
+      return false
+    }
+    const messaging = (entry as FacebookWebhookEntry).messaging
+    return Array.isArray(messaging) && messaging.length > 0
+  })
 }
 
 function maskValue(value: string) {
@@ -130,6 +150,15 @@ export async function POST(request: NextRequest) {
 
     console.log('[POST /api/webhooks/facebook] received webhook payload:')
     console.dir(payload, { depth: null })
+
+    if (shouldTriggerIncrementalSync(payload)) {
+      try {
+        const syncResult = await runFacebookSyncWithControl('MANUAL')
+        console.log('[POST /api/webhooks/facebook] incremental sync result:', syncResult)
+      } catch (syncError) {
+        console.error('[POST /api/webhooks/facebook] incremental sync failed:', syncError)
+      }
+    }
 
     return NextResponse.json({ success: true, received: true }, { status: 200 })
   } catch (error) {

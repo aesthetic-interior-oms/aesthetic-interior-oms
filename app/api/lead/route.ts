@@ -4,8 +4,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logLeadCreated } from '@/lib/activity-log-service';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { formatServerTiming, timeAsync } from '@/lib/server-timing';
-import { isFacebookConfigured, syncRecentFacebookConversationsToLeads } from '@/lib/facebook';
-import { maybeRunFacebookFallbackSync } from '@/lib/facebook-sync-control';
+import { isFacebookConfigured } from '@/lib/facebook';
+import { maybeRunFacebookFallbackSync, runFacebookSyncWithControl } from '@/lib/facebook-sync-control';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'sin1';
@@ -236,7 +236,7 @@ export async function GET(request: NextRequest) {
     if (shouldSyncFacebook) {
       try {
         const timedFacebookSync = await timeAsync(async () =>
-          syncRecentFacebookConversationsToLeads({ limit: 20 }),
+          runFacebookSyncWithControl('MANUAL'),
         );
         const syncResult = timedFacebookSync.value;
         facebookTimingMetric = formatServerTiming(

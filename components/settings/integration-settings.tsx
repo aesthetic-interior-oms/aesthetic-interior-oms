@@ -26,6 +26,8 @@ type SyncControl = {
   lastSyncCreated: number | null
   lastSyncError: string | null
   lastSyncTrigger: string | null
+  incrementalCursor: string | null
+  incrementalWatermark: string | null
   nextScheduledAt: string | null
 }
 
@@ -248,6 +250,9 @@ export function IntegrationSettings() {
               <p className="mt-1 text-xs text-muted-foreground">
                 Last fetched: {syncControl.lastSyncFetched ?? 0} | Last created: {syncControl.lastSyncCreated ?? 0}
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Watermark: {formatDate(syncControl.incrementalWatermark)}
+              </p>
             </div>
 
             <div className="rounded-lg border border-border p-4">
@@ -258,6 +263,9 @@ export function IntegrationSettings() {
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 Token configured: {config.tokenConfigured ? 'Yes' : 'No'}
+              </p>
+              <p className="mt-1 truncate text-xs text-muted-foreground">
+                Cursor: {syncControl.incrementalCursor ?? 'none'}
               </p>
             </div>
           </div>
