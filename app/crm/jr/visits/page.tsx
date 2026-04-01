@@ -65,11 +65,17 @@ const statusColors: Record<string, string> = {
 
 type VisitsPageProps = {
   forceAssignedOnly?: boolean
+  leadHrefPrefix?: string
+  restrictToCreator?: boolean
 }
 
-export function VisitsPageView({ forceAssignedOnly = false }: VisitsPageProps) {
+export function VisitsPageView({
+  forceAssignedOnly = false,
+  leadHrefPrefix = '/crm/jr/leads',
+  restrictToCreator = true,
+}: VisitsPageProps) {
   const [activeTab, setActiveTab] = useState('calendar')
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 2)) // March 2026
+  const [currentDate, setCurrentDate] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [visits, setVisits] = useState<VisitRecord[]>([])
   const [loading, setLoading] = useState(true)
@@ -225,6 +231,7 @@ export function VisitsPageView({ forceAssignedOnly = false }: VisitsPageProps) {
 
   const canViewVisit = (visit: VisitRecord) => {
     if (forceAssignedOnly) return true
+    if (!restrictToCreator) return true
     const creatorId = visit.createdBy?.id
     if (!currentUserId || !creatorId) return true
     return creatorId === currentUserId
@@ -232,9 +239,7 @@ export function VisitsPageView({ forceAssignedOnly = false }: VisitsPageProps) {
 
   const VisitCard = ({ visit }: { visit: VisitRecord }) => {
     const isVisible = canViewVisit(visit)
-    const leadHref = forceAssignedOnly
-      ? `/visit-team/leads/${visit.lead.id}`
-      : `/crm/jr/leads/${visit.lead.id}`
+    const leadHref = `${leadHrefPrefix}/${visit.lead.id}`
 
     return (
       <Card className="mb-3 overflow-hidden relative">

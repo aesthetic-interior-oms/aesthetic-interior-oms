@@ -59,7 +59,10 @@ const navigationGroups: Record<string, NavGroup[]> = {
       id: 'admin-crm',
       label: 'CRM',
       defaultOpen: true,
-      items: [{ icon: Users, label: 'Leads', href: '/crm/admin/leads' }],
+      items: [
+        { icon: Users, label: 'Leads', href: '/crm/admin/leads' },
+        { icon: Calendar, label: 'Visits', href: '/crm/admin/visits' },
+      ],
     },
     {
       id: 'admin-settings',

@@ -753,6 +753,7 @@ export default function LeadDetailPage() {
             canManageAssignments={canManageAssignments}
             canManageVisitRequests={!isVisitTeamView && canManageVisitRequests}
             canManageStage={!isVisitTeamView}
+            canSetVisitCompletedStage={false}
             canAddFollowup={!isVisitTeamView}
             canScheduleVisit={!isVisitTeamView}
             canSubmitVisitResult={isVisitTeamView}
