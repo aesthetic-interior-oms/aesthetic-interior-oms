@@ -97,7 +97,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const storedFileName = `${Date.now()}-${randomUUID()}-${safeName}`
     const fileType = fileEntry.type || 'application/octet-stream'
     const blob = await put(`leads/${leadId}/${storedFileName}`, fileEntry, {
-      access: 'public',
+      access: 'private',
       contentType: fileType,
     })
 

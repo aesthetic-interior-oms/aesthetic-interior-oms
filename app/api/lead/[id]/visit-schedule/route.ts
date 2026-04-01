@@ -57,6 +57,12 @@ function toProjectStatus(value: unknown): ProjectStatus | null {
     : null;
 }
 
+function hasValue(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  return true;
+}
+
 async function validateVisitTeamUser(userId: string) {
   // console.log('[validateVisitTeamUser] Validating user:', userId);
   const visitTeamUser = await prisma.user.findUnique({
@@ -207,16 +213,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
       );
     }
 
-    if (!projectSqft || projectSqft <= 0) {
+    if (hasValue(body.projectSqft) && (projectSqft === null || projectSqft <= 0)) {
       return NextResponse.json(
-        { success: false, error: 'projectSqft is required and must be greater than 0' },
+        { success: false, error: 'projectSqft must be greater than 0' },
         { status: 400 },
       );
     }
 
-    if (!projectStatus) {
+    if (hasValue(body.projectStatus) && !projectStatus) {
       return NextResponse.json(
-        { success: false, error: 'projectStatus is required and must be UNDER_CONSTRUCTION or READY' },
+        { success: false, error: 'projectStatus must be UNDER_CONSTRUCTION or READY' },
         { status: 400 },
       );
     }

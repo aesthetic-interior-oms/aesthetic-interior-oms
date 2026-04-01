@@ -108,6 +108,7 @@ interface LeadActionsPanelProps {
   assignmentsLoading: boolean
   canManageAssignments?: boolean
   canManageStage?: boolean
+  canSetVisitCompletedStage?: boolean
   canAddFollowup?: boolean
   canScheduleVisit?: boolean
   canSubmitVisitResult?: boolean
@@ -140,6 +141,7 @@ export function LeadActionsPanel({
   assignmentsLoading,
   canManageAssignments = true,
   canManageStage = true,
+  canSetVisitCompletedStage = true,
   canAddFollowup = true,
   canScheduleVisit = true,
   canSubmitVisitResult = false,
@@ -201,6 +203,7 @@ export function LeadActionsPanel({
   const [visitResultFiles, setVisitResultFiles] = useState<File[]>([])
   const [visitResultError, setVisitResultError] = useState<string | null>(null)
   const [submittingVisitResult, setSubmittingVisitResult] = useState(false)
+  const [localVisitStageLock, setLocalVisitStageLock] = useState(false)
   const locationTouchedRef = useRef(false)
   const locationPrefilledRef = useRef(false)
 
@@ -231,7 +234,7 @@ export function LeadActionsPanel({
   const selectedStageRank = stageOrder[stage] ?? -1
   const isForwardMove = selectedStageRank > originalStageRank
   const stageLockedAfterVisitScheduled =
-    originalStageRank >= stageOrder.VISIT_SCHEDULED
+    originalStageRank >= stageOrder.VISIT_SCHEDULED || localVisitStageLock
   const hasStageChanged = stage !== originalStage || (subStatus ?? null) !== (originalSubStatus ?? null)
   const requiresPhoneForNumberCollected =
     stage === 'NUMBER_COLLECTED' &&
@@ -384,6 +387,10 @@ export function LeadActionsPanel({
   }
 
   const handleStageChange = (value: string) => {
+    if (value === 'VISIT_COMPLETED' && !canSetVisitCompletedStage) {
+      setStageError('Visit Completed can only be set from visit result.')
+      return
+    }
     setStageError(null)
     onStageChange(value)
     const nextOptions = stageSubStatusMap[value] ?? []
@@ -413,6 +420,10 @@ export function LeadActionsPanel({
   }
 
   const handleStageSubmit = async () => {
+    if (stage === 'VISIT_COMPLETED' && !canSetVisitCompletedStage) {
+      setStageError('Visit Completed can only be set from visit result.')
+      return
+    }
     const finalReason = reason.trim() || defaultStageReason
     if (requiresFollowupForStageUpdate && !stageFollowupDate) {
       setStageError('Please select a follow-up date.')
@@ -438,12 +449,8 @@ export function LeadActionsPanel({
         setStageError('Please provide a visit location.')
         return
       }
-      if (!visitProjectSqft.trim() || Number(visitProjectSqft) <= 0) {
-        setStageError('Please provide project sqft.')
-        return
-      }
-      if (!visitProjectStatus) {
-        setStageError('Please select project status.')
+      if (visitProjectSqft.trim() && Number(visitProjectSqft) <= 0) {
+        setStageError('Project sqft must be greater than 0.')
         return
       }
     }
@@ -472,8 +479,8 @@ export function LeadActionsPanel({
             visitTeamUserId,
             scheduledAt: scheduledIso,
             location: visitLocation.trim(),
-            projectSqft: Number(visitProjectSqft),
-            projectStatus: visitProjectStatus,
+            projectSqft: visitProjectSqft.trim() ? Number(visitProjectSqft) : undefined,
+            projectStatus: visitProjectStatus || undefined,
             notes: visitNotes.trim() || undefined,
             reason: finalReason,
           }),
@@ -523,6 +530,7 @@ export function LeadActionsPanel({
         setStageFollowupNotes('')
         onStageChange('VISIT_SCHEDULED')
         onSubStatusChange(null)
+        setLocalVisitStageLock(true)
         resetVisitForm()
         refreshLeadVisits()
         onFollowupRefresh?.()
@@ -588,12 +596,8 @@ export function LeadActionsPanel({
       setVisitTeamError('Please provide a visit location.')
       return
     }
-    if (!visitProjectSqft.trim() || Number(visitProjectSqft) <= 0) {
-      setVisitTeamError('Please provide project sqft.')
-      return
-    }
-    if (!visitProjectStatus) {
-      setVisitTeamError('Please select project status.')
+    if (visitProjectSqft.trim() && Number(visitProjectSqft) <= 0) {
+      setVisitTeamError('Project sqft must be greater than 0.')
       return
     }
 
@@ -610,8 +614,8 @@ export function LeadActionsPanel({
           visitTeamUserId,
           scheduledAt: scheduledIso,
           location: visitLocation.trim(),
-          projectSqft: Number(visitProjectSqft),
-          projectStatus: visitProjectStatus,
+          projectSqft: visitProjectSqft.trim() ? Number(visitProjectSqft) : undefined,
+          projectStatus: visitProjectStatus || undefined,
           notes: visitNotes.trim() || undefined,
           reason: visitReason.trim() || undefined,
         }),
@@ -672,6 +676,7 @@ export function LeadActionsPanel({
       resetVisitForm()
       onStageChange('VISIT_SCHEDULED')
       onSubStatusChange(null)
+      setLocalVisitStageLock(true)
       refreshLeadVisits()
       onFollowupRefresh?.()
       onLeadRefresh?.()
@@ -949,7 +954,7 @@ export function LeadActionsPanel({
               <SelectItem value="VISIT_SCHEDULED">
                 Visit Scheduled
               </SelectItem>
-              <SelectItem value="VISIT_COMPLETED">
+              <SelectItem value="VISIT_COMPLETED" disabled={!canSetVisitCompletedStage}>
                 Visit Completed
               </SelectItem>
               <SelectItem value="CLOSED">
@@ -1106,7 +1111,7 @@ export function LeadActionsPanel({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Project Sqft</Label>
+                      <Label>Project Sqft (optional)</Label>
                       <Input
                         type="number"
                         min="1"
@@ -1117,7 +1122,7 @@ export function LeadActionsPanel({
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Project Status</Label>
+                      <Label>Project Status (optional)</Label>
                       <Select value={visitProjectStatus} onValueChange={setVisitProjectStatus}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select project status" />
@@ -1598,7 +1603,7 @@ export function LeadActionsPanel({
             </div>
 
             <div className="space-y-2">
-              <Label>Project Sqft</Label>
+              <Label>Project Sqft (optional)</Label>
               <Input
                 type="number"
                 min="1"
@@ -1609,7 +1614,7 @@ export function LeadActionsPanel({
             </div>
 
             <div className="space-y-2">
-              <Label>Project Status</Label>
+              <Label>Project Status (optional)</Label>
               <Select value={visitProjectStatus} onValueChange={setVisitProjectStatus}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select project status" />

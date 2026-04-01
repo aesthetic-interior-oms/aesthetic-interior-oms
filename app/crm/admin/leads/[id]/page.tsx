@@ -742,6 +742,7 @@ export default function LeadDetailPage() {
             assignmentsLoading={assignmentsLoading}
             canManageAssignments={canManageAssignments}
             canManageVisitRequests={canManageVisitRequests}
+            canSetVisitCompletedStage={true}
             stage={stage}
             originalStage={lead.stage}
             subStatus={subStatus}

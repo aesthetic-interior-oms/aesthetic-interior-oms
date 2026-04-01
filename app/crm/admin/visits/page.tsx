@@ -2,11 +2,10 @@
 
 import { VisitsPageView } from '@/app/crm/jr/visits/page'
 
-export default function VisitTeamVisitsPage() {
+export default function AdminVisitsPage() {
   return (
     <VisitsPageView
-      forceAssignedOnly
-      leadHrefPrefix="/visit-team/leads"
+      leadHrefPrefix="/crm/admin/leads"
       restrictToCreator={false}
     />
   )

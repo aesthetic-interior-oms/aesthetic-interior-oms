@@ -55,6 +55,12 @@ function toProjectStatus(value: unknown): ProjectStatus | null {
     : null;
 }
 
+function hasValue(value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string') return value.trim().length > 0;
+  return true;
+}
+
 async function ensureVisitTeamUser(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -150,10 +156,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (body.status !== undefined && !statusInput) {
       return NextResponse.json({ success: false, error: 'Invalid visit status' }, { status: 400 });
     }
-    if (body.projectSqft !== undefined && (projectSqft === null || projectSqft <= 0)) {
+    if (hasValue(body.projectSqft) && (projectSqft === null || projectSqft <= 0)) {
       return NextResponse.json({ success: false, error: 'projectSqft must be greater than 0' }, { status: 400 });
     }
-    if (body.projectStatus !== undefined && !projectStatus) {
+    if (hasValue(body.projectStatus) && !projectStatus) {
       return NextResponse.json(
         { success: false, error: 'projectStatus must be UNDER_CONSTRUCTION or READY' },
         { status: 400 },
