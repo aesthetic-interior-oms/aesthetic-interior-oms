@@ -93,7 +93,16 @@ export async function GET() {
     }
 
     const needsOnboarding = user.userDepartments.length === 0;
-    const response = NextResponse.json({ ...user, needsOnboarding });
+    const hasAdminDepartment = user.userDepartments.some(
+      (row) => row.department.name === "ADMIN",
+    );
+    const requiresAdminApproval = needsOnboarding && !hasAdminDepartment;
+    const response = NextResponse.json({
+      ...user,
+      needsOnboarding,
+      canSelfAssignDepartment: hasAdminDepartment,
+      requiresAdminApproval,
+    });
     const totalDurationMs = performance.now() - requestStart;
     response.headers.set(
       "Server-Timing",
@@ -147,7 +156,16 @@ export async function PATCH(req: Request) {
       debugLog(`[PATCH /me] [TX] Finding user in database...`);
       const user = await tx.user.findUnique({
         where: { clerkUserId: userId },
-        select: { id: true },
+        select: {
+          id: true,
+          userDepartments: {
+            select: {
+              department: {
+                select: { name: true },
+              },
+            },
+          },
+        },
       });
 
       if (!user) {
@@ -156,6 +174,13 @@ export async function PATCH(req: Request) {
       }
 
       debugLog(`[PATCH /me] [TX] Found user: ${user.id}`);
+
+      const hasAdminDepartment = user.userDepartments.some(
+        (row) => row.department.name === "ADMIN",
+      );
+      if (!hasAdminDepartment) {
+        throw new Error("ADMIN_APPROVAL_REQUIRED");
+      }
 
       debugLog(`[PATCH /me] [TX] Checking if department exists...`);
       const department = await tx.department.findUnique({
@@ -214,6 +239,12 @@ export async function PATCH(req: Request) {
     if (message.includes("DEPARTMENT_NOT_FOUND")) {
       debugLog(`[PATCH /me] Returning 404 - Department not found`);
       return NextResponse.json({ error: "Department not found" }, { status: 404 });
+    }
+    if (message.includes("ADMIN_APPROVAL_REQUIRED")) {
+      return NextResponse.json(
+        { error: "Account setup requires admin approval. Please contact an administrator." },
+        { status: 403 },
+      );
     }
     debugLog(`[PATCH /me] ========== REQUEST ERROR ==========`);
     return NextResponse.json({ error: "Failed to update user department", details: message }, { status: 500 });
