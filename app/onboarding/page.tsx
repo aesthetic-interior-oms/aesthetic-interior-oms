@@ -38,6 +38,8 @@ type MeResponse = {
   id: string;
   fullName?: string;
   needsOnboarding?: boolean;
+  canSelfAssignDepartment?: boolean;
+  requiresAdminApproval?: boolean;
   userDepartments?: Array<{ department: { id: string; name: string } }>;
   clerkDepartment?: { id: string | null; name: string | null };
 };
@@ -53,6 +55,7 @@ export default function OnboardingPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [requiresAdminApproval, setRequiresAdminApproval] = useState(false);
   
   // console.log('[OnboardingPage] State:', { loading, saving, departmentsCount: departments.length, selectedDepartmentId });
 
@@ -101,11 +104,17 @@ export default function OnboardingPage() {
         const me = (await meRes.json()) as MeResponse;
         const existingDepartmentName =
           me.userDepartments?.[0]?.department?.name ?? me.clerkDepartment?.name ?? null;
+        setRequiresAdminApproval(Boolean(me.requiresAdminApproval));
         // console.log('[OnboardingPage] existingDepartmentName:', existingDepartmentName);
 
         if (me.needsOnboarding === false && existingDepartmentName) {
           // console.log('[OnboardingPage] User already has department assigned, redirecting to:', resolveRedirect(existingDepartmentName));
           router.replace(resolveRedirect(existingDepartmentName));
+          return;
+        }
+
+        if (me.requiresAdminApproval) {
+          setDepartments([]);
           return;
         }
 
@@ -145,6 +154,11 @@ export default function OnboardingPage() {
     if (!selectedDepartmentId) {
       console.error('[OnboardingPage] No department selected');
       setError("Please select a department to continue.");
+      return;
+    }
+
+    if (requiresAdminApproval) {
+      setError("Account setup requires admin approval. Please contact an administrator.");
       return;
     }
 
@@ -236,54 +250,73 @@ export default function OnboardingPage() {
         <CardHeader>
           <CardTitle>Welcome{user?.firstName ? `, ${user.firstName}` : ""}</CardTitle>
           <CardDescription>
-            Choose the department you work with so we can personalize your workspace.
+            {requiresAdminApproval
+              ? "Your account is created. Please wait for admin approval to continue."
+              : "Choose the department you work with so we can personalize your workspace."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Department</Label>
-            <Select 
-              value={selectedDepartmentId} 
-              onValueChange={(value) => {
-                // console.log('[OnboardingPage] Department selected:', { value });
-                setSelectedDepartmentId(value);
-              }}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select your department" />
-              </SelectTrigger>
-              <SelectContent>
-                {departments.map((department) => (
-                  <SelectItem key={department.id} value={department.id}>
-                    {department.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {selectedDepartment?.description ? (
-              <p className="text-xs text-muted-foreground">{selectedDepartment.description}</p>
-            ) : null}
-          </div>
-
-          {departments.length === 0 ? (
+          {requiresAdminApproval ? (
             <p className="text-sm text-muted-foreground">
-              No departments are available yet. Please contact an administrator.
+              Ask an administrator to assign your role and department. You can sign in now, but
+              access will be enabled only after approval.
             </p>
-          ) : null}
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label>Department</Label>
+                <Select 
+                  value={selectedDepartmentId} 
+                  onValueChange={(value) => {
+                    // console.log('[OnboardingPage] Department selected:', { value });
+                    setSelectedDepartmentId(value);
+                  }}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select your department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((department) => (
+                      <SelectItem key={department.id} value={department.id}>
+                        {department.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedDepartment?.description ? (
+                  <p className="text-xs text-muted-foreground">{selectedDepartment.description}</p>
+                ) : null}
+              </div>
+
+              {departments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No departments are available yet. Please contact an administrator.
+                </p>
+              ) : null}
+            </>
+          )}
 
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </CardContent>
         <CardFooter className="flex flex-col gap-3">
-          <Button
-            className="w-full"
-            onClick={handleSubmit}
-            disabled={saving || !selectedDepartmentId || departments.length === 0}
-          >
-            {saving ? "Saving..." : "Continue"}
-          </Button>
-          <p className="text-xs text-muted-foreground text-center">
-            You can update your department later from settings.
-          </p>
+          {requiresAdminApproval ? (
+            <p className="text-xs text-muted-foreground text-center w-full">
+              Approval pending. Please contact admin.
+            </p>
+          ) : (
+            <>
+              <Button
+                className="w-full"
+                onClick={handleSubmit}
+                disabled={saving || !selectedDepartmentId || departments.length === 0}
+              >
+                {saving ? "Saving..." : "Continue"}
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                You can update your department later from settings.
+              </p>
+            </>
+          )}
         </CardFooter>
       </Card>
     </main>
