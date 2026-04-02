@@ -5,10 +5,21 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Plus, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, MapPin, Clock, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { fetchMeCached } from '@/lib/client-me'
+import { toast } from '@/components/ui/sonner'
 
 type VisitRecord = {
   id: string
@@ -63,16 +74,21 @@ const statusColors: Record<string, string> = {
   RESCHEDULED: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200',
 }
 
+const formatVisitStatus = (status: string) => (status === 'SCHEDULED' ? 'PENDING' : status)
+const calendarWeekLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
 type VisitsPageProps = {
   forceAssignedOnly?: boolean
   leadHrefPrefix?: string
   restrictToCreator?: boolean
+  allowCompleteVisit?: boolean
 }
 
 export function VisitsPageView({
   forceAssignedOnly = false,
   leadHrefPrefix = '/crm/jr/leads',
   restrictToCreator = true,
+  allowCompleteVisit = false,
 }: VisitsPageProps) {
   const [activeTab, setActiveTab] = useState('calendar')
   const [currentDate, setCurrentDate] = useState(() => new Date())
@@ -82,6 +98,15 @@ export function VisitsPageView({
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [completeOpen, setCompleteOpen] = useState(false)
+  const [completeVisitId, setCompleteVisitId] = useState('')
+  const [completeSummary, setCompleteSummary] = useState('')
+  const [completeClientMood, setCompleteClientMood] = useState('')
+  const [completeNote, setCompleteNote] = useState('')
+  const [completeProjectStatus, setCompleteProjectStatus] = useState('')
+  const [completeFiles, setCompleteFiles] = useState<File[]>([])
+  const [completeError, setCompleteError] = useState<string | null>(null)
+  const [submittingComplete, setSubmittingComplete] = useState(false)
 
   const formatLocalDateKey = (date: Date) => {
     const year = date.getFullYear()
@@ -229,12 +254,95 @@ export function VisitsPageView({
     return visitsByDate[dateStr] || []
   }
 
+  const mobileCalendarRows = useMemo(() => {
+    return Array.from({ length: daysInMonth }, (_, index) => {
+      const day = index + 1
+      const dateString = getDateString(day)
+      const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+      const dayLabel = calendarWeekLabels[dateObj.getDay()]
+      return {
+        day,
+        dateString,
+        dayLabel,
+        visits: visitsByDate[dateString] || [],
+      }
+    })
+  }, [currentDate, daysInMonth, visitsByDate])
+
   const canViewVisit = (visit: VisitRecord) => {
     if (forceAssignedOnly) return true
     if (!restrictToCreator) return true
     const creatorId = visit.createdBy?.id
     if (!currentUserId || !creatorId) return true
     return creatorId === currentUserId
+  }
+
+  const openCompleteDialog = (visitId: string) => {
+    setCompleteVisitId(visitId)
+    setCompleteSummary('')
+    setCompleteClientMood('')
+    setCompleteNote('')
+    setCompleteProjectStatus('')
+    setCompleteFiles([])
+    setCompleteError(null)
+    setCompleteOpen(true)
+  }
+
+  const submitCompleteVisit = async () => {
+    if (!completeVisitId) return
+    if (!completeSummary.trim()) {
+      setCompleteError('Summary is required.')
+      return
+    }
+
+    setSubmittingComplete(true)
+    setCompleteError(null)
+    try {
+      const formData = new FormData()
+      formData.append('summary', completeSummary.trim())
+      if (completeClientMood.trim()) formData.append('clientMood', completeClientMood.trim())
+      if (completeNote.trim()) formData.append('note', completeNote.trim())
+      if (completeProjectStatus) formData.append('projectStatus', completeProjectStatus)
+      completeFiles.forEach((file) => {
+        formData.append('files', file)
+      })
+
+      const res = await fetch(`/api/visit-schedule/${completeVisitId}/result`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to complete visit')
+      }
+
+      visitsCache = null
+      setCompleteOpen(false)
+      setCompleteVisitId('')
+      setCompleteSummary('')
+      setCompleteClientMood('')
+      setCompleteNote('')
+      setCompleteProjectStatus('')
+      setCompleteFiles([])
+      toast.success('Visit marked as completed.')
+
+      setLoading(true)
+      const response = await fetch('/api/visit-schedule')
+      const freshPayload = (await response.json()) as ApiResponse
+      if (!response.ok || !freshPayload.success) {
+        throw new Error(freshPayload?.error || 'Failed to refresh visits')
+      }
+      visitsCache = { data: freshPayload.data ?? [], savedAt: Date.now() }
+      setVisits(freshPayload.data ?? [])
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to complete visit'
+      setCompleteError(message)
+      toast.error(message)
+    } finally {
+      setSubmittingComplete(false)
+      setLoading(false)
+    }
   }
 
   const VisitCard = ({ visit }: { visit: VisitRecord }) => {
@@ -285,16 +393,23 @@ export function VisitsPageView({
                 ) : null}
                 {visit.notes && <p className="text-xs text-muted-foreground italic mt-2">{visit.notes}</p>}
                 <div className="pt-1">
-                  <Button size="sm" variant="outline" asChild>
-                    <Link href={leadHref}>Open Lead Details</Link>
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" asChild>
+                      <Link href={leadHref}>Open Lead Details</Link>
+                    </Button>
+                    {allowCompleteVisit && visit.status !== 'COMPLETED' && (
+                      <Button size="sm" variant="outline" onClick={() => openCompleteDialog(visit.id)}>
+                        Complete Visit
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
             <span
               className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${statusColors[visit.status]}`}
             >
-              {visit.status}
+              {formatVisitStatus(visit.status)}
             </span>
           </div>
         </CardContent>
@@ -328,9 +443,8 @@ export function VisitsPageView({
         </TabsList>
 
         <TabsContent value="calendar" className="mt-6">
-          <div className="grid grid-cols-3 gap-6">
-            {/* Calendar */}
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle>{monthYear}</CardTitle>
@@ -344,8 +458,8 @@ export function VisitsPageView({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-7 gap-2">
-                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                  <div className="hidden sm:grid grid-cols-7 gap-2">
+                    {calendarWeekLabels.map((day) => (
                       <div key={day} className="text-center font-semibold text-muted-foreground text-sm py-2">
                         {day}
                       </div>
@@ -387,12 +501,90 @@ export function VisitsPageView({
                           )
                         })}
                   </div>
+
+                  <div className="space-y-2 sm:hidden">
+                    {loading
+                      ? Array.from({ length: 6 }).map((_, idx) => (
+                          <div key={idx} className="h-20 rounded-lg border bg-muted/60 animate-pulse" />
+                        ))
+                      : mobileCalendarRows.map((row) => {
+                          const isSelected = selectedDate === row.dateString
+                          return (
+                            <div
+                              key={row.dateString}
+                              className={`w-full rounded-lg border p-3 transition ${
+                                isSelected
+                                  ? 'border-primary bg-primary/5'
+                                  : row.visits.length > 0
+                                    ? 'border-blue-300 bg-blue-50/70 dark:bg-blue-900/20'
+                                    : 'border-border bg-card'
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => setSelectedDate(row.dateString)}
+                                className="w-full text-left"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-xs text-muted-foreground">{row.dayLabel}</p>
+                                    <p className="text-sm font-semibold text-foreground">
+                                      {monthYear.split(' ')[0]} {row.day}
+                                    </p>
+                                  </div>
+                                  <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+                                    {row.visits.length}
+                                  </span>
+                                </div>
+                              </button>
+
+                              {row.visits.length > 0 ? (
+                                <div className="mt-2 space-y-2">
+                                  {row.visits.slice(0, 3).map((visit) => {
+                                    const isVisible = canViewVisit(visit)
+                                    return (
+                                      <div
+                                        key={visit.id}
+                                        className="rounded-md border border-border bg-card p-2 text-xs relative overflow-hidden"
+                                      >
+                                        {!isVisible ? (
+                                          <div className="absolute inset-0 z-10 flex items-center justify-center text-[10px] font-semibold text-muted-foreground bg-background/70">
+                                            Restricted
+                                          </div>
+                                        ) : null}
+                                        <div className={`space-y-1 ${!isVisible ? 'blur-xs pointer-events-none select-none' : ''}`}>
+                                          <p className="font-semibold text-foreground">{visit.lead?.name || 'Unknown Lead'}</p>
+                                          <p className="text-muted-foreground">
+                                            {new Date(visit.scheduledAt).toLocaleTimeString('en-US', {
+                                              hour: '2-digit',
+                                              minute: '2-digit',
+                                            })}
+                                          </p>
+                                          <div>
+                                            <Button size="sm" variant="outline" asChild className="h-6 px-2 text-[10px]">
+                                              <Link href={`${leadHrefPrefix}/${visit.lead.id}`}>Open Lead</Link>
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                  {row.visits.length > 3 ? (
+                                    <p className="text-[11px] text-muted-foreground font-medium">
+                                      +{row.visits.length - 3} more visit(s)
+                                    </p>
+                                  ) : null}
+                                </div>
+                              ) : null}
+                            </div>
+                          )
+                        })}
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Selected Day Details */}
-            <div>
+            <div className="hidden sm:block">
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">
@@ -451,8 +643,18 @@ export function VisitsPageView({
                                   statusColors[visit.status]
                                 }`}
                               >
-                                {visit.status}
+                                {formatVisitStatus(visit.status)}
                               </span>
+                              <div className="pt-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  asChild
+                                  className="h-7 px-2 text-[11px]"
+                                >
+                                  <Link href={`${leadHrefPrefix}/${visit.lead.id}`}>Open Lead</Link>
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         )
@@ -529,6 +731,84 @@ export function VisitsPageView({
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete Visit</DialogTitle>
+            <DialogDescription>
+              Submit visit outcome to mark this visit as completed and update lead stage automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Summary</Label>
+              <Textarea
+                value={completeSummary}
+                onChange={(event) => setCompleteSummary(event.target.value)}
+                rows={3}
+                placeholder="What happened during this visit?"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Client Mood (optional)</Label>
+              <Input
+                value={completeClientMood}
+                onChange={(event) => setCompleteClientMood(event.target.value)}
+                placeholder="Interested / Neutral / Not Interested"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Project Status (optional)</Label>
+              <select
+                value={completeProjectStatus}
+                onChange={(event) => setCompleteProjectStatus(event.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Select project status</option>
+                <option value="UNDER_CONSTRUCTION">UNDER_CONSTRUCTION</option>
+                <option value="READY">READY</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Note (optional)</Label>
+              <Textarea
+                value={completeNote}
+                onChange={(event) => setCompleteNote(event.target.value)}
+                rows={2}
+                placeholder="Add follow-up note if needed"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Attachments (optional)</Label>
+              <Input
+                type="file"
+                multiple
+                onChange={(event) => setCompleteFiles(Array.from(event.target.files ?? []))}
+              />
+              {completeFiles.length > 0 ? (
+                <p className="text-xs text-muted-foreground">{completeFiles.length} file(s) selected</p>
+              ) : null}
+            </div>
+            {completeError ? <p className="text-sm text-destructive">{completeError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCompleteOpen(false)}>
+              Close
+            </Button>
+            <Button onClick={submitCompleteVisit} disabled={submittingComplete}>
+              {submittingComplete ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Completing...
+                </>
+              ) : (
+                'Complete Visit'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       </main>
     </div>
   )

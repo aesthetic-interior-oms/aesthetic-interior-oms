@@ -71,14 +71,25 @@ const navigationGroups: Record<string, NavGroup[]> = {
       items: [{ icon: Settings, label: 'Settings', href: '/crm/admin/settings' }],
     },
   ],
+  'Visit Team': [
+    {
+      id: 'visit-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [{ icon: Home, label: 'Dashboard', href: '/visit-team/visit-dashboard' }],
+    },
+    {
+      id: 'visit-workflow',
+      label: 'Visits',
+      defaultOpen: true,
+      items: [
+        { icon: Calendar, label: 'Visits', href: '/visit-team/visits' },
+        { icon: Calendar, label: 'Visit Schedule', href: '/visit-team/visit-today' },
+        { icon: ListTodo, label: 'My Visits', href: '/visit-team/my-visits' },
+      ],
+    },
+  ],
 }
-
-const visitsNavItems = [
-  { icon: Home, label: 'Dashboard', href: '/visit-team/visit-dashboard' },
-  { icon: Calendar, label: 'Visits', href: '/visit-team/visits' },
-  { icon: Calendar, label: 'Visit Schedule', href: '/visit-team/visit-today' },
-  { icon: ListTodo, label: 'My Visits', href: '/visit-team/my-visits' },
-]
 
 export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
   const pathname = usePathname() || ''
@@ -95,7 +106,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
   const isVisits = pathname.startsWith('/visit-team')
 
   const groups = isVisits
-    ? []
+    ? navigationGroups['Visit Team']
     : navigationGroups[role as keyof typeof navigationGroups] || []
 
   useEffect(() => {
@@ -144,29 +155,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
         </div>
 
         <nav className="flex-1 px-2 py-4 space-y-2 overflow-y-auto">
-          {isVisits ? (
-            visitsNavItems.map((item) => {
-              const Icon = item.icon
-              const isActive =
-                pathname === item.href || pathname.startsWith(item.href + '/')
-              return (
-                <Link key={item.href} href={item.href}>
-                  <Button
-                    variant={isActive ? 'secondary' : 'ghost'}
-                    className={cn(
-                      'w-full justify-start gap-3',
-                      isActive &&
-                      'bg-primary text-primary-foreground hover:bg-primary/90'
-                    )}
-                  >
-                    <Icon className="w-5 h-5" />
-                    {item.label}
-                  </Button>
-                </Link>
-              )
-            })
-          ) : (
-            groups.map((group) => {
+          {groups.map((group) => {
               const isOpen = openGroups[group.id]
               return (
                 <div key={group.id} className="space-y-1">
@@ -217,8 +206,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
                   )}
                 </div>
               )
-            })
-          )}
+            })}
         </nav>
 
         {/* Footer – theme toggle only */}

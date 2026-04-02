@@ -12,6 +12,9 @@ const visitStatusConfig: Record<
   string,
   { className: string }
 > = {
+  Pending: {
+    className: "bg-primary/10 text-primary border-primary/20",
+  },
   Scheduled: {
     className: "bg-primary/10 text-primary border-primary/20",
   },
@@ -106,7 +109,9 @@ export function VisitScheduleCard() {
             minute: "2-digit",
           }),
           visitStatus:
-            visit.status.charAt(0) + visit.status.slice(1).toLowerCase(),
+            visit.status === "SCHEDULED"
+              ? "Pending"
+              : visit.status.charAt(0) + visit.status.slice(1).toLowerCase(),
         }
       }),
     [visits]

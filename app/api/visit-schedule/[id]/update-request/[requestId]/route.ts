@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import {
-  ActivityType,
-  VisitStatus,
-  VisitUpdateRequestStatus,
-  VisitUpdateRequestType,
-} from '@/generated/prisma/client'
+import { ActivityType, LeadStage, VisitStatus, VisitUpdateRequestStatus, VisitUpdateRequestType } from '@/generated/prisma/client'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { logActivity } from '@/lib/activity-log-service'
+import { logActivity, logLeadStageChanged } from '@/lib/activity-log-service'
 
 type RouteContext = {
   params:
@@ -79,11 +74,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (scheduledAtRaw && (!scheduledAt || Number.isNaN(scheduledAt.getTime()))) {
       return NextResponse.json({ success: false, error: 'scheduledAt must be a valid ISO datetime' }, { status: 400 })
     }
-
     const existing = await prisma.visitUpdateRequest.findUnique({
       where: { id: requestId },
       include: {
-        visit: { select: { id: true, leadId: true } },
+        visit: {
+          select: {
+            id: true,
+            leadId: true,
+            lead: {
+              select: {
+                stage: true,
+                subStatus: true,
+              },
+            },
+          },
+        },
       },
     })
     if (!existing || existing.visitId !== visitId) {
@@ -115,6 +120,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             where: { id: visitId },
             data: { status: VisitStatus.CANCELLED },
           })
+          if (existing.visit.lead.stage !== LeadStage.VISIT_CANCELLED) {
+            await tx.lead.update({
+              where: { id: existing.visit.leadId },
+              data: { stage: LeadStage.VISIT_CANCELLED, subStatus: null },
+            })
+            await logLeadStageChanged(tx, {
+              leadId: existing.visit.leadId,
+              userId: actorUserId,
+              from: existing.visit.lead.stage,
+              to: LeadStage.VISIT_CANCELLED,
+              reason: 'Visit cancel request approved',
+            })
+          }
         }
 
         if (existing.type === VisitUpdateRequestType.RESCHEDULE) {
@@ -129,6 +147,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
                   : {}),
             },
           })
+          if (existing.visit.lead.stage !== LeadStage.VISIT_RESCHEDULED) {
+            await tx.lead.update({
+              where: { id: existing.visit.leadId },
+              data: { stage: LeadStage.VISIT_RESCHEDULED, subStatus: null },
+            })
+            await logLeadStageChanged(tx, {
+              leadId: existing.visit.leadId,
+              userId: actorUserId,
+              from: existing.visit.lead.stage,
+              to: LeadStage.VISIT_RESCHEDULED,
+              reason: 'Visit reschedule request approved',
+            })
+          }
         }
       }
 

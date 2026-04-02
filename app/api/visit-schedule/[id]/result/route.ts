@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto'
 import { mkdir, writeFile } from 'fs/promises'
 import path from 'path'
 import { NextRequest, NextResponse } from 'next/server'
-import { ActivityType, LeadStage, Prisma } from '@/generated/prisma/client'
+import { ActivityType, LeadStage, ProjectStatus } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete'
@@ -28,6 +28,21 @@ function toOptionalString(value: unknown): string | null {
 
 function sanitizeFileName(fileName: string): string {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+}
+
+function getLeadAttachmentCategory(fileType: string): 'MEDIA' | 'FILE' {
+  if (fileType.startsWith('image/') || fileType.startsWith('video/')) {
+    return 'MEDIA'
+  }
+  return 'FILE'
+}
+
+function toProjectStatus(value: unknown): ProjectStatus | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim().toUpperCase()
+  return Object.values(ProjectStatus).includes(normalized as ProjectStatus)
+    ? (normalized as ProjectStatus)
+    : null
 }
 
 export async function GET(_request: NextRequest, context: RouteContext) {
@@ -96,23 +111,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const formData = await request.formData()
     const summary = toOptionalString(formData.get('summary'))
     const clientMood = toOptionalString(formData.get('clientMood'))
-    const measurementsRaw = toOptionalString(formData.get('measurements'))
+    const note = toOptionalString(formData.get('note'))
+    const projectStatus = toProjectStatus(formData.get('projectStatus'))
 
     if (!summary) {
       return NextResponse.json({ success: false, error: 'Summary is required' }, { status: 400 })
     }
-
-    let measurements: Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined
-    if (measurementsRaw) {
-      try {
-        const parsed = JSON.parse(measurementsRaw)
-        measurements = parsed === null ? Prisma.JsonNull : (parsed as Prisma.InputJsonValue)
-      } catch {
-        return NextResponse.json(
-          { success: false, error: 'measurements must be valid JSON' },
-          { status: 400 },
-        )
-      }
+    if (formData.get('projectStatus') !== null && !projectStatus) {
+      return NextResponse.json(
+        { success: false, error: 'projectStatus must be UNDER_CONSTRUCTION or READY' },
+        { status: 400 },
+      )
     }
 
     const files = formData
@@ -152,9 +161,26 @@ export async function POST(request: NextRequest, context: RouteContext) {
           visitId,
           summary,
           clientMood,
-          ...(measurements !== undefined ? { measurements } : {}),
         },
       })
+
+      await tx.visit.update({
+        where: { id: visit.id },
+        data: {
+          status: 'COMPLETED',
+          ...(projectStatus ? { projectStatus } : {}),
+        },
+      })
+
+      if (note) {
+        await tx.note.create({
+          data: {
+            leadId: visit.leadId,
+            userId: authResult.actorUserId,
+            content: note,
+          },
+        })
+      }
 
       if (files.length > 0) {
         const relativeDir = path.join('uploads', 'visit-results', visitId)
@@ -177,13 +203,19 @@ export async function POST(request: NextRequest, context: RouteContext) {
               fileType: file.type || 'application/octet-stream',
             },
           })
+
+          await tx.leadAttachment.create({
+            data: {
+              leadId: visit.leadId,
+              url: `/${relativeDir}/${storedFileName}`.replace(/\\/g, '/'),
+              fileName: file.name || safeName,
+              fileType: file.type || 'application/octet-stream',
+              category: getLeadAttachmentCategory(file.type || 'application/octet-stream'),
+              sizeBytes: file.size,
+            },
+          })
         }
       }
-
-      await tx.visit.update({
-        where: { id: visit.id },
-        data: { status: 'COMPLETED' },
-      })
 
       if (visit.lead.stage !== LeadStage.VISIT_COMPLETED) {
         await tx.lead.update({

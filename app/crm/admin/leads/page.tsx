@@ -43,8 +43,8 @@ import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { LeadDateRangeFilter, type LeadDatePreset } from '@/components/crm/shared/lead-date-range-filter'
 
 const PAGE_SIZE = 20
-const stages = ['NEW', 'NUMBER_COLLECTED', 'CONTACT_ATTEMPTED', 'NURTURING', 'VISIT_SCHEDULED', 'VISIT_COMPLETED', 'CLOSED']
-const stageGridStages = ['NUMBER_COLLECTED', 'CONTACT_ATTEMPTED', 'NURTURING', 'VISIT_SCHEDULED', 'VISIT_COMPLETED', 'CLOSED']
+const stages = ['NEW', 'NUMBER_COLLECTED', 'CONTACT_ATTEMPTED', 'NURTURING', 'VISIT_SCHEDULED', 'VISIT_RESCHEDULED', 'VISIT_COMPLETED', 'VISIT_CANCELLED', 'CLOSED']
+const stageGridStages = ['NUMBER_COLLECTED', 'CONTACT_ATTEMPTED', 'NURTURING', 'VISIT_SCHEDULED', 'VISIT_RESCHEDULED', 'VISIT_COMPLETED', 'VISIT_CANCELLED', 'CLOSED']
 
 type ViewMode = 'list' | 'card'
 
@@ -54,7 +54,9 @@ const stageColors: Record<string, string> = {
   CONTACT_ATTEMPTED: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200',
   NURTURING: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-200',
   VISIT_SCHEDULED: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200',
+  VISIT_RESCHEDULED: 'bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900/40 dark:text-fuchsia-200',
   VISIT_COMPLETED: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200',
+  VISIT_CANCELLED: 'bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200',
   CLOSED: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200',
 }
 
@@ -64,7 +66,9 @@ const stageStatConfig: Record<string, { icon: typeof CircleDot; tint: string }> 
   CONTACT_ATTEMPTED: { icon: Handshake, tint: 'text-blue-700 bg-blue-100 dark:bg-blue-900/40 dark:text-blue-200' },
   NURTURING: { icon: Sprout, tint: 'text-yellow-700 bg-yellow-100 dark:bg-yellow-900/40 dark:text-yellow-200' },
   VISIT_SCHEDULED: { icon: CalendarCheck, tint: 'text-purple-700 bg-purple-100 dark:bg-purple-900/40 dark:text-purple-200' },
+  VISIT_RESCHEDULED: { icon: CalendarCheck, tint: 'text-fuchsia-700 bg-fuchsia-100 dark:bg-fuchsia-900/40 dark:text-fuchsia-200' },
   VISIT_COMPLETED: { icon: CheckCircle2, tint: 'text-indigo-700 bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-200' },
+  VISIT_CANCELLED: { icon: Archive, tint: 'text-rose-700 bg-rose-100 dark:bg-rose-900/40 dark:text-rose-200' },
   CLOSED: { icon: Archive, tint: 'text-green-700 bg-green-100 dark:bg-green-900/40 dark:text-green-200' },
 }
 
