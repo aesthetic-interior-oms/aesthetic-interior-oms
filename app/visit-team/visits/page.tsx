@@ -8,6 +8,7 @@ export default function VisitTeamVisitsPage() {
       forceAssignedOnly
       leadHrefPrefix="/visit-team/leads"
       restrictToCreator={false}
+      allowCompleteVisit
     />
   )
 }

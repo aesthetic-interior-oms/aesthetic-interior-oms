@@ -22,6 +22,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { User, TrendingUp, Plus, Mail, MessageCircle } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 
@@ -195,11 +196,19 @@ export function LeadActionsPanel({
   const [leadVisits, setLeadVisits] = useState<LeadVisitRecord[]>([])
   const [leadVisitsLoading, setLeadVisitsLoading] = useState(false)
   const [resolvingVisitRequestId, setResolvingVisitRequestId] = useState<string | null>(null)
+  const [resolveRequestOpen, setResolveRequestOpen] = useState(false)
+  const [resolveVisitId, setResolveVisitId] = useState('')
+  const [resolveRequestId, setResolveRequestId] = useState('')
+  const [resolveRequestType, setResolveRequestType] = useState<'RESCHEDULE' | 'CANCEL' | ''>('')
+  const [resolveScheduledAt, setResolveScheduledAt] = useState('')
+  const [resolveReason, setResolveReason] = useState('')
+  const [resolveError, setResolveError] = useState<string | null>(null)
   const [visitResultOpen, setVisitResultOpen] = useState(false)
   const [visitResultVisitId, setVisitResultVisitId] = useState('')
   const [visitResultSummary, setVisitResultSummary] = useState('')
   const [visitResultClientMood, setVisitResultClientMood] = useState('')
-  const [visitResultMeasurements, setVisitResultMeasurements] = useState('')
+  const [visitResultProjectStatus, setVisitResultProjectStatus] = useState('')
+  const [visitResultNote, setVisitResultNote] = useState('')
   const [visitResultFiles, setVisitResultFiles] = useState<File[]>([])
   const [visitResultError, setVisitResultError] = useState<string | null>(null)
   const [submittingVisitResult, setSubmittingVisitResult] = useState(false)
@@ -214,6 +223,8 @@ export function LeadActionsPanel({
       CONTACT_ATTEMPTED: ['NO_ANSWER'],
       NURTURING: ['WARM_LEAD', 'FUTURE_CLIENT'],
       VISIT_SCHEDULED: [],
+      VISIT_RESCHEDULED: [],
+      VISIT_CANCELLED: [],
       CLOSED: ['SMALL_BUDGET', 'INVALID', 'NOT_INTERESTED', 'LOST', 'DEAD_LEAD'],
     }),
     [],
@@ -227,8 +238,10 @@ export function LeadActionsPanel({
     CONTACT_ATTEMPTED: 2,
     NURTURING: 3,
     VISIT_SCHEDULED: 4,
-    VISIT_COMPLETED: 5,
-    CLOSED: 6,
+    VISIT_RESCHEDULED: 5,
+    VISIT_COMPLETED: 6,
+    VISIT_CANCELLED: 7,
+    CLOSED: 8,
   }
   const originalStageRank = stageOrder[originalStage] ?? -1
   const selectedStageRank = stageOrder[stage] ?? -1
@@ -257,6 +270,19 @@ export function LeadActionsPanel({
     hasStageChanged &&
     !stageLockedAfterVisitScheduled
 
+
+  const getVisitStatusLabel = (value: string) => {
+    if (value === 'SCHEDULED') return 'PENDING'
+    return value
+  }
+
+  useEffect(() => {
+    const latestOriginalStageRank = stageOrder[originalStage] ?? -1
+    if (latestOriginalStageRank < stageOrder.VISIT_SCHEDULED) {
+      setLocalVisitStageLock(false)
+    }
+  }, [originalStage])
+
   const validDepartments = [
     'ADMIN',
     'SR_CRM',
@@ -274,7 +300,9 @@ export function LeadActionsPanel({
     CONTACT_ATTEMPTED: 'Contact has been attempted.',
     NURTURING: 'Lead has been moved to nurturing for follow-up.',
     VISIT_SCHEDULED: 'Visit has been scheduled.',
+    VISIT_RESCHEDULED: 'Visit has been rescheduled.',
     VISIT_COMPLETED: 'Visit has been completed.',
+    VISIT_CANCELLED: 'Visit has been cancelled.',
     CLOSED: 'Lead has been closed.',
   }
   const defaultStageReason =
@@ -356,30 +384,113 @@ export function LeadActionsPanel({
     setVisitResultVisitId('')
     setVisitResultSummary('')
     setVisitResultClientMood('')
-    setVisitResultMeasurements('')
+    setVisitResultProjectStatus('')
+    setVisitResultNote('')
     setVisitResultFiles([])
     setVisitResultError(null)
   }, [])
 
-  const handleResolveVisitRequest = async (
-    visitId: string,
-    requestId: string,
-    action: 'APPROVE' | 'REJECT',
-  ) => {
+  const handleRejectVisitRequest = async (visitId: string, requestId: string) => {
     setResolvingVisitRequestId(requestId)
     try {
       const res = await fetch(`/api/visit-schedule/${visitId}/update-request/${requestId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action: 'REJECT' }),
       })
       const payload = await res.json()
       if (!res.ok || !payload.success) {
         throw new Error(payload.error || 'Failed to resolve request')
       }
       refreshLeadVisits()
+      onLeadRefresh?.()
+      toast.success('Visit update request rejected.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to resolve request'
+      toast.error(message)
+    } finally {
+      setResolvingVisitRequestId(null)
+    }
+  }
+
+  const openResolveRequestDialog = (
+    visitId: string,
+    requestId: string,
+    requestType: 'RESCHEDULE' | 'CANCEL',
+    requestedScheduleAt?: string | null,
+  ) => {
+    setResolveError(null)
+    setResolveVisitId(visitId)
+    setResolveRequestId(requestId)
+    setResolveRequestType(requestType)
+    setResolveReason('')
+    if (requestType === 'RESCHEDULE') {
+      if (requestedScheduleAt) {
+        const d = new Date(requestedScheduleAt)
+        if (!Number.isNaN(d.getTime())) {
+          const yyyy = d.getFullYear()
+          const mm = String(d.getMonth() + 1).padStart(2, '0')
+          const dd = String(d.getDate()).padStart(2, '0')
+          const hh = String(d.getHours()).padStart(2, '0')
+          const min = String(d.getMinutes()).padStart(2, '0')
+          setResolveScheduledAt(`${yyyy}-${mm}-${dd}T${hh}:${min}`)
+        } else {
+          setResolveScheduledAt('')
+        }
+      } else {
+        setResolveScheduledAt('')
+      }
+    } else {
+      setResolveScheduledAt('')
+    }
+    setResolveRequestOpen(true)
+  }
+
+  const handleApproveVisitRequest = async () => {
+    if (!resolveVisitId || !resolveRequestId || !resolveRequestType) {
+      setResolveError('Invalid request. Please try again.')
+      return
+    }
+    if (resolveRequestType === 'RESCHEDULE' && !resolveScheduledAt) {
+      setResolveError('Please provide reschedule date and time.')
+      return
+    }
+
+    setResolvingVisitRequestId(resolveRequestId)
+    setResolveError(null)
+    try {
+      const res = await fetch(
+        `/api/visit-schedule/${resolveVisitId}/update-request/${resolveRequestId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'APPROVE',
+            scheduledAt:
+              resolveRequestType === 'RESCHEDULE' && resolveScheduledAt
+                ? new Date(resolveScheduledAt).toISOString()
+                : undefined,
+            reason: resolveReason.trim() || undefined,
+          }),
+        },
+      )
+      const payload = await res.json()
+      if (!res.ok || !payload.success) {
+        throw new Error(payload.error || 'Failed to resolve request')
+      }
+
+      setResolveRequestOpen(false)
+      setResolveVisitId('')
+      setResolveRequestId('')
+      setResolveRequestType('')
+      setResolveScheduledAt('')
+      setResolveReason('')
+      refreshLeadVisits()
+      onLeadRefresh?.()
+      toast.success('Visit update request approved.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to resolve request'
+      setResolveError(message)
       toast.error(message)
     } finally {
       setResolvingVisitRequestId(null)
@@ -715,8 +826,11 @@ export function LeadActionsPanel({
       if (visitResultClientMood.trim()) {
         formData.append('clientMood', visitResultClientMood.trim())
       }
-      if (visitResultMeasurements.trim()) {
-        formData.append('measurements', visitResultMeasurements.trim())
+      if (visitResultProjectStatus) {
+        formData.append('projectStatus', visitResultProjectStatus)
+      }
+      if (visitResultNote.trim()) {
+        formData.append('note', visitResultNote.trim())
       }
       visitResultFiles.forEach((file) => {
         formData.append('files', file)
@@ -954,8 +1068,14 @@ export function LeadActionsPanel({
               <SelectItem value="VISIT_SCHEDULED">
                 Visit Scheduled
               </SelectItem>
+              <SelectItem value="VISIT_RESCHEDULED">
+                Visit Rescheduled
+              </SelectItem>
               <SelectItem value="VISIT_COMPLETED" disabled={!canSetVisitCompletedStage}>
                 Visit Completed
+              </SelectItem>
+              <SelectItem value="VISIT_CANCELLED">
+                Visit Cancelled
               </SelectItem>
               <SelectItem value="CLOSED">
                 Closed
@@ -1227,7 +1347,7 @@ export function LeadActionsPanel({
                   <div className="font-medium text-foreground">
                     {visit.assignedTo?.fullName ?? 'Unassigned'}
                   </div>
-                  <span className="text-xs text-muted-foreground">{visit.status}</span>
+                  <span className="text-xs text-muted-foreground">{getVisitStatusLabel(visit.status)}</span>
                 </div>
                 <div className="text-muted-foreground">
                   {new Date(visit.scheduledAt).toLocaleString('en-US', {
@@ -1276,7 +1396,12 @@ export function LeadActionsPanel({
                               variant="outline"
                               disabled={resolvingVisitRequestId === requestItem.id}
                               onClick={() =>
-                                handleResolveVisitRequest(visit.id, requestItem.id, 'APPROVE')
+                                openResolveRequestDialog(
+                                  visit.id,
+                                  requestItem.id,
+                                  requestItem.type === 'RESCHEDULE' ? 'RESCHEDULE' : 'CANCEL',
+                                  requestItem.requestedScheduleAt,
+                                )
                               }
                             >
                               Approve
@@ -1286,7 +1411,7 @@ export function LeadActionsPanel({
                               variant="outline"
                               disabled={resolvingVisitRequestId === requestItem.id}
                               onClick={() =>
-                                handleResolveVisitRequest(visit.id, requestItem.id, 'REJECT')
+                                handleRejectVisitRequest(visit.id, requestItem.id)
                               }
                             >
                               Reject
@@ -1304,7 +1429,7 @@ export function LeadActionsPanel({
                       <p className="text-xs text-muted-foreground">{visit.result.summary}</p>
                       {visit.result.clientMood ? (
                         <p className="text-xs text-muted-foreground">
-                          Client Mood: {visit.result.clientMood}
+                          Client Mood: {formatLabel(visit.result.clientMood)}
                         </p>
                       ) : null}
                       <p className="text-[11px] text-muted-foreground">
@@ -1448,6 +1573,62 @@ export function LeadActionsPanel({
         </CardContent>
       </Card>
 
+      <Dialog
+        open={resolveRequestOpen}
+        onOpenChange={(open) => {
+          setResolveRequestOpen(open)
+          if (!open) {
+            setResolveError(null)
+            setResolveVisitId('')
+            setResolveRequestId('')
+            setResolveRequestType('')
+            setResolveScheduledAt('')
+            setResolveReason('')
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Visit {resolveRequestType || 'Update'} Request</DialogTitle>
+            <DialogDescription>
+              Confirm this request. Lead stage and visit status will update automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {resolveRequestType === 'RESCHEDULE' ? (
+              <div className="space-y-2">
+                <Label>Rescheduled date & time</Label>
+                <Input
+                  type="datetime-local"
+                  value={resolveScheduledAt}
+                  onChange={(event) => setResolveScheduledAt(event.target.value)}
+                />
+              </div>
+            ) : null}
+
+            <div className="space-y-2">
+              <Label>Reason (optional)</Label>
+              <Textarea
+                value={resolveReason}
+                onChange={(event) => setResolveReason(event.target.value)}
+                rows={3}
+                placeholder="Add approval reason..."
+              />
+            </div>
+
+            {resolveError ? <p className="text-sm text-destructive">{resolveError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleApproveVisitRequest}
+              disabled={Boolean(resolvingVisitRequestId)}
+            >
+              {resolvingVisitRequestId ? 'Saving...' : 'Approve Request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={visitResultOpen} onOpenChange={handleVisitResultOpenChange}>
         <DialogContent>
           <DialogHeader>
@@ -1496,20 +1677,40 @@ export function LeadActionsPanel({
 
             <div className="space-y-2">
               <Label>Client mood (optional)</Label>
-              <Input
+              <Tabs
                 value={visitResultClientMood}
-                onChange={(event) => setVisitResultClientMood(event.target.value)}
-                placeholder="e.g. Positive, concerned, undecided"
-              />
+                onValueChange={setVisitResultClientMood}
+                className="w-full"
+              >
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="HAPPY">Happy</TabsTrigger>
+                  <TabsTrigger value="NEUTRAL">Neutral</TabsTrigger>
+                  <TabsTrigger value="CONCERNED">Concerned</TabsTrigger>
+                  <TabsTrigger value="UNSURE">Unsure</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
 
             <div className="space-y-2">
-              <Label>Measurements JSON (optional)</Label>
+              <Label>Project Status (optional)</Label>
+              <Select value={visitResultProjectStatus} onValueChange={setVisitResultProjectStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select project status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="UNDER_CONSTRUCTION">Under Construction</SelectItem>
+                  <SelectItem value="READY">Ready</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Note (optional)</Label>
               <Textarea
-                value={visitResultMeasurements}
-                onChange={(event) => setVisitResultMeasurements(event.target.value)}
+                value={visitResultNote}
+                onChange={(event) => setVisitResultNote(event.target.value)}
                 rows={3}
-                placeholder='{"roomWidth": 12.5, "roomLength": 18}'
+                placeholder="Add note for the lead timeline..."
               />
             </div>
 

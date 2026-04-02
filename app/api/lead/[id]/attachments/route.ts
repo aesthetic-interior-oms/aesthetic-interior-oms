@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { put } from '@vercel/blob'
+import { head, put } from '@vercel/blob'
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
@@ -28,6 +28,19 @@ function getCategory(fileType: string): 'MEDIA' | 'FILE' {
   return 'FILE'
 }
 
+async function resolveAttachmentReadUrl(url: string): Promise<string> {
+  if (!url.includes('.private.blob.vercel-storage.com')) {
+    return url
+  }
+
+  try {
+    const blobMeta = await head(url)
+    return blobMeta.downloadUrl || url
+  } catch {
+    return url
+  }
+}
+
 export async function GET(_request: NextRequest, context: RouteContext) {
   const leadId = await resolveLeadId(context)
 
@@ -41,10 +54,17 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       orderBy: { createdAt: 'desc' },
     })
 
+    const withReadableUrls = await Promise.all(
+      attachments.map(async (item) => ({
+        ...item,
+        url: await resolveAttachmentReadUrl(item.url),
+      })),
+    )
+
     return NextResponse.json({
       success: true,
-      data: attachments,
-      count: attachments.length,
+      data: withReadableUrls,
+      count: withReadableUrls.length,
     })
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021') {
@@ -104,7 +124,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const attachment = await prisma.leadAttachment.create({
       data: {
         leadId,
-        url: blob.url,
+        // Store a browser-openable URL for private blobs.
+        url: blob.downloadUrl || blob.url,
         fileName: fileEntry.name || safeName,
         fileType,
         category: getCategory(fileType),

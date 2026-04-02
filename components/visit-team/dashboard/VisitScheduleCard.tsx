@@ -1,8 +1,9 @@
-'use client'
+"use client"
 
-import { generateDummyVisits } from '@/lib/dashboardData'
-import { motion } from 'framer-motion'
-import { MapPin, Clock, User } from 'lucide-react'
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { generateDummyVisits } from "@/lib/dashboardData"
+import { Clock, MapPin, User } from "lucide-react"
 
 export function VisitScheduleCard() {
   const visits = generateDummyVisits().sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime()).slice(0, 7)
@@ -23,51 +24,46 @@ export function VisitScheduleCard() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5, delay: 0.5 }}
-      className="rounded-lg border border-border bg-card p-6"
-    >
-      <h3 className="text-lg font-semibold text-foreground mb-4">Upcoming Visits (7 Days)</h3>
-      <div className="space-y-3 max-h-96 overflow-y-auto">
-        {visits.map((visit, index) => (
-          <motion.div
-            key={visit.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="flex items-start gap-4 p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors"
-          >
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium text-foreground truncate">{visit.leadName}</h4>
-                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadgeColor(visit.status)}`}>
-                  {visit.status.replace(/_/g, ' ')}
-                </span>
-              </div>
-
-              <div className="space-y-1.5 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 flex-shrink-0" />
-                  <span className="truncate">{visit.location}</span>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base text-card-foreground">Visit Schedule</CardTitle>
+        <p className="text-xs text-muted-foreground">Upcoming site visits</p>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3 max-h-96 overflow-y-auto">
+          {visits.map((visit) => (
+            <div
+              key={visit.id}
+              className="flex items-start gap-3 rounded-lg border border-border bg-card p-3 transition-colors hover:bg-secondary/50"
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="truncate text-sm font-medium text-card-foreground">{visit.leadName}</h4>
+                  <Badge variant="outline" className={`text-[10px] ${getStatusBadgeColor(visit.status)}`}>
+                    {visit.status.replace(/_/g, ' ')}
+                  </Badge>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 flex-shrink-0" />
-                  <span>
-                    {visit.scheduledAt.toLocaleDateString()} at{' '}
+
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="size-3" />
+                    {visit.location}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <Clock className="size-3" />
+                    {visit.scheduledAt.toLocaleDateString()}{" "}
                     {visit.scheduledAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 flex-shrink-0" />
-                  <span>{visit.teamMember}</span>
-                </div>
+                <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <User className="size-3" />
+                  {visit.teamMember}
+                </p>
               </div>
             </div>
-          </motion.div>
-        ))}
-      </div>
-    </motion.div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

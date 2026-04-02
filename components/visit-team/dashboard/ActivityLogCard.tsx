@@ -1,8 +1,8 @@
-'use client'
+"use client"
 
-import { generateActivityLogs } from '@/lib/dashboardData'
-import { motion } from 'framer-motion'
-import { CheckCircle, Clock, XCircle, AlertCircle, UserPlus } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { generateActivityLogs } from "@/lib/dashboardData"
+import { AlertCircle, CheckCircle, Clock, UserPlus, XCircle } from "lucide-react"
 
 export function ActivityLogCard() {
   const activities = generateActivityLogs()
@@ -38,36 +38,34 @@ export function ActivityLogCard() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5, delay: 0.6 }}
-      className="rounded-lg border border-border bg-card p-6"
-    >
-      <h3 className="text-lg font-semibold text-foreground mb-4">Activity Log</h3>
-      <div className="space-y-3 max-h-96 overflow-y-auto">
-        {activities.map((activity, index) => (
-          <motion.div
-            key={activity.id}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className={`flex items-start gap-4 p-3 rounded-lg border border-border/50 ${getActivityColor(activity.action)}`}
-          >
-            <div className="flex-shrink-0 pt-0.5">{getActivityIcon(activity.action)}</div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-1">
-                <p className="font-medium text-foreground">{activity.action.replace(/_/g, ' ')}</p>
-                <span className="text-xs text-muted-foreground">
-                  {activity.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                </span>
+    <Card className="h-full">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base text-card-foreground">Activity Timeline</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3 max-h-96 overflow-y-auto">
+          {activities.map((activity) => (
+            <div
+              key={activity.id}
+              className={`flex items-start gap-3 rounded-lg border border-border p-3 ${getActivityColor(activity.action)}`}
+            >
+              <div className="shrink-0 pt-0.5">{getActivityIcon(activity.action)}</div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="truncate text-sm font-medium text-card-foreground">
+                    {activity.action.replace(/_/g, " ")}
+                  </p>
+                  <span className="text-xs text-muted-foreground">
+                    {activity.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">{activity.description}</p>
+                <p className="mt-1 text-xs text-muted-foreground">by {activity.performedBy}</p>
               </div>
-              <p className="text-sm text-muted-foreground">{activity.description}</p>
-              <p className="text-xs text-muted-foreground mt-1">by {activity.performedBy}</p>
             </div>
-          </motion.div>
-        ))}
-      </div>
-    </motion.div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   )
 }

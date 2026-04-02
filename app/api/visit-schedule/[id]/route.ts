@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { ActivityType, LeadAssignmentDepartment, ProjectStatus, VisitStatus } from '@/generated/prisma/client';
+import { ActivityType, LeadAssignmentDepartment, LeadStage, ProjectStatus, VisitStatus } from '@/generated/prisma/client';
 import { requireDatabaseRoles } from '@/lib/authz';
-import { logActivity } from '@/lib/activity-log-service';
+import { logActivity, logLeadStageChanged } from '@/lib/activity-log-service';
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
@@ -89,6 +89,14 @@ async function ensureVisitTeamUser(userId: string) {
   return { ok: true as const, user };
 }
 
+function leadStageFromVisitStatus(status: VisitStatus): LeadStage | null {
+  if (status === VisitStatus.SCHEDULED) return LeadStage.VISIT_SCHEDULED;
+  if (status === VisitStatus.COMPLETED) return LeadStage.VISIT_COMPLETED;
+  if (status === VisitStatus.RESCHEDULED) return LeadStage.VISIT_RESCHEDULED;
+  if (status === VisitStatus.CANCELLED) return LeadStage.VISIT_CANCELLED;
+  return null;
+}
+
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
     const authResult = await requireDatabaseRoles([]);
@@ -156,6 +164,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (body.status !== undefined && !statusInput) {
       return NextResponse.json({ success: false, error: 'Invalid visit status' }, { status: 400 });
     }
+    if (statusInput === VisitStatus.RESCHEDULED && !parsedScheduledAt) {
+      return NextResponse.json(
+        { success: false, error: 'scheduledAt is required when rescheduling a visit' },
+        { status: 400 },
+      );
+    }
     if (hasValue(body.projectSqft) && (projectSqft === null || projectSqft <= 0)) {
       return NextResponse.json({ success: false, error: 'projectSqft must be greater than 0' }, { status: 400 });
     }
@@ -174,9 +188,40 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
-      const existing = await tx.visit.findUnique({ where: { id: visitId } });
+      const actor = await tx.user.findUnique({
+        where: { id: actorUserId },
+        select: {
+          userDepartments: {
+            select: {
+              department: { select: { name: true } },
+            },
+          },
+        },
+      });
+      const departmentNames = new Set((actor?.userDepartments ?? []).map((row) => row.department.name));
+      const isAdmin = departmentNames.has('ADMIN');
+      const isJuniorCrm = departmentNames.has('JR_CRM');
+      const isVisitTeam = departmentNames.has('VISIT_TEAM');
+      if (!isAdmin && !isJuniorCrm && !isVisitTeam) {
+        throw new Error('FORBIDDEN');
+      }
+
+      const existing = await tx.visit.findUnique({
+        where: { id: visitId },
+        include: {
+          lead: {
+            select: {
+              stage: true,
+            },
+          },
+        },
+      });
       if (!existing) {
         throw new Error('NOT_FOUND');
+      }
+
+      if (isVisitTeam && !isAdmin && existing.assignedToId !== actorUserId) {
+        throw new Error('NOT_ASSIGNED');
       }
 
       const visit = await tx.visit.update({
@@ -226,6 +271,34 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         });
       }
 
+      const nextLeadStage = statusInput ? leadStageFromVisitStatus(statusInput) : null;
+      if (nextLeadStage && existing.lead.stage !== nextLeadStage) {
+        await tx.lead.update({
+          where: { id: visit.leadId },
+          data: {
+            stage: nextLeadStage,
+            subStatus: null,
+          },
+        });
+        await logLeadStageChanged(tx, {
+          leadId: visit.leadId,
+          userId: actorUserId,
+          from: existing.lead.stage,
+          to: nextLeadStage,
+          reason: `Visit ${visit.id} status updated to ${statusInput}`,
+        });
+      }
+
+      if (statusInput === VisitStatus.RESCHEDULED && parsedScheduledAt) {
+        await tx.visit.update({
+          where: { id: visit.id },
+          data: {
+            status: VisitStatus.RESCHEDULED,
+            scheduledAt: parsedScheduledAt,
+          },
+        });
+      }
+
       const reasonPart = reason ? ` Reason: ${reason}` : '';
       await logActivity(tx, {
         leadId: visit.leadId,
@@ -247,6 +320,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   } catch (error) {
     if (error instanceof Error && error.message === 'NOT_FOUND') {
       return NextResponse.json({ success: false, error: 'Visit schedule not found' }, { status: 404 });
+    }
+    if (error instanceof Error && error.message === 'FORBIDDEN') {
+      return NextResponse.json({ success: false, error: 'Not authorized to update visit schedule' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'NOT_ASSIGNED') {
+      return NextResponse.json({ success: false, error: 'You can only update visits assigned to you' }, { status: 403 });
     }
 
     console.error('[visit-schedule/:id][PATCH] Error:', error);

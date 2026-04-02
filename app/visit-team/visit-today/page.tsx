@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -14,7 +17,9 @@ import {
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
-import { Clock, MapPin, AlertCircle, Loader2 } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Clock, MapPin, AlertCircle, Loader2, CalendarDays, CheckCircle2, XCircle } from 'lucide-react'
+import { toast } from '@/components/ui/sonner'
 
 type VisitRecord = {
   id: string
@@ -45,18 +50,17 @@ function formatDateKey(date: Date) {
   return `${year}-${month}-${day}`
 }
 
-function formatHourLabel(hour: number) {
-  const suffix = hour >= 12 ? 'PM' : 'AM'
-  const display = hour % 12 === 0 ? 12 : hour % 12
-  return `${display}:00 ${suffix}`
-}
-
 function getStatusBadgeColor(status: string) {
   const statusLower = status.toLowerCase()
   if (statusLower.includes('confirmed')) return 'bg-green-500/20 text-green-700 dark:text-green-400'
   if (statusLower.includes('pending')) return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400'
   if (statusLower.includes('completed')) return 'bg-blue-500/20 text-blue-700 dark:text-blue-400'
   return 'bg-muted text-foreground'
+}
+
+function formatStatusLabel(status: string) {
+  if (status === 'SCHEDULED') return 'PENDING'
+  return status.replace(/_/g, ' ')
 }
 
 export default function VisitTodayPage() {
@@ -70,6 +74,15 @@ export default function VisitTodayPage() {
   const [requestScheduleAt, setRequestScheduleAt] = useState('')
   const [requestError, setRequestError] = useState<string | null>(null)
   const [sendingRequest, setSendingRequest] = useState(false)
+  const [completeOpen, setCompleteOpen] = useState(false)
+  const [completeVisit, setCompleteVisit] = useState<VisitRecord | null>(null)
+  const [completeSummary, setCompleteSummary] = useState('')
+  const [completeClientMood, setCompleteClientMood] = useState('')
+  const [completeProjectStatus, setCompleteProjectStatus] = useState('')
+  const [completeNote, setCompleteNote] = useState('')
+  const [completeFiles, setCompleteFiles] = useState<File[]>([])
+  const [completeError, setCompleteError] = useState<string | null>(null)
+  const [submittingComplete, setSubmittingComplete] = useState(false)
 
   useEffect(() => {
     const loadVisits = async () => {
@@ -107,22 +120,130 @@ export default function VisitTodayPage() {
       )
   }, [todayKey, visits])
 
-  const visitsByHour = useMemo(() => {
-    const grouped: Record<number, VisitRecord[]> = {}
-    for (let hour = 0; hour < 24; hour += 1) {
-      grouped[hour] = []
-    }
+  const completedCount = todayVisits.filter((visit) => visit.status === 'COMPLETED').length
+  const cancelledCount = todayVisits.filter((visit) => visit.status === 'CANCELLED').length
+  const pendingCount = Math.max(todayVisits.length - completedCount - cancelledCount, 0)
 
-    todayVisits.forEach((visit) => {
-      const parsed = new Date(visit.scheduledAt)
-      grouped[parsed.getHours()].push(visit)
-    })
+  const visitQueueContent = (
+    <Card className="xl:col-span-8 xl:flex xl:flex-col xl:overflow-hidden">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Visit Queue</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 xl:flex-1 xl:overflow-y-auto">
+        {todayVisits.map((visit, index) => {
+          const visitDate = new Date(visit.scheduledAt)
+          return (
+            <motion.div
+              key={visit.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, delay: index * 0.04 }}
+              className="rounded-xl border border-border bg-card p-4 shadow-sm transition hover:border-primary/30 hover:shadow-md"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate text-base font-semibold text-card-foreground">
+                      {visit.lead?.name || 'Unknown Lead'}
+                    </h3>
+                    <Badge className={getStatusBadgeColor(visit.status)}>{formatStatusLabel(visit.status)}</Badge>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="size-3.5" />
+                      {visitDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="size-3.5" />
+                      {visit.location}
+                    </span>
+                  </div>
+                  {(visit.projectSqft || visit.projectStatus || visit.notes) && (
+                    <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                      {visit.projectSqft ? (
+                        <p>Sqft: <span className="font-medium text-foreground">{visit.projectSqft.toLocaleString()}</span></p>
+                      ) : null}
+                      {visit.projectStatus ? (
+                        <p>Status: <span className="font-medium text-foreground">{visit.projectStatus.replace(/_/g, ' ')}</span></p>
+                      ) : null}
+                      {visit.notes ? <p className="italic">{visit.notes}</p> : null}
+                    </div>
+                  )}
+                </div>
 
-    return grouped
-  }, [todayVisits])
+                <div className="flex flex-wrap gap-2 sm:justify-end">
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href={`/visit-team/leads/${visit.lead.id}`}>Open Lead</Link>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openRequestDialog(visit, 'RESCHEDULE')}
+                  >
+                    Reschedule
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openRequestDialog(visit, 'CANCEL')}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    Cancel
+                  </Button>
+                  {visit.status !== 'COMPLETED' ? (
+                    <Button size="sm" onClick={() => openCompleteDialog(visit)}>
+                      Complete Visit
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </motion.div>
+          )
+        })}
+      </CardContent>
+    </Card>
+  )
 
-  // Show all 24 hours instead of filtering
-  const allHours = Array.from({ length: 24 }, (_, i) => i)
+  const quickTimelineContent = (
+    <Card className="xl:flex-1 xl:overflow-hidden">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Quick Timeline</CardTitle>
+      </CardHeader>
+      <CardContent className="xl:overflow-y-auto">
+        <div className="relative pl-4">
+          <div className="absolute left-[7px] top-1 bottom-1 w-px bg-border" />
+          <div className="space-y-3">
+            {todayVisits.map((visit) => {
+              const visitDate = new Date(visit.scheduledAt)
+              return (
+                <div key={`${visit.id}-timeline`} className="relative rounded-lg border border-border bg-card p-3">
+                  <span className="absolute -left-[13px] top-4 size-3 rounded-full border-2 border-primary bg-background" />
+                  <p className="text-xs font-semibold text-foreground">
+                    {visitDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                  <p className="text-sm font-medium text-card-foreground">{visit.lead?.name || 'Unknown Lead'}</p>
+                  <p className="text-xs text-muted-foreground line-clamp-1">{visit.location}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  const todaySummaryContent = (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Today Summary</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm text-muted-foreground">
+        <p>Total planned visits: <span className="font-semibold text-foreground">{todayVisits.length}</span></p>
+        <p>Pending actions: <span className="font-semibold text-foreground">{pendingCount}</span></p>
+        <p>Finished so far: <span className="font-semibold text-foreground">{completedCount}</span></p>
+      </CardContent>
+    </Card>
+  )
 
   const openRequestDialog = (visit: VisitRecord, type: 'RESCHEDULE' | 'CANCEL') => {
     setSelectedVisit(visit)
@@ -131,6 +252,17 @@ export default function VisitTodayPage() {
     setRequestScheduleAt('')
     setRequestError(null)
     setRequestOpen(true)
+  }
+
+  const openCompleteDialog = (visit: VisitRecord) => {
+    setCompleteVisit(visit)
+    setCompleteSummary('')
+    setCompleteClientMood('')
+    setCompleteProjectStatus('')
+    setCompleteNote('')
+    setCompleteFiles([])
+    setCompleteError(null)
+    setCompleteOpen(true)
   }
 
   const handleSendRequest = async () => {
@@ -147,13 +279,13 @@ export default function VisitTodayPage() {
     setSendingRequest(true)
     setRequestError(null)
     try {
-      const response = await fetch(`/api/visit-schedule/${selectedVisit.id}/update-request`, {
-        method: 'POST',
+      const response = await fetch(`/api/visit-schedule/${selectedVisit.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: requestType,
-          reason: requestReason.trim(),
-          requestedScheduleAt: requestType === 'RESCHEDULE' ? requestScheduleAt : undefined,
+          status: requestType === 'RESCHEDULE' ? 'RESCHEDULED' : 'CANCELLED',
+          reason: requestReason.trim() || undefined,
+          scheduledAt: requestType === 'RESCHEDULE' ? new Date(requestScheduleAt).toISOString() : undefined,
         }),
       })
       const payload = await response.json()
@@ -164,192 +296,194 @@ export default function VisitTodayPage() {
       setSelectedVisit(null)
       setRequestReason('')
       setRequestScheduleAt('')
+      toast.success(
+        requestType === 'RESCHEDULE'
+          ? 'Visit rescheduled. Lead stage updated automatically.'
+          : 'Visit cancelled. Lead stage updated automatically.',
+      )
+      setLoading(true)
+      const refreshResponse = await fetch('/api/visit-schedule')
+      const refreshPayload = (await refreshResponse.json()) as ApiResponse
+      if (!refreshResponse.ok || !refreshPayload.success) {
+        throw new Error(refreshPayload.error || 'Failed to refresh visits')
+      }
+      setVisits(refreshPayload.data ?? [])
     } catch (err) {
-      setRequestError(err instanceof Error ? err.message : 'Failed to send update request')
+      const message = err instanceof Error ? err.message : 'Failed to update visit'
+      setRequestError(message)
+      toast.error(message)
     } finally {
       setSendingRequest(false)
+      setLoading(false)
+    }
+  }
+
+  const handleCompleteVisit = async () => {
+    if (!completeVisit) return
+    if (!completeSummary.trim()) {
+      setCompleteError('Summary is required.')
+      return
+    }
+
+    setSubmittingComplete(true)
+    setCompleteError(null)
+    try {
+      const formData = new FormData()
+      formData.append('summary', completeSummary.trim())
+      if (completeClientMood.trim()) formData.append('clientMood', completeClientMood.trim())
+      if (completeProjectStatus) formData.append('projectStatus', completeProjectStatus)
+      if (completeNote.trim()) formData.append('note', completeNote.trim())
+      completeFiles.forEach((file) => {
+        formData.append('files', file)
+      })
+
+      const response = await fetch(`/api/visit-schedule/${completeVisit.id}/result`, {
+        method: 'POST',
+        body: formData,
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error || 'Failed to complete visit')
+      }
+
+      setCompleteOpen(false)
+      setCompleteVisit(null)
+      setCompleteFiles([])
+      toast.success('Visit completed. Lead stage updated automatically.')
+      setLoading(true)
+      const refreshResponse = await fetch('/api/visit-schedule')
+      const refreshPayload = (await refreshResponse.json()) as ApiResponse
+      if (!refreshResponse.ok || !refreshPayload.success) {
+        throw new Error(refreshPayload.error || 'Failed to refresh visits')
+      }
+      setVisits(refreshPayload.data ?? [])
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to complete visit'
+      setCompleteError(message)
+      toast.error(message)
+    } finally {
+      setSubmittingComplete(false)
+      setLoading(false)
     }
   }
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="px-6 py-8">
-            <div className="flex items-start justify-between">
+      <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="mb-6 rounded-2xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-5 shadow-sm sm:p-6"
+        >
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">Today&apos;s Visits</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </p>
+            </div>
+            <Badge variant="secondary" className="w-fit gap-1.5 px-3 py-1 text-xs font-semibold">
+              <CalendarDays className="size-3.5" />
+              {todayVisits.length} {todayVisits.length === 1 ? 'visit' : 'visits'} scheduled
+            </Badge>
+          </div>
+        </motion.div>
+
+        <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <Card>
+            <CardContent className="flex items-center justify-between p-4">
               <div>
-                <h1 className="text-4xl font-bold text-foreground">Today&apos;s Visits</h1>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {new Date().toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    month: 'long',
-                    day: 'numeric',
-                    year: 'numeric',
-                  })}
-                </p>
+                <p className="text-xs text-muted-foreground">Pending</p>
+                <p className="text-xl font-semibold text-card-foreground">{pendingCount}</p>
               </div>
-              <div className="rounded-lg bg-primary/10 px-4 py-2">
-                <p className="text-sm font-medium text-primary">
-                  {todayVisits.length} {todayVisits.length === 1 ? 'visit' : 'visits'} scheduled
-                </p>
+              <Clock className="size-4 text-muted-foreground" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center justify-between p-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Completed</p>
+                <p className="text-xl font-semibold text-card-foreground">{completedCount}</p>
+              </div>
+              <CheckCircle2 className="size-4 text-chart-2" />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center justify-between p-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Cancelled</p>
+                <p className="text-xl font-semibold text-card-foreground">{cancelledCount}</p>
+              </div>
+              <XCircle className="size-4 text-destructive" />
+            </CardContent>
+          </Card>
+        </div>
+
+        {loading && (
+          <div className="flex items-center justify-center py-16">
+            <div className="text-center">
+              <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+              <p className="mt-3 text-sm text-muted-foreground">Loading your visits...</p>
+            </div>
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-medium text-destructive">Error loading visits</h3>
+                <p className="mt-1 text-sm text-destructive/80">{error}</p>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Content */}
-        <div className="p-6">
-          {loading && (
-            <div className="flex items-center justify-center py-16">
-              <div className="text-center">
-                <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
-                <p className="mt-3 text-sm text-muted-foreground">Loading your visits...</p>
+        {!loading && !error && todayVisits.length === 0 && (
+          <div className="rounded-lg border-2 border-dashed border-muted bg-muted/50 py-16 text-center">
+            <Clock className="mx-auto h-12 w-12 text-muted-foreground" />
+            <h3 className="mt-4 text-lg font-medium text-foreground">No visits today</h3>
+            <p className="mt-1 text-sm text-muted-foreground">You have a free day ahead!</p>
+          </div>
+        )}
+
+        {!loading && !error && todayVisits.length > 0 ? (
+          <>
+            <div className="xl:hidden">
+              <Tabs defaultValue="timeline" className="w-full">
+                <TabsList className="w-full justify-start overflow-x-auto">
+                  <TabsTrigger value="timeline">Quick Timeline</TabsTrigger>
+                  <TabsTrigger value="queue">Visit Queue</TabsTrigger>
+                  <TabsTrigger value="summary">Today Summary</TabsTrigger>
+                </TabsList>
+                <TabsContent value="timeline" className="mt-4">
+                  {quickTimelineContent}
+                </TabsContent>
+                <TabsContent value="queue" className="mt-4">
+                  {visitQueueContent}
+                </TabsContent>
+                <TabsContent value="summary" className="mt-4">
+                  {todaySummaryContent}
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            <div className="hidden xl:grid grid-cols-12 gap-6 xl:h-[calc(100vh-19rem)]">
+              {visitQueueContent}
+              <div className="space-y-6 xl:col-span-4 xl:flex xl:flex-col xl:overflow-hidden">
+                {quickTimelineContent}
+                {todaySummaryContent}
               </div>
             </div>
-          )}
-
-          {!loading && error && (
-            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="font-medium text-destructive">Error loading visits</h3>
-                  <p className="mt-1 text-sm text-destructive/80">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {!loading && !error && todayVisits.length === 0 && (
-            <div className="rounded-lg border-2 border-dashed border-muted bg-muted/50 py-16 text-center">
-              <Clock className="mx-auto h-12 w-12 text-muted-foreground" />
-              <h3 className="mt-4 text-lg font-medium text-foreground">No visits today</h3>
-              <p className="mt-1 text-sm text-muted-foreground">You have a free day ahead!</p>
-            </div>
-          )}
-
-          {!loading && !error && (
-            <div className="space-y-0">
-              {allHours.map((hour, idx) => {
-                const hasVisits = visitsByHour[hour].length > 0
-                return (
-                  <div key={hour}>
-                    <div className="flex gap-6">
-                      {/* Time column */}
-                      <div className={`sticky left-0 w-24 flex-shrink-0 py-4 text-right ${
-                        hasVisits ? 'bg-card' : 'bg-muted/30'
-                      }`}>
-                        <span className={`inline-block rounded-md px-3 py-1 text-xs font-semibold border ${
-                          hasVisits 
-                            ? 'bg-card text-foreground border-border' 
-                            : 'bg-muted text-muted-foreground border-border'
-                        }`}>
-                          {formatHourLabel(hour)}
-                        </span>
-                      </div>
-
-                      {/* Visits column */}
-                      <div className={`flex-1 py-4 pr-6 ${hasVisits ? 'bg-card' : 'bg-muted/30'}`}>
-                        {hasVisits ? (
-                          <div className="space-y-3">
-                            {visitsByHour[hour].map((visit) => {
-                              const visitDate = new Date(visit.scheduledAt)
-                              return (
-                                <div
-                                  key={visit.id}
-                                  className="group rounded-lg border border-border bg-card p-4 shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/50"
-                                >
-                                  <div className="flex items-start justify-between gap-4">
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <h3 className="text-base font-semibold text-foreground truncate">
-                                          {visit.lead?.name || 'Unknown Lead'}
-                                        </h3>
-                                        <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${getStatusBadgeColor(visit.status)}`}>
-                                          {visit.status}
-                                        </span>
-                                      </div>
-
-                                      <div className="space-y-1.5 text-sm">
-                                        <div className="flex items-center gap-2 text-foreground/70">
-                                          <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                          <span className="truncate">{visit.location}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-foreground/70">
-                                          <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                                          <span>
-                                            {visitDate.toLocaleTimeString('en-US', {
-                                              hour: '2-digit',
-                                              minute: '2-digit',
-                                            })}
-                                          </span>
-                                        </div>
-                                      </div>
-
-                                      {(visit.projectSqft || visit.projectStatus || visit.notes) && (
-                                        <div className="mt-3 space-y-1 text-xs text-foreground/70 bg-muted rounded p-2">
-                                          {visit.projectSqft && (
-                                            <div>📐 <span className="font-medium">{visit.projectSqft.toLocaleString()} sqft</span></div>
-                                          )}
-                                          {visit.projectStatus && (
-                                            <div>📊 <span className="font-medium">{visit.projectStatus.replace(/_/g, ' ')}</span></div>
-                                          )}
-                                          {visit.notes && (
-                                            <div className="italic">💬 {visit.notes}</div>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    <div className="flex gap-2 flex-shrink-0">
-                                      <Button size="sm" variant="outline" asChild className="text-xs">
-                                        <Link href={`/visit-team/leads/${visit.lead.id}`}>
-                                          Open Lead
-                                        </Link>
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => openRequestDialog(visit, 'RESCHEDULE')}
-                                        className="text-xs"
-                                      >
-                                        Reschedule
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => openRequestDialog(visit, 'CANCEL')}
-                                        className="text-xs text-destructive hover:text-destructive"
-                                      >
-                                        Cancel
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center py-6">
-                            <p className="text-sm text-muted-foreground">No visits scheduled</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {idx < allHours.length - 1 && (
-                      <div className="flex gap-6">
-                        <div className="w-24 flex-shrink-0" />
-                        <div className="flex-1 border-b border-border/50" />
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+          </>
+        ) : null}
       </div>
 
       {/* Dialog */}
@@ -360,7 +494,7 @@ export default function VisitTodayPage() {
               {requestType === 'RESCHEDULE' ? 'Reschedule Visit' : 'Cancel Visit'}
             </DialogTitle>
             <DialogDescription className="text-sm">
-              {selectedVisit?.lead?.name ? `Request for ${selectedVisit.lead.name}` : 'Update visit request'}
+              {selectedVisit?.lead?.name ? `Update for ${selectedVisit.lead.name}` : 'Update visit'}
             </DialogDescription>
           </DialogHeader>
 
@@ -415,7 +549,89 @@ export default function VisitTodayPage() {
               className="text-sm gap-2"
             >
               {sendingRequest && <Loader2 className="h-4 w-4 animate-spin" />}
-              {sendingRequest ? 'Sending...' : 'Send Request'}
+              {sendingRequest ? 'Updating...' : 'Update Visit'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg">Complete Visit</DialogTitle>
+            <DialogDescription className="text-sm">
+              Submit visit outcome. This marks visit complete and updates lead stage automatically.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Summary</Label>
+              <Textarea
+                value={completeSummary}
+                onChange={(event) => setCompleteSummary(event.target.value)}
+                rows={3}
+                placeholder="What happened in this visit?"
+                className="text-sm resize-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Client Mood (optional)</Label>
+              <Input
+                value={completeClientMood}
+                onChange={(event) => setCompleteClientMood(event.target.value)}
+                placeholder="Interested / Neutral / Not Interested"
+                className="text-sm"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Project Status (optional)</Label>
+              <select
+                value={completeProjectStatus}
+                onChange={(event) => setCompleteProjectStatus(event.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Select project status</option>
+                <option value="UNDER_CONSTRUCTION">UNDER_CONSTRUCTION</option>
+                <option value="READY">READY</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Note (optional)</Label>
+              <Textarea
+                value={completeNote}
+                onChange={(event) => setCompleteNote(event.target.value)}
+                rows={2}
+                placeholder="Add note"
+                className="text-sm resize-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Attachments (optional)</Label>
+              <Input
+                type="file"
+                multiple
+                onChange={(event) => setCompleteFiles(Array.from(event.target.files ?? []))}
+                className="text-sm"
+              />
+              {completeFiles.length > 0 ? (
+                <p className="text-xs text-muted-foreground">{completeFiles.length} file(s) selected</p>
+              ) : null}
+            </div>
+            {completeError ? (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {completeError}
+              </div>
+            ) : null}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCompleteOpen(false)} className="text-sm">
+              Close
+            </Button>
+            <Button onClick={handleCompleteVisit} disabled={submittingComplete} className="text-sm gap-2">
+              {submittingComplete && <Loader2 className="h-4 w-4 animate-spin" />}
+              {submittingComplete ? 'Completing...' : 'Complete Visit'}
             </Button>
           </DialogFooter>
         </DialogContent>

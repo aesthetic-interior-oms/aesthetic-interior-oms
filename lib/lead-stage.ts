@@ -6,7 +6,9 @@ export const stageSubStatusMap: Record<LeadStage, LeadSubStatus[]> = {
   CONTACT_ATTEMPTED: ['NO_ANSWER'],
   NURTURING: ['WARM_LEAD', 'FUTURE_CLIENT'],
   VISIT_SCHEDULED: [],
+  VISIT_RESCHEDULED: [],
   VISIT_COMPLETED: [],
+  VISIT_CANCELLED: [],
   CLOSED: ['SMALL_BUDGET', 'INVALID', 'NOT_INTERESTED', 'LOST', 'DEAD_LEAD'],
 };
 
