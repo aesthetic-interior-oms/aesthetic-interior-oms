@@ -215,6 +215,7 @@ export function LeadActionsPanel({
   const [visitReason, setVisitReason] = useState('')
   const [didClearVisitDefaultReason, setDidClearVisitDefaultReason] = useState(false)
   const [visitSaving, setVisitSaving] = useState(false)
+  const [sendingWhatsapp, setSendingWhatsapp] = useState(false)
   const [scheduledVisitCard, setScheduledVisitCard] = useState<ScheduledVisitCard | null>(null)
   const [leadVisits, setLeadVisits] = useState<LeadVisitRecord[]>([])
   const [leadVisitsLoading, setLeadVisitsLoading] = useState(false)
@@ -357,6 +358,43 @@ export function LeadActionsPanel({
   const canEmail = Boolean(leadEmail && leadEmail.trim())
   const whatsappUrl = canWhatsapp ? `https://wa.me/${normalizedPhone}` : ''
   const emailUrl = canEmail ? `mailto:${leadEmail}` : ''
+
+  const handleSendWhatsapp = useCallback(async () => {
+    if (!normalizedPhone) {
+      toast.error('No phone number found for this lead.')
+      return
+    }
+
+    setSendingWhatsapp(true)
+    try {
+      const response = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId,
+          phone: normalizedPhone,
+          message: 'Hello! Thank you for connecting with Aesthetic CRM. How can we help you today?',
+        }),
+      })
+
+      const payload = (await response.json()) as { success?: boolean; error?: string }
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error ?? 'Failed to send WhatsApp message')
+      }
+
+      toast.success('WhatsApp message sent successfully.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to send WhatsApp message'
+      toast.error(message)
+
+      // Useful fallback so the team can still contact the lead immediately.
+      if (whatsappUrl) {
+        window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
+      }
+    } finally {
+      setSendingWhatsapp(false)
+    }
+  }, [leadId, normalizedPhone, whatsappUrl])
   const shouldLoadVisitMetadata = visitOpen || (reasonOpen && requiresVisitSchedulingInStageModal)
   useEffect(() => {
     if (!shouldLoadVisitMetadata) {
@@ -1941,14 +1979,11 @@ export function LeadActionsPanel({
           <Button
             className="w-full justify-start gap-2"
             variant="outline"
-            disabled={!canWhatsapp}
-            onClick={() => {
-              if (!whatsappUrl) return
-              window.open(whatsappUrl, '_blank', 'noopener,noreferrer')
-            }}
+            disabled={!canWhatsapp || sendingWhatsapp}
+            onClick={() => void handleSendWhatsapp()}
           >
             <MessageCircle className="w-4 h-4" />
-            Send WhatsApp
+            {sendingWhatsapp ? 'Sending WhatsApp...' : 'Send WhatsApp'}
           </Button>
           <Button
             className="w-full justify-start gap-2"
