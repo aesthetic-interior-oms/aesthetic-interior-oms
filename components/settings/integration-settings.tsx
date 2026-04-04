@@ -116,7 +116,9 @@ export function IntegrationSettings() {
   const [config, setConfig] = useState<FacebookConfig | null>(null)
   const [syncControl, setSyncControl] = useState<SyncControl | null>(null)
   const [whatsAppControl, setWhatsAppControl] = useState<WhatsAppControl | null>(null)
-  const [whatsAppConfig, setWhatsAppConfig] = useState<WhatsAppSettingsResponse['data']['config'] | null>(null)
+  const [whatsAppConfig, setWhatsAppConfig] = useState<
+    NonNullable<WhatsAppSettingsResponse['data']>['config'] | null
+  >(null)
 
   const [enabled, setEnabled] = useState(true)
   const [fallbackEnabled, setFallbackEnabled] = useState(true)
