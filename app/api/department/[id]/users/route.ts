@@ -118,6 +118,12 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
             phone: true,
             isActive: true,
             created_at: true,
+            approvedBy: {
+              select: {
+                id: true,
+                fullName: true,
+              },
+            },
           },
         },
       },

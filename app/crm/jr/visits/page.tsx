@@ -67,14 +67,26 @@ type ApiResponse = {
   error?: string
 }
 
+type VisitTeamMember = {
+  id: string
+  fullName: string
+  email: string
+}
+
+type SupportMemberOption = {
+  id: string
+  fullName: string
+  email: string
+}
+
 type VisitsCacheEntry = {
   savedAt: number
   data: VisitRecord[]
 }
 
 const VISITS_CACHE_TTL_MS = 60_000
-let visitsCache: VisitsCacheEntry | null = null
-let visitsRequestPromise: Promise<VisitRecord[]> | null = null
+let visitsCacheByScope: Record<string, VisitsCacheEntry | undefined> = {}
+const visitsRequestPromiseByScope: Record<string, Promise<VisitRecord[]> | undefined> = {}
 
 const statusColors: Record<string, string> = {
   scheduled: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200',
@@ -95,6 +107,9 @@ type VisitsPageProps = {
   leadHrefPrefix?: string
   restrictToCreator?: boolean
   allowCompleteVisit?: boolean
+  blurUnassignedVisitDetails?: boolean
+  visitScope?: 'default' | 'all'
+  allowManageAssignment?: boolean
 }
 
 export function VisitsPageView({
@@ -102,6 +117,9 @@ export function VisitsPageView({
   leadHrefPrefix = '/crm/jr/leads',
   restrictToCreator = true,
   allowCompleteVisit = false,
+  blurUnassignedVisitDetails = false,
+  visitScope = 'default',
+  allowManageAssignment = true,
 }: VisitsPageProps) {
   const [activeTab, setActiveTab] = useState('calendar')
   const [currentDate, setCurrentDate] = useState(() => new Date())
@@ -131,6 +149,21 @@ export function VisitsPageView({
   const [completeFiles, setCompleteFiles] = useState<File[]>([])
   const [completeError, setCompleteError] = useState<string | null>(null)
   const [submittingComplete, setSubmittingComplete] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
+  const [assignVisitId, setAssignVisitId] = useState('')
+  const [assignMemberId, setAssignMemberId] = useState('')
+  const [assignReason, setAssignReason] = useState('Visit assignment updated.')
+  const [assignMembers, setAssignMembers] = useState<VisitTeamMember[]>([])
+  const [assignError, setAssignError] = useState<string | null>(null)
+  const [assignLoadingMembers, setAssignLoadingMembers] = useState(false)
+  const [assignSaving, setAssignSaving] = useState(false)
+  const [supportDialogOpen, setSupportDialogOpen] = useState(false)
+  const [supportDialogVisitId, setSupportDialogVisitId] = useState('')
+  const [supportDialogError, setSupportDialogError] = useState<string | null>(null)
+  const [supportDialogSelection, setSupportDialogSelection] = useState('')
+  const [supportDialogMembers, setSupportDialogMembers] = useState<SupportMemberOption[]>([])
+  const [supportDialogLoading, setSupportDialogLoading] = useState(false)
+  const [supportDialogSaving, setSupportDialogSaving] = useState(false)
 
   const formatLocalDateKey = (date: Date) => {
     const year = date.getFullYear()
@@ -145,8 +178,9 @@ export function VisitsPageView({
 
   useEffect(() => {
     const loadVisits = async () => {
+      const scopeKey = visitScope
       try {
-        const cached = visitsCache
+        const cached = visitsCacheByScope[scopeKey] ?? null
         const cacheIsFresh =
           cached && Date.now() - cached.savedAt < VISITS_CACHE_TTL_MS
         if (cacheIsFresh) {
@@ -155,9 +189,9 @@ export function VisitsPageView({
           return
         }
 
-        if (!visitsRequestPromise) {
-          visitsRequestPromise = (async () => {
-            const response = await fetch('/api/visit-schedule')
+        if (!visitsRequestPromiseByScope[scopeKey]) {
+          visitsRequestPromiseByScope[scopeKey] = (async () => {
+            const response = await fetch(`/api/visit-schedule${visitScope === 'all' ? '?scope=all' : ''}`)
             const payload = (await response.json()) as ApiResponse
             if (!response.ok || !payload.success) {
               const message =
@@ -169,12 +203,12 @@ export function VisitsPageView({
             return payload.data ?? []
           })()
             .finally(() => {
-              visitsRequestPromise = null
+              delete visitsRequestPromiseByScope[scopeKey]
             })
         }
 
-        const nextVisits = await visitsRequestPromise
-        visitsCache = { data: nextVisits, savedAt: Date.now() }
+        const nextVisits = await visitsRequestPromiseByScope[scopeKey]
+        visitsCacheByScope[scopeKey] = { data: nextVisits, savedAt: Date.now() }
         setVisits(nextVisits)
         setError(null)
       } catch (error) {
@@ -188,7 +222,7 @@ export function VisitsPageView({
     }
 
     loadVisits()
-  }, [])
+  }, [visitScope])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -281,8 +315,8 @@ export function VisitsPageView({
   const mobileCalendarRows = useMemo(() => {
     return Array.from({ length: daysInMonth }, (_, index) => {
       const day = index + 1
-      const dateString = getDateString(day)
       const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day)
+      const dateString = formatLocalDateKey(dateObj)
       const dayLabel = calendarWeekLabels[dateObj.getDay()]
       return {
         day,
@@ -294,6 +328,9 @@ export function VisitsPageView({
   }, [currentDate, daysInMonth, visitsByDate])
 
   const canViewVisit = (visit: VisitRecord) => {
+    if (blurUnassignedVisitDetails) {
+      return getVisitRole(visit) !== 'NONE'
+    }
     if (forceAssignedOnly) return true
     if (!restrictToCreator) return true
     const creatorId = visit.createdBy?.id
@@ -306,6 +343,16 @@ export function VisitsPageView({
     if (visit.assignedTo?.id === currentUserId) return 'LEAD'
     const isSupport = (visit.supportAssignments ?? []).some((item) => item.supportUserId === currentUserId)
     return isSupport ? 'SUPPORT' : 'NONE'
+  }
+
+  const restrictedMessage = blurUnassignedVisitDetails
+    ? 'Restricted to assigned team'
+    : 'Restricted to assigned CRM'
+
+  const canManageSupportForVisit = (visit: VisitRecord) => {
+    if (!currentUserId) return false
+    if (visit.status === 'COMPLETED' || visit.status === 'CANCELLED') return false
+    return visit.assignedTo?.id === currentUserId
   }
 
   const openCompleteDialog = (visit: VisitRecord) => {
@@ -330,6 +377,169 @@ export function VisitsPageView({
     setCompleteFiles([])
     setCompleteError(null)
     setCompleteOpen(true)
+  }
+
+  const openAssignDialog = async (visit: VisitRecord) => {
+    setAssignVisitId(visit.id)
+    setAssignMemberId(visit.assignedTo?.id ?? '')
+    setAssignReason('Visit assignment updated.')
+    setAssignError(null)
+    setAssignOpen(true)
+    if (assignMembers.length > 0) return
+    setAssignLoadingMembers(true)
+    try {
+      const response = await fetch('/api/department/available/VISIT_TEAM', {
+        cache: 'no-store',
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to load visit team members')
+      }
+      const members = Array.isArray(payload.users) ? payload.users : []
+      setAssignMembers(
+        members.map((member: VisitTeamMember) => ({
+          id: member.id,
+          fullName: member.fullName,
+          email: member.email,
+        })),
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load visit team members'
+      setAssignError(message)
+      toast.error(message)
+    } finally {
+      setAssignLoadingMembers(false)
+    }
+  }
+
+  const submitAssignVisit = async () => {
+    if (!assignVisitId) return
+    if (!assignMemberId) {
+      setAssignError('Please select a visit member.')
+      return
+    }
+
+    setAssignSaving(true)
+    setAssignError(null)
+    try {
+      const response = await fetch(`/api/visit-schedule/${assignVisitId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visitTeamUserId: assignMemberId,
+          reason: assignReason.trim() || 'Visit assignment updated.',
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to update visit assignment')
+      }
+
+      visitsCacheByScope = {}
+      const refreshResponse = await fetch(`/api/visit-schedule${visitScope === 'all' ? '?scope=all' : ''}`, {
+        cache: 'no-store',
+      })
+      const refreshPayload = (await refreshResponse.json()) as ApiResponse
+      if (!refreshResponse.ok || !refreshPayload.success) {
+        throw new Error(refreshPayload?.error || 'Failed to refresh visits')
+      }
+      visitsCacheByScope[visitScope] = { data: refreshPayload.data ?? [], savedAt: Date.now() }
+      setVisits(refreshPayload.data ?? [])
+      setAssignOpen(false)
+      setAssignVisitId('')
+      setAssignMemberId('')
+      setAssignReason('Visit assignment updated.')
+      toast.success('Visit assignment updated.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update visit assignment'
+      setAssignError(message)
+      toast.error(message)
+    } finally {
+      setAssignSaving(false)
+    }
+  }
+
+  const openSupportDialog = async (visit: VisitRecord) => {
+    setSupportDialogVisitId(visit.id)
+    setSupportDialogOpen(true)
+    setSupportDialogSelection('')
+    setSupportDialogError(null)
+    setSupportDialogLoading(true)
+    try {
+      const response = await fetch(`/api/visit-schedule/${visit.id}/supports`, {
+        cache: 'no-store',
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to load support members')
+      }
+      const members = Array.isArray(payload?.data?.availableMembers) ? payload.data.availableMembers : []
+      setSupportDialogMembers(members)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load support members'
+      setSupportDialogError(message)
+      setSupportDialogMembers([])
+    } finally {
+      setSupportDialogLoading(false)
+    }
+  }
+
+  const submitAddSupportMember = async () => {
+    if (!supportDialogVisitId || !supportDialogSelection) {
+      setSupportDialogError('Please select a support member.')
+      return
+    }
+
+    setSupportDialogSaving(true)
+    setSupportDialogError(null)
+    try {
+      const response = await fetch(`/api/visit-schedule/${supportDialogVisitId}/supports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supportUserId: supportDialogSelection }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to add support member')
+      }
+
+      const selectedMember = supportDialogMembers.find((member) => member.id === supportDialogSelection) ?? null
+      setVisits((prev) =>
+        prev.map((visit) => {
+          if (visit.id !== supportDialogVisitId || !selectedMember) return visit
+          const existing = visit.supportAssignments ?? []
+          if (existing.some((item) => item.supportUserId === selectedMember.id)) return visit
+          return {
+            ...visit,
+            supportAssignments: [
+              ...existing,
+              {
+                id: payload?.data?.id ?? `temp-${selectedMember.id}`,
+                supportUserId: selectedMember.id,
+                supportUser: {
+                  id: selectedMember.id,
+                  fullName: selectedMember.fullName,
+                  email: selectedMember.email,
+                },
+                result: null,
+              },
+            ],
+          }
+        }),
+      )
+
+      toast.success('Support member added.')
+      setSupportDialogOpen(false)
+      setSupportDialogVisitId('')
+      setSupportDialogSelection('')
+      setSupportDialogMembers([])
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add support member'
+      setSupportDialogError(message)
+      toast.error(message)
+    } finally {
+      setSupportDialogSaving(false)
+    }
   }
 
   const submitCompleteVisit = async () => {
@@ -390,7 +600,7 @@ export function VisitsPageView({
         throw new Error(payload?.error || 'Failed to complete visit')
       }
 
-      visitsCache = null
+      visitsCacheByScope = {}
       setCompleteOpen(false)
       setCompleteVisitId('')
       setCompleteSummary('')
@@ -401,12 +611,12 @@ export function VisitsPageView({
       toast.success(completeRole === 'SUPPORT' ? 'Support data submitted.' : 'Visit marked as completed.')
 
       setLoading(true)
-      const response = await fetch('/api/visit-schedule')
+      const response = await fetch(`/api/visit-schedule${visitScope === 'all' ? '?scope=all' : ''}`)
       const freshPayload = (await response.json()) as ApiResponse
       if (!response.ok || !freshPayload.success) {
         throw new Error(freshPayload?.error || 'Failed to refresh visits')
       }
-      visitsCache = { data: freshPayload.data ?? [], savedAt: Date.now() }
+      visitsCacheByScope[visitScope] = { data: freshPayload.data ?? [], savedAt: Date.now() }
       setVisits(freshPayload.data ?? [])
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to complete visit'
@@ -428,7 +638,7 @@ export function VisitsPageView({
       <Card className="mb-3 overflow-hidden relative">
         {!isVisible ? (
           <div className="absolute inset-0 z-10 flex items-center justify-center text-xs font-semibold text-muted-foreground bg-background/70">
-            Restricted to assigned CRM
+            {restrictedMessage}
           </div>
         ) : null}
         <CardContent className={`pt-6 ${!isVisible ? 'blur-xs pointer-events-none select-none' : ''}`}>
@@ -467,11 +677,42 @@ export function VisitsPageView({
                   </p>
                 ) : null}
                 {visit.notes && <p className="text-xs text-muted-foreground italic mt-2">{visit.notes}</p>}
+                <p className="text-xs text-muted-foreground">
+                  Assigned: {visit.assignedTo?.fullName || 'Unassigned'}
+                </p>
+                <div className="rounded-md border border-border bg-muted/40 p-2 text-xs">
+                  <p className="font-semibold text-foreground">Support Members</p>
+                  {(visit.supportAssignments ?? []).length > 0 ? (
+                    <p className="mt-1 text-muted-foreground">
+                      {(visit.supportAssignments ?? []).map((item) => item.supportUser.fullName).join(', ')}
+                    </p>
+                  ) : (
+                    <div className="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-amber-800">
+                      <p className="font-semibold">Warning: no support members assigned.</p>
+                      {canManageSupportForVisit(visit) ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="mt-2 h-7 px-2 text-[11px] border-amber-400 text-amber-900"
+                          onClick={() => void openSupportDialog(visit)}
+                        >
+                          Add Support Member
+                        </Button>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
                 <div className="pt-1">
                   <div className="flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" asChild>
                       <Link href={leadHref}>Open Lead Details</Link>
                     </Button>
+                    {allowManageAssignment ? (
+                      <Button size="sm" variant="outline" onClick={() => openAssignDialog(visit)}>
+                        {visit.assignedTo ? 'Reassign' : 'Assign'}
+                      </Button>
+                    ) : null}
                     {canComplete && (
                       <Button size="sm" variant="outline" onClick={() => openCompleteDialog(visit)}>
                         {visitRole === 'SUPPORT' ? 'Submit Support Data' : 'Complete Visit'}
@@ -582,6 +823,9 @@ export function VisitsPageView({
                                   <span className="font-semibold text-sm">{day}</span>
                                   {visitsForDay.length > 0 && (
                                     <div className="mt-1 flex items-center gap-1">
+                                      <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-bold text-white bg-slate-700 rounded-full">
+                                        {visitsForDay.length}
+                                      </span>
                                       {leadCount > 0 ? (
                                         <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-bold text-white bg-blue-500 rounded-full">
                                           {leadCount}
@@ -655,7 +899,7 @@ export function VisitsPageView({
                                       >
                                         {!isVisible ? (
                                           <div className="absolute inset-0 z-10 flex items-center justify-center text-[10px] font-semibold text-muted-foreground bg-background/70">
-                                            Restricted
+                                            {restrictedMessage}
                                           </div>
                                         ) : null}
                                         <div className={`space-y-1 ${!isVisible ? 'blur-xs pointer-events-none select-none' : ''}`}>
@@ -665,6 +909,12 @@ export function VisitsPageView({
                                               hour: '2-digit',
                                               minute: '2-digit',
                                             })}
+                                          </p>
+                                          <p className="text-[10px] text-muted-foreground">
+                                            Support:{' '}
+                                            {(visit.supportAssignments ?? []).length > 0
+                                              ? (visit.supportAssignments ?? []).map((item) => item.supportUser.fullName).join(', ')
+                                              : 'None'}
                                           </p>
                                           <div>
                                             <Button size="sm" variant="outline" asChild className="h-6 px-2 text-[10px]">
@@ -731,7 +981,7 @@ export function VisitsPageView({
                           >
                             {!isVisible ? (
                               <div className="absolute inset-0 z-10 flex items-center justify-center text-[10px] font-semibold text-muted-foreground bg-background/70">
-                                Restricted to assigned CRM
+                                {restrictedMessage}
                               </div>
                             ) : null}
                             <div className={!isVisible ? 'blur-xs pointer-events-none select-none' : ''}>
@@ -750,6 +1000,12 @@ export function VisitsPageView({
                                 <MapPin className="w-3 h-3" />
                                 <span className="line-clamp-2">{visit.location}</span>
                               </div>
+                              <p className="text-[11px] text-muted-foreground">
+                                Support:{' '}
+                                {(visit.supportAssignments ?? []).length > 0
+                                  ? (visit.supportAssignments ?? []).map((item) => item.supportUser.fullName).join(', ')
+                                  : 'None'}
+                              </p>
                               <span
                                 className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                                   statusColors[visit.status]
@@ -1055,6 +1311,119 @@ export function VisitsPageView({
                 </>
               ) : (
                 completeRole === 'SUPPORT' ? 'Submit Support Data' : 'Complete Visit'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Visit Member</DialogTitle>
+            <DialogDescription>
+              Assign or reassign this visit to a Visit Team member.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Visit Team Member</Label>
+              <select
+                value={assignMemberId}
+                onChange={(event) => setAssignMemberId(event.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                disabled={assignLoadingMembers}
+              >
+                <option value="">{assignLoadingMembers ? 'Loading members...' : 'Select member'}</option>
+                {assignMembers.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.fullName} ({member.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Reason</Label>
+              <Textarea
+                value={assignReason}
+                onChange={(event) => setAssignReason(event.target.value)}
+                rows={3}
+              />
+            </div>
+            {assignError ? <p className="text-sm text-destructive">{assignError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignOpen(false)}>
+              Close
+            </Button>
+            <Button onClick={submitAssignVisit} disabled={assignSaving || assignLoadingMembers}>
+              {assignSaving ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Assignment'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={supportDialogOpen}
+        onOpenChange={(open) => {
+          setSupportDialogOpen(open)
+          if (!open) {
+            setSupportDialogVisitId('')
+            setSupportDialogSelection('')
+            setSupportDialogMembers([])
+            setSupportDialogError(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Support Member</DialogTitle>
+            <DialogDescription>
+              Assign a support member for this visit without opening lead details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Support Member</Label>
+              <select
+                value={supportDialogSelection}
+                onChange={(event) => setSupportDialogSelection(event.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                disabled={supportDialogLoading}
+              >
+                <option value="">
+                  {supportDialogLoading
+                    ? 'Loading visit team members...'
+                    : supportDialogMembers.length === 0
+                      ? 'No available members'
+                      : 'Select support member'}
+                </option>
+                {supportDialogMembers.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.fullName} ({member.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {supportDialogError ? <p className="text-sm text-destructive">{supportDialogError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={submitAddSupportMember}
+              disabled={supportDialogSaving || supportDialogLoading || !supportDialogSelection}
+            >
+              {supportDialogSaving ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Add Support Member'
               )}
             </Button>
           </DialogFooter>

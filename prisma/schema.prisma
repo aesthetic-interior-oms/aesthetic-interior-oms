@@ -123,9 +123,13 @@ model User {
   phone       String
   isActive    Boolean  @default(true)
   clerkUserId String?  @unique
+  approvedById String?
+  approvedAt   DateTime?
   created_at  DateTime @default(now())
   updated_at  DateTime @updatedAt
 
+  approvedBy   User?               @relation("UserApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedUsers User[]             @relation("UserApprover")
   leads           Lead[]              @relation("UserAssignedLeads")
   followUps       FollowUp[]
   notes           Note[]
@@ -142,6 +146,7 @@ model User {
   supportVisitsAssignedBy   VisitSupportAssignment[] @relation("VisitSupportAssignedBy")
   supportVisitResults       VisitSupportResult[]
   notifications Notification[]
+  signupNotifications Notification[] @relation("NotificationSubjectUser")
 }
 
 model Visit {
@@ -165,6 +170,7 @@ model Visit {
   updateRequests VisitUpdateRequest[]
   supportAssignments VisitSupportAssignment[]
   supportResults VisitSupportResult[]
+  notifications Notification[]
 
   @@index([leadId])
   @@index([assignedToId])
@@ -298,6 +304,10 @@ model Notification {
   lead         Lead?            @relation(fields: [leadId], references: [id], onDelete: SetNull)
   followUpId   String?
   followUp     FollowUp?        @relation(fields: [followUpId], references: [id], onDelete: SetNull)
+  visitId      String?
+  visit        Visit?           @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  subjectUserId String?
+  subjectUser User?            @relation("NotificationSubjectUser", fields: [subjectUserId], references: [id], onDelete: SetNull)
   type         NotificationType
   title        String
   message      String
@@ -309,9 +319,13 @@ model Notification {
   @@index([userId])
   @@index([leadId])
   @@index([followUpId])
+  @@index([visitId])
+  @@index([subjectUserId])
   @@index([isRead])
   @@index([createdAt])
   @@unique([userId, followUpId, type])
+  @@unique([userId, visitId, type])
+  @@unique([userId, subjectUserId, type])
 }
 
 model FacebookSyncControl {
@@ -451,4 +465,12 @@ enum VisitUpdateRequestStatus {
 enum NotificationType {
   FOLLOWUP_DUE
   FOLLOWUP_REMINDER_15M
+  VISIT_DUE
+  VISIT_REMINDER_30M
+  VISIT_ASSIGNED
+  SIGNUP_PENDING_APPROVAL
+  SIGNUP_APPROVED
+  LEAD_ASSIGNED_TO_YOU
+  FACEBOOK_LEAD_SYNC_SUMMARY
+  VISIT_SCHEDULED_ADMIN
 }

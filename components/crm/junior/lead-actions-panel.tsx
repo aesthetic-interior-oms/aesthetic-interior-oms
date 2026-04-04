@@ -212,6 +212,7 @@ export function LeadActionsPanel({
   const [visitAttachmentFile, setVisitAttachmentFile] = useState<File | null>(null)
   const [visitNotes, setVisitNotes] = useState('')
   const [visitReason, setVisitReason] = useState('')
+  const [didClearVisitDefaultReason, setDidClearVisitDefaultReason] = useState(false)
   const [visitSaving, setVisitSaving] = useState(false)
   const [scheduledVisitCard, setScheduledVisitCard] = useState<ScheduledVisitCard | null>(null)
   const [leadVisits, setLeadVisits] = useState<LeadVisitRecord[]>([])
@@ -335,6 +336,7 @@ export function LeadActionsPanel({
   }
   const defaultStageReason =
     defaultReasonByStage[stage] ?? 'Stage has been updated.'
+  const defaultVisitReason = 'Visit has been scheduled.'
 
   const normalizedPhone = leadPhone ? leadPhone.replace(/\D/g, '') : ''
   const canWhatsapp = Boolean(normalizedPhone)
@@ -784,7 +786,8 @@ export function LeadActionsPanel({
     setVisitProjectStatus('')
     setVisitAttachmentFile(null)
     setVisitNotes('')
-    setVisitReason('')
+    setVisitReason(defaultVisitReason)
+    setDidClearVisitDefaultReason(false)
     setVisitTeamError(null)
     locationTouchedRef.current = false
     locationPrefilledRef.current = Boolean(leadLocation)
@@ -794,6 +797,9 @@ export function LeadActionsPanel({
     setVisitOpen(open)
     if (!open) {
       resetVisitForm()
+    } else if (!visitReason) {
+      setVisitReason(defaultVisitReason)
+      setDidClearVisitDefaultReason(false)
     }
   }
 
@@ -2095,6 +2101,12 @@ export function LeadActionsPanel({
               <Textarea
                 value={visitReason}
                 onChange={(event) => setVisitReason(event.target.value)}
+                onPointerDown={() => {
+                  if (!didClearVisitDefaultReason && visitReason === defaultVisitReason) {
+                    setVisitReason('')
+                    setDidClearVisitDefaultReason(true)
+                  }
+                }}
                 placeholder="Reason for scheduling this visit"
                 rows={3}
               />

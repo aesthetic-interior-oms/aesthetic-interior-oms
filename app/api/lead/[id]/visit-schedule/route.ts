@@ -3,6 +3,7 @@ import {
   ActivityType,
   LeadAssignmentDepartment,
   LeadStage,
+  NotificationType,
   ProjectStatus,
 } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
@@ -195,7 +196,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     // console.log('[POST] Request body received:', JSON.stringify(body, null, 2));
     const visitTeamUserId = toOptionalString(body.visitTeamUserId);
     const notes = toOptionalString(body.notes);
-    const reason = toOptionalString(body.reason);
+    const reason = toOptionalString(body.reason) ?? 'Visit has been scheduled.';
     const projectSqft = toOptionalNumber(body.projectSqft);
     const projectStatus = toProjectStatus(body.projectStatus);
     const scheduledAtRaw = toOptionalString(body.scheduledAt);
@@ -288,6 +289,49 @@ export async function POST(request: NextRequest, context: RouteContext) {
       });
       // console.log('[POST] Visit created:', visit.id);
 
+      await tx.notification.createMany({
+        data: [
+          {
+            userId: visitTeamUserId,
+            leadId,
+            visitId: visit.id,
+            type: NotificationType.VISIT_ASSIGNED,
+            title: 'New visit assigned',
+            message: `You have been assigned a new visit for ${lead.name}.`,
+            scheduledFor: parsedScheduledAt,
+          },
+        ],
+        skipDuplicates: true,
+      });
+
+      const adminUsers = await tx.user.findMany({
+        where: {
+          isActive: true,
+          userDepartments: {
+            some: {
+              department: {
+                name: 'ADMIN',
+              },
+            },
+          },
+        },
+        select: { id: true },
+      });
+
+      if (adminUsers.length > 0) {
+        await tx.notification.createMany({
+          data: adminUsers.map((admin) => ({
+            userId: admin.id,
+            leadId,
+            visitId: visit.id,
+            type: NotificationType.VISIT_SCHEDULED_ADMIN,
+            title: 'Visit scheduled',
+            message: `Lead: ${lead.name} visit scheduled at ${parsedScheduledAt.toISOString()} and assigned to ${visitTeamUserResult.visitTeamUser.fullName}.`,
+            scheduledFor: parsedScheduledAt,
+          })),
+        });
+      }
+
       const existingVisitTeamAssignment = await tx.leadAssignment.findFirst({
         where: {
           leadId,
@@ -336,7 +380,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         });
       }
 
-      const reasonPart = reason ? ` Reason: ${reason}` : '';
+      const reasonPart = ` Reason: ${reason}`;
       // console.log('[POST] Logging visit scheduled activity');
       await logActivity(tx, {
         leadId,
