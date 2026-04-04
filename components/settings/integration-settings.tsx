@@ -49,6 +49,39 @@ type SettingsResponse = {
   error?: string
 }
 
+type WhatsAppControl = {
+  enabled: boolean
+  lastWebhookAt: string | null
+  lastWebhookStatus: string | null
+  lastWebhookError: string | null
+  lastProcessedMessages: number
+  lastCreatedLeads: number
+  lastSkippedExistingPhone: number
+  lastSkippedNoPhone: number
+  lastSkippedDuplicateMessage: number
+  totalWebhookEvents: number
+  totalProcessedMessages: number
+  totalCreatedLeads: number
+  totalSkippedExistingPhone: number
+  totalSkippedNoPhone: number
+  totalSkippedDuplicateMessage: number
+  jrCrmRoundRobinOffset: number
+}
+
+type WhatsAppSettingsResponse = {
+  success: boolean
+  data?: {
+    control: WhatsAppControl
+    config: {
+      verifyTokenConfigured: boolean
+      appSecretConfigured: boolean
+      wawpSecretConfigured: boolean
+    }
+  }
+  error?: string
+  message?: string
+}
+
 type SyncResponse = {
   success: boolean
   data?: {
@@ -77,14 +110,20 @@ export function IntegrationSettings() {
   const [checking, setChecking] = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [statusError, setStatusError] = useState<string | null>(null)
+  const [whatsAppStatusMessage, setWhatsAppStatusMessage] = useState<string | null>(null)
+  const [whatsAppStatusError, setWhatsAppStatusError] = useState<string | null>(null)
 
   const [config, setConfig] = useState<FacebookConfig | null>(null)
   const [syncControl, setSyncControl] = useState<SyncControl | null>(null)
+  const [whatsAppControl, setWhatsAppControl] = useState<WhatsAppControl | null>(null)
+  const [whatsAppConfig, setWhatsAppConfig] = useState<WhatsAppSettingsResponse['data']['config'] | null>(null)
 
   const [enabled, setEnabled] = useState(true)
   const [fallbackEnabled, setFallbackEnabled] = useState(true)
   const [fallbackIntervalMinutes, setFallbackIntervalMinutes] = useState(15)
   const [batchLimit, setBatchLimit] = useState(20)
+  const [whatsAppEnabled, setWhatsAppEnabled] = useState(true)
+  const [whatsAppSaving, setWhatsAppSaving] = useState(false)
 
   const hydrateForm = useCallback((state: SyncControl) => {
     setEnabled(state.enabled)
@@ -115,9 +154,27 @@ export function IntegrationSettings() {
     }
   }, [hydrateForm])
 
+  const loadWhatsAppSettings = useCallback(async () => {
+    setWhatsAppStatusError(null)
+    try {
+      const response = await fetch('/api/whatsapp/sync-settings', { cache: 'no-store' })
+      const payload = (await response.json()) as WhatsAppSettingsResponse
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.error ?? 'Failed to load WhatsApp settings')
+      }
+
+      setWhatsAppControl(payload.data.control)
+      setWhatsAppConfig(payload.data.config)
+      setWhatsAppEnabled(payload.data.control.enabled)
+    } catch (error) {
+      setWhatsAppStatusError(error instanceof Error ? error.message : 'Failed to load WhatsApp settings')
+    }
+  }, [])
+
   useEffect(() => {
     void loadSettings()
-  }, [loadSettings])
+    void loadWhatsAppSettings()
+  }, [loadSettings, loadWhatsAppSettings])
 
   const hasUnsavedChanges = useMemo(() => {
     if (!syncControl) return false
@@ -128,6 +185,11 @@ export function IntegrationSettings() {
       batchLimit !== syncControl.batchLimit
     )
   }, [batchLimit, enabled, fallbackEnabled, fallbackIntervalMinutes, syncControl])
+
+  const hasUnsavedWhatsAppChanges = useMemo(() => {
+    if (!whatsAppControl) return false
+    return whatsAppEnabled !== whatsAppControl.enabled
+  }, [whatsAppControl, whatsAppEnabled])
 
   const saveSettings = async () => {
     setSaving(true)
@@ -216,7 +278,33 @@ export function IntegrationSettings() {
     }
   }
 
-  if (loading || !syncControl || !config) {
+  const saveWhatsAppSettings = async () => {
+    setWhatsAppSaving(true)
+    setWhatsAppStatusError(null)
+    setWhatsAppStatusMessage(null)
+    try {
+      const response = await fetch('/api/whatsapp/sync-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: whatsAppEnabled }),
+      })
+      const payload = (await response.json()) as WhatsAppSettingsResponse
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.error ?? 'Failed to save WhatsApp settings')
+      }
+
+      setWhatsAppControl(payload.data.control)
+      setWhatsAppConfig(payload.data.config)
+      setWhatsAppEnabled(payload.data.control.enabled)
+      setWhatsAppStatusMessage(payload.message ?? 'WhatsApp settings saved.')
+    } catch (error) {
+      setWhatsAppStatusError(error instanceof Error ? error.message : 'Failed to save WhatsApp settings')
+    } finally {
+      setWhatsAppSaving(false)
+    }
+  }
+
+  if (loading || !syncControl || !config || !whatsAppControl || !whatsAppConfig) {
     return (
       <Card className="border-border">
         <CardContent className="py-8 text-sm text-muted-foreground">Loading integration settings...</CardContent>
@@ -359,6 +447,84 @@ export function IntegrationSettings() {
               </div>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>WhatsApp Webhook Control</CardTitle>
+              <CardDescription>Monitor webhook ingestion health and toggle processing without redeploying.</CardDescription>
+            </div>
+            <Badge className={whatsAppControl.enabled ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}>
+              {whatsAppControl.enabled ? 'Enabled' : 'Disabled'}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-border p-4">
+              <p className="text-xs text-muted-foreground">Last Webhook</p>
+              <p className="mt-1 text-sm font-medium text-foreground">{formatDate(whatsAppControl.lastWebhookAt)}</p>
+              <p className="mt-2 text-xs text-muted-foreground">Status: {whatsAppControl.lastWebhookStatus ?? 'N/A'}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Last processed: {whatsAppControl.lastProcessedMessages} | Last created: {whatsAppControl.lastCreatedLeads}
+              </p>
+            </div>
+            <div className="rounded-lg border border-border p-4">
+              <p className="text-xs text-muted-foreground">Cumulative Counters</p>
+              <p className="mt-1 text-xs text-muted-foreground">Webhook events: {whatsAppControl.totalWebhookEvents}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Messages processed: {whatsAppControl.totalProcessedMessages}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Leads created: {whatsAppControl.totalCreatedLeads}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Skipped duplicate message: {whatsAppControl.totalSkippedDuplicateMessage}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Skipped existing phone: {whatsAppControl.totalSkippedExistingPhone}</p>
+              <p className="mt-1 text-xs text-muted-foreground">Skipped no phone: {whatsAppControl.totalSkippedNoPhone}</p>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border p-4 text-xs text-muted-foreground">
+            <p>Verify token configured: {whatsAppConfig.verifyTokenConfigured ? 'Yes' : 'No'}</p>
+            <p className="mt-1">App secret configured: {whatsAppConfig.appSecretConfigured ? 'Yes' : 'No'}</p>
+            <p className="mt-1">WAWP secret configured: {whatsAppConfig.wawpSecretConfigured ? 'Yes' : 'No'}</p>
+            <p className="mt-1">JR CRM round-robin pointer: {whatsAppControl.jrCrmRoundRobinOffset}</p>
+          </div>
+
+          {whatsAppControl.lastWebhookError && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              Last error: {whatsAppControl.lastWebhookError}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">Enable WhatsApp ingestion</p>
+              <p className="text-xs text-muted-foreground">Master switch for webhook processing.</p>
+            </div>
+            <Switch checked={whatsAppEnabled} onCheckedChange={setWhatsAppEnabled} />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={saveWhatsAppSettings} disabled={whatsAppSaving || !hasUnsavedWhatsAppChanges} className="gap-2">
+              {whatsAppSaving ? <RefreshCw className="size-4 animate-spin" /> : <Save className="size-4" />}
+              Save WhatsApp Settings
+            </Button>
+            <Button variant="outline" onClick={() => void loadWhatsAppSettings()} className="gap-2">
+              <CheckCircle2 className="size-4" />
+              Refresh WhatsApp Health
+            </Button>
+          </div>
+
+          {whatsAppStatusMessage && (
+            <div className="rounded-md border border-green-200 bg-green-50 p-3 text-xs text-green-700">
+              {whatsAppStatusMessage}
+            </div>
+          )}
+          {whatsAppStatusError && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              {whatsAppStatusError}
+            </div>
+          )}
         </CardContent>
       </Card>
 

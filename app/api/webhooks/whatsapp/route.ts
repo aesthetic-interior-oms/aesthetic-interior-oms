@@ -1,6 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { getWhatsAppVerifyTokens, ingestWhatsAppWebhook, verifyMetaSignature } from '@/lib/whatsapp'
+import {
+  getWhatsAppVerifyTokens,
+  ingestWawpWebhook,
+  ingestWhatsAppWebhook,
+  verifyMetaSignature,
+} from '@/lib/whatsapp'
+import {
+  getWhatsAppControlState,
+  recordWhatsAppWebhookError,
+  recordWhatsAppWebhookResult,
+} from '@/lib/whatsapp-control'
 
 export const runtime = 'nodejs'
 export const preferredRegion = 'sin1'
@@ -18,6 +28,21 @@ function maskValue(value: string) {
   if (!value) return ''
   if (value.length <= 6) return '*'.repeat(value.length)
   return `${value.slice(0, 3)}***${value.slice(-3)}`
+}
+
+function verifyWawpSecret(request: NextRequest): boolean {
+  const expected = process.env.WAWP_WEBHOOK_SECRET?.trim()
+  if (!expected) return true
+
+  const headerCandidates = [
+    request.headers.get('x-wawp-secret'),
+    request.headers.get('x-webhook-secret'),
+    request.headers.get('authorization')?.replace(/^Bearer\s+/i, ''),
+  ]
+    .map((value) => value?.trim() ?? '')
+    .filter(Boolean)
+
+  return headerCandidates.includes(expected)
 }
 
 // Meta verification endpoint:
@@ -59,16 +84,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const control = await getWhatsAppControlState()
+    if (!control.enabled) {
+      return NextResponse.json(
+        { success: true, received: false, reason: 'whatsapp_ingestion_disabled' },
+        { status: 200 },
+      )
+    }
+
     const rawBody = await request.text()
     if (!rawBody.trim()) {
       return NextResponse.json({ success: true, received: false, reason: 'empty_body' }, { status: 200 })
-    }
-
-    const signatureHeader = request.headers.get('x-hub-signature-256')
-    const signatureValid = verifyMetaSignature(rawBody, signatureHeader)
-    if (!signatureValid) {
-      console.warn('[POST /api/webhooks/whatsapp] signature verification failed')
-      return NextResponse.json({ success: false, error: 'Invalid signature' }, { status: 401 })
     }
 
     const payload = JSON.parse(rawBody) as unknown
@@ -76,7 +102,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid payload' }, { status: 400 })
     }
 
-    const ingestResult = await ingestWhatsAppWebhook(payload as Parameters<typeof ingestWhatsAppWebhook>[0])
+    const isMetaPayload =
+      'object' in payload &&
+      (payload as { object?: unknown }).object === 'whatsapp_business_account'
+    const isWawpPayload = 'event' in payload && typeof (payload as { event?: unknown }).event === 'string'
+
+    if (isMetaPayload) {
+      const signatureHeader = request.headers.get('x-hub-signature-256')
+      const signatureValid = verifyMetaSignature(rawBody, signatureHeader)
+      if (!signatureValid) {
+        console.warn('[POST /api/webhooks/whatsapp] meta signature verification failed')
+        return NextResponse.json({ success: false, error: 'Invalid signature' }, { status: 401 })
+      }
+    } else if (isWawpPayload) {
+      const wawpSecretValid = verifyWawpSecret(request)
+      if (!wawpSecretValid) {
+        console.warn('[POST /api/webhooks/whatsapp] WAWP secret verification failed')
+        return NextResponse.json({ success: false, error: 'Invalid webhook secret' }, { status: 401 })
+      }
+    }
+
+    const ingestResult = isWawpPayload
+      ? await ingestWawpWebhook(payload as Parameters<typeof ingestWawpWebhook>[0])
+      : await ingestWhatsAppWebhook(payload as Parameters<typeof ingestWhatsAppWebhook>[0])
+    await recordWhatsAppWebhookResult(ingestResult)
 
     return NextResponse.json(
       {
@@ -88,6 +137,7 @@ export async function POST(request: NextRequest) {
     )
   } catch (error) {
     console.error('[POST /api/webhooks/whatsapp] error:', error)
+    await recordWhatsAppWebhookError(error instanceof Error ? error.message : 'Unknown webhook error')
     return NextResponse.json({ success: false, error: 'Failed to process whatsapp webhook' }, { status: 500 })
   }
 }
