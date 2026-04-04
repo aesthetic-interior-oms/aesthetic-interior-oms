@@ -347,6 +347,37 @@ model FacebookSyncControl {
   updatedAt               DateTime @updatedAt
 }
 
+model WhatsAppWebhookControl {
+  id                          String   @id @default("default")
+  enabled                     Boolean  @default(true)
+  lastWebhookAt               DateTime?
+  lastWebhookStatus           String?
+  lastWebhookError            String?
+  lastProcessedMessages       Int      @default(0)
+  lastCreatedLeads            Int      @default(0)
+  lastSkippedExistingPhone    Int      @default(0)
+  lastSkippedNoPhone          Int      @default(0)
+  lastSkippedDuplicateMessage Int      @default(0)
+  totalWebhookEvents          Int      @default(0)
+  totalProcessedMessages      Int      @default(0)
+  totalCreatedLeads           Int      @default(0)
+  totalSkippedExistingPhone   Int      @default(0)
+  totalSkippedNoPhone         Int      @default(0)
+  totalSkippedDuplicateMessage Int     @default(0)
+  jrCrmRoundRobinOffset       Int      @default(0)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+}
+
+model WhatsAppProcessedMessage {
+  id        String   @id @default(cuid())
+  messageId String   @unique
+  phone     String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 enum LeadAssignmentDepartment {
   ADMIN
   SR_CRM

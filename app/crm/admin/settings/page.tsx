@@ -2,28 +2,20 @@
 
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
 import { 
   Users, 
   Shield, 
   Bell, 
   Activity, 
   Plug,
-  ChevronDown,
-  Search,
-  Plus,
-  Edit2,
-  Trash2,
-  Eye,
-  Lock,
-  Mail,
-  AlertCircle,
+  MessageCircle,
 } from 'lucide-react'
 import { UserManagement } from '@/components/settings/user-management'
 import { RolePermissions } from '@/components/settings/role-permissions'
 import { NotificationSettings } from '@/components/settings/notification-settings'
 import { ActivityLog } from '@/components/settings/activity-log'
 import { IntegrationSettings } from '@/components/settings/integration-settings'
+import { WhatsAppLeadSettings } from '@/components/settings/whatsapp-lead-settings'
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('users')
@@ -43,7 +35,7 @@ export default function SettingsPage() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 mb-8">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-6 mb-8">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
               <span className="hidden sm:inline">Users</span>
@@ -63,6 +55,10 @@ export default function SettingsPage() {
             <TabsTrigger value="integrations" className="flex items-center gap-2">
               <Plug className="w-4 h-4" />
               <span className="hidden sm:inline">Integration</span>
+            </TabsTrigger>
+            <TabsTrigger value="whatsapp" className="flex items-center gap-2">
+              <MessageCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">WhatsApp</span>
             </TabsTrigger>
           </TabsList>
 
@@ -89,6 +85,11 @@ export default function SettingsPage() {
           {/* Integrations Tab */}
           <TabsContent value="integrations" className="space-y-6">
             <IntegrationSettings />
+          </TabsContent>
+
+          {/* WhatsApp Lead Tab */}
+          <TabsContent value="whatsapp" className="space-y-6">
+            <WhatsAppLeadSettings />
           </TabsContent>
         </Tabs>
       </div>

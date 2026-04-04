@@ -3,7 +3,9 @@ import 'server-only'
 import { createHmac, timingSafeEqual } from 'node:crypto'
 
 import prisma from '@/lib/prisma'
-import { ActivityType, LeadAssignmentDepartment, LeadStage } from '@/generated/prisma/client'
+import { ActivityType, LeadAssignmentDepartment, LeadStage, NotificationType } from '@/generated/prisma/client'
+import { getAndAdvanceWhatsAppRoundRobinOffset } from '@/lib/whatsapp-control'
+import { Prisma } from '@/generated/prisma/client'
 
 type WhatsAppContact = {
   wa_id?: string
@@ -38,19 +40,39 @@ type WhatsAppWebhookPayload = {
   }>
 }
 
+type WawpMessagePayload = {
+  id?: string
+  from?: string
+  fromMe?: boolean
+  body?: string
+  type?: string
+}
+
+type WawpWebhookPayload = {
+  id?: string
+  event?: string
+  session?: string
+  payload?: WawpMessagePayload
+}
+
 type IngestResult = {
   processedMessages: number
   createdLeads: number
   skippedExistingPhone: number
   skippedNoPhone: number
+  skippedDuplicateMessage: number
 }
 
 const WHATSAPP_LOG_PREFIX = '[whatsapp-lib]'
-const SETTINGS_ROW_ID = 'default'
 
 type JrCrmAgent = {
   id: string
   fullName: string
+}
+
+type WhatsAppCreatedLeadSignal = {
+  leadId: string
+  assignedUserId: string | null
 }
 
 export function getWhatsAppVerifyTokens(): string[] {
@@ -99,6 +121,14 @@ function normalizePhone(value: string | undefined): string | null {
   return hasPlus ? `+${digits}` : `+${digits}`
 }
 
+function normalizeWawpFromToPhone(from: string | undefined): string | null {
+  if (!from) return null
+  const jid = from.trim().toLowerCase()
+  const atIndex = jid.indexOf('@')
+  const raw = atIndex > 0 ? jid.slice(0, atIndex) : jid
+  return normalizePhone(raw)
+}
+
 async function getActiveJrCrmAgents(): Promise<JrCrmAgent[]> {
   const users = await prisma.user.findMany({
     where: {
@@ -123,25 +153,57 @@ async function getActiveJrCrmAgents(): Promise<JrCrmAgent[]> {
   return users
 }
 
-async function getAndAdvanceRoundRobinOffset(agentCount: number): Promise<number> {
-  if (agentCount <= 0) return 0
+async function createLeadSyncNotifications(signals: WhatsAppCreatedLeadSignal[]) {
+  if (signals.length === 0) return
 
-  const control = await prisma.facebookSyncControl.upsert({
-    where: { id: SETTINGS_ROW_ID },
-    create: { id: SETTINGS_ROW_ID },
-    update: {},
-    select: { jrCrmRoundRobinOffset: true },
+  const assignedCountByUser = new Map<string, number>()
+  for (const signal of signals) {
+    if (!signal.assignedUserId) continue
+    assignedCountByUser.set(signal.assignedUserId, (assignedCountByUser.get(signal.assignedUserId) ?? 0) + 1)
+  }
+
+  const adminUsers = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      userDepartments: {
+        some: {
+          department: {
+            name: 'ADMIN',
+          },
+        },
+      },
+    },
+    select: { id: true },
   })
 
-  const selectedOffset = Math.max(0, control.jrCrmRoundRobinOffset) % agentCount
-  const nextOffset = (selectedOffset + 1) % agentCount
+  const now = new Date()
+  const assignedTotal = Array.from(assignedCountByUser.values()).reduce((sum, value) => sum + value, 0)
+  const fallbackLeadId = signals[0]?.leadId ?? null
 
-  await prisma.facebookSyncControl.update({
-    where: { id: SETTINGS_ROW_ID },
-    data: { jrCrmRoundRobinOffset: nextOffset },
-  })
+  const adminNotificationData = adminUsers.map((admin) => ({
+    userId: admin.id,
+    type: NotificationType.FACEBOOK_LEAD_SYNC_SUMMARY,
+    title: 'WhatsApp leads synced',
+    message: `${signals.length} new lead${signals.length === 1 ? '' : 's'} created from WhatsApp, ${assignedTotal} assigned to JR CRM.`,
+    scheduledFor: now,
+    leadId: fallbackLeadId,
+  }))
 
-  return selectedOffset
+  const jrNotificationData = Array.from(assignedCountByUser.entries()).map(([userId, count]) => ({
+    userId,
+    type: NotificationType.LEAD_ASSIGNED_TO_YOU,
+    title: 'New WhatsApp leads assigned',
+    message: `You are assigned ${count} new WhatsApp lead${count === 1 ? '' : 's'}.`,
+    scheduledFor: now,
+    leadId: fallbackLeadId,
+  }))
+
+  if (adminNotificationData.length > 0) {
+    await prisma.notification.createMany({ data: adminNotificationData })
+  }
+  if (jrNotificationData.length > 0) {
+    await prisma.notification.createMany({ data: jrNotificationData })
+  }
 }
 
 function getMessagePreview(message: WhatsAppMessage): string {
@@ -196,6 +258,7 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload): Pr
     createdLeads: 0,
     skippedExistingPhone: 0,
     skippedNoPhone: 0,
+    skippedDuplicateMessage: 0,
   }
 
   if (payload.object !== 'whatsapp_business_account') {
@@ -204,8 +267,16 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload): Pr
 
   const jrCrmAgents = await getActiveJrCrmAgents()
 
+  const createdSignals: WhatsAppCreatedLeadSignal[] = []
+
   for (const { message, contact } of iterIncomingMessages(payload)) {
     result.processedMessages += 1
+    const messageId = message.id?.trim()
+
+    if (!messageId) {
+      result.skippedDuplicateMessage += 1
+      continue
+    }
 
     const rawPhone = message.from ?? contact?.wa_id
     const phone = normalizePhone(rawPhone)
@@ -215,27 +286,189 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload): Pr
       continue
     }
 
-    const existing = await prisma.lead.findFirst({
-      where: { phone },
-      select: { id: true },
-    })
-
-    if (existing) {
-      result.skippedExistingPhone += 1
-      continue
-    }
-
     const leadName = getLeadName(contact, phone)
     const preview = getMessagePreview(message)
-    const messageId = message.id?.trim() || 'unknown'
 
     let assignee: JrCrmAgent | null = null
     if (jrCrmAgents.length > 0) {
-      const rrOffset = await getAndAdvanceRoundRobinOffset(jrCrmAgents.length)
+      const rrOffset = await getAndAdvanceWhatsAppRoundRobinOffset(jrCrmAgents.length)
       assignee = jrCrmAgents[rrOffset]
     }
 
-    await prisma.$transaction(async (tx) => {
+    try {
+      const created = await prisma.$transaction(async (tx) => {
+        const existingMessage = await tx.whatsAppProcessedMessage.findUnique({
+          where: { messageId },
+          select: { id: true },
+        })
+        if (existingMessage) {
+          return { created: false as const, reason: 'duplicate_message' as const, signal: null }
+        }
+
+        const existingLead = await tx.lead.findFirst({
+          where: { phone },
+          select: { id: true },
+        })
+        if (existingLead) {
+          await tx.whatsAppProcessedMessage.create({
+            data: { messageId, phone },
+          })
+          return { created: false as const, reason: 'existing_phone' as const, signal: null }
+        }
+
+        const lead = await tx.lead.create({
+          data: {
+            name: leadName,
+            phone,
+            source: 'WhatsApp',
+            stage: LeadStage.NUMBER_COLLECTED,
+            assignedTo: assignee?.id ?? null,
+            remarks: `WA_MESSAGE_ID:${messageId}\nImported from WhatsApp webhook.\nLast message: ${preview}`,
+          },
+          select: { id: true },
+        })
+
+        await tx.whatsAppProcessedMessage.create({
+          data: {
+            messageId,
+            phone,
+          },
+        })
+
+        if (assignee) {
+          await tx.leadAssignment.create({
+            data: {
+              leadId: lead.id,
+              userId: assignee.id,
+              department: LeadAssignmentDepartment.JR_CRM,
+            },
+          })
+
+          await tx.activityLog.create({
+            data: {
+              leadId: lead.id,
+              userId: assignee.id,
+              type: ActivityType.LEAD_CREATED,
+              description: `Lead "${leadName}" was created from WhatsApp chat.`,
+            },
+          })
+        }
+
+        return {
+          created: true as const,
+          reason: null,
+          signal: {
+            leadId: lead.id,
+            assignedUserId: assignee?.id ?? null,
+          },
+        }
+      })
+
+      if (!created.created) {
+        if (created.reason === 'duplicate_message') {
+          result.skippedDuplicateMessage += 1
+        } else if (created.reason === 'existing_phone') {
+          result.skippedExistingPhone += 1
+        }
+        continue
+      }
+
+      result.createdLeads += 1
+      if (created.signal) {
+        createdSignals.push(created.signal)
+      }
+    } catch (error) {
+      // Handle race conditions gracefully: phone or message created by another worker.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const target = Array.isArray(error.meta?.target)
+          ? error.meta?.target.join(',')
+          : String(error.meta?.target ?? '')
+        if (target.includes('phone')) {
+          result.skippedExistingPhone += 1
+        } else {
+          result.skippedDuplicateMessage += 1
+        }
+        continue
+      }
+      throw error
+    }
+  }
+
+  if (createdSignals.length > 0) {
+    await createLeadSyncNotifications(createdSignals)
+  }
+
+  console.info(
+    `${WHATSAPP_LOG_PREFIX} ingest complete processed=${result.processedMessages} created=${result.createdLeads} skipped_existing=${result.skippedExistingPhone} skipped_no_phone=${result.skippedNoPhone} skipped_duplicate_message=${result.skippedDuplicateMessage}`,
+  )
+
+  return result
+}
+
+export async function ingestWawpWebhook(payload: WawpWebhookPayload): Promise<IngestResult> {
+  const result: IngestResult = {
+    processedMessages: 0,
+    createdLeads: 0,
+    skippedExistingPhone: 0,
+    skippedNoPhone: 0,
+    skippedDuplicateMessage: 0,
+  }
+
+  if (payload.event !== 'message' || !payload.payload) {
+    return result
+  }
+
+  result.processedMessages += 1
+
+  const message = payload.payload
+  if (message.fromMe) {
+    return result
+  }
+
+  const messageId = message.id?.trim()
+  if (!messageId) {
+    result.skippedDuplicateMessage += 1
+    return result
+  }
+
+  const phone = normalizeWawpFromToPhone(message.from)
+  if (!phone) {
+    result.skippedNoPhone += 1
+    return result
+  }
+
+  const jrCrmAgents = await getActiveJrCrmAgents()
+  const leadName = `WhatsApp User ${phone.slice(-6)}`
+  const body = message.body?.trim()
+  const preview = body && body.length > 0 ? body.slice(0, 500) : '[message received]'
+
+  let assignee: JrCrmAgent | null = null
+  if (jrCrmAgents.length > 0) {
+    const rrOffset = await getAndAdvanceWhatsAppRoundRobinOffset(jrCrmAgents.length)
+    assignee = jrCrmAgents[rrOffset]
+  }
+
+  try {
+    const created = await prisma.$transaction(async (tx) => {
+      const existingMessage = await tx.whatsAppProcessedMessage.findUnique({
+        where: { messageId },
+        select: { id: true },
+      })
+      if (existingMessage) {
+        return { created: false as const, reason: 'duplicate_message' as const, signal: null }
+      }
+
+      const existingLead = await tx.lead.findFirst({
+        where: { phone },
+        select: { id: true },
+      })
+      if (existingLead) {
+        await tx.whatsAppProcessedMessage.create({
+          data: { messageId, phone },
+        })
+        return { created: false as const, reason: 'existing_phone' as const, signal: null }
+      }
+
       const lead = await tx.lead.create({
         data: {
           name: leadName,
@@ -243,9 +476,16 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload): Pr
           source: 'WhatsApp',
           stage: LeadStage.NUMBER_COLLECTED,
           assignedTo: assignee?.id ?? null,
-          remarks: `WA_MESSAGE_ID:${messageId}\nImported from WhatsApp webhook.\nLast message: ${preview}`,
+          remarks: `WA_MESSAGE_ID:${messageId}\nImported from WAWP webhook.\nLast message: ${preview}`,
         },
         select: { id: true },
+      })
+
+      await tx.whatsAppProcessedMessage.create({
+        data: {
+          messageId,
+          phone,
+        },
       })
 
       if (assignee) {
@@ -266,14 +506,44 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload): Pr
           },
         })
       }
+
+      return {
+        created: true as const,
+        reason: null,
+        signal: {
+          leadId: lead.id,
+          assignedUserId: assignee?.id ?? null,
+        },
+      }
     })
 
-    result.createdLeads += 1
-  }
+    if (!created.created) {
+      if (created.reason === 'duplicate_message') {
+        result.skippedDuplicateMessage += 1
+      } else if (created.reason === 'existing_phone') {
+        result.skippedExistingPhone += 1
+      }
+      return result
+    }
 
-  console.info(
-    `${WHATSAPP_LOG_PREFIX} ingest complete processed=${result.processedMessages} created=${result.createdLeads} skipped_existing=${result.skippedExistingPhone} skipped_no_phone=${result.skippedNoPhone}`,
-  )
+    result.createdLeads += 1
+    if (created.signal) {
+      await createLeadSyncNotifications([created.signal])
+    }
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const target = Array.isArray(error.meta?.target)
+        ? error.meta?.target.join(',')
+        : String(error.meta?.target ?? '')
+      if (target.includes('phone')) {
+        result.skippedExistingPhone += 1
+      } else {
+        result.skippedDuplicateMessage += 1
+      }
+      return result
+    }
+    throw error
+  }
 
   return result
 }
