@@ -13,6 +13,10 @@ type UserApiItem = {
   fullName: string
   email: string
   isActive: boolean
+  approvedBy?: {
+    id: string
+    fullName: string
+  } | null
 }
 
 type AdminUserApiItem = {
@@ -27,6 +31,10 @@ type AdminUserApiItem = {
       name?: string
     } | null
   }>
+  approvedBy?: {
+    id: string
+    fullName: string
+  } | null
 }
 
 type DepartmentApiItem = {
@@ -157,6 +165,12 @@ export function UserManagement() {
     if (parts.length === 0) return 'U'
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
     return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+  }
+
+  const getLastName = (fullName: string) => {
+    const parts = fullName.trim().split(/\s+/).filter(Boolean)
+    if (parts.length === 0) return fullName
+    return parts[parts.length - 1]
   }
 
   const toggleUserStatus = async (user: UserApiItem) => {
@@ -469,6 +483,11 @@ export function UserManagement() {
                         <Mail className="h-3.5 w-3.5" />
                         {user.email}
                       </p>
+                      {user.approvedBy?.fullName ? (
+                        <p className="text-xs text-muted-foreground">
+                          Added by {getLastName(user.approvedBy.fullName)}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
 

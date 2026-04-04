@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { ActivityType, LeadAssignmentDepartment, LeadStage, ProjectStatus, VisitStatus } from '@/generated/prisma/client';
+import { ActivityType, LeadAssignmentDepartment, LeadStage, NotificationType, ProjectStatus, VisitStatus } from '@/generated/prisma/client';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { logActivity, logLeadStageChanged } from '@/lib/activity-log-service';
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
@@ -226,6 +226,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           lead: {
             select: {
               stage: true,
+              name: true,
             },
           },
         },
@@ -250,6 +251,23 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           ...(body.projectStatus !== undefined ? { projectStatus } : {}),
         },
       });
+
+      if (visitTeamUserId && visitTeamUserId !== existing.assignedToId) {
+        await tx.notification.createMany({
+          data: [
+            {
+              userId: visitTeamUserId,
+              leadId: visit.leadId,
+              visitId: visit.id,
+              type: NotificationType.VISIT_ASSIGNED,
+              title: existing.assignedToId ? 'Visit reassigned to you' : 'Visit assigned to you',
+              message: `Visit for ${existing.lead.name} has been assigned to you.`,
+              scheduledFor: visit.scheduledAt,
+            },
+          ],
+          skipDuplicates: true,
+        });
+      }
 
       if (visitTeamUserId) {
         const existingVisitTeamAssignment = await tx.leadAssignment.findFirst({

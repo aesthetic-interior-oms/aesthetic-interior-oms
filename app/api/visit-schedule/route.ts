@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
     const leadId = toOptionalString(request.nextUrl.searchParams.get('leadId'));
     const assignedToId = toOptionalString(request.nextUrl.searchParams.get('assignedToId'));
     const mode = toOptionalString(request.nextUrl.searchParams.get('mode'));
+    const scope = toOptionalString(request.nextUrl.searchParams.get('scope'));
     const statusParam = toOptionalString(request.nextUrl.searchParams.get('status'));
     const status = toVisitStatus(statusParam);
 
@@ -66,7 +67,11 @@ export async function GET(request: NextRequest) {
           ? assignedToId
             ? { assignedToId }
             : {}
-          : mode === 'support'
+          : scope === 'all'
+            ? assignedToId
+              ? { assignedToId }
+              : {}
+            : mode === 'support'
             ? { supportAssignments: { some: { supportUserId: authResult.actorUserId } } }
             : mode === 'lead'
               ? { assignedToId: authResult.actorUserId }

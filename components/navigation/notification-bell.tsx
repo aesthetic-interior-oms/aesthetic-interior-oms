@@ -16,12 +16,14 @@ import { toast } from '@/components/ui/sonner'
 
 type NotificationItem = {
   id: string
+  type: string
   title: string
   message: string
   isRead: boolean
   createdAt: string
   scheduledFor: string | null
   lead: { id: string; name: string } | null
+  subjectUser?: { id: string; fullName: string; email: string } | null
 }
 
 type NotificationsResponse = {
@@ -83,6 +85,9 @@ export function NotificationBell() {
   const [soundEnabled, setSoundEnabled] = useState(false)
   const knownIdsRef = useRef<Set<string>>(new Set())
   const soundRef = useRef<HTMLAudioElement | null>(null)
+  const visibleUnreadCountRef = useRef(0)
+  const wasHiddenRef = useRef(false)
+  const unreadCountRef = useRef(0)
 
   const playNotificationSound = useCallback(() => {
     if (typeof window === 'undefined') return
@@ -99,7 +104,7 @@ export function NotificationBell() {
     })
   }, [])
 
-  const loadNotifications = useCallback(async (showLoading = false) => {
+  const loadNotifications = useCallback(async (showLoading = false, fromReturn = false) => {
     if (showLoading) setLoading(true)
     try {
       const response = await fetch('/api/notifications?limit=20', { cache: 'no-store' })
@@ -122,7 +127,12 @@ export function NotificationBell() {
       setItems(payload.data.items)
       setUnreadCount(payload.data.unreadCount)
 
-      if (hasNew && payload.data.unreadCount > 0) {
+      const shouldRingFromReturn =
+        fromReturn &&
+        payload.data.unreadCount > visibleUnreadCountRef.current
+      const shouldRingForNew = hasNew && payload.data.unreadCount > 0
+
+      if ((shouldRingFromReturn || shouldRingForNew) && payload.data.unreadCount > 0) {
         if (soundEnabled) {
           playNotificationSound()
         }
@@ -133,6 +143,8 @@ export function NotificationBell() {
           })
         }
       }
+
+      visibleUnreadCountRef.current = payload.data.unreadCount
     } catch (error) {
       console.error('Failed to load notifications:', error)
     } finally {
@@ -141,16 +153,35 @@ export function NotificationBell() {
   }, [soundEnabled, playNotificationSound])
 
   useEffect(() => {
+    unreadCountRef.current = unreadCount
+  }, [unreadCount])
+
+  useEffect(() => {
     const saved = window.localStorage.getItem('crm_notification_sound')
-    setSoundEnabled(saved === 'on')
+    setSoundEnabled(saved !== 'off')
     loadNotifications(true)
 
     const timer = window.setInterval(() => {
       loadNotifications(false)
     }, 30000)
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        wasHiddenRef.current = true
+        visibleUnreadCountRef.current = unreadCountRef.current
+        return
+      }
+      if (document.visibilityState === 'visible' && wasHiddenRef.current) {
+        wasHiddenRef.current = false
+        void loadNotifications(false, true)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     return () => {
       window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [loadNotifications])
 
@@ -210,6 +241,18 @@ export function NotificationBell() {
     await markAsRead(item.id)
     if (item.lead?.id) {
       router.push(buildLeadPath(item.lead.id))
+      return
+    }
+    if (item.type === 'SIGNUP_PENDING_APPROVAL' && pathname.startsWith('/crm/admin')) {
+      router.push('/crm/admin/settings')
+      return
+    }
+    if (item.type === 'FACEBOOK_LEAD_SYNC_SUMMARY' && pathname.startsWith('/crm/admin')) {
+      router.push('/crm/admin/leads')
+      return
+    }
+    if (item.type === 'LEAD_ASSIGNED_TO_YOU' && pathname.startsWith('/crm/jr')) {
+      router.push('/crm/jr/leads')
     }
   }
 

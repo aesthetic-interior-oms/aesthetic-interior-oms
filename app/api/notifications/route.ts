@@ -87,6 +87,122 @@ async function ensureFollowupDueNotifications(userId: string) {
   })
 }
 
+async function ensureVisitScheduleNotifications(userId: string) {
+  const now = new Date()
+  const reminderWindowEnd = new Date(now.getTime() + 30 * 60 * 1000)
+
+  const reminderVisits = await prisma.visit.findMany({
+    where: {
+      status: 'SCHEDULED',
+      scheduledAt: { gt: now, lte: reminderWindowEnd },
+      OR: [
+        { assignedToId: userId },
+        { supportAssignments: { some: { supportUserId: userId } } },
+      ],
+      notifications: {
+        none: {
+          userId,
+          type: NotificationType.VISIT_REMINDER_30M,
+        },
+      },
+    },
+    include: {
+      lead: {
+        select: { id: true, name: true },
+      },
+    },
+    take: 100,
+    orderBy: { scheduledAt: 'asc' },
+  })
+
+  const dueVisits = await prisma.visit.findMany({
+    where: {
+      status: 'SCHEDULED',
+      scheduledAt: { lte: now },
+      OR: [
+        { assignedToId: userId },
+        { supportAssignments: { some: { supportUserId: userId } } },
+      ],
+      notifications: {
+        none: {
+          userId,
+          type: NotificationType.VISIT_DUE,
+        },
+      },
+    },
+    include: {
+      lead: {
+        select: { id: true, name: true },
+      },
+    },
+    take: 100,
+    orderBy: { scheduledAt: 'asc' },
+  })
+
+  if (reminderVisits.length === 0 && dueVisits.length === 0) return
+
+  if (reminderVisits.length > 0) {
+    await prisma.notification.createMany({
+      data: reminderVisits.map((visit) => ({
+        userId,
+        leadId: visit.leadId,
+        visitId: visit.id,
+        type: NotificationType.VISIT_REMINDER_30M,
+        title: 'Visit in 30 minutes',
+        message: `Upcoming visit for ${visit.lead.name}.`,
+        scheduledFor: visit.scheduledAt,
+      })),
+      skipDuplicates: true,
+    })
+  }
+
+  await prisma.notification.createMany({
+    data: dueVisits.map((visit) => ({
+      userId,
+      leadId: visit.leadId,
+      visitId: visit.id,
+      type: NotificationType.VISIT_DUE,
+      title: 'Visit due now',
+      message: `Visit for ${visit.lead.name} is due now.`,
+      scheduledFor: visit.scheduledAt,
+    })),
+    skipDuplicates: true,
+  })
+}
+
+async function ensureSignupApprovalNotifications(userId: string, isAdmin: boolean) {
+  if (!isAdmin) return
+
+  const pendingUsers = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      userDepartments: { none: {} },
+    },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      created_at: true,
+    },
+    take: 100,
+    orderBy: { created_at: 'desc' },
+  })
+
+  if (pendingUsers.length === 0) return
+
+  await prisma.notification.createMany({
+    data: pendingUsers.map((pending) => ({
+      userId,
+      subjectUserId: pending.id,
+      type: NotificationType.SIGNUP_PENDING_APPROVAL,
+      title: 'New signup pending approval',
+      message: `${pending.fullName} (${pending.email}) is waiting for admin approval.`,
+      scheduledFor: pending.created_at,
+    })),
+    skipDuplicates: true,
+  })
+}
+
 async function clearOrphanFollowupNotifications(userId: string) {
   await prisma.notification.deleteMany({
     where: {
@@ -97,6 +213,34 @@ async function clearOrphanFollowupNotifications(userId: string) {
       OR: [{ leadId: null }, { followUpId: null }],
     },
   })
+
+  await prisma.notification.deleteMany({
+    where: {
+      userId,
+      type: {
+        in: [NotificationType.VISIT_DUE, NotificationType.VISIT_REMINDER_30M, NotificationType.VISIT_ASSIGNED],
+      },
+      OR: [{ leadId: null }, { visitId: null }],
+    },
+  })
+
+  await prisma.notification.deleteMany({
+    where: {
+      userId,
+      type: NotificationType.SIGNUP_PENDING_APPROVAL,
+      OR: [
+        { subjectUserId: null },
+        {
+          subjectUser: {
+            OR: [
+              { isActive: false },
+              { userDepartments: { some: {} } },
+            ],
+          },
+        },
+      ],
+    },
+  })
 }
 
 export async function GET(request: NextRequest) {
@@ -105,10 +249,13 @@ export async function GET(request: NextRequest) {
     if (!authResult.ok) return authResult.response
 
     const userId = authResult.actorUserId
+    const isAdmin = authResult.actor.userDepartments.includes('ADMIN')
     const limit = toPositiveInt(request.nextUrl.searchParams.get('limit'), 20, 100)
 
     await clearOrphanFollowupNotifications(userId)
     await ensureFollowupDueNotifications(userId)
+    await ensureVisitScheduleNotifications(userId)
+    await ensureSignupApprovalNotifications(userId, isAdmin)
 
     const [items, unreadCount] = await Promise.all([
       prisma.notification.findMany({
@@ -119,6 +266,12 @@ export async function GET(request: NextRequest) {
           },
           followUp: {
             select: { id: true, followupDate: true, status: true },
+          },
+          visit: {
+            select: { id: true, scheduledAt: true, status: true },
+          },
+          subjectUser: {
+            select: { id: true, fullName: true, email: true },
           },
         },
         orderBy: { createdAt: 'desc' },

@@ -63,6 +63,12 @@ type ApiResponse = {
   error?: string
 }
 
+type SupportMemberOption = {
+  id: string
+  fullName: string
+  email: string
+}
+
 function formatDateKey(date: Date) {
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
@@ -115,6 +121,13 @@ export default function VisitTodayPage() {
   const [completeFiles, setCompleteFiles] = useState<File[]>([])
   const [completeError, setCompleteError] = useState<string | null>(null)
   const [submittingComplete, setSubmittingComplete] = useState(false)
+  const [supportDialogOpen, setSupportDialogOpen] = useState(false)
+  const [supportDialogVisitId, setSupportDialogVisitId] = useState('')
+  const [supportDialogSelection, setSupportDialogSelection] = useState('')
+  const [supportDialogMembers, setSupportDialogMembers] = useState<SupportMemberOption[]>([])
+  const [supportDialogError, setSupportDialogError] = useState<string | null>(null)
+  const [supportDialogLoading, setSupportDialogLoading] = useState(false)
+  const [supportDialogSaving, setSupportDialogSaving] = useState(false)
 
   useEffect(() => {
     fetchMeCached()
@@ -155,6 +168,11 @@ export default function VisitTodayPage() {
     if (visit.assignedTo?.id === currentUserId) return 'LEAD'
     const isSupport = (visit.supportAssignments ?? []).some((item) => item.supportUserId === currentUserId)
     return isSupport ? 'SUPPORT' : 'NONE'
+  }
+  const canManageSupportForVisit = (visit: VisitRecord) => {
+    if (!currentUserId) return false
+    if (visit.status === 'COMPLETED' || visit.status === 'CANCELLED') return false
+    return visit.assignedTo?.id === currentUserId
   }
 
   const todayVisits = useMemo(() => {
@@ -234,6 +252,29 @@ export default function VisitTodayPage() {
                       {visit.notes ? <p className="italic">{visit.notes}</p> : null}
                     </div>
                   )}
+                  <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
+                    <p className="font-semibold text-foreground">Support Members</p>
+                    {(visit.supportAssignments ?? []).length > 0 ? (
+                      <p className="mt-1 text-muted-foreground">
+                        {(visit.supportAssignments ?? []).map((item) => item.supportUser.fullName).join(', ')}
+                      </p>
+                    ) : (
+                      <div className="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-amber-800">
+                        <p className="font-semibold">Warning: no support members assigned.</p>
+                        {canManageSupportForVisit(visit) ? (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="mt-2 h-7 px-2 text-[11px] border-amber-400 text-amber-900"
+                            onClick={() => void openSupportDialog(visit)}
+                          >
+                            Add Support Member
+                          </Button>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2 sm:justify-end">
@@ -476,6 +517,88 @@ export default function VisitTodayPage() {
     } finally {
       setSubmittingComplete(false)
       setLoading(false)
+    }
+  }
+
+  const openSupportDialog = async (visit: VisitRecord) => {
+    setSupportDialogVisitId(visit.id)
+    setSupportDialogSelection('')
+    setSupportDialogError(null)
+    setSupportDialogOpen(true)
+    setSupportDialogLoading(true)
+    try {
+      const response = await fetch(`/api/visit-schedule/${visit.id}/supports`, {
+        cache: 'no-store',
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to load support members')
+      }
+      const members = Array.isArray(payload?.data?.availableMembers) ? payload.data.availableMembers : []
+      setSupportDialogMembers(members)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load support members'
+      setSupportDialogError(message)
+      setSupportDialogMembers([])
+    } finally {
+      setSupportDialogLoading(false)
+    }
+  }
+
+  const handleAddSupportMember = async () => {
+    if (!supportDialogVisitId || !supportDialogSelection) {
+      setSupportDialogError('Please select a support member.')
+      return
+    }
+    setSupportDialogSaving(true)
+    setSupportDialogError(null)
+    try {
+      const response = await fetch(`/api/visit-schedule/${supportDialogVisitId}/supports`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supportUserId: supportDialogSelection }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to add support member')
+      }
+
+      const member = supportDialogMembers.find((item) => item.id === supportDialogSelection) ?? null
+      setVisits((prev) =>
+        prev.map((visit) => {
+          if (visit.id !== supportDialogVisitId || !member) return visit
+          const existing = visit.supportAssignments ?? []
+          if (existing.some((item) => item.supportUserId === member.id)) return visit
+          return {
+            ...visit,
+            supportAssignments: [
+              ...existing,
+              {
+                id: payload?.data?.id ?? `temp-${member.id}`,
+                supportUserId: member.id,
+                supportUser: {
+                  id: member.id,
+                  fullName: member.fullName,
+                  email: member.email,
+                },
+                result: null,
+              },
+            ],
+          }
+        }),
+      )
+
+      toast.success('Support member added.')
+      setSupportDialogOpen(false)
+      setSupportDialogVisitId('')
+      setSupportDialogSelection('')
+      setSupportDialogMembers([])
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to add support member'
+      setSupportDialogError(message)
+      toast.error(message)
+    } finally {
+      setSupportDialogSaving(false)
     }
   }
 
@@ -819,6 +942,66 @@ export default function VisitTodayPage() {
                 : completeRole === 'SUPPORT'
                   ? 'Submit Support Data'
                   : 'Complete Visit'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={supportDialogOpen}
+        onOpenChange={(open) => {
+          setSupportDialogOpen(open)
+          if (!open) {
+            setSupportDialogVisitId('')
+            setSupportDialogSelection('')
+            setSupportDialogMembers([])
+            setSupportDialogError(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Support Member</DialogTitle>
+            <DialogDescription>
+              Assign a support member for this visit from this page.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Support Member</Label>
+              <select
+                value={supportDialogSelection}
+                onChange={(event) => setSupportDialogSelection(event.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                disabled={supportDialogLoading}
+              >
+                <option value="">
+                  {supportDialogLoading
+                    ? 'Loading visit team members...'
+                    : supportDialogMembers.length === 0
+                      ? 'No available members'
+                      : 'Select support member'}
+                </option>
+                {supportDialogMembers.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.fullName} ({member.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+            {supportDialogError ? (
+              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                {supportDialogError}
+              </div>
+            ) : null}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              onClick={handleAddSupportMember}
+              disabled={supportDialogSaving || supportDialogLoading || !supportDialogSelection}
+              className="text-sm gap-2"
+            >
+              {supportDialogSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {supportDialogSaving ? 'Saving...' : 'Add Support Member'}
             </Button>
           </DialogFooter>
         </DialogContent>

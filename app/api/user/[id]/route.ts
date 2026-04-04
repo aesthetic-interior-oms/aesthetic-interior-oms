@@ -1,7 +1,7 @@
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { requireDatabaseRoles } from "@/lib/authz";
-import { LeadAssignmentDepartment } from "@/generated/prisma/client";
+import { LeadAssignmentDepartment, NotificationType } from "@/generated/prisma/client";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -59,12 +59,17 @@ export async function PATCH(req: Request, { params: paramsPromise }: RouteParams
 
     const body = (await req.json()) as UpdateUserBody;
     const { fullName, email, phone, isActive, clerkUserId, roleNames, departmentNames } = body;
+    const actorUserId = authz.actorUserId;
 
     const updated = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({ where: { id } });
+      const user = await tx.user.findUnique({
+        where: { id },
+        include: { userDepartments: { select: { departmentId: true } } },
+      });
       if (!user) {
         throw new Error("NOT_FOUND");
       }
+      const wasPendingApproval = user.isActive && user.userDepartments.length === 0;
 
       await tx.user.update({
         where: { id },
@@ -126,11 +131,47 @@ export async function PATCH(req: Request, { params: paramsPromise }: RouteParams
         }
       }
 
+      const refreshed = await tx.user.findUniqueOrThrow({
+        where: { id },
+        include: {
+          userRoles: { include: { role: true } },
+          userDepartments: { include: { department: true } },
+          approvedBy: { select: { id: true, fullName: true } },
+        },
+      });
+
+      const isNowApproved =
+        refreshed.isActive &&
+        refreshed.userDepartments.length > 0;
+
+      if (wasPendingApproval && isNowApproved) {
+        await tx.user.update({
+          where: { id },
+          data: {
+            approvedById: actorUserId,
+            approvedAt: new Date(),
+          },
+        });
+        await tx.notification.createMany({
+          data: [
+            {
+              userId: id,
+              subjectUserId: id,
+              type: NotificationType.SIGNUP_APPROVED,
+              title: "Account approved",
+              message: "Your signup has been approved by admin. You can now access your dashboard.",
+            },
+          ],
+          skipDuplicates: true,
+        });
+      }
+
       return tx.user.findUniqueOrThrow({
         where: { id },
         include: {
           userRoles: { include: { role: true } },
           userDepartments: { include: { department: true } },
+          approvedBy: { select: { id: true, fullName: true } },
         },
       });
     });

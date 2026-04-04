@@ -32,6 +32,12 @@ export async function GET() {
         userDepartments: {
           include: { department: true },
         },
+        approvedBy: {
+          select: {
+            id: true,
+            fullName: true,
+          },
+        },
       },
     });
 

@@ -1,7 +1,7 @@
 import 'server-only'
 
 import prisma from '@/lib/prisma'
-import { ActivityType, LeadAssignmentDepartment, LeadStage } from '@/generated/prisma/client'
+import { ActivityType, LeadAssignmentDepartment, LeadStage, NotificationType } from '@/generated/prisma/client'
 
 type FacebookConversation = {
   id: string
@@ -73,6 +73,12 @@ type SyncFacebookIncrementalResult = {
   nextCursor: string | null
   maxUpdatedTimeIso: string | null
   nextJrCrmRoundRobinOffset: number
+}
+
+type FacebookCreatedLeadSignal = {
+  leadId: string
+  leadName: string
+  assignedUserId: string | null
 }
 
 type JrCrmAgent = {
@@ -358,9 +364,10 @@ async function importConversationToLead(
 ): Promise<{
   created: boolean
   usedRoundRobin: boolean
+  signal: FacebookCreatedLeadSignal | null
 }> {
   if (!conversation.id) {
-    return { created: false, usedRoundRobin: false }
+    return { created: false, usedRoundRobin: false, signal: null }
   }
 
   const messages = getConversationMessages(conversation)
@@ -371,7 +378,7 @@ async function importConversationToLead(
   // Business rule: ignore Facebook conversations that do not contain a phone number.
   // No lead creation, no updates, no assignment/history writes for these conversations.
   if (!detectedPhone) {
-    return { created: false, usedRoundRobin: false }
+    return { created: false, usedRoundRobin: false, signal: null }
   }
 
   const marker = conversationMarker(conversation.id)
@@ -431,7 +438,7 @@ async function importConversationToLead(
       })
     }
 
-    return { created: false, usedRoundRobin: false }
+    return { created: false, usedRoundRobin: false, signal: null }
   }
 
   const customerName =
@@ -452,7 +459,7 @@ async function importConversationToLead(
     select: { id: true },
   })
   if (existingByPhone) {
-    return { created: false, usedRoundRobin: false }
+    return { created: false, usedRoundRobin: false, signal: null }
   }
 
   const leadPhone: string = detectedPhone
@@ -461,7 +468,7 @@ async function importConversationToLead(
   const assignmentFromMessage = detectedAgent ? `\nAssigned by Meta message to: ${detectedAgent.fullName}` : ''
   const phoneMarker = `\nDetected phone: ${leadPhone}`
 
-  await prisma.$transaction(async (tx) => {
+  const createdLead = await prisma.$transaction(async (tx) => {
     const lead = await tx.lead.create({
       data: {
         name: customerName,
@@ -494,12 +501,80 @@ async function importConversationToLead(
         },
       })
     }
+
+    return {
+      id: lead.id,
+      name: customerName,
+      assignedUserId: assignee?.id ?? null,
+    }
   })
 
   return {
     created: true,
     usedRoundRobin,
+    signal: {
+      leadId: createdLead.id,
+      leadName: createdLead.name,
+      assignedUserId: createdLead.assignedUserId,
+    },
   }
+}
+
+async function createLeadSyncNotifications(signals: FacebookCreatedLeadSignal[]) {
+  if (signals.length === 0) return
+
+  const assignedCountByUser = new Map<string, number>()
+  for (const signal of signals) {
+    if (!signal.assignedUserId) continue
+    assignedCountByUser.set(signal.assignedUserId, (assignedCountByUser.get(signal.assignedUserId) ?? 0) + 1)
+  }
+
+  const adminUsers = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      userDepartments: {
+        some: {
+          department: {
+            name: 'ADMIN',
+          },
+        },
+      },
+    },
+    select: { id: true },
+  })
+
+  const now = new Date()
+  const assignedTotal = Array.from(assignedCountByUser.values()).reduce((sum, value) => sum + value, 0)
+  const adminNotificationData = adminUsers.map((admin) => ({
+    userId: admin.id,
+    type: NotificationType.FACEBOOK_LEAD_SYNC_SUMMARY,
+    title: 'Facebook leads synced',
+    message: `${signals.length} new lead${signals.length === 1 ? '' : 's'} created from Facebook, ${assignedTotal} assigned to JR CRM.`,
+    scheduledFor: now,
+  }))
+
+  const jrNotificationData = Array.from(assignedCountByUser.entries()).map(([userId, count]) => ({
+    userId,
+    type: NotificationType.LEAD_ASSIGNED_TO_YOU,
+    title: 'New Facebook leads assigned',
+    message: `You are assigned ${count} new Facebook lead${count === 1 ? '' : 's'}.`,
+    scheduledFor: now,
+  }))
+
+  const fallbackLeadId = signals[0]?.leadId ?? null
+
+  await prisma.notification.createMany({
+    data: adminNotificationData.map((item) => ({
+      ...item,
+      leadId: fallbackLeadId,
+    })),
+  })
+  await prisma.notification.createMany({
+    data: jrNotificationData.map((item) => ({
+      ...item,
+      leadId: fallbackLeadId,
+    })),
+  })
 }
 
 export async function syncRecentFacebookConversationsToLeads(
@@ -547,6 +622,7 @@ export async function syncFacebookConversationsIncremental(
   const { conversations, nextCursor } = await fetchFacebookConversationPage({ limit, afterCursor })
   let createdLeads = 0
   let maxUpdatedMs = watermarkMs
+  const createdSignals: FacebookCreatedLeadSignal[] = []
 
   for (const conversation of conversations) {
     const updatedMs = conversation.updated_time ? new Date(conversation.updated_time).getTime() : null
@@ -567,10 +643,17 @@ export async function syncFacebookConversationsIncremental(
 
     if (imported.created) {
       createdLeads += 1
+      if (imported.signal) {
+        createdSignals.push(imported.signal)
+      }
       if (imported.usedRoundRobin && jrCrmAgents.length > 0) {
         jrCrmRoundRobinOffset = (jrCrmRoundRobinOffset + 1) % jrCrmAgents.length
       }
     }
+  }
+
+  if (createdSignals.length > 0) {
+    await createLeadSyncNotifications(createdSignals)
   }
 
   const maxUpdatedTimeIso = maxUpdatedMs === null ? null : new Date(maxUpdatedMs).toISOString()
