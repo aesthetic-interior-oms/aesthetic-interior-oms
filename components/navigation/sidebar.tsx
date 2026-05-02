@@ -97,6 +97,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
       items: [
         { icon: CalendarClock, label: 'Calendar', href: '/crm/sr/meetings' },
         { icon: CalendarClock, label: 'Meeting Queue', href: '/crm/sr/meeting-queue' },
+        { icon: CalendarClock, label: 'Budget Queue', href: '/crm/sr/budget-queue' },
         { icon: Users, label: 'Lead Journey', href: '/crm/sr/lead-journey' },
       ],
     },

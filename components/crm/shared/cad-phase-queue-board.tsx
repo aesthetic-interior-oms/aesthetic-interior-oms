@@ -83,12 +83,12 @@ export function CadPhaseQueueBoard({
   title,
   subtitle,
   leadBasePath,
-  cadApprovedOnly = false,
+  queueType = 'cad',
 }: {
   title: string
   subtitle: string
   leadBasePath: string
-  cadApprovedOnly?: boolean
+  queueType?: 'cad' | 'meeting' | 'budget'
 }) {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -111,6 +111,10 @@ export function CadPhaseQueueBoard({
   const [quotationMemberId, setQuotationMemberId] = useState('')
   const [loadingQuotationMembers, setLoadingQuotationMembers] = useState(false)
   const [reassignQuotationOpen, setReassignQuotationOpen] = useState(false)
+  const [activeFilter, setActiveFilter] = useState<string>('ALL')
+
+  const isMeetingQueue = queueType === 'meeting'
+  const isBudgetQueue = queueType === 'budget'
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 400)
@@ -121,7 +125,7 @@ export function CadPhaseQueueBoard({
     try {
       setLoading(true)
       const params = new URLSearchParams({
-        cadApprovedOnly: cadApprovedOnly ? '1' : '0',
+        queueType,
       })
       if (search) params.set('search', search)
       const response = await fetch(`/api/cad-work/jr-architect-queue?${params.toString()}`, { cache: 'no-store' })
@@ -136,7 +140,7 @@ export function CadPhaseQueueBoard({
     } finally {
       setLoading(false)
     }
-  }, [cadApprovedOnly, search])
+  }, [queueType, search])
 
   useEffect(() => {
     void loadLeads()
@@ -345,11 +349,40 @@ export function CadPhaseQueueBoard({
     }
   }
 
-  const summary = useMemo(() => {
-    const cadApproved = leads.filter((lead) => lead.subStatus === 'CAD_APPROVED').length
-    const meetingSet = leads.filter((lead) => lead.subStatus === 'FIRST_MEETING_SET').length
-    return { total: leads.length, cadApproved, meetingSet }
-  }, [leads])
+  const statCards = useMemo(() => {
+    const cards: Array<{ key: string; label: string; count: number }> = [
+      { key: 'ALL', label: 'Total', count: leads.length },
+    ]
+    const config = isMeetingQueue
+      ? [
+          { key: 'CAD_APPROVED', label: 'CAD Approved' },
+          { key: 'FIRST_MEETING_SET', label: 'Meeting Set' },
+          { key: 'PROPOSAL_SENT', label: 'Proposal Sent' },
+        ]
+      : isBudgetQueue
+        ? [
+            { key: 'QUOTATION_ASSIGNED', label: 'Quotation Assigned' },
+            { key: 'QUOTATION_WORKING', label: 'Quotation Working' },
+            { key: 'QUOTATION_COMPLETED', label: 'Quotation Completed' },
+            { key: 'BUDGET_MEETING_SET', label: 'Budget Meeting Set' },
+          ]
+        : [{ key: 'CAD_PHASE', label: 'CAD Phase' }]
+
+    for (const item of config) {
+      cards.push({
+        key: item.key,
+        label: item.label,
+        count: leads.filter((lead) => lead.subStatus === item.key || lead.stage === item.key).length,
+      })
+    }
+
+    return cards
+  }, [isBudgetQueue, isMeetingQueue, leads])
+
+  const filteredLeads = useMemo(() => {
+    if (activeFilter === 'ALL') return leads
+    return leads.filter((lead) => lead.subStatus === activeFilter || lead.stage === activeFilter)
+  }, [activeFilter, leads])
 
   return (
     <div className="min-h-screen bg-background">
@@ -367,17 +400,17 @@ export function CadPhaseQueueBoard({
             />
           </div>
           <div className="flex gap-2">
-            <Badge variant="outline" className="h-8 px-3">
-              Total: {summary.total}
-            </Badge>
-            <Badge variant="secondary" className="h-8 px-3">
-              CAD Approved: {summary.cadApproved}
-            </Badge>
-            {cadApprovedOnly ? (
-              <Badge variant="secondary" className="h-8 px-3">
-                Meeting Set: {summary.meetingSet}
-              </Badge>
-            ) : null}
+            {statCards.map((card) => (
+              <Button
+                key={card.key}
+                size="sm"
+                variant={activeFilter === card.key ? 'default' : 'outline'}
+                onClick={() => setActiveFilter(card.key)}
+                className="h-8"
+              >
+                {card.label}: {card.count}
+              </Button>
+            ))}
           </div>
         </div>
 
@@ -385,13 +418,13 @@ export function CadPhaseQueueBoard({
           <div className="flex items-center justify-center rounded-lg border border-border bg-card py-14">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : leads.length === 0 ? (
+        ) : filteredLeads.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">No leads found.</CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
-            {leads.map((lead) => (
+            {filteredLeads.map((lead) => (
               <Card key={lead.id} className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md">
                 <CardContent className="space-y-3 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -417,7 +450,7 @@ export function CadPhaseQueueBoard({
                           Reassign JR Architect
                         </Button>
                       ) : null}
-                      {cadApprovedOnly ? (
+                      {isMeetingQueue ? (
                         lead.canSetMeeting ? (
                           <Button size="sm" onClick={() => openFirstMeetingDialog(lead)}>
                             <CalendarClock className="mr-1 h-4 w-4" />
@@ -454,13 +487,13 @@ export function CadPhaseQueueBoard({
                       <UserRound className="h-3.5 w-3.5" />
                       SR CRM: {lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}
                     </p>
-                    {cadApprovedOnly ? (
+                    {isMeetingQueue || isBudgetQueue ? (
                       <p className="inline-flex items-center gap-1">
                         <UserRound className="h-3.5 w-3.5" />
                         Quotation: {lead.quotationAssignment?.user.fullName ?? 'Unassigned'}
                       </p>
                     ) : null}
-                    {cadApprovedOnly && lead.latestFirstMeeting ? (
+                    {isMeetingQueue && lead.latestFirstMeeting ? (
                       <p className="inline-flex items-center gap-1 md:col-span-2">
                         <CalendarClock className="h-3.5 w-3.5" />
                         Latest First Meeting: {new Date(lead.latestFirstMeeting.startsAt).toLocaleString()}
