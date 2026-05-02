@@ -7,6 +7,7 @@ export default function AdminVisitsPage() {
     <VisitsPageView
       leadHrefPrefix="/crm/admin/leads"
       restrictToCreator={false}
+      showSummaryDashboard
     />
   )
 }
