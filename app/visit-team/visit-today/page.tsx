@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Clock, MapPin, Loader2, CalendarDays, CheckCircle2, XCircle, Phone, FileImage, FileText, FileVideo, X } from 'lucide-react'
+import { Clock, MapPin, Loader2, CalendarDays, CheckCircle2, XCircle, Phone, FileImage, FileText, FileVideo, X, AlertCircle } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { fetchMeCached } from '@/lib/client-me'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
@@ -194,6 +194,7 @@ export default function VisitTodayPage() {
     useState<ProjectStatusOption[]>(defaultProjectStatusOptions)
   const [completeFiles, setCompleteFiles] = useState<File[]>([])
   const [uploadingFileNames, setUploadingFileNames] = useState<string[]>([])
+  const [failedUploadFiles, setFailedUploadFiles] = useState<string[]>([])
   const [completeError, setCompleteError] = useState<string | null>(null)
   const [submittingComplete, setSubmittingComplete] = useState(false)
   const [supportDialogOpen, setSupportDialogOpen] = useState(false)
