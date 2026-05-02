@@ -134,6 +134,15 @@ type SubmitVisitResultResponse = {
   } | null
 }
 
+type VisitWorkflowSettingsResponse = {
+  success: boolean
+  data?: {
+    control?: {
+      supportDataEnabled?: boolean
+    }
+  }
+}
+
 type VisitsCacheEntry = {
   savedAt: number
   data: VisitRecord[]
@@ -198,6 +207,7 @@ export function VisitsPageView({
   const [visits, setVisits] = useState<VisitRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [supportDataEnabled, setSupportDataEnabled] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [actorDepartments, setActorDepartments] = useState<Set<string>>(new Set())
@@ -231,7 +241,7 @@ export function VisitsPageView({
     useState<ProjectStatusOption[]>(defaultProjectStatusOptions)
   const [completeFiles, setCompleteFiles] = useState<File[]>([])
   const [uploadingFileNames, setUploadingFileNames] = useState<string[]>([])
-  const [, setFailedUploadFiles] = useState<string[]>([])
+  const [failedUploadFiles, setFailedUploadFiles] = useState<string[]>([])
   const [completeError, setCompleteError] = useState<string | null>(null)
   const [submittingComplete, setSubmittingComplete] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
@@ -252,6 +262,9 @@ export function VisitsPageView({
   const [listFilter, setListFilter] = useState<
     'ALL' | 'SCHEDULED' | 'COMPLETED' | 'RESCHEDULED' | 'CANCELLED' | 'LEAD' | 'SUPPORT'
   >('ALL')
+  const [listDateFrom, setListDateFrom] = useState('')
+  const [listDateTo, setListDateTo] = useState('')
+  const [listMemberFilter, setListMemberFilter] = useState('ALL')
   const listDetailsRef = useRef<HTMLDivElement | null>(null)
 
   const formatLocalDateKey = (date: Date) => {
@@ -317,7 +330,10 @@ export function VisitsPageView({
 
         if (!visitsRequestPromiseByScope[scopeKey]) {
           visitsRequestPromiseByScope[scopeKey] = (async () => {
-            const response = await fetch(`/api/visit-schedule${visitScope === 'all' ? '?scope=all' : ''}`)
+            const [response, workflowResponse] = await Promise.all([
+              fetch(`/api/visit-schedule${visitScope === 'all' ? '?scope=all' : ''}`),
+              fetch('/api/visit-team/workflow-settings', { cache: 'no-store' }).catch(() => null),
+            ])
             const payload = (await response.json()) as ApiResponse
             if (!response.ok || !payload.success) {
               const message =
@@ -325,6 +341,12 @@ export function VisitsPageView({
                   ? String(payload.error)
                   : `Failed to load visits (status ${response.status})`
               throw new Error(message)
+            }
+            if (workflowResponse) {
+              const workflowPayload = (await workflowResponse.json()) as VisitWorkflowSettingsResponse
+              if (workflowResponse.ok && workflowPayload.success) {
+                setSupportDataEnabled(workflowPayload.data?.control?.supportDataEnabled !== false)
+              }
             }
             return payload.data ?? []
           })()
@@ -421,13 +443,34 @@ export function VisitsPageView({
     })
   }, [visits, normalizedSearch, numericSearch])
 
+  const listMemberOptions = useMemo(() => {
+    const membersMap = new Map<string, string>()
+    visits.forEach((visit) => {
+      if (!visit.assignedTo?.id) return
+      membersMap.set(visit.assignedTo.id, visit.assignedTo.fullName || 'Unknown')
+    })
+    return Array.from(membersMap.entries())
+      .map(([id, fullName]) => ({ id, fullName }))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName))
+  }, [visits])
+
+  const listDateMemberFilteredVisits = useMemo(() => {
+    return filteredVisits.filter((visit) => {
+      const visitDate = formatLocalDateKey(new Date(visit.scheduledAt))
+      if (listDateFrom && visitDate < listDateFrom) return false
+      if (listDateTo && visitDate > listDateTo) return false
+      if (listMemberFilter !== 'ALL' && visit.assignedTo?.id !== listMemberFilter) return false
+      return true
+    })
+  }, [filteredVisits, listDateFrom, listDateTo, listMemberFilter])
+
   const scheduledVisits = useMemo(
-    () => filteredVisits.filter((v) => v.status === 'SCHEDULED'),
-    [filteredVisits]
+    () => listDateMemberFilteredVisits.filter((v) => v.status === 'SCHEDULED'),
+    [listDateMemberFilteredVisits]
   )
   const completedVisits = useMemo(
-    () => filteredVisits.filter((v) => v.status === 'COMPLETED'),
-    [filteredVisits]
+    () => listDateMemberFilteredVisits.filter((v) => v.status === 'COMPLETED'),
+    [listDateMemberFilteredVisits]
   )
   // Group visits by date (YYYY-MM-DD from ISO string)
   const visitsByDate = useMemo(() => {
@@ -534,29 +577,30 @@ export function VisitsPageView({
     const primarySupportAssignment = getPrimarySupportAssignment(visit)
     return Boolean(primarySupportAssignment && !primarySupportAssignment.result)
   }
+  const isSupportReadOnly = !supportDataEnabled
 
   const rescheduledVisits = useMemo(
-    () => filteredVisits.filter((v) => v.status === 'RESCHEDULED'),
-    [filteredVisits],
+    () => listDateMemberFilteredVisits.filter((v) => v.status === 'RESCHEDULED'),
+    [listDateMemberFilteredVisits],
   )
   const cancelledVisits = useMemo(
-    () => filteredVisits.filter((v) => v.status === 'CANCELLED'),
-    [filteredVisits],
+    () => listDateMemberFilteredVisits.filter((v) => v.status === 'CANCELLED'),
+    [listDateMemberFilteredVisits],
   )
   const leadRoleVisits = useMemo(
-    () => filteredVisits.filter((visit) => getVisitRole(visit) === 'LEAD'),
-    [filteredVisits, currentUserId],
+    () => listDateMemberFilteredVisits.filter((visit) => getVisitRole(visit) === 'LEAD'),
+    [listDateMemberFilteredVisits, currentUserId],
   )
   const supportRoleVisits = useMemo(
-    () => filteredVisits.filter((visit) => getVisitRole(visit) === 'SUPPORT'),
-    [filteredVisits, currentUserId],
+    () => listDateMemberFilteredVisits.filter((visit) => getVisitRole(visit) === 'SUPPORT'),
+    [listDateMemberFilteredVisits, currentUserId],
   )
   const filteredListVisits = useMemo(() => {
-    if (listFilter === 'ALL') return filteredVisits
+    if (listFilter === 'ALL') return listDateMemberFilteredVisits
     if (listFilter === 'LEAD') return leadRoleVisits
     if (listFilter === 'SUPPORT') return supportRoleVisits
-    return filteredVisits.filter((visit) => visit.status === listFilter)
-  }, [filteredVisits, listFilter, leadRoleVisits, supportRoleVisits])
+    return listDateMemberFilteredVisits.filter((visit) => visit.status === listFilter)
+  }, [listDateMemberFilteredVisits, listFilter, leadRoleVisits, supportRoleVisits])
   const listFilterLabel = useMemo(() => {
     if (listFilter === 'ALL') return 'All Visits'
     if (listFilter === 'LEAD') return 'Leading Visits'
@@ -598,6 +642,10 @@ export function VisitsPageView({
   const openCompleteDialog = (visit: VisitRecord) => {
     const role = getVisitRole(visit)
     if (role === 'NONE') return
+    if (role === 'SUPPORT' && isSupportReadOnly) {
+      toast.error('Support data workflow is disabled by admin. Support members are read-only.')
+      return
+    }
     if (role === 'SUPPORT' && !canSubmitSupportData(visit)) {
       toast.error('Only the first assigned support member can submit support data for this visit.')
       return
@@ -889,9 +937,14 @@ export function VisitsPageView({
   const submitCompleteVisit = async () => {
     if (!completeVisitId) return
     const currentVisit = visits.find((visit) => visit.id === completeVisitId) ?? null
-    const primarySupportPending = completeRole === 'LEAD' ? hasPendingPrimarySupportData(currentVisit) : false
+    const primarySupportPending =
+      completeRole === 'LEAD' && supportDataEnabled ? hasPendingPrimarySupportData(currentVisit) : false
     if (primarySupportPending) {
-      setCompleteError('Visit cannot be completed until the first support member submits support data.')
+      setCompleteError('Visit cannot be completed yet. The first support member must submit support data first.')
+      return
+    }
+    if (completeRole === 'SUPPORT' && isSupportReadOnly) {
+      setCompleteError('Support data workflow is disabled by admin. Support members are read-only.')
       return
     }
     if (completeRole === 'SUPPORT' && currentVisit && !canSubmitSupportData(currentVisit)) {
@@ -983,7 +1036,9 @@ export function VisitsPageView({
     const canSubmitSupportForVisit = visitRole === 'SUPPORT' && canSubmitSupportData(visit)
     const supportSubmitDisabledReason =
       visitRole === 'SUPPORT'
-        ? supportAlreadySubmitted
+        ? isSupportReadOnly
+          ? 'Support data workflow is disabled by admin. Support members are read-only.'
+          : supportAlreadySubmitted
           ? 'Support data already submitted for this visit.'
           : !canSubmitSupportForVisit
             ? 'Only the first assigned support member can submit support data.'
@@ -1139,7 +1194,7 @@ export function VisitsPageView({
                         onClick={() => openCompleteDialog(visit)}
                         disabled={
                           visitRole === 'SUPPORT'
-                            ? supportAlreadySubmitted || !canSubmitSupportForVisit
+                            ? isSupportReadOnly || supportAlreadySubmitted || !canSubmitSupportForVisit
                             : visit.status === 'COMPLETED'
                         }
                         title={supportSubmitDisabledReason}
@@ -1175,12 +1230,12 @@ export function VisitsPageView({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-background">
       <CrmPageHeader
         title={pageTitle}
         subtitle={pageSubtitle}
       />
-      <main className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 sm:py-6 space-y-5 sm:space-y-6">
+      <main className="mx-auto w-full max-w-[1440px] overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6 space-y-5 sm:space-y-6">
         {showScheduleButton ? (
           <div className="flex items-center justify-end">
             <Button className="gap-2">
@@ -1585,6 +1640,43 @@ export function VisitsPageView({
 
         <TabsContent value="list" className="mt-6">
           <div className="space-y-4" ref={listDetailsRef}>
+            {showSummaryDashboard ? (
+              <>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+              {[
+                ['ALL', 'All', filteredListVisits.length],
+                ['SCHEDULED', 'Pending', scheduledVisits.length],
+                ['COMPLETED', 'Completed', completedVisits.length],
+                ['RESCHEDULED', 'Rescheduled', rescheduledVisits.length],
+                ['CANCELLED', 'Cancelled', cancelledVisits.length],
+                ['LEAD', 'Leading', leadRoleVisits.length],
+                ['SUPPORT', 'Supporting', supportRoleVisits.length],
+              ].map(([value, label, count]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() =>
+                    setListFilter(
+                      value as
+                        | 'ALL'
+                        | 'SCHEDULED'
+                        | 'COMPLETED'
+                        | 'RESCHEDULED'
+                        | 'CANCELLED'
+                        | 'LEAD'
+                        | 'SUPPORT',
+                    )
+                  }
+                  className={cn(
+                    'rounded-lg border bg-card p-3 text-left transition hover:border-primary/40',
+                    listFilter === value ? 'border-primary/50' : 'border-border',
+                  )}
+                >
+                  <p className="text-sm font-medium text-muted-foreground">{label}</p>
+                  <p className="mt-1 text-xl font-semibold text-foreground">{count}</p>
+                </button>
+              ))}
+            </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               <Input
                 value={searchTerm}
@@ -1598,7 +1690,58 @@ export function VisitsPageView({
                 </Button>
               ) : null}
             </div>
-            {showSummaryDashboard ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label htmlFor="list-date-from">From</Label>
+                <Input
+                  id="list-date-from"
+                  type="date"
+                  value={listDateFrom}
+                  onChange={(event) => setListDateFrom(event.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="list-date-to">To</Label>
+                <Input
+                  id="list-date-to"
+                  type="date"
+                  value={listDateTo}
+                  onChange={(event) => setListDateTo(event.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Visit Team Member</Label>
+                <Select value={listMemberFilter} onValueChange={setListMemberFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All members" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All members</SelectItem>
+                    {listMemberOptions.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {(listDateFrom || listDateTo || listMemberFilter !== 'ALL') ? (
+              <div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setListDateFrom('')
+                    setListDateTo('')
+                    setListMemberFilter('ALL')
+                  }}
+                >
+                  Reset Filters
+                </Button>
+              </div>
+            ) : null}
               <div className="-mx-1 overflow-x-auto pb-1">
                 <div className="flex w-max min-w-full gap-2 px-1 sm:min-w-0 sm:flex-wrap">
                   {[
@@ -1634,6 +1777,7 @@ export function VisitsPageView({
                   ))}
                 </div>
               </div>
+              </>
             ) : null}
             <div className="space-y-6">
               <div>
@@ -1772,6 +1916,7 @@ export function VisitsPageView({
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-0 sm:py-4">
             {completeRole === 'LEAD' &&
             completeVisitId &&
+            supportDataEnabled &&
             hasPendingPrimarySupportData(visits.find((visit) => visit.id === completeVisitId) ?? null) ? (
               <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
                 This visit cannot be completed yet. The first support member must submit support data first.
@@ -2053,6 +2198,7 @@ export function VisitsPageView({
               disabled={
                 submittingComplete ||
                 (completeRole === 'LEAD' &&
+                  supportDataEnabled &&
                   Boolean(
                     hasPendingPrimarySupportData(
                       visits.find((visit) => visit.id === completeVisitId) ?? null,
