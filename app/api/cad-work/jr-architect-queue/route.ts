@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
               },
               {
                 stage: LeadStage.BUDGET_PHASE,
-                subStatus: { in: [LeadSubStatus.BUDGET_MEETING_SET, LeadSubStatus.BUDGET_QUOTATION_SENT] },
+                subStatus: { in: [LeadSubStatus.BUDGET_MEETING_SET, LeadSubStatus.QUOTATION_COMPLETED] },
               },
             ],
           }
