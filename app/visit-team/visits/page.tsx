@@ -14,7 +14,6 @@ export default function VisitTeamVisitsPage() {
       visitScope="all"
       allowManageAssignment={false}
       showScheduleButton={false}
-      showSummaryDashboard
       cardNavigatesToLead
     />
   )
