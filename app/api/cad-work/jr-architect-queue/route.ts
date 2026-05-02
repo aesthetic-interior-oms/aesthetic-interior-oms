@@ -43,9 +43,16 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams
     const search = toOptionalString(searchParams.get('search'))
-    const cadApprovedOnly = toBooleanParam(searchParams.get('cadApprovedOnly'))
+    const queueTypeParam = toOptionalString(searchParams.get('queueType'))?.toLowerCase()
+    const legacyCadApprovedOnly = toBooleanParam(searchParams.get('cadApprovedOnly'))
+    const queueType: 'cad' | 'meeting' | 'budget' =
+      queueTypeParam === 'meeting' || queueTypeParam === 'budget' || queueTypeParam === 'cad'
+        ? queueTypeParam
+        : legacyCadApprovedOnly
+          ? 'meeting'
+          : 'cad'
 
-    const phaseScope: Prisma.LeadWhereInput = cadApprovedOnly
+    const phaseScope: Prisma.LeadWhereInput = queueType === 'meeting'
       ? {
           OR: [
             {
@@ -58,13 +65,32 @@ export async function GET(request: NextRequest) {
               cadWorkSubmissions: { some: {} },
             },
             {
-              stage: LeadStage.QUOTATION_PHASE,
-              subStatus: { in: [LeadSubStatus.QUOTATION_ASSIGNED, LeadSubStatus.QUOTATION_WORKING] },
+              stage: LeadStage.DISCOVERY,
+              subStatus: LeadSubStatus.PROPOSAL_SENT,
               cadWorkSubmissions: { some: {} },
             },
           ],
         }
-      : {
+      : queueType === 'budget'
+        ? {
+            OR: [
+              {
+                stage: LeadStage.QUOTATION_PHASE,
+                subStatus: {
+                  in: [
+                    LeadSubStatus.QUOTATION_ASSIGNED,
+                    LeadSubStatus.QUOTATION_WORKING,
+                    LeadSubStatus.QUOTATION_COMPLETE,
+                  ],
+                },
+              },
+              {
+                stage: LeadStage.BUDGET_PHASE,
+                subStatus: { in: [LeadSubStatus.BUDGET_MEETING_SET, LeadSubStatus.BUDGET_QUOTATION_SENT] },
+              },
+            ],
+          }
+        : {
           stage: LeadStage.CAD_PHASE,
         }
 

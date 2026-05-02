@@ -8,7 +8,7 @@ export default function SrCadApprovedQueuePage() {
       title="Meeting Queue"
       subtitle="CAD approved leads for first-meeting scheduling and meeting-data follow-up."
       leadBasePath="/crm/sr/leads"
-      cadApprovedOnly
+      queueType="meeting"
     />
   )
 }
