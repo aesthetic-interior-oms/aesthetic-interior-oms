@@ -231,6 +231,7 @@ export function VisitsPageView({
     useState<ProjectStatusOption[]>(defaultProjectStatusOptions)
   const [completeFiles, setCompleteFiles] = useState<File[]>([])
   const [uploadingFileNames, setUploadingFileNames] = useState<string[]>([])
+  const [, setFailedUploadFiles] = useState<string[]>([])
   const [completeError, setCompleteError] = useState<string | null>(null)
   const [submittingComplete, setSubmittingComplete] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
