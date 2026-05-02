@@ -68,7 +68,6 @@ const navigationGroups: Record<string, NavGroup[]> = {
         { icon: Calendar, label: 'Visits', href: '/crm/admin/visits' },
         { icon: ClipboardList, label: 'Visit Queue', href: '/crm/admin/queue' },
         { icon: CalendarClock, label: 'Meeting Queue', href: '/crm/admin/meeting-queue' },
-        { icon: CalendarClock, label: 'Budget Queue', href: '/crm/admin/budget-queue' },
         { icon: ListTodo, label: 'Senior Tasks', href: '/crm/admin/today-tasks' },
         { icon: ClipboardList, label: 'CAD Queue', href: '/crm/admin/cad-phase-queue' },
         { icon: CalendarClock, label: 'Senior Calendar', href: '/crm/admin/calendar' },

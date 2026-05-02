@@ -5,10 +5,10 @@ import { CadPhaseQueueBoard } from '@/components/crm/shared/cad-phase-queue-boar
 export default function AdminMeetingQueuePage() {
   return (
     <CadPhaseQueueBoard
-      title="Meeting Queue (Admin)"
-      subtitle="Monitor CAD approved and consulting-phase meeting pipeline leads."
+      title="Meeting Queue"
+      subtitle="CAD approved leads for first-meeting scheduling and meeting-data follow-up across all SR CRM assignments."
       leadBasePath="/crm/admin/leads"
-      queueType="meeting"
+      cadApprovedOnly
     />
   )
 }
