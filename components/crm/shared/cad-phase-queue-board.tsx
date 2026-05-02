@@ -363,7 +363,7 @@ export function CadPhaseQueueBoard({
         ? [
             { key: 'QUOTATION_ASSIGNED', label: 'Quotation Assigned' },
             { key: 'QUOTATION_WORKING', label: 'Quotation Working' },
-            { key: 'QUOTATION_COMPLETE', label: 'Quotation Complete' },
+            { key: 'QUOTATION_COMPLETED', label: 'Quotation Complete' },
             { key: 'BUDGET_MEETING_SET', label: 'Budget Meeting Set' },
             { key: 'BUDGET_QUOTATION_SENT', label: 'Budget Quotation Sent' },
           ]
