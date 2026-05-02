@@ -182,7 +182,8 @@ export async function GET(request: NextRequest) {
           quotationAssignment,
           latestFirstMeeting: lead.meetingEvents[0] ?? null,
           canSetMeeting:
-            lead.stage === LeadStage.CAD_PHASE && lead.subStatus === LeadSubStatus.CAD_APPROVED,
+            (lead.stage === LeadStage.CAD_PHASE && lead.subStatus === LeadSubStatus.CAD_APPROVED) ||
+            (lead.stage === LeadStage.BUDGET_PHASE && lead.subStatus === LeadSubStatus.QUOTATION_COMPLETED),
           canSubmitMeetingData:
             lead.stage === LeadStage.DISCOVERY && lead.subStatus === LeadSubStatus.FIRST_MEETING_SET,
           canReassignJrArchitect:
