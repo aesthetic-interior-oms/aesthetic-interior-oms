@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
                   in: [
                     LeadSubStatus.QUOTATION_ASSIGNED,
                     LeadSubStatus.QUOTATION_WORKING,
-                    LeadSubStatus.QUOTATION_COMPLETE,
+                    LeadSubStatus.QUOTATION_COMPLETED,
                   ],
                 },
               },
