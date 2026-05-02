@@ -1230,12 +1230,12 @@ export function VisitsPageView({
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen overflow-x-hidden bg-background">
       <CrmPageHeader
         title={pageTitle}
         subtitle={pageSubtitle}
       />
-      <main className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6 sm:py-6 space-y-5 sm:space-y-6">
+      <main className="mx-auto w-full max-w-[1440px] overflow-x-hidden px-4 py-4 sm:px-6 sm:py-6 space-y-5 sm:space-y-6">
         {showScheduleButton ? (
           <div className="flex items-center justify-end">
             <Button className="gap-2">
@@ -1640,6 +1640,8 @@ export function VisitsPageView({
 
         <TabsContent value="list" className="mt-6">
           <div className="space-y-4" ref={listDetailsRef}>
+            {showSummaryDashboard ? (
+              <>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
               {[
                 ['ALL', 'All', filteredListVisits.length],
@@ -1740,7 +1742,6 @@ export function VisitsPageView({
                 </Button>
               </div>
             ) : null}
-            {showSummaryDashboard ? (
               <div className="-mx-1 overflow-x-auto pb-1">
                 <div className="flex w-max min-w-full gap-2 px-1 sm:min-w-0 sm:flex-wrap">
                   {[
@@ -1776,6 +1777,7 @@ export function VisitsPageView({
                   ))}
                 </div>
               </div>
+              </>
             ) : null}
             <div className="space-y-6">
               <div>
