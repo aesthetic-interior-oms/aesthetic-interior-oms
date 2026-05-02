@@ -173,6 +173,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
       items: [
         { icon: ClipboardList, label: 'Quotation Queue', href: '/quotation-team/quotation-queue' },
         { icon: ListTodo, label: 'Assigned Task', href: '/quotation-team/assigned-task' },
+        { icon: ListTodo, label: 'My Work', href: '/quotation-team/my-work' },
       ],
     },
   ],

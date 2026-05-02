@@ -101,6 +101,7 @@ export function CadPhaseQueueBoard({
   const [saving, setSaving] = useState(false)
 
   const [meetingOpen, setMeetingOpen] = useState(false)
+  const [meetingKind, setMeetingKind] = useState<'FIRST' | 'BUDGET'>('FIRST')
   const [meetingAt, setMeetingAt] = useState(toDateTimeLocalInput(new Date()))
   const [meetingMode, setMeetingMode] = useState<'ONLINE' | 'OFFLINE'>('ONLINE')
   const [meetingNote, setMeetingNote] = useState('')
@@ -256,13 +257,23 @@ export function CadPhaseQueueBoard({
 
   const openFirstMeetingDialog = (lead: LeadRecord) => {
     setActiveLead(lead)
+    setMeetingKind('FIRST')
     setMeetingAt(toDateTimeLocalInput(new Date()))
     setMeetingMode('ONLINE')
     setMeetingNote('')
     setMeetingOpen(true)
   }
 
-  const submitFirstMeeting = async () => {
+  const openBudgetMeetingDialog = (lead: LeadRecord) => {
+    setActiveLead(lead)
+    setMeetingKind('BUDGET')
+    setMeetingAt(toDateTimeLocalInput(new Date()))
+    setMeetingMode('ONLINE')
+    setMeetingNote('')
+    setMeetingOpen(true)
+  }
+
+  const submitMeeting = async () => {
     if (!activeLead) return
     setSaving(true)
     try {
@@ -275,7 +286,7 @@ export function CadPhaseQueueBoard({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'FIRST_MEETING',
+          type: meetingKind === 'FIRST' ? 'FIRST_MEETING' : 'BUDGET_MEETING',
           startsAt: startsAtIso,
           notes: notes || null,
         }),
@@ -289,9 +300,12 @@ export function CadPhaseQueueBoard({
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stage: 'DISCOVERY',
-          subStatus: 'FIRST_MEETING_SET',
-          reason: 'First meeting scheduled from Meeting Queue.',
+          stage: meetingKind === 'FIRST' ? 'DISCOVERY' : 'BUDGET_PHASE',
+          subStatus: meetingKind === 'FIRST' ? 'FIRST_MEETING_SET' : 'BUDGET_MEETING_SET',
+          reason:
+            meetingKind === 'FIRST'
+              ? 'First meeting scheduled from Meeting Queue.'
+              : 'Budget meeting scheduled from Budget Queue after quotation approval.',
         }),
       })
       const stagePayload = await stageRes.json()
@@ -299,12 +313,37 @@ export function CadPhaseQueueBoard({
         throw new Error(stagePayload?.error ?? 'Meeting saved, but stage update failed')
       }
 
-      toast.success('First meeting created and added to calendar')
+      toast.success(meetingKind === 'FIRST' ? 'First meeting created and added to calendar' : 'Budget meeting scheduled')
       setMeetingOpen(false)
       setActiveLead(null)
       await loadLeads()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to schedule first meeting')
+      toast.error(error instanceof Error ? error.message : 'Failed to schedule meeting')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const approveQuotation = async (lead: LeadRecord) => {
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/lead/${lead.id}/stage`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: 'BUDGET_PHASE',
+          subStatus: 'QUOTATION_COMPLETED',
+          reason: 'Quotation approved from SR Budget Queue.',
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to approve quotation')
+      }
+      toast.success('Quotation approved')
+      await loadLeads()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to approve quotation')
     } finally {
       setSaving(false)
     }
@@ -466,6 +505,17 @@ export function CadPhaseQueueBoard({
                             Reassign Quotation
                           </Button>
                         ) : null
+                      ) : isBudgetQueue ? (
+                        lead.stage === 'QUOTATION_PHASE' && lead.subStatus === 'QUOTATION_COMPLETED' ? (
+                          <Button size="sm" onClick={() => void approveQuotation(lead)} disabled={saving}>
+                            Approve
+                          </Button>
+                        ) : lead.stage === 'BUDGET_PHASE' && lead.subStatus === 'QUOTATION_COMPLETED' ? (
+                          <Button size="sm" onClick={() => openBudgetMeetingDialog(lead)}>
+                            <CalendarClock className="mr-1 h-4 w-4" />
+                            Set Budget Meeting
+                          </Button>
+                        ) : null
                       ) : null}
                     </div>
                   </div>
@@ -539,8 +589,12 @@ export function CadPhaseQueueBoard({
       <Dialog open={meetingOpen} onOpenChange={setMeetingOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Set First Meeting</DialogTitle>
-            <DialogDescription>Creates first meeting and adds it to the Senior CRM calendar.</DialogDescription>
+            <DialogTitle>{meetingKind === 'FIRST' ? 'Set First Meeting' : 'Set Budget Meeting'}</DialogTitle>
+            <DialogDescription>
+              {meetingKind === 'FIRST'
+                ? 'Creates first meeting and adds it to the Senior CRM calendar.'
+                : 'Creates budget meeting and moves lead to Budget Meeting Set.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
@@ -565,7 +619,7 @@ export function CadPhaseQueueBoard({
             </div>
           </div>
           <DialogFooter>
-            <Button disabled={saving || !meetingAt} onClick={submitFirstMeeting}>
+            <Button disabled={saving || !meetingAt} onClick={submitMeeting}>
               Schedule Meeting
             </Button>
           </DialogFooter>
