@@ -480,7 +480,7 @@ export function CadPhaseQueueBoard({
                       <Button asChild size="sm" variant="outline">
                         <Link href={`${leadBasePath}/${lead.id}`}>Open Lead</Link>
                       </Button>
-                      {lead.canReassignJrArchitect !== false ? (
+                      {lead.canReassignJrArchitect !== false && lead.stage !== 'DISCOVERY' ? (
                         <Button
                           size="sm"
                           variant="outline"

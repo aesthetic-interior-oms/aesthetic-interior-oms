@@ -30,6 +30,7 @@ type UpdateLeadStageBody = {
   subStatus?: unknown;
   reason?: unknown;
   jrArchitectUserId?: unknown;
+  quotationUserId?: unknown;
 };
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
@@ -99,6 +100,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const requestedSubStatus = toLeadSubStatus(body.subStatus);
     const reason = toOptionalString(body.reason);
     const requestedJrArchitectUserId = toOptionalString(body.jrArchitectUserId);
+    const requestedQuotationUserId = toOptionalString(body.quotationUserId);
     debugLog('📋 [lead/:id/stage][PATCH] - Extracted fields. Stage:', nextStage, 'SubStatus:', requestedSubStatus);
 
     if (!nextStage) {
@@ -180,6 +182,58 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         );
       }
     }
+
+    const quotationSubStatuses = new Set<LeadSubStatus>([
+      LeadSubStatus.QUOTATION_ASSIGNED,
+      LeadSubStatus.QUOTATION_WORKING,
+      LeadSubStatus.QUOTATION_COMPLETED,
+      LeadSubStatus.QUOTATION_CORRECTION,
+    ]);
+    const hadQuotationProgressBefore =
+      existingLead.stage === LeadStage.QUOTATION_PHASE &&
+      existingLead.subStatus !== null &&
+      quotationSubStatuses.has(existingLead.subStatus);
+    if (
+      nextStage === LeadStage.QUOTATION_PHASE &&
+      nextSubStatus &&
+      nextSubStatus !== LeadSubStatus.QUOTATION_ASSIGNED &&
+      !hadQuotationProgressBefore
+    ) {
+      return NextResponse.json(
+        { success: false, error: 'Please set Quotation Assigned first before other quotation substatuses.' },
+        { status: 409 },
+      );
+    }
+    if (
+      nextStage === LeadStage.QUOTATION_PHASE &&
+      nextSubStatus === LeadSubStatus.QUOTATION_ASSIGNED &&
+      !requestedQuotationUserId
+    ) {
+      return NextResponse.json(
+        { success: false, error: 'Quotation assignment is required for Quotation Assigned.' },
+        { status: 400 },
+      );
+    }
+    if (
+      nextStage === LeadStage.QUOTATION_PHASE &&
+      nextSubStatus === LeadSubStatus.QUOTATION_ASSIGNED &&
+      requestedQuotationUserId
+    ) {
+      const quotationMember = await prisma.user.findFirst({
+        where: {
+          id: requestedQuotationUserId,
+          isActive: true,
+          userDepartments: { some: { department: { name: { in: ['QUOTATION', 'QUOTATION_TEAM'] } } } },
+        },
+        select: { id: true },
+      });
+      if (!quotationMember) {
+        return NextResponse.json(
+          { success: false, error: 'Selected quotation member is invalid or inactive.' },
+          { status: 400 },
+        );
+      }
+    }
     if (nextStage === LeadStage.VISIT_PHASE && nextSubStatus === LeadSubStatus.VISIT_COMPLETED) {
       return NextResponse.json(
         {
@@ -253,7 +307,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           leadId,
           department: autoHandoffDepartment,
           preferredUserId:
-            autoHandoffDepartment === 'JR_ARCHITECT' ? requestedJrArchitectUserId : undefined,
+            autoHandoffDepartment === 'JR_ARCHITECT'
+              ? requestedJrArchitectUserId
+              : autoHandoffDepartment === 'QUOTATION'
+                ? requestedQuotationUserId
+                : undefined,
           actorUserId: userId,
         });
       }

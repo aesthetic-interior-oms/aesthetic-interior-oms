@@ -632,7 +632,7 @@ export default function JrArchLeadsPage() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>Submit CAD Work</DialogTitle>
             <DialogDescription>

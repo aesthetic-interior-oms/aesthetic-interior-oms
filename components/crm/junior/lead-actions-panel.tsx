@@ -156,7 +156,7 @@ interface LeadActionsPanelProps {
   originalSubStatus: string | null
   onStageChange: (value: string) => void
   onSubStatusChange: (value: string | null) => void
-  onUpdateStage: (reason: string, options?: { jrArchitectUserId?: string }) => Promise<void>
+  onUpdateStage: (reason: string, options?: { jrArchitectUserId?: string; quotationUserId?: string }) => Promise<void>
   onCreateFollowupForStage?: (payload: { followupDate: string; notes?: string }) => Promise<void>
   onAssignmentsRefresh: () => void
   onFollowupRefresh?: () => void
@@ -243,6 +243,9 @@ export function LeadActionsPanel({
   const [cadArchitectUsers, setCadArchitectUsers] = useState<Assignment['user'][]>([])
   const [cadArchitectLoading, setCadArchitectLoading] = useState(false)
   const [selectedCadArchitectUserId, setSelectedCadArchitectUserId] = useState('')
+  const [quotationUsers, setQuotationUsers] = useState<Assignment['user'][]>([])
+  const [quotationUsersLoading, setQuotationUsersLoading] = useState(false)
+  const [selectedQuotationUserId, setSelectedQuotationUserId] = useState('')
   const [visitOpen, setVisitOpen] = useState(false)
   const [visitTeamUsers, setVisitTeamUsers] = useState<VisitTeamUser[]>([])
   const [visitTeamLoading, setVisitTeamLoading] = useState(false)
@@ -404,6 +407,13 @@ export function LeadActionsPanel({
     return originalStage === 'CAD_PHASE' && cadSubStatusFlow.includes(originalSubStatus ?? '')
   }, [cadSubStatusFlow, originalStage, originalSubStatus, stage, subStatus])
   const requiresCadArchitectSelection = stage === 'CAD_PHASE' && subStatus === 'CAD_ASSIGNED'
+  const quotationSubStatusFlow = useMemo(() => ['QUOTATION_ASSIGNED', 'QUOTATION_WORKING', 'QUOTATION_COMPLETED', 'QUOTATION_CORRECTION'], [])
+  const hasQuotationBeenAssigned = useMemo(() => {
+    if (stage !== 'QUOTATION_PHASE') return false
+    if (subStatus === 'QUOTATION_ASSIGNED') return true
+    return originalStage === 'QUOTATION_PHASE' && quotationSubStatusFlow.includes(originalSubStatus ?? '')
+  }, [originalStage, originalSubStatus, quotationSubStatusFlow, stage, subStatus])
+  const requiresQuotationSelection = stage === 'QUOTATION_PHASE' && subStatus === 'QUOTATION_ASSIGNED'
 
 
   const getVisitStatusLabel = (value: string) => {
@@ -559,6 +569,29 @@ export function LeadActionsPanel({
         setCadArchitectLoading(false)
       })
   }, [requiresCadArchitectSelection])
+
+  useEffect(() => {
+    if (!requiresQuotationSelection) return
+
+    setQuotationUsersLoading(true)
+    fetch('/api/department/available/QUOTATION')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.users)) {
+          setQuotationUsers(data.users)
+          return
+        }
+        throw new Error(data.error || 'Failed to load quotation members.')
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'Failed to load quotation members.'
+        setQuotationUsers([])
+        setStageError(message)
+      })
+      .finally(() => {
+        setQuotationUsersLoading(false)
+      })
+  }, [requiresQuotationSelection])
 
   const refreshLeadVisits = useCallback(() => {
     setLeadVisitsLoading(true)
@@ -940,6 +973,10 @@ export function LeadActionsPanel({
       setSelectedCadArchitectUserId('')
       setCadArchitectUsers([])
     }
+    if (value !== 'QUOTATION_PHASE') {
+      setSelectedQuotationUserId('')
+      setQuotationUsers([])
+    }
     const nextOptions = stageSubStatusMap[value] ?? []
     if (nextOptions.length === 0) {
       onSubStatusChange(null)
@@ -983,6 +1020,10 @@ export function LeadActionsPanel({
     setStagePhone(leadPhone ?? '')
     if (requiresCadArchitectSelection && !selectedCadArchitectUserId) {
       setStageError('Please assign a JR Architect before moving to CAD Assigned.')
+      return
+    }
+    if (requiresQuotationSelection && !selectedQuotationUserId) {
+      setStageError('Please assign a quotation member before moving to Quotation Assigned.')
       return
     }
     setReason(defaultStageReason)
@@ -1031,6 +1072,10 @@ export function LeadActionsPanel({
     }
     if (requiresCadArchitectSelection && !selectedCadArchitectUserId) {
       setStageError('Please assign a JR Architect before moving to CAD Assigned.')
+      return
+    }
+    if (requiresQuotationSelection && !selectedQuotationUserId) {
+      setStageError('Please assign a quotation member before moving to Quotation Assigned.')
       return
     }
 
@@ -1122,6 +1167,7 @@ export function LeadActionsPanel({
 
       await onUpdateStage(finalReason, {
         jrArchitectUserId: requiresCadArchitectSelection ? selectedCadArchitectUserId : undefined,
+        quotationUserId: requiresQuotationSelection ? selectedQuotationUserId : undefined,
       })
       if (requiresFollowupForStageUpdate) {
         if (!onCreateFollowupForStage) {
@@ -1758,7 +1804,8 @@ export function LeadActionsPanel({
                     value={option}
                     disabled={
                       (restrictStagesForJrCrm && stage === 'VISIT_PHASE' && option !== 'VISIT_SCHEDULED') ||
-                      (stage === 'CAD_PHASE' && !hasCadBeenAssigned && option !== 'CAD_ASSIGNED')
+                      (stage === 'CAD_PHASE' && !hasCadBeenAssigned && option !== 'CAD_ASSIGNED') ||
+                      (stage === 'QUOTATION_PHASE' && !hasQuotationBeenAssigned && option !== 'QUOTATION_ASSIGNED')
                     }
                   >
                     {formatLabel(option)}
@@ -1793,6 +1840,37 @@ export function LeadActionsPanel({
                 </SelectTrigger>
                 <SelectContent>
                   {cadArchitectUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.fullName} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
+          {requiresQuotationSelection ? (
+            <div className="space-y-2 rounded-md border border-border bg-secondary/30 p-3">
+              <Label>Assign Quotation Member</Label>
+              <Select
+                value={selectedQuotationUserId}
+                onValueChange={(value) => {
+                  setSelectedQuotationUserId(value)
+                  setStageError(null)
+                }}
+                disabled={quotationUsersLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      quotationUsersLoading
+                        ? 'Loading quotation members...'
+                        : 'Select quotation member'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {quotationUsers.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.fullName} ({user.email})
                     </SelectItem>
@@ -2033,7 +2111,38 @@ export function LeadActionsPanel({
                   </div>
                 ) : null}
               </div>
-              {stageError ? <p className="text-xs text-destructive">{stageError}</p> : null}
+              {requiresQuotationSelection ? (
+            <div className="space-y-2 rounded-md border border-border bg-secondary/30 p-3">
+              <Label>Assign Quotation Member</Label>
+              <Select
+                value={selectedQuotationUserId}
+                onValueChange={(value) => {
+                  setSelectedQuotationUserId(value)
+                  setStageError(null)
+                }}
+                disabled={quotationUsersLoading}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      quotationUsersLoading
+                        ? 'Loading quotation members...'
+                        : 'Select quotation member'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {quotationUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.fullName} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
+          {stageError ? <p className="text-xs text-destructive">{stageError}</p> : null}
               <DialogFooter>
                 <Button onClick={handleStageSubmit} disabled={savingStage}>
                   {savingStage ? 'Saving...' : 'Confirm update'}
