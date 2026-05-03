@@ -412,7 +412,7 @@ export default function LeadDetailPage() {
     }
   }
 
-  const handleUpdateStage = async (reason: string, options?: { jrArchitectUserId?: string }) => {
+  const handleUpdateStage = async (reason: string, options?: { jrArchitectUserId?: string; quotationUserId?: string }) => {
     try {
       const response = await fetch(`/api/lead/${leadId}/stage`, {
         method: 'PATCH',
@@ -423,6 +423,7 @@ export default function LeadDetailPage() {
           reason,
           userId: currentUserId,
           jrArchitectUserId: options?.jrArchitectUserId,
+          quotationUserId: options?.quotationUserId,
         }),
       })
       const data = await response.json()

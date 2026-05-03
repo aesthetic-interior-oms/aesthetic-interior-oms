@@ -189,7 +189,7 @@ export async function GET(request: NextRequest) {
           canReassignJrArchitect:
             !(
               lead.subStatus === LeadSubStatus.CAD_APPROVED ||
-              (lead.stage === LeadStage.DISCOVERY && lead.subStatus === LeadSubStatus.FIRST_MEETING_SET) ||
+              lead.stage === LeadStage.DISCOVERY ||
               lead.stage === LeadStage.QUOTATION_PHASE
             ),
           canReassignQuotation:
