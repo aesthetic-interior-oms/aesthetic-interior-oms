@@ -3,13 +3,21 @@ import { LeadAssignmentDepartment, Prisma } from '@/generated/prisma/client'
 const SCOPED_DEPARTMENTS: LeadAssignmentDepartment[] = [
   LeadAssignmentDepartment.JR_CRM,
   LeadAssignmentDepartment.SR_CRM,
+  LeadAssignmentDepartment.QUOTATION,
   LeadAssignmentDepartment.JR_ARCHITECT,
 ]
 
 export function scopedAssignmentDepartments(userDepartments: string[]): LeadAssignmentDepartment[] {
   const set = new Set(userDepartments)
+  const hasQuotationAccess = set.has('QUOTATION') || set.has('QUOTATION_TEAM')
 
-  return SCOPED_DEPARTMENTS.filter((department) => set.has(department))
+  const scoped = SCOPED_DEPARTMENTS.filter((department) => set.has(department))
+
+  if (hasQuotationAccess && !scoped.includes(LeadAssignmentDepartment.QUOTATION)) {
+    scoped.push(LeadAssignmentDepartment.QUOTATION)
+  }
+
+  return scoped
 }
 
 export function buildScopedLeadWhere(input: {

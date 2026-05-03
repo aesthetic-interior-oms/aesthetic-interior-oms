@@ -25,6 +25,7 @@ type Meeting = {
 type CalendarMode = 'MONTHLY' | 'YEARLY'
 
 const WEEKDAY_LABELS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
+const WEEKDAY_LABELS_MOBILE = ['Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr']
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const MAX_AGENDA_ITEMS = 10
 
@@ -370,12 +371,13 @@ export function SeniorCrmMeetingsView({
                 </Badge>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
                 <Tabs
                   value={calendarMode}
                   onValueChange={(value) => setCalendarMode(value as CalendarMode)}
+                  className="w-full sm:w-auto"
                 >
-                  <TabsList className="grid w-[220px] grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-2 sm:w-[220px]">
                     <TabsTrigger value="MONTHLY">Monthly</TabsTrigger>
                     <TabsTrigger value="YEARLY">Yearly</TabsTrigger>
                   </TabsList>
@@ -412,18 +414,19 @@ export function SeniorCrmMeetingsView({
 
                 {calendarMode === 'MONTHLY' ? (
                   <>
-                    <div className="grid grid-cols-7 gap-2">
-                      {WEEKDAY_LABELS.map((label) => (
+                    <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                      {WEEKDAY_LABELS.map((label, index) => (
                         <div
                           key={label}
-                          className="rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                          className="rounded-md border border-border/60 bg-muted/30 px-1 py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:px-2 sm:text-[11px]"
                         >
-                          {label}
+                          <span className="sm:hidden">{WEEKDAY_LABELS_MOBILE[index]}</span>
+                          <span className="hidden sm:inline">{label}</span>
                         </div>
                       ))}
                     </div>
 
-                    <div className="mt-2 grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-2">
+                    <div className="mt-2 grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-1 sm:gap-2">
                       {monthDays.map((day) => {
                         const dayKey = formatDayKey(day)
                         const inCurrentMonth = day.getMonth() === focusDate.getMonth()
@@ -438,7 +441,7 @@ export function SeniorCrmMeetingsView({
                             key={dayKey}
                             type="button"
                             onClick={() => setSelectedDayKey((current) => (current === dayKey ? null : dayKey))}
-                            className={`flex min-h-0 flex-col rounded-xl border p-2 text-left transition ${
+                            className={`flex min-h-0 flex-col rounded-lg border p-1.5 text-left transition sm:rounded-xl sm:p-2 ${
                               isSelected
                                 ? 'border-primary/50 bg-primary/10'
                                 : dayIsToday
@@ -448,17 +451,17 @@ export function SeniorCrmMeetingsView({
                           >
                             <div className="mb-1 flex items-center justify-between">
                               <span
-                                className={`text-xs font-semibold ${
+                                className={`text-[11px] font-semibold sm:text-xs ${
                                   inCurrentMonth ? 'text-foreground' : 'text-muted-foreground'
                                 } ${dayIsToday ? 'text-primary' : ''}`}
                               >
                                 {day.getDate()}
                               </span>
-                              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                              <span className="rounded-full bg-muted px-1 py-0.5 text-[9px] font-medium text-muted-foreground sm:px-1.5 sm:text-[10px]">
                                 {dayEvents.length}
                               </span>
                             </div>
-                            <div className="mt-auto space-y-1 text-[10px] text-muted-foreground">
+                            <div className="mt-auto space-y-0.5 text-[9px] text-muted-foreground sm:space-y-1 sm:text-[10px]">
                               <p>Tasks: {taskCount}</p>
                               <p>Meetings: {meetingCount}</p>
                             </div>
@@ -534,6 +537,43 @@ export function SeniorCrmMeetingsView({
                   <p className="text-sm text-muted-foreground">No items in this selection.</p>
                 ) : (
                   sideMeetings.slice(0, 60).map((meeting) => (
+                    <div
+                      key={meeting.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => goToEventLead(meeting)}
+                      onKeyDown={(event) => event.key === 'Enter' && goToEventLead(meeting)}
+                      className={`cursor-pointer rounded-lg border p-3 transition hover:border-primary/40 ${getEventClass(meeting)}`}
+                    >
+                      <p className="text-sm font-semibold text-foreground">{meeting.title}</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {getEventLabel(meeting)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{meeting.leadName}</p>
+                      <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="size-3.5" />
+                        {meeting.start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })},{' '}
+                        {formatEventTime(meeting.start)}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </aside>
+
+          <aside className="min-h-0 xl:hidden">
+            <Card className="border-border/80 bg-card/90 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">{sideTitle}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {loadingMeetings ? (
+                  <p className="text-sm text-muted-foreground">Loading meetings...</p>
+                ) : sideMeetings.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No items in this selection.</p>
+                ) : (
+                  sideMeetings.slice(0, 10).map((meeting) => (
                     <div
                       key={meeting.id}
                       role="button"
