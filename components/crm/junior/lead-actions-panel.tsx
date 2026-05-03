@@ -148,6 +148,7 @@ interface LeadActionsPanelProps {
   currentUserId?: string | null
   blurVisitResult?: boolean
   canManageVisitRequests?: boolean
+  canSelectSeniorCrm?: boolean
   restrictStagesForJrCrm?: boolean
   stage: string
   originalStage: string
@@ -205,6 +206,7 @@ export function LeadActionsPanel({
   currentUserId = null,
   blurVisitResult = false,
   canManageVisitRequests = false,
+  canSelectSeniorCrm = false,
   restrictStagesForJrCrm = false,
   stage,
   originalStage,
@@ -246,6 +248,8 @@ export function LeadActionsPanel({
   const [visitTeamLoading, setVisitTeamLoading] = useState(false)
   const [visitTeamError, setVisitTeamError] = useState<string | null>(null)
   const [visitTeamUserId, setVisitTeamUserId] = useState('')
+  const [seniorCrmUserId, setSeniorCrmUserId] = useState('')
+  const [seniorCrmUsers, setSeniorCrmUsers] = useState<VisitTeamUser[]>([])
   const [visitScheduledAt, setVisitScheduledAt] = useState('')
   const [visitLocation, setVisitLocation] = useState('')
   const [visitFee, setVisitFee] = useState('0')
@@ -1052,6 +1056,7 @@ export function LeadActionsPanel({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             visitTeamUserId,
+            seniorCrmUserId: seniorCrmUserId || undefined,
             scheduledAt: scheduledIso,
             location: visitLocation.trim(),
             visitFee: visitFee.trim() ? Number(visitFee) : 0,
@@ -1204,6 +1209,7 @@ export function LeadActionsPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           visitTeamUserId,
+          seniorCrmUserId: seniorCrmUserId || undefined,
           scheduledAt: scheduledIso,
           location: visitLocation.trim(),
           visitFee: visitFee.trim() ? Number(visitFee) : 0,
@@ -1893,6 +1899,14 @@ export function LeadActionsPanel({
                             </SelectItem>
                           ))}
                         </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Senior CRM</Label>
+                      <Select value={seniorCrmUserId} onValueChange={setSeniorCrmUserId} disabled={!canSelectSeniorCrm || seniorCrmUsers.length === 0}>
+                        <SelectTrigger><SelectValue placeholder={seniorCrmUsers.length ? 'Select senior CRM' : 'No Senior CRM users'} /></SelectTrigger>
+                        <SelectContent>{seniorCrmUsers.map((user) => (<SelectItem key={user.id} value={user.id}>{user.fullName}</SelectItem>))}</SelectContent>
                       </Select>
                     </div>
 
