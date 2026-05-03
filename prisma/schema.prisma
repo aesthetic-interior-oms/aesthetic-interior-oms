@@ -561,6 +561,8 @@ model WhatsAppProcessedMessage {
 model VisitWorkflowControl {
   id                 String   @id @default("default")
   supportDataEnabled Boolean  @default(true)
+  weeklySeniorCrmUserId String?
+  weeklySeniorCrmWeekStart DateTime?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 }

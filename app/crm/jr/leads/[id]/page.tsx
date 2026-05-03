@@ -806,6 +806,7 @@ export default function LeadDetailPage() {
             assignmentsLoading={assignmentsLoading}
             canManageAssignments={canManageAssignments}
             canManageVisitRequests={!isVisitTeamView && canManageVisitRequests}
+            canSelectSeniorCrm={false}
             canManageStage={!isVisitTeamView}
             canSetVisitCompletedStage={!isJuniorCrmView}
             restrictStagesForJrCrm={isJuniorCrmView}

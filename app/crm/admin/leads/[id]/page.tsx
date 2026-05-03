@@ -752,6 +752,7 @@ export default function LeadDetailPage() {
             assignmentsLoading={assignmentsLoading}
             canManageAssignments={canManageAssignments}
             canManageVisitRequests={canManageVisitRequests}
+            canSelectSeniorCrm
             canSetVisitCompletedStage={true}
             canSubmitVisitResult={canManageAssignments}
             canOverrideVisitLeadRole={canManageAssignments}

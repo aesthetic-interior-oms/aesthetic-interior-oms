@@ -16,11 +16,13 @@ import {
 import { requireDatabaseRoles } from '@/lib/authz';
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 import { findVisitConflict } from '@/lib/visit-guards';
+import { getWeeklySeniorCrmAssignment } from '@/lib/sr-crm-rotation';
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
 type ScheduleVisitBody = {
   visitTeamUserId?: unknown;
+  seniorCrmUserId?: unknown;
   scheduledAt?: unknown;
   location?: unknown;
   notes?: unknown;
@@ -186,6 +188,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       }
     }
     const members = Array.from(uniqueById.values());
+    const weekly = await getWeeklySeniorCrmAssignment();
 
     return NextResponse.json({
       success: true,
@@ -194,6 +197,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         defaultLocation: lead.location,
         visitTeamMembers: members,
         visitAssigneeMembers: members,
+        seniorCrmMembers: srMembers,
+        weeklySeniorCrm: weekly,
       },
     });
   } catch (error) {
@@ -224,6 +229,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const body = (await request.json()) as ScheduleVisitBody;
     // console.log('[POST] Request body received:', JSON.stringify(body, null, 2));
     const visitTeamUserId = toOptionalString(body.visitTeamUserId);
+    const seniorCrmUserId = toOptionalString(body.seniorCrmUserId);
     const notes = toOptionalString(body.notes);
     const reason = toOptionalString(body.reason) ?? 'Visit has been scheduled.';
     const projectSqft = toOptionalNumber(body.projectSqft);
@@ -264,6 +270,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // console.log('[POST] Querying lead and validating visit team user...');
+    const weekly = await getWeeklySeniorCrmAssignment();
     const [lead, visitTeamUserResult, latestVisit] = await Promise.all([
       prisma.lead.findUnique({
         where: { id: leadId },
@@ -410,6 +417,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
       });
 
       if (existingVisitTeamAssignment) {
+
+
+      const targetSeniorCrmUserId = seniorCrmUserId ?? weekly.current?.id ?? null;
+      if (targetSeniorCrmUserId) {
+        const existingSrAssignment = await tx.leadAssignment.findFirst({ where: { leadId, department: LeadAssignmentDepartment.SR_CRM } });
+        if (existingSrAssignment) {
+          await tx.leadAssignment.update({ where: { id: existingSrAssignment.id }, data: { userId: targetSeniorCrmUserId } });
+        } else {
+          await tx.leadAssignment.create({ data: { leadId, userId: targetSeniorCrmUserId, department: LeadAssignmentDepartment.SR_CRM } });
+        }
+      }
         // console.log('[POST] Updating existing visit team assignment');
         await tx.leadAssignment.update({
           where: { id: existingVisitTeamAssignment.id },
