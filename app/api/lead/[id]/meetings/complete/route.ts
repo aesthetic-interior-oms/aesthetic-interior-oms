@@ -80,7 +80,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           userDepartments: {
             some: {
               department: {
-                name: LeadAssignmentDepartment.QUOTATION,
+                name: { in: [LeadAssignmentDepartment.QUOTATION, 'QUOTATION_TEAM'] },
               },
             },
           },

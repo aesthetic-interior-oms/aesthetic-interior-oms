@@ -205,13 +205,14 @@ export default function JrArcLeadDetailsPage() {
             {/* Stage Selector Box */}
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
               <h3 className="text-sm font-semibold mb-3">CAD Sub-Status Update</h3>
+              <p className="mb-3 text-xs text-muted-foreground">Stage and substatus updates are disabled in JR Architect workspace.</p>
               <div className="flex items-end gap-3 flex-wrap">
                 <div className="flex-1 min-w-[200px]">
                   <Label className="mb-2 block">Current Process Status</Label>
                   <Select
                     value={subStatus || 'CAD_WORKING'}
                     onValueChange={(val) => handleStageUpdate('CAD_PHASE', val)}
-                    disabled={updatingStage}
+                    disabled={updatingStage || true}
                   >
                     <SelectTrigger className="w-full bg-secondary/30">
                       <SelectValue placeholder="Update status..." />
