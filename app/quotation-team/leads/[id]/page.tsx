@@ -19,6 +19,14 @@ type LeadDetail = {
     notes: string | null
     startsAt: string
   }>
+  attachments?: Array<{
+    id: string
+    url: string
+    fileName: string
+    fileType: string
+    category: string
+    createdAt: string
+  }>
 }
 
 export default function QuotationLeadDetailsPage() {
@@ -97,6 +105,36 @@ export default function QuotationLeadDetailsPage() {
                         {meeting.type.replace(/_/g, ' ')} • {new Date(meeting.startsAt).toLocaleString()}
                       </p>
                       <p className="mt-2 whitespace-pre-wrap">{meeting.notes ?? 'No notes'}</p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Uploaded Files</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {(lead.attachments ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No files uploaded yet for this lead.</p>
+                ) : (
+                  (lead.attachments ?? []).map((attachment) => (
+                    <div key={attachment.id} className="flex flex-col gap-2 rounded-md border p-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{attachment.fileName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {attachment.category} • {attachment.fileType} • {new Date(attachment.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                      <a
+                        href={attachment.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex w-fit items-center rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                      >
+                        View File
+                      </a>
                     </div>
                   ))
                 )}
