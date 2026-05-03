@@ -4,10 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default async function AdminDashboardPage() {
-  const [totalLeads, unassignedLeads, assignedLeads] = await Promise.all([
+  const [totalLeads, unassignedLeads, assignedLeads, srUsers, control] = await Promise.all([
     prisma.lead.count(),
     prisma.lead.count({ where: { assignedTo: null } }),
     prisma.lead.count({ where: { assignedTo: { not: null } } }),
+    prisma.user.findMany({ where: { userDepartments: { some: { department: { name: "SR_CRM" } } } }, select: { id: true, fullName: true }, orderBy: { fullName: "asc" } }),
+    prisma.visitWorkflowControl.upsert({ where: { id: "default" }, create: { id: "default" }, update: {} }),
   ]);
 
   return (
@@ -26,6 +28,15 @@ export default async function AdminDashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card className="bg-card border-border">
+        <CardHeader><CardTitle className="text-foreground">Senior CRM Weekly Consumption</CardTitle></CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          Current senior CRM ID: <span className="font-medium text-foreground">{control.weeklySeniorCrmUserId ?? "Not set"}</span><br/>
+          Available seniors: {srUsers.map((u) => u.fullName).join(", ")}<br/>
+          To change from dashboard, use <code>PATCH /api/admin/sr-crm-rotation</code>.
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Leads
