@@ -862,8 +862,9 @@ export default function VisitTodayPage() {
         throw new Error(payload.error || 'Failed to complete visit')
       }
       if (payload.uploadWarnings?.failedCount) {
+        const failedFiles = payload.uploadWarnings.failedFiles ?? []
         toast.warning(
-          `${payload.uploadWarnings.failedCount} file(s) failed to upload: ${payload.uploadWarnings.failedFiles.join(', ')}`,
+          `${payload.uploadWarnings.failedCount} file(s) failed to upload${failedFiles.length > 0 ? `: ${failedFiles.join(', ')}` : ''}`,
         )
       }
       setCompleteOpen(false)
