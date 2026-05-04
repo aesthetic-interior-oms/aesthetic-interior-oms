@@ -1245,7 +1245,7 @@ export function VisitsPageView({
           </div>
         ) : null}
 
-        {showSummaryDashboard ? (
+        {showSummaryDashboard && activeTab === 'calendar' ? (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
             <button
               type="button"
@@ -1640,8 +1640,7 @@ export function VisitsPageView({
 
         <TabsContent value="list" className="mt-6">
           <div className="space-y-4" ref={listDetailsRef}>
-            {showSummaryDashboard ? (
-              <>
+            <>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
               {[
                 ['ALL', 'All', filteredListVisits.length],
@@ -1777,12 +1776,11 @@ export function VisitsPageView({
                   ))}
                 </div>
               </div>
-              </>
-            ) : null}
+            </>
             <div className="space-y-6">
               <div>
                 <h3 className="mb-3 font-semibold text-foreground">
-                  {showSummaryDashboard ? `${listFilterLabel} (${filteredListVisits.length})` : `Scheduled (${scheduledVisits.length})`}
+                  {listFilterLabel} ({filteredListVisits.length})
                 </h3>
                 {loading ? (
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -1792,24 +1790,14 @@ export function VisitsPageView({
                       </Card>
                     ))}
                   </div>
-                ) : showSummaryDashboard ? (
-                  filteredListVisits.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {filteredListVisits.map((visit) => (
-                        <VisitCard key={visit.id} visit={visit} />
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">No visits found for this filter</p>
-                  )
-                ) : scheduledVisits.length > 0 ? (
+) : filteredListVisits.length > 0 ? (
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {scheduledVisits.map((visit) => (
+                    {filteredListVisits.map((visit) => (
                       <VisitCard key={visit.id} visit={visit} />
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">No scheduled visits</p>
+                  <p className="text-muted-foreground">No visits found for this filter</p>
                 )}
               </div>
               {!showSummaryDashboard ? (
