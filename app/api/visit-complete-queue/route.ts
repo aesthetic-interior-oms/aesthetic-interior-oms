@@ -73,6 +73,7 @@ export async function GET() {
         canView: canViewVisitCompleteQueue(flags),
         canAssign: canAssignJrArchitect(flags),
         canRequest: canRequestJrArchitectWork(flags),
+        isJrArchitectureLeader: flags.isJrArchitectureLeader,
       },
     })
   } catch (error) {

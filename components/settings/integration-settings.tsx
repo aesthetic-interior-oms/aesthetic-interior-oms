@@ -152,6 +152,20 @@ type SyncResponse = {
   message?: string
   error?: string
 }
+type GoogleDriveStatusResponse = {
+  success: boolean
+  data?: {
+    configured: boolean
+    connected: boolean
+    checkedAt: string
+    config: {
+      emailConfigured: boolean
+      keyConfigured: boolean
+      folderConfigured: boolean
+    }
+  }
+  error?: string
+}
 
 const INTERVAL_OPTIONS = [5, 10, 15, 30, 60, 120, 240, 720, 1440]
 
@@ -193,6 +207,9 @@ export function IntegrationSettings() {
   const [instagramStatusError, setInstagramStatusError] = useState<string | null>(null)
   const [whatsAppStatusMessage, setWhatsAppStatusMessage] = useState<string | null>(null)
   const [whatsAppStatusError, setWhatsAppStatusError] = useState<string | null>(null)
+  const [googleDriveStatusMessage, setGoogleDriveStatusMessage] = useState<string | null>(null)
+  const [googleDriveStatusError, setGoogleDriveStatusError] = useState<string | null>(null)
+  const [checkingGoogleDrive, setCheckingGoogleDrive] = useState(false)
 
   const [config, setConfig] = useState<FacebookConfig | null>(null)
   const [syncControl, setSyncControl] = useState<SyncControl | null>(null)
@@ -203,6 +220,7 @@ export function IntegrationSettings() {
   const [whatsAppConfig, setWhatsAppConfig] = useState<
     NonNullable<WhatsAppSettingsResponse['data']>['config'] | null
   >(null)
+  const [googleDriveStatus, setGoogleDriveStatus] = useState<GoogleDriveStatusResponse['data'] | null>(null)
 
   const [enabled, setEnabled] = useState(true)
   const [latestEnabled, setLatestEnabled] = useState(true)
@@ -298,7 +316,31 @@ export function IntegrationSettings() {
     void loadSettings()
     void loadInstagramSettings()
     void loadWhatsAppSettings()
+    void checkGoogleDriveConnection()
   }, [loadInstagramSettings, loadSettings, loadWhatsAppSettings])
+
+  const checkGoogleDriveConnection = async () => {
+    setCheckingGoogleDrive(true)
+    setGoogleDriveStatusError(null)
+    setGoogleDriveStatusMessage(null)
+    try {
+      const response = await fetch('/api/google-drive/status', { cache: 'no-store' })
+      const payload = (await response.json()) as GoogleDriveStatusResponse
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.error ?? 'Failed to check Google Drive connection')
+      }
+      setGoogleDriveStatus(payload.data)
+      if (!payload.data.configured) {
+        setGoogleDriveStatusError('Google Drive is not configured. Add service account email, private key, and folder id.')
+      } else {
+        setGoogleDriveStatusMessage('Google Drive connection is healthy and ready.')
+      }
+    } catch (error) {
+      setGoogleDriveStatusError(error instanceof Error ? error.message : 'Failed to check Google Drive connection')
+    } finally {
+      setCheckingGoogleDrive(false)
+    }
+  }
 
   const hasUnsavedChanges = useMemo(() => {
     if (!syncControl) return false
@@ -598,6 +640,36 @@ export function IntegrationSettings() {
 
   return (
     <div className="space-y-6">
+      <Card className="border-border">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Google Drive Connection</CardTitle>
+              <CardDescription>
+                Check and maintain OMS file upload connection to Google Drive service account.
+              </CardDescription>
+            </div>
+            <Badge className={googleDriveStatus?.configured ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}>
+              {googleDriveStatus?.configured ? 'Configured' : 'Not Configured'}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border border-border p-4 text-sm">
+            <p>Service account email: {googleDriveStatus?.config.emailConfigured ? 'Configured' : 'Missing'}</p>
+            <p>Private key: {googleDriveStatus?.config.keyConfigured ? 'Configured' : 'Missing'}</p>
+            <p>Drive folder ID: {googleDriveStatus?.config.folderConfigured ? 'Configured' : 'Missing'}</p>
+            <p className="mt-2 text-muted-foreground">Last checked: {formatDate(googleDriveStatus?.checkedAt ?? null)}</p>
+          </div>
+          {googleDriveStatusMessage ? <p className="text-sm text-green-700">{googleDriveStatusMessage}</p> : null}
+          {googleDriveStatusError ? <p className="text-sm text-red-700">{googleDriveStatusError}</p> : null}
+          <Button onClick={checkGoogleDriveConnection} disabled={checkingGoogleDrive} variant="outline">
+            <RefreshCw className={`mr-2 h-4 w-4 ${checkingGoogleDrive ? 'animate-spin' : ''}`} />
+            Check Connection
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card className="border-border">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">

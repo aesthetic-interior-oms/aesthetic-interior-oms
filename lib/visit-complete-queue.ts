@@ -41,6 +41,7 @@ export type VisitCompleteQueueItem = {
     projectSqft: number | null
     projectStatus: string | null
     assignedVisitLead: { id: string; fullName: string } | null
+    supportMembers: Array<{ id: string; fullName: string }>
     summary: string | null
     clientMood: string | null
     clientPotentiality: string | null
@@ -247,6 +248,13 @@ export async function listVisitCompleteQueueItems(input?: {
               fullName: true,
             },
           },
+          supportMembers: {
+            select: {
+              id: true,
+              fullName: true,
+            },
+            orderBy: { fullName: 'asc' },
+          },
           result: {
             select: {
               summary: true,
@@ -313,6 +321,7 @@ export async function listVisitCompleteQueueItems(input?: {
             projectSqft: latestVisit.projectSqft ?? null,
             projectStatus: latestVisit.projectStatus ?? null,
             assignedVisitLead: latestVisit.assignedTo ?? null,
+            supportMembers: latestVisit.supportMembers ?? [],
             summary: visitResult?.summary ?? null,
             clientMood: visitResult?.clientMood ?? null,
             clientPotentiality: visitResult?.clientPotentiality ?? null,
