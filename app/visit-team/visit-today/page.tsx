@@ -293,6 +293,17 @@ export default function VisitTodayPage() {
       </div>
     ) : null
 
+  const selectedFilePreviewList = useMemo(
+    () =>
+      [...completeFiles, ...completeVideoFiles].map((file) => ({
+        file,
+        previewUrl: file.type.startsWith('image/') || file.type.startsWith('video/')
+          ? URL.createObjectURL(file)
+          : null,
+      })),
+    [completeFiles, completeVideoFiles],
+  )
+
   useEffect(() => {
     fetchMeCached()
       .then((data) => {
@@ -849,6 +860,12 @@ export default function VisitTodayPage() {
       const payload = (await response.json()) as SubmitVisitResultResponse
       if (!response.ok || !payload.success) {
         throw new Error(payload.error || 'Failed to complete visit')
+      }
+      if (payload.uploadWarnings?.failedCount) {
+        const failedFiles = payload.uploadWarnings.failedFiles ?? []
+        toast.warning(
+          `${payload.uploadWarnings.failedCount} file(s) failed to upload${failedFiles.length > 0 ? `: ${failedFiles.join(', ')}` : ''}`,
+        )
       }
       setCompleteOpen(false)
       setCompleteVisit(null)
