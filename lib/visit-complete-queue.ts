@@ -248,12 +248,16 @@ export async function listVisitCompleteQueueItems(input?: {
               fullName: true,
             },
           },
-          supportMembers: {
+          supportAssignments: {
             select: {
-              id: true,
-              fullName: true,
+              supportUser: {
+                select: {
+                  id: true,
+                  fullName: true,
+                },
+              },
             },
-            orderBy: { fullName: 'asc' },
+            orderBy: { createdAt: 'asc' },
           },
           result: {
             select: {
@@ -321,7 +325,7 @@ export async function listVisitCompleteQueueItems(input?: {
             projectSqft: latestVisit.projectSqft ?? null,
             projectStatus: latestVisit.projectStatus ?? null,
             assignedVisitLead: latestVisit.assignedTo ?? null,
-            supportMembers: latestVisit.supportMembers ?? [],
+            supportMembers: (latestVisit.supportAssignments ?? []).map((row) => row.supportUser),
             summary: visitResult?.summary ?? null,
             clientMood: visitResult?.clientMood ?? null,
             clientPotentiality: visitResult?.clientPotentiality ?? null,

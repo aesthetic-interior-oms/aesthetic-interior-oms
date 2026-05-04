@@ -166,12 +166,16 @@ export async function GET(request: NextRequest) {
                 fullName: true,
               },
             },
-            supportMembers: {
+            supportAssignments: {
               select: {
-                id: true,
-                fullName: true,
+                supportUser: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                  },
+                },
               },
-              orderBy: { fullName: 'asc' },
+              orderBy: { createdAt: 'asc' },
             },
           },
         },
@@ -203,7 +207,7 @@ export async function GET(request: NextRequest) {
           latestCompletedVisit: lead.visits[0]
             ? {
                 assignedVisitLead: lead.visits[0].assignedTo ?? null,
-                supportMembers: lead.visits[0].supportMembers ?? [],
+                supportMembers: (lead.visits[0].supportAssignments ?? []).map((row) => row.supportUser),
               }
             : null,
           latestFirstMeeting: lead.meetingEvents[0] ?? null,
