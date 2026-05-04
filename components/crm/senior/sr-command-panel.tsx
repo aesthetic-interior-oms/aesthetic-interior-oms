@@ -186,7 +186,7 @@ export function SrCommandPanel({ lead, currentUserId, onRefreshLead }: SrCommand
     if (quotationMembers.length > 0) return
     setLoadingQuotationMembers(true)
     try {
-      const response = await fetch('/api/department/available/QUOTATION', { cache: 'no-store' })
+      const response = await fetch('/api/department/available/QUOTATION_TEAM', { cache: 'no-store' })
       const payload = (await response.json()) as DepartmentUsersResponse
       if (!response.ok || !payload.success) {
         throw new Error(payload.error ?? 'Failed to load quotation members')
