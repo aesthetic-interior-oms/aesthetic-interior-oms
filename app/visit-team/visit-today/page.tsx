@@ -728,7 +728,7 @@ export default function VisitTodayPage() {
     setCompleteFiles([])
     setCompleteVideoFiles([])
     setCompleteLeadClientName(visit.lead?.name ?? '')
-    setCompleteLeadLocation(visit.location ?? '')
+    setCompleteLeadLocation('')
     setUploadingFileNames([])
     setFailedUploadFiles([])
     setCompleteError(null)
@@ -1311,25 +1311,9 @@ export default function VisitTodayPage() {
                       }}
                       className="text-sm"
                     />
-                  {completeVideoFiles.length > 0 ? (
+                    {completeVideoFiles.length > 0 ? (
                       <p className="text-xs text-muted-foreground">{completeVideoFiles.length} video file(s) selected</p>
                     ) : null}
-                  {selectedFilePreviewList.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      {selectedFilePreviewList.map(({ file, previewUrl }) => (
-                        <div key={`${file.name}-${file.size}`} className="overflow-hidden rounded-md border bg-muted/20 p-1">
-                          {file.type.startsWith('image/') && previewUrl ? (
-                            <img src={previewUrl} alt={file.name} className="h-24 w-full rounded object-cover" />
-                          ) : file.type.startsWith('video/') && previewUrl ? (
-                            <video src={previewUrl} controls className="h-24 w-full rounded object-cover" />
-                          ) : (
-                            <div className="flex h-24 items-center justify-center text-xs text-muted-foreground">{file.name}</div>
-                          )}
-                          <p className="truncate px-1 pt-1 text-[11px] text-muted-foreground">{file.name}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
                 </div>
               </>
             ) : (
@@ -1575,22 +1559,6 @@ export default function VisitTodayPage() {
                     />
                     {completeVideoFiles.length > 0 ? (
                       <p className="text-xs text-muted-foreground">{completeVideoFiles.length} video file(s) selected</p>
-                    ) : null}
-                    {selectedFilePreviewList.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {selectedFilePreviewList.map(({ file, previewUrl }) => (
-                          <div key={`${file.name}-${file.size}`} className="overflow-hidden rounded-md border bg-muted/20 p-1">
-                            {file.type.startsWith('image/') && previewUrl ? (
-                              <img src={previewUrl} alt={file.name} className="h-24 w-full rounded object-cover" />
-                            ) : file.type.startsWith('video/') && previewUrl ? (
-                              <video src={previewUrl} controls className="h-24 w-full rounded object-cover" />
-                            ) : (
-                              <div className="flex h-24 items-center justify-center text-xs text-muted-foreground">{file.name}</div>
-                            )}
-                            <p className="truncate px-1 pt-1 text-[11px] text-muted-foreground">{file.name}</p>
-                          </div>
-                        ))}
-                      </div>
                     ) : null}
                   </TabsContent>
                 </Tabs>
