@@ -574,7 +574,7 @@ export function LeadActionsPanel({
     if (!requiresQuotationSelection) return
 
     setQuotationUsersLoading(true)
-    fetch('/api/department/available/QUOTATION')
+    fetch('/api/department/available/QUOTATION_TEAM')
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.users)) {
