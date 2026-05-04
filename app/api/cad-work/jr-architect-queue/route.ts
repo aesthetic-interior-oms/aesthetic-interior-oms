@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
           },
           include: {
             user: {
-              select: {
+        select: {
                 id: true,
                 fullName: true,
                 email: true,
@@ -154,6 +154,30 @@ export async function GET(request: NextRequest) {
           },
           orderBy: { startsAt: 'desc' },
           take: 1,
+        },
+        visits: {
+          where: { status: 'COMPLETED' },
+          orderBy: { scheduledAt: 'desc' },
+          take: 1,
+          select: {
+            assignedTo: {
+              select: {
+                id: true,
+                fullName: true,
+              },
+            },
+            supportAssignments: {
+              select: {
+                supportUser: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                  },
+                },
+              },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
         },
       },
     })
@@ -180,6 +204,12 @@ export async function GET(request: NextRequest) {
           jrArchitectAssignment,
           srCrmAssignment,
           quotationAssignment,
+          latestCompletedVisit: lead.visits[0]
+            ? {
+                assignedVisitLead: lead.visits[0].assignedTo ?? null,
+                supportMembers: (lead.visits[0].supportAssignments ?? []).map((row) => row.supportUser),
+              }
+            : null,
           latestFirstMeeting: lead.meetingEvents[0] ?? null,
           canSetMeeting:
             (lead.stage === LeadStage.CAD_PHASE && lead.subStatus === LeadSubStatus.CAD_APPROVED) ||
