@@ -193,6 +193,9 @@ export default function VisitTodayPage() {
   const [projectStatusOptions, setProjectStatusOptions] =
     useState<ProjectStatusOption[]>(defaultProjectStatusOptions)
   const [completeFiles, setCompleteFiles] = useState<File[]>([])
+  const [completeVideoFiles, setCompleteVideoFiles] = useState<File[]>([])
+  const [completeLeadClientName, setCompleteLeadClientName] = useState('')
+  const [completeLeadLocation, setCompleteLeadLocation] = useState('')
   const [uploadingFileNames, setUploadingFileNames] = useState<string[]>([])
   const [failedUploadFiles, setFailedUploadFiles] = useState<string[]>([])
   const [completeError, setCompleteError] = useState<string | null>(null)
@@ -225,6 +228,11 @@ export default function VisitTodayPage() {
 
   const handleCompleteFilesSelected = (files: FileList | null) => {
     setCompleteFiles(Array.from(files ?? []))
+  }
+
+  const handleCompleteVideoFilesSelected = (files: FileList | null) => {
+    const selected = Array.from(files ?? []).filter((file) => file.type.startsWith('video/'))
+    setCompleteVideoFiles(selected)
   }
 
   const removeCompleteFileAtIndex = (targetIndex: number) => {
@@ -707,6 +715,9 @@ export default function VisitTodayPage() {
     setSupportProjectStatus(existingSupportResult?.projectStatus ?? visit.projectStatus ?? '')
     setSupportExtraConcern(existingSupportResult?.extraConcern ?? '')
     setCompleteFiles([])
+    setCompleteVideoFiles([])
+    setCompleteLeadClientName(visit.lead?.name ?? '')
+    setCompleteLeadLocation('')
     setUploadingFileNames([])
     setFailedUploadFiles([])
     setCompleteError(null)
@@ -801,7 +812,7 @@ export default function VisitTodayPage() {
 
     setSubmittingComplete(true)
     setCompleteError(null)
-    setUploadingFileNames(completeFiles.map((file) => file.name))
+    setUploadingFileNames([...completeFiles, ...completeVideoFiles].map((file) => file.name))
     try {
       const formData = new FormData()
       formData.append('resultType', completeRole)
@@ -816,6 +827,8 @@ export default function VisitTodayPage() {
         if (completeBudgetRange.trim()) formData.append('budgetRange', completeBudgetRange.trim())
         if (completeTimelineUrgency) formData.append('timelineUrgency', completeTimelineUrgency)
         if (completeStylePreference) formData.append('stylePreference', completeStylePreference)
+        if (completeLeadClientName.trim()) formData.append('leadClientName', completeLeadClientName.trim())
+        if (completeLeadLocation.trim()) formData.append('leadLocation', completeLeadLocation.trim())
       } else {
         formData.append('supportClientName', supportClientName.trim())
         formData.append('supportProjectArea', supportProjectArea.trim())
@@ -824,6 +837,9 @@ export default function VisitTodayPage() {
       }
       completeFiles.forEach((file) => {
         formData.append('files', file)
+      })
+      completeVideoFiles.forEach((file) => {
+        formData.append('videoFiles', file)
       })
 
       const response = await fetch(`/api/visit-schedule/${completeVisit.id}/result`, {
@@ -837,6 +853,7 @@ export default function VisitTodayPage() {
       setCompleteOpen(false)
       setCompleteVisit(null)
       setCompleteFiles([])
+      setCompleteVideoFiles([])
       setUploadingFileNames([])
       toast.success(
         completeRole === 'SUPPORT'
@@ -1267,6 +1284,19 @@ export default function VisitTodayPage() {
                     </p>
                   ) : null}
                   {selectedFilesStatusList}
+                    <Label className="pt-2 text-sm font-medium">Videos (saved to Google Drive)</Label>
+                    <Input
+                      type="file"
+                      accept="video/*"
+                      multiple
+                      onChange={(event) => {
+                        handleCompleteVideoFilesSelected(event.target.files)
+                      }}
+                      className="text-sm"
+                    />
+                    {completeVideoFiles.length > 0 ? (
+                      <p className="text-xs text-muted-foreground">{completeVideoFiles.length} video file(s) selected</p>
+                    ) : null}
                 </div>
               </>
             ) : (
@@ -1342,6 +1372,15 @@ export default function VisitTodayPage() {
                   </TabsContent>
                   <TabsContent value="details" className="mt-4">
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <div className="space-y-2 md:col-span-2">
+                        <Label className="text-sm font-medium">Client Name</Label>
+                        <Input value={completeLeadClientName} onChange={(event) => setCompleteLeadClientName(event.target.value)} className="text-sm" />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label className="text-sm font-medium">Location</Label>
+                        <Input value={completeLeadLocation} onChange={(event) => setCompleteLeadLocation(event.target.value)} placeholder="Enter project location" className="text-sm" />
+                      </div>
+
                       <div className="space-y-2">
                         <Label className="text-sm font-medium">Potentiality / Hotness</Label>
                         <Select
@@ -1491,6 +1530,19 @@ export default function VisitTodayPage() {
                       </p>
                     ) : null}
                     {selectedFilesStatusList}
+                    <Label className="pt-2 text-sm font-medium">Videos (saved to Google Drive)</Label>
+                    <Input
+                      type="file"
+                      accept="video/*"
+                      multiple
+                      onChange={(event) => {
+                        handleCompleteVideoFilesSelected(event.target.files)
+                      }}
+                      className="text-sm"
+                    />
+                    {completeVideoFiles.length > 0 ? (
+                      <p className="text-xs text-muted-foreground">{completeVideoFiles.length} video file(s) selected</p>
+                    ) : null}
                   </TabsContent>
                 </Tabs>
               </>
