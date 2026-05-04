@@ -156,6 +156,84 @@ async function resolveAttachmentReadUrl(url: string): Promise<string> {
   }
 }
 
+
+function isVideoFile(file: File): boolean {
+  return file.type.startsWith('video/')
+}
+
+function base64UrlEncode(input: string | Buffer): string {
+  return Buffer.from(input)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '')
+}
+
+async function getGoogleDriveAccessToken(): Promise<string> {
+  const clientEmail = process.env.GOOGLE_DRIVE_CLIENT_EMAIL
+  const privateKey = process.env.GOOGLE_DRIVE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  if (!clientEmail || !privateKey) {
+    throw new Error('GOOGLE_DRIVE_CONFIG_MISSING')
+  }
+
+  const now = Math.floor(Date.now() / 1000)
+  const header = { alg: 'RS256', typ: 'JWT' }
+  const claim = {
+    iss: clientEmail,
+    scope: 'https://www.googleapis.com/auth/drive.file',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600,
+    iat: now,
+  }
+
+  const unsigned = `${base64UrlEncode(JSON.stringify(header))}.${base64UrlEncode(JSON.stringify(claim))}`
+  const signer = await import('crypto')
+  const signature = signer.createSign('RSA-SHA256').update(unsigned).sign(privateKey)
+  const jwt = `${unsigned}.${base64UrlEncode(signature)}`
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  })
+  const payload = await res.json()
+  if (!res.ok || !payload.access_token) {
+    throw new Error('GOOGLE_DRIVE_AUTH_FAILED')
+  }
+  return payload.access_token as string
+}
+
+async function uploadFileToGoogleDrive(file: File, folderId?: string): Promise<{url:string;fileName:string;fileType:string}> {
+  const token = await getGoogleDriveAccessToken()
+  const metadata: Record<string, unknown> = { name: file.name || `video-${Date.now()}` }
+  if (folderId) metadata.parents = [folderId]
+
+  const form = new FormData()
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }))
+  form.append('file', file)
+
+  const uploadRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
+  const uploaded = await uploadRes.json()
+  if (!uploadRes.ok || !uploaded.id) {
+    throw new Error('GOOGLE_DRIVE_UPLOAD_FAILED')
+  }
+
+  await fetch(`https://www.googleapis.com/drive/v3/files/${uploaded.id}/permissions`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+  })
+
+  return { url: `https://drive.google.com/file/d/${uploaded.id}/view`, fileName: uploaded.name ?? file.name, fileType: uploaded.mimeType ?? file.type }
+}
+
 function getLeadAttachmentCategory(fileType: string): 'MEDIA' | 'FILE' {
   if (fileType.startsWith('image/') || fileType.startsWith('video/')) {
     return 'MEDIA'
@@ -303,6 +381,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const supportProjectArea = toOptionalString(formData.get('supportProjectArea'))
     const supportProjectStatus = toProjectStatus(formData.get('supportProjectStatus'))
     const supportExtraConcern = toOptionalString(formData.get('supportExtraConcern'))
+    const leadClientName = toOptionalString(formData.get('leadClientName'))
+    const leadLocation = toOptionalString(formData.get('leadLocation'))
     const parsedSupportProjectArea = toOptionalNumber(supportProjectArea)
 
     if (formData.get('projectStatus') !== null && !projectStatus) {
@@ -321,6 +401,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const files = formData
       .getAll('files')
       .filter((entry): entry is File => entry instanceof File && entry.size > 0)
+    const videoFiles = formData
+      .getAll('videoFiles')
+      .filter((entry): entry is File => entry instanceof File && entry.size > 0 && isVideoFile(entry))
 
     const result = await prisma.$transaction(async (tx) => {
       const visit = await tx.visit.findUnique({
@@ -535,8 +618,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
         data: {
           status: 'COMPLETED',
           ...(projectStatus ? { projectStatus } : {}),
+          ...(leadLocation ? { location: leadLocation } : {}),
         },
       })
+
+      if (leadClientName && leadClientName !== visit.lead.name) {
+        await tx.lead.update({ where: { id: visit.leadId }, data: { name: leadClientName } })
+      }
 
       if (note) {
         await tx.note.create({
@@ -548,10 +636,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
         })
       }
 
+      const nonVideoFiles = files.filter((file) => !isVideoFile(file))
+      const inlineVideoFiles = files.filter((file) => isVideoFile(file))
+      const allVideoFiles = [...inlineVideoFiles, ...videoFiles]
+
       const { uploadedFiles: uploadedLeadFiles, failedUploads } = await uploadFilesToBlob(
         `visit-results/${visitId}`,
-        files,
+        nonVideoFiles,
       )
+      for (const videoFile of allVideoFiles) {
+        try {
+          const uploadedVideo = await uploadFileToGoogleDrive(videoFile, process.env.GOOGLE_DRIVE_FOLDER_ID)
+          uploadedLeadFiles.push({ ...uploadedVideo, sizeBytes: videoFile.size })
+        } catch {
+          failedUploads.push({ fileName: videoFile.name || 'video', reason: 'Video upload failed (Google Drive)' })
+        }
+      }
       for (const uploaded of uploadedLeadFiles) {
         await tx.attachment.create({
           data: {
@@ -712,6 +812,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
         { success: false, error: 'You can only submit results for visits assigned to you' },
         { status: 403 },
       )
+    }
+
+    if (error instanceof Error && (error.message === 'GOOGLE_DRIVE_CONFIG_MISSING' || error.message === 'GOOGLE_DRIVE_AUTH_FAILED' || error.message === 'GOOGLE_DRIVE_UPLOAD_FAILED')) {
+      return NextResponse.json({ success: false, error: 'Google Drive upload is not configured correctly for video files.' }, { status: 503 })
     }
 
     if (error instanceof Error && error.message.includes('BLOB_READ_WRITE_TOKEN')) {
