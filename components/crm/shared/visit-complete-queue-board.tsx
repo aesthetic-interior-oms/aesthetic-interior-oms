@@ -6,6 +6,9 @@ import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -33,6 +36,7 @@ type QueueItem = {
     projectSqft: number | null
     projectStatus: string | null
     assignedVisitLead: { id: string; fullName: string } | null
+    supportMembers?: Array<{ id: string; fullName: string }>
     summary: string | null
     budgetRange: string | null
     timelineUrgency: string | null
@@ -62,6 +66,7 @@ type QueueResponse = {
     canView: boolean
     canAssign: boolean
     canRequest: boolean
+    isJrArchitectureLeader?: boolean
   }
   error?: string
 }
@@ -99,6 +104,10 @@ export function VisitCompleteQueueBoard({
   const [canRequest, setCanRequest] = useState(false)
   const [selectedByLead, setSelectedByLead] = useState<Record<string, string>>({})
   const [busyLeadId, setBusyLeadId] = useState<string | null>(null)
+  const [isJrArchitectureLeader, setIsJrArchitectureLeader] = useState(false)
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [renameLeadId, setRenameLeadId] = useState('')
+  const [renameValue, setRenameValue] = useState('')
 
   const loadQueue = useCallback(async () => {
     setLoading(true)
@@ -125,6 +134,7 @@ export function VisitCompleteQueueBoard({
       setJrArchitectUsers(nextJrArchitectUsers)
       setCanAssign(canAssignFlag)
       setCanRequest(Boolean(payload.permissions?.canRequest))
+      setIsJrArchitectureLeader(Boolean(payload.permissions?.isJrArchitectureLeader))
       setSelectedByLead((prev) => {
         const next: Record<string, string> = { ...prev }
         for (const item of payload.data ?? []) {
@@ -216,6 +226,32 @@ export function VisitCompleteQueueBoard({
     }
   }, [items, loadQueue, selectedByLead])
 
+  const openRenameDialog = (leadId: string, currentName: string) => {
+    setRenameLeadId(leadId)
+    setRenameValue(currentName)
+    setRenameOpen(true)
+  }
+  const submitRenameLead = async () => {
+    if (!renameLeadId || !renameValue.trim()) return
+    setBusyLeadId(renameLeadId)
+    try {
+      const response = await fetch(`/api/lead/${renameLeadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: renameValue.trim() }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) throw new Error(payload?.error ?? 'Failed to update lead name')
+      toast.success('Lead name updated')
+      setRenameOpen(false)
+      await loadQueue()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update lead name')
+    } finally {
+      setBusyLeadId(null)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <CrmPageHeader title={title} subtitle={subtitle} />
@@ -272,7 +308,9 @@ export function VisitCompleteQueueBoard({
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <p className="text-base font-semibold text-foreground">{item.leadName}</p>
+                        <button type="button" onClick={() => openRenameDialog(item.leadId, item.leadName)} className="text-base font-semibold text-foreground hover:text-primary hover:underline">
+                          {item.leadName}
+                        </button>
                         <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
                           <Sparkles className="mr-1 h-3 w-3" />
                           Visit Completed
@@ -320,6 +358,38 @@ export function VisitCompleteQueueBoard({
                         {item.latestCompletedVisit?.summary ?? 'No summary'}
                       </span>
                     </p>
+                    <p className="text-muted-foreground md:col-span-2">
+                      Visit Team:{' '}
+                      <span className="font-medium text-foreground">
+                        {item.latestCompletedVisit?.assignedVisitLead?.fullName ?? 'N/A'}
+                        {item.latestCompletedVisit?.assignedVisitLead ? ' (Lead)' : ''}
+                        {item.latestCompletedVisit?.supportMembers?.length
+                          ? ` + ${item.latestCompletedVisit.supportMembers.map((member) => member.fullName).join(', ')} (Support)`
+                          : ''}
+                      </span>
+                    </p>
+                    {isJrArchitectureLeader ? (
+                      <>
+                        <p className="text-muted-foreground">
+                          Project Sqft:{' '}
+                          <span className="font-medium text-foreground">
+                            {item.latestCompletedVisit?.projectSqft ?? 'N/A'}
+                          </span>
+                        </p>
+                        <p className="text-muted-foreground">
+                          Project Status:{' '}
+                          <span className="font-medium text-foreground">
+                            {item.latestCompletedVisit?.projectStatus ?? 'N/A'}
+                          </span>
+                        </p>
+                        <p className="text-muted-foreground md:col-span-2">
+                          Urgency:{' '}
+                          <span className="font-medium text-foreground">
+                            {item.latestCompletedVisit?.timelineUrgency ?? 'N/A'}
+                          </span>
+                        </p>
+                      </>
+                    ) : null}
                   </div>
 
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -414,6 +484,21 @@ export function VisitCompleteQueueBoard({
           </CardContent>
         </Card>
       </main>
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Client Name</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Client Name</Label>
+            <Input value={renameValue} onChange={(event) => setRenameValue(event.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameOpen(false)}>Cancel</Button>
+            <Button onClick={submitRenameLead} disabled={!renameValue.trim() || busyLeadId === renameLeadId}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

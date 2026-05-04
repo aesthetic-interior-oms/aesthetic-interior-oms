@@ -35,6 +35,10 @@ type LeadRecord = {
     id: string
     user: { id: string; fullName: string; email: string }
   } | null
+  latestCompletedVisit?: {
+    assignedVisitLead: { id: string; fullName: string } | null
+    supportMembers: Array<{ id: string; fullName: string }>
+  } | null
   latestFirstMeeting: {
     id: string
     title: string
@@ -113,6 +117,20 @@ export function CadPhaseQueueBoard({
   const [loadingQuotationMembers, setLoadingQuotationMembers] = useState(false)
   const [reassignQuotationOpen, setReassignQuotationOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string>('ALL')
+  const [dropOpen, setDropOpen] = useState(false)
+  const [dropSubStatus, setDropSubStatus] = useState('')
+  const [renameOpen, setRenameOpen] = useState(false)
+  const [renameValue, setRenameValue] = useState('')
+
+  const closedSubStatusOptions = [
+    'PROJECT_DROPPED',
+    'REJECTED_OFFER',
+    'SMALL_BUDGET',
+    'INVALID',
+    'NOT_INTERESTED',
+    'LOST',
+    'DEAD_LEAD',
+  ]
 
   const isMeetingQueue = queueType === 'meeting'
   const isBudgetQueue = queueType === 'budget'
@@ -357,6 +375,66 @@ export function CadPhaseQueueBoard({
     await loadQuotationMembers()
   }
 
+  const openDropDialog = (lead: LeadRecord) => {
+    setActiveLead(lead)
+    setDropSubStatus('')
+    setDropOpen(true)
+  }
+  const openRenameDialog = (lead: LeadRecord) => {
+    setActiveLead(lead)
+    setRenameValue(lead.name ?? '')
+    setRenameOpen(true)
+  }
+  const submitRenameLead = async () => {
+    if (!activeLead || !renameValue.trim()) return
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/lead/${activeLead.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: renameValue.trim() }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) throw new Error(payload?.error ?? 'Failed to update lead name')
+      toast.success('Lead name updated')
+      setRenameOpen(false)
+      setActiveLead(null)
+      await loadLeads()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update lead name')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const submitDropProject = async () => {
+    if (!activeLead || !dropSubStatus) return
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/lead/${activeLead.id}/stage`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: 'CLOSED',
+          subStatus: dropSubStatus,
+          reason: 'Project dropped from CAD Queue.',
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to drop project')
+      }
+      toast.success('Project moved to Closed')
+      setDropOpen(false)
+      setActiveLead(null)
+      await loadLeads()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to drop project')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const submitCompleteMeeting = async () => {
     if (!completeMeetingLead) return
     if (!quotationMemberId) {
@@ -468,9 +546,9 @@ export function CadPhaseQueueBoard({
                 <CardContent className="space-y-3 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
-                      <Link href={`${leadBasePath}/${lead.id}`} className="text-base font-semibold hover:text-primary hover:underline">
+                      <button type="button" onClick={() => openRenameDialog(lead)} className="text-left text-base font-semibold hover:text-primary hover:underline">
                         {lead.name}
-                      </Link>
+                      </button>
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="secondary">{formatLabel(lead.stage)}</Badge>
                         <Badge variant="outline">{formatLabel(lead.subStatus)}</Badge>
@@ -517,6 +595,11 @@ export function CadPhaseQueueBoard({
                           </Button>
                         ) : null
                       ) : null}
+                      {!isMeetingQueue && !isBudgetQueue ? (
+                        <Button size="sm" variant="destructive" onClick={() => openDropDialog(lead)}>
+                          Drop Project
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
 
@@ -536,6 +619,14 @@ export function CadPhaseQueueBoard({
                     <p className="inline-flex items-center gap-1">
                       <UserRound className="h-3.5 w-3.5" />
                       SR CRM: {lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}
+                    </p>
+                    <p className="inline-flex items-center gap-1 md:col-span-2">
+                      <UserRound className="h-3.5 w-3.5" />
+                      Visit Team:{' '}
+                      {lead.latestCompletedVisit?.assignedVisitLead?.fullName ?? 'N/A'}
+                      {lead.latestCompletedVisit?.supportMembers?.length
+                        ? ` + ${lead.latestCompletedVisit.supportMembers.map((member) => member.fullName).join(', ')}`
+                        : ''}
                     </p>
                     {isMeetingQueue || isBudgetQueue ? (
                       <p className="inline-flex items-center gap-1">
@@ -622,6 +713,66 @@ export function CadPhaseQueueBoard({
             <Button disabled={saving || !meetingAt} onClick={submitMeeting}>
               Schedule Meeting
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dropOpen} onOpenChange={setDropOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Drop Project</DialogTitle>
+            <DialogDescription>
+              Stage is locked to Closed. Select a substatus under Closed to continue.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Stage</Label>
+              <Select value="CLOSED" disabled>
+                <SelectTrigger>
+                  <SelectValue placeholder="Closed" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CLOSED">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Substatus</Label>
+              <Select value={dropSubStatus} onValueChange={setDropSubStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Closed substatus" />
+                </SelectTrigger>
+                <SelectContent>
+                  {closedSubStatusOptions.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {formatLabel(status)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDropOpen(false)}>Cancel</Button>
+            <Button variant="destructive" disabled={!dropSubStatus || saving} onClick={submitDropProject}>
+              Confirm Drop
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Client Name</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Client Name</Label>
+            <Input value={renameValue} onChange={(event) => setRenameValue(event.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameOpen(false)}>Cancel</Button>
+            <Button onClick={submitRenameLead} disabled={saving || !renameValue.trim()}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
