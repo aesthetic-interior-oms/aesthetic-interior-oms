@@ -1,39 +1,20 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import {
+  addMonths,
+  eachDayOfInterval,
+  endOfMonth,
+  format,
+  isSameMonth,
+  isToday,
+  startOfMonth,
+  subMonths,
+} from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-
-function startOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1)
-}
-
-function endOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
-}
-
-function addMonths(date: Date, months: number) {
-  return new Date(date.getFullYear(), date.getMonth() + months, 1)
-}
-
-function formatMonthYear(date: Date) {
-  return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(date)
-}
-
-function isSameMonth(date: Date, target: Date) {
-  return date.getFullYear() === target.getFullYear() && date.getMonth() === target.getMonth()
-}
-
-function isToday(date: Date) {
-  const now = new Date()
-  return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
-  )
-}
 
 export function JrArchitectureCalendarOverview() {
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -48,10 +29,7 @@ export function JrArchitectureCalendarOverview() {
     const gridEnd = new Date(monthEnd)
     gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay()))
 
-    const days: Date[] = []
-    for (let day = new Date(gridStart); day <= gridEnd; day.setDate(day.getDate() + 1)) {
-      days.push(new Date(day))
-    }
+    const days = eachDayOfInterval({ start: gridStart, end: gridEnd })
 
     const bucket: Date[][] = []
     for (let i = 0; i < days.length; i += 7) {
@@ -70,10 +48,10 @@ export function JrArchitectureCalendarOverview() {
 
       <main className="mx-auto max-w-[1440px] space-y-4 px-6 py-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-foreground">{formatMonthYear(currentDate)}</h2>
+          <h2 className="text-2xl font-semibold text-foreground">{format(currentDate, 'MMMM yyyy')}</h2>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setCurrentDate(addMonths(currentDate, -1))}
+              onClick={() => setCurrentDate(subMonths(currentDate, 1))}
               className="rounded-lg border border-border bg-card p-2 hover:bg-accent"
               aria-label="Previous month"
             >
@@ -118,7 +96,7 @@ export function JrArchitectureCalendarOverview() {
                       isToday(day) ? 'bg-primary text-primary-foreground' : ''
                     }`}
                   >
-                    {day.getDate()}
+                    {format(day, 'd')}
                   </span>
                 </div>
               ))}
