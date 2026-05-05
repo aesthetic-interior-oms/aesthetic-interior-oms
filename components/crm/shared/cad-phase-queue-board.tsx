@@ -88,23 +88,17 @@ export function CadPhaseQueueBoard({
   subtitle,
   leadBasePath,
   queueType = 'cad',
-<<<<<<< HEAD
   queueEndpoint = '/api/cad-work/jr-architect-queue',
   assigneeDepartment = 'JR_ARCHITECT',
   assigneeLabel = 'JR Architect',
-=======
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
 }: {
   title: string
   subtitle: string
   leadBasePath: string
   queueType?: 'cad' | 'meeting' | 'budget'
-<<<<<<< HEAD
   queueEndpoint?: string
   assigneeDepartment?: string
   assigneeLabel?: string
-=======
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
 }) {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -159,11 +153,7 @@ export function CadPhaseQueueBoard({
         queueType,
       })
       if (search) params.set('search', search)
-<<<<<<< HEAD
       const response = await fetch(`${queueEndpoint}?${params.toString()}`, { cache: 'no-store' })
-=======
-      const response = await fetch(`/api/cad-work/jr-architect-queue?${params.toString()}`, { cache: 'no-store' })
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
       const payload = (await response.json()) as QueueResponse
       if (!response.ok || !payload.success || !Array.isArray(payload.data)) {
         throw new Error(payload.error ?? 'Failed to load queue')
@@ -175,31 +165,18 @@ export function CadPhaseQueueBoard({
     } finally {
       setLoading(false)
     }
-<<<<<<< HEAD
   }, [queueEndpoint, queueType, search])
-=======
-  }, [queueType, search])
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
 
   useEffect(() => {
     void loadLeads()
   }, [loadLeads])
 
-<<<<<<< HEAD
   const loadAssigneeMembers = async () => {
     if (memberOptions.length > 0) return
     const response = await fetch(`/api/department/available/${assigneeDepartment}`, { cache: 'no-store' })
     const payload = await response.json()
     if (!response.ok || !payload?.success) {
       throw new Error(payload?.error ?? `Failed to load ${assigneeLabel} members`)
-=======
-  const loadJrArchitectMembers = async () => {
-    if (memberOptions.length > 0) return
-    const response = await fetch('/api/department/available/JR_ARCHITECT', { cache: 'no-store' })
-    const payload = await response.json()
-    if (!response.ok || !payload?.success) {
-      throw new Error(payload?.error ?? 'Failed to load JR Architect members')
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
     }
     const users = Array.isArray(payload.users) ? payload.users : []
     setMemberOptions(users)
@@ -224,67 +201,41 @@ export function CadPhaseQueueBoard({
 
   const openReassign = async (lead: LeadRecord) => {
     if (lead.canReassignJrArchitect === false) {
-<<<<<<< HEAD
       toast.error(`${assigneeLabel} reassignment is disabled after CAD approval.`)
-=======
-      toast.error('JR Architect reassignment is disabled after CAD approval.')
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
+      toast.error(`${assigneeLabel} reassignment is disabled after CAD approval.`)
       return
     }
     setActiveLead(lead)
     setSelectedMemberId(lead.jrArchitectAssignment?.user.id ?? '')
     setReassignOpen(true)
     try {
-<<<<<<< HEAD
       await loadAssigneeMembers()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : `Failed to load ${assigneeLabel} members`)
-=======
-      await loadJrArchitectMembers()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to load JR Architect members')
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
     }
   }
 
   const submitReassign = async () => {
     if (!activeLead || !selectedMemberId) return
     if (activeLead.canReassignJrArchitect === false) {
-<<<<<<< HEAD
       toast.error(`${assigneeLabel} reassignment is disabled after CAD approval.`)
-=======
-      toast.error('JR Architect reassignment is disabled after CAD approval.')
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
       return
     }
     setSaving(true)
     try {
-<<<<<<< HEAD
       const response = await fetch(`/api/lead/${activeLead.id}/assignments/${assigneeDepartment}`, {
-=======
-      const response = await fetch(`/api/lead/${activeLead.id}/assignments/JR_ARCHITECT`, {
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: selectedMemberId }),
       })
       const payload = await response.json()
-<<<<<<< HEAD
       if (!response.ok || !payload?.success) throw new Error(payload?.error ?? `Failed to reassign ${assigneeLabel}`)
       toast.success(`${assigneeLabel} reassigned successfully`)
-=======
-      if (!response.ok || !payload?.success) throw new Error(payload?.error ?? 'Failed to reassign JR Architect')
-      toast.success('JR Architect reassigned successfully')
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
       setReassignOpen(false)
       setActiveLead(null)
       await loadLeads()
     } catch (error) {
-<<<<<<< HEAD
       toast.error(error instanceof Error ? error.message : `Failed to reassign ${assigneeLabel}`)
-=======
-      toast.error(error instanceof Error ? error.message : 'Failed to reassign JR Architect')
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
     } finally {
       setSaving(false)
     }
@@ -707,19 +658,11 @@ export function CadPhaseQueueBoard({
       <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
         <DialogContent>
           <DialogHeader>
-<<<<<<< HEAD
             <DialogTitle>{`Reassign ${assigneeLabel}`}</DialogTitle>
             <DialogDescription>{`Select a new ${assigneeLabel} for this CAD lead.`}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <Label>{`${assigneeLabel} Member`}</Label>
-=======
-            <DialogTitle>Reassign JR Architect</DialogTitle>
-            <DialogDescription>Select a new JR Architect for this CAD lead.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>JR Architect Member</Label>
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
             <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select member" />

@@ -159,7 +159,6 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
-<<<<<<< HEAD
   '3D Visualizer': [
     {
       id: 'visualizer-overview',
@@ -179,8 +178,6 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
-=======
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
   'Quotation Team': [
     {
       id: 'quotation-overview',

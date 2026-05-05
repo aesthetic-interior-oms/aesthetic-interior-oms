@@ -24,10 +24,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.3.1",
-<<<<<<< HEAD
     "googleapis": "^171.4.0",
-=======
->>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
     "leaflet": "^1.9.4",
     "lucide-react": "^0.564.0",
     "motion": "^12.38.0",
