@@ -44,11 +44,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const isAdmin = actorDepartments.has('ADMIN')
     const isSeniorCrm = actorDepartments.has('SR_CRM')
     const isJrArchitect = actorDepartments.has('JR_ARCHITECT')
+<<<<<<< HEAD
     const isVisualizer = actorDepartments.has('VISUALIZER_3D')
 
     if (!isAdmin && !isSeniorCrm && !isJrArchitect && !isVisualizer) {
       return NextResponse.json(
         { success: false, error: 'Only JR Architect, 3D Visualizer, Senior CRM, or Admin can start CAD work' },
+=======
+
+    if (!isAdmin && !isSeniorCrm && !isJrArchitect) {
+      return NextResponse.json(
+        { success: false, error: 'Only JR Architect, Senior CRM, or Admin can start CAD work' },
+>>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
         { status: 403 },
       )
     }
@@ -63,12 +70,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
                 assignments: {
                   some: {
                     userId: authResult.actorUserId,
+<<<<<<< HEAD
                     department: {
                       in: [
                         LeadAssignmentDepartment.JR_ARCHITECT,
                         LeadAssignmentDepartment.VISUALIZER_3D,
                       ],
                     },
+=======
+                    department: LeadAssignmentDepartment.JR_ARCHITECT,
+>>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
                   },
                 },
               }),
@@ -149,3 +160,7 @@ export async function OPTIONS() {
     },
   })
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d

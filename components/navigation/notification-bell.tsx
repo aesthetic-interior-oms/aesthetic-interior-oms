@@ -277,9 +277,12 @@ export function NotificationBell() {
     if (pathname.startsWith('/crm/jr-architecture')) {
       return `/crm/jr-architecture/leads/${leadId}`
     }
+<<<<<<< HEAD
     if (pathname.startsWith('/crm/visualizer')) {
       return `/crm/visualizer/leads/${leadId}`
     }
+=======
+>>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
     return `/crm/jr/leads/${leadId}`
   }
 

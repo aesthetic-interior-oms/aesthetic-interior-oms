@@ -27,7 +27,10 @@ const DEPARTMENT_ROUTES: Record<string, string> = {
   ADMIN: "/crm/admin/dashboard",
   JR_CRM: "/crm/jr/dashboard",
   JR_ARCHITECT: "/crm/jr-architecture/dashboard",
+<<<<<<< HEAD
   VISUALIZER_3D: "/crm/visualizer/dashboard",
+=======
+>>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
   QUOTATION: "/quotation-team/dashboard",
   QUOTATION_TEAM: "/quotation-team/dashboard",
   SR_CRM: "/crm/sr/dashboard",

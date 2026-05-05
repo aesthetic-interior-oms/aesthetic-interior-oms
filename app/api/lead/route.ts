@@ -232,7 +232,10 @@ export async function GET(request: NextRequest) {
     const isAdmin = departmentNames.has('ADMIN');
     const isSeniorCrm = departmentNames.has('SR_CRM');
     const isJrArchitect = departmentNames.has('JR_ARCHITECT');
+<<<<<<< HEAD
     const isVisualizer = departmentNames.has('VISUALIZER_3D');
+=======
+>>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
 
     const baseWhere: Prisma.LeadWhereInput = isAdmin
       ? {}
@@ -254,7 +257,11 @@ export async function GET(request: NextRequest) {
                 },
               },
             }
+<<<<<<< HEAD
         : isJrArchitect
+=======
+          : isJrArchitect
+>>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
             ? {
                 assignments: {
                   some: {
@@ -263,6 +270,7 @@ export async function GET(request: NextRequest) {
                   },
                 },
               }
+<<<<<<< HEAD
         : isVisualizer
             ? {
                 assignments: {
@@ -272,6 +280,8 @@ export async function GET(request: NextRequest) {
                   },
                 },
               }
+=======
+>>>>>>> 540e58d2c3ddafceccce6b77679f9aee9986a83d
         : {};
 
     const searchParams = request.nextUrl.searchParams;
