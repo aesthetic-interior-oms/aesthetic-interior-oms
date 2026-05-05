@@ -1,6 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   addMonths,
   eachDayOfInterval,
@@ -11,7 +13,6 @@ import {
   startOfMonth,
   subMonths,
 } from 'date-fns'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
