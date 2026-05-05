@@ -8,6 +8,7 @@ const ADMIN_DASHBOARD = '/crm/admin/dashboard'
 const SR_CRM_DASHBOARD = '/crm/sr/dashboard'
 const VISIT_DASHBOARD = '/visit-team/visit-dashboard'
 const JR_ARCHITECT_DASHBOARD = '/crm/jr-architecture/dashboard'
+const VISUALIZER_DASHBOARD = '/crm/visualizer/dashboard'
 
 export const runtime = 'nodejs'
 export const preferredRegion = 'sin1'
@@ -66,6 +67,10 @@ export default async function QuotationTeamLayout({
 
   if (departmentNames.has('VISIT_TEAM')) {
     redirect(VISIT_DASHBOARD)
+  }
+
+  if (departmentNames.has('VISUALIZER_3D')) {
+    redirect(VISUALIZER_DASHBOARD)
   }
 
   redirect('/')

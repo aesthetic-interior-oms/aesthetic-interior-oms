@@ -232,6 +232,7 @@ export async function GET(request: NextRequest) {
     const isAdmin = departmentNames.has('ADMIN');
     const isSeniorCrm = departmentNames.has('SR_CRM');
     const isJrArchitect = departmentNames.has('JR_ARCHITECT');
+    const isVisualizer = departmentNames.has('VISUALIZER_3D');
 
     const baseWhere: Prisma.LeadWhereInput = isAdmin
       ? {}
@@ -253,12 +254,21 @@ export async function GET(request: NextRequest) {
                 },
               },
             }
-          : isJrArchitect
+        : isJrArchitect
             ? {
                 assignments: {
                   some: {
                     userId: authResult.actorUserId,
                     department: LeadAssignmentDepartment.JR_ARCHITECT,
+                  },
+                },
+              }
+        : isVisualizer
+            ? {
+                assignments: {
+                  some: {
+                    userId: authResult.actorUserId,
+                    department: LeadAssignmentDepartment.VISUALIZER_3D,
                   },
                 },
               }

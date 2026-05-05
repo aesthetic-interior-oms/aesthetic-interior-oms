@@ -202,10 +202,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const isAdmin = actorDepartments.has('ADMIN')
     const isSeniorCrm = actorDepartments.has('SR_CRM')
     const isJrArchitect = actorDepartments.has('JR_ARCHITECT')
+    const isVisualizer = actorDepartments.has('VISUALIZER_3D')
 
-    if (!isAdmin && !isSeniorCrm && !isJrArchitect) {
+    if (!isAdmin && !isSeniorCrm && !isJrArchitect && !isVisualizer) {
       return NextResponse.json(
-        { success: false, error: 'Only JR Architect, Senior CRM, or Admin can submit CAD work' },
+        { success: false, error: 'Only JR Architect, 3D Visualizer, Senior CRM, or Admin can submit CAD work' },
         { status: 403 },
       )
     }
@@ -275,7 +276,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
               assignments: {
                 some: {
                   userId: authResult.actorUserId,
-                  department: LeadAssignmentDepartment.JR_ARCHITECT,
+                  department: {
+                    in: [
+                      LeadAssignmentDepartment.JR_ARCHITECT,
+                      LeadAssignmentDepartment.VISUALIZER_3D,
+                    ],
+                  },
                 },
               },
             }),
