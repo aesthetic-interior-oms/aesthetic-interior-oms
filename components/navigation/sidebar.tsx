@@ -215,13 +215,28 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
     if (!isVisits) {
       if (role !== 'Jr Architect') return baseGroups
       return baseGroups.map((group) => {
-        if (group.id !== 'jr-arch-workflow') return group
-        return {
-          ...group,
-          items: group.items.filter(
-            (item) => canViewJrArchitectCadQueue || item.href !== '/crm/jr-architecture/cad-phase-queue',
-          ),
+        if (group.id === 'jr-arch-workflow') {
+          return {
+            ...group,
+            items: group.items.filter(
+              (item) => canViewJrArchitectCadQueue || item.href !== '/crm/jr-architecture/cad-phase-queue',
+            ),
+          }
         }
+
+        if (group.id === 'jr-arch-overview') {
+          const calendarItem = { icon: Calendar, label: 'Calendar', href: '/crm/jr-architecture/calendar' }
+          const hasCalendarItem = group.items.some((item) => item.href === calendarItem.href)
+          return {
+            ...group,
+            items:
+              canViewJrArchitectCadQueue && !hasCalendarItem
+                ? [...group.items, calendarItem]
+                : group.items,
+          }
+        }
+
+        return group
       })
     }
 
