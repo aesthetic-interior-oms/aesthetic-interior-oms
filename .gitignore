@@ -44,6 +44,7 @@ next-env.d.ts
 /backups/
 *.dump
 *.backup
+vaulted-bus-495308-q0-478247b7c9b2.json
 
 # clerk configuration (can include secrets)
 /.clerk/
