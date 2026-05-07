@@ -24,6 +24,8 @@ import { LeadActionsPanel } from '@/components/crm/junior/lead-actions-panel'
 import { SrCommandPanel } from '@/components/crm/senior/sr-command-panel'
 import { fetchMeCached } from '@/lib/client-me'
 import { FacebookMessagesDialog } from '@/components/crm/shared/facebook-messages-dialog'
+import { uploadDirectBlobFile } from '@/lib/client-blob-upload'
+import { DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE, DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
 
 type LeadDetails = {
   id: string
@@ -535,16 +537,27 @@ export default function LeadDetailPage() {
       return
     }
 
+    if (attachmentFile.size > DIRECT_BLOB_UPLOAD_MAX_BYTES) {
+      setAddAttachmentError(
+        `"${attachmentFile.name}" is ${formatBytesToMbLabel(attachmentFile.size)}. Direct browser upload supports up to ${formatBytesToMbLabel(DIRECT_BLOB_UPLOAD_MAX_BYTES)} per file.`,
+      )
+      return
+    }
+
     setAddingAttachment(true)
     setAddAttachmentError(null)
 
     try {
-      const formData = new FormData()
-      formData.append('file', attachmentFile)
+      const uploadedFile = await uploadDirectBlobFile({
+        file: attachmentFile,
+        context: 'lead-attachment',
+        ownerId: leadId,
+      })
 
       const response = await fetch(`/api/lead/${leadId}/attachments`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file: uploadedFile }),
       })
 
       const data = await response.json()
@@ -963,6 +976,7 @@ export default function LeadDetailPage() {
                 }}
               />
             </div>
+            <p className="text-xs text-amber-700">{DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE}</p>
             {addAttachmentError ? (
               <p className="text-sm text-destructive">{addAttachmentError}</p>
             ) : null}

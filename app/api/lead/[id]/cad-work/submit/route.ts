@@ -43,6 +43,26 @@ function toOptionalString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+function toUploadedCadFileMeta(value: unknown): UploadedCadFileMeta | null {
+  if (typeof value !== 'object' || value === null) return null
+  const record = value as Record<string, unknown>
+  const url = toOptionalString(record.url)
+  const fileName = toOptionalString(record.fileName)
+  const fileType = toOptionalString(record.fileType) ?? 'application/octet-stream'
+  const sizeBytes = typeof record.sizeBytes === 'number' && Number.isFinite(record.sizeBytes) ? record.sizeBytes : 0
+  const cadFileTypeRaw = toOptionalString(record.cadFileType)?.toUpperCase()
+  if (!url || !fileName || !cadFileTypeRaw || !isCadSubmissionFileTypeValue(cadFileTypeRaw) || sizeBytes <= 0) {
+    return null
+  }
+  return {
+    url,
+    fileName,
+    fileType,
+    sizeBytes,
+    cadFileType: cadFileTypeRaw as CadSubmissionFileType,
+  }
+}
+
 function toLeadAttachmentCategory(fileType: string): 'MEDIA' | 'FILE' {
   if (fileType.startsWith('image/') || fileType.startsWith('video/')) {
     return 'MEDIA'
@@ -57,6 +77,12 @@ function isAllowedCadUploadFile(file: File): boolean {
   }
   const extension = getCadFileExtension(file.name || '')
   return ALLOWED_CAD_UPLOAD_EXTENSIONS.has(extension)
+}
+
+function isAllowedCadUploadMeta(file: Pick<UploadedCadFileMeta, 'fileName' | 'fileType'>): boolean {
+  const fileType = (file.fileType || '').trim().toLowerCase()
+  if (fileType && ALLOWED_CAD_UPLOAD_MIME_TYPES.has(fileType)) return true
+  return ALLOWED_CAD_UPLOAD_EXTENSIONS.has(getCadFileExtension(file.fileName || ''))
 }
 
 async function uploadCadFileToBlob(input: {
@@ -211,59 +237,91 @@ export async function POST(request: NextRequest, context: RouteContext) {
       )
     }
 
-    const formData = await request.formData()
-    const note = toOptionalString(formData.get('note'))
-    const files = formData
-      .getAll('files')
-      .filter((entry): entry is File => entry instanceof File && entry.size > 0)
-    const cadFileTypesRaw = formData
-      .getAll('cadFileTypes')
-      .map((entry) => toOptionalString(entry))
-      .filter((entry): entry is string => Boolean(entry))
+    const contentType = request.headers.get('content-type') ?? ''
+    let note: string | null = null
+    let files: File[] = []
+    let cadFileTypes: CadSubmissionFileType[] = []
+    let directUploadedFiles: UploadedCadFileMeta[] | null = null
 
-    if (files.length === 0) {
-      return NextResponse.json({ success: false, error: 'At least one file is required' }, { status: 400 })
-    }
+    if (contentType.includes('application/json')) {
+      const body = (await request.json()) as { note?: unknown; files?: unknown }
+      note = toOptionalString(body.note)
+      const uploadedFiles = Array.isArray(body.files)
+        ? body.files.map((item) => toUploadedCadFileMeta(item)).filter((item): item is UploadedCadFileMeta => Boolean(item))
+        : []
+      if (uploadedFiles.length === 0) {
+        return NextResponse.json({ success: false, error: 'At least one direct-uploaded file is required' }, { status: 400 })
+      }
+      for (const uploaded of uploadedFiles) {
+        if (uploaded.sizeBytes > MAX_CAD_SUBMISSION_FILE_SIZE_BYTES) {
+          return NextResponse.json(
+            { success: false, error: `File "${uploaded.fileName}" exceeds the CAD file size limit` },
+            { status: 400 },
+          )
+        }
+        if (!isAllowedCadUploadMeta(uploaded)) {
+          return NextResponse.json(
+            { success: false, error: `File "${uploaded.fileName}" type "${uploaded.fileType || 'unknown'}" is not allowed` },
+            { status: 400 },
+          )
+        }
+      }
+      directUploadedFiles = uploadedFiles
+    } else {
+      const formData = await request.formData()
+      note = toOptionalString(formData.get('note'))
+      files = formData
+        .getAll('files')
+        .filter((entry): entry is File => entry instanceof File && entry.size > 0)
+      const cadFileTypesRaw = formData
+        .getAll('cadFileTypes')
+        .map((entry) => toOptionalString(entry))
+        .filter((entry): entry is string => Boolean(entry))
 
-    if (cadFileTypesRaw.length !== files.length) {
-      return NextResponse.json(
-        { success: false, error: 'Each uploaded file must include a selected CAD file type' },
-        { status: 400 },
-      )
-    }
+      if (files.length === 0) {
+        return NextResponse.json({ success: false, error: 'At least one file is required' }, { status: 400 })
+      }
 
-    const cadFileTypes: CadSubmissionFileType[] = []
-    for (const value of cadFileTypesRaw) {
-      const normalized = value.toUpperCase()
-      if (!isCadSubmissionFileTypeValue(normalized)) {
+      if (cadFileTypesRaw.length !== files.length) {
         return NextResponse.json(
-          { success: false, error: `Invalid CAD file type "${value}"` },
+          { success: false, error: 'Each uploaded file must include a selected CAD file type' },
           { status: 400 },
         )
       }
-      cadFileTypes.push(normalized as CadSubmissionFileType)
-    }
 
-    for (const file of files) {
-      if (file.size > MAX_CAD_SUBMISSION_FILE_SIZE_BYTES) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `File "${file.name}" exceeds the ${Math.floor(
-              MAX_CAD_SUBMISSION_FILE_SIZE_BYTES / (1024 * 1024),
-            )}MB limit`,
-          },
-          { status: 400 },
-        )
+      cadFileTypes = []
+      for (const value of cadFileTypesRaw) {
+        const normalized = value.toUpperCase()
+        if (!isCadSubmissionFileTypeValue(normalized)) {
+          return NextResponse.json(
+            { success: false, error: `Invalid CAD file type "${value}"` },
+            { status: 400 },
+          )
+        }
+        cadFileTypes.push(normalized as CadSubmissionFileType)
       }
-      if (!isAllowedCadUploadFile(file)) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `File "${file.name}" type "${file.type || 'unknown'}" is not allowed`,
-          },
-          { status: 400 },
-        )
+
+      for (const file of files) {
+        if (file.size > MAX_CAD_SUBMISSION_FILE_SIZE_BYTES) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `File "${file.name}" exceeds the ${Math.floor(
+                MAX_CAD_SUBMISSION_FILE_SIZE_BYTES / (1024 * 1024),
+              )}MB limit`,
+            },
+            { status: 400 },
+          )
+        }
+        if (!isAllowedCadUploadFile(file)) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `File "${file.name}" type "${file.type || 'unknown'}" is not allowed`,
+            },
+            { status: 400 },
+          )
+        }
       }
     }
 
@@ -305,11 +363,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
       throw new Error('WORK_NOT_STARTED')
     }
 
-    const { uploadedFiles, failedUploads } = await uploadCadFilesToBlob({
-      leadId: lead.id,
-      files,
-      cadFileTypes,
-    })
+    const { uploadedFiles, failedUploads } = directUploadedFiles
+      ? { uploadedFiles: directUploadedFiles, failedUploads: [] }
+      : await uploadCadFilesToBlob({
+          leadId: lead.id,
+          files,
+          cadFileTypes,
+        })
     if (uploadedFiles.length === 0) {
       throw new Error('CAD_UPLOAD_FAILED')
     }
@@ -417,7 +477,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           leadId: scopedLead.id,
           userId: authResult.actorUserId,
           type: ActivityType.NOTE,
-          description: `CAD work submitted with ${files.length} file${files.length === 1 ? '' : 's'} for Senior CRM review.`,
+          description: `CAD work submitted with ${uploadedFiles.length} file${uploadedFiles.length === 1 ? '' : 's'} for Senior CRM review.`,
         })
 
         const startOfToday = new Date()

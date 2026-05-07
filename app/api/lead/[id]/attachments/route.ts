@@ -3,6 +3,7 @@ import { head, put } from '@vercel/blob'
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
+import { requireDatabaseRoles } from '@/lib/authz'
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> }
 
@@ -18,6 +19,30 @@ async function resolveLeadId(context: RouteContext): Promise<string | null> {
 
 function sanitizeFileName(fileName: string): string {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+}
+
+type UploadedAttachmentMeta = {
+  url: string
+  fileName: string
+  fileType: string
+  sizeBytes: number
+}
+
+function toOptionalString(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function toUploadedAttachmentMeta(value: unknown): UploadedAttachmentMeta | null {
+  if (typeof value !== 'object' || value === null) return null
+  const record = value as Record<string, unknown>
+  const url = toOptionalString(record.url)
+  const fileName = toOptionalString(record.fileName)
+  const fileType = toOptionalString(record.fileType) ?? 'application/octet-stream'
+  const sizeBytes = typeof record.sizeBytes === 'number' && Number.isFinite(record.sizeBytes) ? record.sizeBytes : 0
+  if (!url || !fileName || sizeBytes <= 0) return null
+  return { url, fileName, fileType, sizeBytes }
 }
 
 function getCategory(fileType: string): 'MEDIA' | 'FILE' {
@@ -90,46 +115,70 @@ export async function POST(request: NextRequest, context: RouteContext) {
   }
 
   try {
+    const authResult = await requireDatabaseRoles([])
+    if (!authResult.ok) return authResult.response
+
     const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { id: true } })
 
     if (!lead) {
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 })
     }
 
-    const formData = await request.formData()
-    const fileEntry = formData.get('file')
+    const contentType = request.headers.get('content-type') ?? ''
+    let uploadedAttachment: UploadedAttachmentMeta
 
-    if (!(fileEntry instanceof File)) {
-      return NextResponse.json(
-        { success: false, error: 'Attachment file is required' },
-        { status: 400 },
-      )
+    if (contentType.includes('application/json')) {
+      const body = (await request.json()) as { file?: unknown }
+      const directFile = toUploadedAttachmentMeta(body.file)
+      if (!directFile) {
+        return NextResponse.json(
+          { success: false, error: 'Direct-uploaded attachment metadata is required' },
+          { status: 400 },
+        )
+      }
+      uploadedAttachment = directFile
+    } else {
+      const formData = await request.formData()
+      const fileEntry = formData.get('file')
+
+      if (!(fileEntry instanceof File)) {
+        return NextResponse.json(
+          { success: false, error: 'Attachment file is required' },
+          { status: 400 },
+        )
+      }
+
+      if (!fileEntry.size) {
+        return NextResponse.json(
+          { success: false, error: 'Attachment file cannot be empty' },
+          { status: 400 },
+        )
+      }
+
+      const safeName = sanitizeFileName(fileEntry.name || 'attachment')
+      const storedFileName = `${Date.now()}-${randomUUID()}-${safeName}`
+      const fileType = fileEntry.type || 'application/octet-stream'
+      const blob = await put(`leads/${leadId}/${storedFileName}`, fileEntry, {
+        access: 'public',
+        contentType: fileType,
+      })
+      uploadedAttachment = {
+        url: blob.url,
+        fileName: fileEntry.name || safeName,
+        fileType,
+        sizeBytes: fileEntry.size,
+      }
     }
-
-    if (!fileEntry.size) {
-      return NextResponse.json(
-        { success: false, error: 'Attachment file cannot be empty' },
-        { status: 400 },
-      )
-    }
-
-    const safeName = sanitizeFileName(fileEntry.name || 'attachment')
-    const storedFileName = `${Date.now()}-${randomUUID()}-${safeName}`
-    const fileType = fileEntry.type || 'application/octet-stream'
-    const blob = await put(`leads/${leadId}/${storedFileName}`, fileEntry, {
-      access: 'public',
-      contentType: fileType,
-    })
 
     const attachment = await prisma.leadAttachment.create({
       data: {
         leadId,
         // Store a browser-openable URL.
-        url: blob.url,
-        fileName: fileEntry.name || safeName,
-        fileType,
-        category: getCategory(fileType),
-        sizeBytes: fileEntry.size,
+        url: uploadedAttachment.url,
+        fileName: uploadedAttachment.fileName,
+        fileType: uploadedAttachment.fileType,
+        category: getCategory(uploadedAttachment.fileType),
+        sizeBytes: uploadedAttachment.sizeBytes,
       },
     })
 

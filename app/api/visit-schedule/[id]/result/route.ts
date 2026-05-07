@@ -108,6 +108,17 @@ type FailedUploadMeta = {
   reason: string
 }
 
+function toUploadedFileMeta(value: unknown): UploadedFileMeta | null {
+  if (typeof value !== 'object' || value === null) return null
+  const record = value as Record<string, unknown>
+  const url = toOptionalString(record.url)
+  const fileName = toOptionalString(record.fileName)
+  const fileType = toOptionalString(record.fileType) ?? 'application/octet-stream'
+  const sizeBytes = typeof record.sizeBytes === 'number' && Number.isFinite(record.sizeBytes) ? record.sizeBytes : 0
+  if (!url || !fileName || sizeBytes <= 0) return null
+  return { url, fileName, fileType, sizeBytes }
+}
+
 async function uploadFilesToBlob(
   keyPrefix: string,
   files: File[],
@@ -364,34 +375,38 @@ export async function POST(request: NextRequest, context: RouteContext) {
       )
     }
 
-    const formData = await request.formData()
+    const contentType = request.headers.get('content-type') ?? ''
+    const isJsonPayload = contentType.includes('application/json')
+    const body = isJsonPayload ? ((await request.json()) as Record<string, unknown>) : null
+    const formData = isJsonPayload ? null : await request.formData()
+    const getField = (key: string): unknown => (body ? body[key] : formData?.get(key))
     const visitWorkflow = await getVisitWorkflowControlState()
-    const summary = toOptionalString(formData.get('summary'))
-    const clientMood = toOptionalString(formData.get('clientMood'))
-    const note = toOptionalString(formData.get('note'))
-    const projectStatus = toProjectStatus(formData.get('projectStatus'))
-    const resultType = toOptionalString(formData.get('resultType'))?.toUpperCase()
-    const clientPotentiality = toOptionalString(formData.get('clientPotentiality'))
-    const projectType = toOptionalString(formData.get('projectType'))
-    const clientPersonality = toOptionalString(formData.get('clientPersonality'))
-    const budgetRange = toOptionalString(formData.get('budgetRange'))
-    const timelineUrgency = toOptionalString(formData.get('timelineUrgency'))
-    const stylePreference = toOptionalString(formData.get('stylePreference'))
-    const supportClientName = toOptionalString(formData.get('supportClientName'))
-    const supportProjectArea = toOptionalString(formData.get('supportProjectArea'))
-    const supportProjectStatus = toProjectStatus(formData.get('supportProjectStatus'))
-    const supportExtraConcern = toOptionalString(formData.get('supportExtraConcern'))
-    const leadClientName = toOptionalString(formData.get('leadClientName'))
-    const leadLocation = toOptionalString(formData.get('leadLocation'))
+    const summary = toOptionalString(getField('summary'))
+    const clientMood = toOptionalString(getField('clientMood'))
+    const note = toOptionalString(getField('note'))
+    const projectStatus = toProjectStatus(getField('projectStatus'))
+    const resultType = toOptionalString(getField('resultType'))?.toUpperCase()
+    const clientPotentiality = toOptionalString(getField('clientPotentiality'))
+    const projectType = toOptionalString(getField('projectType'))
+    const clientPersonality = toOptionalString(getField('clientPersonality'))
+    const budgetRange = toOptionalString(getField('budgetRange'))
+    const timelineUrgency = toOptionalString(getField('timelineUrgency'))
+    const stylePreference = toOptionalString(getField('stylePreference'))
+    const supportClientName = toOptionalString(getField('supportClientName'))
+    const supportProjectArea = toOptionalString(getField('supportProjectArea'))
+    const supportProjectStatus = toProjectStatus(getField('supportProjectStatus'))
+    const supportExtraConcern = toOptionalString(getField('supportExtraConcern'))
+    const leadClientName = toOptionalString(getField('leadClientName'))
+    const leadLocation = toOptionalString(getField('leadLocation'))
     const parsedSupportProjectArea = toOptionalNumber(supportProjectArea)
 
-    if (formData.get('projectStatus') !== null && !projectStatus) {
+    if (getField('projectStatus') !== null && getField('projectStatus') !== undefined && !projectStatus) {
       return NextResponse.json(
         { success: false, error: 'projectStatus must be UNDER_CONSTRUCTION or READY' },
         { status: 400 },
       )
     }
-    if (formData.get('supportProjectStatus') !== null && !supportProjectStatus) {
+    if (getField('supportProjectStatus') !== null && getField('supportProjectStatus') !== undefined && !supportProjectStatus) {
       return NextResponse.json(
         { success: false, error: 'supportProjectStatus must be UNDER_CONSTRUCTION or READY' },
         { status: 400 },
@@ -399,11 +414,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const files = formData
-      .getAll('files')
-      .filter((entry): entry is File => entry instanceof File && entry.size > 0)
+      ? formData.getAll('files').filter((entry): entry is File => entry instanceof File && entry.size > 0)
+      : []
     const videoFiles = formData
-      .getAll('videoFiles')
-      .filter((entry): entry is File => entry instanceof File && entry.size > 0 && isVideoFile(entry))
+      ? formData.getAll('videoFiles').filter((entry): entry is File => entry instanceof File && entry.size > 0 && isVideoFile(entry))
+      : []
+    const directUploadedFiles = Array.isArray(body?.files)
+      ? body.files.map((item) => toUploadedFileMeta(item)).filter((item): item is UploadedFileMeta => Boolean(item))
+      : null
 
     const result = await prisma.$transaction(async (tx) => {
       const visit = await tx.visit.findUnique({
@@ -523,10 +541,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
           })
         }
 
-        const { uploadedFiles: uploadedSupportFiles, failedUploads } = await uploadFilesToBlob(
-          `visit-support-results/${visitId}`,
-          files,
-        )
+        const { uploadedFiles: uploadedSupportFiles, failedUploads } = directUploadedFiles
+          ? { uploadedFiles: directUploadedFiles, failedUploads: [] }
+          : await uploadFilesToBlob(
+              `visit-support-results/${visitId}`,
+              files,
+            )
         for (const uploaded of uploadedSupportFiles) {
           await tx.supportAttachment.create({
             data: {
@@ -640,10 +660,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const inlineVideoFiles = files.filter((file) => isVideoFile(file))
       const allVideoFiles = [...inlineVideoFiles, ...videoFiles]
 
-      const { uploadedFiles: uploadedLeadFiles, failedUploads } = await uploadFilesToBlob(
-        `visit-results/${visitId}`,
-        nonVideoFiles,
-      )
+      const { uploadedFiles: uploadedLeadFiles, failedUploads } = directUploadedFiles
+        ? { uploadedFiles: directUploadedFiles, failedUploads: [] }
+        : await uploadFilesToBlob(
+            `visit-results/${visitId}`,
+            nonVideoFiles,
+          )
       for (const videoFile of allVideoFiles) {
         try {
           const uploadedVideo = await uploadFileToGoogleDrive(videoFile, process.env.GOOGLE_DRIVE_FOLDER_ID)
