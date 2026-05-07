@@ -129,6 +129,14 @@ type VisitSupportMemberOption = {
   email: string
 }
 type VisitResultRole = 'LEAD' | 'SUPPORT' | 'NONE'
+type VisitWorkflowSettingsResponse = {
+  success?: boolean
+  data?: {
+    control?: {
+      supportDataEnabled?: boolean
+    }
+  }
+}
 
 interface LeadActionsPanelProps {
   leadId: string
@@ -297,6 +305,7 @@ export function LeadActionsPanel({
   const [submittingVisitResult, setSubmittingVisitResult] = useState(false)
   const [loadingVisitResultData, setLoadingVisitResultData] = useState(false)
   const [isVisitResultUpdate, setIsVisitResultUpdate] = useState(false)
+  const [supportDataEnabled, setSupportDataEnabled] = useState(true)
   const [localVisitStageLock, setLocalVisitStageLock] = useState(false)
   const [supportDialogOpen, setSupportDialogOpen] = useState(false)
   const [supportDialogVisitId, setSupportDialogVisitId] = useState('')
@@ -632,6 +641,30 @@ export function LeadActionsPanel({
   useEffect(() => {
     refreshLeadVisits()
   }, [refreshLeadVisits])
+  useEffect(() => {
+    let cancelled = false
+
+    const loadVisitWorkflowSettings = async () => {
+      try {
+        const response = await fetch('/api/visit-team/workflow-settings', { cache: 'no-store' })
+        const payload = (await response.json()) as VisitWorkflowSettingsResponse
+        if (!cancelled && response.ok && payload.success) {
+          setSupportDataEnabled(payload.data?.control?.supportDataEnabled !== false)
+        }
+      } catch {
+        if (!cancelled) {
+          setSupportDataEnabled(true)
+        }
+      }
+    }
+
+    void loadVisitWorkflowSettings()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
 
   const getVisitResultRole = useCallback(
     (visit: LeadVisitRecord): VisitResultRole => {
@@ -1430,9 +1463,15 @@ export function LeadActionsPanel({
       return
     }
     const hasPendingPrimarySupport =
-      visitResultRole === 'LEAD' ? hasPendingPrimarySupportResult(selectedVisitResult) : false
+      visitResultRole === 'LEAD' && supportDataEnabled
+        ? hasPendingPrimarySupportResult(selectedVisitResult)
+        : false
     if (hasPendingPrimarySupport) {
       setVisitResultError('Visit cannot be completed until the first support member submits support data.')
+      return
+    }
+    if (visitResultRole === 'SUPPORT' && !supportDataEnabled) {
+      setVisitResultError('Support data workflow is disabled by admin. Support members are read-only.')
       return
     }
     if (
@@ -2636,6 +2675,7 @@ export function LeadActionsPanel({
 
             {visitResultRole === 'LEAD' &&
             selectedVisitResult &&
+            supportDataEnabled &&
             hasPendingPrimarySupportResult(selectedVisitResult) ? (
               <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
                 This visit cannot be completed yet. The first support member must submit support data first.
@@ -2912,6 +2952,7 @@ export function LeadActionsPanel({
                 !visitResultVisitId ||
                 visitResultRole === 'NONE' ||
                 (visitResultRole === 'LEAD' &&
+                  supportDataEnabled &&
                   Boolean(hasPendingPrimarySupportResult(selectedVisitResult)))
               }
             >
