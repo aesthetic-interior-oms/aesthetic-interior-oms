@@ -46,6 +46,13 @@ import {
 
 const PAGE_SIZE = 20
 
+const TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES = 4 * 1024 * 1024
+
+function formatBytesToMbLabel(sizeBytes: number): string {
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)}MB`
+}
+
+
 function formatDistanceToNow(date: Date): string {
   const now = Date.now()
   const diffMs = now - date.getTime()
@@ -262,7 +269,8 @@ export default function JrArchLeadsPage() {
           reason: 'Started from JR Architect assigned lead list',
         }),
       })
-      const payload = (await response.json()) as { success?: boolean; message?: string; error?: string }
+      const contentType = response.headers.get('content-type') ?? ''
+      const payload = (contentType.includes('application/json') ? await response.json() : null) as { success?: boolean; message?: string; error?: string }
       if (!response.ok || !payload.success) {
         throw new Error(payload.error ?? 'Failed to start work')
       }
@@ -313,6 +321,13 @@ export default function JrArchLeadsPage() {
     if (!submitWorkLead) return
 
     const rowsWithFiles = submissionRows.filter((row) => row.file)
+    const transportOversizeRow = rowsWithFiles.find((row) => row.file && row.file.size > TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)
+    if (transportOversizeRow?.file) {
+      toast.error(
+        `"${transportOversizeRow.file.name}" is ${formatBytesToMbLabel(transportOversizeRow.file.size)}. Current server route supports up to ${formatBytesToMbLabel(TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)} per file. Please split/compress or move to direct Blob upload flow.`,
+      )
+      return
+    }
     if (rowsWithFiles.length === 0) {
       toast.error('Please upload at least one file before submitting work')
       return
@@ -339,7 +354,8 @@ export default function JrArchLeadsPage() {
         method: 'POST',
         body: formData,
       })
-      const payload = (await response.json()) as {
+      const contentType = response.headers.get('content-type') ?? ''
+      const payload = (contentType.includes('application/json') ? await response.json() : null) as {
         success?: boolean
         message?: string
         error?: string
@@ -350,8 +366,13 @@ export default function JrArchLeadsPage() {
           } | null
         }
       }
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.error ?? 'Failed to submit CAD work')
+      if (!response.ok || !payload?.success) {
+        if (response.status === 413) {
+          throw new Error(
+            `Upload request is too large for current deployment limit (${formatBytesToMbLabel(TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)} per file via API route).`,
+          )
+        }
+        throw new Error(payload?.error ?? `Failed to submit CAD work (HTTP ${response.status})`)
       }
 
       toast.success(payload.message ?? 'CAD work submitted successfully')
@@ -718,6 +739,9 @@ export default function JrArchLeadsPage() {
               <p className="text-[11px] text-muted-foreground">
                 {submissionRows.filter((row) => row.file).length} file(s) ready to upload
                 {submittingWork ? ' • Uploading in progress...' : ''}
+              </p>
+              <p className="text-[11px] text-amber-700">
+                Current deployment route limit is approximately {formatBytesToMbLabel(TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)} per file.
               </p>
             </div>
 
