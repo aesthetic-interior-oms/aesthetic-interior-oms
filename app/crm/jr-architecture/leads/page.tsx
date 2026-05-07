@@ -43,14 +43,10 @@ import {
   type CadSubmissionFileTypeValue,
   formatCadSubmissionFileType,
 } from '@/lib/cad-work'
+import { uploadDirectBlobFile, type UploadedBlobFileMeta } from '@/lib/client-blob-upload'
+import { DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE, DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
 
 const PAGE_SIZE = 20
-
-const TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES = 4 * 1024 * 1024
-
-function formatBytesToMbLabel(sizeBytes: number): string {
-  return `${(sizeBytes / (1024 * 1024)).toFixed(1)}MB`
-}
 
 
 function formatDistanceToNow(date: Date): string {
@@ -321,13 +317,6 @@ export default function JrArchLeadsPage() {
     if (!submitWorkLead) return
 
     const rowsWithFiles = submissionRows.filter((row) => row.file)
-    const transportOversizeRow = rowsWithFiles.find((row) => row.file && row.file.size > TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)
-    if (transportOversizeRow?.file) {
-      toast.error(
-        `"${transportOversizeRow.file.name}" is ${formatBytesToMbLabel(transportOversizeRow.file.size)}. Current server route supports up to ${formatBytesToMbLabel(TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)} per file. Please split/compress or move to direct Blob upload flow.`,
-      )
-      return
-    }
     if (rowsWithFiles.length === 0) {
       toast.error('Please upload at least one file before submitting work')
       return
@@ -337,22 +326,35 @@ export default function JrArchLeadsPage() {
       return
     }
 
-    const formData = new FormData()
-    if (submissionNote.trim()) {
-      formData.append('note', submissionNote.trim())
+    const oversizeRow = rowsWithFiles.find((row) => row.file && row.file.size > DIRECT_BLOB_UPLOAD_MAX_BYTES)
+    if (oversizeRow?.file) {
+      toast.error(
+        `"${oversizeRow.file.name}" is ${formatBytesToMbLabel(oversizeRow.file.size)}. Direct browser upload supports up to ${formatBytesToMbLabel(DIRECT_BLOB_UPLOAD_MAX_BYTES)} per file.`,
+      )
+      return
     }
-
-    rowsWithFiles.forEach((row) => {
-      if (!row.file) return
-      formData.append('files', row.file)
-      formData.append('cadFileTypes', row.cadFileType)
-    })
 
     try {
       setSubmittingWork(true)
+      const uploadedFiles: Array<UploadedBlobFileMeta & { cadFileType: CadSubmissionFileTypeValue }> = []
+      for (const row of rowsWithFiles) {
+        if (!row.file) continue
+        const uploaded = await uploadDirectBlobFile({
+          file: row.file,
+          context: 'cad-work',
+          ownerId: submitWorkLead.id,
+          cadFileType: row.cadFileType,
+        })
+        uploadedFiles.push({ ...uploaded, cadFileType: row.cadFileType })
+      }
+
       const response = await fetch(`/api/lead/${submitWorkLead.id}/cad-work/submit`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          note: submissionNote.trim() || null,
+          files: uploadedFiles,
+        }),
       })
       const contentType = response.headers.get('content-type') ?? ''
       const payload = (contentType.includes('application/json') ? await response.json() : null) as {
@@ -369,7 +371,7 @@ export default function JrArchLeadsPage() {
       if (!response.ok || !payload?.success) {
         if (response.status === 413) {
           throw new Error(
-            `Upload request is too large for current deployment limit (${formatBytesToMbLabel(TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)} per file via API route).`,
+            `Upload request is too large. ${DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE}`,
           )
         }
         throw new Error(payload?.error ?? `Failed to submit CAD work (HTTP ${response.status})`)
@@ -741,7 +743,7 @@ export default function JrArchLeadsPage() {
                 {submittingWork ? ' • Uploading in progress...' : ''}
               </p>
               <p className="text-[11px] text-amber-700">
-                Current deployment route limit is approximately {formatBytesToMbLabel(TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)} per file.
+                {DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE}
               </p>
             </div>
 

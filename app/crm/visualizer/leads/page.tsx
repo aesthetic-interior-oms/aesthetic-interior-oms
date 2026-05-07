@@ -43,6 +43,8 @@ import {
   type CadSubmissionFileTypeValue,
   formatCadSubmissionFileType,
 } from '@/lib/cad-work'
+import { uploadDirectBlobFile, type UploadedBlobFileMeta } from '@/lib/client-blob-upload'
+import { DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE, DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
 
 const PAGE_SIZE = 20
 
@@ -322,22 +324,35 @@ export default function JrArchLeadsPage() {
       return
     }
 
-    const formData = new FormData()
-    if (submissionNote.trim()) {
-      formData.append('note', submissionNote.trim())
+    const oversizeRow = rowsWithFiles.find((row) => row.file && row.file.size > DIRECT_BLOB_UPLOAD_MAX_BYTES)
+    if (oversizeRow?.file) {
+      toast.error(
+        `"${oversizeRow.file.name}" is ${formatBytesToMbLabel(oversizeRow.file.size)}. Direct browser upload supports up to ${formatBytesToMbLabel(DIRECT_BLOB_UPLOAD_MAX_BYTES)} per file.`,
+      )
+      return
     }
-
-    rowsWithFiles.forEach((row) => {
-      if (!row.file) return
-      formData.append('files', row.file)
-      formData.append('cadFileTypes', row.cadFileType)
-    })
 
     try {
       setSubmittingWork(true)
+      const uploadedFiles: Array<UploadedBlobFileMeta & { cadFileType: CadSubmissionFileTypeValue }> = []
+      for (const row of rowsWithFiles) {
+        if (!row.file) continue
+        const uploaded = await uploadDirectBlobFile({
+          file: row.file,
+          context: 'cad-work',
+          ownerId: submitWorkLead.id,
+          cadFileType: row.cadFileType,
+        })
+        uploadedFiles.push({ ...uploaded, cadFileType: row.cadFileType })
+      }
+
       const response = await fetch(`/api/lead/${submitWorkLead.id}/cad-work/submit`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          note: submissionNote.trim() || null,
+          files: uploadedFiles,
+        }),
       })
       const payload = (await response.json()) as {
         success?: boolean
@@ -718,6 +733,9 @@ export default function JrArchLeadsPage() {
               <p className="text-[11px] text-muted-foreground">
                 {submissionRows.filter((row) => row.file).length} file(s) ready to upload
                 {submittingWork ? ' • Uploading in progress...' : ''}
+              </p>
+              <p className="text-[11px] text-amber-700">
+                {DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE}
               </p>
             </div>
 

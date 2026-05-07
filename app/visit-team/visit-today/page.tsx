@@ -38,6 +38,8 @@ import {
   stylePreferenceOptions,
   urgencyOptions,
 } from '@/lib/visit-result-options'
+import { uploadDirectBlobFile, type UploadedBlobFileMeta } from '@/lib/client-blob-upload'
+import { DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE, DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
 
 type VisitRecord = {
   id: string
@@ -197,7 +199,6 @@ export default function VisitTodayPage() {
   const [completeLeadClientName, setCompleteLeadClientName] = useState('')
   const [completeLeadLocation, setCompleteLeadLocation] = useState('')
   const [uploadingFileNames, setUploadingFileNames] = useState<string[]>([])
-  const [failedUploadFiles, setFailedUploadFiles] = useState<string[]>([])
   const [completeError, setCompleteError] = useState<string | null>(null)
   const [submittingComplete, setSubmittingComplete] = useState(false)
   const [supportDialogOpen, setSupportDialogOpen] = useState(false)
@@ -292,17 +293,6 @@ export default function VisitTodayPage() {
         })}
       </div>
     ) : null
-
-  const selectedFilePreviewList = useMemo(
-    () =>
-      [...completeFiles, ...completeVideoFiles].map((file) => ({
-        file,
-        previewUrl: file.type.startsWith('image/') || file.type.startsWith('video/')
-          ? URL.createObjectURL(file)
-          : null,
-      })),
-    [completeFiles, completeVideoFiles],
-  )
 
   useEffect(() => {
     fetchMeCached()
@@ -730,7 +720,6 @@ export default function VisitTodayPage() {
     setCompleteLeadClientName(visit.lead?.name ?? '')
     setCompleteLeadLocation('')
     setUploadingFileNames([])
-    setFailedUploadFiles([])
     setCompleteError(null)
     setCompleteOpen(true)
   }
@@ -821,41 +810,57 @@ export default function VisitTodayPage() {
       }
     }
 
+    const selectedUploadFiles = [...completeFiles, ...completeVideoFiles]
+    const oversizeFile = selectedUploadFiles.find((file) => file.size > DIRECT_BLOB_UPLOAD_MAX_BYTES)
+    if (oversizeFile) {
+      setCompleteError(
+        `"${oversizeFile.name}" is ${formatBytesToMbLabel(oversizeFile.size)}. Direct browser upload supports up to ${formatBytesToMbLabel(DIRECT_BLOB_UPLOAD_MAX_BYTES)} per file.`,
+      )
+      return
+    }
+
     setSubmittingComplete(true)
     setCompleteError(null)
-    setUploadingFileNames([...completeFiles, ...completeVideoFiles].map((file) => file.name))
+    setUploadingFileNames(selectedUploadFiles.map((file) => file.name))
     try {
-      const formData = new FormData()
-      formData.append('resultType', completeRole)
-      if (completeRole === 'LEAD') {
-        formData.append('summary', completeSummary.trim())
-        if (completeClientMood.trim()) formData.append('clientMood', completeClientMood.trim())
-        if (completeProjectStatus) formData.append('projectStatus', completeProjectStatus)
-        if (completeNote.trim()) formData.append('note', completeNote.trim())
-        if (completeClientPotentiality) formData.append('clientPotentiality', completeClientPotentiality)
-        if (completeProjectType) formData.append('projectType', completeProjectType)
-        if (completeClientPersonality) formData.append('clientPersonality', completeClientPersonality)
-        if (completeBudgetRange.trim()) formData.append('budgetRange', completeBudgetRange.trim())
-        if (completeTimelineUrgency) formData.append('timelineUrgency', completeTimelineUrgency)
-        if (completeStylePreference) formData.append('stylePreference', completeStylePreference)
-        if (completeLeadClientName.trim()) formData.append('leadClientName', completeLeadClientName.trim())
-        if (completeLeadLocation.trim()) formData.append('leadLocation', completeLeadLocation.trim())
-      } else {
-        formData.append('supportClientName', supportClientName.trim())
-        formData.append('supportProjectArea', supportProjectArea.trim())
-        formData.append('supportProjectStatus', supportProjectStatus.trim())
-        if (supportExtraConcern.trim()) formData.append('supportExtraConcern', supportExtraConcern.trim())
+      const uploadedFiles: UploadedBlobFileMeta[] = []
+      for (const file of selectedUploadFiles) {
+        const uploaded = await uploadDirectBlobFile({
+          file,
+          context: completeRole === 'SUPPORT' ? 'visit-support-result' : 'visit-result',
+          ownerId: completeVisit.id,
+        })
+        uploadedFiles.push(uploaded)
       }
-      completeFiles.forEach((file) => {
-        formData.append('files', file)
-      })
-      completeVideoFiles.forEach((file) => {
-        formData.append('videoFiles', file)
-      })
+
+      const requestBody: Record<string, unknown> = {
+        resultType: completeRole,
+        files: uploadedFiles,
+      }
+      if (completeRole === 'LEAD') {
+        requestBody.summary = completeSummary.trim()
+        if (completeClientMood.trim()) requestBody.clientMood = completeClientMood.trim()
+        if (completeProjectStatus) requestBody.projectStatus = completeProjectStatus
+        if (completeNote.trim()) requestBody.note = completeNote.trim()
+        if (completeClientPotentiality) requestBody.clientPotentiality = completeClientPotentiality
+        if (completeProjectType) requestBody.projectType = completeProjectType
+        if (completeClientPersonality) requestBody.clientPersonality = completeClientPersonality
+        if (completeBudgetRange.trim()) requestBody.budgetRange = completeBudgetRange.trim()
+        if (completeTimelineUrgency) requestBody.timelineUrgency = completeTimelineUrgency
+        if (completeStylePreference) requestBody.stylePreference = completeStylePreference
+        if (completeLeadClientName.trim()) requestBody.leadClientName = completeLeadClientName.trim()
+        if (completeLeadLocation.trim()) requestBody.leadLocation = completeLeadLocation.trim()
+      } else {
+        requestBody.supportClientName = supportClientName.trim()
+        requestBody.supportProjectArea = supportProjectArea.trim()
+        requestBody.supportProjectStatus = supportProjectStatus.trim()
+        if (supportExtraConcern.trim()) requestBody.supportExtraConcern = supportExtraConcern.trim()
+      }
 
       const response = await fetch(`/api/visit-schedule/${completeVisit.id}/result`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
       })
       const payload = (await response.json()) as SubmitVisitResultResponse
       if (!response.ok || !payload.success) {
@@ -1301,7 +1306,8 @@ export default function VisitTodayPage() {
                     </p>
                   ) : null}
                   {selectedFilesStatusList}
-                    <Label className="pt-2 text-sm font-medium">Videos (saved to Google Drive)</Label>
+                  <p className="text-xs text-amber-700">{DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE}</p>
+                    <Label className="pt-2 text-sm font-medium">Videos (direct browser upload)</Label>
                     <Input
                       type="file"
                       accept="video/*"
@@ -1547,7 +1553,8 @@ export default function VisitTodayPage() {
                       </p>
                     ) : null}
                     {selectedFilesStatusList}
-                    <Label className="pt-2 text-sm font-medium">Videos (saved to Google Drive)</Label>
+                  <p className="text-xs text-amber-700">{DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE}</p>
+                    <Label className="pt-2 text-sm font-medium">Videos (direct browser upload)</Label>
                     <Input
                       type="file"
                       accept="video/*"
