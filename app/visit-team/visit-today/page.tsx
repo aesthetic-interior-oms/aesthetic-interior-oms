@@ -1588,6 +1588,7 @@ export default function VisitTodayPage() {
               disabled={
                 submittingComplete ||
                 (completeRole === 'LEAD' &&
+                  supportDataEnabled &&
                   Boolean(hasPendingPrimarySupportData(completeVisit)))
               }
               className="text-sm gap-2"
