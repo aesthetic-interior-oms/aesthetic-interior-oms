@@ -159,6 +159,25 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
+  '3D Visualizer': [
+    {
+      id: 'visualizer-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [{ icon: LayoutDashboard, label: 'Dashboard', href: '/crm/visualizer/dashboard' }],
+    },
+    {
+      id: 'visualizer-workflow',
+      label: 'Workflow',
+      defaultOpen: true,
+      items: [
+        { icon: ClipboardList, label: 'Visit Queue', href: '/crm/visualizer/queue' },
+        { icon: ClipboardList, label: 'Visualizer Queue', href: '/crm/visualizer/visualizer-queue' },
+        { icon: Users, label: 'Assigned Work', href: '/crm/visualizer/leads' },
+        { icon: ListTodo, label: 'My Work', href: '/crm/visualizer/my-work' },
+      ],
+    },
+  ],
   'Quotation Team': [
     {
       id: 'quotation-overview',

@@ -88,11 +88,17 @@ export function CadPhaseQueueBoard({
   subtitle,
   leadBasePath,
   queueType = 'cad',
+  queueEndpoint = '/api/cad-work/jr-architect-queue',
+  assigneeDepartment = 'JR_ARCHITECT',
+  assigneeLabel = 'JR Architect',
 }: {
   title: string
   subtitle: string
   leadBasePath: string
   queueType?: 'cad' | 'meeting' | 'budget'
+  queueEndpoint?: string
+  assigneeDepartment?: string
+  assigneeLabel?: string
 }) {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -147,7 +153,7 @@ export function CadPhaseQueueBoard({
         queueType,
       })
       if (search) params.set('search', search)
-      const response = await fetch(`/api/cad-work/jr-architect-queue?${params.toString()}`, { cache: 'no-store' })
+      const response = await fetch(`${queueEndpoint}?${params.toString()}`, { cache: 'no-store' })
       const payload = (await response.json()) as QueueResponse
       if (!response.ok || !payload.success || !Array.isArray(payload.data)) {
         throw new Error(payload.error ?? 'Failed to load queue')
@@ -159,18 +165,18 @@ export function CadPhaseQueueBoard({
     } finally {
       setLoading(false)
     }
-  }, [queueType, search])
+  }, [queueEndpoint, queueType, search])
 
   useEffect(() => {
     void loadLeads()
   }, [loadLeads])
 
-  const loadJrArchitectMembers = async () => {
+  const loadAssigneeMembers = async () => {
     if (memberOptions.length > 0) return
-    const response = await fetch('/api/department/available/JR_ARCHITECT', { cache: 'no-store' })
+    const response = await fetch(`/api/department/available/${assigneeDepartment}`, { cache: 'no-store' })
     const payload = await response.json()
     if (!response.ok || !payload?.success) {
-      throw new Error(payload?.error ?? 'Failed to load JR Architect members')
+      throw new Error(payload?.error ?? `Failed to load ${assigneeLabel} members`)
     }
     const users = Array.isArray(payload.users) ? payload.users : []
     setMemberOptions(users)
@@ -195,40 +201,41 @@ export function CadPhaseQueueBoard({
 
   const openReassign = async (lead: LeadRecord) => {
     if (lead.canReassignJrArchitect === false) {
-      toast.error('JR Architect reassignment is disabled after CAD approval.')
+      toast.error(`${assigneeLabel} reassignment is disabled after CAD approval.`)
+      toast.error(`${assigneeLabel} reassignment is disabled after CAD approval.`)
       return
     }
     setActiveLead(lead)
     setSelectedMemberId(lead.jrArchitectAssignment?.user.id ?? '')
     setReassignOpen(true)
     try {
-      await loadJrArchitectMembers()
+      await loadAssigneeMembers()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to load JR Architect members')
+      toast.error(error instanceof Error ? error.message : `Failed to load ${assigneeLabel} members`)
     }
   }
 
   const submitReassign = async () => {
     if (!activeLead || !selectedMemberId) return
     if (activeLead.canReassignJrArchitect === false) {
-      toast.error('JR Architect reassignment is disabled after CAD approval.')
+      toast.error(`${assigneeLabel} reassignment is disabled after CAD approval.`)
       return
     }
     setSaving(true)
     try {
-      const response = await fetch(`/api/lead/${activeLead.id}/assignments/JR_ARCHITECT`, {
+      const response = await fetch(`/api/lead/${activeLead.id}/assignments/${assigneeDepartment}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: selectedMemberId }),
       })
       const payload = await response.json()
-      if (!response.ok || !payload?.success) throw new Error(payload?.error ?? 'Failed to reassign JR Architect')
-      toast.success('JR Architect reassigned successfully')
+      if (!response.ok || !payload?.success) throw new Error(payload?.error ?? `Failed to reassign ${assigneeLabel}`)
+      toast.success(`${assigneeLabel} reassigned successfully`)
       setReassignOpen(false)
       setActiveLead(null)
       await loadLeads()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to reassign JR Architect')
+      toast.error(error instanceof Error ? error.message : `Failed to reassign ${assigneeLabel}`)
     } finally {
       setSaving(false)
     }
@@ -651,11 +658,11 @@ export function CadPhaseQueueBoard({
       <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reassign JR Architect</DialogTitle>
-            <DialogDescription>Select a new JR Architect for this CAD lead.</DialogDescription>
+            <DialogTitle>{`Reassign ${assigneeLabel}`}</DialogTitle>
+            <DialogDescription>{`Select a new ${assigneeLabel} for this CAD lead.`}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>JR Architect Member</Label>
+            <Label>{`${assigneeLabel} Member`}</Label>
             <Select value={selectedMemberId} onValueChange={setSelectedMemberId}>
               <SelectTrigger>
                 <SelectValue placeholder="Select member" />

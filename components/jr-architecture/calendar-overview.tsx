@@ -1,20 +1,61 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import {
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  format,
-  isSameMonth,
-  isToday,
-  startOfMonth,
-  subMonths,
-} from 'date-fns'
+
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 
 const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1)
+}
+
+function endOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0)
+}
+
+function addMonths(date: Date, months: number) {
+  return new Date(date.getFullYear(), date.getMonth() + months, date.getDate())
+}
+
+function subMonths(date: Date, months: number) {
+  return addMonths(date, -months)
+}
+
+function eachDayOfInterval(interval: { start: Date; end: Date }) {
+  const days: Date[] = []
+  const cursor = new Date(interval.start)
+
+  while (cursor <= interval.end) {
+    days.push(new Date(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+
+  return days
+}
+
+function isSameMonth(date: Date, baseDate: Date) {
+  return date.getMonth() === baseDate.getMonth() && date.getFullYear() === baseDate.getFullYear()
+}
+
+function isToday(date: Date) {
+  const now = new Date()
+  return (
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear()
+  )
+}
+
+function formatDate(date: Date, pattern: 'MMMM yyyy' | 'd') {
+  if (pattern === 'd') return String(date.getDate())
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
+}
 
 export function JrArchitectureCalendarOverview() {
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -48,7 +89,7 @@ export function JrArchitectureCalendarOverview() {
 
       <main className="mx-auto max-w-[1440px] space-y-4 px-6 py-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-2xl font-semibold text-foreground">{format(currentDate, 'MMMM yyyy')}</h2>
+          <h2 className="text-2xl font-semibold text-foreground">{formatDate(currentDate, 'MMMM yyyy')}</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentDate(subMonths(currentDate, 1))}
@@ -96,7 +137,7 @@ export function JrArchitectureCalendarOverview() {
                       isToday(day) ? 'bg-primary text-primary-foreground' : ''
                     }`}
                   >
-                    {format(day, 'd')}
+                    {formatDate(day, 'd')}
                   </span>
                 </div>
               ))}
