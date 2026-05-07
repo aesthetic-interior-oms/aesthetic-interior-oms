@@ -46,7 +46,10 @@ import {
 
 const PAGE_SIZE = 20
 
-const TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES = 4 * 1024 * 1024
+const DEFAULT_API_ROUTE_UPLOAD_LIMIT_BYTES = 4.5 * 1024 * 1024
+const TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES = Number(
+  process.env.NEXT_PUBLIC_CAD_API_ROUTE_UPLOAD_LIMIT_BYTES ?? DEFAULT_API_ROUTE_UPLOAD_LIMIT_BYTES,
+)
 
 function formatBytesToMbLabel(sizeBytes: number): string {
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)}MB`
@@ -324,7 +327,7 @@ export default function JrArchLeadsPage() {
     const transportOversizeRow = rowsWithFiles.find((row) => row.file && row.file.size > TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)
     if (transportOversizeRow?.file) {
       toast.error(
-        `"${transportOversizeRow.file.name}" is ${formatBytesToMbLabel(transportOversizeRow.file.size)}. Current server route supports up to ${formatBytesToMbLabel(TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)} per file. Please split/compress or move to direct Blob upload flow.`,
+        `"${transportOversizeRow.file.name}" is ${formatBytesToMbLabel(transportOversizeRow.file.size)}. Current API route transport limit is configured to ${formatBytesToMbLabel(TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)} per file. Please split/compress or move to direct Blob upload flow.`,
       )
       return
     }
@@ -369,7 +372,7 @@ export default function JrArchLeadsPage() {
       if (!response.ok || !payload?.success) {
         if (response.status === 413) {
           throw new Error(
-            `Upload request is too large for current deployment limit (${formatBytesToMbLabel(TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)} per file via API route).`,
+            `Upload request is too large for the current API route transport limit (${formatBytesToMbLabel(TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)} per file via API route).`,
           )
         }
         throw new Error(payload?.error ?? `Failed to submit CAD work (HTTP ${response.status})`)
@@ -741,7 +744,7 @@ export default function JrArchLeadsPage() {
                 {submittingWork ? ' • Uploading in progress...' : ''}
               </p>
               <p className="text-[11px] text-amber-700">
-                Current deployment route limit is approximately {formatBytesToMbLabel(TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)} per file.
+                Current API route transport limit is configured to {formatBytesToMbLabel(TRANSPORT_SAFE_UPLOAD_LIMIT_BYTES)} per file.
               </p>
             </div>
 
