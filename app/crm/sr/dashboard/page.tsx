@@ -51,8 +51,10 @@ export default async function SeniorCrmDashboardPage() {
 
   const cadScope: Prisma.LeadWhereInput = { stage: LeadStage.CAD_PHASE }
   const reviewScope: Prisma.LeadWhereInput = {
-    stage: LeadStage.CAD_PHASE,
-    subStatus: LeadSubStatus.CAD_COMPLETED,
+    OR: [
+      { stage: LeadStage.CAD_PHASE, subStatus: LeadSubStatus.CAD_COMPLETED },
+      { stage: LeadStage.QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_COMPLETED },
+    ],
   }
   const meetingScope: Prisma.LeadWhereInput = {
     OR: [
@@ -77,13 +79,13 @@ export default async function SeniorCrmDashboardPage() {
           in: [
             LeadSubStatus.QUOTATION_ASSIGNED,
             LeadSubStatus.QUOTATION_WORKING,
-            LeadSubStatus.QUOTATION_COMPLETED,
+            LeadSubStatus.QUOTATION_APPROVED,
           ],
         },
       },
       {
         stage: LeadStage.BUDGET_PHASE,
-        subStatus: { in: [LeadSubStatus.BUDGET_MEETING_SET, LeadSubStatus.QUOTATION_COMPLETED] },
+        subStatus: LeadSubStatus.BUDGET_MEETING_SET,
       },
     ],
   }

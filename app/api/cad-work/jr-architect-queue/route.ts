@@ -80,13 +80,13 @@ export async function GET(request: NextRequest) {
                   in: [
                     LeadSubStatus.QUOTATION_ASSIGNED,
                     LeadSubStatus.QUOTATION_WORKING,
-                    LeadSubStatus.QUOTATION_COMPLETED,
+                    LeadSubStatus.QUOTATION_APPROVED,
                   ],
                 },
               },
               {
                 stage: LeadStage.BUDGET_PHASE,
-                subStatus: { in: [LeadSubStatus.BUDGET_MEETING_SET, LeadSubStatus.QUOTATION_COMPLETED] },
+                subStatus: LeadSubStatus.BUDGET_MEETING_SET,
               },
             ],
           }
@@ -213,7 +213,7 @@ export async function GET(request: NextRequest) {
           latestFirstMeeting: lead.meetingEvents[0] ?? null,
           canSetMeeting:
             (lead.stage === LeadStage.CAD_PHASE && lead.subStatus === LeadSubStatus.CAD_APPROVED) ||
-            (lead.stage === LeadStage.BUDGET_PHASE && lead.subStatus === LeadSubStatus.QUOTATION_COMPLETED),
+            (lead.stage === LeadStage.QUOTATION_PHASE && lead.subStatus === LeadSubStatus.QUOTATION_APPROVED),
           canSubmitMeetingData:
             lead.stage === LeadStage.DISCOVERY && lead.subStatus === LeadSubStatus.FIRST_MEETING_SET,
           canReassignJrArchitect:
@@ -225,7 +225,8 @@ export async function GET(request: NextRequest) {
           canReassignQuotation:
             lead.stage === LeadStage.QUOTATION_PHASE &&
             (lead.subStatus === LeadSubStatus.QUOTATION_ASSIGNED ||
-              lead.subStatus === LeadSubStatus.QUOTATION_WORKING),
+              lead.subStatus === LeadSubStatus.QUOTATION_WORKING ||
+              lead.subStatus === LeadSubStatus.QUOTATION_CORRECTION),
         }
       }),
     })

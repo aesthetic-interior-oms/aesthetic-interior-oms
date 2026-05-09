@@ -187,6 +187,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       LeadSubStatus.QUOTATION_ASSIGNED,
       LeadSubStatus.QUOTATION_WORKING,
       LeadSubStatus.QUOTATION_COMPLETED,
+      LeadSubStatus.QUOTATION_APPROVED,
       LeadSubStatus.QUOTATION_CORRECTION,
     ]);
     const hadQuotationProgressBefore =

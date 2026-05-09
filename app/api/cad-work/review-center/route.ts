@@ -57,31 +57,32 @@ export async function GET(request: NextRequest) {
 
     const scopeToAssignedSrLeads = !isAdmin || myLeadsOnly
 
-    const where: Prisma.CadWorkSubmissionWhereInput = {
-      lead: {
-        stage: LeadStage.CAD_PHASE,
-        subStatus: LeadSubStatus.CAD_COMPLETED,
-      },
+    const reviewableLeadScope: Prisma.LeadWhereInput = {
+      OR: [
+        { stage: LeadStage.CAD_PHASE, subStatus: LeadSubStatus.CAD_COMPLETED },
+        { stage: LeadStage.QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_COMPLETED },
+      ],
       ...(scopeToAssignedSrLeads
         ? {
-            lead: {
-              stage: LeadStage.CAD_PHASE,
-              subStatus: LeadSubStatus.CAD_COMPLETED,
-              assignments: {
-                some: {
-                  userId: authResult.actorUserId,
-                  department: LeadAssignmentDepartment.SR_CRM,
-                },
+            assignments: {
+              some: {
+                userId: authResult.actorUserId,
+                department: LeadAssignmentDepartment.SR_CRM,
               },
             },
           }
         : {}),
+    }
+
+    const where: Prisma.CadWorkSubmissionWhereInput = {
+      lead: reviewableLeadScope,
       ...(search
         ? {
             OR: [
               { lead: { name: { contains: search, mode: 'insensitive' } } },
               { lead: { phone: { contains: search, mode: 'insensitive' } } },
               { files: { some: { fileName: { contains: search, mode: 'insensitive' } } } },
+              { note: { contains: search, mode: 'insensitive' } },
             ],
           }
         : {}),
