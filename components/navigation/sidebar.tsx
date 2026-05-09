@@ -60,14 +60,16 @@ const navigationGroups: Record<string, NavGroup[]> = {
       items: [{ icon: LayoutDashboard, label: 'Dashboard', href: '/crm/admin/dashboard' }],
     },
     {
-      id: 'admin-crm',
-      label: 'CRM',
+      id: 'admin-workflow',
+      label: 'Workflow',
       defaultOpen: true,
       items: [
         { icon: Users, label: 'Leads', href: '/crm/admin/leads' },
         { icon: Calendar, label: 'Visits', href: '/crm/admin/visits' },
         { icon: ClipboardList, label: 'Visit Queue', href: '/crm/admin/queue' },
         { icon: CalendarClock, label: 'Meeting Queue', href: '/crm/admin/meeting-queue' },
+        { icon: CalendarClock, label: 'Budget Queue', href: '/crm/admin/budget-queue' },
+        { icon: ClipboardList, label: 'Review Center', href: '/crm/admin/review-center' },
         { icon: ListTodo, label: 'Senior Tasks', href: '/crm/admin/today-tasks' },
         { icon: ClipboardList, label: 'CAD Queue', href: '/crm/admin/cad-phase-queue' },
         { icon: CalendarClock, label: 'Senior Calendar', href: '/crm/admin/calendar' },
@@ -209,7 +211,8 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
   const [canViewJrArchitectCadQueue, setCanViewJrArchitectCadQueue] = useState(false)
 
   useEffect(() => {
-    setMounted(true)
+    const handle = window.requestAnimationFrame(() => setMounted(true))
+    return () => window.cancelAnimationFrame(handle)
   }, [])
 
   useEffect(() => {
@@ -315,20 +318,6 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
     }
   }, [isVisits, role])
 
-  useEffect(() => {
-    setOpenGroups((prev) => {
-      const next = { ...prev }
-      let changed = false
-      groups.forEach((group) => {
-        if (typeof next[group.id] === 'undefined') {
-          next[group.id] = false
-          changed = true
-        }
-      })
-      return changed ? next : prev
-    })
-  }, [groups, isVisits])
-
   const closeOnSmallScreens = () => {
     if (!isLargeScreen) {
       onOpenChange(false)
@@ -369,7 +358,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
 
         <nav className="flex-1 px-2 py-4 space-y-2 overflow-y-auto">
           {groups.map((group) => {
-              const isOpen = openGroups[group.id]
+              const isOpen = openGroups[group.id] ?? group.defaultOpen ?? false
               return (
                 <div key={group.id} className="space-y-1">
                   <button

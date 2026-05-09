@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Clock, Sparkles } from 'lucide-react'
+import { CalendarCheck2, ChevronLeft, ChevronRight, Clock, Sparkles } from 'lucide-react'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -86,6 +86,30 @@ function getTypeClass(type: Meeting['type']) {
     return 'border-emerald-200 bg-emerald-50/80 text-emerald-700 dark:border-emerald-800/70 dark:bg-emerald-950/30 dark:text-emerald-200'
   }
   return 'border-violet-200 bg-violet-50/80 text-violet-700 dark:border-violet-800/70 dark:bg-violet-950/30 dark:text-violet-200'
+}
+
+
+function getDayAccentClass(taskCount: number, meetingCount: number, isSelected: boolean, dayIsToday: boolean) {
+  if (isSelected) {
+    return 'border-sky-500 bg-gradient-to-br from-sky-100 via-white to-indigo-100 shadow-md ring-2 ring-sky-200 dark:from-sky-950/55 dark:via-card dark:to-indigo-950/45 dark:ring-sky-800/70'
+  }
+  if (taskCount > 0 && meetingCount > 0) {
+    return 'border-fuchsia-300 bg-gradient-to-br from-fuchsia-50 via-white to-sky-50 hover:border-fuchsia-400 dark:border-fuchsia-800/70 dark:from-fuchsia-950/35 dark:via-card dark:to-sky-950/30'
+  }
+  if (meetingCount > 0) {
+    return 'border-sky-300 bg-gradient-to-br from-sky-50 via-white to-cyan-50 hover:border-sky-400 dark:border-sky-800/70 dark:from-sky-950/35 dark:via-card dark:to-cyan-950/25'
+  }
+  if (taskCount > 0) {
+    return 'border-amber-300 bg-gradient-to-br from-amber-50 via-white to-orange-50 hover:border-amber-400 dark:border-amber-800/70 dark:from-amber-950/35 dark:via-card dark:to-orange-950/25'
+  }
+  if (dayIsToday) {
+    return 'border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-background hover:border-emerald-400 dark:border-emerald-800/70 dark:from-emerald-950/35 dark:via-card dark:to-background'
+  }
+  return 'border-border/70 bg-card hover:border-primary/30 hover:bg-muted/20'
+}
+
+function getMutedMonthClass(inCurrentMonth: boolean) {
+  return inCurrentMonth ? '' : 'opacity-45 grayscale'
 }
 
 function getEventClass(event: Meeting) {
@@ -414,11 +438,27 @@ export function SeniorCrmMeetingsView({
 
                 {calendarMode === 'MONTHLY' ? (
                   <>
+                    <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <div className="rounded-xl border border-sky-200/70 bg-gradient-to-r from-sky-50 via-indigo-50 to-fuchsia-50 px-3 py-2 dark:border-sky-900/60 dark:from-sky-950/35 dark:via-indigo-950/30 dark:to-fuchsia-950/25">
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-600 px-2 py-1 text-white shadow-sm">
+                            <CalendarCheck2 className="size-3.5" /> Meetings {monthMeetings.filter((event) => event.source === 'MEETING').length}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-1 text-white shadow-sm">
+                            Tasks {monthMeetings.filter((event) => event.source === 'TASK').length}
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-fuchsia-600 px-2 py-1 text-white shadow-sm">
+                            Mixed days
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-7 gap-1 sm:gap-2">
                       {WEEKDAY_LABELS.map((label, index) => (
                         <div
                           key={label}
-                          className="rounded-md border border-border/60 bg-muted/30 px-1 py-1 text-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:px-2 sm:text-[11px]"
+                          className="rounded-lg border border-slate-200 bg-slate-900 px-1 py-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-white shadow-sm dark:border-slate-700 dark:bg-slate-100 dark:text-slate-950 sm:px-2 sm:text-[11px]"
                         >
                           <span className="sm:hidden">{WEEKDAY_LABELS_MOBILE[index]}</span>
                           <span className="hidden sm:inline">{label}</span>
@@ -435,35 +475,66 @@ export function SeniorCrmMeetingsView({
                         const meetingCount = dayEvents.length - taskCount
                         const dayIsToday = isSameDay(day, today)
                         const isSelected = selectedDayKey === dayKey
+                        const visibleEvents = dayEvents.slice(0, 2)
+                        const moreEvents = Math.max(dayEvents.length - visibleEvents.length, 0)
 
                         return (
                           <button
                             key={dayKey}
                             type="button"
                             onClick={() => setSelectedDayKey((current) => (current === dayKey ? null : dayKey))}
-                            className={`flex min-h-0 flex-col rounded-lg border p-1.5 text-left transition sm:rounded-xl sm:p-2 ${
-                              isSelected
-                                ? 'border-primary/50 bg-primary/10'
-                                : dayIsToday
-                                  ? 'border-primary/35 bg-gradient-to-b from-primary/10 to-background'
-                                  : 'border-border/70 bg-background hover:border-primary/30'
-                            }`}
+                            className={`flex min-h-0 flex-col rounded-lg border p-1.5 text-left shadow-sm transition sm:rounded-xl sm:p-2 ${getDayAccentClass(
+                              taskCount,
+                              meetingCount,
+                              isSelected,
+                              dayIsToday,
+                            )} ${getMutedMonthClass(inCurrentMonth)}`}
                           >
-                            <div className="mb-1 flex items-center justify-between">
+                            <div className="mb-1 flex items-center justify-between gap-1">
                               <span
-                                className={`text-[11px] font-semibold sm:text-xs ${
-                                  inCurrentMonth ? 'text-foreground' : 'text-muted-foreground'
-                                } ${dayIsToday ? 'text-primary' : ''}`}
+                                className={`flex size-6 items-center justify-center rounded-full text-xs font-black sm:size-7 sm:text-sm ${
+                                  dayIsToday
+                                    ? 'bg-emerald-600 text-white shadow-sm'
+                                    : inCurrentMonth
+                                      ? 'bg-white/80 text-slate-950 shadow-sm dark:bg-slate-950/70 dark:text-white'
+                                      : 'bg-muted text-muted-foreground'
+                                }`}
                               >
                                 {day.getDate()}
                               </span>
-                              <span className="rounded-full bg-muted px-1 py-0.5 text-[9px] font-medium text-muted-foreground sm:px-1.5 sm:text-[10px]">
-                                {dayEvents.length}
-                              </span>
+                              {dayEvents.length > 0 ? (
+                                <span className="rounded-full bg-slate-950 px-1.5 py-0.5 text-[10px] font-black text-white shadow-sm dark:bg-white dark:text-slate-950">
+                                  {dayEvents.length}
+                                </span>
+                              ) : null}
                             </div>
-                            <div className="mt-auto space-y-0.5 text-[9px] text-muted-foreground sm:space-y-1 sm:text-[10px]">
-                              <p>Tasks: {taskCount}</p>
-                              <p>Meetings: {meetingCount}</p>
+
+                            <div className="flex flex-wrap gap-1">
+                              {meetingCount > 0 ? (
+                                <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm sm:text-[10px]">
+                                  M {meetingCount}
+                                </span>
+                              ) : null}
+                              {taskCount > 0 ? (
+                                <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm sm:text-[10px]">
+                                  T {taskCount}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className="mt-auto hidden space-y-1 sm:block">
+                              {visibleEvents.map((event) => (
+                                <div
+                                  key={event.id}
+                                  className={`truncate rounded-md border px-1.5 py-0.5 text-[10px] font-semibold leading-4 ${getEventClass(event)}`}
+                                  title={`${formatEventTime(event.start)} • ${event.title}`}
+                                >
+                                  {formatEventTime(event.start)} {event.title}
+                                </div>
+                              ))}
+                              {moreEvents > 0 ? (
+                                <p className="text-[10px] font-bold text-slate-700 dark:text-slate-200">+{moreEvents} more</p>
+                              ) : null}
                             </div>
                           </button>
                         )

@@ -327,6 +327,7 @@ export function LeadActionsPanel({
         'QUOTATION_ASSIGNED',
         'QUOTATION_WORKING',
         'QUOTATION_COMPLETED',
+        'QUOTATION_APPROVED',
         'QUOTATION_CORRECTION',
       ],
       BUDGET_PHASE: [
@@ -416,7 +417,7 @@ export function LeadActionsPanel({
     return originalStage === 'CAD_PHASE' && cadSubStatusFlow.includes(originalSubStatus ?? '')
   }, [cadSubStatusFlow, originalStage, originalSubStatus, stage, subStatus])
   const requiresCadArchitectSelection = stage === 'CAD_PHASE' && subStatus === 'CAD_ASSIGNED'
-  const quotationSubStatusFlow = useMemo(() => ['QUOTATION_ASSIGNED', 'QUOTATION_WORKING', 'QUOTATION_COMPLETED', 'QUOTATION_CORRECTION'], [])
+  const quotationSubStatusFlow = useMemo(() => ['QUOTATION_ASSIGNED', 'QUOTATION_WORKING', 'QUOTATION_COMPLETED', 'QUOTATION_APPROVED', 'QUOTATION_CORRECTION'], [])
   const hasQuotationBeenAssigned = useMemo(() => {
     if (stage !== 'QUOTATION_PHASE') return false
     if (subStatus === 'QUOTATION_ASSIGNED') return true

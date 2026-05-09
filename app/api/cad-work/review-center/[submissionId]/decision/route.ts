@@ -52,7 +52,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const isSeniorCrm = actorDepartments.has('SR_CRM')
     if (!isAdmin && !isSeniorCrm) {
       return NextResponse.json(
-        { success: false, error: 'Only Senior CRM or Admin can review CAD submissions' },
+        { success: false, error: 'Only Senior CRM or Admin can review submissions' },
         { status: 403 },
       )
     }
@@ -76,8 +76,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
         where: {
           id: submissionId,
           lead: {
-            stage: LeadStage.CAD_PHASE,
-            subStatus: LeadSubStatus.CAD_COMPLETED,
+            OR: [
+              { stage: LeadStage.CAD_PHASE, subStatus: LeadSubStatus.CAD_COMPLETED },
+              { stage: LeadStage.QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_COMPLETED },
+            ],
             ...(isAdmin
               ? {}
               : {
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
               subStatus: true,
               assignments: {
                 where: {
-                  department: { in: ['JR_ARCHITECT', 'ADMIN'] },
+                  department: { in: ['JR_ARCHITECT', 'QUOTATION', 'SR_CRM', 'ADMIN'] },
                 },
                 select: {
                   userId: true,
@@ -128,18 +130,29 @@ export async function POST(request: NextRequest, context: RouteContext) {
         throw new Error('STALE_SUBMISSION')
       }
 
-      const nextSubStatus =
-        decision === 'APPROVE' ? LeadSubStatus.CAD_APPROVED : LeadSubStatus.CAD_ASSIGNED
+      const isQuotationReview =
+        submission.lead.stage === LeadStage.QUOTATION_PHASE &&
+        submission.lead.subStatus === LeadSubStatus.QUOTATION_COMPLETED
+      const reviewLabel = isQuotationReview ? 'Quotation' : 'CAD'
+      const nextStage = isQuotationReview ? LeadStage.QUOTATION_PHASE : LeadStage.CAD_PHASE
+      const nextSubStatus = isQuotationReview
+        ? decision === 'APPROVE'
+          ? LeadSubStatus.QUOTATION_APPROVED
+          : LeadSubStatus.QUOTATION_CORRECTION
+        : decision === 'APPROVE'
+          ? LeadSubStatus.CAD_APPROVED
+          : LeadSubStatus.CAD_ASSIGNED
+      const phaseType = isQuotationReview ? LeadPhaseType.QUOTATION : LeadPhaseType.CAD
       const reason =
         decision === 'APPROVE'
-          ? summary ?? 'Senior CRM approved CAD submission from Review Center.'
-          : summary ?? 'Senior CRM sent CAD files back for correction.'
+          ? summary ?? `Senior CRM approved ${reviewLabel.toLowerCase()} submission from Review Center.`
+          : summary ?? `Senior CRM sent ${reviewLabel.toLowerCase()} work back for correction.`
 
       const now = new Date()
       await tx.lead.update({
         where: { id: submission.leadId },
         data: {
-          stage: LeadStage.CAD_PHASE,
+          stage: nextStage,
           subStatus: nextSubStatus,
         },
       })
@@ -152,10 +165,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
         reason,
       })
 
-      const cadTask = await tx.leadPhaseTask.findFirst({
+      const phaseTask = await tx.leadPhaseTask.findFirst({
         where: {
           leadId: submission.leadId,
-          phaseType: LeadPhaseType.CAD,
+          phaseType,
           status: { in: [LeadPhaseTaskStatus.OPEN, LeadPhaseTaskStatus.IN_REVIEW] },
         },
         orderBy: { createdAt: 'desc' },
@@ -165,10 +178,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
         },
       })
 
-      if (cadTask) {
-        const nextRound = cadTask.currentReviewRound + 1
+      if (phaseTask) {
+        const nextRound = phaseTask.currentReviewRound + 1
         await tx.leadPhaseTask.update({
-          where: { id: cadTask.id },
+          where: { id: phaseTask.id },
           data: {
             status: decision === 'APPROVE' ? LeadPhaseTaskStatus.COMPLETED : LeadPhaseTaskStatus.OPEN,
             completedAt: decision === 'APPROVE' ? now : null,
@@ -179,7 +192,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
         await tx.leadPhaseReview.create({
           data: {
-            taskId: cadTask.id,
+            taskId: phaseTask.id,
             roundNo: nextRound,
             reviewedById: authResult.actorUserId,
             decision:
@@ -198,8 +211,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
           type: ActivityType.PHASE_REVIEW_ROUND,
           description:
             decision === 'APPROVE'
-              ? `CAD submission approved in Review Center.${summary ? ` Note: ${summary}` : ''}`
-              : `CAD correction requested in Review Center. Summary: ${summary}`,
+              ? `${reviewLabel} submission approved in Review Center.${summary ? ` Note: ${summary}` : ''}`
+              : `${reviewLabel} correction requested in Review Center. Summary: ${summary}`,
         },
       })
 
@@ -217,11 +230,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
             userId,
             leadId: submission.leadId,
             type: NotificationType.LEAD_ASSIGNED_TO_YOU,
-            title: decision === 'APPROVE' ? 'CAD submission approved' : 'CAD correction required',
+            title: decision === 'APPROVE' ? `${reviewLabel} submission approved` : `${reviewLabel} correction required`,
             message:
               decision === 'APPROVE'
-                ? `${submission.lead.name} CAD submission was approved by Senior CRM.`
-                : `${submission.lead.name} needs CAD correction. Summary: ${summary}`,
+                ? `${submission.lead.name} ${reviewLabel.toLowerCase()} submission was approved by Senior CRM.`
+                : `${submission.lead.name} needs ${reviewLabel.toLowerCase()} correction. Summary: ${summary}`,
             scheduledFor: now,
           })),
         })
@@ -230,7 +243,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return {
         submissionId: submission.id,
         leadId: submission.leadId,
-        stage: LeadStage.CAD_PHASE,
+        stage: nextStage,
         subStatus: nextSubStatus,
       }
     })
@@ -240,8 +253,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       data: result,
       message:
         decision === 'APPROVE'
-          ? 'CAD submission approved and moved to CAD Approved'
-          : 'CAD correction sent back and moved to CAD Assigned',
+          ? 'Submission approved successfully'
+          : 'Correction sent back successfully',
     })
   } catch (error) {
     if (error instanceof Error && error.message === 'SUBMISSION_NOT_FOUND') {
@@ -254,7 +267,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json(
         {
           success: false,
-          error: 'This is not the latest CAD submission for this lead. Please review the newest one.',
+          error: 'This is not the latest submission for this lead. Please review the newest one.',
         },
         { status: 409 },
       )
@@ -262,7 +275,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     console.error('[cad-work/review-center/:submissionId/decision][POST] Error:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to process CAD review decision' },
+      { success: false, error: 'Failed to process review decision' },
       { status: 500 },
     )
   }

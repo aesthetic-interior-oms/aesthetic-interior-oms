@@ -39,6 +39,7 @@ export function handoffDepartmentForSubStatus(
     subStatus === LeadSubStatus.QUOTATION_ASSIGNED ||
     subStatus === LeadSubStatus.QUOTATION_WORKING ||
     subStatus === LeadSubStatus.QUOTATION_COMPLETED ||
+    subStatus === LeadSubStatus.QUOTATION_APPROVED ||
     subStatus === LeadSubStatus.QUOTATION_CORRECTION
   ) {
     return LeadAssignmentDepartment.QUOTATION

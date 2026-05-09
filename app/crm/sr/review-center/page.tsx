@@ -69,6 +69,13 @@ type ReviewApiResponse = {
 
 type ReviewDecision = 'APPROVE' | 'CORRECTION'
 
+type ReviewCenterViewProps = {
+  title?: string
+  subtitle?: string
+  myLeadsOnly?: boolean
+  leadBasePath?: string
+}
+
 function formatLabel(value: string | null | undefined): string {
   if (!value) return 'N/A'
   if (value === 'DISCOVERY') return 'Consulting Phase'
@@ -171,7 +178,12 @@ function FilePreviewCard({ file }: { file: ReviewFile }) {
   )
 }
 
-export default function SeniorCrmReviewCenterPage() {
+export function ReviewCenterView({
+  title = 'Review Center',
+  subtitle = 'Review completed CAD and quotation submissions with quick preview and handoff notes.',
+  myLeadsOnly = true,
+  leadBasePath = '/crm/sr/leads',
+}: ReviewCenterViewProps) {
   const [submissions, setSubmissions] = useState<ReviewSubmission[]>([])
   const [loading, setLoading] = useState(true)
   const [searchInput, setSearchInput] = useState('')
@@ -192,7 +204,7 @@ export default function SeniorCrmReviewCenterPage() {
       setLoading(true)
       const params = new URLSearchParams({
         limit: '50',
-        myLeadsOnly: '1',
+        myLeadsOnly: myLeadsOnly ? '1' : '0',
       })
       if (search) params.set('search', search)
 
@@ -212,7 +224,7 @@ export default function SeniorCrmReviewCenterPage() {
     } finally {
       setLoading(false)
     }
-  }, [search])
+  }, [myLeadsOnly, search])
 
   useEffect(() => {
     void fetchSubmissions()
@@ -269,8 +281,8 @@ export default function SeniorCrmReviewCenterPage() {
   return (
     <div className="min-h-screen bg-background">
       <CrmPageHeader
-        title="Review Center"
-        subtitle="Review completed CAD submissions from Junior Architects with quick preview and download access."
+        title={title}
+        subtitle={subtitle}
       />
 
       <main className="mx-auto max-w-[1440px] px-4 py-6">
@@ -299,7 +311,7 @@ export default function SeniorCrmReviewCenterPage() {
         ) : submissions.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              No CAD submissions found for review.
+              No submissions found for review.
             </CardContent>
           </Card>
         ) : (
@@ -313,7 +325,7 @@ export default function SeniorCrmReviewCenterPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1">
                       <Link
-                        href={`/crm/sr/leads/${submission.lead.id}`}
+                        href={`${leadBasePath}/${submission.lead.id}`}
                         className="truncate text-base font-semibold text-foreground hover:text-primary hover:underline"
                       >
                         {submission.lead.name}
@@ -343,7 +355,7 @@ export default function SeniorCrmReviewCenterPage() {
                         Correction
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/crm/sr/leads/${submission.lead.id}`}>Open Lead</Link>
+                        <Link href={`${leadBasePath}/${submission.lead.id}`}>Open Lead</Link>
                       </Button>
                     </div>
                   </div>
@@ -412,12 +424,16 @@ export default function SeniorCrmReviewCenterPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{decisionType === 'APPROVE' ? 'Approve CAD Submission' : 'Send CAD for Correction'}</DialogTitle>
+            <DialogTitle>{decisionType === 'APPROVE' ? 'Approve Submission' : 'Send for Correction'}</DialogTitle>
             <DialogDescription>
               {decisionTarget
                 ? decisionType === 'APPROVE'
-                  ? `Confirm CAD approval for ${decisionTarget.lead.name}. Lead will stay in CAD Phase and move to CAD Approved.`
-                  : `Send ${decisionTarget.lead.name} back to Junior Architect for correction. Lead will move to CAD Assigned.`
+                  ? decisionTarget.lead.stage === 'QUOTATION_PHASE'
+                    ? `Confirm quotation approval for ${decisionTarget.lead.name}. Lead will move to Quotation Phase / Quotation Approved and return to Budget Queue.`
+                    : `Confirm CAD approval for ${decisionTarget.lead.name}. Lead will stay in CAD Phase and move to CAD Approved.`
+                  : decisionTarget.lead.stage === 'QUOTATION_PHASE'
+                    ? `Send ${decisionTarget.lead.name} back to the assigned quotation team for correction.`
+                    : `Send ${decisionTarget.lead.name} back to Junior Architect for correction. Lead will move to CAD Assigned.`
                 : 'Confirm your review decision.'}
             </DialogDescription>
           </DialogHeader>
@@ -469,4 +485,8 @@ export default function SeniorCrmReviewCenterPage() {
       </Dialog>
     </div>
   )
+}
+
+export default function SeniorCrmReviewCenterPage() {
+  return <ReviewCenterView />
 }

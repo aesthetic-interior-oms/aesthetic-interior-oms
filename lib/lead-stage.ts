@@ -9,6 +9,7 @@ export const stageSubStatusMap: Record<LeadStage, LeadSubStatus[]> = {
     'QUOTATION_ASSIGNED',
     'QUOTATION_WORKING',
     'QUOTATION_COMPLETED',
+    'QUOTATION_APPROVED',
     'QUOTATION_CORRECTION',
   ],
   BUDGET_PHASE: [

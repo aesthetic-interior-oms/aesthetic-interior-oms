@@ -349,31 +349,6 @@ export function CadPhaseQueueBoard({
     }
   }
 
-  const approveQuotation = async (lead: LeadRecord) => {
-    setSaving(true)
-    try {
-      const response = await fetch(`/api/lead/${lead.id}/stage`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stage: 'BUDGET_PHASE',
-          subStatus: 'QUOTATION_COMPLETED',
-          reason: 'Quotation approved from SR Budget Queue.',
-        }),
-      })
-      const payload = await response.json()
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error ?? 'Failed to approve quotation')
-      }
-      toast.success('Quotation approved')
-      await loadLeads()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to approve quotation')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   const openCompleteMeetingDialog = async (lead: LeadRecord) => {
     setCompleteMeetingLead(lead)
     setCompleteMeetingNote('')
@@ -487,7 +462,7 @@ export function CadPhaseQueueBoard({
         ? [
             { key: 'QUOTATION_ASSIGNED', label: 'Quotation Assigned' },
             { key: 'QUOTATION_WORKING', label: 'Quotation Working' },
-            { key: 'QUOTATION_COMPLETED', label: 'Quotation Completed' },
+            { key: 'QUOTATION_APPROVED', label: 'Quotation Approved' },
             { key: 'BUDGET_MEETING_SET', label: 'Budget Meeting Set' },
           ]
         : [{ key: 'CAD_PHASE', label: 'CAD Phase' }]
@@ -591,11 +566,7 @@ export function CadPhaseQueueBoard({
                           </Button>
                         ) : null
                       ) : isBudgetQueue ? (
-                        lead.stage === 'QUOTATION_PHASE' && lead.subStatus === 'QUOTATION_COMPLETED' ? (
-                          <Button size="sm" onClick={() => void approveQuotation(lead)} disabled={saving}>
-                            Approve
-                          </Button>
-                        ) : lead.stage === 'BUDGET_PHASE' && lead.subStatus === 'QUOTATION_COMPLETED' ? (
+                        lead.stage === 'QUOTATION_PHASE' && lead.subStatus === 'QUOTATION_APPROVED' ? (
                           <Button size="sm" onClick={() => openBudgetMeetingDialog(lead)}>
                             <CalendarClock className="mr-1 h-4 w-4" />
                             Set Budget Meeting

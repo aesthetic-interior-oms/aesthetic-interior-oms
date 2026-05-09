@@ -8,6 +8,15 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/components/ui/sonner'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 type TaskLead = {
   id: string
@@ -41,6 +50,8 @@ export default function QuotationAssignedTaskPage() {
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [leads, setLeads] = useState<TaskLead[]>([])
+  const [submitLead, setSubmitLead] = useState<TaskLead | null>(null)
+  const [submitNote, setSubmitNote] = useState('')
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
@@ -69,33 +80,56 @@ export default function QuotationAssignedTaskPage() {
       assigned: leads.filter((lead) => lead.subStatus === 'QUOTATION_ASSIGNED').length,
       working: leads.filter((lead) => lead.subStatus === 'QUOTATION_WORKING').length,
       completed: leads.filter((lead) => lead.subStatus === 'QUOTATION_COMPLETED').length,
+      corrections: leads.filter((lead) => lead.subStatus === 'QUOTATION_CORRECTION').length,
     }),
     [leads],
   )
 
-  const updateLeadStage = async (leadId: string, subStatus: 'QUOTATION_WORKING' | 'QUOTATION_COMPLETED') => {
+  const startQuotationWork = async (leadId: string) => {
     setBusyId(leadId)
     try {
-      const response = await fetch(`/api/lead/${leadId}/stage`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/lead/${leadId}/quotation-work/start`, { method: 'POST' })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to start quotation work')
+      }
+      toast.success('Quotation work started')
+      await loadTasks()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to start quotation work')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  const openSubmitDialog = (lead: TaskLead) => {
+    setSubmitLead(lead)
+    setSubmitNote('')
+  }
+
+  const submitQuotationWork = async () => {
+    if (!submitLead) return
+    if (submitNote.trim().length === 0) {
+      toast.error('Please describe the quotation work before submitting')
+      return
+    }
+    setBusyId(submitLead.id)
+    try {
+      const response = await fetch(`/api/lead/${submitLead.id}/quotation-work/submit`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stage: 'QUOTATION_PHASE',
-          subStatus,
-          reason:
-            subStatus === 'QUOTATION_WORKING'
-              ? 'Quotation team started work from assigned task page.'
-              : 'Quotation team submitted quotation from assigned task page.',
-        }),
+        body: JSON.stringify({ note: submitNote.trim() }),
       })
       const payload = await response.json()
       if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error ?? 'Failed to update quotation task')
+        throw new Error(payload?.error ?? 'Failed to submit quotation work')
       }
-      toast.success(subStatus === 'QUOTATION_WORKING' ? 'Quotation work started' : 'Quotation submitted')
+      toast.success('Quotation submitted to Senior CRM Review Center')
+      setSubmitLead(null)
+      setSubmitNote('')
       await loadTasks()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update quotation task')
+      toast.error(error instanceof Error ? error.message : 'Failed to submit quotation work')
     } finally {
       setBusyId(null)
     }
@@ -114,6 +148,7 @@ export default function QuotationAssignedTaskPage() {
           <Badge variant="secondary">Assigned: {summary.assigned}</Badge>
           <Badge variant="secondary">Working: {summary.working}</Badge>
           <Badge variant="secondary">Completed: {summary.completed}</Badge>
+          <Badge variant="secondary">Corrections: {summary.corrections}</Badge>
         </div>
 
         {loading ? (
@@ -155,16 +190,16 @@ export default function QuotationAssignedTaskPage() {
                         size="sm"
                         variant="outline"
                         disabled={busyId === lead.id || !lead.canStart}
-                        onClick={() => updateLeadStage(lead.id, 'QUOTATION_WORKING')}
+                        onClick={() => startQuotationWork(lead.id)}
                       >
                         Start Work
                       </Button>
                       <Button
                         size="sm"
                         disabled={busyId === lead.id || !lead.canSubmit}
-                        onClick={() => updateLeadStage(lead.id, 'QUOTATION_COMPLETED')}
+                        onClick={() => openSubmitDialog(lead)}
                       >
-                        Submit Quotation
+                        Submit Work
                       </Button>
                     </div>
                   </div>
@@ -194,6 +229,43 @@ export default function QuotationAssignedTaskPage() {
           </div>
         )}
       </main>
+
+      <Dialog open={Boolean(submitLead)} onOpenChange={(open) => {
+        if (busyId) return
+        if (!open) {
+          setSubmitLead(null)
+          setSubmitNote('')
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Submit Quotation Work</DialogTitle>
+            <DialogDescription>
+              Send the completed quotation details to the assigned Senior CRM Review Center. The lead will move to Quotation Completed and leave the Budget Queue until approval.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Work details for {submitLead?.name}</p>
+            <Textarea
+              rows={5}
+              value={submitNote}
+              onChange={(event) => setSubmitNote(event.target.value)}
+              placeholder="Enter quotation amount, scope, inclusions/exclusions, file links, or any handoff notes for Senior CRM..."
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" disabled={Boolean(busyId)} onClick={() => {
+              setSubmitLead(null)
+              setSubmitNote('')
+            }}>
+              Cancel
+            </Button>
+            <Button type="button" disabled={Boolean(busyId)} onClick={() => void submitQuotationWork()}>
+              {busyId ? 'Submitting...' : 'Submit to Review Center'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
