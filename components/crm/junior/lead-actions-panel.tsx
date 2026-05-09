@@ -540,6 +540,8 @@ export function LeadActionsPanel({
       .then((data) => {
         if (data.success && Array.isArray(data.data?.visitTeamMembers)) {
           setVisitTeamUsers(data.data.visitTeamMembers)
+          setSeniorCrmUsers(Array.isArray(data.data?.seniorCrmMembers) ? data.data.seniorCrmMembers : [])
+          setSeniorCrmUserId((current) => current || data.data?.weeklySeniorCrm?.current?.id || '')
           if (!locationTouchedRef.current && !locationPrefilledRef.current && data.data?.defaultLocation) {
             setVisitLocation(data.data.defaultLocation)
             locationPrefilledRef.current = true
@@ -1226,6 +1228,7 @@ export function LeadActionsPanel({
 
   const resetVisitForm = () => {
     setVisitTeamUserId('')
+    setSeniorCrmUserId('')
     setVisitScheduledAt('')
     setVisitLocation(leadLocation ?? '')
     setVisitFee('0')
@@ -3020,6 +3023,30 @@ export function LeadActionsPanel({
                 className={dateTimeInputClassName}
                 onChange={(event) => setVisitScheduledAt(toHourPrecisionLocalDateTime(event.target.value))}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Senior CRM</Label>
+              <Select
+                value={seniorCrmUserId}
+                onValueChange={setSeniorCrmUserId}
+                disabled={!canSelectSeniorCrm || seniorCrmUsers.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      seniorCrmUsers.length > 0 ? 'Select senior CRM' : 'No Senior CRM users'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {seniorCrmUsers.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.fullName} ({user.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

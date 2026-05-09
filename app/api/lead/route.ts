@@ -13,7 +13,6 @@ import { formatServerTiming, timeAsync } from '@/lib/server-timing';
 import { isFacebookConfigured } from '@/lib/facebook';
 import { maybeRunFacebookFallbackSync, runFacebookSyncWithControl } from '@/lib/facebook-sync-control';
 import { maybeRunInstagramFallbackSync } from '@/lib/instagram-sync-control';
-import { ensureSeniorCrmAssignment } from '@/lib/lead-handoff';
 import { formatPhoneForStorage } from '@/lib/phone-normalize';
 
 export const runtime = 'nodejs';
@@ -560,27 +559,6 @@ export async function POST(request: NextRequest) {
       jrCrmAssigneeId = authResult.actorUserId;
     }
 
-    let srCrmAssigneeId: string | null = null;
-    if (departmentNames.has('SR_CRM')) {
-      srCrmAssigneeId = authResult.actorUserId;
-    } else {
-      const fallbackSrCrm = await prisma.user.findFirst({
-        where: {
-          isActive: true,
-          userDepartments: {
-            some: {
-              department: {
-                name: 'SR_CRM',
-              },
-            },
-          },
-        },
-        select: { id: true },
-        orderBy: [{ fullName: 'asc' }, { created_at: 'asc' }],
-      });
-      srCrmAssigneeId = fallbackSrCrm?.id ?? null;
-    }
-
     if (phone) {
       // Check if a lead with the same phone already exists to prevent duplicates
       // console.log('🔄 [POST /api/lead] - Checking for duplicate phone');
@@ -627,10 +605,8 @@ export async function POST(request: NextRequest) {
       const stage = phone ? LeadStage.NUMBER_COLLECTED : LeadStage.NEW
       const primaryOwnerDepartment = jrCrmAssigneeId
         ? LeadPrimaryOwnerDepartment.JR_CRM
-        : srCrmAssigneeId
-          ? LeadPrimaryOwnerDepartment.SR_CRM
-          : null
-      const primaryOwnerUserId = jrCrmAssigneeId ?? srCrmAssigneeId ?? null
+        : null
+      const primaryOwnerUserId = jrCrmAssigneeId ?? null
 
       // Create the new lead with validated data
       const newLead = await tx.lead.create({
@@ -661,23 +637,6 @@ export async function POST(request: NextRequest) {
             leadId: newLead.id,
             userId: jrCrmAssigneeId,
             department: LeadAssignmentDepartment.JR_CRM,
-          },
-        });
-      }
-
-      const srAssignment = await ensureSeniorCrmAssignment({
-        tx,
-        leadId: newLead.id,
-        preferredUserId: srCrmAssigneeId,
-        actorUserId: authResult.actorUserId,
-      });
-
-      if (srAssignment.userId) {
-        await tx.lead.update({
-          where: { id: newLead.id },
-          data: {
-            primaryOwnerDepartment: LeadPrimaryOwnerDepartment.SR_CRM,
-            primaryOwnerUserId: srAssignment.userId,
           },
         });
       }

@@ -475,9 +475,6 @@ export function SeniorCrmMeetingsView({
                         const meetingCount = dayEvents.length - taskCount
                         const dayIsToday = isSameDay(day, today)
                         const isSelected = selectedDayKey === dayKey
-                        const visibleEvents = dayEvents.slice(0, 2)
-                        const moreEvents = Math.max(dayEvents.length - visibleEvents.length, 0)
-
                         return (
                           <button
                             key={dayKey}
@@ -502,38 +499,18 @@ export function SeniorCrmMeetingsView({
                               >
                                 {day.getDate()}
                               </span>
-                              {dayEvents.length > 0 ? (
-                                <span className="rounded-full bg-slate-950 px-1.5 py-0.5 text-[10px] font-black text-white shadow-sm dark:bg-white dark:text-slate-950">
-                                  {dayEvents.length}
-                                </span>
-                              ) : null}
                             </div>
 
                             <div className="flex flex-wrap gap-1">
                               {meetingCount > 0 ? (
                                 <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm sm:text-[10px]">
-                                  M {meetingCount}
+                                  Meeting {meetingCount}
                                 </span>
                               ) : null}
                               {taskCount > 0 ? (
                                 <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm sm:text-[10px]">
-                                  T {taskCount}
+                                  Task {taskCount}
                                 </span>
-                              ) : null}
-                            </div>
-
-                            <div className="mt-auto hidden space-y-1 sm:block">
-                              {visibleEvents.map((event) => (
-                                <div
-                                  key={event.id}
-                                  className={`truncate rounded-md border px-1.5 py-0.5 text-[10px] font-semibold leading-4 ${getEventClass(event)}`}
-                                  title={`${formatEventTime(event.start)} • ${event.title}`}
-                                >
-                                  {formatEventTime(event.start)} {event.title}
-                                </div>
-                              ))}
-                              {moreEvents > 0 ? (
-                                <p className="text-[10px] font-bold text-slate-700 dark:text-slate-200">+{moreEvents} more</p>
                               ) : null}
                             </div>
                           </button>
