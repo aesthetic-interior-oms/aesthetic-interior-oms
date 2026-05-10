@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireDatabaseRoles } from '@/lib/authz';
-import { VisitStatus } from '@/generated/prisma/client';
+import { LeadAssignmentDepartment, VisitStatus } from '@/generated/prisma/client';
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles';
 
 function toOptionalString(value: string | null): string | null {
@@ -44,9 +44,10 @@ export async function GET(request: NextRequest) {
     const isAdmin = departmentNames.has('ADMIN');
     const isVisitTeam = departmentNames.has('VISIT_TEAM');
     const isJuniorCrm = departmentNames.has('JR_CRM');
+    const isSeniorCrm = departmentNames.has('SR_CRM');
     const isVisitTeamLeader = hasVisitTeamLeadershipRole(authResult.actorRoles);
 
-    if (!isAdmin && !isVisitTeam && !isJuniorCrm) {
+    if (!isAdmin && !isVisitTeam && !isJuniorCrm && !isSeniorCrm) {
       return NextResponse.json(
         { success: false, error: 'Not authorized to view visit schedules' },
         { status: 403 },
@@ -61,6 +62,8 @@ export async function GET(request: NextRequest) {
     const statusParam = toOptionalString(request.nextUrl.searchParams.get('status'));
     const status = toVisitStatus(statusParam);
     const requiresVisitTeamLeader = scope === 'all' && accessContext === 'queue';
+    const shouldRestrictToSeniorCrmLeads =
+      isSeniorCrm && (scope === 'sr-assigned' || (!isAdmin && !isJuniorCrm && !isVisitTeam));
     if (isVisitTeam && requiresVisitTeamLeader && !isVisitTeamLeader) {
       return NextResponse.json(
         { success: false, error: 'Only visit team leaders can access visit schedule queue' },
@@ -75,24 +78,36 @@ export async function GET(request: NextRequest) {
     const visits = await prisma.visit.findMany({
       where: {
         ...(leadId ? { leadId } : {}),
-        ...(isAdmin || isJuniorCrm
-          ? assignedToId
-            ? { assignedToId }
-            : {}
-          : scope === 'all'
+        ...(shouldRestrictToSeniorCrmLeads
+          ? {
+              lead: {
+                assignments: {
+                  some: {
+                    department: LeadAssignmentDepartment.SR_CRM,
+                    userId: authResult.actorUserId,
+                  },
+                },
+              },
+              ...(assignedToId ? { assignedToId } : {}),
+            }
+          : isAdmin || isJuniorCrm
             ? assignedToId
               ? { assignedToId }
               : {}
-            : mode === 'support'
-            ? { supportAssignments: { some: { supportUserId: authResult.actorUserId } } }
-            : mode === 'lead'
-              ? { assignedToId: authResult.actorUserId }
-              : {
-                  OR: [
-                    { assignedToId: authResult.actorUserId },
-                    { supportAssignments: { some: { supportUserId: authResult.actorUserId } } },
-                  ],
-                }),
+            : scope === 'all'
+              ? assignedToId
+                ? { assignedToId }
+                : {}
+              : mode === 'support'
+              ? { supportAssignments: { some: { supportUserId: authResult.actorUserId } } }
+              : mode === 'lead'
+                ? { assignedToId: authResult.actorUserId }
+                : {
+                    OR: [
+                      { assignedToId: authResult.actorUserId },
+                      { supportAssignments: { some: { supportUserId: authResult.actorUserId } } },
+                    ],
+                  }),
         ...(status ? { status } : {}),
       },
       select: {

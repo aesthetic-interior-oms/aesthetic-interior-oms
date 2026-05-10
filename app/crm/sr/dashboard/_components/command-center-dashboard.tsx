@@ -189,6 +189,14 @@ function OperatingPolicyPanel() {
 function QueueStatusGrid({ counts }: { counts: CommandCenterDashboardProps['queueCounts'] }) {
   const queueCards = [
     {
+      title: 'Visit Queue',
+      value: counts.visit,
+      subtitle: 'Completed visits ready for CAD handoff',
+      href: queueLinks.visit,
+      icon: MapPinned,
+      accent: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
+    },
+    {
       title: 'CAD Queue',
       value: counts.cad,
       subtitle: 'CAD activity, assignments, deadlines',
@@ -203,14 +211,6 @@ function QueueStatusGrid({ counts }: { counts: CommandCenterDashboardProps['queu
       href: queueLinks.review,
       icon: ClipboardCheck,
       accent: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
-    },
-    {
-      title: 'Visit Queue',
-      value: counts.visit,
-      subtitle: 'Completed visits ready for CAD handoff',
-      href: queueLinks.visit,
-      icon: MapPinned,
-      accent: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20',
     },
     {
       title: 'Meeting Queue',
@@ -427,10 +427,13 @@ function CommandShortcutsCard() {
       </CardHeader>
       <CardContent className="grid gap-2">
         <Button asChild variant="outline" className="justify-between">
+          <Link href={queueLinks.visit}>Visit Queue <ArrowRight className="size-4" /></Link>
+        </Button>
+        <Button asChild variant="outline" className="justify-between">
           <Link href={queueLinks.cad}>CAD Queue <ArrowRight className="size-4" /></Link>
         </Button>
         <Button asChild variant="outline" className="justify-between">
-          <Link href={queueLinks.visit}>Visit Queue <ArrowRight className="size-4" /></Link>
+          <Link href={queueLinks.review}>Review Center <ArrowRight className="size-4" /></Link>
         </Button>
         <Button asChild variant="outline" className="justify-between">
           <Link href={queueLinks.meeting}>Meeting Queue <ArrowRight className="size-4" /></Link>
@@ -462,7 +465,7 @@ export function CommandCenterDashboard({
       />
 
       <main className="mx-auto w-full max-w-[1440px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-        <CommandCenterHero firstPriorityHref={priorityActions[0]?.href ?? queueLinks.review} />
+        <CommandCenterHero firstPriorityHref={priorityActions[0]?.href ?? queueLinks.visit} />
         <QueueStatusGrid counts={queueCounts} />
 
         <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">

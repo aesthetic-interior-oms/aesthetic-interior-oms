@@ -177,13 +177,19 @@ type VisitsPageProps = {
   restrictToCreator?: boolean
   allowCompleteVisit?: boolean
   blurUnassignedVisitDetails?: boolean
-  visitScope?: 'default' | 'all'
+  visitScope?: 'default' | 'all' | 'sr-assigned'
   allowManageAssignment?: boolean
   showScheduleButton?: boolean
   showSummaryDashboard?: boolean
   pageTitle?: string
   pageSubtitle?: string
   cardNavigatesToLead?: boolean
+}
+
+function getVisitScheduleListUrl(visitScope: NonNullable<VisitsPageProps['visitScope']>) {
+  if (visitScope === 'all') return '/api/visit-schedule?scope=all'
+  if (visitScope === 'sr-assigned') return '/api/visit-schedule?scope=sr-assigned'
+  return '/api/visit-schedule'
 }
 
 export function VisitsPageView({
@@ -331,7 +337,7 @@ export function VisitsPageView({
         if (!visitsRequestPromiseByScope[scopeKey]) {
           visitsRequestPromiseByScope[scopeKey] = (async () => {
             const [response, workflowResponse] = await Promise.all([
-              fetch(`/api/visit-schedule${visitScope === 'all' ? '?scope=all' : ''}`),
+              fetch(getVisitScheduleListUrl(visitScope)),
               fetch('/api/visit-team/workflow-settings', { cache: 'no-store' }).catch(() => null),
             ])
             const payload = (await response.json()) as ApiResponse
@@ -716,7 +722,7 @@ export function VisitsPageView({
       }
 
       visitsCacheByScope = {}
-      const refreshResponse = await fetch(`/api/visit-schedule${visitScope === 'all' ? '?scope=all' : ''}`, {
+      const refreshResponse = await fetch(getVisitScheduleListUrl(visitScope), {
         cache: 'no-store',
       })
       const refreshPayload = (await refreshResponse.json()) as ApiResponse
@@ -797,7 +803,7 @@ export function VisitsPageView({
       }
 
       visitsCacheByScope = {}
-      const refreshResponse = await fetch(`/api/visit-schedule${visitScope === 'all' ? '?scope=all' : ''}`, {
+      const refreshResponse = await fetch(getVisitScheduleListUrl(visitScope), {
         cache: 'no-store',
       })
       const refreshPayload = (await refreshResponse.json()) as ApiResponse
@@ -1010,7 +1016,7 @@ export function VisitsPageView({
       toast.success(completeRole === 'SUPPORT' ? 'Support data submitted.' : 'Visit marked as completed.')
 
       setLoading(true)
-      const response = await fetch(`/api/visit-schedule${visitScope === 'all' ? '?scope=all' : ''}`)
+      const response = await fetch(getVisitScheduleListUrl(visitScope))
       const freshPayload = (await response.json()) as ApiResponse
       if (!response.ok || !freshPayload.success) {
         throw new Error(freshPayload?.error || 'Failed to refresh visits')

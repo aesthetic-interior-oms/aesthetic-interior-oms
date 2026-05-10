@@ -416,18 +416,24 @@ export async function POST(request: NextRequest, context: RouteContext) {
         },
       });
 
-      if (existingVisitTeamAssignment) {
-
-
-      const targetSeniorCrmUserId = seniorCrmUserId ?? weekly.current?.id ?? null;
+      const targetSeniorCrmUserId = seniorCrmUserId ?? (weekly.automationEnabled ? weekly.current?.id : null) ?? null;
       if (targetSeniorCrmUserId) {
-        const existingSrAssignment = await tx.leadAssignment.findFirst({ where: { leadId, department: LeadAssignmentDepartment.SR_CRM } });
+        const existingSrAssignment = await tx.leadAssignment.findFirst({
+          where: { leadId, department: LeadAssignmentDepartment.SR_CRM },
+        });
         if (existingSrAssignment) {
-          await tx.leadAssignment.update({ where: { id: existingSrAssignment.id }, data: { userId: targetSeniorCrmUserId } });
+          await tx.leadAssignment.update({
+            where: { id: existingSrAssignment.id },
+            data: { userId: targetSeniorCrmUserId },
+          });
         } else {
-          await tx.leadAssignment.create({ data: { leadId, userId: targetSeniorCrmUserId, department: LeadAssignmentDepartment.SR_CRM } });
+          await tx.leadAssignment.create({
+            data: { leadId, userId: targetSeniorCrmUserId, department: LeadAssignmentDepartment.SR_CRM },
+          });
         }
       }
+
+      if (existingVisitTeamAssignment) {
         // console.log('[POST] Updating existing visit team assignment');
         await tx.leadAssignment.update({
           where: { id: existingVisitTeamAssignment.id },
