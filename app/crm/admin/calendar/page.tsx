@@ -9,6 +9,7 @@ export default function AdminSeniorCalendarPage() {
       subtitle="Calendar view of all Senior CRM meetings and task deadlines, including unassigned SR items."
       initialMyLeadsOnly={false}
       lockMyLeadsOnly
+      useVisitsCalendarUi
     />
   )
 }

@@ -14,6 +14,7 @@ import { UserManagement } from '@/components/settings/user-management'
 import { RolePermissions } from '@/components/settings/role-permissions'
 import { NotificationSettings } from '@/components/settings/notification-settings'
 import { ActivityLog } from '@/components/settings/activity-log'
+import { SrCrmRotationSettings } from '@/components/settings/sr-crm-rotation-settings'
 import { IntegrationSettings } from '@/components/settings/integration-settings'
 import { VisitWorkflowSettings } from '@/components/settings/visit-workflow-settings'
 
@@ -79,6 +80,7 @@ export default function SettingsPage() {
 
           {/* Activity Log Tab */}
           <TabsContent value="activity" className="space-y-6">
+            <SrCrmRotationSettings />
             <ActivityLog />
           </TabsContent>
 

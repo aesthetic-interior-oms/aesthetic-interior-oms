@@ -26,6 +26,7 @@ type CalendarMode = 'MONTHLY' | 'YEARLY'
 
 const WEEKDAY_LABELS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
 const WEEKDAY_LABELS_MOBILE = ['Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr']
+const VISITS_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const MAX_AGENDA_ITEMS = 10
 
@@ -172,6 +173,7 @@ type SeniorCrmMeetingsViewProps = {
   subtitle?: string
   initialMyLeadsOnly?: boolean
   lockMyLeadsOnly?: boolean
+  useVisitsCalendarUi?: boolean
 }
 
 function toMeeting(item: MeetingsApiItem): Meeting {
@@ -210,6 +212,7 @@ export function SeniorCrmMeetingsView({
   subtitle = 'Calendar view for meetings and Senior CRM task deadlines.',
   initialMyLeadsOnly = true,
   lockMyLeadsOnly = false,
+  useVisitsCalendarUi = false,
 }: SeniorCrmMeetingsViewProps) {
   const router = useRouter()
   const today = useMemo(() => startOfDay(new Date()), [])
@@ -292,6 +295,32 @@ export function SeniorCrmMeetingsView({
     [focusDate],
   )
 
+  const visitsCalendarDays = useMemo(() => {
+    const firstDayOfMonth = new Date(focusDate.getFullYear(), focusDate.getMonth(), 1).getDay()
+    const daysInMonth = new Date(focusDate.getFullYear(), focusDate.getMonth() + 1, 0).getDate()
+    return [
+      ...Array.from({ length: firstDayOfMonth }, () => null as Date | null),
+      ...Array.from(
+        { length: daysInMonth },
+        (_, index) => new Date(focusDate.getFullYear(), focusDate.getMonth(), index + 1),
+      ),
+    ]
+  }, [focusDate])
+
+  const visitsCalendarMobileRows = useMemo(() => {
+    const daysInMonth = new Date(focusDate.getFullYear(), focusDate.getMonth() + 1, 0).getDate()
+    return Array.from({ length: daysInMonth }, (_, index) => {
+      const day = new Date(focusDate.getFullYear(), focusDate.getMonth(), index + 1)
+      const dayKey = formatDayKey(day)
+      return {
+        day,
+        dayKey,
+        dayLabel: VISITS_WEEKDAY_LABELS[day.getDay()],
+        events: meetingsByDay.get(dayKey) ?? [],
+      }
+    })
+  }, [focusDate, meetingsByDay])
+
   const monthMeetings = useMemo(() => {
     const from = new Date(focusDate.getFullYear(), focusDate.getMonth(), 1)
     const to = new Date(focusDate.getFullYear(), focusDate.getMonth() + 1, 0, 23, 59, 59, 999)
@@ -367,10 +396,8 @@ export function SeniorCrmMeetingsView({
     router.push(`/crm/sr/leads/${meeting.leadId}`)
   }
 
-  const periodLabel =
-    calendarMode === 'MONTHLY'
-      ? focusDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-      : String(focusDate.getFullYear())
+  const monthYearLabel = focusDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const periodLabel = calendarMode === 'MONTHLY' ? monthYearLabel : String(focusDate.getFullYear())
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-gradient-to-b from-background via-background to-muted/20">
@@ -438,86 +465,230 @@ export function SeniorCrmMeetingsView({
 
                 {calendarMode === 'MONTHLY' ? (
                   <>
-                    <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-                      <div className="rounded-xl border border-sky-200/70 bg-gradient-to-r from-sky-50 via-indigo-50 to-fuchsia-50 px-3 py-2 dark:border-sky-900/60 dark:from-sky-950/35 dark:via-indigo-950/30 dark:to-fuchsia-950/25">
-                        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-sky-600 px-2 py-1 text-white shadow-sm">
-                            <CalendarCheck2 className="size-3.5" /> Meetings {monthMeetings.filter((event) => event.source === 'MEETING').length}
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-1 text-white shadow-sm">
-                            Tasks {monthMeetings.filter((event) => event.source === 'TASK').length}
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-fuchsia-600 px-2 py-1 text-white shadow-sm">
-                            Mixed days
-                          </span>
+                    {useVisitsCalendarUi ? null : (
+                      <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_auto]">
+                        <div className="rounded-xl border border-sky-200/70 bg-gradient-to-r from-sky-50 via-indigo-50 to-fuchsia-50 px-3 py-2 dark:border-sky-900/60 dark:from-sky-950/35 dark:via-indigo-950/30 dark:to-fuchsia-950/25">
+                          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-sky-600 px-2 py-1 text-white shadow-sm">
+                              <CalendarCheck2 className="size-3.5" /> Meetings {monthMeetings.filter((event) => event.source === 'MEETING').length}
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-1 text-white shadow-sm">
+                              Tasks {monthMeetings.filter((event) => event.source === 'TASK').length}
+                            </span>
+                            <span className="inline-flex items-center gap-1 rounded-full bg-fuchsia-600 px-2 py-1 text-white shadow-sm">
+                              Mixed days
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
-                    <div className="grid grid-cols-7 gap-1 sm:gap-2">
-                      {WEEKDAY_LABELS.map((label, index) => (
-                        <div
-                          key={label}
-                          className="rounded-lg border border-slate-200 bg-slate-900 px-1 py-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-white shadow-sm dark:border-slate-700 dark:bg-slate-100 dark:text-slate-950 sm:px-2 sm:text-[11px]"
-                        >
-                          <span className="sm:hidden">{WEEKDAY_LABELS_MOBILE[index]}</span>
-                          <span className="hidden sm:inline">{label}</span>
+                    {useVisitsCalendarUi ? (
+                      <>
+                        <div className="mb-4 flex flex-row items-center justify-between gap-3">
+                          <h3 className="text-lg font-semibold leading-none tracking-tight">{monthYearLabel}</h3>
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={goPrev}>
+                              <ChevronLeft className="size-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={goNext}>
+                              <ChevronRight className="size-4" />
+                            </Button>
+                          </div>
                         </div>
-                      ))}
-                    </div>
 
-                    <div className="mt-2 grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-1 sm:gap-2">
-                      {monthDays.map((day) => {
-                        const dayKey = formatDayKey(day)
-                        const inCurrentMonth = day.getMonth() === focusDate.getMonth()
-                        const dayEvents = meetingsByDay.get(dayKey) ?? []
-                        const taskCount = dayEvents.filter((event) => event.source === 'TASK').length
-                        const meetingCount = dayEvents.length - taskCount
-                        const dayIsToday = isSameDay(day, today)
-                        const isSelected = selectedDayKey === dayKey
-                        return (
-                          <button
-                            key={dayKey}
-                            type="button"
-                            onClick={() => setSelectedDayKey((current) => (current === dayKey ? null : dayKey))}
-                            className={`flex min-h-0 flex-col rounded-lg border p-1.5 text-left shadow-sm transition sm:rounded-xl sm:p-2 ${getDayAccentClass(
-                              taskCount,
-                              meetingCount,
-                              isSelected,
-                              dayIsToday,
-                            )} ${getMutedMonthClass(inCurrentMonth)}`}
-                          >
-                            <div className="mb-1 flex items-center justify-between gap-1">
-                              <span
-                                className={`flex size-6 items-center justify-center rounded-full text-xs font-black sm:size-7 sm:text-sm ${
-                                  dayIsToday
-                                    ? 'bg-emerald-600 text-white shadow-sm'
-                                    : inCurrentMonth
-                                      ? 'bg-white/80 text-slate-950 shadow-sm dark:bg-slate-950/70 dark:text-white'
-                                      : 'bg-muted text-muted-foreground'
-                                }`}
+                        <div className="hidden sm:grid grid-cols-7 gap-2">
+                          {VISITS_WEEKDAY_LABELS.map((label) => (
+                            <div key={label} className="py-2 text-center text-sm font-semibold text-muted-foreground">
+                              {label}
+                            </div>
+                          ))}
+                          {loadingMeetings
+                            ? Array.from({ length: 35 }).map((_, index) => (
+                                <div key={index} className="aspect-square animate-pulse rounded-lg border bg-muted/60" />
+                              ))
+                            : visitsCalendarDays.map((day, index) => {
+                                const dayKey = day ? formatDayKey(day) : null
+                                const dayEvents = dayKey ? meetingsByDay.get(dayKey) ?? [] : []
+                                const taskCount = dayEvents.filter((event) => event.source === 'TASK').length
+                                const meetingCount = dayEvents.length - taskCount
+                                const isSelected = selectedDayKey === dayKey
+                                return (
+                                  <button
+                                    key={dayKey ?? `empty-${index}`}
+                                    type="button"
+                                    disabled={!day}
+                                    onClick={() => dayKey && setSelectedDayKey(dayKey)}
+                                    className={`aspect-square rounded-lg border p-2 text-center transition-colors ${
+                                      !day
+                                        ? 'cursor-default bg-muted'
+                                        : isSelected
+                                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                                          : dayEvents.length > 0
+                                            ? 'border-blue-300 bg-blue-50 dark:bg-blue-900/20 hover:border-blue-400'
+                                            : 'hover:border-gray-400'
+                                    }`}
+                                  >
+                                    {day ? (
+                                      <div className="flex h-full flex-col items-center justify-center">
+                                        <span className="text-sm font-semibold">{day.getDate()}</span>
+                                        {dayEvents.length > 0 ? (
+                                          <div className="mt-1 flex flex-wrap items-center justify-center gap-1">
+                                            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-700 px-1 text-[10px] font-bold text-white">
+                                              {dayEvents.length}
+                                            </span>
+                                            {meetingCount > 0 ? (
+                                              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-bold text-white">
+                                                {meetingCount}
+                                              </span>
+                                            ) : null}
+                                            {taskCount > 0 ? (
+                                              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
+                                                {taskCount}
+                                              </span>
+                                            ) : null}
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
+                                  </button>
+                                )
+                              })}
+                        </div>
+
+                        <div className="space-y-2 sm:hidden">
+                          {loadingMeetings
+                            ? Array.from({ length: 6 }).map((_, index) => (
+                                <div key={index} className="h-20 animate-pulse rounded-lg border bg-muted/60" />
+                              ))
+                            : visitsCalendarMobileRows.map((row) => {
+                                const taskCount = row.events.filter((event) => event.source === 'TASK').length
+                                const meetingCount = row.events.length - taskCount
+                                const isSelected = selectedDayKey === row.dayKey
+                                return (
+                                  <div
+                                    key={row.dayKey}
+                                    className={`w-full rounded-lg border p-3 transition ${
+                                      isSelected
+                                        ? 'border-primary bg-primary/5'
+                                        : row.events.length > 0
+                                          ? 'border-blue-300 bg-blue-50/70 dark:bg-blue-900/20'
+                                          : 'border-border bg-card'
+                                    }`}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedDayKey(row.dayKey)}
+                                      className="w-full text-left"
+                                    >
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <p className="text-sm text-muted-foreground">{row.dayLabel}</p>
+                                          <p className="text-base font-semibold text-foreground">
+                                            {monthYearLabel.split(' ')[0]} {row.day.getDate()}
+                                          </p>
+                                        </div>
+                                        <span className="inline-flex min-w-8 items-center justify-center rounded-full bg-primary/10 px-2 py-1 text-sm font-semibold text-primary">
+                                          {row.events.length}
+                                        </span>
+                                      </div>
+                                      <div className="mt-1 flex items-center gap-1 text-xs">
+                                        <span className="rounded-full bg-blue-100 px-2 py-0.5 font-semibold text-blue-700">Meetings {meetingCount}</span>
+                                        <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-700">Tasks {taskCount}</span>
+                                      </div>
+                                    </button>
+
+                                    {row.events.length > 0 ? (
+                                      <div className="mt-2 space-y-2">
+                                        {row.events.slice(0, 3).map((meeting) => (
+                                          <button
+                                            key={meeting.id}
+                                            type="button"
+                                            onClick={() => goToEventLead(meeting)}
+                                            className={`w-full rounded-md border p-2 text-left text-sm transition hover:border-primary/40 ${getEventClass(meeting)}`}
+                                          >
+                                            <p className="font-semibold text-foreground">{meeting.title}</p>
+                                            <p className="text-xs text-muted-foreground">{meeting.leadName}</p>
+                                            <p className="text-xs text-muted-foreground">{formatEventTime(meeting.start)}</p>
+                                          </button>
+                                        ))}
+                                        {row.events.length > 3 ? (
+                                          <p className="text-xs font-medium text-muted-foreground">+{row.events.length - 3} more item(s)</p>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                )
+                              })}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-7 gap-1 sm:gap-2">
+                          {WEEKDAY_LABELS.map((label, index) => (
+                            <div
+                              key={label}
+                              className="rounded-lg border border-slate-200 bg-slate-900 px-1 py-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-white shadow-sm dark:border-slate-700 dark:bg-slate-100 dark:text-slate-950 sm:px-2 sm:text-[11px]"
+                            >
+                              <span className="sm:hidden">{WEEKDAY_LABELS_MOBILE[index]}</span>
+                              <span className="hidden sm:inline">{label}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-2 grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-1 sm:gap-2">
+                          {monthDays.map((day) => {
+                            const dayKey = formatDayKey(day)
+                            const inCurrentMonth = day.getMonth() === focusDate.getMonth()
+                            const dayEvents = meetingsByDay.get(dayKey) ?? []
+                            const taskCount = dayEvents.filter((event) => event.source === 'TASK').length
+                            const meetingCount = dayEvents.length - taskCount
+                            const dayIsToday = isSameDay(day, today)
+                            const isSelected = selectedDayKey === dayKey
+                            return (
+                              <button
+                                key={dayKey}
+                                type="button"
+                                onClick={() => setSelectedDayKey((current) => (current === dayKey ? null : dayKey))}
+                                className={`flex min-h-0 flex-col rounded-lg border p-1.5 text-left shadow-sm transition sm:rounded-xl sm:p-2 ${getDayAccentClass(
+                                  taskCount,
+                                  meetingCount,
+                                  isSelected,
+                                  dayIsToday,
+                                )} ${getMutedMonthClass(inCurrentMonth)}`}
                               >
-                                {day.getDate()}
-                              </span>
-                            </div>
+                                <div className="mb-1 flex items-center justify-between gap-1">
+                                  <span
+                                    className={`flex size-6 items-center justify-center rounded-full text-xs font-black sm:size-7 sm:text-sm ${
+                                      dayIsToday
+                                        ? 'bg-emerald-600 text-white shadow-sm'
+                                        : inCurrentMonth
+                                          ? 'bg-white/80 text-slate-950 shadow-sm dark:bg-slate-950/70 dark:text-white'
+                                          : 'bg-muted text-muted-foreground'
+                                    }`}
+                                  >
+                                    {day.getDate()}
+                                  </span>
+                                </div>
 
-                            <div className="flex flex-wrap gap-1">
-                              {meetingCount > 0 ? (
-                                <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm sm:text-[10px]">
-                                  Meeting {meetingCount}
-                                </span>
-                              ) : null}
-                              {taskCount > 0 ? (
-                                <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm sm:text-[10px]">
-                                  Task {taskCount}
-                                </span>
-                              ) : null}
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </>
+                                <div className="flex flex-wrap gap-1">
+                                  {meetingCount > 0 ? (
+                                    <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm sm:text-[10px]">
+                                      Meeting {meetingCount}
+                                    </span>
+                                  ) : null}
+                                  {taskCount > 0 ? (
+                                    <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm sm:text-[10px]">
+                                      Task {taskCount}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </>
+                    )}                  </>
                 ) : (
                   <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">

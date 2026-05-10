@@ -111,6 +111,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
         { icon: ClipboardList, label: 'Review Center', href: '/crm/sr/review-center' },
         { icon: ClipboardList, label: 'CAD Queue', href: '/crm/sr/cad-phase-queue' },
         { icon: ClipboardList, label: 'Visit Queue', href: '/crm/sr/queue' },
+        { icon: Calendar, label: 'Visits', href: '/crm/sr/visits' },
       ],
     },
     {
