@@ -24,15 +24,6 @@ export async function GET() {
 
     const leads = await prisma.lead.findMany({
       where: {
-        stage: LeadStage.QUOTATION_PHASE,
-        subStatus: {
-          in: [
-            LeadSubStatus.QUOTATION_ASSIGNED,
-            LeadSubStatus.QUOTATION_WORKING,
-            LeadSubStatus.QUOTATION_CORRECTION,
-            LeadSubStatus.QUOTATION_COMPLETED,
-          ],
-        },
         assignments: {
           some: {
             department: LeadAssignmentDepartment.QUOTATION,
