@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
   ActivityType,
+  CadSubmissionFileType,
   LeadAssignmentDepartment,
   LeadPhaseTaskStatus,
   LeadPhaseType,
@@ -17,6 +18,14 @@ type RouteContext = { params: { id: string } | Promise<{ id: string }> }
 
 type SubmitQuotationBody = {
   note?: unknown
+  files?: unknown
+}
+
+type UploadedQuotationFileMeta = {
+  url: string
+  fileName: string
+  fileType: string
+  sizeBytes: number
 }
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
@@ -33,6 +42,23 @@ function toRequiredString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+function toOptionalString(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function toUploadedQuotationFileMeta(value: unknown): UploadedQuotationFileMeta | null {
+  if (typeof value !== 'object' || value === null) return null
+  const record = value as Record<string, unknown>
+  const url = toOptionalString(record.url)
+  const fileName = toOptionalString(record.fileName)
+  const fileType = toOptionalString(record.fileType) ?? 'application/octet-stream'
+  const sizeBytes = typeof record.sizeBytes === 'number' && Number.isFinite(record.sizeBytes) ? record.sizeBytes : 0
+  if (!url || !fileName || sizeBytes <= 0) return null
+  return { url, fileName, fileType, sizeBytes }
+}
+
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const authResult = await requireDatabaseRoles([])
@@ -45,8 +71,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const body = (await request.json().catch(() => ({}))) as SubmitQuotationBody
     const note = toRequiredString(body.note)
+    const uploadedFiles = Array.isArray(body.files)
+      ? body.files.map((item) => toUploadedQuotationFileMeta(item)).filter((item): item is UploadedQuotationFileMeta => Boolean(item))
+      : []
     if (!note) {
       return NextResponse.json({ success: false, error: 'Quotation submission note is required' }, { status: 400 })
+    }
+    if (uploadedFiles.length === 0) {
+      return NextResponse.json({ success: false, error: 'At least one attachment is required' }, { status: 400 })
     }
 
     const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
@@ -101,6 +133,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
           leadId: lead.id,
           submittedById: authResult.actorUserId,
           note,
+          files: {
+            create: uploadedFiles.map((file) => ({
+              url: file.url,
+              fileName: file.fileName,
+              fileType: file.fileType,
+              sizeBytes: file.sizeBytes,
+              cadFileType: CadSubmissionFileType.OTHERS,
+            })),
+          },
         },
         select: { id: true },
       })
