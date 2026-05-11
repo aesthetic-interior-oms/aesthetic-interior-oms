@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { uploadDirectBlobFile, type UploadedBlobFileMeta } from "@/lib/client-blob-upload";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +54,8 @@ export default function QuotationTeamMyWorkPage() {
   const [leads, setLeads] = useState<TaskLead[]>([]);
   const [submitLead, setSubmitLead] = useState<TaskLead | null>(null);
   const [submitNote, setSubmitNote] = useState("");
+  const [submitFiles, setSubmitFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
@@ -123,18 +127,34 @@ export default function QuotationTeamMyWorkPage() {
   const openSubmitDialog = (lead: TaskLead) => {
     setSubmitLead(lead);
     setSubmitNote("");
+    setSubmitFiles([]);
   };
 
   const submitQuotationWork = async () => {
     if (!submitLead) return;
     setBusyId(submitLead.id);
     try {
+      setUploadingFiles(true);
+      const uploadedFiles: UploadedBlobFileMeta[] = [];
+      for (const file of submitFiles) {
+        const uploaded = await uploadDirectBlobFile({
+          file,
+          context: "cad-work",
+          ownerId: submitLead.id,
+          cadFileType: "OTHERS",
+        });
+        uploadedFiles.push(uploaded);
+      }
+      setUploadingFiles(false);
       const response = await fetch(
         `/api/lead/${submitLead.id}/quotation-work/submit`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ note: submitNote.trim() || undefined }),
+          body: JSON.stringify({
+            note: submitNote.trim() || undefined,
+            files: uploadedFiles.length > 0 ? uploadedFiles : undefined,
+          }),
         },
       );
       const payload = await response.json();
@@ -144,6 +164,7 @@ export default function QuotationTeamMyWorkPage() {
       toast.success("Quotation submitted to Senior CRM Review Center");
       setSubmitLead(null);
       setSubmitNote("");
+      setSubmitFiles([]);
       await loadTasks();
     } catch (error) {
       toast.error(
@@ -152,6 +173,7 @@ export default function QuotationTeamMyWorkPage() {
           : "Failed to submit quotation work",
       );
     } finally {
+      setUploadingFiles(false);
       setBusyId(null);
     }
   };
@@ -289,6 +311,24 @@ export default function QuotationTeamMyWorkPage() {
               placeholder="Add optional notes for Senior CRM review..."
             />
           </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Attachments (optional)</p>
+            <Input
+              type="file"
+              multiple
+              onChange={(event) => setSubmitFiles(Array.from(event.target.files ?? []))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Supported for quotation submit: PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, and CAD files when needed.
+            </p>
+            {submitFiles.length > 0 ? (
+              <ul className="space-y-1 text-xs text-muted-foreground">
+                {submitFiles.map((file) => (
+                  <li key={`${file.name}-${file.size}`}>{file.name}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
           <DialogFooter>
             <Button
               type="button"
@@ -297,6 +337,7 @@ export default function QuotationTeamMyWorkPage() {
               onClick={() => {
                 setSubmitLead(null);
                 setSubmitNote("");
+                setSubmitFiles([]);
               }}
             >
               Cancel
@@ -306,7 +347,7 @@ export default function QuotationTeamMyWorkPage() {
               disabled={Boolean(busyId)}
               onClick={() => void submitQuotationWork()}
             >
-              {busyId ? "Submitting..." : "Submit to Review Center"}
+              {uploadingFiles ? "Uploading files..." : busyId ? "Submitting..." : "Submit to Review Center"}
             </Button>
           </DialogFooter>
         </DialogContent>

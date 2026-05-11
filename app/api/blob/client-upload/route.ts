@@ -36,10 +36,41 @@ function assertPathnameScope(pathname: string, prefix: string, ownerId: string) 
   }
 }
 
-function isAllowedCadContent(pathname: string, fileType: string | undefined): boolean {
+const ALLOWED_QUOTATION_UPLOAD_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.ms-excel',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/csv',
+])
+
+const ALLOWED_QUOTATION_UPLOAD_EXTENSIONS = new Set([
+  'pdf',
+  'doc',
+  'docx',
+  'xls',
+  'xlsx',
+  'ppt',
+  'pptx',
+  'txt',
+  'csv',
+])
+
+function isAllowedCadContent(pathname: string, fileType: string | undefined, cadFileType: string): boolean {
   const normalizedType = (fileType || '').trim().toLowerCase()
+  const extension = getCadFileExtension(pathname)
+
+  if (cadFileType === 'OTHERS') {
+    if (normalizedType && ALLOWED_QUOTATION_UPLOAD_MIME_TYPES.has(normalizedType)) return true
+    return ALLOWED_QUOTATION_UPLOAD_EXTENSIONS.has(extension)
+  }
+
   if (normalizedType && ALLOWED_CAD_UPLOAD_MIME_TYPES.has(normalizedType)) return true
-  return ALLOWED_CAD_UPLOAD_EXTENSIONS.has(getCadFileExtension(pathname))
+  return ALLOWED_CAD_UPLOAD_EXTENSIONS.has(extension)
 }
 
 async function authorizeCadUpload(input: {
@@ -52,7 +83,7 @@ async function authorizeCadUpload(input: {
   assertPathnameScope(input.pathname, 'cad-work-submissions', input.ownerId)
   const cadFileType = typeof input.payload.cadFileType === 'string' ? input.payload.cadFileType.toUpperCase() : ''
   if (!isCadSubmissionFileTypeValue(cadFileType)) throw new Error('INVALID_CAD_FILE_TYPE')
-  if (!isAllowedCadContent(input.pathname, input.payload.fileType)) throw new Error('CAD_FILE_TYPE_NOT_ALLOWED')
+  if (!isAllowedCadContent(input.pathname, input.payload.fileType, cadFileType)) throw new Error('CAD_FILE_TYPE_NOT_ALLOWED')
 
   const isAdmin = input.actorDepartments.has('ADMIN')
   const isSeniorCrm = input.actorDepartments.has('SR_CRM')
