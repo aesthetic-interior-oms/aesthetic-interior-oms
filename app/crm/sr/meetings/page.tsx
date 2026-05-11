@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarCheck2, ChevronLeft, ChevronRight, Clock, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,8 +24,6 @@ type Meeting = {
 
 type CalendarMode = 'MONTHLY' | 'YEARLY'
 
-const WEEKDAY_LABELS = ['Sat', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-const WEEKDAY_LABELS_MOBILE = ['Sa', 'Su', 'Mo', 'Tu', 'We', 'Th', 'Fr']
 const VISITS_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const MAX_AGENDA_ITEMS = 10
@@ -48,13 +46,6 @@ function addMonths(date: Date, months: number) {
   return clone
 }
 
-function isSameDay(a: Date, b: Date) {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  )
-}
 
 function formatDayKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
@@ -90,28 +81,6 @@ function getTypeClass(type: Meeting['type']) {
 }
 
 
-function getDayAccentClass(taskCount: number, meetingCount: number, isSelected: boolean, dayIsToday: boolean) {
-  if (isSelected) {
-    return 'border-sky-500 bg-gradient-to-br from-sky-100 via-white to-indigo-100 shadow-md ring-2 ring-sky-200 dark:from-sky-950/55 dark:via-card dark:to-indigo-950/45 dark:ring-sky-800/70'
-  }
-  if (taskCount > 0 && meetingCount > 0) {
-    return 'border-fuchsia-300 bg-gradient-to-br from-fuchsia-50 via-white to-sky-50 hover:border-fuchsia-400 dark:border-fuchsia-800/70 dark:from-fuchsia-950/35 dark:via-card dark:to-sky-950/30'
-  }
-  if (meetingCount > 0) {
-    return 'border-sky-300 bg-gradient-to-br from-sky-50 via-white to-cyan-50 hover:border-sky-400 dark:border-sky-800/70 dark:from-sky-950/35 dark:via-card dark:to-cyan-950/25'
-  }
-  if (taskCount > 0) {
-    return 'border-amber-300 bg-gradient-to-br from-amber-50 via-white to-orange-50 hover:border-amber-400 dark:border-amber-800/70 dark:from-amber-950/35 dark:via-card dark:to-orange-950/25'
-  }
-  if (dayIsToday) {
-    return 'border-emerald-300 bg-gradient-to-br from-emerald-50 via-white to-background hover:border-emerald-400 dark:border-emerald-800/70 dark:from-emerald-950/35 dark:via-card dark:to-background'
-  }
-  return 'border-border/70 bg-card hover:border-primary/30 hover:bg-muted/20'
-}
-
-function getMutedMonthClass(inCurrentMonth: boolean) {
-  return inCurrentMonth ? '' : 'opacity-45 grayscale'
-}
 
 function getEventClass(event: Meeting) {
   if (event.source === 'TASK') {
@@ -173,7 +142,6 @@ type SeniorCrmMeetingsViewProps = {
   subtitle?: string
   initialMyLeadsOnly?: boolean
   lockMyLeadsOnly?: boolean
-  useVisitsCalendarUi?: boolean
 }
 
 function toMeeting(item: MeetingsApiItem): Meeting {
@@ -212,7 +180,6 @@ export function SeniorCrmMeetingsView({
   subtitle = 'Calendar view for meetings and Senior CRM task deadlines.',
   initialMyLeadsOnly = true,
   lockMyLeadsOnly = false,
-  useVisitsCalendarUi = false,
 }: SeniorCrmMeetingsViewProps) {
   const router = useRouter()
   const today = useMemo(() => startOfDay(new Date()), [])
@@ -290,10 +257,6 @@ export function SeniorCrmMeetingsView({
     return grouped
   }, [meetings])
 
-  const monthDays = useMemo(
-    () => buildMonthGrid(focusDate.getFullYear(), focusDate.getMonth()),
-    [focusDate],
-  )
 
   const visitsCalendarDays = useMemo(() => {
     const firstDayOfMonth = new Date(focusDate.getFullYear(), focusDate.getMonth(), 1).getDay()
@@ -433,8 +396,7 @@ export function SeniorCrmMeetingsView({
                     <TabsTrigger value="YEARLY">Yearly</TabsTrigger>
                   </TabsList>
                 </Tabs>
-                <Badge variant="secondary" className="h-8 gap-1 px-3">
-                  <Sparkles className="size-3.5" />
+                <Badge variant="secondary" className="h-8 px-3">
                   {calendarMode === 'MONTHLY' ? monthMeetings.length : yearMeetings.length} items
                 </Badge>
                 {!lockMyLeadsOnly ? (
@@ -465,26 +427,7 @@ export function SeniorCrmMeetingsView({
 
                 {calendarMode === 'MONTHLY' ? (
                   <>
-                    {useVisitsCalendarUi ? null : (
-                      <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-                        <div className="rounded-xl border border-sky-200/70 bg-gradient-to-r from-sky-50 via-indigo-50 to-fuchsia-50 px-3 py-2 dark:border-sky-900/60 dark:from-sky-950/35 dark:via-indigo-950/30 dark:to-fuchsia-950/25">
-                          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-                            <span className="inline-flex items-center gap-1 rounded-full bg-sky-600 px-2 py-1 text-white shadow-sm">
-                              <CalendarCheck2 className="size-3.5" /> Meetings {monthMeetings.filter((event) => event.source === 'MEETING').length}
-                            </span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-1 text-white shadow-sm">
-                              Tasks {monthMeetings.filter((event) => event.source === 'TASK').length}
-                            </span>
-                            <span className="inline-flex items-center gap-1 rounded-full bg-fuchsia-600 px-2 py-1 text-white shadow-sm">
-                              Mixed days
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {useVisitsCalendarUi ? (
-                      <>
+                    <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                         <div className="mb-4 flex flex-row items-center justify-between gap-3">
                           <h3 className="text-lg font-semibold leading-none tracking-tight">{monthYearLabel}</h3>
                           <div className="flex gap-2">
@@ -621,74 +564,8 @@ export function SeniorCrmMeetingsView({
                                 )
                               })}
                         </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-7 gap-1 sm:gap-2">
-                          {WEEKDAY_LABELS.map((label, index) => (
-                            <div
-                              key={label}
-                              className="rounded-lg border border-slate-200 bg-slate-900 px-1 py-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-white shadow-sm dark:border-slate-700 dark:bg-slate-100 dark:text-slate-950 sm:px-2 sm:text-[11px]"
-                            >
-                              <span className="sm:hidden">{WEEKDAY_LABELS_MOBILE[index]}</span>
-                              <span className="hidden sm:inline">{label}</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="mt-2 grid min-h-0 flex-1 grid-cols-7 grid-rows-6 gap-1 sm:gap-2">
-                          {monthDays.map((day) => {
-                            const dayKey = formatDayKey(day)
-                            const inCurrentMonth = day.getMonth() === focusDate.getMonth()
-                            const dayEvents = meetingsByDay.get(dayKey) ?? []
-                            const taskCount = dayEvents.filter((event) => event.source === 'TASK').length
-                            const meetingCount = dayEvents.length - taskCount
-                            const dayIsToday = isSameDay(day, today)
-                            const isSelected = selectedDayKey === dayKey
-                            return (
-                              <button
-                                key={dayKey}
-                                type="button"
-                                onClick={() => setSelectedDayKey((current) => (current === dayKey ? null : dayKey))}
-                                className={`flex min-h-0 flex-col rounded-lg border p-1.5 text-left shadow-sm transition sm:rounded-xl sm:p-2 ${getDayAccentClass(
-                                  taskCount,
-                                  meetingCount,
-                                  isSelected,
-                                  dayIsToday,
-                                )} ${getMutedMonthClass(inCurrentMonth)}`}
-                              >
-                                <div className="mb-1 flex items-center justify-between gap-1">
-                                  <span
-                                    className={`flex size-6 items-center justify-center rounded-full text-xs font-black sm:size-7 sm:text-sm ${
-                                      dayIsToday
-                                        ? 'bg-emerald-600 text-white shadow-sm'
-                                        : inCurrentMonth
-                                          ? 'bg-white/80 text-slate-950 shadow-sm dark:bg-slate-950/70 dark:text-white'
-                                          : 'bg-muted text-muted-foreground'
-                                    }`}
-                                  >
-                                    {day.getDate()}
-                                  </span>
-                                </div>
-
-                                <div className="flex flex-wrap gap-1">
-                                  {meetingCount > 0 ? (
-                                    <span className="rounded-full bg-sky-600 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm sm:text-[10px]">
-                                      Meeting {meetingCount}
-                                    </span>
-                                  ) : null}
-                                  {taskCount > 0 ? (
-                                    <span className="rounded-full bg-amber-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm sm:text-[10px]">
-                                      Task {taskCount}
-                                    </span>
-                                  ) : null}
-                                </div>
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </>
-                    )}                  </>
+                    </div>
+                  </>
                 ) : (
                   <div className="min-h-0 flex-1 overflow-y-auto pr-1">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">

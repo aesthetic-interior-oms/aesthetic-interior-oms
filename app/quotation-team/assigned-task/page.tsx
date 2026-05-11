@@ -7,8 +7,10 @@ import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { toast } from '@/components/ui/sonner'
 import { Textarea } from '@/components/ui/textarea'
+import { uploadDirectBlobFile, type UploadedBlobFileMeta } from '@/lib/client-blob-upload'
 import {
   Dialog,
   DialogContent,
@@ -52,6 +54,7 @@ export default function QuotationAssignedTaskPage() {
   const [leads, setLeads] = useState<TaskLead[]>([])
   const [submitLead, setSubmitLead] = useState<TaskLead | null>(null)
   const [submitNote, setSubmitNote] = useState('')
+  const [submitFiles, setSubmitFiles] = useState<File[]>([])
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
@@ -105,6 +108,7 @@ export default function QuotationAssignedTaskPage() {
   const openSubmitDialog = (lead: TaskLead) => {
     setSubmitLead(lead)
     setSubmitNote('')
+    setSubmitFiles([])
   }
 
   const submitQuotationWork = async () => {
@@ -113,12 +117,27 @@ export default function QuotationAssignedTaskPage() {
       toast.error('Please describe the quotation work before submitting')
       return
     }
+    if (submitFiles.length === 0) {
+      toast.error('Please upload at least one attachment before submitting')
+      return
+    }
     setBusyId(submitLead.id)
     try {
+      const uploadedFiles: UploadedBlobFileMeta[] = []
+      for (const file of submitFiles) {
+        const uploaded = await uploadDirectBlobFile({
+          file,
+          context: 'cad-work',
+          ownerId: submitLead.id,
+          cadFileType: 'OTHERS',
+        })
+        uploadedFiles.push(uploaded)
+      }
+
       const response = await fetch(`/api/lead/${submitLead.id}/quotation-work/submit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note: submitNote.trim() }),
+        body: JSON.stringify({ note: submitNote.trim(), files: uploadedFiles }),
       })
       const payload = await response.json()
       if (!response.ok || !payload?.success) {
@@ -127,6 +146,7 @@ export default function QuotationAssignedTaskPage() {
       toast.success('Quotation submitted to Senior CRM Review Center')
       setSubmitLead(null)
       setSubmitNote('')
+      setSubmitFiles([])
       await loadTasks()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to submit quotation work')
@@ -235,6 +255,7 @@ export default function QuotationAssignedTaskPage() {
         if (!open) {
           setSubmitLead(null)
           setSubmitNote('')
+          setSubmitFiles([])
         }
       }}>
         <DialogContent>
@@ -252,11 +273,23 @@ export default function QuotationAssignedTaskPage() {
               onChange={(event) => setSubmitNote(event.target.value)}
               placeholder="Enter quotation amount, scope, inclusions/exclusions, file links, or any handoff notes for Senior CRM..."
             />
+            <Input
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.txt,.rtf,.odt,.xls,.xlsx,.csv,.ppt,.pptx,.zip"
+              onChange={(event) => setSubmitFiles(Array.from(event.target.files ?? []))}
+            />
+            <p className="text-xs text-muted-foreground">
+              {submitFiles.length === 0
+                ? 'Upload one or more files (PDF, Word, Google-exported docs, or other supporting files).'
+                : `${submitFiles.length} file(s) selected`}
+            </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" disabled={Boolean(busyId)} onClick={() => {
               setSubmitLead(null)
               setSubmitNote('')
+              setSubmitFiles([])
             }}>
               Cancel
             </Button>
