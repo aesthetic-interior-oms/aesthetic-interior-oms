@@ -55,6 +55,7 @@ export default function QuotationTeamMyWorkPage() {
   const [submitLead, setSubmitLead] = useState<TaskLead | null>(null);
   const [submitNote, setSubmitNote] = useState("");
   const [submitFiles, setSubmitFiles] = useState<File[]>([]);
+  const [submitQuotationFileType, setSubmitQuotationFileType] = useState<"PREMIUM" | "STANDARD" | "BASIC" | "ALL">("ALL");
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const loadTasks = useCallback(async () => {
@@ -128,6 +129,7 @@ export default function QuotationTeamMyWorkPage() {
     setSubmitLead(lead);
     setSubmitNote("");
     setSubmitFiles([]);
+    setSubmitQuotationFileType("ALL");
   };
 
   const submitQuotationWork = async () => {
@@ -139,9 +141,9 @@ export default function QuotationTeamMyWorkPage() {
       for (const file of submitFiles) {
         const uploaded = await uploadDirectBlobFile({
           file,
-          context: "cad-work",
+          context: "quotation-work",
           ownerId: submitLead.id,
-          cadFileType: "OTHERS",
+          quotationFileType: submitQuotationFileType,
         });
         uploadedFiles.push(uploaded);
       }
@@ -165,6 +167,7 @@ export default function QuotationTeamMyWorkPage() {
       setSubmitLead(null);
       setSubmitNote("");
       setSubmitFiles([]);
+    setSubmitQuotationFileType("ALL");
       await loadTasks();
     } catch (error) {
       toast.error(
@@ -313,6 +316,19 @@ export default function QuotationTeamMyWorkPage() {
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">Attachments (optional)</p>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Choose quotation file type first</p>
+              <select
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={submitQuotationFileType}
+                onChange={(event) => setSubmitQuotationFileType(event.target.value as "PREMIUM" | "STANDARD" | "BASIC" | "ALL")}
+              >
+                <option value="PREMIUM">Premium</option>
+                <option value="STANDARD">Standard</option>
+                <option value="BASIC">Basic</option>
+                <option value="ALL">All</option>
+              </select>
+            </div>
             <Input
               type="file"
               multiple
@@ -324,7 +340,7 @@ export default function QuotationTeamMyWorkPage() {
             {submitFiles.length > 0 ? (
               <ul className="space-y-1 text-xs text-muted-foreground">
                 {submitFiles.map((file) => (
-                  <li key={`${file.name}-${file.size}`}>{file.name}</li>
+                  <li key={`${file.name}-${file.size}`}>{file.name} <span className="font-medium">({submitQuotationFileType})</span></li>
                 ))}
               </ul>
             ) : null}
@@ -338,6 +354,7 @@ export default function QuotationTeamMyWorkPage() {
                 setSubmitLead(null);
                 setSubmitNote("");
                 setSubmitFiles([]);
+    setSubmitQuotationFileType("ALL");
               }}
             >
               Cancel
