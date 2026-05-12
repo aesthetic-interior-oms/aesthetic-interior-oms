@@ -1,7 +1,7 @@
 import { upload } from '@vercel/blob/client'
 import { DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
 
-export type ClientBlobUploadContext = 'cad-work' | 'visit-result' | 'visit-support-result' | 'lead-attachment'
+export type ClientBlobUploadContext = 'cad-work' | 'quotation-work' | 'visit-result' | 'visit-support-result' | 'lead-attachment'
 
 export type UploadedBlobFileMeta = {
   url: string
@@ -15,6 +15,7 @@ type UploadDirectBlobInput = {
   context: ClientBlobUploadContext
   ownerId: string
   cadFileType?: string
+  quotationFileType?: 'PREMIUM' | 'STANDARD' | 'BASIC' | 'ALL'
   onProgress?: (percentage: number) => void
 }
 
@@ -26,6 +27,8 @@ function getPathPrefix(context: ClientBlobUploadContext): string {
   switch (context) {
     case 'cad-work':
       return 'cad-work-submissions'
+    case 'quotation-work':
+      return 'quotation-work-submissions'
     case 'visit-result':
       return 'visit-results'
     case 'visit-support-result':
@@ -40,6 +43,7 @@ export async function uploadDirectBlobFile({
   context,
   ownerId,
   cadFileType,
+  quotationFileType,
   onProgress,
 }: UploadDirectBlobInput): Promise<UploadedBlobFileMeta> {
   if (file.size > DIRECT_BLOB_UPLOAD_MAX_BYTES) {
@@ -62,6 +66,7 @@ export async function uploadDirectBlobFile({
       fileType: file.type || 'application/octet-stream',
       sizeBytes: file.size,
       cadFileType,
+      quotationFileType,
     }),
     contentType: file.type || 'application/octet-stream',
     multipart: file.size > 8 * 1024 * 1024,

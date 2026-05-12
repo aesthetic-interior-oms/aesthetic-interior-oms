@@ -18,6 +18,7 @@ type ClientUploadPayload = {
   fileType?: string
   sizeBytes?: number
   cadFileType?: string
+  quotationFileType?: string
 }
 
 function parseClientPayload(value: string | null): ClientUploadPayload {
@@ -28,6 +29,16 @@ function parseClientPayload(value: string | null): ClientUploadPayload {
   } catch {
     return {}
   }
+}
+
+
+
+const QUOTATION_FILE_TYPES = new Set(['PREMIUM', 'STANDARD', 'BASIC', 'ALL'])
+
+function getQuotationFileType(payload: ClientUploadPayload): string {
+  const value = typeof payload.quotationFileType === 'string' ? payload.quotationFileType.trim().toUpperCase() : ''
+  if (!QUOTATION_FILE_TYPES.has(value)) throw new Error('INVALID_QUOTATION_FILE_TYPE')
+  return value
 }
 
 function assertPathnameScope(pathname: string, prefix: string, ownerId: string) {
@@ -88,8 +99,9 @@ async function authorizeCadUpload(input: {
   const isAdmin = input.actorDepartments.has('ADMIN')
   const isSeniorCrm = input.actorDepartments.has('SR_CRM')
   const isJrArchitect = input.actorDepartments.has('JR_ARCHITECT')
-  const isVisualizer = input.actorDepartments.has('VISUALIZER_3D')
-  if (!isAdmin && !isSeniorCrm && !isJrArchitect && !isVisualizer) throw new Error('FORBIDDEN')
+  const isVisualizer = input.actorDepartments.has('3D_VISUALIZER')
+  const isQuotation = input.actorDepartments.has('QUOTATION_TEAM')
+  if (!isAdmin && !isSeniorCrm && !isJrArchitect && !isVisualizer && !isQuotation) throw new Error('FORBIDDEN')
 
   const lead = await prisma.lead.findFirst({
     where: {
@@ -101,7 +113,11 @@ async function authorizeCadUpload(input: {
               some: {
                 userId: input.actorUserId,
                 department: {
-                  in: [LeadAssignmentDepartment.JR_ARCHITECT, LeadAssignmentDepartment.VISUALIZER_3D],
+                  in: [
+                    LeadAssignmentDepartment.JR_ARCHITECT,
+                    LeadAssignmentDepartment.VISUALIZER_3D,
+                    LeadAssignmentDepartment.QUOTATION,
+                  ],
                 },
               },
             },
@@ -110,9 +126,47 @@ async function authorizeCadUpload(input: {
     select: { id: true, stage: true, subStatus: true },
   })
   if (!lead) throw new Error('LEAD_NOT_FOUND')
-  if (!(lead.stage === LeadStage.CAD_PHASE && lead.subStatus === LeadSubStatus.CAD_WORKING)) {
+
+  const isCadFlow = lead.stage === LeadStage.CAD_PHASE && lead.subStatus === LeadSubStatus.CAD_WORKING
+  if (!isCadFlow) {
     throw new Error('WORK_NOT_STARTED')
   }
+}
+
+async function authorizeQuotationUpload(input: {
+  actorUserId: string
+  actorDepartments: Set<string>
+  ownerId: string
+  pathname: string
+  payload: ClientUploadPayload
+}) {
+  assertPathnameScope(input.pathname, 'quotation-work-submissions', input.ownerId)
+  getQuotationFileType(input.payload)
+
+  const isAdmin = input.actorDepartments.has('ADMIN')
+  const isSeniorCrm = input.actorDepartments.has('SR_CRM')
+  const isQuotation = input.actorDepartments.has('QUOTATION_TEAM')
+  if (!isAdmin && !isSeniorCrm && !isQuotation) throw new Error('FORBIDDEN')
+
+  const lead = await prisma.lead.findFirst({
+    where: {
+      id: input.ownerId,
+      stage: LeadStage.QUOTATION_PHASE,
+      subStatus: LeadSubStatus.QUOTATION_WORKING,
+      ...(isAdmin || isSeniorCrm
+        ? {}
+        : {
+            assignments: {
+              some: {
+                userId: input.actorUserId,
+                department: LeadAssignmentDepartment.QUOTATION,
+              },
+            },
+          }),
+    },
+    select: { id: true },
+  })
+  if (!lead) throw new Error('LEAD_NOT_FOUND_OR_NOT_WORKING')
 }
 
 async function authorizeVisitUpload(input: {
@@ -182,6 +236,14 @@ export async function POST(request: NextRequest) {
         const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
         if (context === 'cad-work') {
           await authorizeCadUpload({
+            actorUserId: authResult.actorUserId,
+            actorDepartments,
+            ownerId,
+            pathname,
+            payload,
+          })
+        } else if (context === 'quotation-work') {
+          await authorizeQuotationUpload({
             actorUserId: authResult.actorUserId,
             actorDepartments,
             ownerId,
