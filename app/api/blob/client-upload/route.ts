@@ -115,8 +115,8 @@ async function authorizeCadUpload(input: {
                 department: {
                   in: [
                     LeadAssignmentDepartment.JR_ARCHITECT,
-                    '3D_VISUALIZER',
-                    'QUOTATION_TEAM',
+                    LeadAssignmentDepartment.VISUALIZER_3D,
+                    LeadAssignmentDepartment.QUOTATION,
                   ],
                 },
               },
@@ -159,7 +159,7 @@ async function authorizeQuotationUpload(input: {
             assignments: {
               some: {
                 userId: input.actorUserId,
-                department: 'QUOTATION_TEAM',
+                department: LeadAssignmentDepartment.QUOTATION,
               },
             },
           }),
