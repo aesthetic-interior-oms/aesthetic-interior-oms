@@ -59,6 +59,16 @@ export async function GET(request: Request) {
           },
           take: 1,
         },
+        attachments: {
+          select: {
+            id: true,
+            fileName: true,
+            url: true,
+            fileType: true,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 8,
+        },
         meetingEvents: {
           where: { type: 'FIRST_MEETING' },
           select: {
@@ -87,6 +97,7 @@ export async function GET(request: Request) {
         budget: lead.budget,
         quotationAssignee: lead.assignments[0]?.user ?? null,
         latestFirstMeeting: lead.meetingEvents[0] ?? null,
+        attachments: lead.attachments,
         canStart:
           lead.stage === LeadStage.QUOTATION_PHASE &&
           (lead.subStatus === LeadSubStatus.QUOTATION_ASSIGNED ||
