@@ -42,7 +42,7 @@ export default async function JrArchitectureLayout({
     user.userDepartments.map((row) => row.department.name),
   );
 
-  if (departmentNames.has("VISUALIZER_3D")) {
+  if (departmentNames.has("VISUALIZER_3D") || departmentNames.has("3D_VISUALIZER")) {
     return <MainLayout role="3D Visualizer">{children}</MainLayout>;
   }
 

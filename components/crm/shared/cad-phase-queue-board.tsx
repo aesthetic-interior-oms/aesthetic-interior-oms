@@ -244,7 +244,7 @@ export function CadPhaseQueueBoard({
 
   const openReassignQuotation = async (lead: LeadRecord) => {
     if (!lead.canReassignQuotation) {
-      toast.error('Quotation reassignment is only available during quotation assigned/working.')
+      toast.error('Quotation reassignment is only available during quotation phase.')
       return
     }
     setActiveLead(lead)
@@ -256,7 +256,7 @@ export function CadPhaseQueueBoard({
   const submitReassignQuotation = async () => {
     if (!activeLead || !quotationMemberId) return
     if (!activeLead.canReassignQuotation) {
-      toast.error('Quotation reassignment is only available during quotation assigned/working.')
+      toast.error('Quotation reassignment is only available during quotation phase.')
       return
     }
     setSaving(true)
@@ -598,17 +598,24 @@ export function CadPhaseQueueBoard({
                           </Button>
                         ) : null
                       ) : isBudgetQueue ? (
-                        lead.stage === 'QUOTATION_PHASE' && lead.subStatus === 'QUOTATION_APPROVED' ? (
-                          <Button size="sm" onClick={() => openBudgetMeetingDialog(lead)}>
-                            <CalendarClock className="mr-1 h-4 w-4" />
-                            Set Budget Meeting
-                          </Button>
-                        ) : lead.stage === 'BUDGET_PHASE' && lead.subStatus === 'BUDGET_MEETING_SET' ? (
-                          <Button size="sm" onClick={() => void openCompleteMeetingDialog(lead)}>
-                            <CalendarClock className="mr-1 h-4 w-4" />
-                            Complete Meeting
-                          </Button>
-                        ) : null
+                        <>
+                          {lead.stage === 'QUOTATION_PHASE' && lead.canReassignQuotation ? (
+                            <Button size="sm" variant="outline" onClick={() => void openReassignQuotation(lead)}>
+                              Reassign Quotation
+                            </Button>
+                          ) : null}
+                          {lead.stage === 'QUOTATION_PHASE' && lead.subStatus === 'QUOTATION_APPROVED' ? (
+                            <Button size="sm" onClick={() => openBudgetMeetingDialog(lead)}>
+                              <CalendarClock className="mr-1 h-4 w-4" />
+                              Set Budget Meeting
+                            </Button>
+                          ) : lead.stage === 'BUDGET_PHASE' && lead.subStatus === 'BUDGET_MEETING_SET' ? (
+                            <Button size="sm" onClick={() => void openCompleteMeetingDialog(lead)}>
+                              <CalendarClock className="mr-1 h-4 w-4" />
+                              Complete Meeting
+                            </Button>
+                          ) : null}
+                        </>
                       ) : null}
                       {!isMeetingQueue && !isBudgetQueue ? (
                         <Button size="sm" variant="destructive" onClick={() => openDropDialog(lead)}>

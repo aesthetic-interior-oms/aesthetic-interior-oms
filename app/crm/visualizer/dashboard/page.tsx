@@ -28,7 +28,9 @@ export default async function JrArchitectureDashboardPage() {
 
   if (!user || user.userDepartments.length === 0) redirect('/onboarding')
 
-  const isJrArchitect = user.userDepartments.some((row) => row.department.name === 'VISUALIZER_3D')
+  const isJrArchitect = user.userDepartments.some(
+    (row) => row.department.name === 'VISUALIZER_3D' || row.department.name === '3D_VISUALIZER',
+  )
   if (!isJrArchitect) redirect('/')
 
   const [openCadTasks, reviewCadTasks, overdueCadTasks, recentLeads] = await Promise.all([

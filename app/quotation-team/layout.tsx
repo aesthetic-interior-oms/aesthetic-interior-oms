@@ -69,7 +69,7 @@ export default async function QuotationTeamLayout({
     redirect(VISIT_DASHBOARD)
   }
 
-  if (departmentNames.has('VISUALIZER_3D')) {
+  if (departmentNames.has('VISUALIZER_3D') || departmentNames.has('3D_VISUALIZER')) {
     redirect(VISUALIZER_DASHBOARD)
   }
   redirect('/')
