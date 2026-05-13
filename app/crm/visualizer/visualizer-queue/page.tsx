@@ -26,7 +26,8 @@ export default async function VisualizerQueuePage() {
   const canAccessQueue =
     departmentNames.has('ADMIN') ||
     departmentNames.has('SR_CRM') ||
-    departmentNames.has('VISUALIZER_3D')
+    departmentNames.has('VISUALIZER_3D') ||
+    departmentNames.has('3D_VISUALIZER')
 
   if (!canAccessQueue) {
     redirect('/crm/visualizer/dashboard')

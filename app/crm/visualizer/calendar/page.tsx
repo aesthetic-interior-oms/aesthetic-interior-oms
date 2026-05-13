@@ -34,7 +34,9 @@ export default async function JrArchitectureCalendarPage() {
 
   if (!user || user.userDepartments.length === 0) redirect('/onboarding')
 
-  const isJrArchitect = user.userDepartments.some((row) => row.department.name === 'VISUALIZER_3D')
+  const isJrArchitect = user.userDepartments.some(
+    (row) => row.department.name === 'VISUALIZER_3D' || row.department.name === '3D_VISUALIZER',
+  )
   if (!isJrArchitect) redirect('/')
 
   const roleNames = user.userRoles.map((entry) => entry.role?.name ?? '').filter(Boolean)
