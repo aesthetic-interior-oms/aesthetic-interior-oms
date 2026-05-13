@@ -174,9 +174,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
       label: 'Workflow',
       defaultOpen: true,
       items: [
-        { icon: ClipboardList, label: 'Visit Queue', href: '/crm/visualizer/queue' },
-        { icon: ClipboardList, label: 'Visualizer Queue', href: '/crm/visualizer/visualizer-queue' },
-        { icon: Users, label: 'Assigned Work', href: '/crm/visualizer/leads' },
+        { icon: ListTodo, label: 'Assigned Task', href: '/crm/visualizer/assigned-task' },
         { icon: ListTodo, label: 'My Work', href: '/crm/visualizer/my-work' },
       ],
     },
