@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma'
 import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/prisma/client'
 import { requireDatabaseRoles } from '@/lib/authz'
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) return authResult.response
@@ -22,6 +22,9 @@ export async function GET() {
       )
     }
 
+    const { searchParams } = new URL(request.url)
+    const includeHistory = searchParams.get('includeHistory') === '1'
+
     const leads = await prisma.lead.findMany({
       where: {
         assignments: {
@@ -30,6 +33,13 @@ export async function GET() {
             userId: authResult.actorUserId,
           },
         },
+        ...(includeHistory
+          ? {}
+          : {
+              NOT: {
+                AND: [{ stage: LeadStage.QUOTATION_PHASE }, { subStatus: LeadSubStatus.QUOTATION_APPROVED }],
+              },
+            }),
       },
       select: {
         id: true,

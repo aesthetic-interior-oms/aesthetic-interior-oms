@@ -61,7 +61,7 @@ export default function QuotationTeamMyWorkPage() {
   const loadTasks = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch("/api/quotation/assigned-tasks", {
+      const response = await fetch("/api/quotation/assigned-tasks?includeHistory=1", {
         cache: "no-store",
       });
       const payload = await response.json();
