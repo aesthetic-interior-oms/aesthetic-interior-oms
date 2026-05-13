@@ -223,10 +223,7 @@ export async function GET(request: NextRequest) {
               lead.stage === LeadStage.QUOTATION_PHASE
             ),
           canReassignQuotation:
-            lead.stage === LeadStage.QUOTATION_PHASE &&
-            (lead.subStatus === LeadSubStatus.QUOTATION_ASSIGNED ||
-              lead.subStatus === LeadSubStatus.QUOTATION_WORKING ||
-              lead.subStatus === LeadSubStatus.QUOTATION_CORRECTION),
+            lead.stage === LeadStage.QUOTATION_PHASE,
         }
       }),
     })
