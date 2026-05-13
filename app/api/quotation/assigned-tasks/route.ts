@@ -64,7 +64,7 @@ export async function GET(request: Request) {
             id: true,
             fileName: true,
             url: true,
-            mimeType: true,
+            fileType: true,
           },
           orderBy: { createdAt: 'desc' },
           take: 8,

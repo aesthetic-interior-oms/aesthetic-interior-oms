@@ -40,7 +40,7 @@ type TaskLead = {
     id: string;
     fileName: string;
     url: string;
-    mimeType: string | null;
+    fileType: string | null;
   }>;
 };
 
