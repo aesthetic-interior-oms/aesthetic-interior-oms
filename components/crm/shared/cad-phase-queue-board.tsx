@@ -118,6 +118,7 @@ export function CadPhaseQueueBoard({
   const [completeMeetingOpen, setCompleteMeetingOpen] = useState(false)
   const [completeMeetingLead, setCompleteMeetingLead] = useState<LeadRecord | null>(null)
   const [completeMeetingNote, setCompleteMeetingNote] = useState('')
+  const [clientApproval, setClientApproval] = useState<'DESIGN_AGREEMENT' | 'FITOUT_AGREEMENT' | 'NO_APPROVAL'>('NO_APPROVAL')
   const [quotationMembers, setQuotationMembers] = useState<DepartmentUser[]>([])
   const [quotationMemberId, setQuotationMemberId] = useState('')
   const [loadingQuotationMembers, setLoadingQuotationMembers] = useState(false)
@@ -353,8 +354,11 @@ export function CadPhaseQueueBoard({
     setCompleteMeetingLead(lead)
     setCompleteMeetingNote('')
     setQuotationMemberId('')
+    setClientApproval('NO_APPROVAL')
     setCompleteMeetingOpen(true)
-    await loadQuotationMembers()
+    if (lead.stage === 'DISCOVERY' && lead.subStatus === 'FIRST_MEETING_SET') {
+      await loadQuotationMembers()
+    }
   }
 
   const openDropDialog = (lead: LeadRecord) => {
@@ -419,25 +423,53 @@ export function CadPhaseQueueBoard({
 
   const submitCompleteMeeting = async () => {
     if (!completeMeetingLead) return
-    if (!quotationMemberId) {
-      toast.error('Select a quotation member to complete meeting')
-      return
-    }
     setSaving(true)
     try {
-      const response = await fetch(`/api/lead/${completeMeetingLead.id}/meetings/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          note: completeMeetingNote.trim() || null,
-          quotationMemberId: quotationMemberId || null,
-        }),
-      })
-      const payload = await response.json()
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error ?? 'Failed to complete first meeting')
+      if (completeMeetingLead.stage === 'DISCOVERY' && completeMeetingLead.subStatus === 'FIRST_MEETING_SET') {
+        if (!quotationMemberId) {
+          toast.error('Select a quotation member to complete meeting')
+          return
+        }
+        const response = await fetch(`/api/lead/${completeMeetingLead.id}/meetings/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            note: completeMeetingNote.trim() || null,
+            quotationMemberId: quotationMemberId || null,
+          }),
+        })
+        const payload = await response.json()
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error ?? 'Failed to complete first meeting')
+        }
+        toast.success(payload?.message ?? 'First meeting completed')
+      } else if (completeMeetingLead.stage === 'BUDGET_PHASE' && completeMeetingLead.subStatus === 'BUDGET_MEETING_SET') {
+        const nextSubStatus =
+          clientApproval === 'DESIGN_AGREEMENT'
+            ? 'CLIENT_CONFIRMED'
+            : clientApproval === 'FITOUT_AGREEMENT'
+              ? 'CLIENT_CONFIRMED'
+              : 'REJECTED_OFFER'
+        const response = await fetch(`/api/lead/${completeMeetingLead.id}/stage`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stage: clientApproval === 'NO_APPROVAL' ? 'BUDGET_PHASE' : 'CONVERSION',
+            subStatus: nextSubStatus,
+            reason:
+              clientApproval === 'NO_APPROVAL'
+                ? `Budget meeting completed: no approval. ${completeMeetingNote.trim()}`
+                : `Budget meeting completed with ${clientApproval.replace('_', ' ').toLowerCase()}. ${completeMeetingNote.trim()}`,
+          }),
+        })
+        const payload = await response.json()
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error ?? 'Failed to complete budget meeting')
+        }
+        toast.success('Budget meeting completed')
+      } else {
+        throw new Error('This lead is not eligible for meeting completion')
       }
-      toast.success(payload?.message ?? 'First meeting completed')
       setCompleteMeetingOpen(false)
       setCompleteMeetingLead(null)
       await loadLeads()
@@ -570,6 +602,11 @@ export function CadPhaseQueueBoard({
                           <Button size="sm" onClick={() => openBudgetMeetingDialog(lead)}>
                             <CalendarClock className="mr-1 h-4 w-4" />
                             Set Budget Meeting
+                          </Button>
+                        ) : lead.stage === 'BUDGET_PHASE' && lead.subStatus === 'BUDGET_MEETING_SET' ? (
+                          <Button size="sm" onClick={() => void openCompleteMeetingDialog(lead)}>
+                            <CalendarClock className="mr-1 h-4 w-4" />
+                            Complete Meeting
                           </Button>
                         ) : null
                       ) : null}
@@ -795,35 +832,53 @@ export function CadPhaseQueueBoard({
       <Dialog open={completeMeetingOpen} onOpenChange={setCompleteMeetingOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Complete First Meeting</DialogTitle>
+            <DialogTitle>{completeMeetingLead?.stage === 'BUDGET_PHASE' ? 'Complete Budget Meeting' : 'Complete First Meeting'}</DialogTitle>
             <DialogDescription>
-              Complete first meeting and optionally assign quotation member.
+              {completeMeetingLead?.stage === 'BUDGET_PHASE'
+                ? 'Complete budget meeting and select client approval.'
+                : 'Complete first meeting and assign quotation member.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1">
-              <Label>Quotation Member</Label>
-              <Select value={quotationMemberId} onValueChange={setQuotationMemberId}>
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      loadingQuotationMembers
-                        ? 'Loading members...'
-                        : quotationMembers.length === 0
-                          ? 'No quotation members available'
-                          : 'Select quotation member'
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {quotationMembers.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {completeMeetingLead?.stage === 'BUDGET_PHASE' ? (
+              <div className="space-y-1">
+                <Label>Client Approval</Label>
+                <Select value={clientApproval} onValueChange={(value) => setClientApproval(value as 'DESIGN_AGREEMENT' | 'FITOUT_AGREEMENT' | 'NO_APPROVAL')}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select approval" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DESIGN_AGREEMENT">Design Agreement</SelectItem>
+                    <SelectItem value="FITOUT_AGREEMENT">Fitout Agreement</SelectItem>
+                    <SelectItem value="NO_APPROVAL">No Approval</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Label>Quotation Member</Label>
+                <Select value={quotationMemberId} onValueChange={setQuotationMemberId}>
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        loadingQuotationMembers
+                          ? 'Loading members...'
+                          : quotationMembers.length === 0
+                            ? 'No quotation members available'
+                            : 'Select quotation member'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {quotationMembers.map((member) => (
+                      <SelectItem key={member.id} value={member.id}>
+                        {member.fullName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1">
               <Label>Note (optional)</Label>
               <Textarea rows={3} value={completeMeetingNote} onChange={(event) => setCompleteMeetingNote(event.target.value)} />
