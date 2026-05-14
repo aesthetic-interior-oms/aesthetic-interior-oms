@@ -15,6 +15,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { toast } from '@/components/ui/sonner'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 type VisualizerTaskLead = {
   id: string
@@ -48,6 +56,7 @@ export default function VisualizerAssignedTaskPage() {
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [leads, setLeads] = useState<VisualizerTaskLead[]>([])
+  const [startWorkLead, setStartWorkLead] = useState<VisualizerTaskLead | null>(null)
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
@@ -92,11 +101,12 @@ export default function VisualizerAssignedTaskPage() {
     [leads],
   )
 
-  const startWork = async (leadId: string) => {
-    setBusyId(leadId)
+  const startWork = async () => {
+    if (!startWorkLead) return
+    setBusyId(startWorkLead.id)
     try {
       const response = await fetch(
-        `/api/lead/${leadId}/visualizer-work/start`,
+        `/api/lead/${startWorkLead.id}/visualizer-work/start`,
         { method: 'POST' },
       )
       const payload = await response.json()
@@ -104,6 +114,7 @@ export default function VisualizerAssignedTaskPage() {
         throw new Error(payload?.error ?? 'Failed to start visualization work')
       }
       toast.success('Visualization work started')
+      setStartWorkLead(null)
       await loadTasks()
     } catch (error) {
       toast.error(
@@ -170,23 +181,27 @@ export default function VisualizerAssignedTaskPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={busyId === lead.id || !lead.canStart}
-                        onClick={() => startWork(lead.id)}
-                      >
-                        Start Work
-                      </Button>
                       {lead.canOpenWorkspace ? (
                         <Button asChild size="sm">
                           <Link href={`/crm/visualizer/leads/${lead.id}`}>
-                            Workspace
+                            Submit Data
                           </Link>
                         </Button>
                       ) : (
-                        <Button size="sm" disabled>
-                          Workspace
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={busyId === lead.id || !lead.canStart}
+                          onClick={() => setStartWorkLead(lead)}
+                        >
+                          {busyId === lead.id ? (
+                            <>
+                              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                              Starting...
+                            </>
+                          ) : (
+                            'Start Work'
+                          )}
                         </Button>
                       )}
                     </div>
@@ -250,6 +265,45 @@ export default function VisualizerAssignedTaskPage() {
           </div>
         )}
       </main>
+
+      <Dialog
+        open={Boolean(startWorkLead)}
+        onOpenChange={(open) => {
+          if (busyId) return
+          if (!open) setStartWorkLead(null)
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Start 3D Visualization Work?</DialogTitle>
+            <DialogDescription>
+              {startWorkLead
+                ? `Confirm starting work for ${startWorkLead.name}. This will update the lead substatus to Visual Working and unlock its attachments.`
+                : 'This action will update the lead substatus to Visual Working and unlock its attachments.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStartWorkLead(null)}
+              disabled={Boolean(busyId)}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={startWork} disabled={Boolean(busyId) || !startWorkLead}>
+              {busyId ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Yes, Start Work'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
