@@ -136,6 +136,9 @@ function isImageAttachment(attachment: LeadAttachmentPreview): boolean {
 }
 
 function canShowQuickPreview(lead: LeadSummary): boolean {
+  if (lead.stage === 'VISUALIZATION_PHASE') {
+    return lead.subStatus === 'VISUAL_WORKING' || lead.subStatus === 'VISUAL_COMPLETED'
+  }
   if (lead.stage !== 'CAD_PHASE') return false
   return lead.subStatus === 'CAD_WORKING' || lead.subStatus === 'CAD_COMPLETED' || lead.subStatus === 'CAD_APPROVED'
 }
@@ -205,7 +208,7 @@ export default function JrArchLeadsPage() {
         offset: offset.toString(),
         includeAttachmentPreview: '1',
         includeCadCorrectionFlag: '1',
-        stage: 'CAD_PHASE',
+        stage: 'VISUALIZATION_PHASE',
       })
       if (search) params.set('search', search)
 
@@ -257,12 +260,8 @@ export default function JrArchLeadsPage() {
     if (!startWorkLead) return
     setStartingWork(true)
     try {
-      const response = await fetch(`/api/lead/${startWorkLead.id}/cad-work/start`, {
+      const response = await fetch(`/api/lead/${startWorkLead.id}/visualizer-work/start`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reason: 'Started from 3D Visualizer assigned lead list',
-        }),
       })
       const payload = (await response.json()) as { success?: boolean; message?: string; error?: string }
       if (!response.ok || !payload.success) {
@@ -392,7 +391,7 @@ export default function JrArchLeadsPage() {
     <div className="min-h-screen bg-background">
       <CrmPageHeader
         title="Assigned Work"
-        subtitle="CAD phase leads assigned to you. Start, continue, and submit architectural work."
+        subtitle="3D visualization leads assigned to you. Start work to unlock lead attachments, then submit data from the workspace."
       />
       <main className="mx-auto max-w-[1440px] px-4 py-6">
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
@@ -415,7 +414,7 @@ export default function JrArchLeadsPage() {
           </div>
         ) : leads.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            No active CAD leads found.
+            No active 3D visualization leads found.
           </div>
         ) : (
           <div className="space-y-4">
@@ -522,6 +521,14 @@ export default function JrArchLeadsPage() {
                     </div>
 
                     <div className="flex shrink-0 flex-wrap items-center gap-2 lg:flex-col lg:items-end">
+                      {lead.stage === 'VISUALIZATION_PHASE' && lead.subStatus === 'VISUAL_WORKING' ? (
+                        <Button asChild variant="default" size="sm">
+                          <Link href={getLeadHref(lead.id)}>
+                            <Upload className="mr-1 h-4 w-4" />
+                            Submit Data
+                          </Link>
+                        </Button>
+                      ) : null}
                       {lead.stage === 'CAD_PHASE' && lead.subStatus === 'CAD_WORKING' ? (
                         <Button
                           variant="default"
@@ -542,6 +549,12 @@ export default function JrArchLeadsPage() {
                           )}
                         </Button>
                       ) : null}
+                      {lead.stage === 'VISUALIZATION_PHASE' && lead.subStatus === 'VISUAL_COMPLETED' ? (
+                        <Button variant="secondary" size="sm" disabled>
+                          <Upload className="mr-1 h-4 w-4" />
+                          Data Submitted
+                        </Button>
+                      ) : null}
                       {lead.stage === 'CAD_PHASE' &&
                       (lead.subStatus === 'CAD_COMPLETED' || lead.subStatus === 'CAD_APPROVED') ? (
                         <Button variant="secondary" size="sm" disabled>
@@ -552,35 +565,27 @@ export default function JrArchLeadsPage() {
                       <Button asChild size="sm">
                         <Link href={getLeadHref(lead.id)}>Workspace</Link>
                       </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={
-                          (startingWork && startWorkLead?.id === lead.id) ||
-                          (lead.stage === 'CAD_PHASE' &&
-                            (lead.subStatus === 'CAD_WORKING' ||
-                              lead.subStatus === 'CAD_COMPLETED' ||
-                              lead.subStatus === 'CAD_APPROVED'))
-                        }
-                        onClick={() => openStartWorkDialog(lead)}
-                      >
-                        {startingWork && startWorkLead?.id === lead.id ? (
-                          <>
-                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                            Starting...
-                          </>
-                        ) : lead.stage === 'CAD_PHASE' &&
-                          (lead.subStatus === 'CAD_WORKING' ||
-                            lead.subStatus === 'CAD_COMPLETED' ||
-                            lead.subStatus === 'CAD_APPROVED') ? (
-                          'Work Started'
-                        ) : (
-                          <>
-                            <Play className="mr-1 h-4 w-4" />
-                            Start Work
-                          </>
-                        )}
-                      </Button>
+                      {lead.stage === 'VISUALIZATION_PHASE' &&
+                      (lead.subStatus === 'VISUAL_ASSIGNED' || lead.subStatus === 'VISUAL_CORRECTION') ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={startingWork && startWorkLead?.id === lead.id}
+                          onClick={() => openStartWorkDialog(lead)}
+                        >
+                          {startingWork && startWorkLead?.id === lead.id ? (
+                            <>
+                              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                              Starting...
+                            </>
+                          ) : (
+                            <>
+                              <Play className="mr-1 h-4 w-4" />
+                              Start Work
+                            </>
+                          )}
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 </CardContent>
@@ -601,11 +606,11 @@ export default function JrArchLeadsPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Start CAD Work?</DialogTitle>
+            <DialogTitle>Start 3D Visualization Work?</DialogTitle>
             <DialogDescription>
               {startWorkLead
-                ? `Confirm starting work for ${startWorkLead.name}. This will update the lead to CAD Phase -> CAD Working.`
-                : 'This action will update the lead to CAD Working.'}
+                ? `Confirm starting work for ${startWorkLead.name}. This will update the lead substatus to Visual Working and unlock its attachments.`
+                : 'This action will update the lead substatus to Visual Working and unlock its attachments.'}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

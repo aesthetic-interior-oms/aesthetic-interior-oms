@@ -23,7 +23,7 @@ type LeadAttachment = {
 
 type VisitResult = {
   summary: string
-  measurements: any
+  measurements: unknown
   clientPotentiality: string | null
   budgetRange: string | null
   stylePreference: string | null
@@ -37,6 +37,47 @@ type Visit = {
   result?: VisitResult | null
 }
 
+type LeadNote = {
+  id: string
+  content: string
+  createdAt: string
+  user: {
+    id: string
+    fullName: string
+    email: string
+  }
+  lead: {
+    id: string
+    name: string
+    email: string
+  }
+}
+
+type LeadDetails = {
+  id: string
+  name: string
+  location: string | null
+  stage: string
+  subStatus: string | null
+  attachments?: LeadAttachment[]
+  visits?: Visit[]
+}
+
+type LeadDetailsResponse = {
+  success?: boolean
+  data?: LeadDetails | null
+}
+
+type NotesResponse = {
+  success?: boolean
+  data?: LeadNote[]
+}
+
+type NoteCreateResponse = {
+  success?: boolean
+  data?: LeadNote
+}
+
 export default function JrArcLeadDetailsPage() {
   const router = useRouter()
   const params = useParams()
@@ -48,15 +89,14 @@ export default function JrArcLeadDetailsPage() {
     return query ? `/crm/visualizer/leads?${query}` : '/crm/visualizer/leads'
   }, [searchParams])
 
-  const [lead, setLead] = useState<any>(null)
+  const [lead, setLead] = useState<LeadDetails | null>(null)
   const [loading, setLoading] = useState(true)
-  const [notes, setNotes] = useState<any[]>([])
+  const [notes, setNotes] = useState<LeadNote[]>([])
   const [notesLoading, setNotesLoading] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [newNote, setNewNote] = useState('')
   const [submittingNote, setSubmittingNote] = useState(false)
   const [activeTab, setActiveTab] = useState('attachments')
-  const [stage, setStage] = useState('CAD_PHASE')
   const [subStatus, setSubStatus] = useState<string | null>(null)
   const [updatingStage, setUpdatingStage] = useState(false)
 
@@ -70,10 +110,9 @@ export default function JrArcLeadDetailsPage() {
     setLoading(true)
     fetch(`/api/lead/${leadId}?includeVisits=true&includeAttachments=true`)
       .then(res => res.json())
-      .then(data => {
-        setLead(data.data)
-        setStage(data.data?.stage || 'CAD_PHASE')
-        setSubStatus(data.data?.subStatus || 'CAD_WORKING')
+      .then((data: LeadDetailsResponse) => {
+        setLead(data.data ?? null)
+        setSubStatus(data.data?.subStatus || 'VISUAL_WORKING')
         setLoading(false)
       })
       .catch((error) => {
@@ -91,8 +130,8 @@ export default function JrArcLeadDetailsPage() {
       setNotesLoading(true)
       fetch(`/api/note/${leadId}`)
         .then(res => res.json())
-        .then(data => {
-          if (data.success) setNotes(data.data)
+        .then((data: NotesResponse) => {
+          if (data.success) setNotes(data.data ?? [])
           setNotesLoading(false)
         })
         .catch((error) => {
@@ -111,8 +150,8 @@ export default function JrArcLeadDetailsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newNote, userId: currentUserId }),
       })
-      const data = await response.json()
-      if (data.success) {
+      const data = (await response.json()) as NoteCreateResponse
+      if (data.success && data.data) {
         setNotes([data.data, ...notes])
         setNewNote('')
       }
@@ -132,13 +171,12 @@ export default function JrArcLeadDetailsPage() {
         body: JSON.stringify({
           stage: newStage,
           subStatus: newSubStatus,
-          reason: `Stage changed via CAD interface`,
+          reason: `Stage changed via 3D Visualizer interface`,
           userId: currentUserId,
         }),
       })
       const data = await response.json()
       if (data.success) {
-        setStage(newStage)
         setSubStatus(newSubStatus)
       }
     } catch (error) {
@@ -204,24 +242,24 @@ export default function JrArcLeadDetailsPage() {
 
             {/* Stage Selector Box */}
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <h3 className="text-sm font-semibold mb-3">CAD Sub-Status Update</h3>
-              <p className="mb-3 text-xs text-muted-foreground">Stage and substatus updates are disabled in 3D Visualizer workspace.</p>
+              <h3 className="text-sm font-semibold mb-3">3D Visualization Sub-Status</h3>
+              <p className="mb-3 text-xs text-muted-foreground">Stage and substatus updates are managed by the 3D Visualizer workflow.</p>
               <div className="flex items-end gap-3 flex-wrap">
                 <div className="flex-1 min-w-[200px]">
                   <Label className="mb-2 block">Current Process Status</Label>
                   <Select
-                    value={subStatus || 'CAD_WORKING'}
-                    onValueChange={(val) => handleStageUpdate('CAD_PHASE', val)}
+                    value={subStatus || 'VISUAL_WORKING'}
+                    onValueChange={(val) => handleStageUpdate('VISUALIZATION_PHASE', val)}
                     disabled={updatingStage || true}
                   >
                     <SelectTrigger className="w-full bg-secondary/30">
                       <SelectValue placeholder="Update status..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="CAD_ASSIGNED">CAD Assigned</SelectItem>
-                      <SelectItem value="CAD_WORKING">CAD In Progress</SelectItem>
-                      <SelectItem value="CAD_COMPLETED">CAD Completed</SelectItem>
-                      <SelectItem value="CAD_APPROVED">CAD Approved</SelectItem>
+                      <SelectItem value="VISUAL_ASSIGNED">Visual Assigned</SelectItem>
+                      <SelectItem value="VISUAL_WORKING">Visual Working</SelectItem>
+                      <SelectItem value="VISUAL_COMPLETED">Visual Completed</SelectItem>
+                      <SelectItem value="VISUAL_CORRECTION">Visual Correction</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -378,7 +416,7 @@ export default function JrArcLeadDetailsPage() {
           <div className="md:col-span-1 border-l border-border pl-0 md:pl-6 pt-6 md:pt-0">
             <h3 className="text-sm font-semibold mb-4 text-muted-foreground">Workspace Info</h3>
             <p className="text-sm text-muted-foreground mb-6">
-              You are viewing the architectural layout phase of a lead. Coordinate through the Notes tab. Change status below when tasks progress.
+              You are viewing the 3D visualization phase of a lead. Coordinate through the Notes tab. Change status below when tasks progress.
             </p>
             <div className="bg-primary/5 p-4 rounded-xl border border-primary/20">
               <h4 className="text-sm font-semibold text-primary mb-2">Notice</h4>
