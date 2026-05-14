@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -239,6 +240,56 @@ export default function VisitTodayPage() {
   const removeCompleteFileAtIndex = (targetIndex: number) => {
     setCompleteFiles((prev) => prev.filter((_, index) => index !== targetIndex))
   }
+
+
+  const completeImagePreviews = useMemo(
+    () =>
+      completeFiles
+        .map((file, index) => ({ file, index }))
+        .filter(({ file }) => file.type.startsWith('image/'))
+        .map(({ file, index }) => ({
+          file,
+          index,
+          previewUrl: URL.createObjectURL(file),
+        })),
+    [completeFiles],
+  )
+
+  useEffect(() => {
+    return () => {
+      completeImagePreviews.forEach((item) => URL.revokeObjectURL(item.previewUrl))
+    }
+  }, [completeImagePreviews])
+
+  const completeImagePreviewList =
+    completeImagePreviews.length > 0 ? (
+      <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-3">
+        {completeImagePreviews.map((item) => (
+          <div key={`${item.file.name}-${item.file.size}-${item.index}`} className="relative overflow-hidden rounded-md border bg-muted/30">
+            <Image
+              src={item.previewUrl}
+              alt={item.file.name}
+              width={240}
+              height={96}
+              className="h-24 w-full object-cover"
+              unoptimized
+            />
+            <Button
+              type="button"
+              variant="destructive"
+              size="icon"
+              className="absolute right-1 top-1 h-6 w-6"
+              onClick={() => removeCompleteFileAtIndex(item.index)}
+              disabled={submittingComplete}
+              aria-label={`Remove ${item.file.name}`}
+            >
+              <X className="size-3.5" />
+            </Button>
+            <p className="truncate px-2 py-1 text-[10px] text-muted-foreground">{item.file.name}</p>
+          </div>
+        ))}
+      </div>
+    ) : null
 
   const completeFileValidation = useMemo(
     () =>
@@ -1305,6 +1356,7 @@ export default function VisitTodayPage() {
                       {completeFiles.length} file(s) selected
                     </p>
                   ) : null}
+                  {completeImagePreviewList}
                   {selectedFilesStatusList}
                   <p className="text-xs text-amber-700">{DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE}</p>
                     <Label className="pt-2 text-sm font-medium">Videos (direct browser upload)</Label>
@@ -1552,6 +1604,7 @@ export default function VisitTodayPage() {
                         {completeFiles.length} file(s) selected
                       </p>
                     ) : null}
+                    {completeImagePreviewList}
                     {selectedFilesStatusList}
                   <p className="text-xs text-amber-700">{DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE}</p>
                     <Label className="pt-2 text-sm font-medium">Videos (direct browser upload)</Label>
