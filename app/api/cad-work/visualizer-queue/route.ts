@@ -18,7 +18,12 @@ function toOptionalString(value: string | null): string | null {
 function toBooleanParam(value: string | null, fallback = false): boolean {
   const normalized = toOptionalString(value)?.toLowerCase()
   if (!normalized) return fallback
-  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on'
+  return (
+    normalized === '1' ||
+    normalized === 'true' ||
+    normalized === 'yes' ||
+    normalized === 'on'
+  )
 }
 
 export async function GET(request: NextRequest) {
@@ -33,63 +38,85 @@ export async function GET(request: NextRequest) {
 
     if (!isAdmin && !isSeniorCrm && !isVisualizer) {
       return NextResponse.json(
-        { success: false, error: 'Only Admin, Senior CRM, or 3D Visualizer users can access this queue' },
+        {
+          success: false,
+          error:
+            'Only Admin, Senior CRM, or 3D Visualizer users can access this queue',
+        },
         { status: 403 },
       )
     }
 
     const searchParams = request.nextUrl.searchParams
     const search = toOptionalString(searchParams.get('search'))
-    const queueTypeParam = toOptionalString(searchParams.get('queueType'))?.toLowerCase()
-    const legacyCadApprovedOnly = toBooleanParam(searchParams.get('cadApprovedOnly'))
-    const queueType: 'cad' | 'meeting' | 'budget' =
-      queueTypeParam === 'meeting' || queueTypeParam === 'budget' || queueTypeParam === 'cad'
+    const queueTypeParam = toOptionalString(
+      searchParams.get('queueType'),
+    )?.toLowerCase()
+    const legacyCadApprovedOnly = toBooleanParam(
+      searchParams.get('cadApprovedOnly'),
+    )
+    const queueType: 'cad' | 'meeting' | 'budget' | 'design' =
+      queueTypeParam === 'meeting' ||
+      queueTypeParam === 'budget' ||
+      queueTypeParam === 'cad' ||
+      queueTypeParam === 'design'
         ? queueTypeParam
         : legacyCadApprovedOnly
           ? 'meeting'
           : 'cad'
 
-    const phaseScope: Prisma.LeadWhereInput = queueType === 'meeting'
-      ? {
-          OR: [
-            {
-              stage: LeadStage.CAD_PHASE,
-              subStatus: LeadSubStatus.CAD_APPROVED,
-            },
-            {
-              stage: LeadStage.DISCOVERY,
-              subStatus: LeadSubStatus.FIRST_MEETING_SET,
-              cadWorkSubmissions: { some: {} },
-            },
-            {
-              stage: LeadStage.DISCOVERY,
-              subStatus: LeadSubStatus.PROPOSAL_SENT,
-              cadWorkSubmissions: { some: {} },
-            },
-          ],
-        }
-      : queueType === 'budget'
+    const phaseScope: Prisma.LeadWhereInput =
+      queueType === 'meeting'
         ? {
             OR: [
               {
-                stage: LeadStage.QUOTATION_PHASE,
-                subStatus: {
-                  in: [
-                    LeadSubStatus.QUOTATION_ASSIGNED,
-                    LeadSubStatus.QUOTATION_WORKING,
-                    LeadSubStatus.QUOTATION_APPROVED,
-                  ],
-                },
+                stage: LeadStage.CAD_PHASE,
+                subStatus: LeadSubStatus.CAD_APPROVED,
               },
               {
-                stage: LeadStage.BUDGET_PHASE,
-                subStatus: LeadSubStatus.BUDGET_MEETING_SET,
+                stage: LeadStage.DISCOVERY,
+                subStatus: LeadSubStatus.FIRST_MEETING_SET,
+                cadWorkSubmissions: { some: {} },
+              },
+              {
+                stage: LeadStage.DISCOVERY,
+                subStatus: LeadSubStatus.PROPOSAL_SENT,
+                cadWorkSubmissions: { some: {} },
               },
             ],
           }
-        : {
-          stage: LeadStage.CAD_PHASE,
-        }
+        : queueType === 'budget'
+          ? {
+              OR: [
+                {
+                  stage: LeadStage.QUOTATION_PHASE,
+                  subStatus: {
+                    in: [
+                      LeadSubStatus.QUOTATION_ASSIGNED,
+                      LeadSubStatus.QUOTATION_WORKING,
+                      LeadSubStatus.QUOTATION_APPROVED,
+                    ],
+                  },
+                },
+                {
+                  stage: LeadStage.BUDGET_PHASE,
+                  subStatus: LeadSubStatus.BUDGET_MEETING_SET,
+                },
+              ],
+            }
+          : queueType === 'design'
+            ? {
+                stage: LeadStage.VISUALIZATION_PHASE,
+                subStatus: {
+                  in: [
+                    LeadSubStatus.VISUAL_ASSIGNED,
+                    LeadSubStatus.VISUAL_WORKING,
+                  ],
+                },
+              }
+            : {
+                stage: LeadStage.CAD_PHASE,
+              }
 
     const searchScope: Prisma.LeadWhereInput | null = search
       ? {
@@ -102,7 +129,7 @@ export async function GET(request: NextRequest) {
       : null
 
     const srScope: Prisma.LeadWhereInput =
-      isSeniorCrm && !isAdmin
+      isSeniorCrm && !isAdmin && !isVisualizer
         ? {
             assignments: {
               some: {
@@ -123,8 +150,8 @@ export async function GET(request: NextRequest) {
       include: {
         assignments: {
           where: {
-                department: {
-                  in: [
+            department: {
+              in: [
                 LeadAssignmentDepartment.VISUALIZER_3D,
                 LeadAssignmentDepartment.SR_CRM,
                 LeadAssignmentDepartment.QUOTATION,
@@ -133,7 +160,7 @@ export async function GET(request: NextRequest) {
           },
           include: {
             user: {
-        select: {
+              select: {
                 id: true,
                 fullName: true,
                 email: true,
@@ -183,11 +210,18 @@ export async function GET(request: NextRequest) {
       success: true,
       data: leads.map((lead) => {
         const jrArchitectAssignment =
-          lead.assignments.find((item) => item.department === LeadAssignmentDepartment.VISUALIZER_3D) ?? null
+          lead.assignments.find(
+            (item) =>
+              item.department === LeadAssignmentDepartment.VISUALIZER_3D,
+          ) ?? null
         const srCrmAssignment =
-          lead.assignments.find((item) => item.department === LeadAssignmentDepartment.SR_CRM) ?? null
+          lead.assignments.find(
+            (item) => item.department === LeadAssignmentDepartment.SR_CRM,
+          ) ?? null
         const quotationAssignment =
-          lead.assignments.find((item) => item.department === LeadAssignmentDepartment.QUOTATION) ?? null
+          lead.assignments.find(
+            (item) => item.department === LeadAssignmentDepartment.QUOTATION,
+          ) ?? null
 
         return {
           id: lead.id,
@@ -204,21 +238,28 @@ export async function GET(request: NextRequest) {
           latestCompletedVisit: lead.visits[0]
             ? {
                 assignedVisitLead: lead.visits[0].assignedTo ?? null,
-                supportMembers: (lead.visits[0].supportAssignments ?? []).map((row) => row.supportUser),
+                supportMembers: (lead.visits[0].supportAssignments ?? []).map(
+                  (row) => row.supportUser,
+                ),
               }
             : null,
           latestFirstMeeting: lead.meetingEvents[0] ?? null,
           canSetMeeting:
-            (lead.stage === LeadStage.CAD_PHASE && lead.subStatus === LeadSubStatus.CAD_APPROVED) ||
-            (lead.stage === LeadStage.QUOTATION_PHASE && lead.subStatus === LeadSubStatus.QUOTATION_APPROVED),
+            (lead.stage === LeadStage.CAD_PHASE &&
+              lead.subStatus === LeadSubStatus.CAD_APPROVED) ||
+            (lead.stage === LeadStage.QUOTATION_PHASE &&
+              lead.subStatus === LeadSubStatus.QUOTATION_APPROVED),
           canSubmitMeetingData:
-            lead.stage === LeadStage.DISCOVERY && lead.subStatus === LeadSubStatus.FIRST_MEETING_SET,
+            lead.stage === LeadStage.DISCOVERY &&
+            lead.subStatus === LeadSubStatus.FIRST_MEETING_SET,
           canReassignJrArchitect:
-            !(
-              lead.subStatus === LeadSubStatus.CAD_APPROVED ||
-              lead.stage === LeadStage.DISCOVERY ||
-              lead.stage === LeadStage.QUOTATION_PHASE
-            ),
+            queueType === 'design'
+              ? true
+              : !(
+                  lead.subStatus === LeadSubStatus.CAD_APPROVED ||
+                  lead.stage === LeadStage.DISCOVERY ||
+                  lead.stage === LeadStage.QUOTATION_PHASE
+                ),
           canReassignQuotation:
             lead.stage === LeadStage.QUOTATION_PHASE &&
             (lead.subStatus === LeadSubStatus.QUOTATION_ASSIGNED ||
@@ -229,7 +270,10 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('[cad-work/visualizer-queue][GET] Error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch CAD queue' }, { status: 500 })
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch CAD queue' },
+      { status: 500 },
+    )
   }
 }
 

@@ -31,7 +31,12 @@ interface SidebarProps {
 }
 
 type NavItem = { icon: typeof LayoutDashboard; label: string; href: string }
-type NavGroup = { id: string; label: string; items: NavItem[]; defaultOpen?: boolean }
+type NavGroup = {
+  id: string
+  label: string
+  items: NavItem[]
+  defaultOpen?: boolean
+}
 
 const navigationGroups: Record<string, NavGroup[]> = {
   'JR CRM': [
@@ -39,7 +44,13 @@ const navigationGroups: Record<string, NavGroup[]> = {
       id: 'jr-overview',
       label: 'Overview',
       defaultOpen: true,
-      items: [{ icon: LayoutDashboard, label: 'Dashboard', href: '/crm/jr/dashboard' }],
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/jr/dashboard',
+        },
+      ],
     },
     {
       id: 'jr-crm',
@@ -52,12 +63,18 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
-  'Admin': [
+  Admin: [
     {
       id: 'admin-overview',
       label: 'Overview',
       defaultOpen: true,
-      items: [{ icon: LayoutDashboard, label: 'Dashboard', href: '/crm/admin/dashboard' }],
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/admin/dashboard',
+        },
+      ],
     },
     {
       id: 'admin-workflow',
@@ -67,12 +84,41 @@ const navigationGroups: Record<string, NavGroup[]> = {
         { icon: Users, label: 'Leads', href: '/crm/admin/leads' },
         { icon: Calendar, label: 'Visits', href: '/crm/admin/visits' },
         { icon: ClipboardList, label: 'Visit Queue', href: '/crm/admin/queue' },
-        { icon: CalendarClock, label: 'Meeting Queue', href: '/crm/admin/meeting-queue' },
-        { icon: CalendarClock, label: 'Budget Queue', href: '/crm/admin/budget-queue' },
-        { icon: ClipboardList, label: 'Review Center', href: '/crm/admin/review-center' },
-        { icon: ListTodo, label: 'Senior Tasks', href: '/crm/admin/today-tasks' },
-        { icon: ClipboardList, label: 'CAD Queue', href: '/crm/admin/cad-phase-queue' },
-        { icon: CalendarClock, label: 'Senior Calendar', href: '/crm/admin/calendar' },
+        {
+          icon: CalendarClock,
+          label: 'Meeting Queue',
+          href: '/crm/admin/meeting-queue',
+        },
+        {
+          icon: CalendarClock,
+          label: 'Budget Queue',
+          href: '/crm/admin/budget-queue',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Design Queue',
+          href: '/crm/admin/design-queue',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Review Center',
+          href: '/crm/admin/review-center',
+        },
+        {
+          icon: ListTodo,
+          label: 'Senior Tasks',
+          href: '/crm/admin/today-tasks',
+        },
+        {
+          icon: ClipboardList,
+          label: 'CAD Queue',
+          href: '/crm/admin/cad-phase-queue',
+        },
+        {
+          icon: CalendarClock,
+          label: 'Senior Calendar',
+          href: '/crm/admin/calendar',
+        },
       ],
     },
     {
@@ -81,7 +127,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
       defaultOpen: false,
       items: [
         { icon: Settings, label: 'Settings', href: '/crm/admin/settings' },
-        { icon: Settings, label: 'WhatsApp Monitor', href: '/crm/admin/whatsapp-monitor' },
+        {
+          icon: Settings,
+          label: 'WhatsApp Monitor',
+          href: '/crm/admin/whatsapp-monitor',
+        },
       ],
     },
   ],
@@ -90,7 +140,13 @@ const navigationGroups: Record<string, NavGroup[]> = {
       id: 'sr-overview',
       label: 'Overview',
       defaultOpen: true,
-      items: [{ icon: LayoutDashboard, label: 'Dashboard', href: '/crm/sr/dashboard' }],
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/sr/dashboard',
+        },
+      ],
     },
     {
       id: 'sr-workflow',
@@ -98,8 +154,21 @@ const navigationGroups: Record<string, NavGroup[]> = {
       defaultOpen: true,
       items: [
         { icon: CalendarClock, label: 'Calendar', href: '/crm/sr/meetings' },
-        { icon: CalendarClock, label: 'Meeting Queue', href: '/crm/sr/meeting-queue' },
-        { icon: CalendarClock, label: 'Budget Queue', href: '/crm/sr/budget-queue' },
+        {
+          icon: CalendarClock,
+          label: 'Meeting Queue',
+          href: '/crm/sr/meeting-queue',
+        },
+        {
+          icon: CalendarClock,
+          label: 'Budget Queue',
+          href: '/crm/sr/budget-queue',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Design Queue',
+          href: '/crm/sr/design-queue',
+        },
         { icon: Users, label: 'Lead Journey', href: '/crm/sr/lead-journey' },
       ],
     },
@@ -108,8 +177,16 @@ const navigationGroups: Record<string, NavGroup[]> = {
       label: 'Review Flow',
       defaultOpen: true,
       items: [
-        { icon: ClipboardList, label: 'Review Center', href: '/crm/sr/review-center' },
-        { icon: ClipboardList, label: 'CAD Queue', href: '/crm/sr/cad-phase-queue' },
+        {
+          icon: ClipboardList,
+          label: 'Review Center',
+          href: '/crm/sr/review-center',
+        },
+        {
+          icon: ClipboardList,
+          label: 'CAD Queue',
+          href: '/crm/sr/cad-phase-queue',
+        },
         { icon: ClipboardList, label: 'Visit Queue', href: '/crm/sr/queue' },
         { icon: Calendar, label: 'Visits', href: '/crm/sr/visits' },
       ],
@@ -119,8 +196,16 @@ const navigationGroups: Record<string, NavGroup[]> = {
       label: 'Others',
       defaultOpen: true,
       items: [
-        { icon: ClipboardList, label: 'Handoff Center', href: '/crm/sr/handoffs' },
-        { icon: CheckSquare, label: 'Conversion & Payment', href: '/crm/sr/conversion-payment' },
+        {
+          icon: ClipboardList,
+          label: 'Handoff Center',
+          href: '/crm/sr/handoffs',
+        },
+        {
+          icon: CheckSquare,
+          label: 'Conversion & Payment',
+          href: '/crm/sr/conversion-payment',
+        },
       ],
     },
   ],
@@ -129,7 +214,9 @@ const navigationGroups: Record<string, NavGroup[]> = {
       id: 'visit-overview',
       label: 'Overview',
       defaultOpen: true,
-      items: [{ icon: Home, label: 'Dashboard', href: '/visit-team/visit-dashboard' }],
+      items: [
+        { icon: Home, label: 'Dashboard', href: '/visit-team/visit-dashboard' },
+      ],
     },
     {
       id: 'visit-workflow',
@@ -137,9 +224,17 @@ const navigationGroups: Record<string, NavGroup[]> = {
       defaultOpen: true,
       items: [
         { icon: Calendar, label: 'Visits', href: '/visit-team/visits' },
-        { icon: CalendarClock, label: 'Today Visit', href: '/visit-team/visit-today' },
+        {
+          icon: CalendarClock,
+          label: 'Today Visit',
+          href: '/visit-team/visit-today',
+        },
         { icon: ListTodo, label: 'My Visits', href: '/visit-team/my-visits' },
-        { icon: ClipboardList, label: 'My Supports', href: '/visit-team/supported-visits' },
+        {
+          icon: ClipboardList,
+          label: 'My Supports',
+          href: '/visit-team/supported-visits',
+        },
       ],
     },
   ],
@@ -148,17 +243,39 @@ const navigationGroups: Record<string, NavGroup[]> = {
       id: 'jr-arch-overview',
       label: 'Overview',
       defaultOpen: true,
-      items: [{ icon: LayoutDashboard, label: 'Dashboard', href: '/crm/jr-architecture/dashboard' }],
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/jr-architecture/dashboard',
+        },
+      ],
     },
     {
       id: 'jr-arch-workflow',
       label: 'Workflow',
       defaultOpen: true,
       items: [
-        { icon: ClipboardList, label: 'Visit Queue', href: '/crm/jr-architecture/queue' },
-        { icon: ClipboardList, label: 'CAD Queue', href: '/crm/jr-architecture/cad-phase-queue' },
-        { icon: Users, label: 'Assigned Work', href: '/crm/jr-architecture/leads' },
-        { icon: ListTodo, label: 'My Work', href: '/crm/jr-architecture/my-work' },
+        {
+          icon: ClipboardList,
+          label: 'Visit Queue',
+          href: '/crm/jr-architecture/queue',
+        },
+        {
+          icon: ClipboardList,
+          label: 'CAD Queue',
+          href: '/crm/jr-architecture/cad-phase-queue',
+        },
+        {
+          icon: Users,
+          label: 'Assigned Work',
+          href: '/crm/jr-architecture/leads',
+        },
+        {
+          icon: ListTodo,
+          label: 'My Work',
+          href: '/crm/jr-architecture/my-work',
+        },
       ],
     },
   ],
@@ -167,14 +284,24 @@ const navigationGroups: Record<string, NavGroup[]> = {
       id: 'visualizer-overview',
       label: 'Overview',
       defaultOpen: true,
-      items: [{ icon: LayoutDashboard, label: 'Dashboard', href: '/crm/visualizer/dashboard' }],
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/visualizer/dashboard',
+        },
+      ],
     },
     {
       id: 'visualizer-workflow',
       label: 'Workflow',
       defaultOpen: true,
       items: [
-        { icon: ListTodo, label: 'Assigned Task', href: '/crm/visualizer/assigned-task' },
+        {
+          icon: ListTodo,
+          label: 'Assigned Task',
+          href: '/crm/visualizer/assigned-task',
+        },
         { icon: ListTodo, label: 'My Work', href: '/crm/visualizer/my-work' },
       ],
     },
@@ -184,15 +311,29 @@ const navigationGroups: Record<string, NavGroup[]> = {
       id: 'quotation-overview',
       label: 'Overview',
       defaultOpen: true,
-      items: [{ icon: LayoutDashboard, label: 'Dashboard', href: '/quotation-team/dashboard' }],
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/quotation-team/dashboard',
+        },
+      ],
     },
     {
       id: 'quotation-workflow',
       label: 'Workflow',
       defaultOpen: true,
       items: [
-        { icon: ClipboardList, label: 'Quotation Queue', href: '/quotation-team/quotation-queue' },
-        { icon: ListTodo, label: 'Assigned Task', href: '/quotation-team/assigned-task' },
+        {
+          icon: ClipboardList,
+          label: 'Quotation Queue',
+          href: '/quotation-team/quotation-queue',
+        },
+        {
+          icon: ListTodo,
+          label: 'Assigned Task',
+          href: '/quotation-team/assigned-task',
+        },
         { icon: ListTodo, label: 'My Work', href: '/quotation-team/my-work' },
       ],
     },
@@ -207,7 +348,8 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
   const [isLargeScreen, setIsLargeScreen] = useState(false)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [canViewVisitTeamQueue, setCanViewVisitTeamQueue] = useState(false)
-  const [canViewJrArchitectCadQueue, setCanViewJrArchitectCadQueue] = useState(false)
+  const [canViewJrArchitectCadQueue, setCanViewJrArchitectCadQueue] =
+    useState(false)
 
   useEffect(() => {
     const handle = window.requestAnimationFrame(() => setMounted(true))
@@ -240,14 +382,22 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
           return {
             ...group,
             items: group.items.filter(
-              (item) => canViewJrArchitectCadQueue || item.href !== '/crm/jr-architecture/cad-phase-queue',
+              (item) =>
+                canViewJrArchitectCadQueue ||
+                item.href !== '/crm/jr-architecture/cad-phase-queue',
             ),
           }
         }
 
         if (group.id === 'jr-arch-overview') {
-          const calendarItem = { icon: Calendar, label: 'Calendar', href: '/crm/jr-architecture/calendar' }
-          const hasCalendarItem = group.items.some((item) => item.href === calendarItem.href)
+          const calendarItem = {
+            icon: Calendar,
+            label: 'Calendar',
+            href: '/crm/jr-architecture/calendar',
+          }
+          const hasCalendarItem = group.items.some(
+            (item) => item.href === calendarItem.href,
+          )
           return {
             ...group,
             items:
@@ -268,7 +418,9 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
         label: 'Visit Schedule Queue',
         href: '/visit-team/visit-schedule-queue',
       }
-      const hasQueueItem = group.items.some((item) => item.href === queueItem.href)
+      const hasQueueItem = group.items.some(
+        (item) => item.href === queueItem.href,
+      )
       return {
         ...group,
         items:
@@ -337,14 +489,12 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
       <aside
         className={cn(
           'fixed top-0 left-0 z-50 h-screen w-64 bg-sidebar text-sidebar-foreground transition-transform duration-300',
-          open ? 'translate-x-0' : '-translate-x-full'
+          open ? 'translate-x-0' : '-translate-x-full',
         )}
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-sidebar-border">
           <div>
-            <h1 className="text-lg font-bold">
-              OMS System
-            </h1>
+            <h1 className="text-lg font-bold">OMS System</h1>
             <p className="text-xs text-muted-foreground">{role}</p>
           </div>
           <button
@@ -357,59 +507,59 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
 
         <nav className="flex-1 px-2 py-4 space-y-2 overflow-y-auto">
           {groups.map((group) => {
-              const isOpen = openGroups[group.id] ?? group.defaultOpen ?? false
-              return (
-                <div key={group.id} className="space-y-1">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOpenGroups((prev) => ({
-                        ...prev,
-                        [group.id]: !prev[group.id],
-                      }))
-                    }
-                    className={cn(
-                      'flex w-full items-center justify-between rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                    )}
-                  >
-                    <span>{group.label}</span>
-                    <ChevronDown
-                      className={cn(
-                        'h-4 w-4 transition-transform',
-                        isOpen ? 'rotate-0' : '-rotate-90'
-                      )}
-                    />
-                  </button>
-                  {isOpen && (
-                    <div className="space-y-1 pl-1">
-                      {group.items.map((item) => {
-                        const Icon = item.icon
-                        const isActive =
-                          pathname === item.href ||
-                          pathname.startsWith(item.href + '/')
-                        return (
-                          <Button
-                            key={item.href}
-                            asChild
-                            variant={isActive ? 'secondary' : 'ghost'}
-                            className={cn(
-                              'w-full justify-start gap-3',
-                              isActive &&
-                              'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/90'
-                            )}
-                          >
-                            <Link href={item.href} onClick={closeOnSmallScreens}>
-                              <Icon className="w-5 h-5" />
-                              {item.label}
-                            </Link>
-                          </Button>
-                        )
-                      })}
-                    </div>
+            const isOpen = openGroups[group.id] ?? group.defaultOpen ?? false
+            return (
+              <div key={group.id} className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenGroups((prev) => ({
+                      ...prev,
+                      [group.id]: !prev[group.id],
+                    }))
+                  }
+                  className={cn(
+                    'flex w-full items-center justify-between rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
                   )}
-                </div>
-              )
-            })}
+                >
+                  <span>{group.label}</span>
+                  <ChevronDown
+                    className={cn(
+                      'h-4 w-4 transition-transform',
+                      isOpen ? 'rotate-0' : '-rotate-90',
+                    )}
+                  />
+                </button>
+                {isOpen && (
+                  <div className="space-y-1 pl-1">
+                    {group.items.map((item) => {
+                      const Icon = item.icon
+                      const isActive =
+                        pathname === item.href ||
+                        pathname.startsWith(item.href + '/')
+                      return (
+                        <Button
+                          key={item.href}
+                          asChild
+                          variant={isActive ? 'secondary' : 'ghost'}
+                          className={cn(
+                            'w-full justify-start gap-3',
+                            isActive &&
+                              'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/90',
+                          )}
+                        >
+                          <Link href={item.href} onClick={closeOnSmallScreens}>
+                            <Icon className="w-5 h-5" />
+                            {item.label}
+                          </Link>
+                        </Button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </nav>
 
         {/* Footer – theme toggle only */}
@@ -429,7 +579,8 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
                   ) : (
                     <Sun className="w-3 h-3 text-yellow-500" />
                   )}
-                </div>)}
+                </div>
+              )}
             </div>
           </div>
         </div>
