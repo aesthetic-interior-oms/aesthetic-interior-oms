@@ -1,15 +1,15 @@
-import prisma from '@/lib/prisma';
+import prisma from '@/lib/prisma'
 import {
   LeadAssignmentDepartment,
   LeadPrimaryOwnerDepartment,
   LeadStage,
   LeadSubStatus,
-} from '@/generated/prisma/client';
-import { NextRequest, NextResponse } from 'next/server';
-import { requireDatabaseRoles } from '@/lib/authz';
-import { logUserAssigned } from '@/lib/activity-log-service';
-import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
-import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles';
+} from '@/generated/prisma/client'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireDatabaseRoles } from '@/lib/authz'
+import { logUserAssigned } from '@/lib/activity-log-service'
+import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete'
+import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles'
 
 /*
   POSTMAN TESTING DATA
@@ -146,63 +146,83 @@ import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles';
 */
 
 type UpdateAssignmentBody = {
-  userId?: unknown;
-};
+  userId?: unknown
+}
 
 const debugLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') {
-    void args;
+    void args
     // console.log(...args);
   }
-};
+}
 
 function toOptionalString(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
 }
 
 // PUT - Update assignment for a specific department
 // Changes the user assigned to a department for a lead
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; department: string }> }
+  { params }: { params: Promise<{ id: string; department: string }> },
 ) {
   try {
-    debugLog('🔵 [PUT /api/lead/[id]/assignments/[department]] - Request received');
-    
-    // Verify user authentication
-    const authResult = await requireDatabaseRoles([]);
-    if (!authResult.ok) {
-      return authResult.response;
-    }
-    debugLog('✅ [PUT /api/lead/[id]/assignments/[department]] - Auth passed');
-    const actorUserId = authResult.ok ? authResult.actorUserId : null;
+    debugLog(
+      '🔵 [PUT /api/lead/[id]/assignments/[department]] - Request received',
+    )
 
-    const resolvedParams = await params;
-    const leadId = resolvedParams?.id;
-    const department = resolvedParams?.department?.toUpperCase();
-    debugLog('🔍 [PUT /api/lead/[id]/assignments/[department]] - Resolved leadId:', leadId, 'department:', department);
-    
-    if (!leadId || !department || typeof leadId !== 'string' || typeof department !== 'string') {
-      debugLog('🔴 [PUT /api/lead/[id]/assignments/[department]] - Invalid params');
+    // Verify user authentication
+    const authResult = await requireDatabaseRoles([])
+    if (!authResult.ok) {
+      return authResult.response
+    }
+    debugLog('✅ [PUT /api/lead/[id]/assignments/[department]] - Auth passed')
+    const actorUserId = authResult.ok ? authResult.actorUserId : null
+
+    const resolvedParams = await params
+    const leadId = resolvedParams?.id
+    const department = resolvedParams?.department?.toUpperCase()
+    debugLog(
+      '🔍 [PUT /api/lead/[id]/assignments/[department]] - Resolved leadId:',
+      leadId,
+      'department:',
+      department,
+    )
+
+    if (
+      !leadId ||
+      !department ||
+      typeof leadId !== 'string' ||
+      typeof department !== 'string'
+    ) {
+      debugLog(
+        '🔴 [PUT /api/lead/[id]/assignments/[department]] - Invalid params',
+      )
       return NextResponse.json(
         { success: false, error: 'Invalid lead id or department' },
-        { status: 400 }
-      );
+        { status: 400 },
+      )
     }
 
-    const body = (await request.json()) as UpdateAssignmentBody;
-    debugLog('📝 [PUT /api/lead/[id]/assignments/[department]] - Parsed body:', JSON.stringify(body));
+    const body = (await request.json()) as UpdateAssignmentBody
+    debugLog(
+      '📝 [PUT /api/lead/[id]/assignments/[department]] - Parsed body:',
+      JSON.stringify(body),
+    )
 
-    const userId = toOptionalString(body.userId);
-    debugLog('👤 [PUT /api/lead/[id]/assignments/[department]] - userId:', userId);
+    const userId = toOptionalString(body.userId)
+    debugLog(
+      '👤 [PUT /api/lead/[id]/assignments/[department]] - userId:',
+      userId,
+    )
 
     if (!userId) {
       return NextResponse.json(
         { success: false, error: 'userId is required' },
-        { status: 400 }
-      );
+        { status: 400 },
+      )
     }
 
     // Validate department enum
@@ -215,21 +235,25 @@ export async function PUT(
       'JR_ARCHITECT',
       'VISUALIZER_3D',
       'ACCOUNTS',
-    ];
+    ]
     if (!validDepartments.includes(department)) {
       return NextResponse.json(
-        { success: false, error: `Invalid department. Must be one of: ${validDepartments.join(', ')}` },
-        { status: 400 }
-      );
+        {
+          success: false,
+          error: `Invalid department. Must be one of: ${validDepartments.join(', ')}`,
+        },
+        { status: 400 },
+      )
     }
 
     if (department === 'JR_ARCHITECT') {
-      const actorDepartments = new Set(authResult.actor.userDepartments ?? []);
-      const actorRoles = authResult.actorRoles ?? [];
+      const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+      const actorRoles = authResult.actorRoles ?? []
       const canUpdateJrArchitectAssignment =
         actorDepartments.has('ADMIN') ||
         actorDepartments.has('SR_CRM') ||
-        (actorDepartments.has('JR_ARCHITECT') && hasJrArchitectureLeaderRole(actorRoles));
+        (actorDepartments.has('JR_ARCHITECT') &&
+          hasJrArchitectureLeaderRole(actorRoles))
 
       if (!canUpdateJrArchitectAssignment) {
         return NextResponse.json(
@@ -238,24 +262,27 @@ export async function PUT(
             error:
               'Only Admin, Senior CRM, or JR Architect leaders can reassign JR Architect',
           },
-          { status: 403 }
-        );
+          { status: 403 },
+        )
       }
     }
 
-    if (department === 'QUOTATION') {
-      const actorDepartments = new Set(authResult.actor.userDepartments ?? []);
-      const canUpdateQuotationAssignment =
-        actorDepartments.has('ADMIN') || actorDepartments.has('SR_CRM');
+    if (department === 'QUOTATION' || department === 'VISUALIZER_3D') {
+      const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+      const canUpdateCrossDepartmentAssignment =
+        actorDepartments.has('ADMIN') || actorDepartments.has('SR_CRM')
 
-      if (!canUpdateQuotationAssignment) {
+      if (!canUpdateCrossDepartmentAssignment) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Only Admin or Senior CRM can reassign quotation member',
+            error:
+              department === 'QUOTATION'
+                ? 'Only Admin or Senior CRM can reassign quotation member'
+                : 'Only Admin or Senior CRM can assign 3D Visualizer',
           },
-          { status: 403 }
-        );
+          { status: 403 },
+        )
       }
     }
 
@@ -263,56 +290,60 @@ export async function PUT(
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: { id: true, name: true, stage: true, subStatus: true },
-    });
+    })
 
     if (!lead) {
       return NextResponse.json(
         { success: false, error: 'Lead not found' },
-        { status: 404 }
-      );
+        { status: 404 },
+      )
     }
 
     if (
       department === 'JR_ARCHITECT' &&
-      (
-        lead.subStatus === LeadSubStatus.CAD_APPROVED ||
-        (lead.stage === LeadStage.DISCOVERY && lead.subStatus === LeadSubStatus.FIRST_MEETING_SET)
-      )
+      (lead.subStatus === LeadSubStatus.CAD_APPROVED ||
+        (lead.stage === LeadStage.DISCOVERY &&
+          lead.subStatus === LeadSubStatus.FIRST_MEETING_SET))
     ) {
       return NextResponse.json(
         {
           success: false,
           error: 'JR Architect cannot be reassigned after CAD approval.',
         },
-        { status: 409 }
-      );
+        { status: 409 },
+      )
     }
 
-     const user = await prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, fullName: true, email: true },
-    });
+    })
 
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
-        { status: 404 }
-      );
+        { status: 404 },
+      )
     }
 
     // Find and update the assignment
-    debugLog('💾 [PUT /api/lead/[id]/assignments/[department]] - Updating assignment');
+    debugLog(
+      '💾 [PUT /api/lead/[id]/assignments/[department]] - Updating assignment',
+    )
     const assignment = await prisma.$transaction(async (tx) => {
       const existingAssignment = await tx.leadAssignment.findFirst({
         where: {
           leadId,
           department: department as LeadAssignmentDepartment,
         },
-      });
-      debugLog('📊 [PUT /api/lead/[id]/assignments/[department]] - Existing assignment:', existingAssignment);
+      })
+      debugLog(
+        '📊 [PUT /api/lead/[id]/assignments/[department]] - Existing assignment:',
+        existingAssignment,
+      )
 
       if (!existingAssignment) {
-        if (department === 'QUOTATION') {
+        if (department === 'QUOTATION' || department === 'VISUALIZER_3D') {
           const created = await tx.leadAssignment.create({
             data: {
               leadId,
@@ -324,10 +355,10 @@ export async function PUT(
                 select: { id: true, fullName: true, email: true },
               },
             },
-          });
-          return created;
+          })
+          return created
         }
-        throw new Error('Assignment not found for this lead and department');
+        throw new Error('Assignment not found for this lead and department')
       }
 
       const updated = await tx.leadAssignment.update({
@@ -338,7 +369,7 @@ export async function PUT(
             select: { id: true, fullName: true, email: true },
           },
         },
-      });
+      })
 
       if (department === 'SR_CRM') {
         await tx.lead.update({
@@ -347,7 +378,7 @@ export async function PUT(
             primaryOwnerDepartment: LeadPrimaryOwnerDepartment.SR_CRM,
             primaryOwnerUserId: userId,
           },
-        });
+        })
       }
 
       // Log the update activity
@@ -355,30 +386,41 @@ export async function PUT(
         leadId,
         userId: userId,
         leadName: `Assignment updated: ${user.fullName} assigned to ${department} department`,
-      });
+      })
 
       await autoCompletePendingFollowups(tx, {
         leadId,
         userId: actorUserId,
         action: 'assignment update',
-      });
+      })
 
-      return updated;
-    });
-    debugLog('✨ [PUT /api/lead/[id]/assignments/[department]] - Assignment updated successfully');
+      return updated
+    })
+    debugLog(
+      '✨ [PUT /api/lead/[id]/assignments/[department]] - Assignment updated successfully',
+    )
 
     return NextResponse.json({
       success: true,
       data: assignment,
       message: 'Assignment updated successfully',
-    });
+    })
   } catch (error) {
-    console.error('❌ [PUT /api/lead/[id]/assignments/[department]] - Error:', error);
-    const errorMsg = error instanceof Error ? error.message : 'Failed to update assignment';
+    console.error(
+      '❌ [PUT /api/lead/[id]/assignments/[department]] - Error:',
+      error,
+    )
+    const errorMsg =
+      error instanceof Error ? error.message : 'Failed to update assignment'
     return NextResponse.json(
       { success: false, error: errorMsg },
-      { status: error instanceof Error && error.message.includes('not found') ? 404 : 500 }
-    );
+      {
+        status:
+          error instanceof Error && error.message.includes('not found')
+            ? 404
+            : 500,
+      },
+    )
   }
 }
 
@@ -386,30 +428,46 @@ export async function PUT(
 // Unassigns the user from a department for a lead
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; department: string }> }
+  { params }: { params: Promise<{ id: string; department: string }> },
 ) {
   try {
-    debugLog('🔵 [DELETE /api/lead/[id]/assignments/[department]] - Request received');
-    
-    // Verify user authentication
-    const authResult = await requireDatabaseRoles([]);
-    if (!authResult.ok) {
-      return authResult.response;
-    }
-    debugLog('✅ [DELETE /api/lead/[id]/assignments/[department]] - Auth passed');
-    const actorUserId = authResult.ok ? authResult.actorUserId : null;
+    debugLog(
+      '🔵 [DELETE /api/lead/[id]/assignments/[department]] - Request received',
+    )
 
-    const resolvedParams = await params;
-    const leadId = resolvedParams?.id;
-    const department = resolvedParams?.department?.toUpperCase();
-    debugLog('🔍 [DELETE /api/lead/[id]/assignments/[department]] - Resolved leadId:', leadId, 'department:', department);
-    
-    if (!leadId || !department || typeof leadId !== 'string' || typeof department !== 'string') {
-      debugLog('🔴 [DELETE /api/lead/[id]/assignments/[department]] - Invalid params');
+    // Verify user authentication
+    const authResult = await requireDatabaseRoles([])
+    if (!authResult.ok) {
+      return authResult.response
+    }
+    debugLog(
+      '✅ [DELETE /api/lead/[id]/assignments/[department]] - Auth passed',
+    )
+    const actorUserId = authResult.ok ? authResult.actorUserId : null
+
+    const resolvedParams = await params
+    const leadId = resolvedParams?.id
+    const department = resolvedParams?.department?.toUpperCase()
+    debugLog(
+      '🔍 [DELETE /api/lead/[id]/assignments/[department]] - Resolved leadId:',
+      leadId,
+      'department:',
+      department,
+    )
+
+    if (
+      !leadId ||
+      !department ||
+      typeof leadId !== 'string' ||
+      typeof department !== 'string'
+    ) {
+      debugLog(
+        '🔴 [DELETE /api/lead/[id]/assignments/[department]] - Invalid params',
+      )
       return NextResponse.json(
         { success: false, error: 'Invalid lead id or department' },
-        { status: 400 }
-      );
+        { status: 400 },
+      )
     }
 
     // Validate department enum
@@ -422,29 +480,34 @@ export async function DELETE(
       'JR_ARCHITECT',
       'VISUALIZER_3D',
       'ACCOUNTS',
-    ];
+    ]
     if (!validDepartments.includes(department)) {
       return NextResponse.json(
-        { success: false, error: `Invalid department. Must be one of: ${validDepartments.join(', ')}` },
-        { status: 400 }
-      );
+        {
+          success: false,
+          error: `Invalid department. Must be one of: ${validDepartments.join(', ')}`,
+        },
+        { status: 400 },
+      )
     }
 
     // Verify lead exists
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: { id: true, name: true, stage: true },
-    });
+    })
 
     if (!lead) {
       return NextResponse.json(
         { success: false, error: 'Lead not found' },
-        { status: 404 }
-      );
+        { status: 404 },
+      )
     }
 
     // Transaction for atomic delete and logging
-    debugLog('💾 [DELETE /api/lead/[id]/assignments/[department]] - Deleting assignment');
+    debugLog(
+      '💾 [DELETE /api/lead/[id]/assignments/[department]] - Deleting assignment',
+    )
     const result = await prisma.$transaction(async (tx) => {
       // Find the assignment
       const assignment = await tx.leadAssignment.findFirst({
@@ -457,43 +520,50 @@ export async function DELETE(
             select: { fullName: true },
           },
         },
-      });
+      })
 
       if (!assignment) {
-        throw new Error('Assignment not found');
+        throw new Error('Assignment not found')
       }
-      debugLog('📊 [DELETE /api/lead/[id]/assignments/[department]] - Found assignment:', assignment);
+      debugLog(
+        '📊 [DELETE /api/lead/[id]/assignments/[department]] - Found assignment:',
+        assignment,
+      )
 
       if (
         department === 'SR_CRM' &&
         lead.stage !== LeadStage.CONVERSION &&
         lead.stage !== LeadStage.CLOSED
       ) {
-        throw new Error('SR_CRM assignment is required until lead reaches CONVERSION or CLOSED');
+        throw new Error(
+          'SR_CRM assignment is required until lead reaches CONVERSION or CLOSED',
+        )
       }
 
       // Delete the assignment
-      debugLog('🗑️ [DELETE /api/lead/[id]/assignments/[department]] - Deleting');
+      debugLog('🗑️ [DELETE /api/lead/[id]/assignments/[department]] - Deleting')
       const deleted = await tx.leadAssignment.delete({
         where: { id: assignment.id },
-      });
+      })
 
       // Log the deletion activity
       await logUserAssigned(tx, {
         leadId,
         userId: actorUserId,
         leadName: `${assignment.user.fullName} unassigned from ${department} department`,
-      });
+      })
 
       await autoCompletePendingFollowups(tx, {
         leadId,
         userId: actorUserId,
         action: 'assignment update',
-      });
+      })
 
-      return deleted;
-    });
-    debugLog('✨ [DELETE /api/lead/[id]/assignments/[department]] - Assignment deleted successfully');
+      return deleted
+    })
+    debugLog(
+      '✨ [DELETE /api/lead/[id]/assignments/[department]] - Assignment deleted successfully',
+    )
 
     return NextResponse.json(
       {
@@ -501,14 +571,23 @@ export async function DELETE(
         data: result,
         message: 'Assignment removed successfully',
       },
-      { status: 200 }
-    );
+      { status: 200 },
+    )
   } catch (error) {
-    console.error('❌ [DELETE /api/lead/[id]/assignments/[department]] - Error:', error);
-    const errorMsg = error instanceof Error ? error.message : 'Failed to delete assignment';
+    console.error(
+      '❌ [DELETE /api/lead/[id]/assignments/[department]] - Error:',
+      error,
+    )
+    const errorMsg =
+      error instanceof Error ? error.message : 'Failed to delete assignment'
     return NextResponse.json(
       { success: false, error: errorMsg },
-      { status: error instanceof Error && error.message.includes('not found') ? 404 : 500 }
-    );
+      {
+        status:
+          error instanceof Error && error.message.includes('not found')
+            ? 404
+            : 500,
+      },
+    )
   }
 }
