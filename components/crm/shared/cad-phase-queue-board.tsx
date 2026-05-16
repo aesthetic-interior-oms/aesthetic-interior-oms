@@ -111,6 +111,7 @@ export function CadPhaseQueueBoard({
   queueEndpoint = '/api/cad-work/jr-architect-queue',
   assigneeDepartment = 'JR_ARCHITECT',
   assigneeLabel = 'JR Architect',
+  showAssigneeReassign = true,
 }: {
   title: string
   subtitle: string
@@ -119,6 +120,7 @@ export function CadPhaseQueueBoard({
   queueEndpoint?: string
   assigneeDepartment?: string
   assigneeLabel?: string
+  showAssigneeReassign?: boolean
 }) {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -462,19 +464,20 @@ export function CadPhaseQueueBoard({
   }
 
   const openCompleteMeetingDialog = async (lead: LeadRecord) => {
+    const isBudgetMeeting =
+      lead.stage === 'BUDGET_PHASE' &&
+      lead.subStatus === 'BUDGET_MEETING_SET'
+
     setCompleteMeetingLead(lead)
     setCompleteMeetingNote('')
     setQuotationMemberId('')
-    setVisualizerMemberId(lead.jrArchitectAssignment?.user.id ?? '')
-    setClientApproval('NO_APPROVAL')
+    setVisualizerMemberId('')
+    setClientApproval(isBudgetMeeting ? 'DESIGN_AGREEMENT' : 'NO_APPROVAL')
     setCompleteMeetingOpen(true)
     if (lead.stage === 'DISCOVERY' && lead.subStatus === 'FIRST_MEETING_SET') {
       await loadQuotationMembers()
     }
-    if (
-      lead.stage === 'BUDGET_PHASE' &&
-      lead.subStatus === 'BUDGET_MEETING_SET'
-    ) {
+    if (isBudgetMeeting) {
       await loadVisualizerMembers()
     }
   }
@@ -761,7 +764,8 @@ export function CadPhaseQueueBoard({
                           Open Lead
                         </Link>
                       </Button>
-                      {lead.canReassignJrArchitect !== false &&
+                      {showAssigneeReassign &&
+                      lead.canReassignJrArchitect !== false &&
                       lead.stage !== 'DISCOVERY' ? (
                         <Button
                           size="sm"

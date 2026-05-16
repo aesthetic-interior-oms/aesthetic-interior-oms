@@ -9,7 +9,7 @@ import {
   getCadFileExtension,
   isCadSubmissionFileTypeValue,
 } from '@/lib/cad-work'
-import { DIRECT_BLOB_UPLOAD_MAX_BYTES } from '@/lib/upload-limits'
+import { DIRECT_BLOB_UPLOAD_MAX_BYTES, VISUALIZER_WORK_UPLOAD_MAX_BYTES } from '@/lib/upload-limits'
 
 type ClientUploadPayload = {
   context?: string
@@ -133,6 +133,42 @@ async function authorizeCadUpload(input: {
   }
 }
 
+async function authorizeVisualizerUpload(input: {
+  actorUserId: string
+  actorDepartments: Set<string>
+  ownerId: string
+  pathname: string
+}) {
+  assertPathnameScope(input.pathname, 'visualizer-work-submissions', input.ownerId)
+
+  const isAdmin = input.actorDepartments.has('ADMIN')
+  const isSeniorCrm = input.actorDepartments.has('SR_CRM')
+  const isVisualizer =
+    input.actorDepartments.has('VISUALIZER_3D') ||
+    input.actorDepartments.has('3D_VISUALIZER')
+  if (!isAdmin && !isSeniorCrm && !isVisualizer) throw new Error('FORBIDDEN')
+
+  const lead = await prisma.lead.findFirst({
+    where: {
+      id: input.ownerId,
+      stage: LeadStage.VISUALIZATION_PHASE,
+      subStatus: LeadSubStatus.VISUAL_WORKING,
+      ...(isAdmin || isSeniorCrm
+        ? {}
+        : {
+            assignments: {
+              some: {
+                userId: input.actorUserId,
+                department: LeadAssignmentDepartment.VISUALIZER_3D,
+              },
+            },
+          }),
+    },
+    select: { id: true },
+  })
+  if (!lead) throw new Error('LEAD_NOT_FOUND_OR_NOT_WORKING')
+}
+
 async function authorizeQuotationUpload(input: {
   actorUserId: string
   actorDepartments: Set<string>
@@ -229,7 +265,11 @@ export async function POST(request: NextRequest) {
         const context = typeof payload.context === 'string' ? payload.context : ''
         const ownerId = typeof payload.ownerId === 'string' ? payload.ownerId.trim() : ''
         if (!ownerId) throw new Error('UPLOAD_OWNER_REQUIRED')
-        if (typeof payload.sizeBytes === 'number' && payload.sizeBytes > DIRECT_BLOB_UPLOAD_MAX_BYTES) {
+        const maxBytes =
+          context === 'visualizer-work'
+            ? VISUALIZER_WORK_UPLOAD_MAX_BYTES
+            : DIRECT_BLOB_UPLOAD_MAX_BYTES
+        if (typeof payload.sizeBytes === 'number' && payload.sizeBytes > maxBytes) {
           throw new Error('UPLOAD_TOO_LARGE')
         }
 
@@ -249,6 +289,13 @@ export async function POST(request: NextRequest) {
             ownerId,
             pathname,
             payload,
+          })
+        } else if (context === 'visualizer-work') {
+          await authorizeVisualizerUpload({
+            actorUserId: authResult.actorUserId,
+            actorDepartments,
+            ownerId,
+            pathname,
           })
         } else if (context === 'visit-result') {
           await authorizeVisitUpload({
@@ -273,7 +320,7 @@ export async function POST(request: NextRequest) {
         }
 
         return {
-          maximumSizeInBytes: DIRECT_BLOB_UPLOAD_MAX_BYTES,
+          maximumSizeInBytes: maxBytes,
           tokenPayload: JSON.stringify({ context, ownerId, userId: authResult.actorUserId }),
           validUntil: Date.now() + 10 * 60 * 1000,
         }

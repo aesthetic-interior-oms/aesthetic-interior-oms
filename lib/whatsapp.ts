@@ -12,7 +12,6 @@ import {
   formatPhoneForStorage,
   normalizePhoneSmart,
 } from '@/lib/phone-normalize'
-import { ensureSeniorCrmAssignment } from '@/lib/lead-handoff'
 
 type WhatsAppContact = {
   wa_id?: string
@@ -445,12 +444,6 @@ export async function ingestWhatsAppWebhook(payload: WhatsAppWebhookPayload): Pr
           })
         }
 
-        await ensureSeniorCrmAssignment({
-          tx,
-          leadId: lead.id,
-          actorUserId: assignee?.id ?? null,
-        })
-
         return {
           created: true as const,
           reason: null,
@@ -609,12 +602,6 @@ export async function ingestWawpWebhook(payload: WawpWebhookPayload): Promise<In
           },
         })
       }
-
-      await ensureSeniorCrmAssignment({
-        tx,
-        leadId: lead.id,
-        actorUserId: assignee?.id ?? null,
-      })
 
       return {
         created: true as const,

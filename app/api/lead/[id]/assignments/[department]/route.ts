@@ -269,8 +269,14 @@ export async function PUT(
 
     if (department === 'QUOTATION' || department === 'VISUALIZER_3D') {
       const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
-      const canUpdateCrossDepartmentAssignment =
+      const canUpdateQuotationAssignment =
         actorDepartments.has('ADMIN') || actorDepartments.has('SR_CRM')
+      const canUpdateVisualizerAssignment =
+        canUpdateQuotationAssignment || actorDepartments.has('JR_ARCHITECT')
+      const canUpdateCrossDepartmentAssignment =
+        department === 'QUOTATION'
+          ? canUpdateQuotationAssignment
+          : canUpdateVisualizerAssignment
 
       if (!canUpdateCrossDepartmentAssignment) {
         return NextResponse.json(
@@ -279,7 +285,7 @@ export async function PUT(
             error:
               department === 'QUOTATION'
                 ? 'Only Admin or Senior CRM can reassign quotation member'
-                : 'Only Admin or Senior CRM can assign 3D Visualizer',
+                : 'Only Admin, Senior CRM, or JR Architect can assign 3D Visualizer',
           },
           { status: 403 },
         )

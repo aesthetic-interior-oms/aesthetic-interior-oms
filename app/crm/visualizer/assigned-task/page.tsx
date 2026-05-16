@@ -14,7 +14,19 @@ import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/sonner'
+import { uploadDirectBlobFile, type UploadedBlobFileMeta } from '@/lib/client-blob-upload'
+import { VISUALIZER_WORK_UPLOAD_LIMIT_MESSAGE } from '@/lib/upload-limits'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 type VisualizerTaskLead = {
   id: string
@@ -33,7 +45,7 @@ type VisualizerTaskLead = {
     fileType: string | null
   }>
   canStart: boolean
-  canOpenWorkspace: boolean
+  canSubmit: boolean
 }
 
 function formatLabel(value: string | null | undefined) {
@@ -48,6 +60,10 @@ export default function VisualizerAssignedTaskPage() {
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [leads, setLeads] = useState<VisualizerTaskLead[]>([])
+  const [submitLead, setSubmitLead] = useState<VisualizerTaskLead | null>(null)
+  const [submitNote, setSubmitNote] = useState('')
+  const [submitFiles, setSubmitFiles] = useState<File[]>([])
+  const [uploadingFiles, setUploadingFiles] = useState(false)
 
   const loadTasks = useCallback(async () => {
     setLoading(true)
@@ -92,6 +108,20 @@ export default function VisualizerAssignedTaskPage() {
     [leads],
   )
 
+  const sortedLeads = useMemo(() => {
+    const statusRank: Record<string, number> = {
+      VISUAL_ASSIGNED: 0,
+      VISUAL_WORKING: 1,
+      VISUAL_CORRECTION: 2,
+    }
+
+    return [...leads].sort(
+      (a, b) =>
+        (statusRank[a.subStatus ?? ''] ?? 99) -
+        (statusRank[b.subStatus ?? ''] ?? 99),
+    )
+  }, [leads])
+
   const startWork = async (leadId: string) => {
     setBusyId(leadId)
     try {
@@ -112,6 +142,60 @@ export default function VisualizerAssignedTaskPage() {
           : 'Failed to start visualization work',
       )
     } finally {
+      setBusyId(null)
+    }
+  }
+
+  const openSubmitDialog = (lead: VisualizerTaskLead) => {
+    setSubmitLead(lead)
+    setSubmitNote('')
+    setSubmitFiles([])
+  }
+
+  const submitWork = async () => {
+    if (!submitLead) return
+    setBusyId(submitLead.id)
+    try {
+      setUploadingFiles(true)
+      const uploadedFiles: UploadedBlobFileMeta[] = []
+      for (const file of submitFiles) {
+        const uploaded = await uploadDirectBlobFile({
+          file,
+          context: 'visualizer-work',
+          ownerId: submitLead.id,
+        })
+        uploadedFiles.push(uploaded)
+      }
+      setUploadingFiles(false)
+
+      const response = await fetch(
+        `/api/lead/${submitLead.id}/visualizer-work/submit`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            note: submitNote.trim() || undefined,
+            files: uploadedFiles.length > 0 ? uploadedFiles : undefined,
+          }),
+        },
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to submit visualization data')
+      }
+      toast.success('Visualization submitted to Senior CRM Review Center')
+      setSubmitLead(null)
+      setSubmitNote('')
+      setSubmitFiles([])
+      await loadTasks()
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to submit visualization data',
+      )
+    } finally {
+      setUploadingFiles(false)
       setBusyId(null)
     }
   }
@@ -146,7 +230,7 @@ export default function VisualizerAssignedTaskPage() {
           </Card>
         ) : (
           <div className="space-y-3">
-            {leads.map((lead) => (
+            {sortedLeads.map((lead) => (
               <Card
                 key={lead.id}
                 className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
@@ -170,23 +254,26 @@ export default function VisualizerAssignedTaskPage() {
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={busyId === lead.id || !lead.canStart}
-                        onClick={() => startWork(lead.id)}
-                      >
-                        Start Work
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/crm/visualizer/leads/${lead.id}`}>
+                          Workspace
+                        </Link>
                       </Button>
-                      {lead.canOpenWorkspace ? (
-                        <Button asChild size="sm">
-                          <Link href={`/crm/visualizer/leads/${lead.id}`}>
-                            Workspace
-                          </Link>
+                      {lead.canSubmit ? (
+                        <Button
+                          size="sm"
+                          disabled={busyId === lead.id}
+                          onClick={() => openSubmitDialog(lead)}
+                        >
+                          Submit Data
                         </Button>
                       ) : (
-                        <Button size="sm" disabled>
-                          Workspace
+                        <Button
+                          size="sm"
+                          disabled={busyId === lead.id || !lead.canStart}
+                          onClick={() => startWork(lead.id)}
+                        >
+                          Start Work
                         </Button>
                       )}
                     </div>
@@ -250,6 +337,86 @@ export default function VisualizerAssignedTaskPage() {
           </div>
         )}
       </main>
+
+      <Dialog
+        open={Boolean(submitLead)}
+        onOpenChange={(open) => {
+          if (busyId) return
+          if (!open) {
+            setSubmitLead(null)
+            setSubmitNote('')
+            setSubmitFiles([])
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Submit 3D Visualizer Data</DialogTitle>
+            <DialogDescription>
+              Send completed 3D visualization files to Senior CRM Review Center.
+              The lead will move to Visualizer Completed for approval or correction.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Notes (optional)</p>
+              <Textarea
+                rows={4}
+                value={submitNote}
+                onChange={(event) => setSubmitNote(event.target.value)}
+                placeholder="Add optional notes for Senior CRM review..."
+              />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">3D files / renders (optional)</p>
+              <Input
+                type="file"
+                multiple
+                onChange={(event) =>
+                  setSubmitFiles(Array.from(event.target.files ?? []))
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                {VISUALIZER_WORK_UPLOAD_LIMIT_MESSAGE} Multiple files are supported.
+              </p>
+              {submitFiles.length > 0 ? (
+                <ul className="max-h-40 space-y-1 overflow-y-auto text-xs text-muted-foreground">
+                  {submitFiles.map((file) => (
+                    <li key={`${file.name}-${file.size}-${file.lastModified}`}>
+                      {file.name}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={Boolean(busyId)}
+              onClick={() => {
+                setSubmitLead(null)
+                setSubmitNote('')
+                setSubmitFiles([])
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={Boolean(busyId)}
+              onClick={() => void submitWork()}
+            >
+              {uploadingFiles
+                ? 'Uploading files...'
+                : busyId
+                  ? 'Submitting...'
+                  : 'Submit to Review Center'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

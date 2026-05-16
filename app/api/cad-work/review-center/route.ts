@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
       OR: [
         { stage: LeadStage.CAD_PHASE, subStatus: LeadSubStatus.CAD_COMPLETED },
         { stage: LeadStage.QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_COMPLETED },
+        { stage: LeadStage.VISUALIZATION_PHASE, subStatus: LeadSubStatus.VISUAL_COMPLETED },
       ],
       ...(scopeToAssignedSrLeads
         ? {
@@ -156,7 +157,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[cad-work/review-center][GET] Error:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch CAD review submissions' },
+      { success: false, error: 'Failed to fetch review submissions' },
       { status: 500 },
     )
   }

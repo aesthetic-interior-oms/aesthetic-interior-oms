@@ -9,6 +9,7 @@ export default function SrBudgetQueuePage() {
       subtitle="Track quotation and budget-stage leads for budget discussion readiness."
       leadBasePath="/crm/sr/leads"
       queueType="budget"
+      showAssigneeReassign={false}
     />
   )
 }

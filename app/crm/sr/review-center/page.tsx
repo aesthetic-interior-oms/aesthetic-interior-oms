@@ -86,6 +86,19 @@ function formatLabel(value: string | null | undefined): string {
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
+function getSubmissionKind(submission: ReviewSubmission): 'quotation' | 'visualizer' | 'cad' {
+  if (submission.lead.stage === 'QUOTATION_PHASE') return 'quotation'
+  if (submission.lead.stage === 'VISUALIZATION_PHASE') return 'visualizer'
+  return 'cad'
+}
+
+function getSubmissionKindLabel(submission: ReviewSubmission): string {
+  const kind = getSubmissionKind(submission)
+  if (kind === 'quotation') return 'Quotation'
+  if (kind === 'visualizer') return '3D Visualization'
+  return 'CAD'
+}
+
 function isImageFile(file: ReviewFile): boolean {
   return file.fileType.toLowerCase().startsWith('image/')
 }
@@ -180,7 +193,7 @@ function FilePreviewCard({ file }: { file: ReviewFile }) {
 
 export function ReviewCenterView({
   title = 'Review Center',
-  subtitle = 'Review completed CAD and quotation submissions with quick preview and handoff notes.',
+  subtitle = 'Review completed CAD, quotation, and 3D visualization submissions with quick preview and handoff notes.',
   myLeadsOnly = true,
   leadBasePath = '/crm/sr/leads',
 }: ReviewCenterViewProps) {
@@ -331,6 +344,7 @@ export function ReviewCenterView({
                         {submission.lead.name}
                       </Link>
                       <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">{getSubmissionKindLabel(submission)}</Badge>
                         <Badge variant="secondary">{formatLabel(submission.lead.stage)}</Badge>
                         {submission.lead.subStatus ? (
                           <Badge variant="outline">{formatLabel(submission.lead.subStatus)}</Badge>
@@ -428,12 +442,16 @@ export function ReviewCenterView({
             <DialogDescription>
               {decisionTarget
                 ? decisionType === 'APPROVE'
-                  ? decisionTarget.lead.stage === 'QUOTATION_PHASE'
+                  ? getSubmissionKind(decisionTarget) === 'quotation'
                     ? `Confirm quotation approval for ${decisionTarget.lead.name}. Lead will move to Quotation Phase / Quotation Approved and return to Budget Queue.`
-                    : `Confirm CAD approval for ${decisionTarget.lead.name}. Lead will stay in CAD Phase and move to CAD Approved.`
-                  : decisionTarget.lead.stage === 'QUOTATION_PHASE'
+                    : getSubmissionKind(decisionTarget) === 'visualizer'
+                      ? `Confirm 3D visualization approval for ${decisionTarget.lead.name}. Lead will move to Visualization Phase / Client Approved.`
+                      : `Confirm CAD approval for ${decisionTarget.lead.name}. Lead will stay in CAD Phase and move to CAD Approved.`
+                  : getSubmissionKind(decisionTarget) === 'quotation'
                     ? `Send ${decisionTarget.lead.name} back to the assigned quotation team for correction.`
-                    : `Send ${decisionTarget.lead.name} back to Junior Architect for correction. Lead will move to CAD Assigned.`
+                    : getSubmissionKind(decisionTarget) === 'visualizer'
+                      ? `Send ${decisionTarget.lead.name} back to the assigned 3D Visualizer for correction.`
+                      : `Send ${decisionTarget.lead.name} back to Junior Architect for correction. Lead will move to CAD Assigned.`
                 : 'Confirm your review decision.'}
             </DialogDescription>
           </DialogHeader>

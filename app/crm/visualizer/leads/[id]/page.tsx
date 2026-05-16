@@ -23,7 +23,7 @@ type LeadAttachment = {
 
 type VisitResult = {
   summary: string
-  measurements: any
+  measurements: unknown
   clientPotentiality: string | null
   budgetRange: string | null
   stylePreference: string | null
@@ -37,6 +37,47 @@ type Visit = {
   result?: VisitResult | null
 }
 
+type Note = {
+  id: string
+  content: string
+  createdAt: string
+  user: {
+    id: string
+    fullName: string
+    email: string
+  }
+  lead: {
+    id: string
+    name: string
+    email: string
+  }
+}
+
+type LeadDetails = {
+  id: string
+  name: string
+  location: string | null
+  stage: string
+  subStatus: string | null
+  attachments?: LeadAttachment[]
+  visits?: Visit[]
+}
+
+type LeadDetailsResponse = {
+  success?: boolean
+  data?: LeadDetails
+}
+
+type NotesResponse = {
+  success?: boolean
+  data?: Note[]
+}
+
+type CreateNoteResponse = {
+  success?: boolean
+  data?: Note
+}
+
 export default function JrArcLeadDetailsPage() {
   const router = useRouter()
   const params = useParams()
@@ -48,15 +89,14 @@ export default function JrArcLeadDetailsPage() {
     return query ? `/crm/visualizer/leads?${query}` : '/crm/visualizer/leads'
   }, [searchParams])
 
-  const [lead, setLead] = useState<any>(null)
+  const [lead, setLead] = useState<LeadDetails | null>(null)
   const [loading, setLoading] = useState(true)
-  const [notes, setNotes] = useState<any[]>([])
+  const [notes, setNotes] = useState<Note[]>([])
   const [notesLoading, setNotesLoading] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [newNote, setNewNote] = useState('')
   const [submittingNote, setSubmittingNote] = useState(false)
   const [activeTab, setActiveTab] = useState('attachments')
-  const [stage, setStage] = useState('CAD_PHASE')
   const [subStatus, setSubStatus] = useState<string | null>(null)
   const [updatingStage, setUpdatingStage] = useState(false)
 
@@ -70,10 +110,9 @@ export default function JrArcLeadDetailsPage() {
     setLoading(true)
     fetch(`/api/lead/${leadId}?includeVisits=true&includeAttachments=true`)
       .then(res => res.json())
-      .then(data => {
-        setLead(data.data)
-        setStage(data.data?.stage || 'CAD_PHASE')
-        setSubStatus(data.data?.subStatus || 'CAD_WORKING')
+      .then((data: LeadDetailsResponse) => {
+        setLead(data.data ?? null)
+        setSubStatus(data.data?.subStatus || 'VISUAL_ASSIGNED')
         setLoading(false)
       })
       .catch((error) => {
@@ -91,8 +130,8 @@ export default function JrArcLeadDetailsPage() {
       setNotesLoading(true)
       fetch(`/api/note/${leadId}`)
         .then(res => res.json())
-        .then(data => {
-          if (data.success) setNotes(data.data)
+        .then((data: NotesResponse) => {
+          if (data.success && Array.isArray(data.data)) setNotes(data.data)
           setNotesLoading(false)
         })
         .catch((error) => {
@@ -111,8 +150,8 @@ export default function JrArcLeadDetailsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: newNote, userId: currentUserId }),
       })
-      const data = await response.json()
-      if (data.success) {
+      const data = (await response.json()) as CreateNoteResponse
+      if (data.success && data.data) {
         setNotes([data.data, ...notes])
         setNewNote('')
       }
@@ -132,13 +171,12 @@ export default function JrArcLeadDetailsPage() {
         body: JSON.stringify({
           stage: newStage,
           subStatus: newSubStatus,
-          reason: `Stage changed via CAD interface`,
+          reason: 'Stage changed via visualizer interface',
           userId: currentUserId,
         }),
       })
       const data = await response.json()
       if (data.success) {
-        setStage(newStage)
         setSubStatus(newSubStatus)
       }
     } catch (error) {
@@ -170,7 +208,13 @@ export default function JrArcLeadDetailsPage() {
   }
 
   const visit: Visit | undefined = lead.visits?.[0]
-  const attachments: LeadAttachment[] = lead.attachments || []
+  const canShowAttachments =
+    lead.stage !== 'VISUALIZATION_PHASE' ||
+    lead.subStatus === 'VISUAL_WORKING' ||
+    lead.subStatus === 'VISUAL_COMPLETED'
+  const attachments: LeadAttachment[] = canShowAttachments
+    ? lead.attachments || []
+    : []
   const mediaAttachments = attachments.filter((item) => item.category === 'MEDIA')
   const fileAttachments = attachments.filter((item) => item.category !== 'MEDIA')
 
@@ -204,24 +248,24 @@ export default function JrArcLeadDetailsPage() {
 
             {/* Stage Selector Box */}
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <h3 className="text-sm font-semibold mb-3">CAD Sub-Status Update</h3>
-              <p className="mb-3 text-xs text-muted-foreground">Stage and substatus updates are disabled in 3D Visualizer workspace.</p>
+              <h3 className="text-sm font-semibold mb-3">Visualizer Status</h3>
+              <p className="mb-3 text-xs text-muted-foreground">Stage and substatus updates are controlled from the assigned task actions.</p>
               <div className="flex items-end gap-3 flex-wrap">
                 <div className="flex-1 min-w-[200px]">
                   <Label className="mb-2 block">Current Process Status</Label>
                   <Select
-                    value={subStatus || 'CAD_WORKING'}
-                    onValueChange={(val) => handleStageUpdate('CAD_PHASE', val)}
+                    value={subStatus || 'VISUAL_ASSIGNED'}
+                    onValueChange={(val) => handleStageUpdate('VISUALIZATION_PHASE', val)}
                     disabled={updatingStage || true}
                   >
                     <SelectTrigger className="w-full bg-secondary/30">
                       <SelectValue placeholder="Update status..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="CAD_ASSIGNED">CAD Assigned</SelectItem>
-                      <SelectItem value="CAD_WORKING">CAD In Progress</SelectItem>
-                      <SelectItem value="CAD_COMPLETED">CAD Completed</SelectItem>
-                      <SelectItem value="CAD_APPROVED">CAD Approved</SelectItem>
+                      <SelectItem value="VISUAL_ASSIGNED">Visual Assigned</SelectItem>
+                      <SelectItem value="VISUAL_WORKING">Visual Working</SelectItem>
+                      <SelectItem value="VISUAL_COMPLETED">Visual Completed</SelectItem>
+                      <SelectItem value="VISUAL_CORRECTION">Visual Correction</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -244,7 +288,12 @@ export default function JrArcLeadDetailsPage() {
 
               <TabsContent value="attachments" className="mt-4">
                 <div className="space-y-5 rounded-xl border border-border bg-card p-4 sm:p-6 shadow-sm">
-                  {attachments.length === 0 ? (
+                  {!canShowAttachments ? (
+                    <div className="py-8 text-center text-muted-foreground border-2 border-dashed border-border rounded-lg">
+                      <ImageIcon className="mx-auto w-8 h-8 mb-2 opacity-50" />
+                      <p>Attachments unlock after you start visualizer work.</p>
+                    </div>
+                  ) : attachments.length === 0 ? (
                     <div className="py-8 text-center text-muted-foreground border-2 border-dashed border-border rounded-lg">
                       <ImageIcon className="mx-auto w-8 h-8 mb-2 opacity-50" />
                       <p>No attachments uploaded by the team yet.</p>
