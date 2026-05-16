@@ -28,7 +28,7 @@ export default async function AdminCommandCenterPage() {
   const [stageCounts, totalLeads, unassignedLeads, activeCad, activeQuotation, budgetReady] = await Promise.all([
     prisma.lead.groupBy({
       by: ['stage'],
-      where: { createdAt: { gte: monthStart } },
+      where: { created_at: { gte: monthStart } },
       _count: { stage: true },
       orderBy: { _count: { stage: 'desc' } },
     }),
