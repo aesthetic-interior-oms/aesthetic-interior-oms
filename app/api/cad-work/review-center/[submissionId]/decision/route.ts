@@ -79,6 +79,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
             OR: [
               { stage: LeadStage.CAD_PHASE, subStatus: LeadSubStatus.CAD_COMPLETED },
               { stage: LeadStage.QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_COMPLETED },
+              { stage: LeadStage.VISUALIZATION_PHASE, subStatus: LeadSubStatus.VISUAL_COMPLETED },
             ],
             ...(isAdmin
               ? {}
@@ -104,7 +105,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
               subStatus: true,
               assignments: {
                 where: {
-                  department: { in: ['JR_ARCHITECT', 'QUOTATION', 'SR_CRM', 'ADMIN'] },
+                  department: { in: ['JR_ARCHITECT', 'QUOTATION', 'VISUALIZER_3D', 'SR_CRM', 'ADMIN'] },
                 },
                 select: {
                   userId: true,
@@ -133,15 +134,30 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const isQuotationReview =
         submission.lead.stage === LeadStage.QUOTATION_PHASE &&
         submission.lead.subStatus === LeadSubStatus.QUOTATION_COMPLETED
-      const reviewLabel = isQuotationReview ? 'Quotation' : 'CAD'
-      const nextStage = isQuotationReview ? LeadStage.QUOTATION_PHASE : LeadStage.CAD_PHASE
+      const isVisualizerReview =
+        submission.lead.stage === LeadStage.VISUALIZATION_PHASE &&
+        submission.lead.subStatus === LeadSubStatus.VISUAL_COMPLETED
+      const reviewLabel = isQuotationReview
+        ? 'Quotation'
+        : isVisualizerReview
+          ? '3D Visualization'
+          : 'CAD'
+      const nextStage = isQuotationReview
+        ? LeadStage.QUOTATION_PHASE
+        : isVisualizerReview
+          ? LeadStage.VISUALIZATION_PHASE
+          : LeadStage.CAD_PHASE
       const nextSubStatus = isQuotationReview
         ? decision === 'APPROVE'
           ? LeadSubStatus.QUOTATION_APPROVED
           : LeadSubStatus.QUOTATION_CORRECTION
-        : decision === 'APPROVE'
-          ? LeadSubStatus.CAD_APPROVED
-          : LeadSubStatus.CAD_ASSIGNED
+        : isVisualizerReview
+          ? decision === 'APPROVE'
+            ? LeadSubStatus.CLIENT_APPROVED
+            : LeadSubStatus.VISUAL_CORRECTION
+          : decision === 'APPROVE'
+            ? LeadSubStatus.CAD_APPROVED
+            : LeadSubStatus.CAD_ASSIGNED
       const phaseType = isQuotationReview ? LeadPhaseType.QUOTATION : LeadPhaseType.CAD
       const reason =
         decision === 'APPROVE'
@@ -165,18 +181,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
         reason,
       })
 
-      const phaseTask = await tx.leadPhaseTask.findFirst({
-        where: {
-          leadId: submission.leadId,
-          phaseType,
-          status: { in: [LeadPhaseTaskStatus.OPEN, LeadPhaseTaskStatus.IN_REVIEW] },
-        },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          currentReviewRound: true,
-        },
-      })
+      const phaseTask = isVisualizerReview
+        ? null
+        : await tx.leadPhaseTask.findFirst({
+            where: {
+              leadId: submission.leadId,
+              phaseType,
+              status: { in: [LeadPhaseTaskStatus.OPEN, LeadPhaseTaskStatus.IN_REVIEW] },
+            },
+            orderBy: { createdAt: 'desc' },
+            select: {
+              id: true,
+              currentReviewRound: true,
+            },
+          })
 
       if (phaseTask) {
         const nextRound = phaseTask.currentReviewRound + 1

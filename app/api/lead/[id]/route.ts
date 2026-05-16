@@ -378,10 +378,11 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   if (!authResult.ok) {
     return authResult.response;
   }
+  const actorDepartments = authResult.actor.userDepartments ?? [];
   const scopedWhere = buildScopedLeadWhere({
     leadId: id,
     actorUserId: authResult.actorUserId,
-    actorDepartments: authResult.actor.userDepartments ?? [],
+    actorDepartments,
   });
 
   const fetchLead = (loadAttachments: boolean) =>
@@ -494,8 +495,22 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
     }
 
+    const isVisualizerOnly =
+      (actorDepartments.includes('VISUALIZER_3D') ||
+        actorDepartments.includes('3D_VISUALIZER')) &&
+      !actorDepartments.includes('ADMIN') &&
+      !actorDepartments.includes('SR_CRM');
+    const shouldHideAttachments =
+      isVisualizerOnly &&
+      lead.stage === LeadStage.VISUALIZATION_PHASE &&
+      lead.subStatus !== LeadSubStatus.VISUAL_WORKING &&
+      lead.subStatus !== LeadSubStatus.VISUAL_COMPLETED;
+    const responseLead = shouldHideAttachments
+      ? { ...lead, attachments: [] }
+      : lead;
+
     // console.log('[DEBUG][lead/:id][GET] Lead fetched successfully:', id);
-    const response = NextResponse.json({ success: true, data: lead });
+    const response = NextResponse.json({ success: true, data: responseLead });
     const totalDurationMs = performance.now() - requestStart;
     response.headers.set(
       'Server-Timing',
@@ -768,14 +783,24 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return authResult.response;
     }
     const actorDepartments = authResult.actor.userDepartments ?? [];
-    const scopedWhere = buildScopedLeadWhere({
-      leadId: id,
-      actorUserId: authResult.actorUserId,
-      actorDepartments,
-    });
     const body = (await request.json()) as UpdateLeadBody;
+    const bodyKeys = Object.entries(body).filter(([, value]) => value !== undefined);
+    const isNameOnlyUpdate =
+      body.name !== undefined &&
+      bodyKeys.every(([key]) => key === 'name' || key === 'userId');
+    const canRenameLead = actorDepartments.some((department) =>
+      ['ADMIN', 'SR_CRM', 'JR_ARCHITECT'].includes(department),
+    );
+    const leadWhere =
+      isNameOnlyUpdate && canRenameLead
+        ? { id }
+        : buildScopedLeadWhere({
+            leadId: id,
+            actorUserId: authResult.actorUserId,
+            actorDepartments,
+          });
 
-    const existingLead = await prisma.lead.findFirst({ where: scopedWhere });
+    const existingLead = await prisma.lead.findFirst({ where: leadWhere });
     if (!existingLead) {
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
     }

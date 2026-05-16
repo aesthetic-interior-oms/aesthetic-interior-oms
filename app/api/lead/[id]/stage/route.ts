@@ -107,14 +107,24 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ success: false, error: 'Valid stage is required' }, { status: 400 });
     }
 
-    const scopedWhere = buildScopedLeadWhere({
-      leadId,
-      actorUserId: userId,
-      actorDepartments,
-    });
+    const isBudgetMeetingCompletionRequest =
+      actorDepartments.some((department) =>
+        ['ADMIN', 'SR_CRM', 'JR_ARCHITECT'].includes(department),
+      ) &&
+      ((nextStage === LeadStage.VISUALIZATION_PHASE &&
+        requestedSubStatus === LeadSubStatus.VISUAL_ASSIGNED) ||
+        (nextStage === LeadStage.BUDGET_PHASE &&
+          requestedSubStatus === LeadSubStatus.REJECTED_OFFER));
+    const leadWhere = isBudgetMeetingCompletionRequest
+      ? { id: leadId }
+      : buildScopedLeadWhere({
+          leadId,
+          actorUserId: userId,
+          actorDepartments,
+        });
 
     const existingLead = await prisma.lead.findFirst({
-      where: scopedWhere,
+      where: leadWhere,
       select: { id: true, stage: true, subStatus: true, primaryOwnerUserId: true },
     });
 
@@ -251,7 +261,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         { status: 403 },
       );
     }
+    const isBudgetMeetingCompletion =
+      existingLead.stage === LeadStage.BUDGET_PHASE &&
+      existingLead.subStatus === LeadSubStatus.BUDGET_MEETING_SET &&
+      isBudgetMeetingCompletionRequest;
+
     if (
+      !isBudgetMeetingCompletion &&
       !canManagePrimaryLeadFlow({
         actorUserId: userId,
         actorDepartments,
@@ -259,7 +275,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       })
     ) {
       return NextResponse.json(
-        { success: false, error: 'Only primary owner, Senior CRM, or admin can change lead flow' },
+        { success: false, error: 'Only primary owner, Senior CRM, Admin, or JR Architect budget meeting completion can change lead flow' },
         { status: 403 },
       );
     }

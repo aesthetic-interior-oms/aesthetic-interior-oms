@@ -164,5 +164,12 @@ export async function ensureSeniorCrmAssignment(input: {
 }
 
 export function requiresSrCrmAssignment(stage: LeadStage): boolean {
-  return stage !== LeadStage.CONVERSION && stage !== LeadStage.CLOSED
+  return (
+    stage !== LeadStage.NEW &&
+    stage !== LeadStage.NUMBER_COLLECTED &&
+    stage !== LeadStage.CONTACT_ATTEMPTED &&
+    stage !== LeadStage.NURTURING &&
+    stage !== LeadStage.CONVERSION &&
+    stage !== LeadStage.CLOSED
+  )
 }

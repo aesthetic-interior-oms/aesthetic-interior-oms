@@ -1,7 +1,11 @@
 import { upload } from '@vercel/blob/client'
-import { DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
+import {
+  DIRECT_BLOB_UPLOAD_MAX_BYTES,
+  VISUALIZER_WORK_UPLOAD_MAX_BYTES,
+  formatBytesToMbLabel,
+} from '@/lib/upload-limits'
 
-export type ClientBlobUploadContext = 'cad-work' | 'quotation-work' | 'visit-result' | 'visit-support-result' | 'lead-attachment'
+export type ClientBlobUploadContext = 'cad-work' | 'quotation-work' | 'visualizer-work' | 'visit-result' | 'visit-support-result' | 'lead-attachment'
 
 export type UploadedBlobFileMeta = {
   url: string
@@ -23,12 +27,20 @@ function sanitizeFileName(fileName: string): string {
   return fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
 }
 
+function getUploadMaxBytes(context: ClientBlobUploadContext): number {
+  return context === 'visualizer-work'
+    ? VISUALIZER_WORK_UPLOAD_MAX_BYTES
+    : DIRECT_BLOB_UPLOAD_MAX_BYTES
+}
+
 function getPathPrefix(context: ClientBlobUploadContext): string {
   switch (context) {
     case 'cad-work':
       return 'cad-work-submissions'
     case 'quotation-work':
       return 'quotation-work-submissions'
+    case 'visualizer-work':
+      return 'visualizer-work-submissions'
     case 'visit-result':
       return 'visit-results'
     case 'visit-support-result':
@@ -46,10 +58,11 @@ export async function uploadDirectBlobFile({
   quotationFileType,
   onProgress,
 }: UploadDirectBlobInput): Promise<UploadedBlobFileMeta> {
-  if (file.size > DIRECT_BLOB_UPLOAD_MAX_BYTES) {
+  const maxBytes = getUploadMaxBytes(context)
+  if (file.size > maxBytes) {
     throw new Error(
       `"${file.name}" is ${formatBytesToMbLabel(file.size)}. Direct browser upload supports up to ${formatBytesToMbLabel(
-        DIRECT_BLOB_UPLOAD_MAX_BYTES,
+        maxBytes,
       )} per file.`,
     )
   }

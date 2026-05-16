@@ -88,15 +88,18 @@ export async function GET() {
         updatedAt: lead.updated_at,
         budget: lead.budget,
         visualizerAssignee: lead.assignments[0]?.user ?? null,
-        attachments: lead.attachments,
+        attachments:
+          lead.subStatus === LeadSubStatus.VISUAL_WORKING ||
+          lead.subStatus === LeadSubStatus.VISUAL_COMPLETED
+            ? lead.attachments
+            : [],
         canStart:
           lead.stage === LeadStage.VISUALIZATION_PHASE &&
           (lead.subStatus === LeadSubStatus.VISUAL_ASSIGNED ||
             lead.subStatus === LeadSubStatus.VISUAL_CORRECTION),
-        canOpenWorkspace:
+        canSubmit:
           lead.stage === LeadStage.VISUALIZATION_PHASE &&
-          (lead.subStatus === LeadSubStatus.VISUAL_WORKING ||
-            lead.subStatus === LeadSubStatus.VISUAL_COMPLETED),
+          lead.subStatus === LeadSubStatus.VISUAL_WORKING,
       })),
     })
   } catch (error) {
