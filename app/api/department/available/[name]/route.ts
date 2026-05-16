@@ -5,17 +5,16 @@ const VALID_DEPARTMENTS = [
   'ADMIN',
   'SR_CRM',
   'JR_CRM',
-  'QUOTATION',
   'QUOTATION_TEAM',
   'VISIT_TEAM',
   'JR_ARCHITECT',
-  'VISUALIZER_3D',
+  '3D_VISUALIZER',
   'ACCOUNTS',
 ] as const;
 
 function resolveDepartmentAliases(departmentName: string): string[] {
-  if (departmentName === 'QUOTATION' || departmentName === 'QUOTATION_TEAM') {
-    return ['QUOTATION', 'QUOTATION_TEAM']
+  if (departmentName === '3D_VISUALIZER') {
+    return ['3D_VISUALIZER']
   }
   return [departmentName]
 }
