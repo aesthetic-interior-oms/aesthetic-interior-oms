@@ -9,6 +9,8 @@ import {
   LeadVisitOperationsSection,
   MetricCardSection,
   MetricsGridSection,
+  VisitControlTowerSection,
+  DataFlowStatsSection,
   ReviewWaitingSection,
   QuotationApprovedBudgetSection,
   SeniorThreeDayCalendarSection,
@@ -429,7 +431,7 @@ export default async function AdminCommandCenterPage() {
     {
       label: '7) Design Queue',
       value: activeProjects,
-      note: 'Combined CAD + Budget + Review workload in design pipeline.',
+      note: `Combined CAD + Budget + Review workload in design pipeline. Current data count: ${activeProjects}.`,
       href: '/crm/admin/design-queue?filter=active',
     },
   ]
@@ -455,18 +457,9 @@ export default async function AdminCommandCenterPage() {
           ]}
         />
 
-        <MetricCardSection
-          title="Visit Control Tower"
-          description="Focused visit monitoring for admin: weekly schedule volume, post-schedule pending result risk, and visit queue handoff delay before JR Architect/CAD."
-          metrics={visitControlMetrics}
-        />
+        <VisitControlTowerSection metrics={visitControlMetrics} />
 
-        <MetricCardSection
-          title="Data Flow Through Pages (Serial)"
-          description="End-to-end page flow visibility for admin. Each stat is clickable so you can open that exact page and take action."
-          metrics={pageFlowMetrics}
-          columns=""
-        />
+        <DataFlowStatsSection metrics={pageFlowMetrics} />
 
         <MetricCardSection
           title="CAD and Department Delivery Watch"
@@ -504,11 +497,11 @@ export default async function AdminCommandCenterPage() {
 
         <SeniorThreeDayCalendarSection days={seniorWorkDays} />
 
-        <ReviewWaitingSection totalWaiting={totalReviewBacklog} items={reviewWaitingItems} />
+        <ReviewWaitingSection totalWaiting={totalReviewBacklog} items={reviewWaitingItems.slice(0, 10)} />
 
         <QuotationApprovedBudgetSection items={quotationApprovedBudgetItems} />
 
-        <DeadlineSubmissionSection summary={deadlineSummary} queue={deadlineQueue.map(({ priority, orderTime, ...rest }) => rest)} />
+        <DeadlineSubmissionSection summary={deadlineSummary} queue={deadlineQueue.slice(0, 10).map((item) => ({ id: item.id, leadName: item.leadName, department: item.department, phaseLabel: item.phaseLabel, statusLabel: item.statusLabel, dueAtText: item.dueAtText, completedAtText: item.completedAtText, href: item.href }))} />
 
         <AlertSection metrics={redAlerts} />
 

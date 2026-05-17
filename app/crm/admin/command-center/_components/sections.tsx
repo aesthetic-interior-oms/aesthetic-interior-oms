@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Activity, ArrowRight, Clock3, FileCheck2, GitBranch, LayoutGrid, MapPinned } from 'lucide-react'
 
 type Metric = {
   label: string
@@ -159,6 +160,80 @@ export function MetricCardSection({ title, description, metrics, columns = 'md:g
   )
 }
 
+
+
+export function VisitControlTowerSection({ metrics }: { metrics: Metric[] }) {
+  const maxValue = Math.max(...metrics.map((metric) => metric.value), 1)
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b bg-muted/20">
+        <CardTitle className="flex items-center gap-2"><MapPinned className="h-4 w-4 text-primary" />Visit Control Tower</CardTitle>
+        <p className="text-sm text-muted-foreground">Weekly volume, overdue result risk, and queue assignment bottleneck in one compact panel.</p>
+      </CardHeader>
+      <CardContent className="grid gap-3 p-4 md:grid-cols-3">
+        {metrics.map((metric) => {
+          const width = Math.max(8, Math.round((metric.value / maxValue) * 100))
+          return (
+            <Link key={metric.label} href={metric.href} className="rounded-xl bg-card p-3 ring-1 ring-border transition hover:ring-primary/40">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">{metric.label}</p>
+                  <p className={`mt-1 text-2xl font-bold ${metric.critical ? 'text-red-600' : 'text-foreground'}`}>{metric.value}</p>
+                </div>
+                <Activity className={`h-4 w-4 ${metric.critical ? 'text-red-500' : 'text-primary'}`} />
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-muted">
+                <div className={`h-2 rounded-full ${metric.critical ? 'bg-red-500/80' : 'bg-primary/80'}`} style={{ width: `${width}%` }} />
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">{metric.note}</p>
+            </Link>
+          )
+        })}
+      </CardContent>
+    </Card>
+  )
+}
+
+export function DataFlowStatsSection({ metrics }: { metrics: Metric[] }) {
+  const maxValue = Math.max(...metrics.map((metric) => metric.value), 1)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><GitBranch className="h-4 w-4 text-primary" />Data Flow Through Pages</CardTitle>
+        <p className="text-sm text-muted-foreground">Serial workflow from visits to design queue with live count visibility.</p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {metrics.map((metric, idx) => {
+          const width = Math.max(6, Math.round((metric.value / maxValue) * 100))
+          const isDesignQueue = metric.label.toLowerCase().includes('design queue')
+
+          return (
+            <Link key={metric.label} href={metric.href} className="block rounded-xl bg-card p-3 ring-1 ring-border transition hover:ring-primary/40">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">{idx + 1}</span>
+                  <p className="text-sm font-semibold">{metric.label}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isDesignQueue ? <LayoutGrid className="h-4 w-4 text-primary" /> : null}
+                  <span className={`text-lg font-bold ${metric.critical ? 'text-red-600' : 'text-foreground'}`}>{metric.value}</span>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+              <div className="mt-2 h-1.5 rounded-full bg-muted">
+                <div className={`h-1.5 rounded-full ${metric.critical ? 'bg-red-500/80' : 'bg-primary/70'}`} style={{ width: `${width}%` }} />
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">{metric.note}{isDesignQueue ? ' (Shows exact data count, including 0.)' : ''}</p>
+            </Link>
+          )
+        })}
+      </CardContent>
+    </Card>
+  )
+}
+
 export function AlertSection({ metrics }: { metrics: Metric[] }) {
   return (
     <Card className="border-red-300">
@@ -214,8 +289,9 @@ export function DeadlineSubmissionSection({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Deadline Submission Queue</CardTitle>
+      <CardHeader className="space-y-2">
+        <CardTitle className="flex items-center gap-2 text-base"><Clock3 className="h-4 w-4 text-primary" />Deadline Submission Queue</CardTitle>
+        <p className="text-xs text-muted-foreground">Premium compact queue · latest 10 records only.</p>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
@@ -225,7 +301,7 @@ export function DeadlineSubmissionSection({
 
         <div className="grid gap-2 md:grid-cols-3">
           {summary.map((row) => (
-            <div key={row.key} className="rounded-md border p-3">
+            <div key={row.key} className="rounded-xl bg-muted/40 p-3">
               <p className="text-sm font-semibold">{row.department}</p>
               <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                 <div>
@@ -245,17 +321,17 @@ export function DeadlineSubmissionSection({
           ))}
         </div>
 
-        <div className="space-y-2">
+        <div className="grid gap-2 md:grid-cols-2">
           {queue.length === 0 ? (
             <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">No submission records in this queue right now.</p>
           ) : (
             queue.map((item) => (
-              <Link key={item.id} href={item.href} className="block rounded-md border p-3 transition hover:border-primary/60 hover:shadow-sm">
+              <Link key={item.id} href={item.href} className="block rounded-xl bg-card/80 p-3 shadow-sm ring-1 ring-primary/10 transition hover:bg-primary/5 hover:ring-primary/30">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold">{item.leadName}</p>
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${toneClass(item.statusLabel)}`}>{statusText(item.statusLabel)}</span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{item.department} - {item.phaseLabel}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{item.department} · {item.phaseLabel}</p>
                 <p className="mt-1 text-xs text-muted-foreground">Due: {item.dueAtText} · Submitted: {item.completedAtText}</p>
               </Link>
             ))
@@ -326,29 +402,30 @@ export function ReviewWaitingSection({
 }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Review Center Waiting Queue</CardTitle>
+      <CardHeader className="space-y-2">
+        <CardTitle className="flex items-center gap-2 text-base"><FileCheck2 className="h-4 w-4 text-primary" />Review Center Waiting Queue</CardTitle>
+        <p className="text-xs text-muted-foreground">Compact approval cards · latest 10 waiting submissions.</p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="rounded-md border bg-muted/30 p-3">
+        <div className="rounded-xl bg-muted/40 p-3">
           <p className="text-xs text-muted-foreground">Total waiting for review</p>
           <p className="text-2xl font-bold">{totalWaiting}</p>
         </div>
         {items.length === 0 ? (
           <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">No data is currently waiting in Review Center.</p>
         ) : (
-          <div className="space-y-2">
+          <div className="grid gap-2 md:grid-cols-2">
             {items.map((item) => (
-              <Link key={item.id} href={`/crm/admin/leads/${item.leadId}`} className="block rounded-md border p-3 transition hover:border-primary/60 hover:shadow-sm">
+              <Link key={item.id} href={`/crm/admin/leads/${item.leadId}`} className="block rounded-xl bg-card/80 p-3 shadow-sm ring-1 ring-primary/10 transition hover:bg-primary/5 hover:ring-primary/30">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm font-semibold">{item.leadName}</p>
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Waiting</span>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{item.source} • Submitted by {item.submittedBy}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{item.source} · by {item.submittedBy}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{item.filesCount} file{item.filesCount === 1 ? '' : 's'} • {item.submittedAtText}</p>
               </Link>
             ))}
-            <div className="pt-1">
+            <div className="pt-1 md:col-span-2">
               <Button asChild variant="outline" size="sm">
                 <Link href="/crm/admin/review-center">Open Review Center</Link>
               </Button>
