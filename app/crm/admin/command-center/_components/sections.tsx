@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Download } from 'lucide-react'
 
 type Metric = {
   label: string
@@ -58,6 +59,19 @@ type ReviewWaitingItem = {
   submittedBy: string
   submittedAtText: string
   filesCount: number
+}
+
+
+
+type VisualizationCompletionItem = {
+  submissionId: string
+  leadId: string
+  leadName: string
+  statusLabel: 'IN_VISUALIZATION' | 'VISUALIZATION_APPROVED'
+  submittedAtText: string
+  submittedBy: string
+  fileCount: number
+  primaryDownloadUrl: string | null
 }
 
 type QuotationApprovedBudgetItem = {
@@ -360,6 +374,58 @@ export function ReviewWaitingSection({
   )
 }
 
+
+
+export function VisualizationCompletionSection({ items }: { items: VisualizationCompletionItem[] }) {
+  const statusTone = (status: VisualizationCompletionItem['statusLabel']) =>
+    status === 'VISUALIZATION_APPROVED'
+      ? 'bg-emerald-100 text-emerald-700'
+      : 'bg-amber-100 text-amber-800'
+
+  const statusText = (status: VisualizationCompletionItem['statusLabel']) =>
+    status === 'VISUALIZATION_APPROVED' ? 'Visualization Approved' : 'Visualization Submitted'
+
+  const downloadUrl = (url: string) => (url.includes('?') ? `${url}&download=1` : `${url}?download=1`)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Visualization Design Completion</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Track leads that reached visualization submission and approved state. Download the latest design file directly from this command center section.
+        </p>
+        {items.length === 0 ? (
+          <p className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">No visualization design submissions found right now.</p>
+        ) : (
+          <div className="space-y-2">
+            {items.map((item) => (
+              <div key={item.submissionId} className="rounded-md border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Link href={`/crm/admin/leads/${item.leadId}`} className="text-sm font-semibold hover:underline">{item.leadName}</Link>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusTone(item.statusLabel)}`}>{statusText(item.statusLabel)}</span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">Submitted by {item.submittedBy} • {item.submittedAtText}</p>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <p className="text-xs text-muted-foreground">{item.fileCount} design file{item.fileCount === 1 ? '' : 's'}</p>
+                  {item.primaryDownloadUrl ? (
+                    <Button asChild size="sm" variant="outline">
+                      <a href={downloadUrl(item.primaryDownloadUrl)} target="_blank" rel="noopener noreferrer">
+                        <Download className="mr-1 h-3.5 w-3.5" /> Download design
+                      </a>
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export function QuotationApprovedBudgetSection({ items }: { items: QuotationApprovedBudgetItem[] }) {
   const formatMoney = (value: number | null) => {
     if (!value || value <= 0) return "Budget not set"
@@ -401,4 +467,4 @@ export function QuotationApprovedBudgetSection({ items }: { items: QuotationAppr
   )
 }
 
-export type { Metric, LeadStageMetric, DeadlineSummary, DeadlineQueueItem, SeniorWorkDay, ReviewWaitingItem, QuotationApprovedBudgetItem }
+export type { Metric, LeadStageMetric, DeadlineSummary, DeadlineQueueItem, SeniorWorkDay, ReviewWaitingItem, QuotationApprovedBudgetItem, VisualizationCompletionItem }
