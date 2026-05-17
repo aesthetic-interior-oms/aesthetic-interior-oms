@@ -22,6 +22,8 @@ type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 type SubmitQuotationBody = {
   note?: unknown;
   files?: unknown;
+  budget?: unknown;
+  quotationType?: unknown;
 };
 
 type UploadedQuotationFileMeta = {
@@ -62,6 +64,24 @@ function toUploadedQuotationFileMeta(
   return { url, fileName, fileType, sizeBytes };
 }
 
+function toOptionalNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number(value.trim().replace(/,/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function toQuotationType(value: unknown): "PREMIUM" | "STANDARD" | "BASIC" | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "PREMIUM" || normalized === "STANDARD" || normalized === "BASIC") {
+    return normalized;
+  }
+  return null;
+}
+
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
     const authResult = await requireDatabaseRoles([]);
@@ -79,6 +99,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       .json()
       .catch(() => ({}))) as SubmitQuotationBody;
     const note = toOptionalString(body.note);
+    const budget = toOptionalNumber(body.budget);
+    const quotationType = toQuotationType(body.quotationType);
     const uploadedFiles = Array.isArray(body.files)
       ? body.files
           .map((item) => toUploadedQuotationFileMeta(item))
@@ -182,7 +204,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
       const updatedLead = await tx.lead.update({
         where: { id: lead.id },
-        data: { subStatus: LeadSubStatus.QUOTATION_COMPLETED },
+        data: {
+          subStatus: LeadSubStatus.QUOTATION_COMPLETED,
+          ...(budget !== null ? { budget } : {}),
+          ...(quotationType ? { quotationType } : {}),
+        },
         select: { id: true, stage: true, subStatus: true },
       });
 

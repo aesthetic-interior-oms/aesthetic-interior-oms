@@ -22,6 +22,7 @@ model Lead {
   stage      LeadStage      @default(NEW)
   subStatus  LeadSubStatus?
   budget     Float?
+  quotationType String?
   location   String?
   remarks    String?
   assignedTo String?

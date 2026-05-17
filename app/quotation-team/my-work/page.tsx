@@ -55,7 +55,8 @@ export default function QuotationTeamMyWorkPage() {
   const [submitLead, setSubmitLead] = useState<TaskLead | null>(null);
   const [submitNote, setSubmitNote] = useState("");
   const [submitFiles, setSubmitFiles] = useState<File[]>([]);
-  const [submitQuotationFileType, setSubmitQuotationFileType] = useState<"PREMIUM" | "STANDARD" | "BASIC" | "ALL">("ALL");
+  const [submitQuotationFileType, setSubmitQuotationFileType] = useState<"PREMIUM" | "STANDARD" | "BASIC">("PREMIUM");
+  const [submitBudget, setSubmitBudget] = useState("");
   const [uploadingFiles, setUploadingFiles] = useState(false);
 
   const loadTasks = useCallback(async () => {
@@ -129,11 +130,21 @@ export default function QuotationTeamMyWorkPage() {
     setSubmitLead(lead);
     setSubmitNote("");
     setSubmitFiles([]);
-    setSubmitQuotationFileType("ALL");
+    setSubmitQuotationFileType("PREMIUM");
+    setSubmitBudget("");
   };
 
   const submitQuotationWork = async () => {
     if (!submitLead) return;
+    const budgetValue = Number(submitBudget.trim().replace(/,/g, ""));
+    if (!Number.isFinite(budgetValue) || budgetValue <= 0) {
+      toast.error("Please enter a valid budget amount");
+      return;
+    }
+    if (submitFiles.length === 0) {
+      toast.error("Please attach at least one quotation file");
+      return;
+    }
     setBusyId(submitLead.id);
     try {
       setUploadingFiles(true);
@@ -155,6 +166,8 @@ export default function QuotationTeamMyWorkPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             note: submitNote.trim() || undefined,
+            budget: budgetValue,
+            quotationType: submitQuotationFileType,
             files: uploadedFiles.length > 0 ? uploadedFiles : undefined,
           }),
         },
@@ -167,7 +180,8 @@ export default function QuotationTeamMyWorkPage() {
       setSubmitLead(null);
       setSubmitNote("");
       setSubmitFiles([]);
-    setSubmitQuotationFileType("ALL");
+      setSubmitQuotationFileType("PREMIUM");
+      setSubmitBudget("");
       await loadTasks();
     } catch (error) {
       toast.error(
@@ -321,13 +335,22 @@ export default function QuotationTeamMyWorkPage() {
               <select
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={submitQuotationFileType}
-                onChange={(event) => setSubmitQuotationFileType(event.target.value as "PREMIUM" | "STANDARD" | "BASIC" | "ALL")}
+                onChange={(event) => setSubmitQuotationFileType(event.target.value as "PREMIUM" | "STANDARD" | "BASIC")}
               >
                 <option value="PREMIUM">Premium</option>
                 <option value="STANDARD">Standard</option>
                 <option value="BASIC">Basic</option>
-                <option value="ALL">All</option>
               </select>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Budget amount</p>
+              <Input
+                type="text"
+                inputMode="decimal"
+                placeholder="e.g. 300000"
+                value={submitBudget}
+                onChange={(event) => setSubmitBudget(event.target.value)}
+              />
             </div>
             <Input
               type="file"
@@ -354,7 +377,8 @@ export default function QuotationTeamMyWorkPage() {
                 setSubmitLead(null);
                 setSubmitNote("");
                 setSubmitFiles([]);
-    setSubmitQuotationFileType("ALL");
+                setSubmitQuotationFileType("PREMIUM");
+                setSubmitBudget("");
               }}
             >
               Cancel
