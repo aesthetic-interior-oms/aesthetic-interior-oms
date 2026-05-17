@@ -9,12 +9,13 @@ const VALID_DEPARTMENTS = [
   'VISIT_TEAM',
   'JR_ARCHITECT',
   '3D_VISUALIZER',
+  'VISUALIZER_3D',
   'ACCOUNTS',
 ] as const;
 
 function resolveDepartmentAliases(departmentName: string): string[] {
-  if (departmentName === '3D_VISUALIZER') {
-    return ['3D_VISUALIZER']
+  if (departmentName === '3D_VISUALIZER' || departmentName === 'VISUALIZER_3D') {
+    return ['3D_VISUALIZER', 'VISUALIZER_3D']
   }
   return [departmentName]
 }

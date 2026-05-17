@@ -228,7 +228,7 @@ export function CadPhaseQueueBoard({
     if (quotationMembers.length > 0) return
     setLoadingQuotationMembers(true)
     try {
-      const response = await fetch('/api/department/available/QUOTATION', {
+      const response = await fetch('/api/department/available/QUOTATION_TEAM', {
         cache: 'no-store',
       })
       const payload = (await response.json()) as DepartmentUsersResponse
@@ -251,7 +251,7 @@ export function CadPhaseQueueBoard({
     if (visualizerMembers.length > 0) return
     setLoadingVisualizerMembers(true)
     try {
-      const response = await fetch('/api/department/available/VISUALIZER_3D', {
+      const response = await fetch('/api/department/available/3D_VISUALIZER', {
         cache: 'no-store',
       })
       const payload = (await response.json()) as DepartmentUsersResponse
