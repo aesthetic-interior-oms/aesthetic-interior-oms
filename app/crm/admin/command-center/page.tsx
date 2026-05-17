@@ -12,6 +12,7 @@ import {
   ReviewWaitingSection,
   QuotationApprovedBudgetSection,
   SeniorThreeDayCalendarSection,
+  VisualizationCompletionSection,
   type DeadlineQueueItem,
   type DeadlineSummary,
   type LeadStageMetric,
@@ -19,6 +20,7 @@ import {
   type ReviewWaitingItem,
   type QuotationApprovedBudgetItem,
   type SeniorWorkDay,
+  type VisualizationCompletionItem,
 } from './_components/sections'
 
 export default async function AdminCommandCenterPage() {
@@ -60,6 +62,7 @@ export default async function AdminCommandCenterPage() {
     seniorThreeDayTasks,
     reviewWaitingItemsRaw,
     quotationApprovedBudgetLeadsRaw,
+    visualizationCompletionRaw,
   ] = await Promise.all([
     prisma.lead.groupBy({
       by: ['stage'],
@@ -209,6 +212,28 @@ export default async function AdminCommandCenterPage() {
       orderBy: { updated_at: 'desc' },
       take: 12,
     }),
+    prisma.cadWorkSubmission.findMany({
+      where: {
+        lead: {
+          stage: LeadStage.VISUALIZATION_PHASE,
+          subStatus: {
+            in: [LeadSubStatus.VISUAL_COMPLETED, LeadSubStatus.CLIENT_APPROVED],
+          },
+        },
+      },
+      select: {
+        id: true,
+        submittedAt: true,
+        submittedBy: { select: { fullName: true } },
+        lead: { select: { id: true, name: true, subStatus: true } },
+        files: {
+          select: { id: true, url: true },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+      orderBy: { submittedAt: 'desc' },
+      take: 12,
+    }),
   ])
 
   const totalReviewBacklog = reviewJa + reviewQt + reviewViz
@@ -277,6 +302,17 @@ export default async function AdminCommandCenterPage() {
     return a.orderTime - b.orderTime
   })
 
+  const deadlineQueueItems: DeadlineQueueItem[] = deadlineQueue.map((item) => ({
+    id: item.id,
+    leadName: item.leadName,
+    department: item.department,
+    phaseLabel: item.phaseLabel,
+    statusLabel: item.statusLabel,
+    dueAtText: item.dueAtText,
+    completedAtText: item.completedAtText,
+    href: item.href,
+  }))
+
   const deadlineSummary: DeadlineSummary[] = [
     { key: 'jr', ...deadlineSummaryMap.jr },
     { key: 'quotation', ...deadlineSummaryMap.quotation },
@@ -336,6 +372,18 @@ export default async function AdminCommandCenterPage() {
     submittedBy: item.submittedBy.fullName,
     submittedAtText: item.submittedAt.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
     filesCount: item.files.length,
+  }))
+
+
+  const visualizationCompletionItems: VisualizationCompletionItem[] = visualizationCompletionRaw.map((item) => ({
+    submissionId: item.id,
+    leadId: item.lead.id,
+    leadName: item.lead.name,
+    statusLabel: item.lead.subStatus === LeadSubStatus.CLIENT_APPROVED ? 'VISUALIZATION_APPROVED' : 'IN_VISUALIZATION',
+    submittedAtText: item.submittedAt.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    submittedBy: item.submittedBy.fullName,
+    fileCount: item.files.length,
+    primaryDownloadUrl: item.files[0]?.url ?? null,
   }))
 
   const quotationApprovedBudgetItems: QuotationApprovedBudgetItem[] = quotationApprovedBudgetLeadsRaw.map((lead) => ({
@@ -506,9 +554,14 @@ export default async function AdminCommandCenterPage() {
 
         <ReviewWaitingSection totalWaiting={totalReviewBacklog} items={reviewWaitingItems} />
 
+        <VisualizationCompletionSection items={visualizationCompletionItems} />
+
         <QuotationApprovedBudgetSection items={quotationApprovedBudgetItems} />
 
-        <DeadlineSubmissionSection summary={deadlineSummary} queue={deadlineQueue.map(({ priority, orderTime, ...rest }) => rest)} />
+        <DeadlineSubmissionSection
+          summary={deadlineSummary}
+          queue={deadlineQueueItems}
+        />
 
         <AlertSection metrics={redAlerts} />
 
