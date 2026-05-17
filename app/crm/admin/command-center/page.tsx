@@ -302,6 +302,17 @@ export default async function AdminCommandCenterPage() {
     return a.orderTime - b.orderTime
   })
 
+  const deadlineQueueItems: DeadlineQueueItem[] = deadlineQueue.map((item) => ({
+    id: item.id,
+    leadName: item.leadName,
+    department: item.department,
+    phaseLabel: item.phaseLabel,
+    statusLabel: item.statusLabel,
+    dueAtText: item.dueAtText,
+    completedAtText: item.completedAtText,
+    href: item.href,
+  }))
+
   const deadlineSummary: DeadlineSummary[] = [
     { key: 'jr', ...deadlineSummaryMap.jr },
     { key: 'quotation', ...deadlineSummaryMap.quotation },
@@ -549,12 +560,7 @@ export default async function AdminCommandCenterPage() {
 
         <DeadlineSubmissionSection
           summary={deadlineSummary}
-          queue={deadlineQueue.map((item) => {
-            const rest = { ...item }
-            delete rest.priority
-            delete rest.orderTime
-            return rest
-          })}
+          queue={deadlineQueueItems}
         />
 
         <AlertSection metrics={redAlerts} />
