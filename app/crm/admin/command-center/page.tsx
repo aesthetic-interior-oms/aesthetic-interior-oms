@@ -66,7 +66,7 @@ export default async function AdminCommandCenterPage() {
     prisma.lead.count({
       where: {
         stage: {
-          in: [LeadStage.NEW, LeadStage.CONTACTED, LeadStage.VISIT_SCHEDULED, LeadStage.CAD_PHASE, LeadStage.QUOTATION_PHASE, LeadStage.BUDGET_PHASE],
+          in: [LeadStage.NEW, LeadStage.CONTACT_ATTEMPTED, LeadStage.VISIT_SCHEDULED, LeadStage.CAD_PHASE, LeadStage.QUOTATION_PHASE, LeadStage.BUDGET_PHASE],
         },
       },
     }),
@@ -81,11 +81,11 @@ export default async function AdminCommandCenterPage() {
     prisma.lead.count({ where: { stage: LeadStage.QUOTATION_PHASE } }),
     prisma.lead.count({ where: { stage: LeadStage.BUDGET_PHASE } }),
     prisma.lead.count({ where: { stage: LeadStage.CAD_PHASE, subStatus: LeadSubStatus.CAD_APPROVED } }),
-    prisma.lead.count({ where: { stage: LeadStage.CONSULTATION, subStatus: LeadSubStatus.FIRST_MEETING_SET } }),
-    prisma.leadMeeting.count({ where: { startsAt: { lt: now } } }),
-    prisma.leadMeeting.count({ where: { startsAt: { gte: todayStart, lte: todayEnd } } }),
-    prisma.leadPhaseTask.count({ where: { dueAt: { lt: now }, reviewedAt: null } }),
-    prisma.leadPhaseTask.count({ where: { dueAt: { lt: now }, department: 'QUOTATION' } }),
+    prisma.lead.count({ where: { stage: LeadStage.DISCOVERY, subStatus: LeadSubStatus.FIRST_MEETING_SET } }),
+    prisma.leadMeetingEvent.count({ where: { startsAt: { lt: now } } }),
+    prisma.leadMeetingEvent.count({ where: { startsAt: { gte: todayStart, lte: todayEnd } } }),
+    prisma.leadPhaseTask.count({ where: { dueAt: { lt: now }, status: { not: 'COMPLETED' } } }),
+    prisma.leadPhaseTask.count({ where: { dueAt: { lt: now }, phaseType: 'QUOTATION', status: { not: 'COMPLETED' } } }),
     prisma.visit.count({ where: { status: 'CANCELLED', updatedAt: { gte: monthStart } } }),
     prisma.visit.count({ where: { status: 'RESCHEDULED', updatedAt: { gte: monthStart } } }),
   ])
@@ -94,8 +94,8 @@ export default async function AdminCommandCenterPage() {
   const activeProjects = cadProjects + budgetProjects + totalReviewBacklog
   const todayMissedDeadlines = missedMeetings + missedProjectDeadlines
 
-  const leadStageMap = new Map(stageCounts.map((x) => [x.stage, x._count.stage]))
-  const leadFlowStages = [LeadStage.NEW, LeadStage.CONTACTED, LeadStage.VISIT_SCHEDULED]
+  const leadStageMap = new Map(stageCounts.map((x: { stage: LeadStage; _count: { stage: number } }) => [x.stage, x._count.stage]))
+  const leadFlowStages = [LeadStage.NEW, LeadStage.CONTACT_ATTEMPTED, LeadStage.VISIT_SCHEDULED]
 
   const pulseMetrics: Metric[] = [
     { label: 'Total Active Leads', value: activeLeads, note: 'Active pipeline volume in current timeframe.', href: '/crm/admin/leads?view=active' },
@@ -166,7 +166,7 @@ export default async function AdminCommandCenterPage() {
           <div>
             <h3 className="mb-2 text-sm font-semibold">B. Architecture & Design (CAD)</h3>
             <div className="grid gap-2 md:grid-cols-2">
-              <MetricRow metric={queueMetrics[1]} />
+              <MetricRow metric={{ label: 'CAD Queue', value: cadQueue, note: 'Projects currently sitting in CAD phase.', href: '/crm/admin/cad-phase-queue?queueType=cad-phase' }} />
               <MetricRow metric={{ label: 'Junior Architect Deadlines', value: missedProjectDeadlines, note: 'Approaching/overdue architect tasks from calendar.', href: '/crm/admin/calendar?dept=JR_ARCHITECT&filter=deadline-risk' }} />
             </div>
           </div>
@@ -174,8 +174,8 @@ export default async function AdminCommandCenterPage() {
           <div>
             <h3 className="mb-2 text-sm font-semibold">C. Budget & Quotation</h3>
             <div className="grid gap-2 md:grid-cols-2">
-              <MetricRow metric={queueMetrics[2]} />
-              <MetricRow metric={queueMetrics[3]} />
+              <MetricRow metric={{ label: 'Budget Queue', value: quotationQueue + srBudgetQueue, note: `Quotation Phase: ${quotationQueue} · SR CRM Budget Phase: ${srBudgetQueue}.`, href: '/crm/admin/budget-queue?filter=needs-action' }} />
+              <MetricRow metric={{ label: 'Budget Deadlines Missed', value: missedBudgetDeadlines, note: 'Quote-specific deadlines already crossed.', href: '/crm/admin/budget-queue?filter=missed-deadline', critical: true }} />
             </div>
           </div>
         </CardContent>
