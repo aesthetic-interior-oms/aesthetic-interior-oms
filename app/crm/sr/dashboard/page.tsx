@@ -6,6 +6,7 @@ import {
   LeadStage,
   LeadSubStatus,
   Prisma,
+  VisitStatus,
 } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
 import { listVisitCompleteQueueItems } from '@/lib/visit-complete-queue'
@@ -48,6 +49,8 @@ export default async function SeniorCrmDashboardPage() {
   const srScope = buildSrAssignmentScope(currentUser?.id ?? null)
   const now = new Date()
   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const overdueSubmissionCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const overdueQueueCutoff = new Date(now.getTime() - 48 * 60 * 60 * 1000)
 
   const cadScope: Prisma.LeadWhereInput = { stage: LeadStage.CAD_PHASE }
   const reviewScope: Prisma.LeadWhereInput = {
@@ -90,7 +93,7 @@ export default async function SeniorCrmDashboardPage() {
     ],
   }
 
-  const [cadCount, reviewCount, meetingCount, budgetCount, visitItems, upcomingMeetings, overdueCadTasks, reviewSubmissions, budgetLeads] =
+  const [cadCount, reviewCount, meetingCount, budgetCount, visitItems, upcomingMeetings, overdueCadTasks, overdueQuotationTasks, reviewSubmissions, budgetLeads, overdueQuotationReviews, designQueueCount, overdueDesignQueueCount, designReviewPendingCount, overdueDesignReviews, visitStatusCounts, pendingOverdueVisitCount] =
     await Promise.all([
       prisma.lead.count({ where: mergeLeadScopes(cadScope, srScope) }),
       prisma.lead.count({ where: mergeLeadScopes(reviewScope, srScope) }),
@@ -116,6 +119,23 @@ export default async function SeniorCrmDashboardPage() {
       prisma.leadPhaseTask.findMany({
         where: {
           phaseType: 'CAD',
+          status: { in: [LeadPhaseTaskStatus.OPEN, LeadPhaseTaskStatus.IN_REVIEW] },
+          dueAt: { lte: now },
+          lead: srScope,
+        },
+        orderBy: { dueAt: 'asc' },
+        take: 4,
+        select: {
+          id: true,
+          dueAt: true,
+          status: true,
+          lead: { select: { id: true, name: true, subStatus: true } },
+          assignee: { select: { fullName: true } },
+        },
+      }),
+      prisma.leadPhaseTask.findMany({
+        where: {
+          phaseType: 'QUOTATION',
           status: { in: [LeadPhaseTaskStatus.OPEN, LeadPhaseTaskStatus.IN_REVIEW] },
           dueAt: { lte: now },
           lead: srScope,
@@ -160,6 +180,79 @@ export default async function SeniorCrmDashboardPage() {
           },
         },
       }),
+      prisma.cadWorkSubmission.findMany({
+        where: {
+          submittedAt: { lte: overdueSubmissionCutoff },
+          lead: mergeLeadScopes(
+            { stage: LeadStage.QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_COMPLETED },
+            srScope,
+          ),
+        },
+        orderBy: { submittedAt: 'asc' },
+        take: 4,
+        select: {
+          id: true,
+          submittedAt: true,
+          lead: { select: { id: true, name: true } },
+          submittedBy: { select: { fullName: true } },
+          files: { select: { id: true } },
+        },
+      }),
+      prisma.lead.count({
+        where: mergeLeadScopes(
+          {
+            stage: LeadStage.VISUALIZATION_PHASE,
+            subStatus: { in: [LeadSubStatus.VISUAL_ASSIGNED, LeadSubStatus.VISUAL_WORKING] },
+          },
+          srScope,
+        ),
+      }),
+      prisma.lead.count({
+        where: mergeLeadScopes(
+          {
+            stage: LeadStage.VISUALIZATION_PHASE,
+            subStatus: { in: [LeadSubStatus.VISUAL_ASSIGNED, LeadSubStatus.VISUAL_WORKING] },
+            updated_at: { lte: overdueQueueCutoff },
+          },
+          srScope,
+        ),
+      }),
+      prisma.lead.count({
+        where: mergeLeadScopes(
+          { stage: LeadStage.VISUALIZATION_PHASE, subStatus: LeadSubStatus.VISUAL_COMPLETED },
+          srScope,
+        ),
+      }),
+      prisma.cadWorkSubmission.findMany({
+        where: {
+          submittedAt: { lte: overdueSubmissionCutoff },
+          lead: mergeLeadScopes(
+            { stage: LeadStage.VISUALIZATION_PHASE, subStatus: LeadSubStatus.VISUAL_COMPLETED },
+            srScope,
+          ),
+        },
+        orderBy: { submittedAt: 'asc' },
+        take: 4,
+        select: {
+          id: true,
+          submittedAt: true,
+          lead: { select: { id: true, name: true } },
+          submittedBy: { select: { fullName: true } },
+          files: { select: { id: true } },
+        },
+      }),
+      prisma.visit.groupBy({
+        by: ['status'],
+        where: { lead: srScope },
+        _count: { _all: true },
+      }),
+      prisma.visit.count({
+        where: {
+          status: VisitStatus.SCHEDULED,
+          scheduledAt: { lte: now },
+          lead: srScope,
+        },
+      }),
     ])
 
   const priorityActions: PriorityAction[] = [
@@ -181,6 +274,55 @@ export default async function SeniorCrmDashboardPage() {
       tone: 'warning',
       time: submission.submittedAt,
     })),
+    ...overdueQuotationTasks.map((task): PriorityAction => ({
+      id: `quotation-task-${task.id}`,
+      title: task.lead.name,
+      label: 'Quotation deadline missed',
+      detail: `${task.assignee.fullName} • ${formatLabel(task.status)} • ${formatRelativeTime(task.dueAt)}`,
+      href: `${queueLinks.budget}?lead=${task.lead.id}`,
+      tone: 'critical',
+      time: task.dueAt,
+    })),
+    ...overdueQuotationReviews.map((submission): PriorityAction => ({
+      id: `quotation-review-${submission.id}`,
+      title: submission.lead.name,
+      label: 'Quotation review overdue',
+      detail: `${submission.submittedBy.fullName} submitted ${submission.files.length} file${submission.files.length === 1 ? '' : 's'} • ${formatRelativeTime(submission.submittedAt)}`,
+      href: queueLinks.review,
+      tone: 'warning',
+      time: submission.submittedAt,
+    })),
+    ...overdueDesignReviews.map((submission): PriorityAction => ({
+      id: `design-review-${submission.id}`,
+      title: submission.lead.name,
+      label: 'Design review overdue',
+      detail: `${submission.submittedBy.fullName} submitted ${submission.files.length} file${submission.files.length === 1 ? '' : 's'} • ${formatRelativeTime(submission.submittedAt)}`,
+      href: queueLinks.review,
+      tone: 'warning',
+      time: submission.submittedAt,
+    })),
+    ...(overdueDesignQueueCount > 0
+      ? [{
+          id: 'design-queue-overdue',
+          title: `${overdueDesignQueueCount} design item${overdueDesignQueueCount === 1 ? '' : 's'}`,
+          label: 'Design queue overdue',
+          detail: `Visualization queue items are aging past 48 hours before review handoff.`,
+          href: queueLinks.design,
+          tone: 'critical' as const,
+          time: overdueQueueCutoff,
+        }]
+      : []),
+    ...(pendingOverdueVisitCount > 0
+      ? [{
+          id: 'visit-result-overdue',
+          title: `${pendingOverdueVisitCount} visit pending result`,
+          label: 'Visit result overdue',
+          detail: 'Scheduled visit time passed but no result submission yet.',
+          href: queueLinks.visit,
+          tone: 'critical' as const,
+          time: now,
+        }]
+      : []),
     ...visitItems.slice(0, 4).map((item): PriorityAction => ({
       id: `visit-${item.leadId}`,
       title: item.leadName,
@@ -217,6 +359,21 @@ export default async function SeniorCrmDashboardPage() {
       upcomingMeetings={upcomingMeetings}
       budgetLeads={budgetLeads}
       reviewSubmissions={reviewSubmissions}
+      designWatch={{
+        queueCount: designQueueCount,
+        overdueQueueCount: overdueDesignQueueCount,
+        reviewPendingCount: designReviewPendingCount,
+        overdueReviewCount: overdueDesignReviews.length,
+      }}
+      visitInsights={{
+        statusData: [
+          { name: 'Completed', value: visitStatusCounts.find((row) => row.status === VisitStatus.COMPLETED)?._count._all ?? 0, fill: 'var(--color-chart-2)' },
+          { name: 'Rescheduled', value: visitStatusCounts.find((row) => row.status === VisitStatus.RESCHEDULED)?._count._all ?? 0, fill: 'var(--color-chart-3)' },
+          { name: 'Cancelled', value: visitStatusCounts.find((row) => row.status === VisitStatus.CANCELLED)?._count._all ?? 0, fill: 'var(--color-destructive)' },
+          { name: 'Pending', value: visitStatusCounts.find((row) => row.status === VisitStatus.SCHEDULED)?._count._all ?? 0, fill: 'var(--color-chart-1)' },
+        ],
+        pendingOverdueCount: pendingOverdueVisitCount,
+      }}
     />
   )
 }

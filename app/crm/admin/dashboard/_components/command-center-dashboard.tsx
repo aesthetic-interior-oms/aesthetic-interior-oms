@@ -22,12 +22,12 @@ import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { VisitStatusChart } from '@/components/crm/shared/visit-status-chart'
 
 export const queueLinks = {
-  cad: '/crm/sr/cad-phase-queue',
-  review: '/crm/sr/review-center',
-  visit: '/crm/sr/queue',
-  meeting: '/crm/sr/meeting-queue',
-  budget: '/crm/sr/budget-queue',
-  design: '/crm/sr/design-queue',
+  cad: '/crm/admin/cad-phase-queue?queueType=cad-phase',
+  review: '/crm/admin/review-center',
+  visit: '/crm/admin/queue',
+  meeting: '/crm/admin/meeting-queue',
+  budget: '/crm/admin/budget-queue',
+  design: '/crm/admin/design-queue',
 }
 
 export type PriorityAction = {
@@ -41,7 +41,6 @@ export type PriorityAction = {
 }
 
 type CommandCenterDashboardProps = {
-  currentUserName: string | null
   queueCounts: {
     cad: number
     review: number
@@ -145,14 +144,14 @@ function CommandCenterHero({ firstPriorityHref }: { firstPriorityHref: string })
           <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
           <Badge variant="secondary" className="mb-4 gap-1.5 rounded-full px-3 py-1">
             <LayoutDashboard className="size-3.5" />
-            Senior CRM command layer
+            Admin control layer
           </Badge>
           <h2 className="max-w-3xl text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Control every department handoff from one dashboard.
+            Manage every CRM handoff from one admin command center.
           </h2>
           <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
-            Track CAD progress, approve department submissions, monitor visit outputs, schedule client meetings,
-            and move quotation work into budget discussions without jumping between multiple pages first.
+            Monitor visit outputs, CAD progress, review approvals, meeting flow, and budget movement
+            with one operational dashboard designed for admin-level visibility.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Button asChild>
@@ -162,7 +161,7 @@ function CommandCenterHero({ firstPriorityHref }: { firstPriorityHref: string })
               </Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href="/crm/sr/lead-journey">View lead journey</Link>
+              <Link href="/crm/admin/leads">View lead list</Link>
             </Button>
           </div>
         </div>
@@ -180,22 +179,22 @@ function OperatingPolicyPanel() {
         <div className="flex gap-3 rounded-xl border border-border/70 bg-background p-3">
           <Gauge className="mt-0.5 size-4 text-primary" />
           <div>
-            <p className="text-sm font-medium">Scan status cards first</p>
-            <p className="text-xs text-muted-foreground">Find queue load and bottlenecks instantly.</p>
+            <p className="text-sm font-medium">Scan queue pressure first</p>
+            <p className="text-xs text-muted-foreground">Identify where volume is building across departments.</p>
           </div>
         </div>
         <div className="flex gap-3 rounded-xl border border-border/70 bg-background p-3">
           <TimerReset className="mt-0.5 size-4 text-destructive" />
           <div>
-            <p className="text-sm font-medium">Handle Priority Action next</p>
-            <p className="text-xs text-muted-foreground">Overdue CAD and approval waits surface automatically.</p>
+            <p className="text-sm font-medium">Clear priority actions next</p>
+            <p className="text-xs text-muted-foreground">Resolve overdue CAD and approval bottlenecks early.</p>
           </div>
         </div>
         <div className="flex gap-3 rounded-xl border border-border/70 bg-background p-3">
           <BadgeCheck className="mt-0.5 size-4 text-emerald-600" />
           <div>
-            <p className="text-sm font-medium">Then clear meetings and budgets</p>
-            <p className="text-xs text-muted-foreground">Keep client-facing decisions moving.</p>
+            <p className="text-sm font-medium">Keep meetings and budgets moving</p>
+            <p className="text-xs text-muted-foreground">Maintain client-facing momentum through final phases.</p>
           </div>
         </div>
       </div>
@@ -216,7 +215,7 @@ function QueueStatusGrid({ counts }: { counts: CommandCenterDashboardProps['queu
     {
       title: 'CAD Queue',
       value: counts.cad,
-      subtitle: 'CAD activity, assignments, deadlines',
+      subtitle: 'CAD assignments, status, and deadlines',
       href: queueLinks.cad,
       icon: DraftingCompass,
       accent: 'text-sky-600 bg-sky-500/10 border-sky-500/20',
@@ -224,7 +223,7 @@ function QueueStatusGrid({ counts }: { counts: CommandCenterDashboardProps['queu
     {
       title: 'Review Center',
       value: counts.review,
-      subtitle: 'CAD submissions needing approval',
+      subtitle: 'Submissions waiting for admin review',
       href: queueLinks.review,
       icon: ClipboardCheck,
       accent: 'text-amber-600 bg-amber-500/10 border-amber-500/20',
@@ -232,7 +231,7 @@ function QueueStatusGrid({ counts }: { counts: CommandCenterDashboardProps['queu
     {
       title: 'Meeting Queue',
       value: counts.meeting,
-      subtitle: 'CAD-approved and active meeting leads',
+      subtitle: 'Leads awaiting or progressing through meetings',
       href: queueLinks.meeting,
       icon: Handshake,
       accent: 'text-violet-600 bg-violet-500/10 border-violet-500/20',
@@ -240,7 +239,7 @@ function QueueStatusGrid({ counts }: { counts: CommandCenterDashboardProps['queu
     {
       title: 'Budget Queue',
       value: counts.budget,
-      subtitle: 'Quotation activity and budget meetings',
+      subtitle: 'Quotation and budget movement watch',
       href: queueLinks.budget,
       icon: IndianRupee,
       accent: 'text-rose-600 bg-rose-500/10 border-rose-500/20',
@@ -276,13 +275,7 @@ function QueueStatusGrid({ counts }: { counts: CommandCenterDashboardProps['queu
   )
 }
 
-function PriorityActionCard({
-  currentUserName,
-  priorityActions,
-}: {
-  currentUserName: string | null
-  priorityActions: PriorityAction[]
-}) {
+function PriorityActionCard({ priorityActions }: { priorityActions: PriorityAction[] }) {
   return (
     <Card className="border-border/70 shadow-sm">
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
@@ -292,7 +285,7 @@ function PriorityActionCard({
             Priority Action
           </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
-            Most urgent cross-department items for {currentUserName ?? 'Senior CRM'}.
+            Most urgent cross-department items for Admin.
           </p>
         </div>
         <Badge variant="outline">{priorityActions.length} surfaced</Badge>
@@ -344,7 +337,7 @@ function UpcomingMeetingsCard({ upcomingMeetings }: { upcomingMeetings: Upcoming
           Upcoming Meetings
         </CardTitle>
         <Button asChild variant="ghost" size="sm">
-          <Link href="/crm/sr/meetings">Calendar</Link>
+          <Link href="/crm/admin/calendar">Calendar</Link>
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -352,7 +345,7 @@ function UpcomingMeetingsCard({ upcomingMeetings }: { upcomingMeetings: Upcoming
           <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">No first or budget meetings scheduled in the next 7 days.</p>
         ) : (
           upcomingMeetings.map((meeting) => (
-            <Link key={meeting.id} href={`/crm/sr/leads/${meeting.lead.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
+            <Link key={meeting.id} href={`/crm/admin/leads/${meeting.lead.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-foreground">{meeting.lead.name}</p>
                 <p className="text-xs text-muted-foreground">{formatLabel(meeting.type)} • {formatRelativeTime(meeting.startsAt)}</p>
@@ -380,10 +373,10 @@ function BudgetQuotationWatchCard({ budgetLeads }: { budgetLeads: BudgetLeadItem
       </CardHeader>
       <CardContent className="space-y-3">
         {budgetLeads.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">No active quotation or budget records in your queue.</p>
+          <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">No active quotation or budget records in queue.</p>
         ) : (
           budgetLeads.map((lead) => (
-            <Link key={lead.id} href={`/crm/sr/leads/${lead.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
+            <Link key={lead.id} href={`/crm/admin/leads/${lead.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-foreground">{lead.name}</p>
                 <p className="text-xs text-muted-foreground">{lead.assignments[0]?.user.fullName ?? 'Quotation team'} • {formatMoney(lead.budget)}</p>
@@ -514,6 +507,9 @@ function CommandShortcutsCard() {
       </CardHeader>
       <CardContent className="grid gap-2">
         <Button asChild variant="outline" className="justify-between">
+          <Link href="/crm/admin/leads">Leads <ArrowRight className="size-4" /></Link>
+        </Button>
+        <Button asChild variant="outline" className="justify-between">
           <Link href={queueLinks.visit}>Visit Queue <ArrowRight className="size-4" /></Link>
         </Button>
         <Button asChild variant="outline" className="justify-between">
@@ -528,16 +524,12 @@ function CommandShortcutsCard() {
         <Button asChild variant="outline" className="justify-between">
           <Link href={queueLinks.budget}>Budget Queue <ArrowRight className="size-4" /></Link>
         </Button>
-        <Button asChild variant="outline" className="justify-between">
-          <Link href="/crm/sr/handoffs">Handoff Center <ArrowRight className="size-4" /></Link>
-        </Button>
       </CardContent>
     </Card>
   )
 }
 
-export function CommandCenterDashboard({
-  currentUserName,
+export function AdminCommandCenterDashboard({
   queueCounts,
   priorityActions,
   upcomingMeetings,
@@ -549,8 +541,8 @@ export function CommandCenterDashboard({
   return (
     <div className="min-h-full bg-gradient-to-b from-background via-background to-muted/20">
       <CrmPageHeader
-        title="Command Center"
-        subtitle="One-page control room for Senior CRM queue monitoring, approvals, visits, meetings, and budget work."
+        title="Admin Command Center"
+        subtitle="One-page control room for queue monitoring, approvals, visits, meetings, and budget work."
       />
 
       <main className="mx-auto w-full max-w-[1440px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -558,7 +550,7 @@ export function CommandCenterDashboard({
         <QueueStatusGrid counts={queueCounts} />
 
         <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-          <PriorityActionCard currentUserName={currentUserName} priorityActions={priorityActions} />
+          <PriorityActionCard priorityActions={priorityActions} />
           <div className="grid gap-6">
             <UpcomingMeetingsCard upcomingMeetings={upcomingMeetings} />
             <BudgetQuotationWatchCard budgetLeads={budgetLeads} />
