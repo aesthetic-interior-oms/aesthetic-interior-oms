@@ -73,10 +73,10 @@ function toOptionalNumber(value: unknown): number | null {
   return null;
 }
 
-function toQuotationType(value: unknown): "PREMIUM" | "STANDARD" | "BASIC" | null {
+function toQuotationType(value: unknown): "PREMIUM" | "STANDARD" | "BASIC" | "MIXED" | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase();
-  if (normalized === "PREMIUM" || normalized === "STANDARD" || normalized === "BASIC") {
+  if (normalized === "PREMIUM" || normalized === "STANDARD" || normalized === "BASIC" || normalized === "MIXED") {
     return normalized;
   }
   return null;
