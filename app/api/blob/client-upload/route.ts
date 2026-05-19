@@ -33,7 +33,7 @@ function parseClientPayload(value: string | null): ClientUploadPayload {
 
 
 
-const QUOTATION_FILE_TYPES = new Set(['PREMIUM', 'STANDARD', 'BASIC', 'ALL'])
+const QUOTATION_FILE_TYPES = new Set(['PREMIUM', 'STANDARD', 'BASIC', 'MIXED', 'ALL'])
 
 function getQuotationFileType(payload: ClientUploadPayload): string {
   const value = typeof payload.quotationFileType === 'string' ? payload.quotationFileType.trim().toUpperCase() : ''
