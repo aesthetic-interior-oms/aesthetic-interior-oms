@@ -5,26 +5,12 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Menu, X } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { DesktopNavigation, MobileNavigation } from "@/components/navigation"
-
-const navItems = [
-	{ name: "Home", href: "/" },
-	{ name: "About", href: "/about" },
-	{ name: "Services", href: "/services" },
-	{ name: "Projects", href: "/projects" },
-	{ name: "How We Work", href: "/how-we-work" },
-	{ name: "Contact", href: "/contact" },
-]
+import { DesktopNavigation, MobileNavigation } from "./navigation"
 
 export function Header() {
-	const router = useRouter()
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 	const [isVisible, setIsVisible] = useState(true)
 	const [lastScrollY, setLastScrollY] = useState(0)
-	const [servicesDropdownOpen, setServicesDropdownOpen] = useState(false)
-	const [mobileServicesOpen, setMobileServicesOpen] = useState(false)
-	const [dropdownTimeout, setDropdownTimeout] = useState<NodeJS.Timeout | null>(null)
 
 	useEffect(() => {
 		const handleScroll = () => {
@@ -56,10 +42,8 @@ export function Header() {
 							priority
 							className="h-12 w-auto"
 						/>
-						{/* <span className="ml-2 font-serif text-xl text-[#0d3d3d]">Aesthetic Interior Studio</span> */}
 					</Link>
 
-					{/* Desktop Navigation */}
 					<DesktopNavigation />
 
 					<div className="hidden lg:block">
@@ -70,7 +54,6 @@ export function Header() {
 						</Link>
 					</div>
 
-					{/* Mobile Menu Button */}
 					<button
 						type="button"
 						className="lg:hidden"
@@ -84,7 +67,6 @@ export function Header() {
 					</button>
 				</div>
 
-				{/* Mobile Navigation */}
 				{mobileMenuOpen && <MobileNavigation onClose={() => setMobileMenuOpen(false)} />}
 			</nav>
 		</header>
