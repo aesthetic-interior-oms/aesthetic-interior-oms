@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs'
+import { SignedIn, SignedOut, UserButton } from '@clerk/nextjs'
 
 const ROTATING_LINES = [
   'Precision Planning for Every Space',
@@ -97,25 +97,20 @@ export default function Home() {
           </div>
 
           <div className="mt-8 border-t border-foreground/10 pt-6">
-            <p className="mb-4 text-xs tracking-[0.2em] text-foreground/55">ENTER WORKSPACE</p>
+            <p className="mb-4 text-xs tracking-[0.2em] text-foreground/55">CRM WORKSPACE</p>
             <div className="flex flex-wrap items-center gap-3">
               <SignedOut>
-                <SignInButton forceRedirectUrl="/onboarding">
-                  <Button className="h-10 border border-foreground/25 bg-foreground text-background hover:bg-foreground/90">
-                    Sign In
-                  </Button>
-                </SignInButton>
-                <SignUpButton forceRedirectUrl="/onboarding">
-                  <Button variant="outline" className="h-10 border-foreground/25 bg-transparent hover:bg-foreground/5">
-                    Sign Up
-                  </Button>
-                </SignUpButton>
+                <Button asChild className="h-10 border border-foreground/25 bg-foreground text-background hover:bg-foreground/90">
+                  <Link href="/crm">
+                    Open CRM <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
               </SignedOut>
 
               <SignedIn>
                 <Button asChild className="h-10 border border-foreground/25 bg-foreground text-background hover:bg-foreground/90">
-                  <Link href="/onboarding">
-                    Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+                  <Link href="/crm">
+                    Open CRM <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>
               </SignedIn>

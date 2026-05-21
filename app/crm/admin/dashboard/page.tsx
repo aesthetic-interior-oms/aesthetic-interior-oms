@@ -64,7 +64,7 @@ export default async function AdminDashboardPage() {
     ],
   }
 
-  const [cadCount, reviewCount, meetingCount, budgetCount, visitItems, upcomingMeetings, overdueCadTasks, overdueQuotationTasks, reviewSubmissions, budgetLeads, overdueQuotationReviews, designQueueCount, overdueDesignQueueCount, designReviewPendingCount, overdueDesignReviews, visitStatusCounts, pendingOverdueVisitCount] =
+  const [cadCount, reviewCount, meetingCount, budgetCount, visitItems, upcomingMeetings, overdueCadTasks, overdueQuotationTasks, reviewSubmissions, budgetLeads, overdueQuotationReviews, designQueueCount, overdueDesignQueueCount, designReviewPendingCount, overdueDesignReviews, visitStatusCounts, pendingOverdueVisitCount, overduePendingVisits] =
     await Promise.all([
       prisma.lead.count({ where: cadScope }),
       prisma.lead.count({ where: reviewScope }),
@@ -206,6 +206,20 @@ export default async function AdminDashboardPage() {
           scheduledAt: { lte: now },
         },
       }),
+      prisma.visit.findMany({
+        where: {
+          status: VisitStatus.SCHEDULED,
+          scheduledAt: { lte: now },
+        },
+        orderBy: { scheduledAt: 'asc' },
+        take: 8,
+        select: {
+          id: true,
+          scheduledAt: true,
+          assignedTo: { select: { fullName: true } },
+          lead: { select: { id: true, name: true, location: true } },
+        },
+      }),
     ])
 
   const priorityActions: PriorityAction[] = [
@@ -326,6 +340,14 @@ export default async function AdminDashboardPage() {
         ],
         pendingOverdueCount: pendingOverdueVisitCount,
       }}
+      overduePendingVisits={overduePendingVisits.map((visit) => ({
+        id: visit.id,
+        leadId: visit.lead.id,
+        leadName: visit.lead.name,
+        leadLocation: visit.lead.location,
+        scheduledAt: visit.scheduledAt,
+        visitLeadName: visit.assignedTo?.fullName ?? null,
+      }))}
     />
   )
 }

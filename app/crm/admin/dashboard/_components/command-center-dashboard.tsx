@@ -1,15 +1,12 @@
 import Link from 'next/link'
 import {
   ArrowRight,
-  BadgeCheck,
   CalendarClock,
   ClipboardCheck,
   DraftingCompass,
   FileCheck2,
-  Gauge,
   Handshake,
   IndianRupee,
-  LayoutDashboard,
   Layers3,
   MapPinned,
   TimerReset,
@@ -54,6 +51,7 @@ type CommandCenterDashboardProps = {
   reviewSubmissions: ReviewSubmissionItem[]
   designWatch: DesignWatch
   visitInsights: VisitInsights
+  overduePendingVisits: OverduePendingVisitItem[]
 }
 
 type UpcomingMeetingItem = {
@@ -104,6 +102,15 @@ type VisitInsights = {
   pendingOverdueCount: number
 }
 
+type OverduePendingVisitItem = {
+  id: string
+  leadId: string
+  leadName: string
+  leadLocation: string | null
+  scheduledAt: Date
+  visitLeadName: string | null
+}
+
 export function formatLabel(value: string | null | undefined): string {
   if (!value) return 'N/A'
   if (value === 'DISCOVERY') return 'Consulting Phase'
@@ -134,72 +141,6 @@ function formatMoney(value: number | null | undefined): string {
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(value)
-}
-
-function CommandCenterHero({ firstPriorityHref }: { firstPriorityHref: string }) {
-  return (
-    <section className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
-      <div className="grid gap-0 lg:grid-cols-[1.35fr_0.65fr]">
-        <div className="relative overflow-hidden p-6 sm:p-8">
-          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
-          <Badge variant="secondary" className="mb-4 gap-1.5 rounded-full px-3 py-1">
-            <LayoutDashboard className="size-3.5" />
-            Admin control layer
-          </Badge>
-          <h2 className="max-w-3xl text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Manage every CRM handoff from one admin command center.
-          </h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
-            Monitor visit outputs, CAD progress, review approvals, meeting flow, and budget movement
-            with one operational dashboard designed for admin-level visibility.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild>
-              <Link href={firstPriorityHref}>
-                Open highest priority
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/crm/admin/leads">View lead list</Link>
-            </Button>
-          </div>
-        </div>
-        <OperatingPolicyPanel />
-      </div>
-    </section>
-  )
-}
-
-function OperatingPolicyPanel() {
-  return (
-    <div className="border-t border-border/70 bg-muted/30 p-6 lg:border-l lg:border-t-0">
-      <p className="text-sm font-semibold text-foreground">Today&apos;s operating policy</p>
-      <div className="mt-4 space-y-3">
-        <div className="flex gap-3 rounded-xl border border-border/70 bg-background p-3">
-          <Gauge className="mt-0.5 size-4 text-primary" />
-          <div>
-            <p className="text-sm font-medium">Scan queue pressure first</p>
-            <p className="text-xs text-muted-foreground">Identify where volume is building across departments.</p>
-          </div>
-        </div>
-        <div className="flex gap-3 rounded-xl border border-border/70 bg-background p-3">
-          <TimerReset className="mt-0.5 size-4 text-destructive" />
-          <div>
-            <p className="text-sm font-medium">Clear priority actions next</p>
-            <p className="text-xs text-muted-foreground">Resolve overdue CAD and approval bottlenecks early.</p>
-          </div>
-        </div>
-        <div className="flex gap-3 rounded-xl border border-border/70 bg-background p-3">
-          <BadgeCheck className="mt-0.5 size-4 text-emerald-600" />
-          <div>
-            <p className="text-sm font-medium">Keep meetings and budgets moving</p>
-            <p className="text-xs text-muted-foreground">Maintain client-facing momentum through final phases.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function QueueStatusGrid({ counts }: { counts: CommandCenterDashboardProps['queueCounts'] }) {
@@ -462,7 +403,7 @@ function DesignFlowCard({ designWatch }: { designWatch: DesignWatch }) {
 
 function VisitInsightsSection({ visitInsights }: { visitInsights: VisitInsights }) {
   return (
-    <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+    <section className="grid gap-6">
       <Card className="border-border/70 shadow-sm">
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -477,22 +418,54 @@ function VisitInsightsSection({ visitInsights }: { visitInsights: VisitInsights 
           <VisitStatusChart data={visitInsights.statusData} />
         </CardContent>
       </Card>
-
-      <Card className="border-red-300 bg-red-50/40 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base text-red-700">Red Alert · Visit Pending Overdue</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Scheduled visit time has passed, but visit team has not submitted result data.
-          </p>
-          <p className="text-4xl font-bold text-red-700">{visitInsights.pendingOverdueCount}</p>
-          <Button asChild variant="destructive" size="sm">
-            <Link href={queueLinks.visit}>Review pending visits</Link>
-          </Button>
-        </CardContent>
-      </Card>
     </section>
+  )
+}
+
+function VisitPendingRedAlertSection({ items, totalCount }: { items: OverduePendingVisitItem[]; totalCount: number }) {
+  return (
+    <Card className="border-red-300 bg-red-50/40 shadow-sm dark:border-red-800 dark:bg-red-950/30">
+      <CardHeader className="space-y-2">
+        <CardTitle className="text-base text-red-700 dark:text-red-300">Red Alert · Pending Visit Results</CardTitle>
+        <p className="text-sm text-red-700/80 dark:text-red-300/80">
+          {totalCount} visit{totalCount === 1 ? '' : 's'} are overdue for result submission.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {items.length === 0 ? (
+          <p className="rounded-xl border border-red-200/80 bg-background/60 p-4 text-sm text-muted-foreground dark:border-red-800">
+            No overdue pending visits right now.
+          </p>
+        ) : (
+          items.map((item) => (
+            <Link
+              key={item.id}
+              href={`/crm/admin/leads/${item.leadId}`}
+              className="block rounded-xl border border-red-200 bg-background/80 p-4 transition hover:border-red-400 hover:bg-red-50/40 dark:border-red-800 dark:bg-background/40 dark:hover:bg-red-950/40"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground">{item.leadName}</p>
+                <Badge variant="destructive">Pending Result</Badge>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Scheduled: {item.scheduledAt.toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Visit Team Lead: <span className="font-medium text-foreground">{item.visitLeadName ?? 'Not assigned'}</span>
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Client: <span className="font-medium text-foreground">{item.leadName}</span> · Location: <span className="font-medium text-foreground">{item.leadLocation ?? 'N/A'}</span>
+              </p>
+            </Link>
+          ))
+        )}
+        <div>
+          <Button asChild variant="destructive" size="sm">
+            <Link href={queueLinks.visit}>Open visit queue</Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -537,6 +510,7 @@ export function AdminCommandCenterDashboard({
   reviewSubmissions,
   designWatch,
   visitInsights,
+  overduePendingVisits,
 }: CommandCenterDashboardProps) {
   return (
     <div className="min-h-full bg-gradient-to-b from-background via-background to-muted/20">
@@ -546,8 +520,8 @@ export function AdminCommandCenterDashboard({
       />
 
       <main className="mx-auto w-full max-w-[1440px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-        <CommandCenterHero firstPriorityHref={priorityActions[0]?.href ?? queueLinks.visit} />
         <QueueStatusGrid counts={queueCounts} />
+        <VisitPendingRedAlertSection items={overduePendingVisits} totalCount={visitInsights.pendingOverdueCount} />
 
         <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
           <PriorityActionCard priorityActions={priorityActions} />
