@@ -1,6 +1,7 @@
 import { HomeHeroSection } from "@/components/website/homePage/home-hero-section";
 import { ProcessSection } from "@/components/website/homePage/process-section";
 import { ServicesSection } from "@/components/website/homePage/services-section";
+import { ProjectSection } from "@/components/website/homePage/projects-section";
 
 import { TrustFiguresSection } from "@/components/website/homePage/trust-figure-section";
 import { PartnersSection } from "@/components/website/homePage/partners-section";
@@ -15,6 +16,7 @@ export default function HomePage() {
       <HomeHeroSection />
       <ProcessSection />
       <ServicesSection />
+      <ProjectSection />
   
       <TrustFiguresSection />
       <PartnersSection />
