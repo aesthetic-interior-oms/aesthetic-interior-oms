@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { SiteShell } from "@/components/website/ui/site-shell";
 
 
 const geistSans = Geist({
@@ -49,7 +50,7 @@ export default function RootLayout({
           className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
           <ThemeProvider defaultTheme="light" storageKey="aesthetic-theme">
-            {children}
+            <SiteShell>{children}</SiteShell>
             <Toaster richColors />
           </ThemeProvider>
         </body>
