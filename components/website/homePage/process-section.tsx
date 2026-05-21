@@ -57,13 +57,6 @@ const processSteps: ProcessStep[] = [
 
 function StepIcon({ icon, title }: { icon: string; title: string }) {
   const commonClass = "h-16 w-16 rounded-md flex items-center justify-center"
-  const animationMap: Record<string, object> = {
-    consultation: consultationAnimation,
-    "design-drawing": designAnimation,
-    "person-reading-map": planningAnimation,
-    bricks: executionAnimation,
-    alms: handoverAnimation,
-  }
   const iconMap = {
     consultation: Handshake,
     "design-drawing": Sparkles,
@@ -71,23 +64,15 @@ function StepIcon({ icon, title }: { icon: string; title: string }) {
     bricks: Settings,
     alms: ClipboardCheck,
   } as const
-
-  const animationData = animationMap[icon] ?? consultationAnimation
   const IconFallback = iconMap[icon as keyof typeof iconMap] ?? Sparkles
 
   return (
     <div className={`${commonClass} bg-white relative`} aria-label={`${title} icon`}>
-      <Lottie
-        animationData={animationData}
-        loop
-        autoplay
-        className="absolute inset-0 h-full w-full opacity-80"
-        rendererSettings={{ preserveAspectRatio: "xMidYMid meet" }}
-      />
       <motion.div
         className="relative z-10"
-        animate={{ scale: [0.95, 1, 0.97, 1], y: [0, -1.5, 0] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+        aria-hidden="true"
+        animate={{ scale: [0.98, 1, 0.99, 1], y: [0, -1, 0] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
       >
         <IconFallback className="h-8 w-8 text-[#0d3d3d]" strokeWidth={1.9} />
       </motion.div>

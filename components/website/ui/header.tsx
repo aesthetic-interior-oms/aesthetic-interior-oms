@@ -6,7 +6,8 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Menu, X } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { DesktopNavigation, MobileNavigation } from "@/components/navigation"
+import { DesktopNavigation, MobileNavigation } from "./navigation"
+
 
 const navItems = [
 	{ name: "Home", href: "/" },

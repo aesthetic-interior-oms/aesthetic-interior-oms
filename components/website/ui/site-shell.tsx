@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { Header } from "@/components/website/ui/header";
-import { Footer } from "@/components/footer";
+import { Footer } from "@/components/website/ui/footer";
 
 const APP_ROUTES_WITHOUT_WEBSITE_CHROME = [
   "/crm",

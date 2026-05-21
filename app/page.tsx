@@ -15,7 +15,7 @@ export default function HomePage() {
       <HomeHeroSection />
       <ProcessSection />
       <ServicesSection />
-      <ProjectSection />
+  
       <TrustFiguresSection />
       <PartnersSection />
       <VideoGallerySection />
