@@ -44,7 +44,7 @@ const testimonials = [
       "The design perfectly reflects our lifestyle. The balance between aesthetics and functionality is impressive.",
     author: "Mahin Chowdhury",
     project: "Appartment Project",
-    image: "/client agreement/Client-agreement6.jpg",
+    image: "/client agreement/Client-agreement12.jpg",
   },
   {
     quote:
@@ -58,7 +58,7 @@ const testimonials = [
       "Minimal, warm, and elegant—exactly what we wanted. Communication throughout the project was excellent.",
     author: "Ishraq Mahmud",
     project: "Residential Project",
-    image: "/client agreement/Client-agreement8.jpg",
+    image: "/client agreement/Client-agreement15.jpg",
   },
   {
     quote:

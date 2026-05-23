@@ -79,6 +79,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-bengali: var(--font-noto-bengali);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -125,6 +126,10 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  .font-bengali {
+    font-family: var(--font-bengali);
   }
 }
 

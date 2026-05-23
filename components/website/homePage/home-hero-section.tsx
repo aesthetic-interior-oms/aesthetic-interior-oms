@@ -179,7 +179,7 @@ export function HomeHeroSection() {
               transition={{ duration: 0.6, delay: 0.05, ease: "easeOut" }}
               className={`${notoSerifBengali.className} mb-4 text-sm font-medium tracking-wide text-[#f2d487] sm:text-base`}
             >
-              নকশায় আপনার গল্প, ঘরে বাংলার ছোঁয়া
+              রুচিতে আভিজাত্য, ছোঁয়ায় ঐতিহ্য
             </motion.p>
 
             <motion.h1

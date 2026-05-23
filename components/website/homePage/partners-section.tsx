@@ -4,13 +4,13 @@ import { useEffect, useRef } from "react"
 import Image from "next/image"
 
 const partners = [
-  { name: "Bosch", logo: "/bosch-brand-logo-simple.jpg" },
-  { name: "Hettich", logo: "/hettich-logo-brand.png" },
-  { name: "Hafele", logo: "/hafele-logo-brand.png" },
-  { name: "Blum", logo: "/Blum-logo-brand.webp" },
-  { name: "Siemens", logo: "/siemens.png" },
-  { name: "Greenlam", logo: "/Greenlam-Logo-brand.png" },
-  { name: "Asian Paints", logo: "/asianpaints-logo-brand.webp" },
+  { name: "Bosch", logo: "/brandPartners/bosch-logo-brand.png" },
+  { name: "Hettich", logo: "/brandPartners/hettich-logo-brand.png" },
+  { name: "Hafele", logo: "/brandPartners/hafele-logo-brand.png" },
+  { name: "Blum", logo: "/brandPartners/Blum-logo-brand.webp" },
+  { name: "Siemens", logo: "/brandPartners/siemens.png" },
+  { name: "Greenlam", logo: "/brandPartners/Greenlam-Logo-brand.png" },
+  { name: "Asian Paints", logo: "/brandPartners/asianpaints-logo-brand.webp" },
 ]
 
 export function PartnersSection() {

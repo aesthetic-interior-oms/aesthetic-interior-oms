@@ -8,7 +8,7 @@ const services = [
   {
     id: 1,
     title: "Residential Design",
-    description: "Create stunning home interiors that blend aesthetics with comfort. From modern minimalism to classic elegance, we design spaces that reflect your lifestyle.",
+    description: "আপনার ঘরকে করে তুলুন আরও আকর্ষণীয়। We create stunning home interiors that blend aesthetics with comfort. মডার্ন মিনিমালিজম থেকে ক্লাসিক এলিগেন্স— we design spaces that perfectly reflect your unique lifestyle.",
     href: "/services/residential",
     icon: (
       <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -19,7 +19,7 @@ const services = [
   {
     id: 2,
     title: "Commercial Design",
-    description: "Transform business spaces with professional design solutions. From corporate offices to retail environments, we create productive and inspiring workplaces.",
+    description: "আপনার বিজনেস স্পেসকে দিন একটি প্রফেশনাল লুক। Transform your workspace with modern design solutions. কর্পোরেট অফিস থেকে রিটেল শপ, we create highly productive and inspiring environments.",
     href: "/services/commercial",
     icon: (
       <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -30,7 +30,7 @@ const services = [
   {
     id: 3,
     title: "Architectural Design",
-    description: "Conceptualize and plan spaces with precision. We blend architecture and interior design for cohesive, innovative environments that maximize functionality.",
+    description: "পরিকল্পিত ডিজাইন ও নিখুঁত প্ল্যানিংয়ের মেলবন্ধন। We conceptualize and plan spaces with absolute precision. আর্কিটেকচার ও ইন্টেরিয়রের দারুণ কম্বিনেশনে we build highly functional and innovative structures.",
     href: "/services/architectural",
     icon: (
       <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -108,7 +108,7 @@ export function ServicesSection() {
               </h3>
 
               {/* Description */}
-              <p className="text-gray-600 text-base leading-relaxed mb-8 flex-grow group-hover:text-gray-700 transition-colors duration-500">
+              <p className="font-bengali text-gray-600 text-base leading-relaxed mb-8 flex-grow group-hover:text-gray-700 transition-colors duration-500">
                 {service.description}
               </p>
 
