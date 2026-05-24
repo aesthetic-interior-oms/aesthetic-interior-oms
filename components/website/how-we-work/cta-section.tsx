@@ -13,10 +13,11 @@ const stats = [
 
 export function CtaSection() {
   const [isVisible, setIsVisible] = useState(false)
+  const [isInView, setIsInView] = useState(false)
   const [hoveredStat, setHoveredStat] = useState<number | null>(null)
   const [counters, setCounters] = useState(stats.map(() => 0))
   const sectionRef = useRef<HTMLElement>(null)
-  const intervalsRef = useRef<NodeJS.Timeout[]>([])
+  const intervalsRef = useRef<number[]>([])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -24,6 +25,7 @@ export function CtaSection() {
         if (entry.isIntersecting) {
           setIsVisible(true)
         }
+        setIsInView(entry.isIntersecting)
       },
       { threshold: 0.3 },
     )
@@ -36,28 +38,32 @@ export function CtaSection() {
   }, [])
 
   useEffect(() => {
-    if (isVisible) {
-      stats.forEach((stat, index) => {
-        const interval = setInterval(() => {
-          setCounters((prev) => {
-            const newCounters = [...prev]
-            if (newCounters[index] < stat.target) {
-              newCounters[index] += Math.ceil(stat.target / 50) // Adjust speed
-            } else {
-              newCounters[index] = stat.target
-              clearInterval(intervalsRef.current[index])
-            }
-            return newCounters
-          })
-        }, 50) // Adjust interval speed
-        intervalsRef.current[index] = interval
-      })
-    }
+    intervalsRef.current.forEach((interval) => clearInterval(interval))
+    intervalsRef.current = []
+
+    if (!isInView) return
+
+    setCounters(stats.map(() => 0))
+
+    stats.forEach((stat, index) => {
+      const interval = window.setInterval(() => {
+        setCounters((prev) => {
+          const newCounters = [...prev]
+          if (newCounters[index] < stat.target) {
+            newCounters[index] = Math.min(newCounters[index] + Math.ceil(stat.target / 50), stat.target)
+          } else {
+            clearInterval(interval)
+          }
+          return newCounters
+        })
+      }, 50)
+      intervalsRef.current[index] = interval
+    })
 
     return () => {
       intervalsRef.current.forEach((interval) => clearInterval(interval))
     }
-  }, [isVisible])
+  }, [isInView])
 
   return (
     <section ref={sectionRef} className="py-24 md:py-32 relative overflow-hidden">

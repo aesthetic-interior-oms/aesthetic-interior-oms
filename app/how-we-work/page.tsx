@@ -21,7 +21,7 @@ const stages = [
     title: "Let's Start With Your Vision",
     subtitle: "Initial Connection",
     description:
-      "Everything begins with a simple form. Share your lifestyle, preferences, and ideas with us. The better we understand you, the more precisely we can design your space.",
+      "সবকিছুর শুরু একটি simple form দিয়ে। আমাদের সাথে শেয়ার করুন আপনার lifestyle, preferences এবং চমৎকার সব ideas। আপনাকে আমরা যত ভালো বুঝবো, ঠিক তত নিখুঁতভাবে আপনার space-টি design করতে পারবো।",
     steps: [
       {
         title: "Share Your Requirements",
@@ -35,14 +35,14 @@ const stages = [
         icon: "users",
       },
     ],
-    imageSrc: "/modern-interior-design-consultation-meeting.jpg",
+    imageSrc: "/process/howWeWork4.jpeg",
   },
   {
     stageNumber: "02",
     title: "Bringing Ideas to Life",
     subtitle: "Design Creation",
     description:
-      "Secure the project by paying 5% of the estimated budget. This allows us to begin crafting your personalized 3D interior design.",
+      "আনুমানিক বাজেটের মাত্র ৫% payment করে প্রজেক্টটি কনফার্ম করুন। আর এর মাধ্যমেই আমরা আপনার জন্য একটি personalized 3D interior design তৈরির কাজ শুরু করে দেবো।",
     steps: [
       {
         title: "Confirm Your Booking",
@@ -62,14 +62,14 @@ const stages = [
         icon: "receipt",
       },
     ],
-    imageSrc: "/3d-interior-design-rendering-modern-living-room.jpg",
+    imageSrc: "/process/howWeWork3.jpeg",
   },
   {
     stageNumber: "03",
     title: "Making It Real",
     subtitle: "Execution Begins",
     description:
-      "Move forward with 65% payment to initiate production. Working drawings will be shared within 7 days for your review and approval.",
+      "মূল প্রোডাকশন শুরু করার জন্য ৬৫% payment দিয়ে প্রজেক্টে এগিয়ে যান। আপনার রিভিউ এবং চূড়ান্ত approvals-এর জন্য আগামী ৭ দিনের মধ্যে working drawings শেয়ার করা হবে।",
     steps: [
       {
         title: "Approve & Proceed",
@@ -83,13 +83,14 @@ const stages = [
         icon: "hammer",
       },
     ],
-    imageSrc: "/interior-construction-woodwork-production-site.jpg",
+    imageSrc: "/process/howWeWork1.jpeg",
   },
   {
     stageNumber: "04",
     title: "Precision at Work",
     subtitle: "Installation Phase",
-    description: "At 95% project completion milestone, major woodwork is finished and painting enters its final phase.",
+    description:
+      "প্রজেক্টের ৯৫% কাজ সম্পন্ন হওয়ার এই মাইলস্টোনে, মেজরিটির সব woodwork শেষ হয়ে যায় এবং আমাদের painting টিম ফাইনাল ফিনিশিং-এর কাজ শুরু করে।",
     steps: [
       {
         title: "Final Execution Stage",
@@ -103,14 +104,14 @@ const stages = [
         icon: "eye",
       },
     ],
-    imageSrc: "/interior-installation-woodwork-finishing-luxury.jpg",
+    imageSrc: "/process/howWeWork2.jpeg",
   },
   {
     stageNumber: "05",
     title: "Step Into Your New Space",
     subtitle: "Project Handover",
     description:
-      "Your interior is complete and ready for living. We celebrate your transformation with a complimentary professional photoshoot and a memorable handover experience.",
+      "আপনার স্বপ্নের interior এখন পুরোপুরি প্রস্তুত। এই দারুণ রূপান্তরকে স্মরণীয় করে রাখতে আমরা দিচ্ছি একটি complimentary professional photoshoot এবং চমৎকার handover-এর অভিজ্ঞতা।",
     steps: [
       {
         title: "Final Walkthrough",
@@ -123,7 +124,7 @@ const stages = [
         icon: "camera",
       },
     ],
-    imageSrc: "/completed-luxury-interior-living-room-photoshoot.jpg",
+    imageSrc: "/process/howWeWork5.heic",
   },
 ]
 

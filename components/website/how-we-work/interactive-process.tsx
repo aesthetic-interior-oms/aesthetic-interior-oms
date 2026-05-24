@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
+import { Noto_Serif_Bengali } from "next/font/google"
 import {
     MessageSquare,
     Users,
@@ -29,6 +30,13 @@ const iconMap = {
     camera: Camera,
     home: Home,
 }
+
+const notoSerifBengali = Noto_Serif_Bengali({
+    subsets: ["bengali"],
+    weight: ["400", "500", "600"],
+})
+
+const hasBangla = (text: string) => /[\u0980-\u09FF]/.test(text)
 
 interface Step {
     title: string
@@ -147,14 +155,14 @@ export function InteractiveProcess({ stages }: InteractiveProcessProps) {
                                         {stage.stageNumber}
                                     </span>
                                     <div className="relative">
-                                        <p className="text-sm font-sans tracking-[0.3em] uppercase mb-3 font-medium text-[#a57c00]">
+                                        <p className={`text-sm tracking-[0.3em] uppercase mb-3 font-medium text-[#a57c00] ${hasBangla(stage.subtitle) ? notoSerifBengali.className : "font-sans"}`}>
                                             {stage.subtitle}
                                         </p>
-                                        <h3 className="text-4xl font-serif text-[#0d3d3d]">{stage.title}</h3>
+                                        <h3 className={`text-4xl text-[#0d3d3d] ${hasBangla(stage.title) ? notoSerifBengali.className : "font-serif"}`}>{stage.title}</h3>
                                     </div>
                                 </div>
 
-                                <p className="text-gray-600 font-sans leading-relaxed mb-10 text-lg">{stage.description}</p>
+                                <p className={`text-gray-600 leading-relaxed mb-10 text-lg ${hasBangla(stage.description) ? notoSerifBengali.className : "font-sans"}`}>{stage.description}</p>
 
                                 {/* Interactive Steps */}
                                 <div className="space-y-4">
@@ -229,13 +237,13 @@ function StepCard({ step, index, stageNumber }: { step: Step; index: number; sta
                 {/* Content */}
                 <div className="flex-1 pt-1">
                     <h4
-                        className={`font-sans font-semibold text-lg mb-2 transition-all duration-300 ${isHovered ? "text-white translate-x-1" : "text-[#0d3d3d]"
+                        className={`${hasBangla(step.title) ? notoSerifBengali.className : "font-sans"} font-semibold text-lg mb-2 transition-all duration-300 ${isHovered ? "text-white translate-x-1" : "text-[#0d3d3d]"
                             }`}
                     >
                         {step.title}
                     </h4>
                     <p
-                        className={`font-sans text-sm leading-relaxed transition-colors duration-300 ${isHovered ? "text-white/80" : "text-gray-600"
+                        className={`${hasBangla(step.description) ? notoSerifBengali.className : "font-sans"} text-sm leading-relaxed transition-colors duration-300 ${isHovered ? "text-white/80" : "text-gray-600"
                             }`}
                     >
                         {step.description}

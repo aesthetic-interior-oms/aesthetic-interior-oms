@@ -3,94 +3,88 @@
 import { Quote } from "lucide-react"
 import { useEffect, useRef } from "react"
 import Image from "next/image"
+import { Noto_Serif_Bengali } from "next/font/google"
+
+const notoSerifBengali = Noto_Serif_Bengali({
+  subsets: ["bengali"],
+  weight: ["400", "500", "600"],
+})
 
 const testimonials = [
   {
-    quote:
-      "Working with the team was smooth and professional. They understood our needs and delivered exactly what we imagined.",
+    quote: "তাদের কাজ খুব ভালো লেগেছে। সব কিছু সময়মতো শেষ করেছে।",
     author: "Siam Hossain",
     project: "Residential Project",
     image: "/client agreement/Client-agreement1.jpg",
   },
   {
-    quote:
-      "Our home now feels calm, modern, and beautifully designed. We loved the experience from start to finish.",
+    quote: "আমাদের বাসা এখন অনেক সুন্দর আর গুছানো লাগছে।",
     author: "Nafiz Islam",
     project: "Appartment Project",
     image: "/client agreement/Client-agreement2.jpg",
   },
   {
-    quote: "Design and execution were seamless. Highly recommended!",
+    quote: "ডিজাইন আর কাজ দুটোই দারুণ হয়েছে।",
     author: "Raihan Kabir",
     project: "Commercial Project",
     image: "/client agreement/Client-agreement3.jpg",
   },
   {
-    quote:
-      "They transformed our space into something timeless and elegant. Every detail was thoughtfully planned.",
+    quote: "তারা আমাদের জায়গাটাকে খুব সুন্দরভাবে সাজিয়ে দিয়েছে।",
     author: "Tanvir Hasan",
     project: "Residential Project",
     image: "/client agreement/Client-agreement4.jpg",
   },
   {
-    quote:
-      "From concept to completion, the process was stress-free and transparent. Truly professional work.",
+    quote: "শুরু থেকে শেষ পর্যন্ত কাজের অভিজ্ঞতা খুব ভালো ছিল।",
     author: "Shakib Anwar",
     project: "Residential Project",
     image: "/client agreement/Client-agreement5.jpg",
   },
   {
-    quote:
-      "The design perfectly reflects our lifestyle. The balance between aesthetics and functionality is impressive.",
+    quote: "ডিজাইনটা আমাদের পছন্দমতো হয়েছে, ব্যবহারেও অনেক সুবিধা।",
     author: "Mahin Chowdhury",
     project: "Appartment Project",
     image: "/client agreement/Client-agreement12.jpg",
   },
   {
-    quote:
-      "Attention to detail and quality materials made all the difference. The final result exceeded expectations.",
+    quote: "ছোট ছোট বিষয়েও তারা খুব যত্ন নিয়েছে।",
     author: "Sabbir Rahman",
-    project: "Renovation Project",
+    project: "Architectural Design",
     image: "/client agreement/Client-agreement7.jpg",
   },
   {
-    quote:
-      "Minimal, warm, and elegant—exactly what we wanted. Communication throughout the project was excellent.",
+    quote: "যেমনটা চেয়েছিলাম, ঠিক তেমনটাই পেয়েছি।",
     author: "Ishraq Mahmud",
     project: "Residential Project",
     image: "/client agreement/Client-agreement15.jpg",
   },
   {
-    quote:
-      "Their team understands space planning extremely well. Every corner feels purposeful and refined.",
+    quote: "স্পেস প্ল্যানিংটা খুব সুন্দর হয়েছে, সবকিছু মানানসই।",
     author: "Arafat Karim",
     project: "Appartment Project",
     image: "/client agreement/Client-agreement9.jpg",
   },
   {
-    quote:
-      "Professional execution with a strong design vision. We felt confident at every stage of the project.",
+    quote: "প্রতিটি ধাপে তারা আমাদের ভালোভাবে গাইড করেছে।",
     author: "Mehedi Hasan",
     project: "Commercial Project",
     image: "/client agreement/Client-agreement10.jpg",
   },
   {
-    quote:
-      "The outcome was polished and practical, and the process stayed organized from start to finish.",
+    quote: "ফাইনাল কাজটা খুব পরিষ্কার আর ব্যবহারযোগ্য হয়েছে।",
     author: "Rakib Uddin",
     project: "Residential Project",
     image: "/client agreement/Client-agreement11.jpg",
   },
   {
-    quote:
-      "Creative ideas, clear communication, and excellent finishing quality made this a great experience.",
+    quote: "আইডিয়া, যোগাযোগ আর ফিনিশিং সবকিছুই চমৎকার ছিল।",
     author: "Fahim Reza",
     project: "3D Design",
     image: "/client agreement/Client-agreement12.jpg",
   },
   {
-    quote:
-      "The design team delivered exactly what we discussed and the handover quality was excellent.",
+    quote: "আলোচনার মতোই কাজ হয়েছে, আমরা খুব সন্তুষ্ট।",
     author: "Shafin Ahmed",
     project: "Appartment Project",
     image: "/client agreement/Client-agreement11.jpg",
@@ -170,7 +164,9 @@ export function TestimonialsSection() {
 
             <Quote className="h-6 w-6 text-[#a57c00]/40 mx-auto mb-4" />
 
-            <p className="italic text-gray-700 text-base leading-relaxed break-words">
+            <p
+              className={`${notoSerifBengali.className} text-gray-800 text-[17px] leading-8 font-medium tracking-wide break-words`}
+            >
               “{t.quote}”
             </p>
 

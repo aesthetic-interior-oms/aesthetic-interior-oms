@@ -1,23 +1,23 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Compass, Users, ClipboardCheck } from "lucide-react"
+import Image from "next/image"
 
 const teamMembers = [
   {
     title: "Project Architect",
     description: "Leads the design direction and ensures your home reflects your personality and lifestyle.",
-    icon: Compass,
+    image: "/user/User2.jpg",
   },
   {
     title: "Client Manager",
     description: "Supervises the full journey, coordinating communication and keeping everything running smoothly.",
-    icon: Users,
+    image: "/user/User6.jpeg",
   },
   {
     title: "Project Coordinator",
     description: "Manages on-site execution to guarantee timely delivery and precision in every step.",
-    icon: ClipboardCheck,
+    image: "/user/User3.jpg",
   },
 ]
 
@@ -75,14 +75,18 @@ export function TeamSection() {
                     : "bg-white/5 backdrop-blur-sm border-white/10 hover:border-white/30"
                   }`}
               >
-                {/* Icon with enhanced hover */}
+                {/* Team member image */}
                 <div
-                  className={`w-16 h-16 rounded-xl flex items-center justify-center mb-6 transition-all duration-500 ${hoveredIndex === index ? "bg-[#0d3d3d] scale-110 rotate-6" : "bg-[#a57c00]"
+                  className={`relative w-20 h-20 rounded-xl overflow-hidden mb-6 transition-all duration-500 ${hoveredIndex === index ? "scale-110 rotate-2" : ""
                     }`}
                 >
-                  <member.icon
-                    className={`w-8 h-8 transition-colors duration-300 ${hoveredIndex === index ? "text-[#a57c00]" : "text-white"
-                      }`}
+                  <Image
+                    src={member.image}
+                    alt={`${member.title} profile`}
+                    fill
+                    sizes="80px"
+                    className="object-cover object-center"
+                    loading="lazy"
                   />
                 </div>
 

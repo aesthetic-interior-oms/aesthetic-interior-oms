@@ -4,22 +4,30 @@ import { Button } from "@/components/ui/button"
 
 type HeroProps = {
   subtitle: string
+  subtitleNote?: string
+  subtitleNoteClassName?: string
+  subtitleNotePosition?: "after-subtitle" | "after-title"
   title: string
   titleHighlight?: string
   description: string
   buttonText?: string
   backgroundImage: string
   buttonHref?: string
+  backgroundImageClassName?: string
 }
 
 export function Hero({
   subtitle,
+  subtitleNote,
+  subtitleNoteClassName,
+  subtitleNotePosition = "after-title",
   title,
   titleHighlight,
   description,
   buttonText,
   backgroundImage,
   buttonHref = "/projects",
+  backgroundImageClassName,
 }: HeroProps) {
   return (
     <section className="relative min-h-[70vh] md:min-h-[80vh] flex items-center overflow-hidden">
@@ -28,7 +36,7 @@ export function Hero({
         alt={`${title} hero background`}
         fill
         priority
-        className="object-cover"
+        className={`object-cover ${backgroundImageClassName ?? ""}`}
         sizes="100vw"
       />
       <div className="absolute inset-0 bg-[#0d3d3d]/55" />
@@ -36,10 +44,20 @@ export function Hero({
       <div className="relative z-10 mx-auto max-w-7xl px-6 lg:px-8 py-20 w-full">
         <div className="max-w-3xl text-white">
           <p className="text-sm uppercase tracking-[0.25em] text-[#d8b251] mb-4">{subtitle}</p>
+          {subtitleNote && subtitleNotePosition === "after-subtitle" ? (
+            <p className={`mb-4 text-sm md:text-base leading-relaxed text-[#d8b251] ${subtitleNoteClassName ?? ""}`}>
+              {subtitleNote}
+            </p>
+          ) : null}
           <h1 className="text-4xl md:text-6xl font-serif leading-tight">
             {title}
             {titleHighlight ? <span className="block text-[#d8b251]">{titleHighlight}</span> : null}
           </h1>
+          {subtitleNote && subtitleNotePosition === "after-title" ? (
+            <p className={`mt-4 text-sm md:text-base leading-relaxed text-[#d8b251] ${subtitleNoteClassName ?? ""}`}>
+              {subtitleNote}
+            </p>
+          ) : null}
           <p className="mt-6 text-white/85 text-lg leading-relaxed">{description}</p>
           {buttonText ? (
             <div className="mt-8">

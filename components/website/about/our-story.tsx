@@ -8,31 +8,31 @@ const timelineSteps = [
     year: "2015",
     title: "Founded in Dhaka",
     description: "Started with a vision to transform interior design in Bangladesh.",
-    image: "/modern-office-building-dhaka-bangladesh.jpg",
+    image: "/about/AestheticBuilding.jpeg",
   },
   {
     year: "2017",
     title: "First Residential Project",
     description: "Completed our first major residential interior transformation.",
-    image: "/luxury-residential-interior-living-room.jpg",
+    image: "/about/FirstResedentialProject.png",
   },
   {
     year: "2019",
     title: "Commercial Expansion",
     description: "Expanded services to include commercial and corporate interiors.",
-    image: "/modern-commercial-office.png",
+    image: "/about/Commercial growth.png",
   },
   {
     year: "2021",
     title: "Team Growth",
     description: "Grew to a team of 20+ experts in design and execution.",
-    image: "/creative-design-team.png",
+    image: "/about/teamgrowth.png",
   },
   {
     year: "2024",
     title: "100+ Projects",
     description: "Celebrated completing over 100 successful projects.",
-    image: "/beautiful-modern-kitchen-interior-design.jpg",
+    image: "/about/100+ Project.png",
   },
 ]
 
@@ -134,7 +134,7 @@ export function OurStory() {
                     >
                       {/* Decorative corner */}
                       <div
-                        className={`absolute top-0 ${isEven ? "right-0" : "left-0"} w-24 h-24 bg-[#a57c00]/10 rounded-bl-full transition-transform duration-500 group-hover:scale-150`}
+                        className={`absolute top-0 ${isEven ? "right-0" : "left-0"} w-24 h-24 bg-[#2E8B57]/15 rounded-bl-full transition-transform duration-500 group-hover:scale-150`}
                       />
 
                       {/* Year badge */}

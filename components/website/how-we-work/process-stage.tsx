@@ -3,6 +3,14 @@
 import { useEffect, useRef, useState } from "react"
 import type { LucideIcon } from "lucide-react"
 import Image from "next/image"
+import { Noto_Serif_Bengali } from "next/font/google"
+
+const notoSerifBengali = Noto_Serif_Bengali({
+  subsets: ["bengali"],
+  weight: ["400", "500", "600"],
+})
+
+const hasBangla = (text: string) => /[\u0980-\u09FF]/.test(text)
 
 interface ProcessStageProps {
   stageNumber: string
@@ -63,16 +71,16 @@ export function ProcessStage({
                 {stageNumber}
               </span>
               <div className="-mt-8 md:-mt-12">
-                <p className="text-sm tracking-[0.2em] uppercase mb-2 font-medium" style={{ color: "#a57c00" }}>
+                <p className={`text-sm tracking-[0.2em] uppercase mb-2 font-medium ${hasBangla(subtitle) ? notoSerifBengali.className : ""}`} style={{ color: "#a57c00" }}>
                   {subtitle}
                 </p>
-                <h3 className="text-3xl md:text-4xl font-light" style={{ color: "#0d3d3d" }}>
+                <h3 className={`text-3xl md:text-4xl font-light ${hasBangla(title) ? notoSerifBengali.className : ""}`} style={{ color: "#0d3d3d" }}>
                   {title}
                 </h3>
               </div>
             </div>
 
-            <p className="text-gray-600 leading-relaxed mb-8">{description}</p>
+            <p className={`text-gray-600 leading-relaxed mb-8 ${hasBangla(description) ? notoSerifBengali.className : ""}`}>{description}</p>
 
             <div className="space-y-6">
               {steps.map((step, index) => (
@@ -94,12 +102,12 @@ export function ProcessStage({
                     </div>
                     <div>
                       <h4
-                        className="font-medium mb-1 group-hover:translate-x-1 transition-transform"
+                        className={`font-medium mb-1 group-hover:translate-x-1 transition-transform ${hasBangla(step.title) ? notoSerifBengali.className : ""}`}
                         style={{ color: "#0d3d3d" }}
                       >
                         {step.title}
                       </h4>
-                      <p className="text-gray-600 text-sm leading-relaxed">{step.description}</p>
+                      <p className={`text-gray-600 text-sm leading-relaxed ${hasBangla(step.description) ? notoSerifBengali.className : ""}`}>{step.description}</p>
                     </div>
                   </div>
                 </div>

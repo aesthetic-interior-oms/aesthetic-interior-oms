@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { Linkedin, Twitter, Mail } from "lucide-react"
+import { useEffect, useRef } from "react"
 import Image from "next/image"
 
 const teamMembers = [
@@ -10,123 +9,65 @@ const teamMembers = [
     role: "General Manager",
     image: "/user/User1.jpg",
     specialty: "Administration Department",
-    senior: true,
-    social: { linkedin: "#", twitter: "#", email: "#" },
+    quote: "We believe every project should reflect trust, clarity, and long-term value for our clients.",
   },
   {
     name: "Arup Ratan Mandal",
     role: "Assistant General Manager",
     image: "/user/User4.jpg",
     specialty: "Administration Department",
-    senior: true,
-    social: { linkedin: "#", twitter: "#", email: "#" },
+    quote: "Our strength is teamwork, where every department works together to deliver a smooth client experience.",
   },
   {
     name: "Jannatul Ferdous Urmi",
     role: "Senior Architect",
     image: "/user/User2.jpg",
     specialty: "Architect Department",
-    social: { linkedin: "#", twitter: "#", email: "#" },
+    quote: "Good design starts with listening deeply and turning each client vision into functional beauty.",
   },
   {
     name: "Sourav Dey",
     role: "Project Cordinator",
     image: "/user/User3.jpg",
     specialty: "Execution Department",
-    social: { linkedin: "#", twitter: "#", email: "#" },
+    quote: "Execution quality and timeline discipline are the promises we bring to every project site.",
   },
   {
     name: "Faima Shorna",
     role: "HR Administration",
     image: "/user/User5.jpeg",
     specialty: "Human Resources Department",
-    social: { linkedin: "#", twitter: "#", email: "#" },
+    quote: "A strong company culture helps us serve clients better and grow as a dependable design team.",
   },
   {
     name: "Moriom Ritu",
     role: "Junior Executive",
     image: "/user/User6.jpeg",
     specialty: "Client Relationship Management",
-    social: { linkedin: "#", twitter: "#", email: "#" },
+    quote: "Clear communication and care for client needs are at the center of everything we do.",
   },
   {
     name: "Ovijit Chowdhury",
     role: "Junior Architect",
     image: "/user/User7.jpeg",
     specialty: "Architect Department",
-    social: { linkedin: "#", twitter: "#", email: "#" },
+    quote: "We focus on meaningful details so every space feels thoughtful, practical, and timeless.",
   },
 ]
 
 export function OurTeam() {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const sectionRef = useRef<HTMLDivElement>(null)
-  const seniorMembers = teamMembers.filter((member) => member.senior)
-  const otherMembers = teamMembers.filter((member) => !member.senior)
-
-  const renderTeamCard = (member: (typeof teamMembers)[number], hoverIndex: number) => (
-    <article
-      key={member.name}
-      className="team-card opacity-0 group w-full max-w-[290px] mx-auto"
-      onMouseEnter={() => setHoveredIndex(hoverIndex)}
-      onMouseLeave={() => setHoveredIndex(null)}
-    >
-      <div className="relative rounded-2xl overflow-hidden mb-5 aspect-square bg-[#e9e6dd]">
-        <Image
-          src={member.image || "/placeholder.svg"}
-          alt={`${member.name}, ${member.role} at Aesthetic Interior Studio`}
-          fill
-          sizes="(max-width: 640px) 290px, 290px"
-          loading="lazy"
-          className="w-full h-full object-cover object-center transition-transform duration-700 group-hover:scale-105"
-        />
-        <div
-          className={`absolute inset-0 bg-[#1a3a2f]/75 flex items-center justify-center gap-3 transition-all duration-500 ${
-            hoveredIndex === hoverIndex ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          <a
-            href={member.social.linkedin}
-            className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-[#a57c00] transition-colors"
-            aria-label="LinkedIn"
-          >
-            <Linkedin className="w-4 h-4 text-white" />
-          </a>
-          <a
-            href={member.social.twitter}
-            className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-[#a57c00] transition-colors"
-            aria-label="Twitter"
-          >
-            <Twitter className="w-4 h-4 text-white" />
-          </a>
-          <a
-            href={member.social.email}
-            className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center hover:bg-[#a57c00] transition-colors"
-            aria-label="Email"
-          >
-            <Mail className="w-4 h-4 text-white" />
-          </a>
-        </div>
-      </div>
-
-      <div className="text-center">
-        <h3 className="text-lg text-[#1a3a2f] mb-1">{member.name}</h3>
-        <p className="text-[#a57c00] text-sm font-medium mb-1">{member.role}</p>
-        <p className="text-[#6a6a6a] text-sm">{member.specialty}</p>
-      </div>
-    </article>
-  )
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            const cards = entry.target.querySelectorAll(".team-card")
-            cards.forEach((card, index) => {
+            const rows = entry.target.querySelectorAll(".team-row")
+            rows.forEach((row, index) => {
               setTimeout(() => {
-                card.classList.add("animate-in", "fade-in", "slide-in-from-bottom-4")
-                card.classList.remove("opacity-0")
+                row.classList.add("animate-in", "fade-in", "slide-in-from-bottom-4")
+                row.classList.remove("opacity-0")
               }, index * 150)
             })
           }
@@ -159,22 +100,46 @@ export function OurTeam() {
           </p>
         </div>
 
-        <div ref={sectionRef} className="space-y-12">
-          <div>
-            <p className="text-center text-xs tracking-[0.18em] uppercase text-[#6a6a6a] mb-6">Leadership</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 justify-items-center">
-              {seniorMembers.map((member, index) => renderTeamCard(member, index))}
-            </div>
-          </div>
+        <div ref={sectionRef} className="space-y-8 lg:space-y-10">
+          {teamMembers.map((member, index) => {
+            const isEven = index % 2 === 0
 
-          <div>
-            <p className="text-center text-xs tracking-[0.18em] uppercase text-[#6a6a6a] mb-6">Core Team</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center">
-              {otherMembers.map((member, index) =>
-                renderTeamCard(member, index + seniorMembers.length),
-              )}
-            </div>
-          </div>
+            return (
+              <article
+                key={member.name}
+                className={`team-row rounded-2xl transition-all duration-500 p-5 sm:p-7 lg:p-8`}
+              >
+                <div
+                  className={`flex flex-col gap-6 lg:gap-10 items-center ${
+                    isEven ? "lg:flex-row" : "lg:flex-row-reverse"
+                  }`}
+                >
+                  <div className="w-full lg:w-[28%]">
+                    <div className="relative overflow-hidden rounded-2xl aspect-[3/4] bg-[#e9e6dd]">
+                      <Image
+                        src={member.image || "/placeholder.svg"}
+                        alt={`${member.name}, ${member.role} at Aesthetic Interior Studio`}
+                        fill
+                        sizes="(max-width: 1024px) 100vw, 38vw"
+                        loading="lazy"
+                        className="w-full h-full object-cover object-center transition-transform duration-700 hover:scale-105"
+                      />
+                    </div>
+                  </div>
+
+                  <div className={`w-full lg:w-[72%] ${isEven ? "lg:text-left" : "lg:text-right"} text-center`}>
+                    <h3 className="text-2xl lg:text-3xl font-serif text-[#1a3a2f]">{member.name}</h3>
+                    <p className="mt-2 text-sm text-[#a57c00] font-medium">
+                      {member.role} in {member.specialty}
+                    </p>
+                    <p className="mt-5 text-[#4f4f4f] leading-relaxed text-base lg:text-lg">
+                      “{member.quote}”
+                    </p>
+                  </div>
+                </div>
+              </article>
+            )
+          })}
         </div>
       </div>
     </section>

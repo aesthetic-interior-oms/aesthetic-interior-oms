@@ -2,27 +2,33 @@
 
 import { useEffect, useRef } from "react"
 import { Palette, Scale, Leaf, Sparkles } from "lucide-react"
+import { Noto_Serif_Bengali } from "next/font/google"
+
+const notoSerifBengali = Noto_Serif_Bengali({
+  subsets: ["bengali"],
+  weight: ["400", "500", "600"],
+})
 
 const philosophyCards = [
-  {
+ {
     icon: Palette,
     title: "Creativity",
-    description: "Every design reflects beauty and uniqueness, tailored to your vision.",
+    description: "আপনার vision অনুযায়ী প্রতিটি ডিজাইনে আমরা ফুটিয়ে তুলি নিখুঁত beauty এবং uniqueness.",
   },
   {
     icon: Scale,
     title: "Balance",
-    description: "Combining aesthetics with functionality for harmonious spaces.",
+    description: "Aesthetics-এর সাথে functionality-র পারফেক্ট ব্লেন্ড, যা আপনার স্পেসকে করে তোলে harmonious.",
   },
   {
     icon: Leaf,
     title: "Sustainability",
-    description: "Eco-conscious materials for a lasting, positive impact.",
+    description: "পরিবেশের সুরক্ষায় eco-conscious materials-এর ব্যবহার, যা নিশ্চিত করে একটি lasting positive impact.",
   },
   {
     icon: Sparkles,
     title: "Excellence",
-    description: "Attention to detail that elevates every project we undertake.",
+    description: "প্রতিটি প্রজেক্টে সূক্ষ্ম attention to detail, যা কাজের কোয়ালিটিকে নিয়ে যায় এক অনন্য উচ্চতায়।",
   },
 ]
 
@@ -82,7 +88,9 @@ export function OurPhilosophy() {
                 <card.icon className="w-6 h-6 text-white" />
               </div>
               <h3 className="text-xl font-serif font-light text-[#1a3a2f] mb-3">{card.title}</h3>
-              <p className="text-[#6a6a6a] leading-relaxed text-sm">{card.description}</p>
+              <p className={`${notoSerifBengali.className} text-[#6a6a6a] leading-relaxed text-sm`}>
+                {card.description}
+              </p>
             </div>
           ))}
         </div>

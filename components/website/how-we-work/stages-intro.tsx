@@ -1,6 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { Noto_Serif_Bengali } from "next/font/google"
+
+const notoSerifBengali = Noto_Serif_Bengali({
+  subsets: ["bengali"],
+  weight: ["400", "500", "600"],
+})
 
 const stageLabels = [
   "Initial Connection",
@@ -48,6 +54,9 @@ export function StagesIntro() {
           }`}
         >
           <p className="text-sm font-sans tracking-[0.3em] uppercase mb-4 font-medium text-[#a57c00]">How It Works</p>
+          <p className={`${notoSerifBengali.className} text-[#a57c00] text-sm md:text-base mb-4`}>
+            সহজ ধাপে আপনার ভাবনা, নিখুঁত কারিগরিতে আমাদের বাস্তবায়ন।
+          </p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-light text-[#0d3d3d] mb-6 text-balance">
             Your Dream Interior
           </h2>
