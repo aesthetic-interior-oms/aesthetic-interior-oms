@@ -1,4 +1,6 @@
 
+import type { Metadata } from "next"
+
 import { BreadcrumbJsonLd } from "@/components/seo/json-ld";
 import { PartnersSection } from "@/components/website/homePage/partners-section";
 import { ProcessSection } from "@/components/website/homePage/process-section";
