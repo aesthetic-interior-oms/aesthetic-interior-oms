@@ -20,19 +20,19 @@ const timelineSteps = [
     year: "2019",
     title: "Commercial Expansion",
     description: "Expanded services to include commercial and corporate interiors.",
-    image: "/about/Commercial growth.png",
+    image: "/about/Factory.png",
   },
   {
     year: "2021",
     title: "Team Growth",
     description: "Grew to a team of 20+ experts in design and execution.",
-    image: "/about/teamgrowth.png",
+    image: "/about/TeamGrowth.png",
   },
   {
     year: "2024",
     title: "100+ Projects",
     description: "Celebrated completing over 100 successful projects.",
-    image: "/about/100+ Project.png",
+    image: "/about/20Projects.png",
   },
 ]
 

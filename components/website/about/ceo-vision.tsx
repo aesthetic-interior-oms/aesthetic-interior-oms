@@ -56,7 +56,7 @@ export function CeoVision() {
             <div className="w-full lg:w-[40%] flex justify-center lg:justify-start">
               <div className="relative w-72 h-96 lg:w-96 lg:h-[32rem] rounded-2xl overflow-hidden bg-[#e9e6dd] animate-in fade-in zoom-in-95 duration-700">
                 <Image
-                  src="/user/UserCEO2.jpeg"
+                  src="/user/userceoimage.jpeg"
                   alt="Jahirul Islam, CEO of Aesthetic Interior"
                   fill
                   sizes="(max-width: 1024px) 288px, 384px"
