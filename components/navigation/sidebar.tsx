@@ -17,6 +17,7 @@ import {
   ClipboardList,
   Settings,
   ChevronDown,
+  FlaskConical,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -335,6 +336,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/quotation-team/assigned-task',
         },
         { icon: ListTodo, label: 'My Work', href: '/quotation-team/my-work' },
+        {
+          icon: FlaskConical,
+          label: 'Playground',
+          href: '/quotation-team/playground',
+        },
       ],
     },
   ],

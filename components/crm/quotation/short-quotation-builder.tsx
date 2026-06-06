@@ -25,6 +25,10 @@ import {
   todayShortQuotationDate,
 } from '@/lib/short-quotation-calculations'
 import { isShortQuotationContent } from '@/lib/quotation-document'
+import {
+  loadPlaygroundShortDraft,
+  savePlaygroundShortDraft,
+} from '@/lib/quotation-playground-storage'
 import type {
   ShortQuotationContent,
   ShortQuotationLine,
@@ -36,6 +40,7 @@ type ShortQuotationBuilderProps = {
   leadName: string
   leadLocation: string | null
   leadSubStatus: string | null
+  mode?: 'lead' | 'playground'
 }
 
 type DraftPayload = {
@@ -58,7 +63,9 @@ export function ShortQuotationBuilder({
   leadName,
   leadLocation,
   leadSubStatus,
+  mode = 'lead',
 }: ShortQuotationBuilderProps) {
+  const isPlayground = mode === 'playground'
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [startingWork, setStartingWork] = useState(false)
@@ -69,6 +76,24 @@ export function ShortQuotationBuilder({
   const loadDraft = useCallback(async () => {
     setLoading(true)
     try {
+      if (isPlayground) {
+        const stored = loadPlaygroundShortDraft()
+        if (stored) {
+          setContent(stored)
+          setLastSavedAt(null)
+        } else {
+          setContent(
+            buildDefaultShortQuotationContent({
+              clientName: leadName,
+              clientAddress: leadLocation,
+            }),
+          )
+          setLastSavedAt(null)
+        }
+        setCanEdit(true)
+        return
+      }
+
       const response = await fetch(`/api/lead/${leadId}/quotation-draft`, { cache: 'no-store' })
       const payload = await response.json()
       if (!response.ok || !payload?.success || !payload?.data) {
@@ -102,7 +127,7 @@ export function ShortQuotationBuilder({
     } finally {
       setLoading(false)
     }
-  }, [leadId, leadName, leadLocation])
+  }, [isPlayground, leadId, leadName, leadLocation])
 
   useEffect(() => {
     void loadDraft()
@@ -122,6 +147,14 @@ export function ShortQuotationBuilder({
     setSaving(true)
     try {
       const normalized = normalizeShortQuotationContent(content)
+      if (isPlayground) {
+        savePlaygroundShortDraft(normalized)
+        setContent(normalized)
+        setLastSavedAt(new Date().toISOString())
+        toast.success('Saved to browser (playground only)')
+        return
+      }
+
       const response = await fetch(`/api/lead/${leadId}/quotation-draft`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -282,7 +315,8 @@ export function ShortQuotationBuilder({
   }
 
   const canStartWork =
-    leadSubStatus === 'QUOTATION_ASSIGNED' || leadSubStatus === 'QUOTATION_CORRECTION'
+    !isPlayground &&
+    (leadSubStatus === 'QUOTATION_ASSIGNED' || leadSubStatus === 'QUOTATION_CORRECTION')
 
   if (loading) {
     return (
@@ -299,7 +333,9 @@ export function ShortQuotationBuilder({
     return (
       <Card>
         <CardContent className="py-10 text-center text-sm text-destructive">
-          Unable to load short quotation for this lead.
+          {isPlayground
+            ? 'Unable to load playground short quotation.'
+            : 'Unable to load short quotation for this lead.'}
         </CardContent>
       </Card>
     )
@@ -320,7 +356,11 @@ export function ShortQuotationBuilder({
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">{content.packageTier}</Badge>
-              <Badge variant="secondary">{formatLabel(leadSubStatus)}</Badge>
+              {isPlayground ? (
+                <Badge variant="secondary">Playground</Badge>
+              ) : (
+                <Badge variant="secondary">{formatLabel(leadSubStatus)}</Badge>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -470,9 +510,11 @@ export function ShortQuotationBuilder({
               <Printer className="mr-2 h-4 w-4" />
               Print / PDF
             </Button>
-            <Button type="button" variant="outline" asChild>
-              <Link href="/quotation-team/my-work">Back to My Work</Link>
-            </Button>
+            {!isPlayground ? (
+              <Button type="button" variant="outline" asChild>
+                <Link href="/quotation-team/my-work">Back to My Work</Link>
+              </Button>
+            ) : null}
           </div>
 
           {!canEdit ? (

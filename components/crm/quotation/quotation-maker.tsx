@@ -27,6 +27,10 @@ import {
   calculateQuotationTotals,
   normalizeQuotationContent,
 } from '@/lib/quotation-calculations'
+import {
+  loadPlaygroundDetailDraft,
+  savePlaygroundDetailDraft,
+} from '@/lib/quotation-playground-storage'
 import type {
   QuotationDraftContent,
   QuotationFileType,
@@ -39,6 +43,7 @@ type QuotationMakerProps = {
   leadName: string
   leadLocation: string | null
   leadSubStatus: string | null
+  mode?: 'lead' | 'playground'
 }
 
 type TemplateOption = {
@@ -99,7 +104,9 @@ export function QuotationMaker({
   leadName,
   leadLocation,
   leadSubStatus,
+  mode = 'lead',
 }: QuotationMakerProps) {
+  const isPlayground = mode === 'playground'
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [startingWork, setStartingWork] = useState(false)
@@ -114,6 +121,36 @@ export function QuotationMaker({
   const loadDraft = useCallback(async (preferredTemplateKey?: string) => {
     setLoading(true)
     try {
+      if (isPlayground) {
+        const templatesResponse = await fetch('/api/quotation/templates', { cache: 'no-store' })
+        const templatesPayload = await templatesResponse.json()
+        if (templatesResponse.ok && templatesPayload?.success && Array.isArray(templatesPayload.data?.templates)) {
+          setTemplates(templatesPayload.data.templates)
+        }
+
+        const stored = loadPlaygroundDetailDraft()
+        const nextTemplateKey = stored?.templateKey ?? preferredTemplateKey ?? 'ceiling-curtain'
+        if (stored) {
+          setQuotationType(stored.quotationType)
+          setProjectSqft(stored.projectSqft ? String(stored.projectSqft) : '')
+          setContent(stored.content)
+          setTemplateKey(nextTemplateKey)
+          setLastSavedAt(stored.savedAt)
+        } else {
+          const nextContent = buildDefaultQuotationContent({
+            templateKey: nextTemplateKey,
+            quotationType: 'STANDARD',
+          })
+          setQuotationType('STANDARD')
+          setProjectSqft('')
+          setContent(nextContent)
+          setTemplateKey(nextTemplateKey)
+          setLastSavedAt(null)
+        }
+        setCanEdit(true)
+        return
+      }
+
       const query = preferredTemplateKey ? `?templateKey=${encodeURIComponent(preferredTemplateKey)}` : ''
       const response = await fetch(`/api/lead/${leadId}/quotation-draft${query}`, { cache: 'no-store' })
       const payload = await response.json()
@@ -141,7 +178,7 @@ export function QuotationMaker({
     } finally {
       setLoading(false)
     }
-  }, [leadId])
+  }, [isPlayground, leadId])
 
   useEffect(() => {
     void loadDraft()
@@ -266,12 +303,26 @@ export function QuotationMaker({
     }
     setSaving(true)
     try {
+      const projectSqftValue = projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null
+      if (isPlayground) {
+        savePlaygroundDetailDraft({
+          quotationType,
+          projectSqft: projectSqftValue,
+          templateKey,
+          content: normalized,
+        })
+        setContent(normalized)
+        setLastSavedAt(new Date().toISOString())
+        toast.success('Saved to browser (playground only)')
+        return
+      }
+
       const response = await fetch(`/api/lead/${leadId}/quotation-draft`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           quotationType,
-          projectSqft: projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null,
+          projectSqft: projectSqftValue,
           content: normalized,
           status: 'DRAFT',
         }),
@@ -323,7 +374,8 @@ export function QuotationMaker({
   }
 
   const canStartWork =
-    leadSubStatus === 'QUOTATION_ASSIGNED' || leadSubStatus === 'QUOTATION_CORRECTION'
+    !isPlayground &&
+    (leadSubStatus === 'QUOTATION_ASSIGNED' || leadSubStatus === 'QUOTATION_CORRECTION')
 
   if (loading) {
     return (
@@ -340,7 +392,9 @@ export function QuotationMaker({
     return (
       <Card>
         <CardContent className="py-10 text-center text-sm text-destructive">
-          Unable to load quotation maker for this lead.
+          {isPlayground
+            ? 'Unable to load playground detail quotation.'
+            : 'Unable to load quotation maker for this lead.'}
         </CardContent>
       </Card>
     )
@@ -358,7 +412,11 @@ export function QuotationMaker({
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{formatLabel(leadSubStatus)}</Badge>
+              {isPlayground ? (
+                <Badge variant="outline">Playground</Badge>
+              ) : (
+                <Badge variant="outline">{formatLabel(leadSubStatus)}</Badge>
+              )}
               {lastSavedAt ? (
                 <span className="text-xs text-muted-foreground">
                   Saved {new Date(lastSavedAt).toLocaleString()}
@@ -456,9 +514,11 @@ export function QuotationMaker({
               <Printer className="mr-2 h-4 w-4" />
               Print / PDF
             </Button>
-            <Button type="button" variant="outline" asChild>
-              <Link href="/quotation-team/my-work">Back to My Work</Link>
-            </Button>
+            {!isPlayground ? (
+              <Button type="button" variant="outline" asChild>
+                <Link href="/quotation-team/my-work">Back to My Work</Link>
+              </Button>
+            ) : null}
           </div>
 
           {!canEdit ? (
