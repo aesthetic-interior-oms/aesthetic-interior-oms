@@ -265,16 +265,16 @@ export default function QuotationAssignedTaskPage() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {lead.subStatus === "QUOTATION_WORKING" ||
-                      lead.subStatus === "QUOTATION_COMPLETED" ? (
+                      lead.subStatus === "QUOTATION_CORRECTION" ? (
                         <Button asChild size="sm">
                           <Link href={`/quotation-team/leads/${lead.id}`}>
-                            Workspace
+                            Create Quotation
                           </Link>
                         </Button>
                       ) : (
                         <Button asChild size="sm" variant="outline">
                           <Link href={`/quotation-team/leads/${lead.id}`}>
-                            Open Lead
+                            Open Workspace
                           </Link>
                         </Button>
                       )}

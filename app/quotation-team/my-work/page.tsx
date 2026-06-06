@@ -254,7 +254,10 @@ export default function QuotationTeamMyWorkPage() {
                     <div className="flex flex-wrap gap-2">
                       <Button asChild size="sm" variant="outline">
                         <Link href={`/quotation-team/leads/${lead.id}`}>
-                          Open Lead
+                          {lead.subStatus === "QUOTATION_WORKING" ||
+                          lead.subStatus === "QUOTATION_CORRECTION"
+                            ? "Create Quotation"
+                            : "Open Workspace"}
                         </Link>
                       </Button>
                       <Button

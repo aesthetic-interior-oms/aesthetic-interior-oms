@@ -26,7 +26,7 @@ const teamMembers = [
     quote: "Good design starts with listening deeply and turning each client vision into functional beauty.",
   },
   {
-    name: "Sourav Dey",
+    name: "James",
     role: "Project Cordinator",
     image: "/user/User3.jpg",
     specialty: "Execution Department",

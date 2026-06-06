@@ -32,7 +32,7 @@ const timelineSteps = [
     year: "2024",
     title: "100+ Projects",
     description: "Celebrated completing over 100 successful projects.",
-    image: "/about/20Projects.png",
+    image: "/about/20Projects.jpeg",
   },
 ]
 

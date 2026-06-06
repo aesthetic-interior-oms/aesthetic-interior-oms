@@ -41,6 +41,7 @@ model Lead {
   visits        Visit[]
   attachments   LeadAttachment[]
   cadWorkSubmissions CadWorkSubmission[]
+  quotationDraft QuotationDraft?
   notifications Notification[]
   phaseTasks    LeadPhaseTask[]
   jrArchitectRequests LeadJrArchitectRequest[]
@@ -162,6 +163,8 @@ model User {
   phaseReviews              LeadPhaseReview[]
   meetingEventsCreated      LeadMeetingEvent[]
   cadWorkSubmissions        CadWorkSubmission[] @relation("CadWorkSubmittedBy")
+  quotationDraftsCreated    QuotationDraft[]    @relation("QuotationDraftCreatedBy")
+  quotationDraftsUpdated    QuotationDraft[]    @relation("QuotationDraftUpdatedBy")
   notifications Notification[]
   signupNotifications Notification[] @relation("NotificationSubjectUser")
 }
@@ -273,6 +276,27 @@ model CadWorkSubmission {
   @@index([leadId])
   @@index([submittedById])
   @@index([submittedAt])
+}
+
+model QuotationDraft {
+  id            String               @id @default(cuid())
+  leadId        String               @unique
+  createdById   String
+  updatedById   String?
+  quotationType String               @default("STANDARD")
+  projectSqft   Float?
+  content       Json
+  grandTotal    Float                @default(0)
+  status        QuotationDraftStatus @default(DRAFT)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("QuotationDraftCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  updatedBy User? @relation("QuotationDraftUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([createdById])
+  @@index([status])
 }
 
 model CadWorkSubmissionFile {
@@ -732,6 +756,11 @@ enum LeadMeetingEventType {
   FIRST_MEETING
   BUDGET_MEETING
   REVIEW_CHECKPOINT
+}
+
+enum QuotationDraftStatus {
+  DRAFT
+  FINALIZED
 }
 
 enum CadSubmissionFileType {
