@@ -1,3 +1,4 @@
+import { withDetailQuotationDefaults } from '@/lib/detail-quotation-format'
 import type {
   QuotationDraftContent,
   QuotationFileType,
@@ -57,13 +58,14 @@ export function createLineItemFromTemplate(
   item: QuotationTemplateItem,
   quotationType: QuotationFileType,
   projectSqft: number | null,
+  lineInstanceId?: string,
 ): QuotationLineItem {
   const rate = resolveTemplateRate(item, quotationType)
   const defaultQty =
     item.unit === 'sqft' && projectSqft ? projectSqft : item.unit === 'ls' ? 1 : 0
 
   const line: QuotationLineItem = {
-    id: `${templateKey}-${item.sectionId}-${item.id}`,
+    id: lineInstanceId ?? `${templateKey}-${item.id}-${crypto.randomUUID()}`,
     sectionId: item.sectionId,
     templateId: item.id,
     serialNo: item.serialNo,
@@ -74,7 +76,7 @@ export function createLineItemFromTemplate(
     rate,
     quantity: defaultQty,
     amount: rate * defaultQty,
-    included: Boolean(item.defaultIncluded),
+    included: true,
     isCustom: false,
   }
 
@@ -91,18 +93,67 @@ export function buildContentFromTemplate(input: {
 }): QuotationDraftContent {
   const projectSqft = input.projectSqft && input.projectSqft > 0 ? input.projectSqft : null
 
-  return {
+  return withDetailQuotationDefaults({
     version: 1,
     templateKey: input.template.key,
     sections: input.template.sections,
-    lineItems: input.template.items.map((item) =>
-      createLineItemFromTemplate(input.template.key, item, input.quotationType, projectSqft),
-    ),
+    lineItems: [],
     discountPercent: 0,
     discountAmount: 0,
     taxPercent: 0,
     notes: '',
     terms: input.template.defaultTerms,
+  })
+}
+
+/** Converts old drafts (full catalog with checkboxes) into selected-line format. */
+export function prepareQuotationContentForEditing(
+  content: QuotationDraftContent,
+  template: QuotationTemplateDefinition,
+): QuotationDraftContent {
+  const catalogIds = new Set(template.items.map((item) => item.id))
+  const catalogLines = content.lineItems.filter(
+    (line) => line.templateId && catalogIds.has(line.templateId),
+  )
+  const looksLikeLegacyBulkCatalog =
+    catalogLines.length >= Math.max(3, Math.ceil(template.items.length * 0.5))
+
+  if (looksLikeLegacyBulkCatalog) {
+    const kept = content.lineItems.filter((line) => line.included || line.isCustom)
+    return withDetailQuotationDefaults({
+      ...content,
+      lineItems: kept.map((line) => ({ ...line, included: true })),
+    })
+  }
+
+  return withDetailQuotationDefaults({
+    ...content,
+    lineItems: content.lineItems.map((line) =>
+      line.isCustom ? line : { ...line, included: true },
+    ),
+  })
+}
+
+export function addTemplateItemToContent(
+  content: QuotationDraftContent,
+  template: QuotationTemplateDefinition,
+  templateItemId: string,
+  quotationType: QuotationFileType,
+  projectSqft: number | null,
+): QuotationDraftContent | null {
+  const item = template.items.find((entry) => entry.id === templateItemId)
+  if (!item) return null
+
+  const line = createLineItemFromTemplate(
+    template.key,
+    item,
+    quotationType,
+    projectSqft,
+  )
+
+  return {
+    ...content,
+    lineItems: [...content.lineItems, line],
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Loader2, Plus, Printer, Save } from 'lucide-react'
+import { Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,20 @@ import {
   buildDefaultQuotationContent,
   getQuotationTemplate,
 } from '@/lib/quotation-templates'
-import { formatTemplatePriceHint } from '@/lib/quotation-templates/helpers'
+import { DetailQuotationLayoutToolbar } from '@/components/crm/quotation/detail-quotation-layout-toolbar'
+import { DetailQuotationPreview } from '@/components/crm/quotation/detail-quotation-preview'
+import { QuotationItemPicker } from '@/components/crm/quotation/quotation-item-picker'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  DETAIL_QUOTATION_LAYOUT_STORAGE_KEY,
+  type DetailQuotationLayoutMode,
+  withDetailQuotationDefaults,
+} from '@/lib/detail-quotation-format'
+import {
+  addTemplateItemToContent,
+  formatTemplatePriceHint,
+  prepareQuotationContentForEditing,
+} from '@/lib/quotation-templates/helpers'
 import {
   calculateLineAmount,
   calculateQuotationTotals,
@@ -117,6 +130,32 @@ export function QuotationMaker({
   const [templateKey, setTemplateKey] = useState('ceiling-curtain')
   const [templates, setTemplates] = useState<TemplateOption[]>([])
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerSectionId, setPickerSectionId] = useState<string | null>(null)
+  const [layoutMode, setLayoutMode] = useState<DetailQuotationLayoutMode>('split-right')
+  const [workspaceTab, setWorkspaceTab] = useState<'edit' | 'preview'>('edit')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const stored = window.localStorage.getItem(DETAIL_QUOTATION_LAYOUT_STORAGE_KEY)
+    if (
+      stored === 'split-right' ||
+      stored === 'split-left' ||
+      stored === 'stacked' ||
+      stored === 'tabs'
+    ) {
+      setLayoutMode(stored)
+    }
+  }, [])
+
+  const handleLayoutChange = (nextLayout: DetailQuotationLayoutMode) => {
+    setLayoutMode(nextLayout)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(DETAIL_QUOTATION_LAYOUT_STORAGE_KEY, nextLayout)
+    }
+  }
+
+  const activeTemplate = useMemo(() => getQuotationTemplate(templateKey), [templateKey])
 
   const loadDraft = useCallback(async (preferredTemplateKey?: string) => {
     setLoading(true)
@@ -130,10 +169,17 @@ export function QuotationMaker({
 
         const stored = loadPlaygroundDetailDraft()
         const nextTemplateKey = stored?.templateKey ?? preferredTemplateKey ?? 'ceiling-curtain'
+        const template = getQuotationTemplate(nextTemplateKey)
         if (stored) {
           setQuotationType(stored.quotationType)
           setProjectSqft(stored.projectSqft ? String(stored.projectSqft) : '')
-          setContent(stored.content)
+          setContent(
+            normalizeQuotationContent(
+              withDetailQuotationDefaults(
+                prepareQuotationContentForEditing(stored.content, template),
+              ),
+            ),
+          )
           setTemplateKey(nextTemplateKey)
           setLastSavedAt(stored.savedAt)
         } else {
@@ -167,10 +213,20 @@ export function QuotationMaker({
         throw new Error('Quotation data unavailable')
       }
 
+      const resolvedTemplateKey =
+        source.content.templateKey ?? preferredTemplateKey ?? 'ceiling-curtain'
+      const template = getQuotationTemplate(resolvedTemplateKey)
+
       setQuotationType(source.quotationType)
       setProjectSqft(source.projectSqft ? String(source.projectSqft) : '')
-      setContent(source.content)
-      setTemplateKey(source.content.templateKey ?? preferredTemplateKey ?? 'ceiling-curtain')
+      setContent(
+        normalizeQuotationContent(
+          withDetailQuotationDefaults(
+            prepareQuotationContentForEditing(source.content, template),
+          ),
+        ),
+      )
+      setTemplateKey(resolvedTemplateKey)
       setLastSavedAt(data.draft ? new Date().toISOString() : null)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load quotation')
@@ -263,13 +319,39 @@ export function QuotationMaker({
     })
   }
 
-  const removeCustomLine = (lineId: string) => {
+  const removeLine = (lineId: string) => {
     setContent((prev) => {
       if (!prev) return prev
       return normalizeQuotationContent({
         ...prev,
         lineItems: prev.lineItems.filter((line) => line.id !== lineId),
       })
+    })
+  }
+
+  const openItemPicker = (sectionId?: string) => {
+    setPickerSectionId(sectionId ?? null)
+    setPickerOpen(true)
+  }
+
+  const addTemplateItemFromCatalog = (templateItemId: string) => {
+    setContent((prev) => {
+      if (!prev) return prev
+      const sqft = Number(projectSqft.replace(/,/g, ''))
+      const next = addTemplateItemToContent(
+        prev,
+        activeTemplate,
+        templateItemId,
+        quotationType,
+        Number.isFinite(sqft) && sqft > 0 ? sqft : null,
+      )
+      if (!next) {
+        toast.error('Item not found in saved list')
+        return prev
+      }
+      const item = activeTemplate.items.find((entry) => entry.id === templateItemId)
+      toast.success(item ? `Added: ${item.description}` : 'Item added')
+      return normalizeQuotationContent(next)
     })
   }
 
@@ -366,7 +448,7 @@ export function QuotationMaker({
       projectSqft: Number.isFinite(sqft) && sqft > 0 ? sqft : null,
     })
     setContent(nextContent)
-    toast.message('Template reset. Save when ready.')
+    toast.message('All items cleared. Add from the saved list when ready.')
   }
 
   const handlePrint = () => {
@@ -400,6 +482,29 @@ export function QuotationMaker({
     )
   }
 
+  const editorContent = content
+  const editorTotals = totals
+  const displayContent = withDetailQuotationDefaults(editorContent)
+
+  const updateContentField = (patch: Partial<QuotationDraftContent>) => {
+    setContent((prev) => (prev ? { ...prev, ...patch } : prev))
+  }
+
+  const previewPanel = (
+    <div className="detail-quotation-preview-shell rounded-lg border bg-muted/20 p-3 print:border-0 print:bg-transparent print:p-0">
+      <p className="mb-2 text-xs font-medium text-muted-foreground print:hidden">Live preview</p>
+      <div className="max-h-[calc(100vh-11rem)] overflow-y-auto rounded-md border bg-white shadow-sm print:max-h-none print:overflow-visible print:border-0 print:shadow-none">
+        <DetailQuotationPreview
+          content={displayContent}
+          clientName={leadName}
+          clientAddress={leadLocation}
+          templateName={activeTemplateName}
+          totals={editorTotals}
+        />
+      </div>
+    </div>
+  )
+
   return (
     <div className="space-y-4 quotation-maker-root">
       <Card className="print:hidden">
@@ -408,7 +513,8 @@ export function QuotationMaker({
             <div className="space-y-1">
               <CardTitle>{activeTemplateName} Quotation</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Select a template, choose items, edit rates (or enter price where PDF has none), and add sqft.
+                Choose Ceiling, TV Unit, or Folding Door — then add items from the saved PDF list and
+                edit rate, sqft, or materials as needed.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -503,8 +609,17 @@ export function QuotationMaker({
                 {startingWork ? 'Starting...' : 'Start Work'}
               </Button>
             ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canEdit}
+              onClick={() => openItemPicker()}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add from saved list
+            </Button>
             <Button type="button" variant="outline" disabled={!canEdit} onClick={resetToTemplate}>
-              Reset Template
+              Clear all items
             </Button>
             <Button type="button" disabled={!canEdit || saving} onClick={() => void saveDraft()}>
               <Save className="mr-2 h-4 w-4" />
@@ -529,21 +644,185 @@ export function QuotationMaker({
         </CardContent>
       </Card>
 
-      <div className="quotation-print-area space-y-4 rounded-lg border bg-card p-4">
-        <div className="border-b pb-4">
-          <h2 className="text-xl font-semibold">Quotation — {activeTemplateName}</h2>
-          <p className="text-sm text-muted-foreground">
-            {leadName} {leadLocation ? `• ${leadLocation}` : ''}
-            {projectSqft ? ` • ${projectSqft} sqft` : ''}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Rate: {quotationType === 'BASIC' ? 'Low' : quotationType === 'PREMIUM' ? 'High' : quotationType === 'STANDARD' ? 'Mid' : 'Mixed'}
-          </p>
+      <div className="print:hidden">
+        <DetailQuotationLayoutToolbar layout={layoutMode} onLayoutChange={handleLayoutChange} />
+      </div>
+
+      {layoutMode === 'tabs' ? (
+        <Tabs
+          value={workspaceTab}
+          onValueChange={(value) => setWorkspaceTab(value as 'edit' | 'preview')}
+          className="print:hidden"
+        >
+          <TabsList>
+            <TabsTrigger value="edit">Edit</TabsTrigger>
+            <TabsTrigger value="preview">Preview</TabsTrigger>
+          </TabsList>
+          <TabsContent value="edit" className="mt-4">
+            <DetailQuotationEditorSections />
+          </TabsContent>
+          <TabsContent value="preview" className="mt-4">
+            {previewPanel}
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <div
+          className={
+            layoutMode === 'stacked'
+              ? 'flex flex-col gap-4 print:block'
+              : 'grid gap-4 lg:grid-cols-2 print:block'
+          }
+        >
+          {layoutMode === 'split-left' ? (
+            <>
+              <div className="min-w-0 lg:order-1">{previewPanel}</div>
+              <div className="min-w-0 lg:order-2 print:hidden">
+                <DetailQuotationEditorSections />
+              </div>
+            </>
+          ) : layoutMode === 'stacked' ? (
+            <>
+              <div className="print:hidden">
+                <DetailQuotationEditorSections />
+              </div>
+              {previewPanel}
+            </>
+          ) : (
+            <>
+              <div className="print:hidden">
+                <DetailQuotationEditorSections />
+              </div>
+              <div className="min-w-0">{previewPanel}</div>
+            </>
+          )}
         </div>
+      )}
+
+      <div className="hidden print:block">
+        <DetailQuotationPreview
+          content={displayContent}
+          clientName={leadName}
+          clientAddress={leadLocation}
+          templateName={activeTemplateName}
+          totals={editorTotals}
+        />
+      </div>
+
+      <QuotationItemPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        template={activeTemplate}
+        sectionId={pickerSectionId}
+        onSelectItem={addTemplateItemFromCatalog}
+      />
+
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .quotation-maker-root,
+          .quotation-maker-root * {
+            visibility: visible;
+          }
+          .quotation-maker-root {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
+    </div>
+  )
+
+  function DetailQuotationEditorSections() {
+    return (
+      <div className="detail-quotation-editor space-y-4">
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-base">Letterhead &amp; footer</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Date</p>
+              <Input
+                value={displayContent.quotationDate ?? ''}
+                disabled={!canEdit}
+                onChange={(event) => updateContentField({ quotationDate: event.target.value })}
+                placeholder="DD-MM-YYYY"
+              />
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <p className="text-xs font-medium text-muted-foreground">Subject</p>
+              <Input
+                value={displayContent.subject ?? ''}
+                disabled={!canEdit}
+                onChange={(event) => updateContentField({ subject: event.target.value })}
+              />
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <p className="text-xs font-medium text-muted-foreground">Intro letter</p>
+              <Textarea
+                rows={3}
+                disabled={!canEdit}
+                value={displayContent.introLetter ?? ''}
+                onChange={(event) => updateContentField({ introLetter: event.target.value })}
+              />
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <p className="text-xs font-medium text-muted-foreground">Drawing design note</p>
+              <Textarea
+                rows={2}
+                disabled={!canEdit}
+                value={displayContent.drawingDesign ?? ''}
+                onChange={(event) => updateContentField({ drawingDesign: event.target.value })}
+              />
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <p className="text-xs font-medium text-muted-foreground">Payment terms</p>
+              <Textarea
+                rows={3}
+                disabled={!canEdit}
+                value={displayContent.paymentTerms ?? ''}
+                onChange={(event) => updateContentField({ paymentTerms: event.target.value })}
+              />
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <p className="text-xs font-medium text-muted-foreground">Duration of work</p>
+              <Textarea
+                rows={3}
+                disabled={!canEdit}
+                value={displayContent.durationNotes ?? ''}
+                onChange={(event) => updateContentField({ durationNotes: event.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Signatory name</p>
+              <Input
+                value={displayContent.signatoryName ?? ''}
+                disabled={!canEdit}
+                onChange={(event) => updateContentField({ signatoryName: event.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Signatory title</p>
+              <Input
+                value={displayContent.signatoryTitle ?? ''}
+                disabled={!canEdit}
+                onChange={(event) => updateContentField({ signatoryTitle: event.target.value })}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {sections.map((section) => {
-          const sectionLines = content.lineItems.filter((line) => line.sectionId === section.id)
-          if (sectionLines.length === 0) return null
+          const sectionLines = editorContent.lineItems.filter(
+            (line) => line.sectionId === section.id && line.included,
+          )
 
           return (
             <Card key={section.id} className="overflow-hidden border-border/70 shadow-none">
@@ -551,24 +830,39 @@ export function QuotationMaker({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle className="text-base">{section.name}</CardTitle>
                   {canEdit ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => addCustomLine(section.id)}
-                    >
-                      <Plus className="mr-1 h-3.5 w-3.5" />
-                      Add Item
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openItemPicker(section.id)}
+                      >
+                        <Plus className="mr-1 h-3.5 w-3.5" />
+                        Add from saved list
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => addCustomLine(section.id)}
+                      >
+                        Custom item
+                      </Button>
+                    </div>
                   ) : null}
                 </div>
               </CardHeader>
               <CardContent className="p-0">
+                {sectionLines.length === 0 ? (
+                  <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+                    No {section.name.toLowerCase()} items yet. Use &ldquo;Add from saved list&rdquo; to
+                    pick from the PDF catalog.
+                  </div>
+                ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[980px] text-sm">
                     <thead className="bg-muted/50 text-left">
                       <tr>
-                        <th className="px-3 py-2 font-medium print:hidden">Include</th>
                         <th className="w-12 px-3 py-2 font-medium">SL</th>
                         <th className="min-w-[160px] px-3 py-2 font-medium">Name</th>
                         <th className="min-w-[280px] px-3 py-2 font-medium">Materials</th>
@@ -580,20 +874,7 @@ export function QuotationMaker({
                     </thead>
                     <tbody>
                       {sectionLines.map((line, lineIndex) => (
-                        <tr
-                          key={line.id}
-                          className={`border-t align-top ${line.included ? '' : 'opacity-50 print:hidden'}`}
-                        >
-                          <td className="px-3 py-2 print:hidden">
-                            <input
-                              type="checkbox"
-                              checked={line.included}
-                              disabled={!canEdit}
-                              onChange={(event) =>
-                                updateLineItem(line.id, { included: event.target.checked })
-                              }
-                            />
-                          </td>
+                        <tr key={line.id} className="border-t align-top">
                           <td className="px-3 py-2 text-muted-foreground">
                             {line.serialNo ?? lineIndex + 1}
                           </td>
@@ -670,17 +951,18 @@ export function QuotationMaker({
                             )}
                           </td>
                           <td className="px-3 py-2 text-right font-medium">
-                            {line.included ? formatCurrency(line.amount) : '—'}
+                            {formatCurrency(line.amount)}
                           </td>
                           <td className="px-3 py-2 print:hidden">
-                            {canEdit && line.isCustom ? (
+                            {canEdit ? (
                               <Button
                                 type="button"
-                                size="sm"
+                                size="icon"
                                 variant="ghost"
-                                onClick={() => removeCustomLine(line.id)}
+                                onClick={() => removeLine(line.id)}
+                                aria-label="Remove item"
                               >
-                                Remove
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             ) : null}
                           </td>
@@ -689,6 +971,7 @@ export function QuotationMaker({
                     </tbody>
                   </table>
                 </div>
+                )}
               </CardContent>
             </Card>
           )
@@ -701,7 +984,7 @@ export function QuotationMaker({
               <Textarea
                 rows={4}
                 disabled={!canEdit}
-                value={content.notes}
+                value={editorContent.notes}
                 onChange={(event) =>
                   setContent((prev) => (prev ? { ...prev, notes: event.target.value } : prev))
                 }
@@ -713,7 +996,7 @@ export function QuotationMaker({
               <Textarea
                 rows={4}
                 disabled={!canEdit}
-                value={content.terms}
+                value={editorContent.terms}
                 onChange={(event) =>
                   setContent((prev) => (prev ? { ...prev, terms: event.target.value } : prev))
                 }
@@ -731,7 +1014,7 @@ export function QuotationMaker({
                   type="text"
                   inputMode="decimal"
                   disabled={!canEdit}
-                  value={String(content.discountPercent)}
+                  value={String(editorContent.discountPercent)}
                   onChange={(event) =>
                     setContent((prev) =>
                       prev
@@ -750,7 +1033,7 @@ export function QuotationMaker({
                   type="text"
                   inputMode="decimal"
                   disabled={!canEdit}
-                  value={String(content.discountAmount)}
+                  value={String(editorContent.discountAmount)}
                   onChange={(event) =>
                     setContent((prev) =>
                       prev
@@ -769,7 +1052,7 @@ export function QuotationMaker({
                   type="text"
                   inputMode="decimal"
                   disabled={!canEdit}
-                  value={String(content.taxPercent)}
+                  value={String(editorContent.taxPercent)}
                   onChange={(event) =>
                     setContent((prev) =>
                       prev
@@ -786,54 +1069,30 @@ export function QuotationMaker({
 
             <div className="rounded-md border bg-muted/30 p-4 text-sm">
               <div className="flex justify-between py-1">
-                <span>Subtotal ({totals.includedItemCount} items)</span>
-                <span className="font-medium">{formatCurrency(totals.subtotal)}</span>
+                <span>Subtotal ({editorTotals.includedItemCount} items)</span>
+                <span className="font-medium">{formatCurrency(editorTotals.subtotal)}</span>
               </div>
               <div className="flex justify-between py-1">
                 <span>Discount</span>
-                <span className="font-medium">- {formatCurrency(totals.discountAmount)}</span>
+                <span className="font-medium">- {formatCurrency(editorTotals.discountAmount)}</span>
               </div>
               <div className="flex justify-between py-1">
                 <span>Tax</span>
-                <span className="font-medium">{formatCurrency(totals.taxAmount)}</span>
+                <span className="font-medium">{formatCurrency(editorTotals.taxAmount)}</span>
               </div>
               <div className="mt-2 flex justify-between border-t pt-2 text-base font-semibold">
                 <span>Grand Total</span>
-                <span>{formatCurrency(totals.grandTotal)}</span>
+                <span>{formatCurrency(editorTotals.grandTotal)}</span>
               </div>
-              {totals.itemsMissingPrice > 0 ? (
+              {editorTotals.itemsMissingPrice > 0 ? (
                 <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                  {totals.itemsMissingPrice} included item(s) need a price before saving.
+                  {editorTotals.itemsMissingPrice} included item(s) need a price before saving.
                 </p>
               ) : null}
             </div>
           </CardContent>
         </Card>
       </div>
-
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .quotation-maker-root,
-          .quotation-maker-root * {
-            visibility: visible;
-          }
-          .quotation-maker-root {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-          tr:not(:has(input:checked)) {
-            display: none;
-          }
-        }
-      `}</style>
-    </div>
-  )
+    )
+  }
 }

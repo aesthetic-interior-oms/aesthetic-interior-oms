@@ -40,6 +40,14 @@ export type QuotationDraftContent = {
   taxPercent: number
   notes: string
   terms: string
+  quotationDate?: string
+  subject?: string
+  introLetter?: string
+  paymentTerms?: string
+  durationNotes?: string
+  drawingDesign?: string
+  signatoryName?: string
+  signatoryTitle?: string
 }
 
 export type QuotationTemplateItem = {
