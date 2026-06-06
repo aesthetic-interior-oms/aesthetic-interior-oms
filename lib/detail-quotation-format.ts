@@ -5,6 +5,7 @@ export const DEFAULT_DETAIL_INTRO_LETTER = `Dear Sir,
 Yours sincerely, I am interested in working on the interior of your Flat. So, the details of my work are described below.`
 
 export const DEFAULT_DETAIL_SUBJECT = 'Quotation for interior decoration work.'
+export const DEFAULT_DETAIL_SUMMARY_SUBJECT = 'Quotation Summary for interior decoration work.'
 
 export const DEFAULT_DETAIL_PAYMENT_TERMS = `Mode of Payment
 1.60% of the total amount will be given by the client at time of work order given.
@@ -37,6 +38,7 @@ export function withDetailQuotationDefaults(
     drawingDesign: content.drawingDesign ?? DEFAULT_DRAWING_DESIGN,
     signatoryName: content.signatoryName ?? DEFAULT_SIGNATORY_NAME,
     signatoryTitle: content.signatoryTitle ?? DEFAULT_SIGNATORY_TITLE,
+    summarySubject: content.summarySubject ?? DEFAULT_DETAIL_SUMMARY_SUBJECT,
   }
 }
 
@@ -76,18 +78,21 @@ export function formatDetailTotalCell(line: QuotationLineItem) {
   return formatDetailAmount(line.amount)
 }
 
-export type DetailSectionSummary = {
-  section: QuotationSection
+export type DetailFloorSummary = {
+  floor: QuotationSection
   lines: QuotationLineItem[]
   total: number
 }
 
-export function buildDetailSectionSummaries(content: QuotationDraftContent): DetailSectionSummary[] {
-  const sections = [...content.sections].sort((a, b) => a.sortOrder - b.sortOrder)
+/** @deprecated use DetailFloorSummary */
+export type DetailSectionSummary = DetailFloorSummary
 
-  return sections
-    .map((section) => {
-      const lines = content.lineItems.filter((line) => line.sectionId === section.id && line.included)
+export function buildDetailFloorSummaries(content: QuotationDraftContent): DetailFloorSummary[] {
+  const floors = [...content.sections].sort((a, b) => a.sortOrder - b.sortOrder)
+
+  return floors
+    .map((floor) => {
+      const lines = content.lineItems.filter((line) => line.sectionId === floor.id && line.included)
       const total = Math.round(
         lines.reduce((sum, line) => {
           if (isRateOnlyLine(line)) return sum
@@ -96,10 +101,14 @@ export function buildDetailSectionSummaries(content: QuotationDraftContent): Det
       )
 
       return {
-        section,
+        floor,
         lines,
         total,
       }
     })
     .filter((entry) => entry.lines.length > 0)
+}
+
+export function buildDetailSectionSummaries(content: QuotationDraftContent): DetailFloorSummary[] {
+  return buildDetailFloorSummaries(content)
 }

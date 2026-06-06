@@ -13,6 +13,7 @@ export type QuotationSection = {
 export type QuotationLineItem = {
   id: string
   sectionId: string
+  catalogTemplateKey?: string
   templateId?: string
   serialNo?: number
   description: string
@@ -48,6 +49,7 @@ export type QuotationDraftContent = {
   drawingDesign?: string
   signatoryName?: string
   signatoryTitle?: string
+  summarySubject?: string
 }
 
 export type QuotationTemplateItem = {

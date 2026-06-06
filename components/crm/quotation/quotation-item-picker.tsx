@@ -12,43 +12,56 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { getQuotationTemplate } from '@/lib/quotation-templates'
 import { formatTemplatePriceHint } from '@/lib/quotation-templates/helpers'
-import type { QuotationTemplateDefinition } from '@/lib/quotation-types'
+
+type CatalogOption = {
+  key: string
+  name: string
+}
 
 type QuotationItemPickerProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  template: QuotationTemplateDefinition
-  sectionId?: string | null
-  onSelectItem: (templateItemId: string) => void
+  catalogs: CatalogOption[]
+  catalogTemplateKey: string
+  onCatalogTemplateKeyChange: (key: string) => void
+  onSelectItem: (templateItemId: string, catalogTemplateKey: string) => void
 }
 
 export function QuotationItemPicker({
   open,
   onOpenChange,
-  template,
-  sectionId,
+  catalogs,
+  catalogTemplateKey,
+  onCatalogTemplateKeyChange,
   onSelectItem,
 }: QuotationItemPickerProps) {
   const [query, setQuery] = useState('')
+  const template = useMemo(() => getQuotationTemplate(catalogTemplateKey), [catalogTemplateKey])
 
-  const sections = useMemo(() => {
-    const sorted = [...template.sections].sort((a, b) => a.sortOrder - b.sortOrder)
-    if (!sectionId) return sorted
-    return sorted.filter((section) => section.id === sectionId)
-  }, [sectionId, template.sections])
+  const sections = useMemo(
+    () => [...template.sections].sort((a, b) => a.sortOrder - b.sortOrder),
+    [template.sections],
+  )
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
     return template.items.filter((item) => {
-      if (sectionId && item.sectionId !== sectionId) return false
       if (!normalizedQuery) return true
       return (
         item.description.toLowerCase().includes(normalizedQuery) ||
         item.materials.toLowerCase().includes(normalizedQuery)
       )
     })
-  }, [query, sectionId, template.items])
+  }, [query, template.items])
 
   const sectionNameById = useMemo(
     () => new Map(template.sections.map((section) => [section.id, section.name])),
@@ -56,7 +69,7 @@ export function QuotationItemPicker({
   )
 
   const handleSelect = (templateItemId: string) => {
-    onSelectItem(templateItemId)
+    onSelectItem(templateItemId, catalogTemplateKey)
     onOpenChange(false)
     setQuery('')
   }
@@ -67,12 +80,26 @@ export function QuotationItemPicker({
         <DialogHeader className="shrink-0">
           <DialogTitle>Add from saved list</DialogTitle>
           <DialogDescription>
-            Pick items from the {template.name} PDF catalog. You can edit name, materials, rate, and
-            sqft after adding.
+            Choose a catalog (Ceiling, TV Unit, Folding Door), pick an item, then edit on the floor.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="shrink-0 border-b py-3">
+        <div className="shrink-0 space-y-3 border-b py-3">
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">Catalog</p>
+            <Select value={catalogTemplateKey} onValueChange={onCatalogTemplateKeyChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {catalogs.map((catalog) => (
+                  <SelectItem key={catalog.key} value={catalog.key}>
+                    {catalog.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -103,11 +130,9 @@ export function QuotationItemPicker({
                       <div className="min-w-0 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-medium">{item.description}</p>
-                          {!sectionId ? (
-                            <Badge variant="outline" className="text-[10px]">
-                              {sectionNameById.get(item.sectionId) ?? item.sectionId}
-                            </Badge>
-                          ) : null}
+                          <Badge variant="outline" className="text-[10px]">
+                            {sectionNameById.get(item.sectionId) ?? item.sectionId}
+                          </Badge>
                         </div>
                         <p className="line-clamp-2 text-xs text-muted-foreground">{item.materials}</p>
                         <p className="text-xs text-muted-foreground">

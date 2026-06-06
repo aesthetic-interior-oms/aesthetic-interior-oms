@@ -1,3 +1,4 @@
+import { applyQuotationTypeToFloorContent, buildDefaultFloorDetailContent } from '@/lib/floor-detail-quotation'
 import type { QuotationDraftContent, QuotationFileType } from '@/lib/quotation-types'
 import { CEILING_CURTAIN_TEMPLATE } from '@/lib/quotation-templates/ceiling-curtain'
 import { FOLDING_SLIDING_DOOR_TEMPLATE } from '@/lib/quotation-templates/folding-sliding-door'
@@ -32,16 +33,13 @@ export function listQuotationTemplates() {
   }))
 }
 
-export function buildDefaultQuotationContent(input: {
+export function buildDefaultQuotationContent(input?: {
   templateKey?: string | null
-  quotationType: QuotationFileType
+  quotationType?: QuotationFileType
   projectSqft?: number | null
 }): QuotationDraftContent {
-  const template = getQuotationTemplate(input.templateKey)
-  return buildContentFromTemplate({
-    template,
-    quotationType: input.quotationType,
-    projectSqft: input.projectSqft,
+  return buildDefaultFloorDetailContent({
+    quotationType: input?.quotationType ?? 'STANDARD',
   })
 }
 
@@ -49,6 +47,9 @@ export function applyQuotationTypeToContent(
   content: QuotationDraftContent,
   quotationType: QuotationFileType,
 ): QuotationDraftContent {
+  if (content.templateKey === 'floor-based') {
+    return applyQuotationTypeToFloorContent(content, quotationType)
+  }
   const template = getQuotationTemplate(content.templateKey)
   return applyQuotationTypeToTemplateContent(content, template, quotationType)
 }

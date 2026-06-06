@@ -1,8 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
+import { ExternalLink, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -16,25 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  applyQuotationTypeToContent,
-  buildDefaultQuotationContent,
-  getQuotationTemplate,
-} from '@/lib/quotation-templates'
-import { DetailQuotationLayoutToolbar } from '@/components/crm/quotation/detail-quotation-layout-toolbar'
-import { DetailQuotationPreview } from '@/components/crm/quotation/detail-quotation-preview'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { QuotationItemPicker } from '@/components/crm/quotation/quotation-item-picker'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  DETAIL_QUOTATION_LAYOUT_STORAGE_KEY,
-  type DetailQuotationLayoutMode,
-  withDetailQuotationDefaults,
-} from '@/lib/detail-quotation-format'
-import {
-  addTemplateItemToContent,
-  formatTemplatePriceHint,
-  prepareQuotationContentForEditing,
-} from '@/lib/quotation-templates/helpers'
+import { applyQuotationTypeToContent } from '@/lib/quotation-templates'
+import { formatTemplatePriceHint } from '@/lib/quotation-templates/helpers'
 import {
   calculateLineAmount,
   calculateQuotationTotals,
@@ -44,11 +29,24 @@ import {
   loadPlaygroundDetailDraft,
   savePlaygroundDetailDraft,
 } from '@/lib/quotation-playground-storage'
+import {
+  buildDetailPreviewUrl,
+  publishDetailPreview,
+} from '@/lib/detail-quotation-preview-sync'
+import { withDetailQuotationDefaults } from '@/lib/detail-quotation-format'
+import {
+  addCatalogItemToFloor,
+  addFloorToContent,
+  buildDefaultFloorDetailContent,
+  findCatalogItemAcrossTemplates,
+  FLOOR_DETAIL_TEMPLATE_KEY,
+  removeFloorFromContent,
+  updateFloorName,
+} from '@/lib/floor-detail-quotation'
 import type {
   QuotationDraftContent,
   QuotationFileType,
   QuotationLineItem,
-  QuotationUnit,
 } from '@/lib/quotation-types'
 
 type QuotationMakerProps = {
@@ -59,37 +57,22 @@ type QuotationMakerProps = {
   mode?: 'lead' | 'playground'
 }
 
-type TemplateOption = {
-  key: string
-  name: string
-  sourceDocument: string
+type TemplateOption = { key: string; name: string; sourceDocument: string }
+
+type DraftPayload = {
+  quotationType: QuotationFileType
+  projectSqft: number | null
+  content: QuotationDraftContent
+  grandTotal: number
+  status: 'DRAFT' | 'FINALIZED'
 }
 
 type DraftResponse = {
-  draft: {
-    quotationType: QuotationFileType
-    projectSqft: number | null
-    content: QuotationDraftContent
-    grandTotal: number
-    status: 'DRAFT' | 'FINALIZED'
-  } | null
-  defaultDraft: {
-    quotationType: QuotationFileType
-    projectSqft: number | null
-    content: QuotationDraftContent
-    grandTotal: number
-    status: 'DRAFT' | 'FINALIZED'
-  } | null
+  draft: DraftPayload | null
+  defaultDraft: DraftPayload | null
+  defaultDetailDraft?: DraftPayload | null
   templates?: TemplateOption[]
   canEdit: boolean
-}
-
-const UNIT_LABELS: Record<QuotationUnit, string> = {
-  sqft: 'Sqft',
-  nos: 'Nos',
-  ls: 'Lump Sum',
-  rmt: 'Running Mtr',
-  rft: 'Running Ft',
 }
 
 function formatCurrency(value: number) {
@@ -120,6 +103,9 @@ export function QuotationMaker({
   mode = 'lead',
 }: QuotationMakerProps) {
   const isPlayground = mode === 'playground'
+  const previewContext = isPlayground ? 'playground' : 'lead'
+  const previewContextId = isPlayground ? 'playground' : leadId
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [startingWork, setStartingWork] = useState(false)
@@ -127,37 +113,15 @@ export function QuotationMaker({
   const [quotationType, setQuotationType] = useState<QuotationFileType>('STANDARD')
   const [projectSqft, setProjectSqft] = useState('')
   const [content, setContent] = useState<QuotationDraftContent | null>(null)
-  const [templateKey, setTemplateKey] = useState('ceiling-curtain')
   const [templates, setTemplates] = useState<TemplateOption[]>([])
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [pickerSectionId, setPickerSectionId] = useState<string | null>(null)
-  const [layoutMode, setLayoutMode] = useState<DetailQuotationLayoutMode>('split-right')
+  const [pickerFloorId, setPickerFloorId] = useState<string | null>(null)
+  const [pickerCatalogKey, setPickerCatalogKey] = useState('ceiling-curtain')
   const [workspaceTab, setWorkspaceTab] = useState<'edit' | 'preview'>('edit')
+  const previewWindowRef = useRef<Window | null>(null)
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-    const stored = window.localStorage.getItem(DETAIL_QUOTATION_LAYOUT_STORAGE_KEY)
-    if (
-      stored === 'split-right' ||
-      stored === 'split-left' ||
-      stored === 'stacked' ||
-      stored === 'tabs'
-    ) {
-      setLayoutMode(stored)
-    }
-  }, [])
-
-  const handleLayoutChange = (nextLayout: DetailQuotationLayoutMode) => {
-    setLayoutMode(nextLayout)
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(DETAIL_QUOTATION_LAYOUT_STORAGE_KEY, nextLayout)
-    }
-  }
-
-  const activeTemplate = useMemo(() => getQuotationTemplate(templateKey), [templateKey])
-
-  const loadDraft = useCallback(async (preferredTemplateKey?: string) => {
+  const loadDraft = useCallback(async () => {
     setLoading(true)
     try {
       if (isPlayground) {
@@ -168,37 +132,22 @@ export function QuotationMaker({
         }
 
         const stored = loadPlaygroundDetailDraft()
-        const nextTemplateKey = stored?.templateKey ?? preferredTemplateKey ?? 'ceiling-curtain'
-        const template = getQuotationTemplate(nextTemplateKey)
         if (stored) {
           setQuotationType(stored.quotationType)
           setProjectSqft(stored.projectSqft ? String(stored.projectSqft) : '')
-          setContent(
-            normalizeQuotationContent(
-              withDetailQuotationDefaults(
-                prepareQuotationContentForEditing(stored.content, template),
-              ),
-            ),
-          )
-          setTemplateKey(nextTemplateKey)
+          setContent(normalizeQuotationContent(withDetailQuotationDefaults(stored.content)))
           setLastSavedAt(stored.savedAt)
         } else {
-          const nextContent = buildDefaultQuotationContent({
-            templateKey: nextTemplateKey,
-            quotationType: 'STANDARD',
-          })
           setQuotationType('STANDARD')
           setProjectSqft('')
-          setContent(nextContent)
-          setTemplateKey(nextTemplateKey)
+          setContent(buildDefaultFloorDetailContent())
           setLastSavedAt(null)
         }
         setCanEdit(true)
         return
       }
 
-      const query = preferredTemplateKey ? `?templateKey=${encodeURIComponent(preferredTemplateKey)}` : ''
-      const response = await fetch(`/api/lead/${leadId}/quotation-draft${query}`, { cache: 'no-store' })
+      const response = await fetch(`/api/lead/${leadId}/quotation-draft`, { cache: 'no-store' })
       const payload = await response.json()
       if (!response.ok || !payload?.success || !payload?.data) {
         throw new Error(payload?.error ?? 'Failed to load quotation')
@@ -208,25 +157,12 @@ export function QuotationMaker({
       setCanEdit(Boolean(data.canEdit))
       if (Array.isArray(data.templates)) setTemplates(data.templates)
 
-      const source = data.draft ?? data.defaultDraft
-      if (!source) {
-        throw new Error('Quotation data unavailable')
-      }
-
-      const resolvedTemplateKey =
-        source.content.templateKey ?? preferredTemplateKey ?? 'ceiling-curtain'
-      const template = getQuotationTemplate(resolvedTemplateKey)
+      const source = data.draft ?? data.defaultDetailDraft ?? data.defaultDraft
+      if (!source) throw new Error('Quotation data unavailable')
 
       setQuotationType(source.quotationType)
       setProjectSqft(source.projectSqft ? String(source.projectSqft) : '')
-      setContent(
-        normalizeQuotationContent(
-          withDetailQuotationDefaults(
-            prepareQuotationContentForEditing(source.content, template),
-          ),
-        ),
-      )
-      setTemplateKey(resolvedTemplateKey)
+      setContent(normalizeQuotationContent(withDetailQuotationDefaults(source.content)))
       setLastSavedAt(data.draft ? new Date().toISOString() : null)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load quotation')
@@ -240,15 +176,30 @@ export function QuotationMaker({
     void loadDraft()
   }, [loadDraft])
 
-  const totals = useMemo(() => {
-    if (!content) return null
-    return calculateQuotationTotals(content)
-  }, [content])
+  const totals = useMemo(() => (content ? calculateQuotationTotals(content) : null), [content])
 
-  const sections = useMemo(() => {
+  const floors = useMemo(() => {
     if (!content) return []
     return [...content.sections].sort((a, b) => a.sortOrder - b.sortOrder)
   }, [content])
+
+  useEffect(() => {
+    if (!content || !totals) return
+    const timer = window.setTimeout(() => {
+      publishDetailPreview({
+        updatedAt: new Date().toISOString(),
+        context: previewContext,
+        contextId: previewContextId,
+        clientName: leadName,
+        clientAddress: leadLocation,
+        quotationType,
+        projectSqft: projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null,
+        content: withDetailQuotationDefaults(content),
+        totals,
+      })
+    }, 250)
+    return () => window.clearTimeout(timer)
+  }, [content, totals, quotationType, projectSqft, leadName, leadLocation, previewContext, previewContextId])
 
   const updateLineItem = (lineId: string, patch: Partial<QuotationLineItem>) => {
     setContent((prev) => {
@@ -283,64 +234,76 @@ export function QuotationMaker({
   const handleProjectSqftChange = (value: string) => {
     setProjectSqft(value)
     const parsed = Number(value.replace(/,/g, ''))
-    if (Number.isFinite(parsed) && parsed > 0) {
-      applyProjectSqftToLines(parsed)
-    }
+    if (Number.isFinite(parsed) && parsed > 0) applyProjectSqftToLines(parsed)
   }
 
   const handleQuotationTypeChange = (value: QuotationFileType) => {
     setQuotationType(value)
-    setContent((prev) => {
-      if (!prev) return prev
-      return normalizeQuotationContent(applyQuotationTypeToContent(prev, value))
-    })
+    setContent((prev) => (prev ? normalizeQuotationContent(applyQuotationTypeToContent(prev, value)) : prev))
   }
 
-  const addCustomLine = (sectionId: string) => {
+  const updateContentField = (patch: Partial<QuotationDraftContent>) => {
+    setContent((prev) => (prev ? { ...prev, ...patch } : prev))
+  }
+
+  const addFloor = () => {
+    setContent((prev) => (prev ? addFloorToContent(prev) : prev))
+  }
+
+  const removeFloor = (floorId: string) => {
+    if (!window.confirm('Remove this floor and all its items?')) return
+    setContent((prev) => (prev ? removeFloorFromContent(prev, floorId) : prev))
+  }
+
+  const addCustomLine = (floorId: string) => {
     setContent((prev) => {
       if (!prev) return prev
-      const customCount = prev.lineItems.filter((line) => line.sectionId === sectionId && line.isCustom).length
+      const customCount = prev.lineItems.filter((line) => line.sectionId === floorId && line.isCustom).length
+      const sqft = Number(projectSqft.replace(/,/g, ''))
       const newLine: QuotationLineItem = {
-        id: `custom-${sectionId}-${Date.now()}-${customCount}`,
-        sectionId,
+        id: `custom-${floorId}-${Date.now()}-${customCount}`,
+        sectionId: floorId,
         description: 'Custom item',
         materials: '',
         unit: 'sqft',
         rate: 0,
-        quantity: Number(projectSqft.replace(/,/g, '')) > 0 ? Number(projectSqft.replace(/,/g, '')) : 0,
+        quantity: Number.isFinite(sqft) && sqft > 0 ? sqft : 0,
         amount: 0,
         included: true,
         isCustom: true,
       }
-      return normalizeQuotationContent({
-        ...prev,
-        lineItems: [...prev.lineItems, newLine],
-      })
+      return normalizeQuotationContent({ ...prev, lineItems: [...prev.lineItems, newLine] })
     })
   }
 
   const removeLine = (lineId: string) => {
-    setContent((prev) => {
-      if (!prev) return prev
-      return normalizeQuotationContent({
-        ...prev,
-        lineItems: prev.lineItems.filter((line) => line.id !== lineId),
-      })
-    })
+    setContent((prev) =>
+      prev
+        ? normalizeQuotationContent({
+            ...prev,
+            lineItems: prev.lineItems.filter((line) => line.id !== lineId),
+          })
+        : prev,
+    )
   }
 
-  const openItemPicker = (sectionId?: string) => {
-    setPickerSectionId(sectionId ?? null)
+  const openItemPicker = (floorId: string) => {
+    setPickerFloorId(floorId)
     setPickerOpen(true)
   }
 
-  const addTemplateItemFromCatalog = (templateItemId: string) => {
+  const addTemplateItemFromCatalog = (templateItemId: string, catalogTemplateKey: string) => {
+    if (!pickerFloorId) {
+      toast.error('Select a floor first')
+      return
+    }
     setContent((prev) => {
       if (!prev) return prev
       const sqft = Number(projectSqft.replace(/,/g, ''))
-      const next = addTemplateItemToContent(
+      const next = addCatalogItemToFloor(
         prev,
-        activeTemplate,
+        pickerFloorId,
+        catalogTemplateKey,
         templateItemId,
         quotationType,
         Number.isFinite(sqft) && sqft > 0 ? sqft : null,
@@ -349,30 +312,34 @@ export function QuotationMaker({
         toast.error('Item not found in saved list')
         return prev
       }
-      const item = activeTemplate.items.find((entry) => entry.id === templateItemId)
-      toast.success(item ? `Added: ${item.description}` : 'Item added')
+      const match = findCatalogItemAcrossTemplates(templateItemId)
+      toast.success(match ? `Added: ${match.item.description}` : 'Item added')
       return normalizeQuotationContent(next)
     })
   }
 
-  const activeTemplateName = useMemo(() => {
-    const match = templates.find((item) => item.key === templateKey)
-    return match?.name ?? getQuotationTemplate(templateKey).name
-  }, [templateKey, templates])
-
-  const handleTemplateChange = (nextKey: string) => {
-    if (!canEdit || nextKey === templateKey) return
-    if (!window.confirm('Switch quotation template? Current edits will be replaced.')) return
-
-    const sqft = Number(projectSqft.replace(/,/g, ''))
-    const nextContent = buildDefaultQuotationContent({
-      templateKey: nextKey,
-      quotationType,
-      projectSqft: Number.isFinite(sqft) && sqft > 0 ? sqft : null,
-    })
-    setTemplateKey(nextKey)
-    setContent(nextContent)
-    setLastSavedAt(null)
+  const openLivePreviewTab = () => {
+    if (content && totals) {
+      publishDetailPreview({
+        updatedAt: new Date().toISOString(),
+        context: previewContext,
+        contextId: previewContextId,
+        clientName: leadName,
+        clientAddress: leadLocation,
+        quotationType,
+        projectSqft: projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null,
+        content: withDetailQuotationDefaults(content),
+        totals,
+      })
+    }
+    const url = buildDetailPreviewUrl({ context: previewContext, contextId: previewContextId })
+    const opened = window.open(url, '_blank', 'noopener,noreferrer')
+    if (!opened) {
+      toast.error('Pop-up blocked. Allow pop-ups to open the live preview tab.')
+      return
+    }
+    previewWindowRef.current = opened
+    setWorkspaceTab('edit')
   }
 
   const saveDraft = async () => {
@@ -380,7 +347,7 @@ export function QuotationMaker({
     const normalized = normalizeQuotationContent(content)
     const totalsPreview = calculateQuotationTotals(normalized)
     if (totalsPreview.itemsMissingPrice > 0) {
-      toast.error(`${totalsPreview.itemsMissingPrice} included item(s) still need a price.`)
+      toast.error(`${totalsPreview.itemsMissingPrice} item(s) still need a price.`)
       return
     }
     setSaving(true)
@@ -390,7 +357,7 @@ export function QuotationMaker({
         savePlaygroundDetailDraft({
           quotationType,
           projectSqft: projectSqftValue,
-          templateKey,
+          templateKey: FLOOR_DETAIL_TEMPLATE_KEY,
           content: normalized,
         })
         setContent(normalized)
@@ -440,31 +407,33 @@ export function QuotationMaker({
     }
   }
 
-  const resetToTemplate = () => {
-    const sqft = Number(projectSqft.replace(/,/g, ''))
-    const nextContent = buildDefaultQuotationContent({
-      templateKey,
-      quotationType,
-      projectSqft: Number.isFinite(sqft) && sqft > 0 ? sqft : null,
-    })
-    setContent(nextContent)
-    toast.message('All items cleared. Add from the saved list when ready.')
+  const clearAll = () => {
+    if (!window.confirm('Clear all floors and items?')) return
+    setContent(buildDefaultFloorDetailContent({ quotationType }))
+    toast.message('Quotation cleared. Add floors when ready.')
   }
 
-  const handlePrint = () => {
-    window.print()
-  }
+  const handlePrint = () => openLivePreviewTab()
 
   const canStartWork =
     !isPlayground &&
     (leadSubStatus === 'QUOTATION_ASSIGNED' || leadSubStatus === 'QUOTATION_CORRECTION')
+
+  const catalogOptions =
+    templates.length > 0
+      ? templates
+      : [
+          { key: 'ceiling-curtain', name: 'Ceiling & Curtain' },
+          { key: 'tv-unit', name: 'TV Unit' },
+          { key: 'folding-sliding-door', name: 'Folding & Sliding Door' },
+        ]
 
   if (loading) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading quotation maker...
+          Loading detail quotation...
         </CardContent>
       </Card>
     )
@@ -474,36 +443,13 @@ export function QuotationMaker({
     return (
       <Card>
         <CardContent className="py-10 text-center text-sm text-destructive">
-          {isPlayground
-            ? 'Unable to load playground detail quotation.'
-            : 'Unable to load quotation maker for this lead.'}
+          Unable to load detail quotation.
         </CardContent>
       </Card>
     )
   }
 
-  const editorContent = content
-  const editorTotals = totals
-  const displayContent = withDetailQuotationDefaults(editorContent)
-
-  const updateContentField = (patch: Partial<QuotationDraftContent>) => {
-    setContent((prev) => (prev ? { ...prev, ...patch } : prev))
-  }
-
-  const previewPanel = (
-    <div className="detail-quotation-preview-shell rounded-lg border bg-muted/20 p-3 print:border-0 print:bg-transparent print:p-0">
-      <p className="mb-2 text-xs font-medium text-muted-foreground print:hidden">Live preview</p>
-      <div className="max-h-[calc(100vh-11rem)] overflow-y-auto rounded-md border bg-white shadow-sm print:max-h-none print:overflow-visible print:border-0 print:shadow-none">
-        <DetailQuotationPreview
-          content={displayContent}
-          clientName={leadName}
-          clientAddress={leadLocation}
-          templateName={activeTemplateName}
-          totals={editorTotals}
-        />
-      </div>
-    </div>
-  )
+  const displayContent = withDetailQuotationDefaults(content)
 
   return (
     <div className="space-y-4 quotation-maker-root">
@@ -511,10 +457,10 @@ export function QuotationMaker({
         <CardHeader className="space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
-              <CardTitle>{activeTemplateName} Quotation</CardTitle>
+              <CardTitle>Floor-based Detail Quotation</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Choose Ceiling, TV Unit, or Folding Door — then add items from the saved PDF list and
-                edit rate, sqft, or materials as needed.
+                Add floors (Ground Floor, First Floor, etc.), pick items from saved PDF catalogs per
+                floor, and open Live Preview in a new tab — same layout as your Yamim PDF.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -534,36 +480,7 @@ export function QuotationMaker({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-5">
-            <div className="space-y-1 md:col-span-2">
-              <p className="text-xs font-medium text-muted-foreground">Quotation Template</p>
-              <Select
-                value={templateKey}
-                disabled={!canEdit || Boolean(lastSavedAt)}
-                onValueChange={handleTemplateChange}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select template" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(templates.length > 0
-                    ? templates
-                    : [
-                        { key: 'ceiling-curtain', name: 'Ceiling & Curtain' },
-                        { key: 'tv-unit', name: 'TV Unit' },
-                        { key: 'folding-sliding-door', name: 'Folding & Sliding Door' },
-                      ]
-                  ).map((template) => (
-                    <SelectItem key={template.key} value={template.key}>
-                      {template.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {lastSavedAt ? (
-                <p className="text-[11px] text-muted-foreground">Template is locked after first save.</p>
-              ) : null}
-            </div>
+          <div className="grid gap-3 md:grid-cols-4">
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Client</p>
               <p className="text-sm font-medium">{leadName}</p>
@@ -573,35 +490,51 @@ export function QuotationMaker({
               <p className="text-sm font-medium">{leadLocation ?? 'N/A'}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Project Sqft</p>
+              <p className="text-xs font-medium text-muted-foreground">Default sqft (new sqft items)</p>
               <Input
                 type="text"
                 inputMode="decimal"
                 value={projectSqft}
                 disabled={!canEdit}
                 onChange={(event) => handleProjectSqftChange(event.target.value)}
-                placeholder="Enter total sqft"
+                placeholder="Enter sqft"
               />
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Rate Selection</p>
+              <p className="text-xs font-medium text-muted-foreground">Rate selection</p>
               <Select
                 value={quotationType}
                 disabled={!canEdit}
                 onValueChange={(value) => handleQuotationTypeChange(value as QuotationFileType)}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select rate" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="BASIC">Low (min rate from PDF)</SelectItem>
-                  <SelectItem value="STANDARD">Mid (average rate)</SelectItem>
-                  <SelectItem value="PREMIUM">High (max rate from PDF)</SelectItem>
-                  <SelectItem value="MIXED">Mixed (manual per item)</SelectItem>
+                  <SelectItem value="BASIC">Low (min rate)</SelectItem>
+                  <SelectItem value="STANDARD">Mid (average)</SelectItem>
+                  <SelectItem value="PREMIUM">High (max rate)</SelectItem>
+                  <SelectItem value="MIXED">Mixed (manual)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
+
+          <Tabs value={workspaceTab} onValueChange={(value) => {
+            if (value === 'preview') {
+              openLivePreviewTab()
+              return
+            }
+            setWorkspaceTab('edit')
+          }}>
+            <TabsList>
+              <TabsTrigger value="edit">Edit</TabsTrigger>
+              <TabsTrigger value="preview" className="gap-1.5">
+                <ExternalLink className="h-3.5 w-3.5" />
+                Live Preview
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           <div className="flex flex-wrap gap-2">
             {canStartWork ? (
@@ -609,23 +542,22 @@ export function QuotationMaker({
                 {startingWork ? 'Starting...' : 'Start Work'}
               </Button>
             ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!canEdit}
-              onClick={() => openItemPicker()}
-            >
+            <Button type="button" variant="outline" disabled={!canEdit} onClick={addFloor}>
               <Plus className="mr-2 h-4 w-4" />
-              Add from saved list
+              Add Floor
             </Button>
-            <Button type="button" variant="outline" disabled={!canEdit} onClick={resetToTemplate}>
-              Clear all items
+            <Button type="button" variant="outline" disabled={!canEdit} onClick={clearAll}>
+              Clear all
             </Button>
             <Button type="button" disabled={!canEdit || saving} onClick={() => void saveDraft()}>
               <Save className="mr-2 h-4 w-4" />
               {saving ? 'Saving...' : 'Save Draft'}
             </Button>
-            <Button type="button" variant="secondary" onClick={handlePrint}>
+            <Button type="button" variant="secondary" onClick={openLivePreviewTab}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Open Live Preview
+            </Button>
+            <Button type="button" variant="outline" onClick={handlePrint}>
               <Printer className="mr-2 h-4 w-4" />
               Print / PDF
             </Button>
@@ -638,461 +570,244 @@ export function QuotationMaker({
 
           {!canEdit ? (
             <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
-              This quotation is read-only. Start work on this lead from My Work to edit items and sqft.
+              Read-only. Start work from My Work to edit.
             </p>
           ) : null}
         </CardContent>
       </Card>
 
-      <div className="print:hidden">
-        <DetailQuotationLayoutToolbar layout={layoutMode} onLayoutChange={handleLayoutChange} />
-      </div>
+      <Card className="print:hidden">
+        <CardHeader className="py-3">
+          <CardTitle className="text-base">Letterhead &amp; footer</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">Date</p>
+            <Input
+              value={displayContent.quotationDate ?? ''}
+              disabled={!canEdit}
+              onChange={(event) => updateContentField({ quotationDate: event.target.value })}
+            />
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <p className="text-xs font-medium text-muted-foreground">Summary subject (page 1)</p>
+            <Input
+              value={displayContent.summarySubject ?? ''}
+              disabled={!canEdit}
+              onChange={(event) => updateContentField({ summarySubject: event.target.value })}
+            />
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <p className="text-xs font-medium text-muted-foreground">Detail subject (per floor)</p>
+            <Input
+              value={displayContent.subject ?? ''}
+              disabled={!canEdit}
+              onChange={(event) => updateContentField({ subject: event.target.value })}
+            />
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <p className="text-xs font-medium text-muted-foreground">Intro letter</p>
+            <Textarea
+              rows={3}
+              disabled={!canEdit}
+              value={displayContent.introLetter ?? ''}
+              onChange={(event) => updateContentField({ introLetter: event.target.value })}
+            />
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <p className="text-xs font-medium text-muted-foreground">Terms &amp; conditions</p>
+            <Textarea
+              rows={3}
+              disabled={!canEdit}
+              value={displayContent.terms}
+              onChange={(event) => updateContentField({ terms: event.target.value })}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
-      {layoutMode === 'tabs' ? (
-        <Tabs
-          value={workspaceTab}
-          onValueChange={(value) => setWorkspaceTab(value as 'edit' | 'preview')}
-          className="print:hidden"
-        >
-          <TabsList>
-            <TabsTrigger value="edit">Edit</TabsTrigger>
-            <TabsTrigger value="preview">Preview</TabsTrigger>
-          </TabsList>
-          <TabsContent value="edit" className="mt-4">
-            <DetailQuotationEditorSections />
-          </TabsContent>
-          <TabsContent value="preview" className="mt-4">
-            {previewPanel}
-          </TabsContent>
-        </Tabs>
-      ) : (
-        <div
-          className={
-            layoutMode === 'stacked'
-              ? 'flex flex-col gap-4 print:block'
-              : 'grid gap-4 lg:grid-cols-2 print:block'
-          }
-        >
-          {layoutMode === 'split-left' ? (
-            <>
-              <div className="min-w-0 lg:order-1">{previewPanel}</div>
-              <div className="min-w-0 lg:order-2 print:hidden">
-                <DetailQuotationEditorSections />
-              </div>
-            </>
-          ) : layoutMode === 'stacked' ? (
-            <>
-              <div className="print:hidden">
-                <DetailQuotationEditorSections />
-              </div>
-              {previewPanel}
-            </>
-          ) : (
-            <>
-              <div className="print:hidden">
-                <DetailQuotationEditorSections />
-              </div>
-              <div className="min-w-0">{previewPanel}</div>
-            </>
-          )}
-        </div>
-      )}
-
-      <div className="hidden print:block">
-        <DetailQuotationPreview
-          content={displayContent}
-          clientName={leadName}
-          clientAddress={leadLocation}
-          templateName={activeTemplateName}
-          totals={editorTotals}
-        />
-      </div>
-
-      <QuotationItemPicker
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        template={activeTemplate}
-        sectionId={pickerSectionId}
-        onSelectItem={addTemplateItemFromCatalog}
-      />
-
-      <style jsx global>{`
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .quotation-maker-root,
-          .quotation-maker-root * {
-            visibility: visible;
-          }
-          .quotation-maker-root {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-        }
-      `}</style>
-    </div>
-  )
-
-  function DetailQuotationEditorSections() {
-    return (
-      <div className="detail-quotation-editor space-y-4">
+      {floors.length === 0 ? (
         <Card>
-          <CardHeader className="py-3">
-            <CardTitle className="text-base">Letterhead &amp; footer</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Date</p>
-              <Input
-                value={displayContent.quotationDate ?? ''}
-                disabled={!canEdit}
-                onChange={(event) => updateContentField({ quotationDate: event.target.value })}
-                placeholder="DD-MM-YYYY"
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <p className="text-xs font-medium text-muted-foreground">Subject</p>
-              <Input
-                value={displayContent.subject ?? ''}
-                disabled={!canEdit}
-                onChange={(event) => updateContentField({ subject: event.target.value })}
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <p className="text-xs font-medium text-muted-foreground">Intro letter</p>
-              <Textarea
-                rows={3}
-                disabled={!canEdit}
-                value={displayContent.introLetter ?? ''}
-                onChange={(event) => updateContentField({ introLetter: event.target.value })}
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <p className="text-xs font-medium text-muted-foreground">Drawing design note</p>
-              <Textarea
-                rows={2}
-                disabled={!canEdit}
-                value={displayContent.drawingDesign ?? ''}
-                onChange={(event) => updateContentField({ drawingDesign: event.target.value })}
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <p className="text-xs font-medium text-muted-foreground">Payment terms</p>
-              <Textarea
-                rows={3}
-                disabled={!canEdit}
-                value={displayContent.paymentTerms ?? ''}
-                onChange={(event) => updateContentField({ paymentTerms: event.target.value })}
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <p className="text-xs font-medium text-muted-foreground">Duration of work</p>
-              <Textarea
-                rows={3}
-                disabled={!canEdit}
-                value={displayContent.durationNotes ?? ''}
-                onChange={(event) => updateContentField({ durationNotes: event.target.value })}
-              />
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Signatory name</p>
-              <Input
-                value={displayContent.signatoryName ?? ''}
-                disabled={!canEdit}
-                onChange={(event) => updateContentField({ signatoryName: event.target.value })}
-              />
-            </div>
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Signatory title</p>
-              <Input
-                value={displayContent.signatoryTitle ?? ''}
-                disabled={!canEdit}
-                onChange={(event) => updateContentField({ signatoryTitle: event.target.value })}
-              />
-            </div>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            No floors yet. Click <strong>Add Floor</strong> — e.g. Ground Floor, First Floor, Door Work.
           </CardContent>
         </Card>
-
-        {sections.map((section) => {
-          const sectionLines = editorContent.lineItems.filter(
-            (line) => line.sectionId === section.id && line.included,
+      ) : (
+        floors.map((floor) => {
+          const floorLines = content.lineItems.filter(
+            (line) => line.sectionId === floor.id && line.included,
           )
 
           return (
-            <Card key={section.id} className="overflow-hidden border-border/70 shadow-none">
+            <Card key={floor.id} className="overflow-hidden print:hidden">
               <CardHeader className="py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle className="text-base">{section.name}</CardTitle>
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
+                    <Input
+                      value={floor.name}
+                      disabled={!canEdit}
+                      placeholder="e.g. Ground Floor"
+                      className="max-w-sm font-semibold"
+                      onChange={(event) =>
+                        setContent((prev) =>
+                          prev ? updateFloorName(prev, floor.id, event.target.value) : prev,
+                        )
+                      }
+                    />
+                  </div>
                   {canEdit ? (
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openItemPicker(section.id)}
-                      >
+                      <Button type="button" size="sm" variant="outline" onClick={() => openItemPicker(floor.id)}>
                         <Plus className="mr-1 h-3.5 w-3.5" />
                         Add from saved list
                       </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => addCustomLine(section.id)}
-                      >
+                      <Button type="button" size="sm" variant="ghost" onClick={() => addCustomLine(floor.id)}>
                         Custom item
+                      </Button>
+                      <Button type="button" size="icon" variant="ghost" onClick={() => removeFloor(floor.id)}>
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   ) : null}
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                {sectionLines.length === 0 ? (
+                {floorLines.length === 0 ? (
                   <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                    No {section.name.toLowerCase()} items yet. Use &ldquo;Add from saved list&rdquo; to
-                    pick from the PDF catalog.
+                    No items on this floor yet.
                   </div>
                 ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[980px] text-sm">
-                    <thead className="bg-muted/50 text-left">
-                      <tr>
-                        <th className="w-12 px-3 py-2 font-medium">SL</th>
-                        <th className="min-w-[160px] px-3 py-2 font-medium">Name</th>
-                        <th className="min-w-[280px] px-3 py-2 font-medium">Materials</th>
-                        <th className="px-3 py-2 font-medium">Unit Price</th>
-                        <th className="px-3 py-2 font-medium">Sqft</th>
-                        <th className="px-3 py-2 font-medium text-right">Amount</th>
-                        <th className="px-3 py-2 font-medium print:hidden" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sectionLines.map((line, lineIndex) => (
-                        <tr key={line.id} className="border-t align-top">
-                          <td className="px-3 py-2 text-muted-foreground">
-                            {line.serialNo ?? lineIndex + 1}
-                          </td>
-                          <td className="px-3 py-2">
-                            {canEdit ? (
-                              <Input
-                                value={line.description}
-                                onChange={(event) =>
-                                  updateLineItem(line.id, { description: event.target.value })
-                                }
-                              />
-                            ) : (
-                              <span className="font-medium">{line.description}</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2">
-                            {canEdit ? (
-                              <Textarea
-                                rows={4}
-                                value={line.materials ?? ''}
-                                onChange={(event) =>
-                                  updateLineItem(line.id, { materials: event.target.value })
-                                }
-                                className="min-w-[260px] text-xs"
-                              />
-                            ) : (
-                              <p className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
-                                {line.materials || '—'}
-                              </p>
-                            )}
-                          </td>
-                          <td className="px-3 py-2">
-                            {canEdit ? (
-                              <div className="space-y-1">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[980px] text-sm">
+                      <thead className="bg-muted/50 text-left">
+                        <tr>
+                          <th className="w-12 px-3 py-2 font-medium">SL</th>
+                          <th className="min-w-[160px] px-3 py-2 font-medium">Name</th>
+                          <th className="min-w-[280px] px-3 py-2 font-medium">Materials</th>
+                          <th className="px-3 py-2 font-medium">Unit price</th>
+                          <th className="px-3 py-2 font-medium">Qty / SFT</th>
+                          <th className="px-3 py-2 text-right font-medium">Total</th>
+                          <th className="px-3 py-2" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {floorLines.map((line, lineIndex) => (
+                          <tr key={line.id} className="border-t align-top">
+                            <td className="px-3 py-2 text-muted-foreground">
+                              {line.serialNo ?? lineIndex + 1}
+                            </td>
+                            <td className="px-3 py-2">
+                              {canEdit ? (
+                                <Input
+                                  value={line.description}
+                                  onChange={(event) =>
+                                    updateLineItem(line.id, { description: event.target.value })
+                                  }
+                                />
+                              ) : (
+                                line.description
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {canEdit ? (
+                                <Textarea
+                                  rows={4}
+                                  value={line.materials ?? ''}
+                                  className="min-w-[260px] text-xs"
+                                  onChange={(event) =>
+                                    updateLineItem(line.id, { materials: event.target.value })
+                                  }
+                                />
+                              ) : (
+                                <p className="whitespace-pre-wrap text-xs">{line.materials || '—'}</p>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {canEdit ? (
                                 <Input
                                   type="text"
                                   inputMode="decimal"
                                   value={line.rate > 0 ? String(line.rate) : ''}
                                   placeholder={lineNeedsManualPrice(line) ? 'Enter price' : '0'}
-                                  className={lineNeedsManualPrice(line) && line.included ? 'border-amber-400' : ''}
                                   onChange={(event) =>
                                     updateLineItem(line.id, {
                                       rate: Number(event.target.value.replace(/,/g, '')) || 0,
                                     })
                                   }
                                 />
-                                <p className="text-[11px] text-muted-foreground">
-                                  PDF: {formatTemplatePriceHint(line)}
-                                </p>
-                              </div>
-                            ) : (
-                              <div>
-                                <p>{line.rate > 0 ? formatCurrency(line.rate) : '—'}</p>
-                                <p className="text-[11px] text-muted-foreground">
-                                  {formatTemplatePriceHint(line)}
-                                </p>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-3 py-2">
-                            {canEdit ? (
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                value={String(line.quantity)}
-                                onChange={(event) =>
-                                  updateLineItem(line.id, {
-                                    quantity: Number(event.target.value.replace(/,/g, '')) || 0,
-                                  })
-                                }
-                              />
-                            ) : (
-                              line.quantity
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-right font-medium">
-                            {formatCurrency(line.amount)}
-                          </td>
-                          <td className="px-3 py-2 print:hidden">
-                            {canEdit ? (
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => removeLine(line.id)}
-                                aria-label="Remove item"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            ) : null}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                              ) : (
+                                formatCurrency(line.rate)
+                              )}
+                              <p className="mt-1 text-[11px] text-muted-foreground">
+                                PDF: {formatTemplatePriceHint(line)}
+                              </p>
+                            </td>
+                            <td className="px-3 py-2">
+                              {canEdit ? (
+                                <Input
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={String(line.quantity)}
+                                  onChange={(event) =>
+                                    updateLineItem(line.id, {
+                                      quantity: Number(event.target.value.replace(/,/g, '')) || 0,
+                                    })
+                                  }
+                                />
+                              ) : (
+                                line.quantity
+                              )}
+                            </td>
+                            <td className="px-3 py-2 text-right font-medium">
+                              {formatCurrency(line.amount)}
+                            </td>
+                            <td className="px-3 py-2">
+                              {canEdit ? (
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => removeLine(line.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              ) : null}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </CardContent>
             </Card>
           )
-        })}
+        })
+      )}
 
-        <Card>
-          <CardContent className="grid gap-3 py-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Notes</p>
-              <Textarea
-                rows={4}
-                disabled={!canEdit}
-                value={editorContent.notes}
-                onChange={(event) =>
-                  setContent((prev) => (prev ? { ...prev, notes: event.target.value } : prev))
-                }
-                placeholder="Additional notes for this quotation..."
-              />
+      <Card className="print:hidden">
+        <CardContent className="space-y-3 py-4">
+          <div className="rounded-md border bg-muted/30 p-4 text-sm">
+            <div className="flex justify-between py-1">
+              <span>Subtotal ({totals.includedItemCount} items)</span>
+              <span className="font-medium">{formatCurrency(totals.subtotal)}</span>
             </div>
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Terms & Conditions</p>
-              <Textarea
-                rows={4}
-                disabled={!canEdit}
-                value={editorContent.terms}
-                onChange={(event) =>
-                  setContent((prev) => (prev ? { ...prev, terms: event.target.value } : prev))
-                }
-              />
+            <div className="mt-2 flex justify-between border-t pt-2 text-base font-semibold">
+              <span>Grand Total</span>
+              <span>{formatCurrency(totals.grandTotal)}</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardContent className="space-y-3 py-4">
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Discount %</p>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  disabled={!canEdit}
-                  value={String(editorContent.discountPercent)}
-                  onChange={(event) =>
-                    setContent((prev) =>
-                      prev
-                        ? normalizeQuotationContent({
-                            ...prev,
-                            discountPercent: Number(event.target.value.replace(/,/g, '')) || 0,
-                          })
-                        : prev,
-                    )
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Discount Amount</p>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  disabled={!canEdit}
-                  value={String(editorContent.discountAmount)}
-                  onChange={(event) =>
-                    setContent((prev) =>
-                      prev
-                        ? normalizeQuotationContent({
-                            ...prev,
-                            discountAmount: Number(event.target.value.replace(/,/g, '')) || 0,
-                          })
-                        : prev,
-                    )
-                  }
-                />
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Tax %</p>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  disabled={!canEdit}
-                  value={String(editorContent.taxPercent)}
-                  onChange={(event) =>
-                    setContent((prev) =>
-                      prev
-                        ? normalizeQuotationContent({
-                            ...prev,
-                            taxPercent: Number(event.target.value.replace(/,/g, '')) || 0,
-                          })
-                        : prev,
-                    )
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="rounded-md border bg-muted/30 p-4 text-sm">
-              <div className="flex justify-between py-1">
-                <span>Subtotal ({editorTotals.includedItemCount} items)</span>
-                <span className="font-medium">{formatCurrency(editorTotals.subtotal)}</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span>Discount</span>
-                <span className="font-medium">- {formatCurrency(editorTotals.discountAmount)}</span>
-              </div>
-              <div className="flex justify-between py-1">
-                <span>Tax</span>
-                <span className="font-medium">{formatCurrency(editorTotals.taxAmount)}</span>
-              </div>
-              <div className="mt-2 flex justify-between border-t pt-2 text-base font-semibold">
-                <span>Grand Total</span>
-                <span>{formatCurrency(editorTotals.grandTotal)}</span>
-              </div>
-              {editorTotals.itemsMissingPrice > 0 ? (
-                <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
-                  {editorTotals.itemsMissingPrice} included item(s) need a price before saving.
-                </p>
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+      <QuotationItemPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        catalogs={catalogOptions}
+        catalogTemplateKey={pickerCatalogKey}
+        onCatalogTemplateKeyChange={setPickerCatalogKey}
+        onSelectItem={addTemplateItemFromCatalog}
+      />
+    </div>
+  )
 }
