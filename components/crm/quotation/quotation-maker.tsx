@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ExternalLink, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CollapsibleCard } from '@/components/ui/collapsible'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import { QuotationItemPicker } from '@/components/crm/quotation/quotation-item-picker'
 import { applyQuotationTypeToContent } from '@/lib/quotation-templates'
 import { formatTemplatePriceHint } from '@/lib/quotation-templates/helpers'
@@ -114,12 +114,9 @@ export function QuotationMaker({
   const [projectSqft, setProjectSqft] = useState('')
   const [content, setContent] = useState<QuotationDraftContent | null>(null)
   const [templates, setTemplates] = useState<TemplateOption[]>([])
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerFloorId, setPickerFloorId] = useState<string | null>(null)
   const [pickerCatalogKey, setPickerCatalogKey] = useState('ceiling-curtain')
-  const [workspaceTab, setWorkspaceTab] = useState<'edit' | 'preview'>('edit')
-  const previewWindowRef = useRef<Window | null>(null)
 
   const loadDraft = useCallback(async () => {
     setLoading(true)
@@ -136,12 +133,10 @@ export function QuotationMaker({
           setQuotationType(stored.quotationType)
           setProjectSqft(stored.projectSqft ? String(stored.projectSqft) : '')
           setContent(normalizeQuotationContent(withDetailQuotationDefaults(stored.content)))
-          setLastSavedAt(stored.savedAt)
         } else {
           setQuotationType('STANDARD')
           setProjectSqft('')
           setContent(buildDefaultFloorDetailContent())
-          setLastSavedAt(null)
         }
         setCanEdit(true)
         return
@@ -163,7 +158,6 @@ export function QuotationMaker({
       setQuotationType(source.quotationType)
       setProjectSqft(source.projectSqft ? String(source.projectSqft) : '')
       setContent(normalizeQuotationContent(withDetailQuotationDefaults(source.content)))
-      setLastSavedAt(data.draft ? new Date().toISOString() : null)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load quotation')
       setContent(null)
@@ -333,13 +327,7 @@ export function QuotationMaker({
       })
     }
     const url = buildDetailPreviewUrl({ context: previewContext, contextId: previewContextId })
-    const opened = window.open(url, '_blank', 'noopener,noreferrer')
-    if (!opened) {
-      toast.error('Pop-up blocked. Allow pop-ups to open the live preview tab.')
-      return
-    }
-    previewWindowRef.current = opened
-    setWorkspaceTab('edit')
+    void window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   const saveDraft = async () => {
@@ -361,7 +349,6 @@ export function QuotationMaker({
           content: normalized,
         })
         setContent(normalized)
-        setLastSavedAt(new Date().toISOString())
         toast.success('Saved to browser (playground only)')
         return
       }
@@ -381,7 +368,6 @@ export function QuotationMaker({
         throw new Error(payload?.error ?? 'Failed to save quotation')
       }
       setContent(normalized)
-      setLastSavedAt(new Date().toISOString())
       toast.success('Quotation saved')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save quotation')
@@ -405,12 +391,6 @@ export function QuotationMaker({
     } finally {
       setStartingWork(false)
     }
-  }
-
-  const clearAll = () => {
-    if (!window.confirm('Clear all floors and items?')) return
-    setContent(buildDefaultFloorDetailContent({ quotationType }))
-    toast.message('Quotation cleared. Add floors when ready.')
   }
 
   const handlePrint = () => openLivePreviewTab()
@@ -451,7 +431,7 @@ export function QuotationMaker({
 
   const displayContent = withDetailQuotationDefaults(content)
 
-  return (
+return (
     <div className="space-y-4 quotation-maker-root">
       <Card className="print:hidden">
         <CardHeader className="space-y-3">
@@ -459,8 +439,7 @@ export function QuotationMaker({
             <div className="space-y-1">
               <CardTitle>Floor-based Detail Quotation</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Add floors (Ground Floor, First Floor, etc.), pick items from saved PDF catalogs per
-                floor, and open Live Preview in a new tab — same layout as your Yamim PDF.
+                {isPlayground ? 'Practice without touching real leads' : leadName}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -469,28 +448,35 @@ export function QuotationMaker({
               ) : (
                 <Badge variant="outline">{formatLabel(leadSubStatus)}</Badge>
               )}
-              {lastSavedAt ? (
-                <span className="text-xs text-muted-foreground">
-                  Saved {new Date(lastSavedAt).toLocaleString()}
-                </span>
-              ) : (
-                <span className="text-xs text-muted-foreground">Not saved yet</span>
-              )}
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-4">
+        <CardContent className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Client</p>
               <p className="text-sm font-medium">{leadName}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Location</p>
-              <p className="text-sm font-medium">{leadLocation ?? 'N/A'}</p>
+              <p className="text-xs font-medium text-muted-foreground">Rate</p>
+              <Select
+                value={quotationType}
+                disabled={!canEdit}
+                onValueChange={(value) => handleQuotationTypeChange(value as QuotationFileType)}
+              >
+                <SelectTrigger className="h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BASIC">Low</SelectItem>
+                  <SelectItem value="STANDARD">Mid</SelectItem>
+                  <SelectItem value="PREMIUM">High</SelectItem>
+                  <SelectItem value="MIXED">Mixed</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Default sqft (new sqft items)</p>
+              <p className="text-xs font-medium text-muted-foreground">Default sqft</p>
               <Input
                 type="text"
                 inputMode="decimal"
@@ -498,68 +484,36 @@ export function QuotationMaker({
                 disabled={!canEdit}
                 onChange={(event) => handleProjectSqftChange(event.target.value)}
                 placeholder="Enter sqft"
+                className="h-8"
               />
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Rate selection</p>
-              <Select
-                value={quotationType}
-                disabled={!canEdit}
-                onValueChange={(value) => handleQuotationTypeChange(value as QuotationFileType)}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="BASIC">Low (min rate)</SelectItem>
-                  <SelectItem value="STANDARD">Mid (average)</SelectItem>
-                  <SelectItem value="PREMIUM">High (max rate)</SelectItem>
-                  <SelectItem value="MIXED">Mixed (manual)</SelectItem>
-                </SelectContent>
-              </Select>
+              <p className="text-xs font-medium text-muted-foreground">Total</p>
+              <p className="text-sm font-semibold">{totals ? formatCurrency(totals.grandTotal) : '—'}</p>
             </div>
           </div>
 
-          <Tabs value={workspaceTab} onValueChange={(value) => {
-            if (value === 'preview') {
-              openLivePreviewTab()
-              return
-            }
-            setWorkspaceTab('edit')
-          }}>
-            <TabsList>
-              <TabsTrigger value="edit">Edit</TabsTrigger>
-              <TabsTrigger value="preview" className="gap-1.5">
-                <ExternalLink className="h-3.5 w-3.5" />
-                Live Preview
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 pt-1">
             {canStartWork ? (
               <Button type="button" disabled={startingWork} onClick={() => void startWork()}>
                 {startingWork ? 'Starting...' : 'Start Work'}
               </Button>
             ) : null}
             <Button type="button" variant="outline" disabled={!canEdit} onClick={addFloor}>
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-1.5 h-4 w-4" />
               Add Floor
             </Button>
-            <Button type="button" variant="outline" disabled={!canEdit} onClick={clearAll}>
-              Clear all
+            <Button type="button" variant="outline" disabled={!canEdit || saving} onClick={() => void saveDraft()}>
+              <Save className="mr-1.5 h-4 w-4" />
+              {saving ? 'Saving...' : 'Save'}
             </Button>
-            <Button type="button" disabled={!canEdit || saving} onClick={() => void saveDraft()}>
-              <Save className="mr-2 h-4 w-4" />
-              {saving ? 'Saving...' : 'Save Draft'}
-            </Button>
-            <Button type="button" variant="secondary" onClick={openLivePreviewTab}>
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Open Live Preview
+            <Button type="button" variant="outline" onClick={openLivePreviewTab}>
+              <ExternalLink className="mr-1.5 h-4 w-4" />
+              Live Preview
             </Button>
             <Button type="button" variant="outline" onClick={handlePrint}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print / PDF
+              <Printer className="mr-1.5 h-4 w-4" />
+              Print
             </Button>
             {!isPlayground ? (
               <Button type="button" variant="outline" asChild>
@@ -576,11 +530,8 @@ export function QuotationMaker({
         </CardContent>
       </Card>
 
-      <Card className="print:hidden">
-        <CardHeader className="py-3">
-          <CardTitle className="text-base">Letterhead &amp; footer</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
+      <CollapsibleCard title="Letterhead & footer" defaultOpen={false}>
+        <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground">Date</p>
             <Input
@@ -588,6 +539,10 @@ export function QuotationMaker({
               disabled={!canEdit}
               onChange={(event) => updateContentField({ quotationDate: event.target.value })}
             />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">Location</p>
+            <p className="text-sm text-muted-foreground">{leadLocation ?? 'N/A'}</p>
           </div>
           <div className="space-y-1 md:col-span-2">
             <p className="text-xs font-medium text-muted-foreground">Summary subject (page 1)</p>
@@ -608,7 +563,7 @@ export function QuotationMaker({
           <div className="space-y-1 md:col-span-2">
             <p className="text-xs font-medium text-muted-foreground">Intro letter</p>
             <Textarea
-              rows={3}
+              rows={2}
               disabled={!canEdit}
               value={displayContent.introLetter ?? ''}
               onChange={(event) => updateContentField({ introLetter: event.target.value })}
@@ -617,14 +572,14 @@ export function QuotationMaker({
           <div className="space-y-1 md:col-span-2">
             <p className="text-xs font-medium text-muted-foreground">Terms &amp; conditions</p>
             <Textarea
-              rows={3}
+              rows={2}
               disabled={!canEdit}
               value={displayContent.terms}
               onChange={(event) => updateContentField({ terms: event.target.value })}
             />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </CollapsibleCard>
 
       {floors.length === 0 ? (
         <Card>

@@ -1,21 +1,14 @@
 'use client'
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CollapsibleCard } from '@/components/ui/collapsible'
+import { Input } from '@/components/ui/input'
 import { ShortQuotationPrint } from '@/components/crm/quotation/short-quotation-print'
 import { buildDefaultShortQuotationContent } from '@/lib/short-quotation-default'
 import {
@@ -29,6 +22,8 @@ import {
   loadPlaygroundShortDraft,
   savePlaygroundShortDraft,
 } from '@/lib/quotation-playground-storage'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import type {
   ShortQuotationContent,
   ShortQuotationLine,
@@ -71,7 +66,6 @@ export function ShortQuotationBuilder({
   const [startingWork, setStartingWork] = useState(false)
   const [canEdit, setCanEdit] = useState(false)
   const [content, setContent] = useState<ShortQuotationContent | null>(null)
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
 
   const loadDraft = useCallback(async () => {
     setLoading(true)
@@ -80,7 +74,6 @@ export function ShortQuotationBuilder({
         const stored = loadPlaygroundShortDraft()
         if (stored) {
           setContent(stored)
-          setLastSavedAt(null)
         } else {
           setContent(
             buildDefaultShortQuotationContent({
@@ -88,7 +81,6 @@ export function ShortQuotationBuilder({
               clientAddress: leadLocation,
             }),
           )
-          setLastSavedAt(null)
         }
         setCanEdit(true)
         return
@@ -108,10 +100,8 @@ export function ShortQuotationBuilder({
 
       if (draftContent && isShortQuotationContent(draftContent)) {
         setContent(draftContent)
-        setLastSavedAt(data.draft ? new Date().toISOString() : null)
       } else if (defaultContent && isShortQuotationContent(defaultContent)) {
         setContent(defaultContent)
-        setLastSavedAt(null)
       } else {
         setContent(
           buildDefaultShortQuotationContent({
@@ -119,7 +109,6 @@ export function ShortQuotationBuilder({
             clientAddress: leadLocation,
           }),
         )
-        setLastSavedAt(null)
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load short quotation')
@@ -150,7 +139,6 @@ export function ShortQuotationBuilder({
       if (isPlayground) {
         savePlaygroundShortDraft(normalized)
         setContent(normalized)
-        setLastSavedAt(new Date().toISOString())
         toast.success('Saved to browser (playground only)')
         return
       }
@@ -169,7 +157,6 @@ export function ShortQuotationBuilder({
         throw new Error(payload?.error ?? 'Failed to save quotation')
       }
       setContent(normalized)
-      setLastSavedAt(new Date().toISOString())
       toast.success('Short quotation saved')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save quotation')
@@ -402,59 +389,53 @@ export function ShortQuotationBuilder({
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Client Name</p>
-              <Input
-                value={content.clientName}
-                disabled={!canEdit}
-                onChange={(event) =>
-                  updateContent((prev) => ({ ...prev, clientName: event.target.value }))
-                }
-              />
+          <CollapsibleCard title="Header details">
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Client Name</p>
+                <Input
+                  value={content.clientName}
+                  disabled={!canEdit}
+                  onChange={(event) =>
+                    updateContent((prev) => ({ ...prev, clientName: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Address</p>
+                <Input
+                  value={content.clientAddress}
+                  disabled={!canEdit}
+                  onChange={(event) =>
+                    updateContent((prev) => ({ ...prev, clientAddress: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <p className="text-xs font-medium text-muted-foreground">Subject</p>
+                <Input
+                  value={content.subject}
+                  disabled={!canEdit}
+                  onChange={(event) =>
+                    updateContent((prev) => ({ ...prev, subject: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <p className="text-xs font-medium text-muted-foreground">Intro Letter</p>
+                <Textarea
+                  rows={4}
+                  value={content.introLetter}
+                  disabled={!canEdit}
+                  onChange={(event) =>
+                    updateContent((prev) => ({ ...prev, introLetter: event.target.value }))
+                  }
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Address</p>
-              <Input
-                value={content.clientAddress}
-                disabled={!canEdit}
-                onChange={(event) =>
-                  updateContent((prev) => ({ ...prev, clientAddress: event.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <p className="text-xs font-medium text-muted-foreground">Subject</p>
-              <Input
-                value={content.subject}
-                disabled={!canEdit}
-                onChange={(event) =>
-                  updateContent((prev) => ({ ...prev, subject: event.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1 md:col-span-2">
-              <p className="text-xs font-medium text-muted-foreground">Intro Letter</p>
-              <Textarea
-                rows={4}
-                value={content.introLetter}
-                disabled={!canEdit}
-                onChange={(event) =>
-                  updateContent((prev) => ({ ...prev, introLetter: event.target.value }))
-                }
-              />
-            </div>
-          </div>
+          </CollapsibleCard>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">Footer Notes</p>
-              {canEdit ? (
-                <Button type="button" size="sm" variant="outline" onClick={addFooterNote}>
-                  Add Note
-                </Button>
-              ) : null}
-            </div>
+          <CollapsibleCard title="Footer notes" defaultOpen={false}>
             {content.footerNotes.length === 0 ? (
               <p className="text-xs text-muted-foreground">No footer notes yet.</p>
             ) : (
@@ -490,7 +471,12 @@ export function ShortQuotationBuilder({
                 </div>
               ))
             )}
-          </div>
+            {canEdit && (
+              <Button type="button" size="sm" variant="outline" onClick={addFooterNote} className="mt-2">
+                Add Note
+              </Button>
+            )}
+          </CollapsibleCard>
 
           <div className="flex flex-wrap gap-2">
             {canStartWork ? (
