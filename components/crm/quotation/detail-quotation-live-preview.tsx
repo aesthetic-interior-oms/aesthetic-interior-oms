@@ -26,6 +26,7 @@ export function DetailQuotationLivePreview({
 }: DetailQuotationLivePreviewProps) {
   const [payload, setPayload] = useState<DetailPreviewPayload | null>(null)
   const [loading, setLoading] = useState(true)
+  const [downloading, setDownloading] = useState(false)
 
   const loadPayload = useCallback(async () => {
     const cached = readDetailPreview(context, contextId)
@@ -94,6 +95,51 @@ export function DetailQuotationLivePreview({
     setLoading(false)
   }, [context, contextId])
 
+  const handleDownloadPdf = async () => {
+    if (!payload) return
+    setDownloading(true)
+    try {
+      const jsPDF = (await import('jspdf')).default
+      const html2canvas = (await import('html2canvas')).default
+
+      const pages = document.querySelectorAll('.detail-quotation-preview .print-page')
+      if (pages.length === 0) {
+        alert('No preview pages found to export')
+        return
+      }
+
+      const pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4',
+      })
+
+      for (let i = 0; i < pages.length; i++) {
+        const pageElement = pages[i] as HTMLElement
+        const canvas = await html2canvas(pageElement, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff',
+        })
+
+        const imgData = canvas.toDataURL('image/png')
+        if (i > 0) {
+          pdf.addPage()
+        }
+        pdf.addImage(imgData, 'PNG', 0, 0, 210, 297, undefined, 'FAST')
+      }
+
+      const safeClientName = payload.clientName.replace(/[^a-z0-9]/gi, '_').toLowerCase()
+      pdf.save(`Detail_Quotation_${safeClientName}.pdf`)
+    } catch (error) {
+      console.error('Failed to generate PDF:', error)
+      alert('Failed to generate PDF')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   useEffect(() => {
     void loadPayload()
     return subscribeDetailPreview(context, contextId, () => {
@@ -137,13 +183,30 @@ export function DetailQuotationLivePreview({
             {new Date(payload.updatedAt).toLocaleTimeString()}
           </p>
         </div>
-        <button
-          type="button"
-          className="rounded-md border bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-muted"
-          onClick={() => window.print()}
-        >
-          Print / PDF
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className="rounded-md border bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-muted"
+            onClick={() => window.print()}
+          >
+            Print
+          </button>
+          <button
+            type="button"
+            disabled={downloading}
+            className="rounded-md border bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-muted flex items-center gap-1.5 disabled:opacity-50"
+            onClick={() => void handleDownloadPdf()}
+          >
+            {downloading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating PDF...
+              </>
+            ) : (
+              'Download PDF'
+            )}
+          </button>
+        </div>
       </div>
       <DetailQuotationPreview
         content={payload.content}

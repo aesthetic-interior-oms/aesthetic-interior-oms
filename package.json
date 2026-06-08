@@ -25,6 +25,8 @@
     "date-fns": "^4.1.0",
     "dotenv": "^17.3.1",
     "googleapis": "^171.4.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.564.0",
     "motion": "^12.38.0",

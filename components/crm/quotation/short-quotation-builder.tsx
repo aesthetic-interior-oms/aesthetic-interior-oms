@@ -66,6 +66,7 @@ export function ShortQuotationBuilder({
   const [startingWork, setStartingWork] = useState(false)
   const [canEdit, setCanEdit] = useState(false)
   const [content, setContent] = useState<ShortQuotationContent | null>(null)
+  const [generatingPdf, setGeneratingPdf] = useState(false)
 
   const loadDraft = useCallback(async () => {
     setLoading(true)
@@ -328,6 +329,60 @@ export function ShortQuotationBuilder({
     )
   }
 
+  const handleDownloadPdf = async () => {
+    setGeneratingPdf(true)
+    try {
+      const jsPDF = (await import('jspdf')).default
+      const html2canvas = (await import('html2canvas')).default
+
+      const element = document.getElementById('short-quotation-print-container')
+      if (!element) {
+        toast.error('Print container not found')
+        return
+      }
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff',
+      })
+
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF({
+        orientation: 'p',
+        unit: 'mm',
+        format: 'a4',
+      })
+
+      const imgWidth = 210
+      const pageHeight = 297
+      const imgHeight = (canvas.height * imgWidth) / canvas.width
+      let heightLeft = imgHeight
+
+      let position = 0
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
+      heightLeft -= pageHeight
+
+      while (heightLeft >= 0) {
+        position = heightLeft - imgHeight
+        pdf.addPage()
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
+        heightLeft -= pageHeight
+      }
+
+      const safeClientName = (content.clientName || 'Quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase()
+      pdf.save(`Short_Quotation_${safeClientName}.pdf`)
+      toast.success('PDF downloaded successfully')
+    } catch (error) {
+      console.error('PDF generation error:', error)
+      toast.error('Failed to generate PDF')
+    } finally {
+      setGeneratingPdf(false)
+    }
+  }
+
   const sortedFloors = [...content.floors].sort((a, b) => a.sortOrder - b.sortOrder)
 
   return (
@@ -494,7 +549,25 @@ export function ShortQuotationBuilder({
             </Button>
             <Button type="button" variant="secondary" onClick={() => window.print()}>
               <Printer className="mr-2 h-4 w-4" />
-              Print / PDF
+              Print
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={generatingPdf}
+              onClick={() => void handleDownloadPdf()}
+            >
+              {generatingPdf ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating PDF...
+                </>
+              ) : (
+                <>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Download PDF
+                </>
+              )}
             </Button>
             {!isPlayground ? (
               <Button type="button" variant="outline" asChild>
@@ -700,7 +773,7 @@ export function ShortQuotationBuilder({
         })}
       </div>
 
-      <div className="short-quotation-print-area">
+      <div id="short-quotation-print-container" className="short-quotation-print-area">
         <ShortQuotationPrint content={content} />
       </div>
 
