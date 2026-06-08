@@ -1,16 +1,17 @@
 import { todayShortQuotationDate } from '@/lib/short-quotation-calculations'
-import type { ShortQuotationContent } from '@/lib/short-quotation-types'
+import type { ShortQuotationContent, ShortQuotationPackage } from '@/lib/short-quotation-types'
 
 export function buildDefaultShortQuotationContent(input: {
   clientName: string
   clientAddress: string | null
+  packageTier?: ShortQuotationPackage
 }): ShortQuotationContent {
   const floorId = crypto.randomUUID()
 
   return {
     version: 1,
     documentType: 'short',
-    packageTier: 'PREMIUM',
+    packageTier: input.packageTier ?? 'PREMIUM',
     quotationDate: todayShortQuotationDate(),
     clientName: input.clientName,
     clientAddress: input.clientAddress ?? '',

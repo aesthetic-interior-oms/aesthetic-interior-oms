@@ -66,13 +66,14 @@ export function ShortQuotationBuilder({
   const [startingWork, setStartingWork] = useState(false)
   const [canEdit, setCanEdit] = useState(false)
   const [content, setContent] = useState<ShortQuotationContent | null>(null)
+  const [selectedPackageTier, setSelectedPackageTier] = useState<ShortQuotationPackage>('PREMIUM')
   const [generatingPdf, setGeneratingPdf] = useState(false)
 
   const loadDraft = useCallback(async () => {
     setLoading(true)
     try {
       if (isPlayground) {
-        const stored = loadPlaygroundShortDraft()
+        const stored = loadPlaygroundShortDraft(selectedPackageTier)
         if (stored) {
           setContent(stored)
         } else {
@@ -80,6 +81,7 @@ export function ShortQuotationBuilder({
             buildDefaultShortQuotationContent({
               clientName: leadName,
               clientAddress: leadLocation,
+              packageTier: selectedPackageTier,
             }),
           )
         }
@@ -87,7 +89,10 @@ export function ShortQuotationBuilder({
         return
       }
 
-      const response = await fetch(`/api/lead/${leadId}/quotation-draft`, { cache: 'no-store' })
+      const response = await fetch(
+        `/api/lead/${leadId}/quotation-draft?documentType=short&packageTier=${selectedPackageTier}`,
+        { cache: 'no-store' },
+      )
       const payload = await response.json()
       if (!response.ok || !payload?.success || !payload?.data) {
         throw new Error(payload?.error ?? 'Failed to load quotation')
@@ -108,6 +113,7 @@ export function ShortQuotationBuilder({
           buildDefaultShortQuotationContent({
             clientName: leadName,
             clientAddress: leadLocation,
+            packageTier: selectedPackageTier,
           }),
         )
       }
@@ -117,7 +123,7 @@ export function ShortQuotationBuilder({
     } finally {
       setLoading(false)
     }
-  }, [isPlayground, leadId, leadName, leadLocation])
+  }, [isPlayground, leadId, leadName, leadLocation, selectedPackageTier])
 
   useEffect(() => {
     void loadDraft()
@@ -148,6 +154,7 @@ export function ShortQuotationBuilder({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          documentType: 'short',
           quotationType: normalized.packageTier,
           content: normalized,
           status: 'DRAFT',
@@ -299,7 +306,8 @@ export function ShortQuotationBuilder({
   }
 
   const setPackageTier = (packageTier: ShortQuotationPackage) => {
-    updateContent((prev) => ({ ...prev, packageTier }))
+    if (packageTier === selectedPackageTier) return
+    setSelectedPackageTier(packageTier)
   }
 
   const canStartWork =

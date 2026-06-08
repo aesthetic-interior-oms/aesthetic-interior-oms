@@ -43,13 +43,6 @@ export function QuotationWorkspace({
     <Tabs
       value={activeTab}
       onValueChange={(value) => {
-        if (
-          !window.confirm(
-            'Switching quotation type uses the same saved draft slot for this lead. Save your current work first. Continue?',
-          )
-        ) {
-          return
-        }
         setActiveTab(value as 'short' | 'detail')
       }}
     >
@@ -57,7 +50,7 @@ export function QuotationWorkspace({
         <TabsTrigger value="short">Short Quotation</TabsTrigger>
         <TabsTrigger value="detail">Detail Quotation</TabsTrigger>
       </TabsList>
-      <TabsContent value="short" className="mt-4">
+      <TabsContent value="short" className="mt-4" forceMount>
         <ShortQuotationBuilder
           leadId={leadId}
           leadName={leadName}
@@ -65,7 +58,7 @@ export function QuotationWorkspace({
           leadSubStatus={leadSubStatus}
         />
       </TabsContent>
-      <TabsContent value="detail" className="mt-4">
+      <TabsContent value="detail" className="mt-4" forceMount>
         <QuotationMaker
           leadId={leadId}
           leadName={leadName}

@@ -41,7 +41,7 @@ model Lead {
   visits        Visit[]
   attachments   LeadAttachment[]
   cadWorkSubmissions CadWorkSubmission[]
-  quotationDraft QuotationDraft?
+  quotationDrafts QuotationDraft[]
   notifications Notification[]
   phaseTasks    LeadPhaseTask[]
   jrArchitectRequests LeadJrArchitectRequest[]
@@ -280,7 +280,8 @@ model CadWorkSubmission {
 
 model QuotationDraft {
   id            String               @id @default(cuid())
-  leadId        String               @unique
+  leadId        String
+  draftKey      String               @default("detail")
   createdById   String
   updatedById   String?
   quotationType String               @default("STANDARD")
@@ -295,6 +296,7 @@ model QuotationDraft {
   createdBy User  @relation("QuotationDraftCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   updatedBy User? @relation("QuotationDraftUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
+  @@unique([leadId, draftKey])
   @@index([createdById])
   @@index([status])
 }

@@ -142,7 +142,7 @@ export function QuotationMaker({
         return
       }
 
-      const response = await fetch(`/api/lead/${leadId}/quotation-draft`, { cache: 'no-store' })
+      const response = await fetch(`/api/lead/${leadId}/quotation-draft?documentType=detail`, { cache: 'no-store' })
       const payload = await response.json()
       if (!response.ok || !payload?.success || !payload?.data) {
         throw new Error(payload?.error ?? 'Failed to load quotation')
@@ -357,6 +357,7 @@ export function QuotationMaker({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          documentType: 'detail',
           quotationType,
           projectSqft: projectSqftValue,
           content: normalized,
