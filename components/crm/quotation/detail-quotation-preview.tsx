@@ -1,6 +1,7 @@
 'use client'
 
 import { Fragment } from 'react'
+import { Phone, Mail, MapPin, Globe, Instagram, Facebook } from 'lucide-react'
 import { formatShortQuotationDate } from '@/lib/short-quotation-calculations'
 import { amountInWordsTaka } from '@/lib/number-to-words'
 import {
@@ -20,6 +21,82 @@ type DetailQuotationPreviewProps = {
   clientAddress: string | null
   totals: QuotationTotals
   className?: string
+}
+
+function HeaderLogo() {
+  return (
+    <div className="w-full flex justify-between items-center border-b-2 border-[#0f5b53] pb-3 font-sans select-none pointer-events-none">
+      <div className="flex items-center gap-3">
+        <img
+          src="/android-chrome-192x192.png"
+          className="h-[48px] w-[48px] object-contain flex-shrink-0"
+          alt="Logo"
+        />
+        <div className="flex flex-col">
+          <h1 className="text-xl font-bold font-serif tracking-wide text-[#bf9000] uppercase leading-none">
+            Aesthetic Interior
+          </h1>
+          <div className="bg-[#0f5b53] text-white text-[9px] font-bold tracking-[0.25em] px-2.5 py-0.5 mt-1.5 text-center uppercase font-sans rounded-[2px] leading-tight">
+            Interior Studio
+          </div>
+        </div>
+      </div>
+      <div className="border border-neutral-300 p-1 bg-white rounded-sm shadow-sm flex items-center justify-center">
+        <svg width="45" height="45" viewBox="0 0 29 29" className="text-black fill-current">
+          <path d="M0 0h9v9H0zm1 1v7h7V1zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2V2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm-2-2h1v1h-1zm1 1h1v1h-1zm1 1h1v1h-1zm5 1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-9 1h1v1H9zm1 0h2v1h-2zm2 0h2v1h-2zm3 0h1v1h-1zm2 0h1v1h-1zm-8 1h1v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm3 0h1v1h-1zm1 0h2v1h-2zm1 0h1v1h-1zm-9 1h1v1H9zm2 0h1v1h-1zm2 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm2 0h2v1h-2zm-9 1h3v1H9zm4 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-9 1h1v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm2 0h2v1h-2zm-12 1h1v1H0zm1 0h2v1H1zm2 0h1v1H3zm1 0h1v1H4zm2 0h3v1H6zm4 0h1v1h-1zm3 0h1v1h-1zm1 0h2v1h-2zm3 0h1v1h-1zm2 0h1v1h-1zm1 0h3v1h-3zm-19 1v7h7v-7zm1 1h5v5h-5zm7-1h1v1h-1zm2 0h1v1h-1zm2 0h1v1h-1zm2 0h2v1h-2zm3 0h1v1h-1zm-8 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm2 0h2v1h-2zm1 0h1v1h-1zm1 0h1v1h-1zm-7 1h2v1h-2zm4 0h2v1h-2zm4 0h1v1h-1zm-10 1h1v1H8zm2 0h1v1h-1zm1 0h1v1h-1zm3 0h1v1h-1zm1 0h1v1h-1zm2 0h1v1h-1zm-9 1h1v1H9zm2 0h1v1h-1zm2 0h2v1h-2zm2 0h1v1h-1zm2 0h2v1h-2zm-9 1h1v1H9zm3 0h1v1h-1zm1 0h1v1h-1zm3 0h2v1h-2zm1 0h1v1h-1zm-19 1h9v9H0zm1 1v7h7V21zm11-1h1v1h-1zm2 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h2v1h-2zm-7 1h1v1h-1zm2 0h1v1h-1zm3 0h2v1h-2zm1 0h1v1h-1zm-7 1h1v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm4 0h1v1h-1zm1 0h1v1h-1zm-9 1h2v1H9zm3 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-7 1h1v1H9zm1 0h1v1h-1zm2 0h1v1h-1zm2 0h2v1h-2zm2 0h1v1h-1zm-8 1h1v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm2 0h1v1h-1zm2 0h1v1h-1z" />
+        </svg>
+      </div>
+    </div>
+  )
+}
+
+function FooterContacts() {
+  return (
+    <div className="w-full flex flex-col font-sans select-none pointer-events-none">
+      <div className="w-full border-t border-neutral-300 pt-3 pb-2 flex justify-between items-start text-[11px] leading-tight text-neutral-800">
+        <div className="space-y-2.5">
+          <div className="flex items-start gap-2">
+            <Phone className="h-3.5 w-3.5 text-[#0f5b53] mt-0.5 flex-shrink-0" />
+            <div className="font-bold text-neutral-900">
+              <p>+88 01329 694660</p>
+              <p>+88 01329 694661</p>
+              <p>+88 01329 694662</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Mail className="h-3.5 w-3.5 text-[#0f5b53] flex-shrink-0" />
+            <p className="font-bold text-neutral-900">aestheticinteriorstudio@gmail.com</p>
+          </div>
+          <div className="flex items-start gap-2">
+            <MapPin className="h-3.5 w-3.5 text-[#0f5b53] mt-0.5 flex-shrink-0" />
+            <div className="font-bold text-neutral-900 leading-normal">
+              <p>2nd Floor,183 East Senpara Parbata,</p>
+              <p>Begum Rokeya Sarani,Mirpur 10,Dhaka</p>
+            </div>
+          </div>
+        </div>
+        <div className="h-[75px] opacity-[0.15] text-neutral-600 flex items-end">
+          <svg width="140" height="70" viewBox="0 0 140 70" className="fill-current">
+            <path d="M0 70h140V45h-15V32h-10V18h-15V5h-20v15H80V27H70V40H55V55H35V40H20v30zM50 70H35V60h15v10zm45 0H80V50h15v20zm40 0h-15V55h15v15z" />
+          </svg>
+        </div>
+      </div>
+      <div className="bg-[#0f5b53] text-white text-[10px] font-bold py-1.5 px-4 flex justify-between items-center rounded-sm leading-none">
+        <div className="flex items-center gap-1.5">
+          <Globe className="h-3.5 w-3.5 text-white/90" />
+          <span>www.aestheticinteriorbd.com</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Instagram className="h-3.5 w-3.5 text-white/90" />
+          <span>aesthetic.interior.studio</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Facebook className="h-3.5 w-3.5 text-white/90" />
+          <span>facebook.com/aestheticinteriorofficial</span>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function DetailHeader({
@@ -115,7 +192,6 @@ function DetailFooter({
         </p>
       )}
 
-      {/* Signature blocks */}
       <div className="pt-12 flex justify-between items-end">
         <div className="w-[40%] text-left">
           <div className="border-t border-black/40 pt-1.5 font-bold">
@@ -187,36 +263,33 @@ export function DetailQuotationPreview({
     )
   }
 
-  // Header, watermark and footer reusable elements for on-screen templates
   const ScreenHeader = () => (
-    <div className="print-page-header absolute top-0 left-0 right-0 h-[35mm] px-8 pt-6 select-none pointer-events-none print:hidden flex items-start justify-between">
-      <img src="/images/detail-header.jpg" className="w-full h-auto object-contain max-h-[25mm]" alt="HeaderLogo" />
+    <div className="print-page-header absolute top-0 left-0 right-0 h-[35mm] px-8 pt-6 select-none pointer-events-none print:hidden">
+      <HeaderLogo />
     </div>
   )
 
   const ScreenFooter = () => (
-    <div className="print-page-footer absolute bottom-0 left-0 right-0 h-[38mm] px-8 pb-6 select-none pointer-events-none print:hidden flex items-end justify-between">
-      <img src="/images/detail-footer.jpg" className="w-full h-auto object-contain max-h-[28mm]" alt="FooterLogo" />
+    <div className="print-page-footer absolute bottom-0 left-0 right-0 h-[38mm] px-8 pb-6 select-none pointer-events-none print:hidden">
+      <FooterContacts />
     </div>
   )
 
   const ScreenWatermark = () => (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.05] print:hidden select-none">
-      <img src="/images/detail-watermark.jpg" className="max-w-[75%] max-h-[60%] object-contain" alt="Watermark" />
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.06] print:hidden select-none">
+      <img src="/aesthetic-icon.png" className="max-w-[75%] max-h-[60%] object-contain" alt="Watermark" />
     </div>
   )
 
   return (
     <div className={`detail-quotation-preview w-full bg-neutral-100 ${className ?? ''}`}>
-      {/* Repeating background assets in print view using position: fixed */}
-      <div className="fixed-print-header hidden fixed top-0 left-0 right-0 h-[32mm] bg-white z-50 print:block">
-        <img src="/images/detail-header.jpg" className="w-full h-full object-contain" alt="PrintHeader" />
+      <div className="fixed-print-header hidden fixed top-0 left-0 right-0 h-[32mm] bg-white z-50 px-8 pt-6 print:block">
+        <HeaderLogo />
       </div>
-      <div className="fixed-print-footer hidden fixed bottom-0 left-0 right-0 h-[35mm] bg-white z-50 print:block">
-        <img src="/images/detail-footer.jpg" className="w-full h-full object-contain" alt="PrintFooter" />
+      <div className="fixed-print-footer hidden fixed bottom-0 left-0 right-0 h-[35mm] bg-white z-50 px-8 pb-6 print:block">
+        <FooterContacts />
       </div>
 
-      {/* Page 1 — Summary Page */}
       <section className="print-page relative bg-white mx-auto w-[210mm] min-h-[297mm] p-[38mm_15mm_42mm_15mm] box-border shadow-md mb-6 page-break-after-always">
         <ScreenWatermark />
         <ScreenHeader />
@@ -233,7 +306,7 @@ export function DetailQuotationPreview({
           
           <table className="w-full border-collapse border border-black text-[13px] font-sans text-black">
             <thead>
-              <tr className="bg-[#0070c0] text-black">
+              <tr className="bg-[#0070c0] text-white">
                 <th className="w-14 border border-black px-3 py-2 text-center font-bold">SL</th>
                 <th className="border border-black px-3 py-2 text-left font-bold">NAME</th>
                 <th className="w-36 border border-black px-3 py-2 text-center font-bold">TOTAL</th>
@@ -249,7 +322,7 @@ export function DetailQuotationPreview({
                   </td>
                 </tr>
               ))}
-              <tr className="bg-[#0070c0] text-black font-bold">
+              <tr className="bg-[#0070c0] text-white font-bold">
                 <td colSpan={2} className="border border-black px-3 py-2 text-center font-bold">
                   GRAND TOTAL
                 </td>
@@ -269,7 +342,6 @@ export function DetailQuotationPreview({
         <ScreenFooter />
       </section>
 
-      {/* Per-floor detail pages */}
       {floorSummaries.map((entry) => (
         <section
           key={entry.floor.id}
@@ -289,14 +361,12 @@ export function DetailQuotationPreview({
 
             <table className="w-full border-collapse border border-black text-[11px] font-sans text-black">
               <thead>
-                {/* Floor Header (Green) */}
-                <tr className="bg-[#76933c] text-black">
+                <tr className="bg-[#76933c] text-white">
                   <th colSpan={6} className="border border-black px-2 py-2 text-center text-sm font-bold uppercase tracking-wider">
                     {entry.floor.name}
                   </th>
                 </tr>
-                {/* Columns Header (Blue) */}
-                <tr className="bg-[#0070c0] text-black">
+                <tr className="bg-[#0070c0] text-white">
                   <th className="border border-black px-1.5 py-1.5 text-center w-[5%] font-bold">SL</th>
                   <th className="border border-black px-1.5 py-1.5 text-center w-[18%] font-bold">NAME</th>
                   <th className="border border-black px-1.5 py-1.5 text-center w-[47%] font-bold">MATERIALS</th>
@@ -342,8 +412,7 @@ export function DetailQuotationPreview({
                     </td>
                   </tr>
                 ))}
-                {/* Floor Subtotal (Blue) */}
-                <tr className="bg-[#0070c0] text-black font-bold">
+                <tr className="bg-[#0070c0] text-white font-bold">
                   <td colSpan={5} className="border border-black px-2 py-1.5 text-center font-bold uppercase">
                     TOTAL
                   </td>
@@ -381,7 +450,7 @@ export function DetailQuotationPreview({
         @media print {
           body {
             background-color: white !important;
-            background-image: url('/images/detail-watermark.jpg') !important;
+            background-image: url('/aesthetic-icon.png') !important;
             background-repeat: repeat-y !important;
             background-position: center 50% !important;
             background-size: 75% auto !important;
@@ -429,9 +498,6 @@ export function DetailQuotationPreview({
           .print-page .bg-\\[\\#0070c0\\] {
             background-color: #0070c0 !important;
           }
-          .print-page .bg-\\[\\#bf9000\\] {
-            background-color: #bf9000 !important;
-          }
           .print-page .bg-white {
             background-color: transparent !important;
           }
@@ -446,4 +512,3 @@ export function DetailQuotationPreview({
     </div>
   )
 }
-
