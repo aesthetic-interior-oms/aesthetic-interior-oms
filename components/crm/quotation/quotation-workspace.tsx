@@ -50,7 +50,7 @@ export function QuotationWorkspace({
         <TabsTrigger value="short">Short Quotation</TabsTrigger>
         <TabsTrigger value="detail">Detail Quotation</TabsTrigger>
       </TabsList>
-      <TabsContent value="short" className="mt-4" forceMount>
+      <TabsContent value="short" className="mt-4">
         <ShortQuotationBuilder
           leadId={leadId}
           leadName={leadName}
@@ -58,7 +58,7 @@ export function QuotationWorkspace({
           leadSubStatus={leadSubStatus}
         />
       </TabsContent>
-      <TabsContent value="detail" className="mt-4" forceMount>
+      <TabsContent value="detail" className="mt-4">
         <QuotationMaker
           leadId={leadId}
           leadName={leadName}
