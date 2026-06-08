@@ -38,7 +38,7 @@ export function DetailQuotationLivePreview({
 
     if (context === 'lead') {
       try {
-        const response = await fetch(`/api/lead/${contextId}/quotation-draft`, { cache: 'no-store' })
+        const response = await fetch(`/api/lead/${contextId}/quotation-draft?documentType=detail`, { cache: 'no-store' })
         const result = await response.json()
         if (response.ok && result?.success && result?.data) {
           const source = result.data.draft ?? result.data.defaultDetailDraft ?? result.data.defaultDraft

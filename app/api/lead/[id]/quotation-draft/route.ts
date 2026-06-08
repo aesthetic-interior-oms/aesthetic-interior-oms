@@ -44,6 +44,7 @@ import type {
 type RouteContext = { params: { id: string } | Promise<{ id: string }> }
 
 type SaveQuotationDraftBody = {
+  documentType?: unknown
   quotationType?: unknown
   projectSqft?: unknown
   content?: unknown
@@ -80,6 +81,13 @@ function toDraftStatus(value: unknown): 'DRAFT' | 'FINALIZED' | null {
   if (typeof value !== 'string') return null
   const normalized = value.trim().toUpperCase()
   if (normalized === 'DRAFT' || normalized === 'FINALIZED') return normalized
+  return null
+}
+
+function toRequestedDocumentType(value: unknown): 'short' | 'detail' | null {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim().toLowerCase()
+  if (normalized === 'short' || normalized === 'detail') return normalized
   return null
 }
 
@@ -268,6 +276,11 @@ function parseStoredQuotationContent(value: unknown): QuotationStoredContent | n
   return toDetailQuotationContent(value)
 }
 
+function buildDraftKey(documentType: 'short' | 'detail', packageTier?: ShortQuotationPackage | null) {
+  if (documentType === 'detail') return 'detail'
+  return `short:${(packageTier ?? 'PREMIUM').toLowerCase()}`
+}
+
 function serializeDraft(draft: {
   id: string
   quotationType: string
@@ -341,7 +354,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
           take: 1,
           select: { userId: true },
         },
-        quotationDraft: true,
+        quotationDrafts: {
+          orderBy: { updatedAt: 'desc' },
+        },
       },
     })
 
@@ -359,11 +374,21 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     const projectSqft = lead.visits[0]?.projectSqft ?? null
     const requestedTemplateKey = resolveTemplateKey(request.nextUrl.searchParams.get('templateKey'))
+    const requestedDocumentType = toRequestedDocumentType(request.nextUrl.searchParams.get('documentType'))
+    const requestedShortPackage = toShortQuotationPackage(request.nextUrl.searchParams.get('packageTier')) ?? 'PREMIUM'
+    const requestedDraftKey = requestedDocumentType
+      ? buildDraftKey(requestedDocumentType, requestedShortPackage)
+      : null
+    const savedDrafts = lead.quotationDrafts ?? []
+    const selectedDraft = requestedDraftKey
+      ? savedDrafts.find((draft) => draft.draftKey === requestedDraftKey) ?? null
+      : savedDrafts[0] ?? null
 
-    if (!lead.quotationDraft) {
+    if (!selectedDraft) {
       const shortContent = buildDefaultShortQuotationContent({
         clientName: lead.name,
         clientAddress: lead.location,
+        packageTier: requestedShortPackage,
       })
       const shortSummary = buildShortQuotationSummary(shortContent)
       const detailContent = buildDefaultQuotationContent({
@@ -377,9 +402,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
         success: true,
         data: {
           draft: null,
-          documentType: 'short' as const,
+          documentType: requestedDocumentType ?? ('short' as const),
           defaultDraft: {
-            quotationType: 'PREMIUM' as QuotationFileType,
+            quotationType: requestedShortPackage as QuotationFileType,
             projectSqft,
             content: shortContent,
             grandTotal: shortSummary.grandTotal,
@@ -405,13 +430,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
       })
     }
 
-    const savedContent = lead.quotationDraft.content
+    const savedContent = selectedDraft.content
     const documentType = resolveQuotationDocumentType(savedContent)
 
     return NextResponse.json({
       success: true,
       data: {
-        draft: serializeDraft(lead.quotationDraft),
+        draft: serializeDraft(selectedDraft),
         documentType,
         defaultDraft: null,
         templates: listQuotationTemplates(),
@@ -424,7 +449,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
           name: lead.name,
           location: lead.location,
           subStatus: lead.subStatus,
-          projectSqft: lead.quotationDraft.projectSqft ?? projectSqft,
+          projectSqft: selectedDraft.projectSqft ?? projectSqft,
         },
         canEdit,
       },
@@ -529,10 +554,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       ? (normalizedContent as ShortQuotationContent).packageTier
       : quotationType
 
+    const documentType = isShort ? 'short' : 'detail'
+    const requestedShortPackage = documentType === 'short' ? (normalizedContent as ShortQuotationContent).packageTier : null
+    const draftKey = buildDraftKey(documentType, requestedShortPackage)
+
     const savedDraft = await prisma.quotationDraft.upsert({
-      where: { leadId: lead.id },
+      where: { leadId_draftKey: { leadId: lead.id, draftKey } },
       create: {
         leadId: lead.id,
+        draftKey,
         createdById: authResult.actorUserId,
         updatedById: authResult.actorUserId,
         quotationType: storedQuotationType,
