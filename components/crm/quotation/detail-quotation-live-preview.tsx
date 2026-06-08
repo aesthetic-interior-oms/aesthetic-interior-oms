@@ -41,17 +41,19 @@ export function DetailQuotationLivePreview({
         const response = await fetch(`/api/lead/${contextId}/quotation-draft?documentType=detail`, { cache: 'no-store' })
         const result = await response.json()
         if (response.ok && result?.success && result?.data) {
-          const source = result.data.draft ?? result.data.defaultDetailDraft ?? result.data.defaultDraft
+          const source = result.data.draft ?? result.data.defaultDetailDraft
           if (source?.content) {
             const content = withDetailQuotationDefaults(source.content)
             const totals = calculateQuotationTotals(content)
+            const qType = source.quotationType
+            const validQType = (qType === 'BASIC' || qType === 'STANDARD' || qType === 'PREMIUM' || qType === 'MIXED') ? qType : 'STANDARD'
             setPayload({
               updatedAt: new Date().toISOString(),
               context,
               contextId,
               clientName: result.data.lead?.name ?? 'Client',
               clientAddress: result.data.lead?.location ?? null,
-              quotationType: source.quotationType ?? 'STANDARD',
+              quotationType: validQType,
               projectSqft: source.projectSqft ?? null,
               content,
               totals,
@@ -99,8 +101,10 @@ export function DetailQuotationLivePreview({
     if (!payload) return
     setDownloading(true)
     try {
-      const jsPDF = (await import('jspdf')).default
-      const html2canvas = (await import('html2canvas')).default
+      const jspdfModule = await import('jspdf')
+      const jsPDF = jspdfModule.jsPDF ?? jspdfModule.default
+      const html2canvasModule = await import('html2canvas')
+      const html2canvas = html2canvasModule.default ?? html2canvasModule
 
       const pages = document.querySelectorAll('.detail-quotation-preview .print-page')
       if (pages.length === 0) {

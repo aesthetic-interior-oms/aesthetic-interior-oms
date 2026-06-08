@@ -53,45 +53,42 @@ function HeaderLogo() {
 function FooterContacts() {
   return (
     <div className="w-full flex flex-col font-sans select-none pointer-events-none">
-      <div className="w-full border-t border-neutral-300 pt-3 pb-2 flex justify-between items-start text-[11px] leading-tight text-neutral-800">
-        <div className="space-y-2.5">
-          <div className="flex items-start gap-2">
-            <Phone className="h-3.5 w-3.5 text-[#0f5b53] mt-0.5 flex-shrink-0" />
+      <div className="w-full border-t border-neutral-300 pt-2 pb-1.5 flex justify-between items-center text-[10px] leading-tight text-neutral-800">
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <Phone className="h-3 w-3 text-[#0f5b53] flex-shrink-0" />
             <div className="font-bold text-neutral-900">
-              <p>+88 01329 694660</p>
-              <p>+88 01329 694661</p>
-              <p>+88 01329 694662</p>
+              <p>+88 01329 694660, +88 01329 694661, +88 01329 694662</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Mail className="h-3.5 w-3.5 text-[#0f5b53] flex-shrink-0" />
+            <Mail className="h-3 w-3 text-[#0f5b53] flex-shrink-0" />
             <p className="font-bold text-neutral-900">aestheticinteriorstudio@gmail.com</p>
           </div>
-          <div className="flex items-start gap-2">
-            <MapPin className="h-3.5 w-3.5 text-[#0f5b53] mt-0.5 flex-shrink-0" />
-            <div className="font-bold text-neutral-900 leading-normal">
-              <p>2nd Floor,183 East Senpara Parbata,</p>
-              <p>Begum Rokeya Sarani,Mirpur 10,Dhaka</p>
+          <div className="flex items-center gap-2">
+            <MapPin className="h-3 w-3 text-[#0f5b53] flex-shrink-0" />
+            <div className="font-bold text-neutral-900">
+              <p>2nd Floor, 183 East Senpara Parbata, Begum Rokeya Sarani, Mirpur 10, Dhaka</p>
             </div>
           </div>
         </div>
-        <div className="h-[75px] opacity-[0.15] text-neutral-600 flex items-end">
-          <svg width="140" height="70" viewBox="0 0 140 70" className="fill-current">
-            <path d="M0 70h140V45h-15V32h-10V18h-15V5h-20v15H80V27H70V40H55V55H35V40H20v30zM50 70H35V60h15v10zm45 0H80V50h15v20zm40 0h-15V55h15v15z" />
+        <div className="h-[55px] opacity-[0.15] text-neutral-600 flex items-end">
+          <svg width="110" height="55" viewBox="0 0 140 70" className="fill-current">
+            <path d="M0 70h140V45h-15V32h-10V18h-15V5h-20v15H80V27H70V40H55V55H35V40H20v30z" />
           </svg>
         </div>
       </div>
-      <div className="bg-[#0f5b53] text-white text-[10px] font-bold py-1.5 px-4 flex justify-between items-center rounded-sm leading-none">
+      <div className="bg-[#0f5b53] text-white text-[9px] font-bold py-1 px-4 flex justify-between items-center rounded-sm leading-none">
         <div className="flex items-center gap-1.5">
-          <Globe className="h-3.5 w-3.5 text-white/90" />
+          <Globe className="h-3 w-3 text-white/90" />
           <span>www.aestheticinteriorbd.com</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <Instagram className="h-3.5 w-3.5 text-white/90" />
+          <Instagram className="h-3 w-3 text-white/90" />
           <span>aesthetic.interior.studio</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <Facebook className="h-3.5 w-3.5 text-white/90" />
+          <Facebook className="h-3 w-3 text-white/90" />
           <span>facebook.com/aestheticinteriorofficial</span>
         </div>
       </div>
@@ -270,7 +267,7 @@ export function DetailQuotationPreview({
   )
 
   const ScreenFooter = () => (
-    <div className="print-page-footer absolute bottom-0 left-0 right-0 h-[38mm] px-8 pb-6 select-none pointer-events-none print:hidden">
+    <div className="print-page-footer absolute bottom-0 left-0 right-0 h-[30mm] px-8 pb-4 print:hidden">
       <FooterContacts />
     </div>
   )
@@ -286,11 +283,11 @@ export function DetailQuotationPreview({
       <div className="fixed-print-header hidden fixed top-0 left-0 right-0 h-[32mm] bg-white z-50 px-8 pt-6 print:block">
         <HeaderLogo />
       </div>
-      <div className="fixed-print-footer hidden fixed bottom-0 left-0 right-0 h-[35mm] bg-white z-50 px-8 pb-6 print:block">
+      <div className="fixed-print-footer hidden fixed bottom-0 left-0 right-0 h-[30mm] bg-white z-50 px-8 pb-4 print:block">
         <FooterContacts />
       </div>
 
-      <section className="print-page relative bg-white mx-auto w-[210mm] min-h-[297mm] p-[38mm_15mm_42mm_15mm] box-border shadow-md mb-6 page-break-after-always">
+      <section className="print-page relative bg-white mx-auto w-[210mm] min-h-[297mm] p-[38mm_15mm_32mm_15mm] box-border shadow-md mb-6 page-break-after-always">
         <ScreenWatermark />
         <ScreenHeader />
         
@@ -345,7 +342,7 @@ export function DetailQuotationPreview({
       {floorSummaries.map((entry) => (
         <section
           key={entry.floor.id}
-          className="print-page relative bg-white mx-auto w-[210mm] min-h-[297mm] p-[38mm_15mm_42mm_15mm] box-border shadow-md mb-6 page-break-after-always"
+          className="print-page relative bg-white mx-auto w-[210mm] min-h-[297mm] p-[38mm_15mm_32mm_15mm] box-border shadow-md mb-6 page-break-after-always"
         >
           <ScreenWatermark />
           <ScreenHeader />
@@ -464,7 +461,7 @@ export function DetailQuotationPreview({
           .print-page {
             box-shadow: none !important;
             margin: 0 !important;
-            padding: 35mm 0 40mm 0 !important;
+            padding: 35mm 0 32mm 0 !important;
             width: 100% !important;
             min-height: 297mm !important;
             page-break-after: always !important;
@@ -503,7 +500,7 @@ export function DetailQuotationPreview({
           }
           @page {
             margin-top: 35mm !important;
-            margin-bottom: 40mm !important;
+            margin-bottom: 32mm !important;
             margin-left: 15mm !important;
             margin-right: 15mm !important;
           }

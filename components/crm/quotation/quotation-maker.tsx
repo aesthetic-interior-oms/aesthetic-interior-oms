@@ -152,10 +152,12 @@ export function QuotationMaker({
       setCanEdit(Boolean(data.canEdit))
       if (Array.isArray(data.templates)) setTemplates(data.templates)
 
-      const source = data.draft ?? data.defaultDetailDraft ?? data.defaultDraft
+      const source = data.draft ?? data.defaultDetailDraft
       if (!source) throw new Error('Quotation data unavailable')
 
-      setQuotationType(source.quotationType)
+      const qType = source.quotationType
+      const validQType = (qType === 'BASIC' || qType === 'STANDARD' || qType === 'PREMIUM' || qType === 'MIXED') ? qType : 'STANDARD'
+      setQuotationType(validQType)
       setProjectSqft(source.projectSqft ? String(source.projectSqft) : '')
       setContent(normalizeQuotationContent(withDetailQuotationDefaults(source.content)))
     } catch (error) {

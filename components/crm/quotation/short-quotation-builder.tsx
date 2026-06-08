@@ -340,8 +340,10 @@ export function ShortQuotationBuilder({
   const handleDownloadPdf = async () => {
     setGeneratingPdf(true)
     try {
-      const jsPDF = (await import('jspdf')).default
-      const html2canvas = (await import('html2canvas')).default
+      const jspdfModule = await import('jspdf')
+      const jsPDF = jspdfModule.jsPDF ?? jspdfModule.default
+      const html2canvasModule = await import('html2canvas')
+      const html2canvas = html2canvasModule.default ?? html2canvasModule
 
       const element = document.getElementById('short-quotation-print-container')
       if (!element) {
