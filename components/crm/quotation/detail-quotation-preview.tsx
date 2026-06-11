@@ -356,32 +356,32 @@ export function DetailQuotationPreview({
               introLetter={normalized.introLetter ?? ''}
             />
 
-            <table className="w-full border-collapse border border-black text-[11px] font-sans text-black">
+            <table className="w-full table-fixed border-collapse border border-black text-[11px] font-sans text-black break-words">
               <thead>
                 <tr className="bg-[#76933c] text-white">
-                  <th colSpan={6} className="border border-black px-2 py-2 text-center text-sm font-bold uppercase tracking-wider">
+                  <th colSpan={6} className="border border-black px-2 py-2 text-center text-sm font-bold uppercase tracking-wider break-words">
                     {entry.floor.name}
                   </th>
                 </tr>
                 <tr className="bg-[#0070c0] text-white">
-                  <th className="border border-black px-1.5 py-1.5 text-center w-[5%] font-bold">SL</th>
-                  <th className="border border-black px-1.5 py-1.5 text-center w-[18%] font-bold">NAME</th>
-                  <th className="border border-black px-1.5 py-1.5 text-center w-[47%] font-bold">MATERIALS</th>
-                  <th className="border border-black px-1.5 py-1.5 text-center w-[10%] font-bold">QTY SFT</th>
-                  <th className="border border-black px-1.5 py-1.5 text-center w-[10%] font-bold">UNIT PRICE</th>
-                  <th className="border border-black px-1.5 py-1.5 text-center w-[10%] font-bold">TOTAL</th>
+                  <th className="border border-black px-1.5 py-1.5 text-center w-[5%] font-bold break-words">SL</th>
+                  <th className="border border-black px-1.5 py-1.5 text-center w-[18%] font-bold break-words">NAME</th>
+                  <th className="border border-black px-1.5 py-1.5 text-center w-[47%] font-bold break-words">MATERIALS</th>
+                  <th className="border border-black px-1.5 py-1.5 text-center w-[10%] font-bold break-words">QTY SFT</th>
+                  <th className="border border-black px-1.5 py-1.5 text-center w-[10%] font-bold break-words">UNIT PRICE</th>
+                  <th className="border border-black px-1.5 py-1.5 text-center w-[10%] font-bold break-words">TOTAL</th>
                 </tr>
               </thead>
               <tbody>
                 {entry.lines.map((line, lineIndex) => (
                   <tr key={line.id} className="bg-white text-black align-top font-medium">
-                    <td className="border border-black px-1 py-1.5 text-center font-bold align-top">
+                    <td className="border border-black px-1 py-1.5 text-center font-bold align-top break-words">
                       {String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}
                     </td>
-                    <td className="border border-black px-2 py-1.5 text-left font-bold align-top whitespace-pre-wrap">
+                    <td className="border border-black px-2 py-1.5 text-left font-bold align-top whitespace-pre-wrap break-words">
                       {line.description}
                     </td>
-                    <td className="border border-black px-2 py-1.5 text-left font-normal align-top whitespace-pre-wrap leading-normal">
+                    <td className="border border-black px-2 py-1.5 text-left font-normal align-top whitespace-pre-wrap leading-normal break-words">
                       {formatMaterialText(line.materials)}
                     </td>
                     {isPackageLine(line) ? (
@@ -488,6 +488,14 @@ export function DetailQuotationPreview({
             print-color-adjust: exact !important;
             background-color: inherit !important;
             border: 1px solid black !important;
+          }
+          .print-page table {
+            table-layout: fixed !important;
+          }
+          .print-page th,
+          .print-page td {
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
           }
           .print-page .bg-\\[\\#76933c\\] {
             background-color: #76933c !important;

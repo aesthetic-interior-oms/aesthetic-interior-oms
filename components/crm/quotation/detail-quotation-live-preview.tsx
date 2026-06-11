@@ -120,12 +120,25 @@ export function DetailQuotationLivePreview({
 
       for (let i = 0; i < pages.length; i++) {
         const pageElement = pages[i] as HTMLElement
+        // Show header/footer only on the first page capture. Hide for subsequent pages
+        const fixedEls = Array.from(document.querySelectorAll('.fixed-print-header, .fixed-print-footer')) as HTMLElement[]
+        const prevDisplay = fixedEls.map((el) => el.style.display)
+        if (i > 0) {
+          fixedEls.forEach((el) => (el.style.display = 'none'))
+        } else {
+          fixedEls.forEach((el) => (el.style.display = ''))
+        }
+
         const canvas = await html2canvas(pageElement, {
           scale: 2,
           useCORS: true,
           logging: false,
           backgroundColor: '#ffffff',
+          proxy: `${window.location.origin}/api/image-proxy`,
         })
+
+        // restore fixed header/footer display for next iteration
+        fixedEls.forEach((el, idx) => (el.style.display = prevDisplay[idx]))
 
         const imgData = canvas.toDataURL('image/png')
         if (i > 0) {
@@ -138,7 +151,12 @@ export function DetailQuotationLivePreview({
       pdf.save(`Detail_Quotation_${safeClientName}.pdf`)
     } catch (error) {
       console.error('Failed to generate PDF:', error)
-      alert('Failed to generate PDF')
+      const msg = error instanceof Error ? error.message : String(error)
+      if (/taint|cross-origin|security/i.test(msg)) {
+        alert('Failed to generate PDF: image CORS / tainted canvas. Check console for details or enable the image proxy.')
+      } else {
+        alert('Failed to generate PDF')
+      }
     } finally {
       setDownloading(false)
     }

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CollapsibleCard } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
+import { SHORT_QUOTATION_NAMES, searchShortQuotationNames } from '@/lib/short-quotation-names'
 import { ShortQuotationPrint } from '@/components/crm/quotation/short-quotation-print'
 import { buildDefaultShortQuotationContent } from '@/lib/short-quotation-default'
 import {
@@ -137,6 +138,21 @@ export function ShortQuotationBuilder({
   const updateContent = (updater: (prev: ShortQuotationContent) => ShortQuotationContent) => {
     setContent((prev) => (prev ? normalizeShortQuotationContent(updater(prev)) : prev))
   }
+
+  // Autocomplete state for client name
+  const [nameQuery, setNameQuery] = useState('')
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+
+  useEffect(() => {
+    // initialize query from content
+    setNameQuery(content?.clientName ?? '')
+  }, [content?.clientName])
+
+  useEffect(() => {
+    if (!showSuggestions) return
+    setSuggestions(searchShortQuotationNames(nameQuery, 10))
+  }, [nameQuery, showSuggestions])
 
   const saveDraft = async () => {
     if (!content || !canEdit) return
@@ -356,6 +372,7 @@ export function ShortQuotationBuilder({
         useCORS: true,
         logging: false,
         backgroundColor: '#ffffff',
+        proxy: `${window.location.origin}/api/image-proxy`,
       })
 
       const imgData = canvas.toDataURL('image/png')
@@ -378,7 +395,15 @@ export function ShortQuotationBuilder({
       while (heightLeft >= 0) {
         position = heightLeft - imgHeight
         pdf.addPage()
+        // Hide fixed header/footer for subsequent pages so header appears only once
+        const fixedEls = Array.from(document.querySelectorAll('.fixed-print-header, .fixed-print-footer')) as HTMLElement[]
+        const prevDisplay = fixedEls.map((el) => el.style.display)
+        fixedEls.forEach((el) => (el.style.display = 'none'))
+
         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
+
+        // restore fixed header/footer (for UI) after adding page
+        fixedEls.forEach((el, idx) => (el.style.display = prevDisplay[idx]))
         heightLeft -= pageHeight
       }
 
@@ -387,7 +412,12 @@ export function ShortQuotationBuilder({
       toast.success('PDF downloaded successfully')
     } catch (error) {
       console.error('PDF generation error:', error)
-      toast.error('Failed to generate PDF')
+      const msg = error instanceof Error ? error.message : String(error)
+      if (/taint|cross-origin|security/i.test(msg)) {
+        toast.error('Failed to generate PDF: image CORS / tainted canvas. See console for details.')
+      } else {
+        toast.error('Failed to generate PDF')
+      }
     } finally {
       setGeneratingPdf(false)
     }
@@ -458,13 +488,39 @@ export function ShortQuotationBuilder({
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">Client Name</p>
-                <Input
-                  value={content.clientName}
-                  disabled={!canEdit}
-                  onChange={(event) =>
-                    updateContent((prev) => ({ ...prev, clientName: event.target.value }))
-                  }
-                />
+                <div className="relative">
+                  <Input
+                    value={nameQuery}
+                    disabled={!canEdit}
+                    onChange={(event) => {
+                      const v = event.target.value
+                      setNameQuery(v)
+                      updateContent((prev) => ({ ...prev, clientName: v }))
+                      setShowSuggestions(true)
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                    placeholder="Type to search or enter a custom name"
+                  />
+                  {showSuggestions && suggestions.length > 0 && (
+                    <div className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md border bg-white shadow-sm">
+                      {suggestions.map((s) => (
+                        <div
+                          key={s}
+                          className="cursor-pointer px-3 py-2 text-sm hover:bg-neutral-100"
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            setNameQuery(s)
+                            updateContent((prev) => ({ ...prev, clientName: s }))
+                            setShowSuggestions(false)
+                          }}
+                        >
+                          {s}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">Address</p>
