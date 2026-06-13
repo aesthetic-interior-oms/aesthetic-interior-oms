@@ -11,6 +11,8 @@ import { CollapsibleCard } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { SHORT_QUOTATION_NAMES, searchShortQuotationNames } from '@/lib/short-quotation-names'
 import { ShortQuotationPrint } from '@/components/crm/quotation/short-quotation-print'
+import { ShortQuotationDocument } from '@/components/crm/quotation/pdf/ShortQuotationDocument'
+import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
 import { buildDefaultShortQuotationContent } from '@/lib/short-quotation-default'
 import {
   buildShortQuotationSummary,
@@ -356,65 +358,17 @@ export function ShortQuotationBuilder({
   const handleDownloadPdf = async () => {
     setGeneratingPdf(true)
     try {
-      const jspdfModule = await import('jspdf')
-      const jsPDF = jspdfModule.jsPDF ?? jspdfModule.default
-      const html2canvasModule = await import('html2canvas')
-      const html2canvas = html2canvasModule.default ?? html2canvasModule
-
-      const element = document.getElementById('short-quotation-print-container')
-      if (!element) {
-        toast.error('Print container not found')
-        return
-      }
-
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        proxy: `${window.location.origin}/api/image-proxy`,
-      })
-
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({
-        orientation: 'p',
-        unit: 'mm',
-        format: 'a4',
-      })
-
-      const imgWidth = 210
-      const pageHeight = 297
-      const imgHeight = (canvas.height * imgWidth) / canvas.width
-      let heightLeft = imgHeight
-
-      let position = 0
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
-      heightLeft -= pageHeight
-
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight
-        pdf.addPage()
-        // Hide fixed header/footer for subsequent pages so header appears only once
-        const fixedEls = Array.from(document.querySelectorAll('.fixed-print-header, .fixed-print-footer')) as HTMLElement[]
-        const prevDisplay = fixedEls.map((el) => el.style.display)
-        fixedEls.forEach((el) => (el.style.display = 'none'))
-
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST')
-
-        // restore fixed header/footer (for UI) after adding page
-        fixedEls.forEach((el, idx) => (el.style.display = prevDisplay[idx]))
-        heightLeft -= pageHeight
-      }
-
       const safeClientName = (content.clientName || 'Quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase()
-      pdf.save(`Short_Quotation_${safeClientName}.pdf`)
+      await downloadPdfFromDocument(
+        <ShortQuotationDocument content={content} />,
+        `Short_Quotation_${safeClientName}.pdf`,
+      )
       toast.success('PDF downloaded successfully')
     } catch (error) {
       console.error('PDF generation error:', error)
       const msg = error instanceof Error ? error.message : String(error)
       if (/taint|cross-origin|security/i.test(msg)) {
-        toast.error('Failed to generate PDF: image CORS / tainted canvas. See console for details.')
+        toast.error('Failed to generate PDF: rendering error. See console for details.')
       } else {
         toast.error('Failed to generate PDF')
       }

@@ -8,8 +8,12 @@ import {
 } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { logLeadCreated } from '@/lib/activity-log-service';
+import { logActivity, logLeadStageChanged, logUserAssigned } from '@/lib/activity-log-service';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { formatServerTiming, timeAsync } from '@/lib/server-timing';
+import { findVisitConflict } from '@/lib/visit-guards';
+import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
+import { getWeeklySeniorCrmAssignment } from '@/lib/sr-crm-rotation';
 import { isFacebookConfigured } from '@/lib/facebook';
 import { maybeRunFacebookFallbackSync, runFacebookSyncWithControl } from '@/lib/facebook-sync-control';
 import { maybeRunInstagramFallbackSync } from '@/lib/instagram-sync-control';
@@ -138,6 +142,8 @@ type CreateLeadBody = {
   location?: unknown;
   budget?: unknown;
   assignedToId?: unknown;
+  scheduleVisit?: unknown;
+  visit?: unknown;
 };
 
 // Utility function to safely convert unknown values to optional strings
@@ -184,6 +190,19 @@ function toLeadStageParam(value: string | null): LeadStage | null {
     return LeadStage.VISIT_PHASE;
   }
   return Object.values(LeadStage).includes(upper as LeadStage) ? (upper as LeadStage) : null;
+}
+
+function toOptionalNumber(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toProjectStatus(value: unknown) {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toUpperCase();
+  const vals = Object.values((Prisma as any).ProjectStatus || {});
+  return vals.includes(normalized) ? (normalized as any) : null;
 }
 
 function toPositiveInt(value: string | null, fallback: number): number {
@@ -642,12 +661,158 @@ export async function POST(request: NextRequest) {
       }
 
       // Log the lead creation activity with the authenticated user
-      // console.log('📋 [POST /api/lead] - Logging lead creation activity');
       await logLeadCreated(tx, {
         leadId: newLead.id,
         userId: authResult.actorUserId,
         leadName: name,
       });
+
+      // Optionally schedule a visit as part of lead creation
+      const shouldSchedule = Boolean((body as any)?.scheduleVisit);
+      if (shouldSchedule) {
+        try {
+          const visitBody = (body as any).visit ?? {};
+          const visitTeamUserId = toOptionalString(visitBody.visitTeamUserId);
+          const seniorCrmUserId = toOptionalString(visitBody.seniorCrmUserId);
+          const notes = toOptionalString(visitBody.notes);
+          const reason = toOptionalString(visitBody.reason) ?? 'Visit has been scheduled.';
+          const projectSqft = toOptionalNumber(visitBody.projectSqft);
+          const visitFee = toOptionalNumber(visitBody.visitFee);
+          const projectStatus = toProjectStatus(visitBody.projectStatus);
+          const scheduledAtRaw = toOptionalString(visitBody.scheduledAt);
+          const parsedScheduledAt = scheduledAtRaw ? new Date(scheduledAtRaw) : null;
+          const explicitLocation = toOptionalString(visitBody.location) ?? toOptionalString(body.location) ?? null;
+
+          if (!visitTeamUserId || !scheduledAtRaw || !parsedScheduledAt || Number.isNaN(parsedScheduledAt.getTime())) {
+            throw new Error('INVALID_VISIT_PARAMS');
+          }
+
+          if (projectSqft !== null && projectSqft <= 0) {
+            throw new Error('INVALID_PROJECT_SQFT');
+          }
+
+          if (visitFee !== null && visitFee < 0) {
+            throw new Error('INVALID_VISIT_FEE');
+          }
+
+          if (projectStatus === null && visitBody.projectStatus) {
+            throw new Error('INVALID_PROJECT_STATUS');
+          }
+
+          const weekly = await getWeeklySeniorCrmAssignment();
+
+          const [visitAssignee, latestVisit] = await Promise.all([
+            tx.user.findUnique({
+              where: { id: visitTeamUserId },
+              select: {
+                id: true,
+                fullName: true,
+                userDepartments: { select: { department: { select: { name: true } } } },
+              },
+            }),
+            tx.visit.findFirst({
+              where: { leadId: newLead.id },
+              orderBy: { createdAt: 'desc' },
+              select: { id: true, status: true, result: { select: { id: true } } },
+            }),
+          ]);
+
+          if (!visitAssignee) throw new Error('VISIT_ASSIGNEE_NOT_FOUND');
+          const isAllowed = (visitAssignee.userDepartments ?? []).some((d) => d.department.name === 'VISIT_TEAM' || d.department.name === 'SR_CRM');
+          if (!isAllowed) throw new Error('VISIT_ASSIGNEE_INVALID_DEPT');
+
+          const latestVisitHasResult = Boolean(latestVisit?.result?.id);
+          const latestVisitBlocksScheduling = Boolean(
+            latestVisit &&
+              (latestVisit.status === 'SCHEDULED' ||
+                latestVisit.status === 'RESCHEDULED' ||
+                (latestVisit.status === 'COMPLETED' && !latestVisitHasResult)),
+          );
+          if (latestVisitBlocksScheduling) throw new Error('LATEST_VISIT_BLOCKS_SCHEDULING');
+
+          const locationToUse = explicitLocation ?? newLead.location;
+          if (!locationToUse) throw new Error('LOCATION_REQUIRED');
+
+          const conflict = await findVisitConflict(tx, { assignedToId: visitTeamUserId, scheduledAt: parsedScheduledAt });
+          if (conflict) throw new Error('VISIT_CONFLICT');
+
+          // update lead stage
+          await tx.lead.update({ where: { id: newLead.id }, data: { stage: LeadStage.VISIT_PHASE, subStatus: (Prisma as any).LeadSubStatus ? (Prisma as any).LeadSubStatus.VISIT_SCHEDULED : undefined, location: locationToUse } });
+
+          const visit = await tx.visit.create({
+            data: {
+              leadId: newLead.id,
+              assignedToId: visitTeamUserId,
+              createdById: authResult.actorUserId,
+              scheduledAt: parsedScheduledAt,
+              visitFee: visitFee ?? 0,
+              projectSqft,
+              projectStatus,
+              location: locationToUse,
+              notes,
+            },
+          });
+
+          await tx.notification.createMany({
+            data: [
+              {
+                userId: visitTeamUserId,
+                leadId: newLead.id,
+                visitId: visit.id,
+                type: (Prisma as any).NotificationType ? (Prisma as any).NotificationType.VISIT_ASSIGNED : undefined,
+                title: 'New visit assigned',
+                message: `You have been assigned a new visit for ${newLead.name}.`,
+                scheduledFor: parsedScheduledAt,
+              },
+            ].filter(Boolean as any),
+            skipDuplicates: true,
+          });
+
+          const adminUsers = await tx.user.findMany({ where: { isActive: true, userDepartments: { some: { department: { name: 'ADMIN' } } } }, select: { id: true } });
+          if (adminUsers.length > 0) {
+            await tx.notification.createMany({
+              data: adminUsers.map((admin) => ({
+                userId: admin.id,
+                leadId: newLead.id,
+                visitId: visit.id,
+                type: (Prisma as any).NotificationType ? (Prisma as any).NotificationType.VISIT_SCHEDULED_ADMIN : undefined,
+                title: 'Visit scheduled',
+                message: `Lead: ${newLead.name} visit scheduled at ${parsedScheduledAt.toISOString()} and assigned to ${visitAssignee.fullName}.`,
+                scheduledFor: parsedScheduledAt,
+              })),
+            });
+          }
+
+          const existingVisitTeamAssignment = await tx.leadAssignment.findFirst({ where: { leadId: newLead.id, department: LeadAssignmentDepartment.VISIT_TEAM } });
+          const targetSeniorCrmUserId = seniorCrmUserId ?? (weekly.automationEnabled ? weekly.current?.id : null) ?? null;
+          if (targetSeniorCrmUserId) {
+            const existingSrAssignment = await tx.leadAssignment.findFirst({ where: { leadId: newLead.id, department: LeadAssignmentDepartment.SR_CRM } });
+            if (existingSrAssignment) {
+              await tx.leadAssignment.update({ where: { id: existingSrAssignment.id }, data: { userId: targetSeniorCrmUserId } });
+            } else {
+              await tx.leadAssignment.create({ data: { leadId: newLead.id, userId: targetSeniorCrmUserId, department: LeadAssignmentDepartment.SR_CRM } });
+            }
+          }
+
+          if (existingVisitTeamAssignment) {
+            await tx.leadAssignment.update({ where: { id: existingVisitTeamAssignment.id }, data: { userId: visitTeamUserId } });
+          } else {
+            await tx.leadAssignment.create({ data: { leadId: newLead.id, userId: visitTeamUserId, department: LeadAssignmentDepartment.VISIT_TEAM } });
+          }
+
+          if (notes) {
+            await tx.note.create({ data: { leadId: newLead.id, userId: authResult.actorUserId, content: notes } });
+          }
+
+          await logLeadStageChanged(tx, { leadId: newLead.id, userId: authResult.actorUserId, from: newLead.stage, to: LeadStage.VISIT_PHASE, reason });
+          await logActivity(tx, { leadId: newLead.id, userId: authResult.actorUserId, type: (Prisma as any).ActivityType ? (Prisma as any).ActivityType.VISIT_SCHEDULED : undefined, description: `Visit ${visit.id} scheduled at ${parsedScheduledAt.toISOString()} and assigned to ${visitAssignee.fullName}. Reason: ${reason}` });
+          await logUserAssigned(tx, { leadId: newLead.id, userId: authResult.actorUserId, leadName: `${visitAssignee.fullName} assigned as visit lead` });
+          await autoCompletePendingFollowups(tx, { leadId: newLead.id, userId: authResult.actorUserId, action: 'visit scheduled' });
+        } catch (err) {
+          // Bubble up known errors to abort transaction
+          throw err;
+        }
+      }
 
       return newLead;
     });
