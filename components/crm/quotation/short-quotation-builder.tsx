@@ -11,7 +11,7 @@ import { CollapsibleCard } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { SHORT_QUOTATION_NAMES, searchShortQuotationNames } from '@/lib/short-quotation-names'
 import { ShortQuotationPrint } from '@/components/crm/quotation/short-quotation-print'
-import { ShortQuotationDocument } from '@/components/crm/quotation/pdf/ShortQuotationDocument'
+ import { ShortQuotationDocument } from '@/components/crm/quotation/pdf/ShortQuotationDocument'
 import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
 import { buildDefaultShortQuotationContent } from '@/lib/short-quotation-default'
 import {
