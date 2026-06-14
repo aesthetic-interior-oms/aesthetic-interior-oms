@@ -16,6 +16,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -1645,190 +1653,274 @@ export function VisitsPageView({
         </TabsContent>
 
         <TabsContent value="list" className="mt-6">
-          <div className="space-y-4" ref={listDetailsRef}>
-            <>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-              {[
-                ['ALL', 'All', filteredListVisits.length],
-                ['SCHEDULED', 'Pending', scheduledVisits.length],
-                ['COMPLETED', 'Completed', completedVisits.length],
-                ['RESCHEDULED', 'Rescheduled', rescheduledVisits.length],
-                ['CANCELLED', 'Cancelled', cancelledVisits.length],
-                ['LEAD', 'Leading', leadRoleVisits.length],
-                ['SUPPORT', 'Supporting', supportRoleVisits.length],
-              ].map(([value, label, count]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() =>
-                    setListFilter(
-                      value as
-                        | 'ALL'
-                        | 'SCHEDULED'
-                        | 'COMPLETED'
-                        | 'RESCHEDULED'
-                        | 'CANCELLED'
-                        | 'LEAD'
-                        | 'SUPPORT',
-                    )
-                  }
-                  className={cn(
-                    'rounded-lg border bg-card p-3 text-left transition hover:border-primary/40',
-                    listFilter === value ? 'border-primary/50' : 'border-border',
-                  )}
-                >
-                  <p className="text-sm font-medium text-muted-foreground">{label}</p>
-                  <p className="mt-1 text-xl font-semibold text-foreground">{count}</p>
-                </button>
-              ))}
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-              <Input
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search by lead name or phone"
-                className="w-full sm:max-w-sm"
-              />
-              {searchTerm ? (
-                <Button variant="ghost" size="sm" className="w-full sm:w-auto" onClick={() => setSearchTerm('')}>
-                  Clear
-                </Button>
-              ) : null}
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="space-y-1">
-                <Label htmlFor="list-date-from">From</Label>
-                <Input
-                  id="list-date-from"
-                  type="date"
-                  value={listDateFrom}
-                  onChange={(event) => setListDateFrom(event.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="list-date-to">To</Label>
-                <Input
-                  id="list-date-to"
-                  type="date"
-                  value={listDateTo}
-                  onChange={(event) => setListDateTo(event.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>Visit Team Member</Label>
-                <Select value={listMemberFilter} onValueChange={setListMemberFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="All members" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All members</SelectItem>
-                    {listMemberOptions.map((member) => (
-                      <SelectItem key={member.id} value={member.id}>
-                        {member.fullName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {(listDateFrom || listDateTo || listMemberFilter !== 'ALL') ? (
-              <div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setListDateFrom('')
-                    setListDateTo('')
-                    setListMemberFilter('ALL')
-                  }}
-                >
-                  Reset Filters
-                </Button>
-              </div>
-            ) : null}
-              <div className="-mx-1 overflow-x-auto pb-1">
-                <div className="flex w-max min-w-full gap-2 px-1 sm:min-w-0 sm:flex-wrap">
-                  {[
-                    ['ALL', 'All'],
-                    ['SCHEDULED', 'Pending'],
-                    ['COMPLETED', 'Completed'],
-                    ['RESCHEDULED', 'Rescheduled'],
-                    ['CANCELLED', 'Cancelled'],
-                    ['LEAD', 'Leading'],
-                    ['SUPPORT', 'Supporting'],
-                  ].map(([value, label]) => (
-                    <Button
-                      key={value}
-                      type="button"
-                      size="sm"
-                      variant={listFilter === value ? 'default' : 'outline'}
-                      className="h-7 shrink-0"
-                      onClick={() =>
-                        setListFilter(
-                          value as
-                            | 'ALL'
-                            | 'SCHEDULED'
-                            | 'COMPLETED'
-                            | 'RESCHEDULED'
-                            | 'CANCELLED'
-                            | 'LEAD'
-                            | 'SUPPORT',
-                        )
-                      }
-                    >
-                      {label}
-                    </Button>
-                  ))}
+          <div className="space-y-6" ref={listDetailsRef}>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.5fr_auto]">
+              <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                <div className="grid gap-4">
+                  <div className="grid gap-3 lg:grid-cols-[1.8fr_auto]">
+                    <div className="space-y-1">
+                      <Label htmlFor="list-search">Search</Label>
+                      <Input
+                        id="list-search"
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                        placeholder="Search by lead name or phone"
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="flex items-end justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!searchTerm}
+                        onClick={() => setSearchTerm('')}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="list-date-from">From</Label>
+                      <Input
+                        id="list-date-from"
+                        type="date"
+                        value={listDateFrom}
+                        onChange={(event) => setListDateFrom(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="list-date-to">To</Label>
+                      <Input
+                        id="list-date-to"
+                        type="date"
+                        value={listDateTo}
+                        onChange={(event) => setListDateTo(event.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="list-member-filter">Visit Team Member</Label>
+                      <Select value={listMemberFilter} onValueChange={setListMemberFilter}>
+                        <SelectTrigger id="list-member-filter">
+                          <SelectValue placeholder="All members" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ALL">All members</SelectItem>
+                          {listMemberOptions.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                              {member.fullName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {(listDateFrom || listDateTo || listMemberFilter !== 'ALL') ? (
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setListDateFrom('')
+                          setListDateTo('')
+                          setListMemberFilter('ALL')
+                        }}
+                      >
+                        Reset Filters
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
-            </>
-            <div className="space-y-6">
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+                <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                  <p className="text-sm font-medium text-muted-foreground">Current filter</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">{listFilterLabel}</p>
+                  <p className="text-sm text-muted-foreground">{filteredListVisits.length} visit(s)</p>
+                </div>
+                <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                  <p className="text-sm font-medium text-muted-foreground">Visible team members</p>
+                  <p className="mt-2 text-lg font-semibold text-foreground">{listMemberOptions.length || 'All'}</p>
+                  <p className="text-sm text-muted-foreground">Currently filtered members</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="-mx-1 overflow-x-auto pb-1">
+              <div className="flex w-max min-w-full gap-2 px-1 sm:min-w-0 sm:flex-wrap">
+                {[
+                  ['ALL', 'All'],
+                  ['SCHEDULED', 'Pending'],
+                  ['COMPLETED', 'Completed'],
+                  ['RESCHEDULED', 'Rescheduled'],
+                  ['CANCELLED', 'Cancelled'],
+                  ['LEAD', 'Leading'],
+                  ['SUPPORT', 'Supporting'],
+                ].map(([value, label]) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    variant={listFilter === value ? 'default' : 'outline'}
+                    className="h-7 shrink-0"
+                    onClick={() =>
+                      setListFilter(
+                        value as
+                          | 'ALL'
+                          | 'SCHEDULED'
+                          | 'COMPLETED'
+                          | 'RESCHEDULED'
+                          | 'CANCELLED'
+                          | 'LEAD'
+                          | 'SUPPORT',
+                      )
+                    }
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-border bg-card overflow-hidden">
+              <div className="flex items-center justify-between border-b border-border bg-muted px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">{listFilterLabel}</p>
+                  <p className="text-xs text-muted-foreground">Showing {filteredListVisits.length} visits</p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setListFilter('ALL')}>
+                  Show all
+                </Button>
+              </div>
+              <Table className="min-w-[1000px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Lead</TableHead>
+                    <TableHead>Scheduled</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Assigned Team</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    Array.from({ length: 6 }).map((_, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="h-12 bg-muted/50" />
+                        <TableCell className="h-12 bg-muted/50" />
+                        <TableCell className="h-12 bg-muted/50" />
+                        <TableCell className="h-12 bg-muted/50" />
+                        <TableCell className="h-12 bg-muted/50" />
+                        <TableCell className="h-12 bg-muted/50" />
+                        <TableCell className="h-12 bg-muted/50" />
+                      </TableRow>
+                    ))
+                  ) : filteredListVisits.length > 0 ? (
+                    filteredListVisits.map((visit) => {
+                      const leadHref = `${leadHrefPrefix}/${visit.lead.id}`
+                      const role = getVisitRole(visit)
+                      const assignedName = visit.assignedTo?.fullName ?? 'Unassigned'
+                      const supportNames = (visit.supportAssignments ?? [])
+                        .map((item) => item.supportUser.fullName)
+                        .join(', ')
+                      return (
+                        <TableRow key={visit.id}>
+                          <TableCell className="max-w-[220px]">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-foreground truncate">{visit.lead?.name || 'Unknown Lead'}</p>
+                              <p className="text-xs text-muted-foreground truncate">{visit.lead?.phone || 'No phone'}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              <p className="font-medium text-foreground">
+                                {new Date(visit.scheduledAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(visit.scheduledAt).toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[220px]">
+                            <div className="min-w-0">
+                              <p className="truncate">{visit.location || visit.lead?.location || 'No location'}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[240px]">
+                            <div className="space-y-1">
+                              <p className="font-medium text-foreground truncate">{assignedName}</p>
+                              {supportNames ? (
+                                <p className="text-xs text-muted-foreground truncate">Support: {supportNames}</p>
+                              ) : null}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${
+                                statusColors[visit.status] ?? 'bg-muted text-foreground'
+                              }`}
+                            >
+                              {formatVisitStatus(visit.status)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm font-medium text-foreground capitalize">
+                              {role === 'LEAD' ? 'Leading' : role === 'SUPPORT' ? 'Supporting' : 'None'}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button size="sm" variant="outline" asChild>
+                              <Link href={leadHref}>View</Link>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="p-4 text-center text-sm text-muted-foreground">
+                        No visits found for this filter.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {!showSummaryDashboard ? (
               <div>
-                <h3 className="mb-3 font-semibold text-foreground">
-                  {listFilterLabel} ({filteredListVisits.length})
-                </h3>
+                <h3 className="mb-3 font-semibold text-foreground">Completed ({completedVisits.length})</h3>
                 {loading ? (
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {Array.from({ length: 6 }).map((_, idx) => (
+                    {Array.from({ length: 3 }).map((_, idx) => (
                       <Card key={idx} className="border-border animate-pulse">
                         <CardContent className="h-44" />
                       </Card>
                     ))}
                   </div>
-) : filteredListVisits.length > 0 ? (
+                ) : completedVisits.length > 0 ? (
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredListVisits.map((visit) => (
+                    {completedVisits.map((visit) => (
                       <VisitCard key={visit.id} visit={visit} />
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">No visits found for this filter</p>
+                  <p className="text-muted-foreground">No completed visits</p>
                 )}
               </div>
-              {!showSummaryDashboard ? (
-                <div>
-                  <h3 className="mb-3 font-semibold text-foreground">Completed ({completedVisits.length})</h3>
-                  {loading ? (
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {Array.from({ length: 3 }).map((_, idx) => (
-                        <Card key={idx} className="border-border animate-pulse">
-                          <CardContent className="h-44" />
-                        </Card>
-                      ))}
-                    </div>
-                  ) : completedVisits.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {completedVisits.map((visit) => (
-                        <VisitCard key={visit.id} visit={visit} />
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">No completed visits</p>
-                  )}
-                </div>
-              ) : null}
-            </div>
+            ) : null}
           </div>
         </TabsContent>
       </Tabs>

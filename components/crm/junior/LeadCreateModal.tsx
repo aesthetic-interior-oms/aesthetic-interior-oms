@@ -228,7 +228,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
           Add Lead
         </Button>
       </DialogTrigger>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[calc(100vh-5rem)] overflow-y-auto">
           <DialogHeader className="pb-4">
             <DialogTitle className="text-2xl font-bold">Create New Lead</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground mt-2">

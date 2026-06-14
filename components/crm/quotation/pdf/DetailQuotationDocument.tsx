@@ -74,16 +74,16 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   smallCell: {
-    width: '8%',
+    width: '4%',
   },
   nameCell: {
-    width: '38%',
+    width: '28%',
   },
   materialsCell: {
-    width: '27%',
+    width: '38%',
   },
   amountCell: {
-    width: '12%',
+    width: '7%',
     textAlign: 'right',
   },
   subtotalRow: {
@@ -145,11 +145,11 @@ export function DetailQuotationDocument({
             <Text style={styles.sectionTitle}>{entry.floor.name || 'Section'}</Text>
             <View style={styles.table}>
               <View style={[styles.tableRow, styles.tableHeader]}>
-                <Text style={[styles.cell, styles.smallCell]}>SL</Text>
+                 <Text style={[styles.cell, styles.smallCell]}>SL</Text>
                 <Text style={[styles.cell, styles.nameCell]}>NAME</Text>
                 <Text style={[styles.cell, styles.materialsCell]}>MATERIALS</Text>
-                <Text style={[styles.cell, { width: '18%', textAlign: 'center' }]}>QTY SFT</Text>
-                <Text style={[styles.cell, { width: '18%', textAlign: 'center' }]}>UNIT PRICE</Text>
+                <Text style={[styles.cell, { width: '10%', textAlign: 'center' }]}>QTY SFT</Text>
+                <Text style={[styles.cell, { width: '10%', textAlign: 'center' }]}>UNIT PRICE</Text>
                 <Text style={[styles.cell, styles.amountCell]}>TOTAL</Text>
               </View>
               {entry.lines.map((line, lineIndex) => {
@@ -163,10 +163,10 @@ export function DetailQuotationDocument({
                     <Text style={[styles.cell, styles.materialsCell]}>
                       {line.materials || '—'}
                     </Text>
-                    <Text style={[styles.cell, { width: '18%', textAlign: 'center' }]}>
+                    <Text style={[styles.cell, { width: '10%', textAlign: 'center' }]}>
                       {isPkg ? 'Package' : formatDetailAmount(line.quantity)}
                     </Text>
-                    <Text style={[styles.cell, { width: '18%', textAlign: 'center' }]}>
+                    <Text style={[styles.cell, { width: '10%', textAlign: 'center' }]}>
                       {isPkg ? formatDetailAmount(line.rate) : formatDetailAmount(line.rate)}
                     </Text>
                     <Text style={[styles.cell, styles.amountCell]}>
