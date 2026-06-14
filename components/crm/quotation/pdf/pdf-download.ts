@@ -1,10 +1,9 @@
 'use client'
 
-import { ReactElement } from 'react'
 import { pdf } from '@react-pdf/renderer'
 
-export async function downloadPdfFromDocument(pdfDocument: ReactElement, fileName: string) {
-  const blob = await pdf(pdfDocument).toBlob()
+export async function downloadPdfFromDocument(pdfDocument: Parameters<typeof pdf>[0], fileName: string) {
+  const blob = await pdf(pdfDocument as Parameters<typeof pdf>[0]).toBlob()
   if (!blob) {
     throw new Error('Failed to generate PDF blob')
   }
