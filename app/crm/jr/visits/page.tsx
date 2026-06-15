@@ -283,6 +283,7 @@ export function VisitsPageView({
   const [listDateTo, setListDateTo] = useState('')
   const [listDateRange, setListDateRange] = useState<DateRange | undefined>(undefined)
   const [listMemberFilter, setListMemberFilter] = useState('ALL')
+  const [listViewMode, setListViewMode] = useState<'table' | 'card'>('table')
   const listDetailsRef = useRef<HTMLDivElement | null>(null)
 
   const formatLocalDateKey = (date: Date) => {
@@ -464,23 +465,34 @@ export function VisitsPageView({
   const listMemberOptions = useMemo(() => {
     const membersMap = new Map<string, string>()
     visits.forEach((visit) => {
+      if (!canViewVisit(visit)) return
       if (!visit.assignedTo?.id) return
       membersMap.set(visit.assignedTo.id, visit.assignedTo.fullName || 'Unknown')
     })
     return Array.from(membersMap.entries())
       .map(([id, fullName]) => ({ id, fullName }))
       .sort((a, b) => a.fullName.localeCompare(b.fullName))
-  }, [visits])
+  }, [visits, isAdminActor, isVisitTeamLeaderActor, currentUserId, blurUnassignedVisitDetails])
 
   const listDateMemberFilteredVisits = useMemo(() => {
     return filteredVisits.filter((visit) => {
+      if (!canViewVisit(visit)) return false
       const visitDate = formatLocalDateKey(new Date(visit.scheduledAt))
       if (listDateFrom && visitDate < listDateFrom) return false
       if (listDateTo && visitDate > listDateTo) return false
       if (listMemberFilter !== 'ALL' && visit.assignedTo?.id !== listMemberFilter) return false
       return true
     })
-  }, [filteredVisits, listDateFrom, listDateTo, listMemberFilter])
+  }, [
+    filteredVisits,
+    listDateFrom,
+    listDateTo,
+    listMemberFilter,
+    isAdminActor,
+    isVisitTeamLeaderActor,
+    currentUserId,
+    blurUnassignedVisitDetails,
+  ])
 
   const scheduledVisits = useMemo(
     () => listDateMemberFilteredVisits.filter((v) => v.status === 'SCHEDULED'),
@@ -555,7 +567,7 @@ export function VisitsPageView({
     })
   }, [currentDate, daysInMonth, visitsByDate])
 
-  const canViewVisit = (visit: VisitRecord) => {
+  function canViewVisit(visit: VisitRecord) {
     if (isAdminActor || isVisitTeamLeaderActor) return true
     if (blurUnassignedVisitDetails) {
       return getVisitRole(visit) !== 'NONE'
@@ -567,7 +579,7 @@ export function VisitsPageView({
     return creatorId === currentUserId
   }
 
-  const getVisitRole = (visit: VisitRecord): 'LEAD' | 'SUPPORT' | 'NONE' => {
+  function getVisitRole(visit: VisitRecord): 'LEAD' | 'SUPPORT' | 'NONE' {
     if (!currentUserId) return 'NONE'
     if (visit.assignedTo?.id === currentUserId) return 'LEAD'
     const isSupport = (visit.supportAssignments ?? []).some((item) => item.supportUserId === currentUserId)
@@ -1702,7 +1714,7 @@ export function VisitsPageView({
                         placeholder="From - To"
                       />
                     </div>
-                    {visitScope === 'visit' ? (
+                    {(visitScope as string) === 'visit' ? (
                       <div className="space-y-1" />
                     ) : (
                       <div className="space-y-1">
@@ -1832,108 +1844,128 @@ export function VisitsPageView({
                   Show all
                 </Button>
               </div>
-              <Table className="min-w-[1000px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Lead</TableHead>
-                    <TableHead>Scheduled</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Assigned Team</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              {listViewMode === 'table' ? (
+                <Table className="min-w-[1000px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Lead</TableHead>
+                      <TableHead>Scheduled</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Assigned Team</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      Array.from({ length: 6 }).map((_, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="h-12 bg-muted/50" />
+                          <TableCell className="h-12 bg-muted/50" />
+                          <TableCell className="h-12 bg-muted/50" />
+                          <TableCell className="h-12 bg-muted/50" />
+                          <TableCell className="h-12 bg-muted/50" />
+                          <TableCell className="h-12 bg-muted/50" />
+                          <TableCell className="h-12 bg-muted/50" />
+                        </TableRow>
+                      ))
+                    ) : filteredListVisits.length > 0 ? (
+                      filteredListVisits.map((visit) => {
+                        const leadHref = `${leadHrefPrefix}/${visit.lead.id}`
+                        const role = getVisitRole(visit)
+                        const assignedName = visit.assignedTo?.fullName ?? 'Unassigned'
+                        const supportNames = (visit.supportAssignments ?? [])
+                          .map((item) => item.supportUser.fullName)
+                          .join(', ')
+                        return (
+                          <TableRow key={visit.id}>
+                            <TableCell className="max-w-[220px]">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-foreground truncate">{visit.lead?.name || 'Unknown Lead'}</p>
+                                <p className="text-xs text-muted-foreground truncate">{visit.lead?.phone || 'No phone'}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                <p className="font-medium text-foreground">
+                                  {new Date(visit.scheduledAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                  })}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(visit.scheduledAt).toLocaleTimeString('en-US', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })}
+                                </p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-[220px]">
+                              <div className="min-w-0">
+                                <p className="truncate">{visit.location || visit.lead?.location || 'No location'}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-[240px]">
+                              <div className="space-y-1">
+                                <p className="font-medium text-foreground truncate">{assignedName}</p>
+                                {supportNames ? (
+                                  <p className="text-xs text-muted-foreground truncate">Support: {supportNames}</p>
+                                ) : null}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${
+                                  statusColors[visit.status] ?? 'bg-muted text-foreground'
+                                }`}
+                              >
+                                {formatVisitStatus(visit.status)}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm font-medium text-foreground capitalize">
+                                {role === 'LEAD' ? 'Leading' : role === 'SUPPORT' ? 'Supporting' : 'None'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button size="sm" variant="outline" asChild>
+                                <Link href={leadHref}>View</Link>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={7} className="p-4 text-center text-sm text-muted-foreground">
+                          No visits found for this filter.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="p-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {loading ? (
                     Array.from({ length: 6 }).map((_, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="h-12 bg-muted/50" />
-                        <TableCell className="h-12 bg-muted/50" />
-                        <TableCell className="h-12 bg-muted/50" />
-                        <TableCell className="h-12 bg-muted/50" />
-                        <TableCell className="h-12 bg-muted/50" />
-                        <TableCell className="h-12 bg-muted/50" />
-                        <TableCell className="h-12 bg-muted/50" />
-                      </TableRow>
+                      <Card key={idx} className="border-border animate-pulse">
+                        <CardContent className="h-44" />
+                      </Card>
                     ))
                   ) : filteredListVisits.length > 0 ? (
-                    filteredListVisits.map((visit) => {
-                      const leadHref = `${leadHrefPrefix}/${visit.lead.id}`
-                      const role = getVisitRole(visit)
-                      const assignedName = visit.assignedTo?.fullName ?? 'Unassigned'
-                      const supportNames = (visit.supportAssignments ?? [])
-                        .map((item) => item.supportUser.fullName)
-                        .join(', ')
-                      return (
-                        <TableRow key={visit.id}>
-                          <TableCell className="max-w-[220px]">
-                            <div className="min-w-0">
-                              <p className="font-semibold text-foreground truncate">{visit.lead?.name || 'Unknown Lead'}</p>
-                              <p className="text-xs text-muted-foreground truncate">{visit.lead?.phone || 'No phone'}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="space-y-1">
-                              <p className="font-medium text-foreground">
-                                {new Date(visit.scheduledAt).toLocaleDateString('en-US', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  year: 'numeric',
-                                })}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(visit.scheduledAt).toLocaleTimeString('en-US', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
-                              </p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="max-w-[220px]">
-                            <div className="min-w-0">
-                              <p className="truncate">{visit.location || visit.lead?.location || 'No location'}</p>
-                            </div>
-                          </TableCell>
-                          <TableCell className="max-w-[240px]">
-                            <div className="space-y-1">
-                              <p className="font-medium text-foreground truncate">{assignedName}</p>
-                              {supportNames ? (
-                                <p className="text-xs text-muted-foreground truncate">Support: {supportNames}</p>
-                              ) : null}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={`inline-flex rounded-full px-2 py-1 text-[11px] font-semibold ${
-                                statusColors[visit.status] ?? 'bg-muted text-foreground'
-                              }`}
-                            >
-                              {formatVisitStatus(visit.status)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm font-medium text-foreground capitalize">
-                              {role === 'LEAD' ? 'Leading' : role === 'SUPPORT' ? 'Supporting' : 'None'}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button size="sm" variant="outline" asChild>
-                              <Link href={leadHref}>View</Link>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })
+                    filteredListVisits.map((visit) => (
+                      <VisitCard key={visit.id} visit={visit} />
+                    ))
                   ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} className="p-4 text-center text-sm text-muted-foreground">
-                        No visits found for this filter.
-                      </TableCell>
-                    </TableRow>
+                    <p className="col-span-full text-center text-sm text-muted-foreground py-8">
+                      No visits found for this filter.
+                    </p>
                   )}
-                </TableBody>
-              </Table>
+                </div>
+              )}
             </div>
 
             {!showSummaryDashboard ? (

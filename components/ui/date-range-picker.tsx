@@ -4,8 +4,9 @@ import * as React from "react"
 import { format } from "date-fns"
 import { CalendarIcon, X } from "lucide-react"
 
-import Popover from "@/components/ui/popover"
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 type DateRange = {
   from?: Date
@@ -17,18 +18,16 @@ type DateRangePickerProps = {
   onChange?: (range: DateRange | undefined) => void
   placeholder?: string
   className?: string
+  id?: string
 }
 
-type PickerDayProps = {
+type PickerDayProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   date: Date
   displayMonth?: Date
   selected?: DateRange
   modifiers?: Record<string, unknown>
   modifiersStyles?: Record<string, React.CSSProperties>
   isHidden?: boolean
-  className?: string
-  style?: React.CSSProperties
-  children?: React.ReactNode
 }
 
 function Day(props: PickerDayProps) {
