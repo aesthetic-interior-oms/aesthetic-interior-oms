@@ -32,6 +32,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { DateRangePicker, type DateRange } from '@/components/ui/date-range-picker'
+import { format } from 'date-fns'
 import {
   Plus,
   MapPin,
@@ -278,6 +281,7 @@ export function VisitsPageView({
   >('ALL')
   const [listDateFrom, setListDateFrom] = useState('')
   const [listDateTo, setListDateTo] = useState('')
+  const [listDateRange, setListDateRange] = useState<DateRange | undefined>(undefined)
   const [listMemberFilter, setListMemberFilter] = useState('ALL')
   const listDetailsRef = useRef<HTMLDivElement | null>(null)
 
@@ -1682,56 +1686,58 @@ export function VisitsPageView({
                   </div>
                   <div className="grid gap-3 sm:grid-cols-3">
                     <div className="space-y-1">
-                      <Label htmlFor="list-date-from">From</Label>
-                      <Input
-                        id="list-date-from"
-                        type="date"
-                        value={listDateFrom}
-                        onChange={(event) => setListDateFrom(event.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="list-date-to">To</Label>
-                      <Input
-                        id="list-date-to"
-                        type="date"
-                        value={listDateTo}
-                        onChange={(event) => setListDateTo(event.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="list-member-filter">Visit Team Member</Label>
-                      <Select value={listMemberFilter} onValueChange={setListMemberFilter}>
-                        <SelectTrigger id="list-member-filter">
-                          <SelectValue placeholder="All members" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ALL">All members</SelectItem>
-                          {listMemberOptions.map((member) => (
-                            <SelectItem key={member.id} value={member.id}>
-                              {member.fullName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  {(listDateFrom || listDateTo || listMemberFilter !== 'ALL') ? (
-                    <div className="flex justify-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setListDateFrom('')
-                          setListDateTo('')
-                          setListMemberFilter('ALL')
+                      <Label htmlFor="list-date-range">Date Range</Label>
+                      <DateRangePicker
+                        id="list-date-range"
+                        value={listDateRange}
+                        onChange={(range) => {
+                          if (!range) {
+                            setListDateFrom('')
+                            setListDateTo('')
+                            return
+                          }
+                          setListDateFrom(range.from ? format(range.from, 'yyyy-MM-dd') : '')
+                          setListDateTo(range.to ? format(range.to, 'yyyy-MM-dd') : '')
                         }}
-                      >
-                        Reset Filters
-                      </Button>
+                        placeholder="From - To"
+                      />
                     </div>
-                  ) : null}
+                    {visitScope === 'visit' ? (
+                      <div className="space-y-1" />
+                    ) : (
+                      <div className="space-y-1">
+                        <Label htmlFor="list-member-filter">Visit Team Member</Label>
+                        <Select value={listMemberFilter} onValueChange={setListMemberFilter}>
+                          <SelectTrigger id="list-member-filter">
+                            <SelectValue placeholder="All members" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ALL">All members</SelectItem>
+                            {listMemberOptions.map((member) => (
+                              <SelectItem key={member.id} value={member.id}>
+                                {member.fullName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setListDateFrom('')
+                        setListDateTo('')
+                        setListDateRange(undefined)
+                        setListMemberFilter('ALL')
+                      }}
+                    >
+                      Reset Filters
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -1749,39 +1755,70 @@ export function VisitsPageView({
               </div>
             </div>
 
-            <div className="-mx-1 overflow-x-auto pb-1">
-              <div className="flex w-max min-w-full gap-2 px-1 sm:min-w-0 sm:flex-wrap">
-                {[
-                  ['ALL', 'All'],
-                  ['SCHEDULED', 'Pending'],
-                  ['COMPLETED', 'Completed'],
-                  ['RESCHEDULED', 'Rescheduled'],
-                  ['CANCELLED', 'Cancelled'],
-                  ['LEAD', 'Leading'],
-                  ['SUPPORT', 'Supporting'],
-                ].map(([value, label]) => (
-                  <Button
-                    key={value}
-                    type="button"
-                    size="sm"
-                    variant={listFilter === value ? 'default' : 'outline'}
-                    className="h-7 shrink-0"
-                    onClick={() =>
-                      setListFilter(
-                        value as
-                          | 'ALL'
-                          | 'SCHEDULED'
-                          | 'COMPLETED'
-                          | 'RESCHEDULED'
-                          | 'CANCELLED'
-                          | 'LEAD'
-                          | 'SUPPORT',
-                      )
-                    }
-                  >
-                    {label}
+            <div className="flex items-center justify-between gap-3">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1">
+                    Status <span className="text-muted-foreground">▾</span>
                   </Button>
-                ))}
+                </PopoverTrigger>
+                <PopoverContent className="w-48 p-1">
+                  {[
+                    ['ALL', 'All'],
+                    ['COMPLETED', 'Completed'],
+                    ['RESCHEDULED', 'Rescheduled'],
+                    ['CANCELLED', 'Cancelled'],
+                  ].map(([value, label]) => (
+                    <Button
+                      key={value}
+                      type="button"
+                      size="sm"
+                      variant={listFilter === value ? 'secondary' : 'ghost'}
+                      className="w-full justify-start"
+                      onClick={() =>
+                        setListFilter(
+                          value as
+                            | 'ALL'
+                            | 'SCHEDULED'
+                            | 'COMPLETED'
+                            | 'RESCHEDULED'
+                            | 'CANCELLED'
+                            | 'LEAD'
+                            | 'SUPPORT',
+                        )
+                      }
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+              <Button variant="outline" size="sm" onClick={() => {
+                setListFilter('ALL')
+                setListDateFrom('')
+                setListDateTo('')
+                setListDateRange(undefined)
+              }}>
+                Reset Filters
+              </Button>
+              <p className="text-xs text-muted-foreground">Showing {filteredListVisits.length} visits</p>
+              <div className="hidden md:flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={listViewMode === 'table' ? 'default' : 'ghost'}
+                  onClick={() => setListViewMode('table')}
+                >
+                  Table View
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={listViewMode === 'card' ? 'default' : 'ghost'}
+                  onClick={() => setListViewMode('card')}
+                >
+                  Card View
+                </Button>
               </div>
             </div>
 
