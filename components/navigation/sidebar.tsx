@@ -75,6 +75,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Dashboard',
           href: '/crm/admin/dashboard',
         },
+        {
+          icon: ClipboardList,
+          label: 'Finance',
+          href: '/crm/admin/finance',
+        },
       ],
     },
     {

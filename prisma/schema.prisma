@@ -46,6 +46,7 @@ model Lead {
   phaseTasks    LeadPhaseTask[]
   jrArchitectRequests LeadJrArchitectRequest[]
   meetingEvents LeadMeetingEvent[]
+  transactions  Transaction[]
 
   @@index([assignedTo])
   @@index([primaryOwnerUserId])
@@ -167,6 +168,7 @@ model User {
   quotationDraftsUpdated    QuotationDraft[]    @relation("QuotationDraftUpdatedBy")
   notifications Notification[]
   signupNotifications Notification[] @relation("NotificationSubjectUser")
+  transactionsRecorded Transaction[] @relation("TransactionRecorder")
 }
 
 model LeadPhaseTask {
@@ -827,4 +829,89 @@ enum NotificationType {
   LEAD_ASSIGNED_TO_YOU
   FACEBOOK_LEAD_SYNC_SUMMARY
   VISIT_SCHEDULED_ADMIN
+}
+
+enum TransactionType {
+  INFLOW
+  OUTFLOW
+}
+
+enum ExpenseCategory {
+  // Office Overhead
+  OFFICE_RENT
+  SALARY
+  SALARY_ADVANCE
+  BONUS
+  ELECTRICITY_BILL
+  WATER_BILL
+  INTERNET_BILL
+  FOOD_ALLOWANCE
+  CLIENT_ENTERTAINMENT
+  PROMOTION
+  MOBILE_RECHARGE
+  OCTANE_FUEL
+  DONATION
+  
+  // Project/Site specific
+  BOARD_MATERIAL
+  PASTING_BILL
+  FARING
+  HPL
+  LINER
+  LUBER
+  ACRYLIC
+  HARDWARE
+  ELECTRIC_ITEM
+  LIGHTING
+  GLASS
+  TRANSPORT_COST
+  SITE_EXPENSE
+  FACTORY_PAYMENT
+  CARPENTER_PAYMENT
+  PAINT_MATERIALS
+  PAINT_PAYMENT
+  CEILING_PAYMENT
+  DOOR
+  PLUMBER_PAYMENT
+  TILES_PURCHASE
+  FOLDING_DOOR
+  GLASS_PROFILE
+  CIVIL_WORK
+  
+  OTHERS
+}
+
+enum PaymentAccount {
+  CASH
+  BANK_EBL
+  BANK_OTHER
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  date        DateTime        @default(now())
+  type        TransactionType
+  category    ExpenseCategory
+  particular  String          // Description
+  amount      Float
+  account     PaymentAccount  // CASH or BANK
+  recordedById String
+  leadId      String?         // Reference to Lead (if site-specific)
+  
+  lead        Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  recordedBy  User            @relation("TransactionRecorder", fields: [recordedById], references: [id])
+
+  @@index([leadId])
+  @@index([recordedById])
+  @@index([date])
+}
+
+model CashFlowDaily {
+  id           String   @id @default(cuid())
+  date         DateTime @unique @default(now())
+  openingCash  Float    @default(0)
+  openingBank  Float    @default(0)
+  closingCash  Float    @default(0)
+  closingBank  Float    @default(0)
+  isClosed     Boolean  @default(false)
 }
