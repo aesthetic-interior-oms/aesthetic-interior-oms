@@ -349,6 +349,44 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
+  Finance: [
+    {
+      id: 'finance-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/admin/dashboard',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Finance',
+          href: '/crm/admin/finance',
+        },
+      ],
+    },
+  ],
+  Accounts: [
+    {
+      id: 'accounts-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/admin/dashboard',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Finance',
+          href: '/crm/admin/finance',
+        },
+      ],
+    },
+  ],
 }
 
 export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
