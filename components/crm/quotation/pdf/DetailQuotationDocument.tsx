@@ -167,6 +167,12 @@ const styles = StyleSheet.create({
     minHeight: 18,
     alignItems: 'flex-start',
   },
+  tableRowEven: {
+    backgroundColor: '#e8f1ff',
+  },
+  tableRowOdd: {
+    backgroundColor: '#ffffff',
+  },
   tableHeader: {
     backgroundColor: '#0070c0',
     color: '#ffffff',
@@ -288,8 +294,8 @@ const HeaderLogoPdf = () => (
       </View>
     </View>
     <View style={styles.headerRight}>
-      <Svg width="30" height="30" viewBox="0 0 29 29" style={{ fill: '#000' }}>
-        <Path d="M0 0h9v9H0zm1 1v7h7V1zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2V2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h[...]
+      <Svg width={'30'} height={'30'} viewBox="0 0 29 29" style={{ fill: '#000' }}>
+        <Path d="M0 0h9v9H0zm1 1v7h7V1zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2V2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm5 1h1v1h-1zm1-4h1v4h-1zm-8-1h1v1h-1zm3 0h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm5 4h2v2h-2zm1 2h1v1h-1zm1 0h1v1h-1zm2-1h1v4h-1zm0 4h2v1h-2zm0 1h2v1h-2zm-8-1h1v1h-1zm-2 0h1v1h-1z" />
       </Svg>
     </View>
   </View>
@@ -308,7 +314,7 @@ const FooterContactsPdf = () => (
         </Text>
       </View>
       <View style={styles.footerRight}>
-        <Svg width="60" height="30" viewBox="0 0 140 70" style={{ fill: '#888888', opacity: 0.15 }}>
+        <Svg width={'60'} height={'30'} viewBox="0 0 140 70" style={{ fill: '#888888', opacity: 0.15 }}>
           <Path d="M0 70h140V45h-15V32h-10V18h-15V5h-20v15H80V27H70V40H55V55H35V40H20v30z" />
         </Svg>
       </View>
@@ -469,7 +475,13 @@ export function DetailQuotationDocument({
               <Text style={[styles.cell, { width: '30%', textAlign: 'center', color: '#fff', fontWeight: 'bold' }]}>TOTAL</Text>
             </View>
             {floorSummaries.map((entry, index) => (
-              <View key={entry.floor.id} style={styles.tableRow}>
+              <View
+                key={entry.floor.id}
+                style={[
+                  styles.tableRow,
+                  index % 2 === 0 ? styles.tableRowOdd : styles.tableRowEven,
+                ]}
+              >
                 <Text style={[styles.cell, styles.smallCell]}>{String(index + 1).padStart(2, '0')}</Text>
                 <Text style={[styles.cell, { width: '65%' }]}>{entry.floor.name}</Text>
                 <Text style={[styles.cell, { width: '30%', textAlign: 'center' }]}>
@@ -526,7 +538,13 @@ export function DetailQuotationDocument({
               {entry.lines.map((line, lineIndex) => {
                 const isPkg = isPackageLine(line)
                 return (
-                  <View key={line.id} style={styles.tableRow}>
+                  <View
+                    key={line.id}
+                    style={[
+                      styles.tableRow,
+                      lineIndex % 2 === 0 ? styles.tableRowOdd : styles.tableRowEven,
+                    ]}
+                  >
                     <Text style={[styles.cell, styles.smallCell]}>
                       {String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}
                     </Text>
