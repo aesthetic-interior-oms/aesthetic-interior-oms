@@ -151,6 +151,7 @@ const styles = StyleSheet.create({
     padding: 3,
     textAlign: 'center',
     marginBottom: 4,
+    marginTop: 10,
   },
   table: {
     width: '100%',
@@ -446,8 +447,8 @@ export function DetailQuotationDocument({
 
   return (
     <Document>
-      {/* PAGE 1: GRAND TOTAL SUMMARY */}
       <Page size="A4" style={styles.page}>
+        {/* HEADER - FIXED AT TOP */}
         <View style={styles.watermarkContainer} fixed>
           <Image src="/aesthetic-icon.png" style={styles.watermarkImage} />
         </View>
@@ -458,6 +459,7 @@ export function DetailQuotationDocument({
           <FooterContactsPdf />
         </View>
 
+        {/* DOCUMENT CONTENT */}
         <DetailHeaderPdf
           clientName={clientName}
           clientAddress={clientAddress}
@@ -467,7 +469,9 @@ export function DetailQuotationDocument({
           isSummary={true}
         />
 
+        {/* SUMMARY TABLE */}
         <View style={{ marginTop: 8 }}>
+          <Text style={[styles.sectionTitle, { marginTop: 0 }]}>Quotation Summary</Text>
           <View style={styles.table}>
             <View style={[styles.tableRow, styles.tableHeader]}>
               <Text style={[styles.cell, styles.smallCell, { color: '#fff', fontWeight: 'bold' }]}>SL</Text>
@@ -504,27 +508,10 @@ export function DetailQuotationDocument({
           <Text style={styles.boldUnderline}>In Words:</Text>{' '}
           <Text style={{ fontWeight: 'bold' }}>{amountInWordsTaka(totals.grandTotal)}</Text>
         </Text>
-      </Page>
 
-      {/* PAGES 2..N: FLOOR DETAILS */}
-      {floorSummaries.map((entry) => (
-        <Page key={entry.floor.id} size="A4" style={styles.page}>
-          <View style={styles.watermarkContainer} fixed>
-            <Image src="/aesthetic-icon.png" style={styles.watermarkImage} />
-          </View>
-          <View style={styles.footerContainer} fixed>
-            <FooterContactsPdf />
-          </View>
-
-          <DetailHeaderPdf
-            clientName={clientName}
-            clientAddress={clientAddress}
-            date={content.quotationDate ?? ''}
-            subject={content.subject ?? ''}
-            introLetter={content.introLetter ?? ''}
-          />
-
-          <View style={{ marginTop: 8 }}>
+        {/* FLOOR DETAIL TABLES */}
+        {floorSummaries.map((entry) => (
+          <View key={entry.floor.id}>
             <Text style={styles.sectionTitle}>{entry.floor.name}</Text>
             <View style={styles.table}>
               <View style={[styles.tableRow, styles.tableHeader]}>
@@ -584,24 +571,25 @@ export function DetailQuotationDocument({
                 </Text>
               </View>
             </View>
+
+            <Text style={styles.inWordsSection}>
+              <Text style={styles.boldUnderline}>In Words:</Text>{' '}
+              <Text style={{ fontWeight: 'bold' }}>{amountInWordsTaka(entry.total)}</Text>
+            </Text>
           </View>
+        ))}
 
-          <Text style={styles.inWordsSection}>
-            <Text style={styles.boldUnderline}>In Words:</Text>{' '}
-            <Text style={{ fontWeight: 'bold' }}>{amountInWordsTaka(entry.total)}</Text>
-          </Text>
-
-          <DetailFooterPdf
-            notes={content.notes}
-            terms={content.terms}
-            paymentTerms={content.paymentTerms ?? ''}
-            durationNotes={content.durationNotes ?? ''}
-            drawingDesign={content.drawingDesign ?? ''}
-            signatoryName={content.signatoryName ?? ''}
-            signatoryTitle={content.signatoryTitle ?? ''}
-          />
-        </Page>
-      ))}
+        {/* FOOTER */}
+        <DetailFooterPdf
+          notes={content.notes}
+          terms={content.terms}
+          paymentTerms={content.paymentTerms ?? ''}
+          durationNotes={content.durationNotes ?? ''}
+          drawingDesign={content.drawingDesign ?? ''}
+          signatoryName={content.signatoryName ?? ''}
+          signatoryTitle={content.signatoryTitle ?? ''}
+        />
+      </Page>
     </Document>
   )
 }
