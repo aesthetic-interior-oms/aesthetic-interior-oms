@@ -5,6 +5,9 @@ import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-typ
 import { buildDetailFloorSummaries, formatDetailAmount, isPackageLine } from '@/lib/detail-quotation-format'
 import { amountInWordsTaka } from '@/lib/number-to-words'
 
+// Register fonts and enable text wrapping
+StyleSheet.registerHyphenationCallback((word) => [word])
+
 const styles = StyleSheet.create({
   page: {
     paddingTop: 100,
@@ -111,10 +114,6 @@ const styles = StyleSheet.create({
     gap: 6,
     flex: 1,
   },
-  footerIcon: {
-    width: 12,
-    height: 12,
-  },
   footerText: {
     fontSize: 6.5,
     color: '#444',
@@ -158,50 +157,65 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     padding: 5,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 0,
     marginTop: 10,
   },
-  table: {
-    width: '100%',
+  tableWrapper: {
     borderWidth: 0.5,
     borderColor: '#0070c0',
-    borderStyle: 'solid',
     marginBottom: 6,
   },
-  tableRow: {
+  tableHeaderRow: {
+    flexDirection: 'row',
+    backgroundColor: '#0070c0',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#0070c0',
+  },
+  tableDataRow: {
     flexDirection: 'row',
     borderBottomWidth: 0.5,
     borderBottomColor: '#0070c0',
-    borderBottomStyle: 'solid',
-    minHeight: 18,
-    alignItems: 'flex-start',
+    minHeight: 20,
   },
-  tableRowEven: {
+  tableDataRowEven: {
     backgroundColor: '#e8f1ff',
   },
-  tableRowOdd: {
+  tableDataRowOdd: {
     backgroundColor: '#ffffff',
   },
-  tableHeader: {
-    backgroundColor: '#0070c0',
+  tableHeaderCell: {
+    padding: 5,
+    fontSize: 7.5,
     color: '#ffffff',
     fontWeight: 'bold',
+    borderRightWidth: 0.5,
+    borderRightColor: '#0070c0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  cell: {
-    padding: 3,
+  tableHeaderCellLast: {
+    padding: 5,
     fontSize: 7.5,
+    color: '#ffffff',
+    fontWeight: 'bold',
+    borderRightWidth: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tableCell: {
+    padding: 5,
+    fontSize: 7,
     color: '#000000',
     borderRightWidth: 0.5,
     borderRightColor: '#0070c0',
-    borderRightStyle: 'solid',
   },
-  cellLast: {
-    padding: 3,
-    fontSize: 7.5,
+  tableCellLast: {
+    padding: 5,
+    fontSize: 7,
     color: '#000000',
     borderRightWidth: 0,
   },
-  smallCell: {
+  slCell: {
     width: '5%',
     textAlign: 'center',
   },
@@ -209,24 +223,43 @@ const styles = StyleSheet.create({
     width: '18%',
   },
   materialsCell: {
-    width: '47%',
+    width: '42%',
   },
   qtyCell: {
     width: '10%',
     textAlign: 'center',
   },
   unitPriceCell: {
-    width: '10%',
+    width: '12%',
     textAlign: 'center',
   },
   amountCell: {
-    width: '10%',
+    width: '13%',
     textAlign: 'center',
   },
   grandTotalRow: {
-    backgroundColor: '#0070c0',
     flexDirection: 'row',
+    backgroundColor: '#0070c0',
+    borderBottomWidth: 0,
+  },
+  grandTotalCell: {
+    padding: 5,
+    fontSize: 7.5,
+    color: '#ffffff',
     fontWeight: 'bold',
+    borderRightWidth: 0.5,
+    borderRightColor: '#0070c0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  grandTotalCellLast: {
+    padding: 5,
+    fontSize: 7.5,
+    color: '#ffffff',
+    fontWeight: 'bold',
+    borderRightWidth: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   inWordsSection: {
     fontSize: 8,
@@ -352,11 +385,20 @@ const DetailHeaderPdf = ({
   introLetter: string
 }) => {
   const formatDate = (dateString: string) => {
-    if (!dateString) return ''
+    if (!dateString) return 'N/A'
     try {
-      const d = new Date(dateString)
-      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-    } catch {
+      // Handle different date formats
+      const timestamp = Date.parse(dateString)
+      if (isNaN(timestamp)) {
+        return dateString
+      }
+      const d = new Date(timestamp)
+      return d.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric' 
+      })
+    } catch (error) {
       return dateString
     }
   }
@@ -489,34 +531,49 @@ export function DetailQuotationDocument({
           {/* SUMMARY TABLE */}
           <View style={{ marginTop: 8 }}>
             <Text style={[styles.sectionTitle, { marginTop: 0 }]}>Quotation Summary</Text>
-            <View style={styles.table}>
-              <View style={[styles.tableRow, styles.tableHeader]}>
-                <Text style={[styles.cell, styles.smallCell, { color: '#fff', fontWeight: 'bold', borderRightWidth: 0.5 }]}>SL</Text>
-                <Text style={[styles.cell, { width: '65%', color: '#fff', fontWeight: 'bold', borderRightWidth: 0.5 }]}>NAME</Text>
-                <Text style={[styles.cellLast, { width: '30%', textAlign: 'center', color: '#fff', fontWeight: 'bold' }]}>TOTAL</Text>
+            <View style={styles.tableWrapper}>
+              {/* HEADER ROW */}
+              <View style={styles.tableHeaderRow}>
+                <View style={[styles.tableHeaderCell, styles.slCell]}>
+                  <Text>SL</Text>
+                </View>
+                <View style={[styles.tableHeaderCell, { width: '70%' }]}>
+                  <Text>NAME</Text>
+                </View>
+                <View style={[styles.tableHeaderCellLast, styles.amountCell]}>
+                  <Text>TOTAL</Text>
+                </View>
               </View>
+
+              {/* DATA ROWS */}
               {floorSummaries.map((entry, index) => (
                 <View
                   key={entry.floor.id}
                   style={[
-                    styles.tableRow,
-                    index % 2 === 0 ? styles.tableRowOdd : styles.tableRowEven,
+                    styles.tableDataRow,
+                    index % 2 === 0 ? styles.tableDataRowOdd : styles.tableDataRowEven,
                   ]}
                 >
-                  <Text style={[styles.cell, styles.smallCell, { borderRightWidth: 0.5 }]}>{String(index + 1).padStart(2, '0')}</Text>
-                  <Text style={[styles.cell, { width: '65%', borderRightWidth: 0.5 }]}>{entry.floor.name}</Text>
-                  <Text style={[styles.cellLast, { width: '30%', textAlign: 'center' }]}>
-                    {formatDetailAmount(entry.total)}
-                  </Text>
+                  <View style={[styles.tableCell, styles.slCell]}>
+                    <Text>{String(index + 1).padStart(2, '0')}</Text>
+                  </View>
+                  <View style={[styles.tableCell, { width: '70%' }]}>
+                    <Text>{entry.floor.name}</Text>
+                  </View>
+                  <View style={[styles.tableCellLast, styles.amountCell]}>
+                    <Text>{formatDetailAmount(entry.total)}</Text>
+                  </View>
                 </View>
               ))}
-              <View style={[styles.tableRow, styles.grandTotalRow]}>
-                <Text style={[styles.cell, { width: '70%', textAlign: 'center', color: '#fff', fontWeight: 'bold', borderRightWidth: 0.5 }]}>
-                  GRAND TOTAL
-                </Text>
-                <Text style={[styles.cellLast, { width: '30%', textAlign: 'center', color: '#fff', fontWeight: 'bold' }]}>
-                  {formatDetailAmount(totals.grandTotal)}
-                </Text>
+
+              {/* GRAND TOTAL ROW */}
+              <View style={styles.grandTotalRow}>
+                <View style={[styles.grandTotalCell, { width: '75%' }]}>
+                  <Text>GRAND TOTAL</Text>
+                </View>
+                <View style={[styles.grandTotalCellLast, styles.amountCell]}>
+                  <Text>{formatDetailAmount(totals.grandTotal)}</Text>
+                </View>
               </View>
             </View>
           </View>
@@ -545,62 +602,81 @@ export function DetailQuotationDocument({
           {/* FLOOR CONTENT */}
           <View style={styles.contentWrapper}>
             <Text style={styles.sectionTitle}>{entry.floor.name}</Text>
-            <View style={styles.table}>
-              <View style={[styles.tableRow, styles.tableHeader]}>
-                <Text style={[styles.cell, styles.smallCell, { color: '#fff', fontWeight: 'bold', borderRightWidth: 0.5 }]}>SL</Text>
-                <Text style={[styles.cell, styles.nameCell, { color: '#fff', fontWeight: 'bold', borderRightWidth: 0.5 }]}>NAME</Text>
-                <Text style={[styles.cell, styles.materialsCell, { color: '#fff', fontWeight: 'bold', borderRightWidth: 0.5 }]}>MATERIALS</Text>
-                <Text style={[styles.cell, styles.qtyCell, { color: '#fff', fontWeight: 'bold', borderRightWidth: 0.5 }]}>QTY SFT</Text>
-                <Text style={[styles.cell, styles.unitPriceCell, { color: '#fff', fontWeight: 'bold', borderRightWidth: 0.5 }]}>UNIT PRICE</Text>
-                <Text style={[styles.cellLast, styles.amountCell, { color: '#fff', fontWeight: 'bold' }]}>TOTAL</Text>
+            <View style={styles.tableWrapper}>
+              {/* HEADER ROW */}
+              <View style={styles.tableHeaderRow}>
+                <View style={[styles.tableHeaderCell, styles.slCell]}>
+                  <Text>SL</Text>
+                </View>
+                <View style={[styles.tableHeaderCell, styles.nameCell]}>
+                  <Text>NAME</Text>
+                </View>
+                <View style={[styles.tableHeaderCell, styles.materialsCell]}>
+                  <Text>MATERIALS</Text>
+                </View>
+                <View style={[styles.tableHeaderCell, styles.qtyCell]}>
+                  <Text>QTY SFT</Text>
+                </View>
+                <View style={[styles.tableHeaderCell, styles.unitPriceCell]}>
+                  <Text>UNIT PRICE</Text>
+                </View>
+                <View style={[styles.tableHeaderCellLast, styles.amountCell]}>
+                  <Text>TOTAL</Text>
+                </View>
               </View>
+
+              {/* DATA ROWS */}
               {entry.lines.map((line, lineIndex) => {
                 const isPkg = isPackageLine(line)
                 return (
                   <View
                     key={line.id}
                     style={[
-                      styles.tableRow,
-                      lineIndex % 2 === 0 ? styles.tableRowOdd : styles.tableRowEven,
+                      styles.tableDataRow,
+                      lineIndex % 2 === 0 ? styles.tableDataRowOdd : styles.tableDataRowEven,
                     ]}
                   >
-                    <Text style={[styles.cell, styles.smallCell, { borderRightWidth: 0.5 }]}>
-                      {String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}
-                    </Text>
-                    <Text style={[styles.cell, styles.nameCell, { fontWeight: 'bold', borderRightWidth: 0.5 }]}>
-                      {line.description}
-                    </Text>
-                    <Text style={[styles.cell, styles.materialsCell, { borderRightWidth: 0.5 }]}>
-                      {line.materials || '—'}
-                    </Text>
+                    <View style={[styles.tableCell, styles.slCell]}>
+                      <Text>{String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}</Text>
+                    </View>
+                    <View style={[styles.tableCell, styles.nameCell]}>
+                      <Text style={{ fontWeight: 'bold' }}>{line.description}</Text>
+                    </View>
+                    <View style={[styles.tableCell, styles.materialsCell]}>
+                      <Text>{line.materials || '—'}</Text>
+                    </View>
                     {isPkg ? (
-                      <Text style={[styles.cell, { width: '20%', textAlign: 'center', borderRightWidth: 0.5 }]}>
-                        Package As Per Design
-                      </Text>
+                      <View style={[styles.tableCell, { width: '22%', textAlign: 'center' }]}>
+                        <Text>Package As Per Design</Text>
+                      </View>
                     ) : (
                       <>
-                        <Text style={[styles.cell, styles.qtyCell, { borderRightWidth: 0.5 }]}>
-                          {line.quantity != null ? String(line.quantity) : '—'}
-                        </Text>
-                        <Text style={[styles.cell, styles.unitPriceCell, { borderRightWidth: 0.5 }]}>
-                          {line.rate != null ? formatDetailAmount(line.rate) : '—'}
-                        </Text>
+                        <View style={[styles.tableCell, styles.qtyCell]}>
+                          <Text>{line.quantity != null ? String(line.quantity) : '—'}</Text>
+                        </View>
+                        <View style={[styles.tableCell, styles.unitPriceCell]}>
+                          <Text>{line.rate != null ? formatDetailAmount(line.rate) : '—'}</Text>
+                        </View>
                       </>
                     )}
-                    <Text style={[styles.cellLast, styles.amountCell, { fontWeight: 'bold' }]}>
-                      {formatDetailAmount(line.amount)}
-                      {line.description.toLowerCase().includes('electric wiring') ? ' (Approx)' : ''}
-                    </Text>
+                    <View style={[styles.tableCellLast, styles.amountCell]}>
+                      <Text style={{ fontWeight: 'bold' }}>
+                        {formatDetailAmount(line.amount)}
+                        {line.description.toLowerCase().includes('electric wiring') ? ' (Approx)' : ''}
+                      </Text>
+                    </View>
                   </View>
                 )
               })}
-              <View style={[styles.tableRow, styles.grandTotalRow]}>
-                <Text style={[styles.cell, { width: '90%', textAlign: 'center', color: '#fff', fontWeight: 'bold', borderRightWidth: 0.5 }]}>
-                  TOTAL
-                </Text>
-                <Text style={[styles.cellLast, styles.amountCell, { color: '#fff', fontWeight: 'bold' }]}>
-                  {formatDetailAmount(entry.total)}
-                </Text>
+
+              {/* GRAND TOTAL ROW */}
+              <View style={styles.grandTotalRow}>
+                <View style={[styles.grandTotalCell, { width: '87%' }]}>
+                  <Text>TOTAL</Text>
+                </View>
+                <View style={[styles.grandTotalCellLast, styles.amountCell]}>
+                  <Text>{formatDetailAmount(entry.total)}</Text>
+                </View>
               </View>
             </View>
 
