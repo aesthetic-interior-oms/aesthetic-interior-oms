@@ -23,6 +23,7 @@ export const colors = {
   // Accent Colors
   accent: '#76933c', // Green
   blue: '#0070c0',
+  lightBlue: '#e8f1ff', // Light blue for alternating rows
   red: '#ff0000',
   
   // Neutral Colors
@@ -173,6 +174,7 @@ export const bgPrimary = (): PdfStyle => bg(colors.primary)
 export const bgSecondary = (): PdfStyle => bg(colors.secondary)
 export const bgAccent = (): PdfStyle => bg(colors.accent)
 export const bgBlue = (): PdfStyle => bg(colors.blue)
+export const bgLightBlue = (): PdfStyle => bg(colors.lightBlue)
 export const bgWhite = (): PdfStyle => bg(colors.white)
 
 // ============ SIZING UTILITIES ============
@@ -329,16 +331,21 @@ export const table = (): PdfStyle =>
     mb(3),
   )
 
-export const tableRow = (): PdfStyle =>
+export const tableRow = (isEven: boolean = false): PdfStyle =>
   compose(
     flexRow(),
     borderBottom(0.5, colors.black),
+    bg(isEven ? colors.lightBlue : colors.white),
   )
+
+export const tableRowAlternate = (index: number): PdfStyle =>
+  tableRow(index % 2 === 1) // Even indices get light blue
 
 export const tableHeader = (): PdfStyle =>
   compose(
     bg(colors.blue),
     text(8, 'bold', colors.white, 'center'),
+    borderBottom(0.5, colors.black),
   )
 
 export const tableCell = (width: string = 'auto'): PdfStyle =>
