@@ -289,7 +289,7 @@ const HeaderLogoPdf = () => (
     </View>
     <View style={styles.headerRight}>
       <Svg width="30" height="30" viewBox="0 0 29 29" style={{ fill: '#000' }}>
-        <Path d="M0 0h9v9H0zm1 1v7h7V1zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2V2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm-2-2h1v1h-1zm1 1h1v1h-1zm1 1h1v1h-1zm5 1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-9 1h1v1H9zm1 0h2v1h-2zm2 0h2v1h-2zm3 0h1v1h-1zm2 0h1v1h-1zm-8 1h1v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm3 0h1v1h-1zm1 0h2v1h-2zm1 0h1v1h-1zm-9 1h1v1H9zm2 0h1v1h-1zm2 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm2 0h2v1h-2zm-9 1h3v1H9zm4 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-9 1h1v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm2 0h2v1h-2zm-12 1h1v1H0zm1 0h2v1H1zm2 0h1v1H3zm1 0h1v1H4zm2 0h3v1H6zm4 0h1v1h-1zm3 0h1v1h-1zm1 0h2v1h-2zm3 0h1v1h-1zm2 0h1v1h-1zm1 0h3v1h-3zm-19 1v7h7v-7zm1 1h5v5h-5zm7-1h1v1h-1zm2 0h1v1h-1zm2 0h1v1h-1zm2 0h2v1h-2zm3 0h1v1h-1zm-8 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm2 0h2v1h-2zm1 0h1v1h-1zm1 0h1v1h-1zm-7 1h2v1h-2zm4 0h2v1h-2zm4 0h1v1h-1zm-10 1h1v1H8zm2 0h1v1h-1zm1 0h1v1h-1zm3 0h1v1h-1zm1 0h1v1h-1zm2 0h1v1h-1zm-9 1h1v1H9zm2 0h1v1h-1zm2 0h2v1h-2zm2 0h1v1h-1zm2 0h2v1h-2zm-9 1h1v1H9zm3 0h1v1h-1zm1 0h1v1h-1zm3 0h2v1h-2zm1 0h1v1h-1zm-19 1h9v9H0zm1 1v7h7V21zm11-1h1v1h-1zm2 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h2v1h-2zm-7 1h1v1h-1zm2 0h1v1h-1zm3 0h2v1h-2zm1 0h1v1h-1zm-7 1h1v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm4 0h1v1h-1zm1 0h1v1h-1zm-9 1h2v1H9zm3 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-7 1h1v1H9zm1 0h1v1h-1zm2 0h1v1h-1zm2 0h2v1h-2zm2 0h1v1h-1zm-8 1h1v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm2 0h1v1h-1zm2 0h1v1h-1z" />
+        <Path d="M0 0h9v9H0zm1 1v7h7V1zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2V2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h[...]
       </Svg>
     </View>
   </View>
@@ -499,9 +499,6 @@ export function DetailQuotationDocument({
         <Page key={entry.floor.id} size="A4" style={styles.page}>
           <View style={styles.watermarkContainer} fixed>
             <Image src="/aesthetic-icon.png" style={styles.watermarkImage} />
-          </View>
-          <View style={styles.headerContainer} fixed>
-            <HeaderLogoPdf />
           </View>
           <View style={styles.footerContainer} fixed>
             <FooterContactsPdf />
