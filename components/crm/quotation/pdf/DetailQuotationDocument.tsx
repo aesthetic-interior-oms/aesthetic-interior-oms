@@ -124,6 +124,9 @@ const styles = StyleSheet.create({
   contentWrapper: {
     paddingLeft: 30,
     paddingRight: 30,
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
   },
   detailHeader: {
     flexDirection: 'column',
@@ -267,8 +270,14 @@ const styles = StyleSheet.create({
     textDecoration: 'underline',
   },
   detailFooterContainer: {
-    marginTop: 12,
-    marginBottom: 40,
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    marginBottom: 0,
+    paddingTop: 6,
+  },
+  detailFooterContent: {
     borderTopWidth: 0.5,
     borderTopColor: '#ccc',
     borderTopStyle: 'solid',
@@ -294,8 +303,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    marginTop: 30,
-    paddingBottom: 10,
+    marginTop: 20,
+    paddingBottom: 0,
   },
   signatureBlockLeft: {
     width: '35%',
@@ -445,35 +454,37 @@ const DetailFooterPdf = ({
   signatoryTitle: string
 }) => (
   <View style={styles.detailFooterContainer}>
-    {notes ? (
-      <View style={styles.detailFooterSection}>
-        <Text style={styles.detailFooterHeading}>Notes:</Text>
-        <Text style={styles.detailFooterText}>{notes}</Text>
-      </View>
-    ) : null}
-    {terms ? (
-      <View style={styles.detailFooterSection}>
-        <Text style={styles.detailFooterHeading}>Terms &amp; Condition:</Text>
-        <Text style={styles.detailFooterText}>{terms}</Text>
-      </View>
-    ) : null}
-    {paymentTerms ? (
-      <View style={styles.detailFooterSection}>
-        <Text style={styles.detailFooterHeading}>Mode of Payment:</Text>
-        <Text style={styles.detailFooterText}>{paymentTerms}</Text>
-      </View>
-    ) : null}
-    {durationNotes ? (
-      <View style={styles.detailFooterSection}>
-        <Text style={styles.detailFooterHeading}>Duration Of Work:</Text>
-        <Text style={styles.detailFooterText}>{durationNotes}</Text>
-      </View>
-    ) : null}
-    {drawingDesign ? (
-      <Text style={[styles.detailFooterText, { color: '#ff0000', fontWeight: 'bold', marginTop: 8, marginBottom: 8 }]}>
-        {drawingDesign}
-      </Text>
-    ) : null}
+    <View style={styles.detailFooterContent}>
+      {notes ? (
+        <View style={styles.detailFooterSection}>
+          <Text style={styles.detailFooterHeading}>Notes:</Text>
+          <Text style={styles.detailFooterText}>{notes}</Text>
+        </View>
+      ) : null}
+      {terms ? (
+        <View style={styles.detailFooterSection}>
+          <Text style={styles.detailFooterHeading}>Terms &amp; Condition:</Text>
+          <Text style={styles.detailFooterText}>{terms}</Text>
+        </View>
+      ) : null}
+      {paymentTerms ? (
+        <View style={styles.detailFooterSection}>
+          <Text style={styles.detailFooterHeading}>Mode of Payment:</Text>
+          <Text style={styles.detailFooterText}>{paymentTerms}</Text>
+        </View>
+      ) : null}
+      {durationNotes ? (
+        <View style={styles.detailFooterSection}>
+          <Text style={styles.detailFooterHeading}>Duration Of Work:</Text>
+          <Text style={styles.detailFooterText}>{durationNotes}</Text>
+        </View>
+      ) : null}
+      {drawingDesign ? (
+        <Text style={[styles.detailFooterText, { color: '#ff0000', fontWeight: 'bold', marginTop: 8, marginBottom: 8 }]}>
+          {drawingDesign}
+        </Text>
+      ) : null}
+    </View>
     <View style={styles.signatureRow}>
       <View style={styles.signatureBlockLeft}>
         <Text style={styles.signatureText}>Customer Name &amp; Sign</Text>
