@@ -42,38 +42,9 @@ const styles = StyleSheet.create({
     paddingLeft: 0,
     paddingRight: 0,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   headerLogoImage: {
-    width: 35,
-    height: 35,
-  },
-  headerTitleContainer: {
-    flexDirection: 'column',
-  },
-  headerTitle: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#bf9000',
-    textTransform: 'uppercase',
-  },
-  headerBadge: {
-    backgroundColor: '#0070c0',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    marginTop: 2,
-    borderRadius: 1.5,
-    alignSelf: 'flex-start',
-  },
-  headerBadgeText: {
-    color: '#ffffff',
-    fontSize: 6,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    width: 80,
+    height: 'auto',
   },
   headerRight: {
     borderWidth: 0.5,
@@ -330,15 +301,7 @@ const styles = StyleSheet.create({
 
 const HeaderLogoPdf = () => (
   <View style={styles.headerContainer}>
-    <View style={styles.headerLeft}>
-      <Image src="/Logo/HeaderLogo.png" style={styles.headerLogoImage} />
-      <View style={styles.headerTitleContainer}>
-        <Text style={styles.headerTitle}>Aesthetic Interior</Text>
-        <View style={styles.headerBadge}>
-          <Text style={styles.headerBadgeText}>Interior Studio</Text>
-        </View>
-      </View>
-    </View>
+    <Image src="/Logo/HeaderLogo.png" style={styles.headerLogoImage} />
     <View style={styles.headerRight}>
       <Svg width={'30'} height={'30'} viewBox="0 0 29 29" style={{ fill: '#0070c0' }}>
         <Path d="M0 0h9v9H0zm1 1v7h7V1zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2V2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zM0 10h9v9H0zm1 1v7h7v-7zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2v-2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zM0 20h9v9H0zm1 1v7h7v-7zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2v-2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1z" />
