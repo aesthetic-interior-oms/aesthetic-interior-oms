@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     paddingRight: 0,
   },
   headerLogoImage: {
-    width: 80,
+    width: 150,
     height: 'auto',
   },
   headerRight: {
