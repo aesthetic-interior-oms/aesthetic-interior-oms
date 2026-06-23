@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
 const HeaderLogoPdf = () => (
   <View style={styles.headerContainer}>
     <View style={styles.headerLeft}>
-      <Image src="/logo/HeaderLogo" style={styles.headerLogoImage} />
+      <Image src="/Logo/HeaderLogo.png" style={styles.headerLogoImage} />
       <View style={styles.headerTitleContainer}>
         <Text style={styles.headerTitle}>Aesthetic Interior</Text>
         <View style={styles.headerBadge}>
