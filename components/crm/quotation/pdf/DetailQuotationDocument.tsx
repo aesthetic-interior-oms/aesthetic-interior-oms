@@ -5,9 +5,6 @@ import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-typ
 import { buildDetailFloorSummaries, formatDetailAmount, isPackageLine } from '@/lib/detail-quotation-format'
 import { amountInWordsTaka } from '@/lib/number-to-words'
 
-// Register fonts and enable text wrapping
-StyleSheet.registerHyphenationCallback((word) => [word])
-
 const styles = StyleSheet.create({
   page: {
     paddingTop: 100,
