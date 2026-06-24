@@ -456,8 +456,8 @@ const DetailFooterPdf = ({
   </View>
 )
 
-function renderMaterialText(text: string | null | undefined) {
-  if (!text) return null
+function renderMaterialLines(text: string | null | undefined) {
+  if (!text) return []
   const lines = text.split('\n')
   return lines.map((line, idx) => {
     const match = line.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
@@ -465,16 +465,18 @@ function renderMaterialText(text: string | null | undefined) {
       const prefix = match[1]
       const rest = line.substring(prefix.length)
       return (
-        <View key={idx} style={{ flexDirection: 'row', marginBottom: 2 }}>
-          <Text style={{ fontWeight: 'bold' }}>{prefix}</Text>
-          <Text>{rest}</Text>
+        <View key={idx} style={{ marginBottom: 1.5 }}>
+          <Text>
+            <Text style={{ fontWeight: 'bold' }}>{prefix}</Text>
+            <Text>{rest}</Text>
+          </Text>
         </View>
       )
     }
     return (
-      <Text key={idx} style={{ marginBottom: 2 }}>
-        {line}
-      </Text>
+      <View key={idx} style={{ marginBottom: 1.5 }}>
+        <Text>{line}</Text>
+      </View>
     )
   })
 }
@@ -632,7 +634,7 @@ export function DetailQuotationDocument({
                       <Text style={{ fontWeight: 'bold' }}>{line.description}</Text>
                     </View>
                     <View style={[styles.tableCell, styles.materialsCell]}>
-                      {renderMaterialText(line.materials)}
+                      {renderMaterialLines(line.materials)}
                     </View>
                     {isPkg ? (
                       <View style={[styles.tableCell, { width: '22%', textAlign: 'center' }]}>
