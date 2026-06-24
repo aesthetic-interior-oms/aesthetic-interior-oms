@@ -59,8 +59,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     width: '100%',
-    borderTopWidth: 1,
-    borderTopColor: '#0070c0',
+    borderTopWidth: 0,
+    borderTopColor: '#D4AF37',
     borderTopStyle: 'solid',
     paddingTop: 6,
     paddingBottom: 6,
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   },
   footerWebsite: {
     fontSize: 6.5,
-    color: '#444',
+    color: '#D4AF37',
     fontWeight: 'bold',
   },
   contentWrapper: {
@@ -304,7 +304,7 @@ const HeaderLogoPdf = () => (
     <Image src="/Logo/HeaderLogo.png" style={styles.headerLogoImage} />
     <View style={styles.headerRight}>
       <Svg width={'30'} height={'30'} viewBox="0 0 29 29" style={{ fill: '#0070c0' }}>
-        <Path d="M0 0h9v9H0zm1 1v7h7V1zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2V2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zM0 10h9v9H0zm1 1v7h7v-7zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2v-2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zM0 20h9v9H0zm1 1v7h7v-7zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2v-2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1z" />
+        <Path d="M0 0h9v9H0zm1 1v7h7V1zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2V2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1[...]
       </Svg>
     </View>
   </View>
@@ -314,19 +314,19 @@ const FooterContactsPdf = () => (
   <View style={styles.footerContainer}>
     <View style={styles.footerContent}>
       <View style={styles.footerSection}>
-        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#0070c0' }}>
-          <Path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1v3.5c0 .55-.45 1-1 1H4c0 5.07 4.02 9.2 9 9.5z" />
+        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#D4AF37' }}>
+          <Path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 [...]
         </Svg>
         <Text style={styles.footerText}>+88 01329 694660, +88 01329 694661, +88 01329 694662</Text>
       </View>
       <View style={styles.footerSection}>
-        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#0070c0' }}>
+        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#D4AF37' }}>
           <Path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
         </Svg>
         <Text style={styles.footerText}>aestheticinteriorstudio@gmail.com</Text>
       </View>
       <View style={styles.footerSection}>
-        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#0070c0' }}>
+        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#D4AF37' }}>
           <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
         </Svg>
         <Text style={styles.footerText}>2nd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka</Text>
@@ -456,6 +456,30 @@ const DetailFooterPdf = ({
     </View>
   </View>
 )
+
+// Helper function to render material text with smart bolding
+function renderMaterialText(text: string | null | undefined) {
+  if (!text) return '—'
+  const lines = text.split('\n')
+  return lines.map((line, idx) => {
+    const match = line.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
+    if (match) {
+      const prefix = match[1]
+      const rest = line.substring(prefix.length)
+      return (
+        <View key={idx} style={{ flexDirection: 'row' }}>
+          <Text style={{ fontWeight: 'bold' }}>{prefix}</Text>
+          <Text>{rest}</Text>
+        </View>
+      )
+    }
+    return (
+      <Text key={idx}>
+        {line}
+      </Text>
+    )
+  })
+}
 
 export function DetailQuotationDocument({
   clientName,
@@ -610,7 +634,7 @@ export function DetailQuotationDocument({
                       <Text style={{ fontWeight: 'bold' }}>{line.description}</Text>
                     </View>
                     <View style={[styles.tableCell, styles.materialsCell]}>
-                      <Text>{line.materials || '—'}</Text>
+                      {renderMaterialText(line.materials)}
                     </View>
                     {isPkg ? (
                       <View style={[styles.tableCell, { width: '22%', textAlign: 'center' }]}>
