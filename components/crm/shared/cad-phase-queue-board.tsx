@@ -4,10 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   CalendarClock,
+  LayoutGrid,
   Loader2,
   MapPin,
+  MoreHorizontal,
   Phone,
   Search,
+  TableIcon,
   UserRound,
 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
@@ -23,6 +26,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -33,6 +42,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 type LeadRecord = {
   id: string
@@ -56,6 +73,8 @@ type LeadRecord = {
     user: { id: string; fullName: string; email: string }
   } | null
   latestCompletedVisit?: {
+    id: string
+    projectSqft: number | null
     assignedVisitLead: { id: string; fullName: string } | null
     supportMembers: Array<{ id: string; fullName: string }>
   } | null
@@ -78,6 +97,8 @@ type QueueResponse = {
 }
 
 type DepartmentUser = { id: string; fullName: string; email: string }
+
+const ALL_MEMBER_FILTER = 'ALL_MEMBERS'
 type DepartmentUsersResponse = {
   success: boolean
   users?: DepartmentUser[]
@@ -92,6 +113,20 @@ function formatLabel(value: string | null | undefined) {
     .replace(/_/g, ' ')
     .toLowerCase()
     .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function formatProjectSqft(value: number | null | undefined) {
+  if (value === null || value === undefined) return 'N/A'
+  return `${value.toLocaleString()} sqft`
+}
+
+function visitTeamLabel(visit: LeadRecord['latestCompletedVisit']) {
+  if (!visit) return 'N/A'
+  const names = [
+    visit.assignedVisitLead?.fullName,
+    ...(visit.supportMembers ?? []).map((member) => member.fullName),
+  ].filter(Boolean)
+  return names.length > 0 ? names.join(', ') : 'N/A'
 }
 
 function toDateTimeLocalInput(date: Date): string {
@@ -155,10 +190,14 @@ export function CadPhaseQueueBoard({
     useState(false)
   const [reassignQuotationOpen, setReassignQuotationOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string>('ALL')
+  const [jrArchitectFilter, setJrArchitectFilter] = useState(ALL_MEMBER_FILTER)
   const [dropOpen, setDropOpen] = useState(false)
   const [dropSubStatus, setDropSubStatus] = useState('')
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('table')
+  const [projectSizeOpen, setProjectSizeOpen] = useState(false)
+  const [projectSizeValue, setProjectSizeValue] = useState('')
 
   const closedSubStatusOptions = [
     'PROJECT_DROPPED',
@@ -173,6 +212,7 @@ export function CadPhaseQueueBoard({
   const isMeetingQueue = queueType === 'meeting'
   const isBudgetQueue = queueType === 'budget'
   const isDesignQueue = queueType === 'design'
+  const isCadQueue = !isMeetingQueue && !isBudgetQueue && !isDesignQueue
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 400)
@@ -487,6 +527,55 @@ export function CadPhaseQueueBoard({
     setDropSubStatus('')
     setDropOpen(true)
   }
+
+  const openProjectSizeDialog = (lead: LeadRecord) => {
+    if (!lead.latestCompletedVisit?.id) {
+      toast.error('No completed visit found for this lead to update project size')
+      return
+    }
+    setActiveLead(lead)
+    setProjectSizeValue(
+      lead.latestCompletedVisit.projectSqft
+        ? String(lead.latestCompletedVisit.projectSqft)
+        : '',
+    )
+    setProjectSizeOpen(true)
+  }
+
+  const submitProjectSize = async () => {
+    if (!activeLead?.latestCompletedVisit?.id) return
+    const parsedSqft = Number(projectSizeValue.trim().replace(/,/g, ''))
+    if (!Number.isFinite(parsedSqft) || parsedSqft <= 0) {
+      toast.error('Project size must be greater than 0')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const response = await fetch(
+        `/api/visit-schedule/${activeLead.latestCompletedVisit.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectSqft: parsedSqft }),
+        },
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to update project size')
+      }
+      toast.success('Project size updated')
+      setProjectSizeOpen(false)
+      setActiveLead(null)
+      await loadLeads()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to update project size',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
   const openRenameDialog = (lead: LeadRecord) => {
     setActiveLead(lead)
     setRenameValue(lead.name ?? '')
@@ -648,9 +737,27 @@ export function CadPhaseQueueBoard({
     }
   }
 
+  const memberFilteredLeads = useMemo(() => {
+    if (!isCadQueue || jrArchitectFilter === ALL_MEMBER_FILTER) return leads
+    return leads.filter(
+      (lead) => lead.jrArchitectAssignment?.user.id === jrArchitectFilter,
+    )
+  }, [isCadQueue, jrArchitectFilter, leads])
+
+  const jrArchitectFilterOptions = useMemo(() => {
+    const options = new Map<string, DepartmentUser>()
+    for (const lead of leads) {
+      const user = lead.jrArchitectAssignment?.user
+      if (user) options.set(user.id, user)
+    }
+    return Array.from(options.values()).sort((a, b) =>
+      a.fullName.localeCompare(b.fullName),
+    )
+  }, [leads])
+
   const statCards = useMemo(() => {
     const cards: Array<{ key: string; label: string; count: number }> = [
-      { key: 'ALL', label: 'Total', count: leads.length },
+      { key: 'ALL', label: 'Total', count: memberFilteredLeads.length },
     ]
     const config = isMeetingQueue
       ? [
@@ -670,27 +777,70 @@ export function CadPhaseQueueBoard({
               { key: 'VISUAL_ASSIGNED', label: 'Visual Assigned' },
               { key: 'VISUAL_WORKING', label: 'Visual Working' },
             ]
-          : [{ key: 'CAD_PHASE', label: 'CAD Phase' }]
+          : [
+              { key: 'CAD_ASSIGNED', label: 'CAD Assigned' },
+              { key: 'CAD_WORKING', label: 'CAD Working' },
+              { key: 'CAD_COMPLETED', label: 'CAD Completed' },
+              { key: 'CAD_APPROVED', label: 'CAD Approved' },
+            ]
 
     for (const item of config) {
       cards.push({
         key: item.key,
         label: item.label,
-        count: leads.filter(
+        count: memberFilteredLeads.filter(
           (lead) => lead.subStatus === item.key || lead.stage === item.key,
         ).length,
       })
     }
 
     return cards
-  }, [isBudgetQueue, isDesignQueue, isMeetingQueue, leads])
+  }, [
+    isBudgetQueue,
+    isDesignQueue,
+    isMeetingQueue,
+    memberFilteredLeads,
+  ])
 
   const filteredLeads = useMemo(() => {
-    if (activeFilter === 'ALL') return leads
-    return leads.filter(
+    if (activeFilter === 'ALL') return memberFilteredLeads
+    return memberFilteredLeads.filter(
       (lead) => lead.subStatus === activeFilter || lead.stage === activeFilter,
     )
-  }, [activeFilter, leads])
+  }, [activeFilter, memberFilteredLeads])
+
+  const renderLeadActionMenu = (lead: LeadRecord) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="icon" variant="ghost" aria-label={`Actions for ${lead.name}`}>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+          <Link href={`${leadBasePath}/${lead.id}`}>Open Lead</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => openProjectSizeDialog(lead)}>
+          {lead.latestCompletedVisit?.projectSqft ? 'Change' : 'Add'} Project Size
+        </DropdownMenuItem>
+        {showAssigneeReassign &&
+        lead.canReassignJrArchitect !== false &&
+        lead.stage !== 'DISCOVERY' ? (
+          <DropdownMenuItem onClick={() => void openReassign(lead)}>
+            Reassign {assigneeLabel}
+          </DropdownMenuItem>
+        ) : null}
+        {isCadQueue ? (
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => openDropDialog(lead)}
+          >
+            Drop Project
+          </DropdownMenuItem>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 
   return (
     <div className="min-h-screen bg-background">
@@ -707,7 +857,29 @@ export function CadPhaseQueueBoard({
               className="pl-10"
             />
           </div>
-          <div className="flex gap-2">
+          {isCadQueue ? (
+            <div className="w-full sm:w-64">
+              <Select
+                value={jrArchitectFilter}
+                onValueChange={setJrArchitectFilter}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by JR Architect" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_MEMBER_FILTER}>
+                    All JR Architects
+                  </SelectItem>
+                  {jrArchitectFilterOptions.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-2">
             {statCards.map((card) => (
               <Button
                 key={card.key}
@@ -722,6 +894,27 @@ export function CadPhaseQueueBoard({
           </div>
         </div>
 
+        {isCadQueue ? (
+          <div className="mb-4 flex justify-end gap-2">
+            <Button
+              size="sm"
+              variant={viewMode === 'table' ? 'default' : 'outline'}
+              onClick={() => setViewMode('table')}
+            >
+              <TableIcon className="mr-1 h-4 w-4" />
+              Table View
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'card' ? 'default' : 'outline'}
+              onClick={() => setViewMode('card')}
+            >
+              <LayoutGrid className="mr-1 h-4 w-4" />
+              Card View
+            </Button>
+          </div>
+        ) : null}
+
         {loading ? (
           <div className="flex items-center justify-center rounded-lg border border-border bg-card py-14">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -730,6 +923,51 @@ export function CadPhaseQueueBoard({
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
               No leads found.
+            </CardContent>
+          </Card>
+        ) : isCadQueue && viewMode === 'table' ? (
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Lead Name</TableHead>
+                    <TableHead>Stage</TableHead>
+                    <TableHead>Substatus</TableHead>
+                    <TableHead>Address</TableHead>
+                    <TableHead>JR Architect</TableHead>
+                    <TableHead>SR CRM</TableHead>
+                    <TableHead>Visit Team</TableHead>
+                    <TableHead>Project Size</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredLeads.map((lead) => (
+                    <TableRow key={lead.id}>
+                      <TableCell className="font-medium">{lead.name}</TableCell>
+                      <TableCell>{formatLabel(lead.stage)}</TableCell>
+                      <TableCell>{formatLabel(lead.subStatus)}</TableCell>
+                      <TableCell>{lead.location || 'N/A'}</TableCell>
+                      <TableCell>
+                        {lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}
+                      </TableCell>
+                      <TableCell>
+                        {lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}
+                      </TableCell>
+                      <TableCell>
+                        {visitTeamLabel(lead.latestCompletedVisit)}
+                      </TableCell>
+                      <TableCell>
+                        {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {renderLeadActionMenu(lead)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         ) : (
@@ -763,6 +1001,13 @@ export function CadPhaseQueueBoard({
                         <Link href={`${leadBasePath}/${lead.id}`}>
                           Open Lead
                         </Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openProjectSizeDialog(lead)}
+                      >
+                        {lead.latestCompletedVisit?.projectSqft ? 'Change' : 'Add'} Project Size
                       </Button>
                       {showAssigneeReassign &&
                       lead.canReassignJrArchitect !== false &&
@@ -836,8 +1081,7 @@ export function CadPhaseQueueBoard({
                           ) : null}
                         </>
                       ) : null}
-                      {isDesignQueue ? null : !isMeetingQueue &&
-                        !isBudgetQueue ? (
+                      {isDesignQueue ? null : isCadQueue ? (
                         <Button
                           size="sm"
                           variant="destructive"
@@ -869,14 +1113,13 @@ export function CadPhaseQueueBoard({
                       SR CRM:{' '}
                       {lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}
                     </p>
-                    <p className="inline-flex items-center gap-1 md:col-span-2">
+                    <p className="inline-flex items-center gap-1">
                       <UserRound className="h-3.5 w-3.5" />
-                      Visit Team:{' '}
-                      {lead.latestCompletedVisit?.assignedVisitLead?.fullName ??
-                        'N/A'}
-                      {lead.latestCompletedVisit?.supportMembers?.length
-                        ? ` + ${lead.latestCompletedVisit.supportMembers.map((member) => member.fullName).join(', ')}`
-                        : ''}
+                      Visit Team: {visitTeamLabel(lead.latestCompletedVisit)}
+                    </p>
+                    <p className="inline-flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5" />
+                      Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
                     </p>
                     {isMeetingQueue || isBudgetQueue || isDesignQueue ? (
                       <p className="inline-flex items-center gap-1">
@@ -905,6 +1148,44 @@ export function CadPhaseQueueBoard({
           </div>
         )}
       </main>
+
+      <Dialog open={projectSizeOpen} onOpenChange={setProjectSizeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {activeLead?.latestCompletedVisit?.projectSqft
+                ? 'Change Project Size'
+                : 'Add Project Size'}
+            </DialogTitle>
+            <DialogDescription>
+              Update the project size in sqft for this lead&apos;s latest completed
+              visit.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Project Size (sqft)</Label>
+            <Input
+              type="number"
+              min="1"
+              inputMode="decimal"
+              value={projectSizeValue}
+              onChange={(event) => setProjectSizeValue(event.target.value)}
+              placeholder="Enter project size"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setProjectSizeOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button disabled={saving || !projectSizeValue} onClick={submitProjectSize}>
+              Save Project Size
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
         <DialogContent>

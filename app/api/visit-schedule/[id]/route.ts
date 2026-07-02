@@ -232,8 +232,24 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       const isAdmin = departmentNames.has('ADMIN');
       const isJuniorCrm = departmentNames.has('JR_CRM');
       const isVisitTeam = departmentNames.has('VISIT_TEAM');
+      const isSeniorCrm = departmentNames.has('SR_CRM');
+      const isJrArchitect = departmentNames.has('JR_ARCHITECT');
+      const isProjectSqftOnlyUpdate =
+        body.projectSqft !== undefined &&
+        body.visitTeamUserId === undefined &&
+        body.scheduledAt === undefined &&
+        body.location === undefined &&
+        body.notes === undefined &&
+        body.status === undefined &&
+        body.projectStatus === undefined &&
+        body.visitFee === undefined;
       const isVisitTeamLeader = hasVisitTeamLeadershipRole(authResult.actorRoles);
-      if (!isAdmin && !isJuniorCrm && !isVisitTeam) {
+      if (
+        !isAdmin &&
+        !isJuniorCrm &&
+        !isVisitTeam &&
+        !((isSeniorCrm || isJrArchitect) && isProjectSqftOnlyUpdate)
+      ) {
         throw new Error('FORBIDDEN');
       }
 
