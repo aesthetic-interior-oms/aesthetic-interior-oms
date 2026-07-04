@@ -273,6 +273,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/jr-architecture/cad-phase-queue',
         },
         {
+          icon: Calendar,
+          label: 'Visits',
+          href: '/crm/jr-architecture/visits',
+        },
+        {
           icon: Users,
           label: 'Assigned Work',
           href: '/crm/jr-architecture/leads',
@@ -433,7 +438,10 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
             items: group.items.filter(
               (item) =>
                 canViewJrArchitectCadQueue ||
-                item.href !== '/crm/jr-architecture/cad-phase-queue',
+                ![
+                  '/crm/jr-architecture/cad-phase-queue',
+                  '/crm/jr-architecture/visits',
+                ].includes(item.href),
             ),
           }
         }
