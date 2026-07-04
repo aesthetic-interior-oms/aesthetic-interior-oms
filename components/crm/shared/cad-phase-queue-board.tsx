@@ -176,7 +176,23 @@ function visitTeamLabel(visit: LeadRecord['latestCompletedVisit']) {
     visit.assignedVisitLead?.fullName,
     ...(visit.supportMembers ?? []).map((member) => member.fullName),
   ].filter(Boolean)
-  return names.length > 0 ? names.join(', ') : 'N/A'
+  return names.length > 0 ? names.join(' + ') : 'N/A'
+}
+
+function srCrmVisitTeamBlock(lead: LeadRecord) {
+  const srCrmName = lead.srCrmAssignment?.user.fullName ?? 'Unassigned'
+  const visitTeamNames = visitTeamLabel(lead.latestCompletedVisit)
+
+  return (
+    <div className="min-w-0 space-y-1" title={`SR CRM: ${srCrmName} | Visit Team: ${visitTeamNames}`}>
+      <div className="truncate text-sm font-medium text-foreground">
+        {srCrmName}
+      </div>
+      <div className="truncate text-xs text-muted-foreground">
+        Visit: {visitTeamNames}
+      </div>
+    </div>
+  )
 }
 
 function toDateTimeLocalInput(date: Date): string {
@@ -1378,15 +1394,15 @@ export function CadPhaseQueueBoard({
                       {lead.jrArchitectAssignment?.user.fullName ??
                         'Unassigned'}
                     </p>
-                    <p className="inline-flex items-center gap-1">
-                      <UserRound className="h-3.5 w-3.5" />
-                      SR CRM:{' '}
-                      {lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}
-                    </p>
-                    <p className="inline-flex items-center gap-1">
-                      <UserRound className="h-3.5 w-3.5" />
-                      Visit Team: {visitTeamLabel(lead.latestCompletedVisit)}
-                    </p>
+                    <div className="flex min-w-0 items-start gap-1">
+                      <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          SR CRM / Visit Team
+                        </span>
+                        {srCrmVisitTeamBlock(lead)}
+                      </div>
+                    </div>
                     <p className="inline-flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5" />
                       Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
