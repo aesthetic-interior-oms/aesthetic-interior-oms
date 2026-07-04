@@ -1022,7 +1022,7 @@ export function CadPhaseQueueBoard({
                         <TableHead className="w-[18%]">Address</TableHead>
                         <TableHead className="w-[11%]">Visit Date</TableHead>
                         <TableHead className="w-[13%]">JR Architect</TableHead>
-                        <TableHead className="w-[11%]">SR CRM / Visit</TableHead>
+                        <TableHead className="w-[11%]">SR CRM</TableHead>
                         <TableHead className="w-[10%]">Project Size</TableHead>
                         <TableHead className="w-[7%] text-right">Action</TableHead>
                       </TableRow>
@@ -1053,7 +1053,9 @@ export function CadPhaseQueueBoard({
                           <TableCell className="truncate" title={lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}>
                             {lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}
                           </TableCell>
-                          <TableCell>{srCrmVisitTeamBlock(lead)}</TableCell>
+                          <TableCell className="truncate" title={lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}>
+                            {lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}
+                          </TableCell>
                           <TableCell>
                             {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
                           </TableCell>
@@ -1077,6 +1079,185 @@ export function CadPhaseQueueBoard({
                   <Badge variant="secondary">{group.leads.length} leads</Badge>
                 </div>
                 {group.leads.map((lead) => (
+              <Card
+                key={lead.id}
+                className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+              >
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => openRenameDialog(lead)}
+                        className="text-left text-base font-semibold hover:text-primary hover:underline"
+                      >
+                        {lead.name}
+                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {stageSubStatusBlock(lead)}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`${leadBasePath}/${lead.id}`}>
+                          Open Lead
+                        </Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openProjectSizeDialog(lead)}
+                      >
+                        {lead.latestCompletedVisit?.projectSqft ? 'Change' : 'Add'} Project Size
+                      </Button>
+                      {showAssigneeReassign &&
+                      lead.canReassignJrArchitect !== false &&
+                      lead.stage !== 'DISCOVERY' ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openReassign(lead)}
+                        >
+                          Reassign {assigneeLabel}
+                        </Button>
+                      ) : null}
+                      {isMeetingQueue ? (
+                        lead.canSetMeeting ? (
+                          <Button
+                            size="sm"
+                            onClick={() => openFirstMeetingDialog(lead)}
+                          >
+                            <CalendarClock className="mr-1 h-4 w-4" />
+                            Set Meeting
+                          </Button>
+                        ) : lead.canSubmitMeetingData ? (
+                          <Button
+                            size="sm"
+                            onClick={() => void openCompleteMeetingDialog(lead)}
+                          >
+                            <CalendarClock className="mr-1 h-4 w-4" />
+                            Complete Meeting
+                          </Button>
+                        ) : lead.canReassignQuotation ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void openReassignQuotation(lead)}
+                          >
+                            Reassign Quotation
+                          </Button>
+                        ) : null
+                      ) : isBudgetQueue ? (
+                        <>
+                          {lead.stage === 'QUOTATION_PHASE' &&
+                          lead.canReassignQuotation ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void openReassignQuotation(lead)}
+                            >
+                              Reassign Quotation
+                            </Button>
+                          ) : null}
+                          {lead.stage === 'QUOTATION_PHASE' &&
+                          lead.subStatus === 'QUOTATION_APPROVED' ? (
+                            <Button
+                              size="sm"
+                              onClick={() => openBudgetMeetingDialog(lead)}
+                            >
+                              <CalendarClock className="mr-1 h-4 w-4" />
+                              Set Budget Meeting
+                            </Button>
+                          ) : lead.stage === 'BUDGET_PHASE' &&
+                            lead.subStatus === 'BUDGET_MEETING_SET' ? (
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                void openCompleteMeetingDialog(lead)
+                              }
+                            >
+                              <CalendarClock className="mr-1 h-4 w-4" />
+                              Complete Meeting
+                            </Button>
+                          ) : null}
+                        </>
+                      ) : null}
+                      {isDesignQueue ? null : isCadQueue ? (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => openDropDialog(lead)}
+                        >
+                          Drop Project
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+                    <p className="inline-flex items-center gap-1">
+                      <Phone className="h-3.5 w-3.5" />
+                      {lead.phone || 'No phone'}
+                    </p>
+                    <p className="inline-flex items-center gap-1">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Visit Date: {formatDate(lead.latestCompletedVisit?.scheduledAt)}
+                    </p>
+                    <p className="inline-flex min-w-0 items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate" title={lead.location || 'No location'}>
+                        {lead.location || 'No location'}
+                      </span>
+                    </p>
+                    <p className="inline-flex items-center gap-1">
+                      <UserRound className="h-3.5 w-3.5" />
+                      JR Architect:{' '}
+                      {lead.jrArchitectAssignment?.user.fullName ??
+                        'Unassigned'}
+                    </p>
+                    <p className="inline-flex items-center gap-1">
+                      <UserRound className="h-3.5 w-3.5" />
+                      SR CRM:{' '}
+                      {lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}
+                    </p>
+                    <p className="inline-flex items-center gap-1">
+                      <UserRound className="h-3.5 w-3.5" />
+                      Visit Team: {visitTeamLabel(lead.latestCompletedVisit)}
+                    </p>
+                    <p className="inline-flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5" />
+                      Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                    </p>
+                    {isMeetingQueue || isBudgetQueue || isDesignQueue ? (
+                      <p className="inline-flex items-center gap-1">
+                        <UserRound className="h-3.5 w-3.5" />
+                        {isDesignQueue ? '3D Visualizer' : 'Quotation'}:{' '}
+                        {isDesignQueue
+                          ? (lead.jrArchitectAssignment?.user.fullName ??
+                            'Unassigned')
+                          : (lead.quotationAssignment?.user.fullName ??
+                            'Unassigned')}
+                      </p>
+                    ) : null}
+                    {isMeetingQueue && lead.latestFirstMeeting ? (
+                      <p className="inline-flex items-center gap-1 md:col-span-2">
+                        <CalendarClock className="h-3.5 w-3.5" />
+                        Latest First Meeting:{' '}
+                        {new Date(
+                          lead.latestFirstMeeting.startsAt,
+                        ).toLocaleString()}
+                      </p>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
+                ))}
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredLeads.map((lead) => (
               <Card
                 key={lead.id}
                 className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
