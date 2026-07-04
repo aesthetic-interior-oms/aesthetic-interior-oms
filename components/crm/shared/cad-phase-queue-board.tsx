@@ -74,6 +74,7 @@ type LeadRecord = {
   } | null
   latestCompletedVisit?: {
     id: string
+    scheduledAt: string
     projectSqft: number | null
     assignedVisitLead: { id: string; fullName: string } | null
     supportMembers: Array<{ id: string; fullName: string }>
@@ -120,13 +121,78 @@ function formatProjectSqft(value: number | null | undefined) {
   return `${value.toLocaleString()} sqft`
 }
 
+function formatDate(value: string | null | undefined) {
+  if (!value) return 'N/A'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'N/A'
+  return date.toLocaleDateString(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+function formatMonth(value: string | null | undefined) {
+  if (!value) return 'No Visit Date'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'No Visit Date'
+  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+}
+
+function subStatusBadgeClass(value: string | null | undefined) {
+  switch (value) {
+    case 'CAD_ASSIGNED':
+      return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-200'
+    case 'CAD_WORKING':
+      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200'
+    case 'CAD_COMPLETED':
+      return 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-200'
+    case 'CAD_APPROVED':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200'
+    default:
+      return 'border-border bg-muted text-muted-foreground'
+  }
+}
+
+function stageSubStatusBlock(lead: LeadRecord) {
+  return (
+    <div className="space-y-1.5">
+      <div className="text-sm font-semibold text-foreground">
+        {formatLabel(lead.stage)}
+      </div>
+      <Badge
+        variant="outline"
+        className={`whitespace-nowrap px-2 py-0.5 text-[11px] font-medium ${subStatusBadgeClass(lead.subStatus)}`}
+      >
+        {formatLabel(lead.subStatus)}
+      </Badge>
+    </div>
+  )
+}
+
 function visitTeamLabel(visit: LeadRecord['latestCompletedVisit']) {
   if (!visit) return 'N/A'
   const names = [
     visit.assignedVisitLead?.fullName,
     ...(visit.supportMembers ?? []).map((member) => member.fullName),
   ].filter(Boolean)
-  return names.length > 0 ? names.join(', ') : 'N/A'
+  return names.length > 0 ? names.join(' + ') : 'N/A'
+}
+
+function srCrmVisitTeamBlock(lead: LeadRecord) {
+  const srCrmName = lead.srCrmAssignment?.user.fullName ?? 'Unassigned'
+  const visitTeamNames = visitTeamLabel(lead.latestCompletedVisit)
+
+  return (
+    <div className="min-w-0 space-y-1" title={`SR CRM: ${srCrmName} | Visit Team: ${visitTeamNames}`}>
+      <div className="truncate text-sm font-medium text-foreground">
+        {srCrmName}
+      </div>
+      <div className="truncate text-xs text-muted-foreground">
+        Visit: {visitTeamNames}
+      </div>
+    </div>
+  )
 }
 
 function toDateTimeLocalInput(date: Date): string {
@@ -809,6 +875,20 @@ export function CadPhaseQueueBoard({
     )
   }, [activeFilter, memberFilteredLeads])
 
+  const groupedLeads = useMemo(() => {
+    const groups = new Map<string, LeadRecord[]>()
+    for (const lead of filteredLeads) {
+      const month = formatMonth(lead.latestCompletedVisit?.scheduledAt)
+      const groupLeads = groups.get(month) ?? []
+      groupLeads.push(lead)
+      groups.set(month, groupLeads)
+    }
+    return Array.from(groups.entries()).map(([month, monthLeads]) => ({
+      month,
+      leads: monthLeads,
+    }))
+  }, [filteredLeads])
+
   const renderLeadActionMenu = (lead: LeadRecord) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -926,53 +1006,77 @@ export function CadPhaseQueueBoard({
             </CardContent>
           </Card>
         ) : isCadQueue && viewMode === 'table' ? (
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Lead Name</TableHead>
-                    <TableHead>Stage</TableHead>
-                    <TableHead>Substatus</TableHead>
-                    <TableHead>Address</TableHead>
-                    <TableHead>JR Architect</TableHead>
-                    <TableHead>SR CRM</TableHead>
-                    <TableHead>Visit Team</TableHead>
-                    <TableHead>Project Size</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredLeads.map((lead) => (
-                    <TableRow key={lead.id}>
-                      <TableCell className="font-medium">{lead.name}</TableCell>
-                      <TableCell>{formatLabel(lead.stage)}</TableCell>
-                      <TableCell>{formatLabel(lead.subStatus)}</TableCell>
-                      <TableCell>{lead.location || 'N/A'}</TableCell>
-                      <TableCell>
-                        {lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}
-                      </TableCell>
-                      <TableCell>
-                        {lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}
-                      </TableCell>
-                      <TableCell>
-                        {visitTeamLabel(lead.latestCompletedVisit)}
-                      </TableCell>
-                      <TableCell>
-                        {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {renderLeadActionMenu(lead)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {filteredLeads.map((lead) => (
+          <div className="space-y-5">
+            {groupedLeads.map((group) => (
+              <Card key={group.month}>
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between border-b px-4 py-3">
+                    <h3 className="text-sm font-semibold">{group.month}</h3>
+                    <Badge variant="secondary">{group.leads.length} leads</Badge>
+                  </div>
+                  <Table className="table-fixed text-sm">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[15%]">Lead Name</TableHead>
+                        <TableHead className="w-[15%]">Stage</TableHead>
+                        <TableHead className="w-[18%]">Address</TableHead>
+                        <TableHead className="w-[11%]">Visit Date</TableHead>
+                        <TableHead className="w-[13%]">JR Architect</TableHead>
+                        <TableHead className="w-[11%]">SR CRM / Visit</TableHead>
+                        <TableHead className="w-[10%]">Project Size</TableHead>
+                        <TableHead className="w-[7%] text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {group.leads.map((lead) => (
+                        <TableRow key={lead.id}>
+                          <TableCell className="font-medium">
+                            <button
+                              type="button"
+                              onClick={() => openRenameDialog(lead)}
+                              className="max-w-full truncate text-left hover:text-primary hover:underline"
+                              title={lead.name}
+                            >
+                              {lead.name}
+                            </button>
+                          </TableCell>
+                          <TableCell>{stageSubStatusBlock(lead)}</TableCell>
+                          <TableCell>
+                            <span
+                              className="block max-w-[220px] truncate text-muted-foreground"
+                              title={lead.location || 'N/A'}
+                            >
+                              {lead.location || 'N/A'}
+                            </span>
+                          </TableCell>
+                          <TableCell>{formatDate(lead.latestCompletedVisit?.scheduledAt)}</TableCell>
+                          <TableCell className="truncate" title={lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}>
+                            {lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}
+                          </TableCell>
+                          <TableCell>{srCrmVisitTeamBlock(lead)}</TableCell>
+                          <TableCell>
+                            {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {renderLeadActionMenu(lead)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : isCadQueue ? (
+          <div className="space-y-5">
+            {groupedLeads.map((group) => (
+              <section key={group.month} className="space-y-3">
+                <div className="flex items-center justify-between rounded-lg border bg-card px-4 py-3">
+                  <h3 className="text-sm font-semibold">{group.month}</h3>
+                  <Badge variant="secondary">{group.leads.length} leads</Badge>
+                </div>
+                {group.leads.map((lead) => (
               <Card
                 key={lead.id}
                 className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
@@ -988,12 +1092,7 @@ export function CadPhaseQueueBoard({
                         {lead.name}
                       </button>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="secondary">
-                          {formatLabel(lead.stage)}
-                        </Badge>
-                        <Badge variant="outline">
-                          {formatLabel(lead.subStatus)}
-                        </Badge>
+                        {stageSubStatusBlock(lead)}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -1099,8 +1198,14 @@ export function CadPhaseQueueBoard({
                       {lead.phone || 'No phone'}
                     </p>
                     <p className="inline-flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {lead.location || 'No location'}
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Visit Date: {formatDate(lead.latestCompletedVisit?.scheduledAt)}
+                    </p>
+                    <p className="inline-flex min-w-0 items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate" title={lead.location || 'No location'}>
+                        {lead.location || 'No location'}
+                      </span>
                     </p>
                     <p className="inline-flex items-center gap-1">
                       <UserRound className="h-3.5 w-3.5" />
@@ -1108,15 +1213,194 @@ export function CadPhaseQueueBoard({
                       {lead.jrArchitectAssignment?.user.fullName ??
                         'Unassigned'}
                     </p>
+                    <div className="flex min-w-0 items-start gap-1">
+                      <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          SR CRM / Visit Team
+                        </span>
+                        {srCrmVisitTeamBlock(lead)}
+                      </div>
+                    </div>
                     <p className="inline-flex items-center gap-1">
-                      <UserRound className="h-3.5 w-3.5" />
-                      SR CRM:{' '}
-                      {lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}
+                      <MapPin className="h-3.5 w-3.5" />
+                      Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                    </p>
+                    {isMeetingQueue || isBudgetQueue || isDesignQueue ? (
+                      <p className="inline-flex items-center gap-1">
+                        <UserRound className="h-3.5 w-3.5" />
+                        {isDesignQueue ? '3D Visualizer' : 'Quotation'}:{' '}
+                        {isDesignQueue
+                          ? (lead.jrArchitectAssignment?.user.fullName ??
+                            'Unassigned')
+                          : (lead.quotationAssignment?.user.fullName ??
+                            'Unassigned')}
+                      </p>
+                    ) : null}
+                    {isMeetingQueue && lead.latestFirstMeeting ? (
+                      <p className="inline-flex items-center gap-1 md:col-span-2">
+                        <CalendarClock className="h-3.5 w-3.5" />
+                        Latest First Meeting:{' '}
+                        {new Date(
+                          lead.latestFirstMeeting.startsAt,
+                        ).toLocaleString()}
+                      </p>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
+                ))}
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredLeads.map((lead) => (
+              <Card
+                key={lead.id}
+                className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+              >
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => openRenameDialog(lead)}
+                        className="text-left text-base font-semibold hover:text-primary hover:underline"
+                      >
+                        {lead.name}
+                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {stageSubStatusBlock(lead)}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`${leadBasePath}/${lead.id}`}>
+                          Open Lead
+                        </Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openProjectSizeDialog(lead)}
+                      >
+                        {lead.latestCompletedVisit?.projectSqft ? 'Change' : 'Add'} Project Size
+                      </Button>
+                      {showAssigneeReassign &&
+                      lead.canReassignJrArchitect !== false &&
+                      lead.stage !== 'DISCOVERY' ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openReassign(lead)}
+                        >
+                          Reassign {assigneeLabel}
+                        </Button>
+                      ) : null}
+                      {isMeetingQueue ? (
+                        lead.canSetMeeting ? (
+                          <Button
+                            size="sm"
+                            onClick={() => openFirstMeetingDialog(lead)}
+                          >
+                            <CalendarClock className="mr-1 h-4 w-4" />
+                            Set Meeting
+                          </Button>
+                        ) : lead.canSubmitMeetingData ? (
+                          <Button
+                            size="sm"
+                            onClick={() => void openCompleteMeetingDialog(lead)}
+                          >
+                            <CalendarClock className="mr-1 h-4 w-4" />
+                            Complete Meeting
+                          </Button>
+                        ) : lead.canReassignQuotation ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void openReassignQuotation(lead)}
+                          >
+                            Reassign Quotation
+                          </Button>
+                        ) : null
+                      ) : isBudgetQueue ? (
+                        <>
+                          {lead.stage === 'QUOTATION_PHASE' &&
+                          lead.canReassignQuotation ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void openReassignQuotation(lead)}
+                            >
+                              Reassign Quotation
+                            </Button>
+                          ) : null}
+                          {lead.stage === 'QUOTATION_PHASE' &&
+                          lead.subStatus === 'QUOTATION_APPROVED' ? (
+                            <Button
+                              size="sm"
+                              onClick={() => openBudgetMeetingDialog(lead)}
+                            >
+                              <CalendarClock className="mr-1 h-4 w-4" />
+                              Set Budget Meeting
+                            </Button>
+                          ) : lead.stage === 'BUDGET_PHASE' &&
+                            lead.subStatus === 'BUDGET_MEETING_SET' ? (
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                void openCompleteMeetingDialog(lead)
+                              }
+                            >
+                              <CalendarClock className="mr-1 h-4 w-4" />
+                              Complete Meeting
+                            </Button>
+                          ) : null}
+                        </>
+                      ) : null}
+                      {isDesignQueue ? null : isCadQueue ? (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => openDropDialog(lead)}
+                        >
+                          Drop Project
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+                    <p className="inline-flex items-center gap-1">
+                      <Phone className="h-3.5 w-3.5" />
+                      {lead.phone || 'No phone'}
+                    </p>
+                    <p className="inline-flex items-center gap-1">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Visit Date: {formatDate(lead.latestCompletedVisit?.scheduledAt)}
+                    </p>
+                    <p className="inline-flex min-w-0 items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate" title={lead.location || 'No location'}>
+                        {lead.location || 'No location'}
+                      </span>
                     </p>
                     <p className="inline-flex items-center gap-1">
                       <UserRound className="h-3.5 w-3.5" />
-                      Visit Team: {visitTeamLabel(lead.latestCompletedVisit)}
+                      JR Architect:{' '}
+                      {lead.jrArchitectAssignment?.user.fullName ??
+                        'Unassigned'}
                     </p>
+                    <div className="flex min-w-0 items-start gap-1">
+                      <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          SR CRM / Visit Team
+                        </span>
+                        {srCrmVisitTeamBlock(lead)}
+                      </div>
+                    </div>
                     <p className="inline-flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5" />
                       Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
