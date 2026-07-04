@@ -1022,7 +1022,7 @@ export function CadPhaseQueueBoard({
                         <TableHead className="w-[18%]">Address</TableHead>
                         <TableHead className="w-[11%]">Visit Date</TableHead>
                         <TableHead className="w-[13%]">JR Architect</TableHead>
-                        <TableHead className="w-[11%]">SR CRM / Visit</TableHead>
+                        <TableHead className="w-[11%]">SR CRM</TableHead>
                         <TableHead className="w-[10%]">Project Size</TableHead>
                         <TableHead className="w-[7%] text-right">Action</TableHead>
                       </TableRow>
@@ -1053,7 +1053,9 @@ export function CadPhaseQueueBoard({
                           <TableCell className="truncate" title={lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}>
                             {lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}
                           </TableCell>
-                          <TableCell>{srCrmVisitTeamBlock(lead)}</TableCell>
+                          <TableCell className="truncate" title={lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}>
+                            {lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}
+                          </TableCell>
                           <TableCell>
                             {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
                           </TableCell>
@@ -1077,10 +1079,10 @@ export function CadPhaseQueueBoard({
                   <Badge variant="secondary">{group.leads.length} leads</Badge>
                 </div>
                 {group.leads.map((lead) => (
-                  <Card
-                    key={lead.id}
-                    className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
-                  >
+              <Card
+                key={lead.id}
+                className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+              >
                 <CardContent className="space-y-3 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
@@ -1213,15 +1215,15 @@ export function CadPhaseQueueBoard({
                       {lead.jrArchitectAssignment?.user.fullName ??
                         'Unassigned'}
                     </p>
-                    <div className="flex min-w-0 items-start gap-1">
-                      <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      <div className="min-w-0">
-                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          SR CRM / Visit Team
-                        </span>
-                        {srCrmVisitTeamBlock(lead)}
-                      </div>
-                    </div>
+                    <p className="inline-flex items-center gap-1">
+                      <UserRound className="h-3.5 w-3.5" />
+                      SR CRM:{' '}
+                      {lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}
+                    </p>
+                    <p className="inline-flex items-center gap-1">
+                      <UserRound className="h-3.5 w-3.5" />
+                      Visit Team: {visitTeamLabel(lead.latestCompletedVisit)}
+                    </p>
                     <p className="inline-flex items-center gap-1">
                       <MapPin className="h-3.5 w-3.5" />
                       Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
@@ -1247,8 +1249,8 @@ export function CadPhaseQueueBoard({
                       </p>
                     ) : null}
                   </div>
-                    </CardContent>
-                  </Card>
+                </CardContent>
+              </Card>
                 ))}
               </section>
             ))}
