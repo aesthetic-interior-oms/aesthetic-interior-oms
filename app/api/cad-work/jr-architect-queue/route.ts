@@ -161,6 +161,7 @@ export async function GET(request: NextRequest) {
           take: 1,
           select: {
             id: true,
+            scheduledAt: true,
             projectSqft: true,
             assignedTo: {
               select: {
@@ -209,6 +210,7 @@ export async function GET(request: NextRequest) {
           latestCompletedVisit: lead.visits[0]
             ? {
                 id: lead.visits[0].id,
+                scheduledAt: lead.visits[0].scheduledAt,
                 projectSqft: lead.visits[0].projectSqft,
                 assignedVisitLead: lead.visits[0].assignedTo ?? null,
                 supportMembers: (lead.visits[0].supportAssignments ?? []).map((row) => row.supportUser),
