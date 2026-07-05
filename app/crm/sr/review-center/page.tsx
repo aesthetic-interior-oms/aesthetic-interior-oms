@@ -15,6 +15,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import {
   CheckCircle2,
@@ -41,6 +48,12 @@ type ReviewFile = {
   sizeBytes: number | null
 }
 
+const ALL_MEMBER_FILTER = 'ALL_MEMBERS'
+const ALL_MONTH_FILTER = 'ALL_MONTHS'
+const ALL_STAGE_FILTER = 'ALL_STAGES'
+
+type DepartmentUser = { id: string; fullName: string; email: string }
+
 type ReviewSubmission = {
   id: string
   note: string | null
@@ -52,6 +65,14 @@ type ReviewSubmission = {
     location: string | null
     stage: string
     subStatus: string | null
+    srCrmAssignment: {
+      id: string
+      user: DepartmentUser
+    } | null
+    latestCompletedVisit: {
+      id: string
+      scheduledAt: string
+    } | null
   }
   submittedBy: {
     id: string
@@ -74,6 +95,7 @@ type ReviewCenterViewProps = {
   subtitle?: string
   myLeadsOnly?: boolean
   leadBasePath?: string
+  showSrCrmFilter?: boolean
 }
 
 function formatLabel(value: string | null | undefined): string {
@@ -105,6 +127,20 @@ function isImageFile(file: ReviewFile): boolean {
 
 function getDownloadUrl(url: string): string {
   return url.includes('?') ? `${url}&download=1` : `${url}?download=1`
+}
+
+function formatMonth(value: string | null | undefined): string {
+  if (!value) return 'No Visit Date'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'No Visit Date'
+  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+}
+
+function toVisitMonthValue(value: string | null | undefined): string {
+  if (!value) return 'NO_VISIT_DATE'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'NO_VISIT_DATE'
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
 function formatSubmittedAt(value: string): string {
@@ -196,6 +232,7 @@ export function ReviewCenterView({
   subtitle = 'Review completed CAD, quotation, and 3D visualization submissions with quick preview and handoff notes.',
   myLeadsOnly = true,
   leadBasePath = '/crm/sr/leads',
+  showSrCrmFilter = false,
 }: ReviewCenterViewProps) {
   const [submissions, setSubmissions] = useState<ReviewSubmission[]>([])
   const [loading, setLoading] = useState(true)
@@ -206,6 +243,9 @@ export function ReviewCenterView({
   const [decisionType, setDecisionType] = useState<ReviewDecision>('APPROVE')
   const [decisionSummary, setDecisionSummary] = useState('')
   const [decisionBusy, setDecisionBusy] = useState(false)
+  const [srCrmFilter, setSrCrmFilter] = useState(ALL_MEMBER_FILTER)
+  const [visitMonthFilter, setVisitMonthFilter] = useState(ALL_MONTH_FILTER)
+  const [stageFilter, setStageFilter] = useState(ALL_STAGE_FILTER)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 400)
@@ -220,6 +260,12 @@ export function ReviewCenterView({
         myLeadsOnly: myLeadsOnly ? '1' : '0',
       })
       if (search) params.set('search', search)
+      if (showSrCrmFilter && srCrmFilter !== ALL_MEMBER_FILTER) {
+        params.set('srCrmId', srCrmFilter)
+      }
+      if (visitMonthFilter !== ALL_MONTH_FILTER) {
+        params.set('visitMonth', visitMonthFilter)
+      }
 
       const response = await fetch(`/api/cad-work/review-center?${params.toString()}`, {
         cache: 'no-store',
@@ -237,7 +283,7 @@ export function ReviewCenterView({
     } finally {
       setLoading(false)
     }
-  }, [myLeadsOnly, search])
+  }, [myLeadsOnly, search, showSrCrmFilter, srCrmFilter, visitMonthFilter])
 
   useEffect(() => {
     void fetchSubmissions()
@@ -286,9 +332,69 @@ export function ReviewCenterView({
     }
   }, [decisionSummary, decisionTarget, decisionType, fetchSubmissions])
 
-  const totalFiles = useMemo(
-    () => submissions.reduce((count, submission) => count + submission.files.length, 0),
-    [submissions],
+
+  const srCrmFilterOptions = useMemo(() => {
+    const options = new Map<string, DepartmentUser>()
+    for (const submission of submissions) {
+      const user = submission.lead.srCrmAssignment?.user
+      if (user) options.set(user.id, user)
+    }
+    return Array.from(options.values()).sort((a, b) => a.fullName.localeCompare(b.fullName))
+  }, [submissions])
+
+  const visitMonthFilterOptions = useMemo(() => {
+    const options = new Map<string, string>()
+    let hasNoVisitDate = false
+    for (const submission of submissions) {
+      const visitDate = submission.lead.latestCompletedVisit?.scheduledAt
+      const value = toVisitMonthValue(visitDate)
+      if (value === 'NO_VISIT_DATE') {
+        hasNoVisitDate = true
+        continue
+      }
+      options.set(value, formatMonth(visitDate))
+    }
+    const sorted = Array.from(options.entries()).sort(([a], [b]) => b.localeCompare(a))
+    if (hasNoVisitDate) sorted.push(['NO_VISIT_DATE', 'No Visit Date'])
+    return sorted
+  }, [submissions])
+
+  const statCards = useMemo(() => {
+    const cards: Array<{ key: string; label: string; count: number }> = [
+      { key: ALL_STAGE_FILTER, label: 'Total', count: submissions.length },
+    ]
+    const config = Array.from(
+      new Map(
+        submissions
+          .flatMap((submission) => [submission.lead.subStatus, submission.lead.stage])
+          .filter((value): value is string => Boolean(value))
+          .map((value) => [value, { key: value, label: formatLabel(value) }]),
+      ).values(),
+    )
+
+    for (const item of config) {
+      cards.push({
+        key: item.key,
+        label: item.label,
+        count: submissions.filter(
+          (submission) => submission.lead.subStatus === item.key || submission.lead.stage === item.key,
+        ).length,
+      })
+    }
+
+    return cards
+  }, [submissions])
+
+  const filteredSubmissions = useMemo(() => {
+    if (stageFilter === ALL_STAGE_FILTER) return submissions
+    return submissions.filter(
+      (submission) => submission.lead.subStatus === stageFilter || submission.lead.stage === stageFilter,
+    )
+  }, [stageFilter, submissions])
+
+  const filteredTotalFiles = useMemo(
+    () => filteredSubmissions.reduce((count, submission) => count + submission.files.length, 0),
+    [filteredSubmissions],
   )
 
   return (
@@ -309,10 +415,56 @@ export function ReviewCenterView({
               className="pl-10"
             />
           </div>
+          {showSrCrmFilter ? (
+            <div className="w-full sm:w-64">
+              <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by SR CRM" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_MEMBER_FILTER}>All SR CRMs</SelectItem>
+                  {srCrmFilterOptions.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          <div className="w-full sm:w-64">
+            <Select value={visitMonthFilter} onValueChange={setVisitMonthFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by Visit Month" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_MONTH_FILTER}>All Visit Months</SelectItem>
+                {visitMonthFilterOptions.map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <Badge variant="outline" className="h-8 px-3">
-            {submissions.length} submission{submissions.length === 1 ? '' : 's'} • {totalFiles} file
-            {totalFiles === 1 ? '' : 's'}
+            {filteredSubmissions.length} submission{filteredSubmissions.length === 1 ? '' : 's'} • {filteredTotalFiles} file
+            {filteredTotalFiles === 1 ? '' : 's'}
           </Badge>
+        </div>
+
+        <div className="mb-4 flex flex-wrap gap-2">
+          {statCards.map((card) => (
+            <Button
+              key={card.key}
+              size="sm"
+              variant={stageFilter === card.key ? 'default' : 'outline'}
+              onClick={() => setStageFilter(card.key)}
+              className="h-8"
+            >
+              {card.label}: {card.count}
+            </Button>
+          ))}
         </div>
 
         {loading ? (
@@ -321,7 +473,7 @@ export function ReviewCenterView({
               <div key={index} className="h-28 animate-pulse rounded-xl bg-muted" />
             ))}
           </div>
-        ) : submissions.length === 0 ? (
+        ) : filteredSubmissions.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
               No submissions found for review.
@@ -329,7 +481,7 @@ export function ReviewCenterView({
           </Card>
         ) : (
           <div className="space-y-4">
-            {submissions.map((submission) => (
+            {filteredSubmissions.map((submission) => (
               <Card
                 key={submission.id}
                 className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
@@ -390,6 +542,10 @@ export function ReviewCenterView({
                     <span className="inline-flex items-center gap-1">
                       <CalendarClock className="h-3.5 w-3.5" />
                       {formatSubmittedAt(submission.submittedAt)}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Visit: {formatMonth(submission.lead.latestCompletedVisit?.scheduledAt)}
                     </span>
                   </div>
 
