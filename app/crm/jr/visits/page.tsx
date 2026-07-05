@@ -46,7 +46,13 @@ import {
   FileText,
   FileVideo,
   CheckCircle2,
-  XCircle,
+  CalendarDays,
+  ClipboardList,
+  CheckCheck,
+  RotateCcw,
+  Ban,
+  UserCheck,
+  Users,
 } from 'lucide-react'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { fetchMeCached } from '@/lib/client-me'
@@ -78,6 +84,15 @@ type VisitRecord = {
     name: string
     phone: string
     location: string | null
+    assignments?: Array<{
+      id: string
+      department: string
+      user: {
+        id: string
+        fullName: string
+        email: string
+      } | null
+    }>
   }
   assignedTo: {
     id: string
@@ -283,6 +298,7 @@ export function VisitsPageView({
   const [listDateTo, setListDateTo] = useState('')
   const [listDateRange, setListDateRange] = useState<DateRange | undefined>(undefined)
   const [listMemberFilter, setListMemberFilter] = useState('ALL')
+  const [srCrmFilter, setSrCrmFilter] = useState('ALL')
   const [listViewMode, setListViewMode] = useState<'table' | 'card'>('table')
   const listDetailsRef = useRef<HTMLDivElement | null>(null)
 
@@ -450,17 +466,38 @@ export function VisitsPageView({
   const normalizedSearch = searchTerm.trim().toLowerCase()
   const numericSearch = searchTerm.replace(/\D/g, '')
 
-  const filteredVisits = useMemo(() => {
-    if (!normalizedSearch && !numericSearch) return visits
+  const getSeniorCrmAssignment = (visit: VisitRecord) => {
+    return (visit.lead?.assignments ?? []).find((assignment) => assignment.department === 'SR_CRM') ?? null
+  }
 
+  const srCrmOptions = useMemo(() => {
+    const srCrmMap = new Map<string, string>()
+    visits.forEach((visit) => {
+      const assignment = getSeniorCrmAssignment(visit)
+      if (!assignment?.user?.id) return
+      srCrmMap.set(assignment.user.id, assignment.user.fullName || 'Unknown')
+    })
+    return Array.from(srCrmMap.entries())
+      .map(([id, fullName]) => ({ id, fullName }))
+      .sort((a, b) => a.fullName.localeCompare(b.fullName))
+  }, [visits])
+
+  const filteredVisits = useMemo(() => {
     return visits.filter((visit) => {
+      const assignment = getSeniorCrmAssignment(visit)
+      if (srCrmFilter === 'UNASSIGNED' && assignment?.user?.id) return false
+      if (srCrmFilter !== 'ALL' && srCrmFilter !== 'UNASSIGNED' && assignment?.user?.id !== srCrmFilter) {
+        return false
+      }
+
+      if (!normalizedSearch && !numericSearch) return true
       const leadName = visit.lead?.name?.toLowerCase() ?? ''
       const leadPhone = visit.lead?.phone?.replace(/\D/g, '') ?? ''
       const nameMatch = normalizedSearch ? leadName.includes(normalizedSearch) : false
       const phoneMatch = numericSearch ? leadPhone.includes(numericSearch) : false
       return nameMatch || phoneMatch
     })
-  }, [visits, normalizedSearch, numericSearch])
+  }, [visits, normalizedSearch, numericSearch, srCrmFilter])
 
   const listMemberOptions = useMemo(() => {
     const membersMap = new Map<string, string>()
@@ -494,10 +531,60 @@ export function VisitsPageView({
     blurUnassignedVisitDetails,
   ])
 
-  const scheduledVisits = useMemo(
-    () => listDateMemberFilteredVisits.filter((v) => v.status === 'SCHEDULED'),
-    [listDateMemberFilteredVisits]
+
+  const monthStartKey = useMemo(
+    () => formatLocalDateKey(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)),
+    [currentDate],
   )
+  const monthEndKey = useMemo(
+    () => formatLocalDateKey(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)),
+    [currentDate],
+  )
+
+  const monthlyVisibleVisits = useMemo(() => {
+    return filteredVisits.filter((visit) => {
+      if (!canViewVisit(visit)) return false
+      const visitDate = formatLocalDateKey(new Date(visit.scheduledAt))
+      if (visitDate < monthStartKey || visitDate > monthEndKey) return false
+      if (listMemberFilter !== 'ALL' && visit.assignedTo?.id !== listMemberFilter) return false
+      return true
+    })
+  }, [
+    filteredVisits,
+    monthStartKey,
+    monthEndKey,
+    listMemberFilter,
+    isAdminActor,
+    isVisitTeamLeaderActor,
+    currentUserId,
+    blurUnassignedVisitDetails,
+  ])
+
+  const monthlyScheduledVisits = useMemo(
+    () => monthlyVisibleVisits.filter((v) => v.status === 'SCHEDULED'),
+    [monthlyVisibleVisits],
+  )
+  const monthlyCompletedVisits = useMemo(
+    () => monthlyVisibleVisits.filter((v) => v.status === 'COMPLETED'),
+    [monthlyVisibleVisits],
+  )
+  const monthlyRescheduledVisits = useMemo(
+    () => monthlyVisibleVisits.filter((v) => v.status === 'RESCHEDULED'),
+    [monthlyVisibleVisits],
+  )
+  const monthlyCancelledVisits = useMemo(
+    () => monthlyVisibleVisits.filter((v) => v.status === 'CANCELLED'),
+    [monthlyVisibleVisits],
+  )
+  const monthlyLeadRoleVisits = useMemo(
+    () => monthlyVisibleVisits.filter((visit) => getVisitRole(visit) === 'LEAD'),
+    [monthlyVisibleVisits, currentUserId],
+  )
+  const monthlySupportRoleVisits = useMemo(
+    () => monthlyVisibleVisits.filter((visit) => getVisitRole(visit) === 'SUPPORT'),
+    [monthlyVisibleVisits, currentUserId],
+  )
+
   const completedVisits = useMemo(
     () => listDateMemberFilteredVisits.filter((v) => v.status === 'COMPLETED'),
     [listDateMemberFilteredVisits]
@@ -505,7 +592,7 @@ export function VisitsPageView({
   // Group visits by date (YYYY-MM-DD from ISO string)
   const visitsByDate = useMemo(() => {
     const grouped: Record<string, VisitRecord[]> = {}
-    visits.forEach((visit) => {
+    filteredVisits.forEach((visit) => {
       const scheduledDate = new Date(visit.scheduledAt)
       const dateStr = Number.isNaN(scheduledDate.getTime())
         ? visit.scheduledAt.split('T')[0]
@@ -514,7 +601,7 @@ export function VisitsPageView({
       grouped[dateStr].push(visit)
     })
     return grouped
-  }, [visits])
+  }, [filteredVisits])
 
   // Get calendar days for current month
   const getDaysInMonth = (date: Date) => {
@@ -609,14 +696,6 @@ export function VisitsPageView({
   }
   const isSupportReadOnly = !supportDataEnabled
 
-  const rescheduledVisits = useMemo(
-    () => listDateMemberFilteredVisits.filter((v) => v.status === 'RESCHEDULED'),
-    [listDateMemberFilteredVisits],
-  )
-  const cancelledVisits = useMemo(
-    () => listDateMemberFilteredVisits.filter((v) => v.status === 'CANCELLED'),
-    [listDateMemberFilteredVisits],
-  )
   const leadRoleVisits = useMemo(
     () => listDateMemberFilteredVisits.filter((visit) => getVisitRole(visit) === 'LEAD'),
     [listDateMemberFilteredVisits, currentUserId],
@@ -1275,64 +1354,91 @@ export function VisitsPageView({
           </div>
         ) : null}
 
-        {showSummaryDashboard && activeTab === 'calendar' ? (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-            <button
-              type="button"
-              onClick={() => openListDetails('ALL')}
-              className="rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40"
-            >
-              <p className="text-sm font-medium text-muted-foreground">All</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{filteredVisits.length}</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => openListDetails('SCHEDULED')}
-              className="rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40"
-            >
-              <p className="text-sm font-medium text-muted-foreground">Pending</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{scheduledVisits.length}</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => openListDetails('COMPLETED')}
-              className="rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40"
-            >
-              <p className="text-sm font-medium text-muted-foreground">Completed</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{completedVisits.length}</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => openListDetails('RESCHEDULED')}
-              className="rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40"
-            >
-              <p className="text-sm font-medium text-muted-foreground">Rescheduled</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{rescheduledVisits.length}</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => openListDetails('CANCELLED')}
-              className="rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40"
-            >
-              <p className="text-sm font-medium text-muted-foreground">Cancelled</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{cancelledVisits.length}</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => openListDetails('LEAD')}
-              className="rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40"
-            >
-              <p className="text-sm font-medium text-muted-foreground">Leading</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{leadRoleVisits.length}</p>
-            </button>
-            <button
-              type="button"
-              onClick={() => openListDetails('SUPPORT')}
-              className="rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary/40"
-            >
-              <p className="text-sm font-medium text-muted-foreground">Supporting</p>
-              <p className="mt-1 text-xl font-semibold text-foreground">{supportRoleVisits.length}</p>
-            </button>
+        {showSummaryDashboard && activeTab === 'list' ? (
+          <div className="space-y-3">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Monthly visits</p>
+                <h2 className="text-xl font-semibold text-foreground">{monthYear} performance</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Stats are based on the active calendar month.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+              {[
+                {
+                  label: 'All Visits',
+                  value: monthlyVisibleVisits.length,
+                  filter: 'ALL' as const,
+                  Icon: ClipboardList,
+                  accent: 'from-slate-900 to-slate-700 text-white',
+                  glow: 'bg-slate-500/15',
+                },
+                {
+                  label: 'Pending',
+                  value: monthlyScheduledVisits.length,
+                  filter: 'SCHEDULED' as const,
+                  Icon: CalendarDays,
+                  accent: 'from-sky-500 to-blue-600 text-white',
+                  glow: 'bg-sky-500/15',
+                },
+                {
+                  label: 'Completed',
+                  value: monthlyCompletedVisits.length,
+                  filter: 'COMPLETED' as const,
+                  Icon: CheckCheck,
+                  accent: 'from-emerald-500 to-green-600 text-white',
+                  glow: 'bg-emerald-500/15',
+                },
+                {
+                  label: 'Rescheduled',
+                  value: monthlyRescheduledVisits.length,
+                  filter: 'RESCHEDULED' as const,
+                  Icon: RotateCcw,
+                  accent: 'from-amber-400 to-orange-500 text-white',
+                  glow: 'bg-amber-500/15',
+                },
+                {
+                  label: 'Cancelled',
+                  value: monthlyCancelledVisits.length,
+                  filter: 'CANCELLED' as const,
+                  Icon: Ban,
+                  accent: 'from-rose-500 to-red-600 text-white',
+                  glow: 'bg-rose-500/15',
+                },
+                {
+                  label: 'Leading',
+                  value: monthlyLeadRoleVisits.length,
+                  filter: 'LEAD' as const,
+                  Icon: UserCheck,
+                  accent: 'from-indigo-500 to-violet-600 text-white',
+                  glow: 'bg-indigo-500/15',
+                },
+                {
+                  label: 'Supporting',
+                  value: monthlySupportRoleVisits.length,
+                  filter: 'SUPPORT' as const,
+                  Icon: Users,
+                  accent: 'from-teal-500 to-cyan-600 text-white',
+                  glow: 'bg-teal-500/15',
+                },
+              ].map(({ label, value, filter, Icon, accent, glow }) => (
+                <button
+                  key={filter}
+                  type="button"
+                  onClick={() => openListDetails(filter)}
+                  className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl"
+                >
+                  <span className={`absolute -right-8 -top-8 size-24 rounded-full blur-2xl ${glow}`} />
+                  <span className={`relative inline-flex size-10 items-center justify-center rounded-xl bg-gradient-to-br shadow-lg ${accent}`}>
+                    <Icon className="size-5" />
+                  </span>
+                  <p className="relative mt-4 text-sm font-medium text-muted-foreground">{label}</p>
+                  <p className="relative mt-1 text-3xl font-bold tracking-tight text-foreground">{value}</p>
+                </button>
+              ))}
+            </div>
           </div>
         ) : null}
 
@@ -1342,7 +1448,7 @@ export function VisitsPageView({
       ) : null}
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <TabsList className="grid w-full grid-cols-2 rounded-lg bg-muted p-1 md:hidden">
             <TabsTrigger value="calendar" className="text-sm">Calendar View</TabsTrigger>
             <TabsTrigger value="list" className="text-sm">List View</TabsTrigger>
@@ -1364,6 +1470,23 @@ export function VisitsPageView({
             >
               List View
             </Button>
+          </div>
+          <div className="w-full md:w-72">
+            <Label htmlFor="sr-crm-filter" className="sr-only">SR CRM Filter</Label>
+            <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
+              <SelectTrigger id="sr-crm-filter" className="bg-card">
+                <SelectValue placeholder="Filter by SR CRM" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All SR CRM</SelectItem>
+                <SelectItem value="UNASSIGNED">Unassigned SR CRM</SelectItem>
+                {srCrmOptions.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -1696,13 +1819,14 @@ export function VisitsPageView({
                       </Button>
                     </div>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-4">
                     <div className="space-y-1">
                       <Label htmlFor="list-date-range">Date Range</Label>
                       <DateRangePicker
                         id="list-date-range"
                         value={listDateRange}
                         onChange={(range) => {
+                          setListDateRange(range)
                           if (!range) {
                             setListDateFrom('')
                             setListDateTo('')
@@ -1713,6 +1837,23 @@ export function VisitsPageView({
                         }}
                         placeholder="From - To"
                       />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="list-sr-crm-filter">SR CRM</Label>
+                      <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
+                        <SelectTrigger id="list-sr-crm-filter">
+                          <SelectValue placeholder="All SR CRM" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ALL">All SR CRM</SelectItem>
+                          <SelectItem value="UNASSIGNED">Unassigned SR CRM</SelectItem>
+                          {srCrmOptions.map((member) => (
+                            <SelectItem key={member.id} value={member.id}>
+                              {member.fullName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     {(visitScope as string) === 'visit' ? (
                       <div className="space-y-1" />
@@ -1745,6 +1886,7 @@ export function VisitsPageView({
                         setListDateTo('')
                         setListDateRange(undefined)
                         setListMemberFilter('ALL')
+                        setSrCrmFilter('ALL')
                       }}
                     >
                       Reset Filters
@@ -1810,6 +1952,7 @@ export function VisitsPageView({
                 setListDateFrom('')
                 setListDateTo('')
                 setListDateRange(undefined)
+                setSrCrmFilter('ALL')
               }}>
                 Reset Filters
               </Button>
