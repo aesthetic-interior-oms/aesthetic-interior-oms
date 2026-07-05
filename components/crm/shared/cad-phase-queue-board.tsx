@@ -100,6 +100,7 @@ type QueueResponse = {
 type DepartmentUser = { id: string; fullName: string; email: string }
 
 const ALL_MEMBER_FILTER = 'ALL_MEMBERS'
+const ALL_MONTH_FILTER = 'ALL_MONTHS'
 type DepartmentUsersResponse = {
   success: boolean
   users?: DepartmentUser[]
@@ -213,6 +214,7 @@ export function CadPhaseQueueBoard({
   assigneeDepartment = 'JR_ARCHITECT',
   assigneeLabel = 'JR Architect',
   showAssigneeReassign = true,
+  showSrCrmFilter = false,
 }: {
   title: string
   subtitle: string
@@ -222,6 +224,7 @@ export function CadPhaseQueueBoard({
   assigneeDepartment?: string
   assigneeLabel?: string
   showAssigneeReassign?: boolean
+  showSrCrmFilter?: boolean
 }) {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -257,6 +260,8 @@ export function CadPhaseQueueBoard({
   const [reassignQuotationOpen, setReassignQuotationOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string>('ALL')
   const [jrArchitectFilter, setJrArchitectFilter] = useState(ALL_MEMBER_FILTER)
+  const [srCrmFilter, setSrCrmFilter] = useState(ALL_MEMBER_FILTER)
+  const [visitMonthFilter, setVisitMonthFilter] = useState(ALL_MONTH_FILTER)
   const [dropOpen, setDropOpen] = useState(false)
   const [dropSubStatus, setDropSubStatus] = useState('')
   const [renameOpen, setRenameOpen] = useState(false)
@@ -804,11 +809,28 @@ export function CadPhaseQueueBoard({
   }
 
   const memberFilteredLeads = useMemo(() => {
-    if (!isCadQueue || jrArchitectFilter === ALL_MEMBER_FILTER) return leads
-    return leads.filter(
-      (lead) => lead.jrArchitectAssignment?.user.id === jrArchitectFilter,
-    )
-  }, [isCadQueue, jrArchitectFilter, leads])
+    let nextLeads = leads
+    if (isCadQueue && jrArchitectFilter !== ALL_MEMBER_FILTER) {
+      nextLeads = nextLeads.filter(
+        (lead) => lead.jrArchitectAssignment?.user.id === jrArchitectFilter,
+      )
+    }
+    if (showSrCrmFilter && srCrmFilter !== ALL_MEMBER_FILTER) {
+      nextLeads = nextLeads.filter(
+        (lead) => lead.srCrmAssignment?.user.id === srCrmFilter,
+      )
+    }
+    if (visitMonthFilter !== ALL_MONTH_FILTER) {
+      nextLeads = nextLeads.filter((lead) => {
+        const visitDate = lead.latestCompletedVisit?.scheduledAt
+        if (!visitDate) return visitMonthFilter === 'NO_VISIT_DATE'
+        const date = new Date(visitDate)
+        if (Number.isNaN(date.getTime())) return visitMonthFilter === 'NO_VISIT_DATE'
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}` === visitMonthFilter
+      })
+    }
+    return nextLeads
+  }, [isCadQueue, jrArchitectFilter, leads, showSrCrmFilter, srCrmFilter, visitMonthFilter])
 
   const jrArchitectFilterOptions = useMemo(() => {
     const options = new Map<string, DepartmentUser>()
@@ -821,16 +843,52 @@ export function CadPhaseQueueBoard({
     )
   }, [leads])
 
+  const srCrmFilterOptions = useMemo(() => {
+    const options = new Map<string, DepartmentUser>()
+    for (const lead of leads) {
+      const user = lead.srCrmAssignment?.user
+      if (user) options.set(user.id, user)
+    }
+    return Array.from(options.values()).sort((a, b) =>
+      a.fullName.localeCompare(b.fullName),
+    )
+  }, [leads])
+
+  const visitMonthFilterOptions = useMemo(() => {
+    const options = new Map<string, string>()
+    let hasNoVisitDate = false
+    for (const lead of leads) {
+      const visitDate = lead.latestCompletedVisit?.scheduledAt
+      if (!visitDate) {
+        hasNoVisitDate = true
+        continue
+      }
+      const date = new Date(visitDate)
+      if (Number.isNaN(date.getTime())) {
+        hasNoVisitDate = true
+        continue
+      }
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      options.set(value, formatMonth(visitDate))
+    }
+    const sorted = Array.from(options.entries()).sort(([a], [b]) => b.localeCompare(a))
+    if (hasNoVisitDate) sorted.push(['NO_VISIT_DATE', 'No Visit Date'])
+    return sorted
+  }, [leads])
+
   const statCards = useMemo(() => {
     const cards: Array<{ key: string; label: string; count: number }> = [
       { key: 'ALL', label: 'Total', count: memberFilteredLeads.length },
     ]
     const config = isMeetingQueue
-      ? [
-          { key: 'CAD_APPROVED', label: 'CAD Approved' },
-          { key: 'FIRST_MEETING_SET', label: 'Meeting Set' },
-          { key: 'PROPOSAL_SENT', label: 'Proposal Sent' },
-        ]
+      ? Array.from(
+          new Map(
+            memberFilteredLeads
+              .flatMap((lead) => [lead.subStatus, lead.stage])
+              .filter((value): value is string => Boolean(value))
+              .map((value) => [value, { key: value, label: formatLabel(value) }]),
+          ).values(),
+        )
       : isBudgetQueue
         ? [
             { key: 'QUOTATION_ASSIGNED', label: 'Quotation Assigned' },
@@ -959,6 +1017,38 @@ export function CadPhaseQueueBoard({
               </Select>
             </div>
           ) : null}
+          {showSrCrmFilter ? (
+            <div className="w-full sm:w-64">
+              <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by SR CRM" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_MEMBER_FILTER}>All SR CRMs</SelectItem>
+                  {srCrmFilterOptions.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+          <div className="w-full sm:w-64">
+            <Select value={visitMonthFilter} onValueChange={setVisitMonthFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="Filter by Visit Month" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_MONTH_FILTER}>All Visit Months</SelectItem>
+                {visitMonthFilterOptions.map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex flex-wrap gap-2">
             {statCards.map((card) => (
               <Button
