@@ -16,8 +16,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Clock3, MapPin, UserRound, Sparkles } from 'lucide-react'
+import { Clock3, LayoutGrid, List, MapPin, MoreHorizontal, Sparkles, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 type QueueItem = {
   leadId: string
@@ -70,6 +89,8 @@ type QueueResponse = {
   }
   error?: string
 }
+type ViewMode = 'card' | 'list'
+
 type DepartmentUsersResponse = {
   success: boolean
   users?: Array<{ id: string; fullName: string; email: string }>
@@ -108,6 +129,7 @@ export function VisitCompleteQueueBoard({
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameLeadId, setRenameLeadId] = useState('')
   const [renameValue, setRenameValue] = useState('')
+  const [viewMode, setViewMode] = useState<ViewMode>('card')
 
   const loadQueue = useCallback(async () => {
     setLoading(true)
@@ -192,10 +214,11 @@ export function VisitCompleteQueueBoard({
     }
   }, [loadQueue])
 
-  const assignLead = useCallback(async (leadId: string, requestId?: string) => {
-    const selectedUserId = requestId
-      ? items.find((item) => item.leadId === leadId)?.pendingRequests.find((req) => req.id === requestId)?.requestedById
-      : selectedByLead[leadId]
+  const assignLead = useCallback(async (leadId: string, requestId?: string, assigneeId?: string) => {
+    const selectedUserId = assigneeId
+      ?? (requestId
+        ? items.find((item) => item.leadId === leadId)?.pendingRequests.find((req) => req.id === requestId)?.requestedById
+        : selectedByLead[leadId])
 
     if (!selectedUserId) {
       toast.error('Select a JR Architect first')
@@ -225,6 +248,17 @@ export function VisitCompleteQueueBoard({
       setBusyLeadId(null)
     }
   }, [items, loadQueue, selectedByLead])
+
+  const getVisitTeam = (item: QueueItem) => {
+    const lead = item.latestCompletedVisit?.assignedVisitLead
+    const supportMembers = item.latestCompletedVisit?.supportMembers ?? []
+    const members = [
+      lead ? `${lead.fullName} (Lead)` : null,
+      ...supportMembers.map((member) => `${member.fullName} (Support)`),
+    ].filter(Boolean)
+
+    return members.length ? members.join(', ') : 'N/A'
+  }
 
   const openRenameDialog = (leadId: string, currentName: string) => {
     setRenameLeadId(leadId)
@@ -285,8 +319,30 @@ export function VisitCompleteQueueBoard({
         </div>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
             <CardTitle className="text-base">Visit Complete Queue</CardTitle>
+            <div className="flex rounded-md border bg-muted/30 p-1">
+              <Button
+                type="button"
+                size="sm"
+                variant={viewMode === 'card' ? 'default' : 'ghost'}
+                className="h-8 gap-1.5"
+                onClick={() => setViewMode('card')}
+              >
+                <LayoutGrid className="h-4 w-4" />
+                Card
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                className="h-8 gap-1.5"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="h-4 w-4" />
+                List
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             {loading ? (
@@ -299,7 +355,113 @@ export function VisitCompleteQueueBoard({
               </div>
             ) : null}
 
-            {items.map((item) => (
+            {!loading && viewMode === 'list' && items.length > 0 ? (
+              <div className="overflow-hidden rounded-lg border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[150px]">Visit Date</TableHead>
+                      <TableHead className="min-w-[150px]">Complete Date</TableHead>
+                      <TableHead className="min-w-[180px]">Location</TableHead>
+                      <TableHead className="w-[280px] max-w-[280px]">Summary</TableHead>
+                      <TableHead className="min-w-[220px]">Visit Team</TableHead>
+                      <TableHead className="min-w-[160px]">SR CRM</TableHead>
+                      <TableHead className="w-[80px] text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {items.map((item) => {
+                      const summary = item.latestCompletedVisit?.summary ?? 'No summary'
+                      return (
+                        <TableRow key={item.leadId}>
+                          <TableCell>{formatDateTime(item.latestCompletedVisit?.scheduledAt ?? null)}</TableCell>
+                          <TableCell>{formatDateTime(item.latestCompletedVisit?.completedAt ?? null)}</TableCell>
+                          <TableCell className="max-w-[220px] truncate" title={item.latestCompletedVisit?.location ?? 'N/A'}>
+                            {item.latestCompletedVisit?.location ?? 'N/A'}
+                          </TableCell>
+                          <TableCell className="w-[280px] max-w-[280px] truncate" title={summary}>
+                            {summary}
+                          </TableCell>
+                          <TableCell className="max-w-[260px] truncate" title={getVisitTeam(item)}>
+                            {getVisitTeam(item)}
+                          </TableCell>
+                          <TableCell className="max-w-[180px] truncate" title={item.srCrmAssignee?.fullName ?? 'Unassigned'}>
+                            {item.srCrmAssignee?.fullName ?? 'Unassigned'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" disabled={busyLeadId === item.leadId}>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">Open actions</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuLabel>{item.leadName}</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {leadHrefPrefix ? (
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`${leadHrefPrefix}/${item.leadId}`}>Open Lead</Link>
+                                  </DropdownMenuItem>
+                                ) : null}
+                                <DropdownMenuItem onClick={() => openRenameDialog(item.leadId, item.leadName)}>
+                                  Change Client Name
+                                </DropdownMenuItem>
+                                {canRequest ? (
+                                  <DropdownMenuItem
+                                    disabled={Boolean(item.jrArchitectAssignee)}
+                                    onClick={() => requestLead(item.leadId)}
+                                  >
+                                    {item.jrArchitectAssignee ? 'Already Assigned' : 'Request to Work'}
+                                  </DropdownMenuItem>
+                                ) : null}
+                                {canAssign ? (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuSub>
+                                      <DropdownMenuSubTrigger>Assign JR Architect</DropdownMenuSubTrigger>
+                                      <DropdownMenuSubContent className="w-56">
+                                        {jrArchitectUsers.length > 0 ? jrArchitectUsers.map((user) => (
+                                          <DropdownMenuItem
+                                            key={user.id}
+                                            onClick={() => assignLead(item.leadId, undefined, user.id)}
+                                          >
+                                            {user.fullName}
+                                          </DropdownMenuItem>
+                                        )) : (
+                                          <DropdownMenuItem disabled>No JR Architects</DropdownMenuItem>
+                                        )}
+                                      </DropdownMenuSubContent>
+                                    </DropdownMenuSub>
+                                    {item.pendingRequests.length > 0 ? (
+                                      <DropdownMenuSub>
+                                        <DropdownMenuSubTrigger>Approve Request</DropdownMenuSubTrigger>
+                                        <DropdownMenuSubContent className="w-56">
+                                          {item.pendingRequests.map((request) => (
+                                            <DropdownMenuItem
+                                              key={request.id}
+                                              onClick={() => assignLead(item.leadId, request.id)}
+                                            >
+                                              {request.requestedByName}
+                                            </DropdownMenuItem>
+                                          ))}
+                                        </DropdownMenuSubContent>
+                                      </DropdownMenuSub>
+                                    ) : null}
+                                  </>
+                                ) : null}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : null}
+
+            {viewMode === 'card' ? items.map((item) => (
               <Card
                 key={item.leadId}
                 className="overflow-hidden border-border/70 shadow-sm transition hover:shadow-md"
@@ -480,7 +642,7 @@ export function VisitCompleteQueueBoard({
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )) : null}
           </CardContent>
         </Card>
       </main>
