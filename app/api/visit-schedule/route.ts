@@ -126,7 +126,22 @@ export async function GET(request: NextRequest) {
         createdById: true,
         createdAt: true,
         updatedAt: true,
-        lead: { select: { id: true, name: true, phone: true, location: true } },
+        lead: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            location: true,
+            assignments: {
+              where: { department: LeadAssignmentDepartment.SR_CRM },
+              select: {
+                id: true,
+                department: true,
+                user: { select: { id: true, fullName: true, email: true } },
+              },
+            },
+          },
+        },
         assignedTo: { select: { id: true, fullName: true, email: true, phone: true } },
         createdBy: { select: { id: true, fullName: true } },
         supportAssignments: {

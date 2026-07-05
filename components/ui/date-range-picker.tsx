@@ -173,7 +173,7 @@ function SimpleCalendar({ mode = "range", selected, defaultMonth, onSelect, numb
   )
 }
 
-function DateRangePicker({ value, onChange, placeholder = "Pick a date range", className }: DateRangePickerProps) {
+function DateRangePicker({ value, onChange, placeholder = "Pick a date range", className, id }: DateRangePickerProps) {
   const [open, setOpen] = React.useState(false)
 
   const range = value ?? {}
@@ -192,7 +192,7 @@ function DateRangePicker({ value, onChange, placeholder = "Pick a date range", c
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          id="date-range"
+          id={id ?? "date-range"}
           className={cn(
             "h-9 w-full justify-start border border-input bg-background px-3 text-left font-normal",
             !range.from && "text-muted-foreground",
