@@ -26,6 +26,60 @@ function escapeHtml(value: unknown) {
 }
 
 
+
+function escapeXml(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+function wordText(value: unknown, preserveSpace = false) {
+  const text = escapeXml(value)
+  return `<w:t${preserveSpace || /^\s|\s$|\n/.test(String(value ?? '')) ? ' xml:space="preserve"' : ''}>${text}</w:t>`
+}
+
+function wordRun(value: unknown, options: { bold?: boolean; color?: string; size?: number } = {}) {
+  const props = [
+    options.bold ? '<w:b/>' : '',
+    options.color ? `<w:color w:val="${options.color}"/>` : '',
+    options.size ? `<w:sz w:val="${options.size}"/>` : '',
+  ].join('')
+  return `<w:r>${props ? `<w:rPr>${props}</w:rPr>` : ''}${wordText(value, true)}</w:r>`
+}
+
+function wordParagraph(value: unknown, options: { bold?: boolean; heading?: boolean; color?: string; align?: 'left' | 'center' | 'right'; spacingAfter?: number } = {}) {
+  const align = options.align && options.align !== 'left' ? `<w:jc w:val="${options.align}"/>` : ''
+  const spacing = `<w:spacing w:after="${options.spacingAfter ?? 120}"/>`
+  return `<w:p><w:pPr>${align}${spacing}</w:pPr>${wordRun(value, { bold: options.bold ?? options.heading, color: options.color, size: options.heading ? 28 : undefined })}</w:p>`
+}
+
+function wordMultilineParagraph(value: unknown, options: { bold?: boolean; color?: string } = {}) {
+  return String(value ?? '')
+    .split('\n')
+    .filter((line, index, lines) => line.trim() || index === 0 || index === lines.length - 1)
+    .map((line) => wordParagraph(line, options))
+    .join('')
+}
+
+function tableCell(content: string, options: { width?: number; shade?: string; color?: string; align?: 'left' | 'center' | 'right'; bold?: boolean; colspan?: number } = {}) {
+  const gridSpan = options.colspan ? `<w:gridSpan w:val="${options.colspan}"/>` : ''
+  const shade = options.shade ? `<w:shd w:fill="${options.shade}"/>` : ''
+  const width = options.width ? `<w:tcW w:w="${options.width}" w:type="pct"/>` : ''
+  const paragraph = content.startsWith('<w:p') ? content : wordParagraph(content, { align: options.align, bold: options.bold, color: options.color, spacingAfter: 0 })
+  return `<w:tc><w:tcPr>${width}${gridSpan}${shade}<w:vAlign w:val="top"/></w:tcPr>${paragraph}</w:tc>`
+}
+
+function tableRow(cells: string[]) {
+  return `<w:tr>${cells.join('')}</w:tr>`
+}
+
+function wordTable(rows: string[]) {
+  return `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single" w:sz="6"/><w:left w:val="single" w:sz="6"/><w:bottom w:val="single" w:sz="6"/><w:right w:val="single" w:sz="6"/><w:insideH w:val="single" w:sz="6"/><w:insideV w:val="single" w:sz="6"/></w:tblBorders></w:tblPr>${rows.join('')}</w:tbl>`
+}
+
 function formatAmount(value: number) {
   return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value)
 }
@@ -120,6 +174,83 @@ function buildDocxBlob(html: string) {
   return new Blob([zip(files)], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
 }
 
+
+function buildDocxFromDocumentXml(bodyXml: string) {
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${bodyXml}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720"/></w:sectPr></w:body></w:document>`
+  const files = [
+    { name: '[Content_Types].xml', data: encoder.encode('<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>') },
+    { name: '_rels/.rels', data: encoder.encode('<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>') },
+    { name: 'word/document.xml', data: encoder.encode(documentXml) },
+  ]
+  return new Blob([zip(files)], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+}
+
+function buildDetailQuotationDocxBlob(input: DetailInput) {
+  const { clientName, clientAddress, content, totals } = input
+  const normalized = content
+  const floorSummaries = buildDetailFloorSummaries(normalized)
+  const summaryRows = [
+    tableRow([
+      tableCell('SL', { shade: '0070C0', color: 'FFFFFF', align: 'center', bold: true }),
+      tableCell('NAME', { shade: '0070C0', color: 'FFFFFF', bold: true }),
+      tableCell('TOTAL', { shade: '0070C0', color: 'FFFFFF', align: 'center', bold: true }),
+    ]),
+    ...floorSummaries.map((entry, index) => tableRow([
+      tableCell(String(index + 1).padStart(2, '0'), { align: 'center' }),
+      tableCell(entry.floor.name),
+      tableCell(formatDetailAmount(entry.total), { align: 'right' }),
+    ])),
+    tableRow([
+      tableCell('GRAND TOTAL', { colspan: 2, shade: '0070C0', color: 'FFFFFF', align: 'center', bold: true }),
+      tableCell(formatDetailAmount(totals.grandTotal), { shade: '0070C0', color: 'FFFFFF', align: 'right', bold: true }),
+    ]),
+  ]
+
+  const detailTables = floorSummaries.map((entry) => {
+    const rows = [
+      tableRow([tableCell(entry.floor.name, { colspan: 6, shade: '76933C', color: 'FFFFFF', align: 'center', bold: true })]),
+      tableRow(['SL', 'NAME', 'MATERIALS', 'QTY SFT', 'UNIT PRICE', 'TOTAL'].map((heading) => tableCell(heading, { shade: '0070C0', color: 'FFFFFF', align: 'center', bold: true }))),
+      ...entry.lines.map((line, lineIndex) => {
+        const isPkg = isPackageLine(line)
+        return tableRow([
+          tableCell(String(line.serialNo ?? lineIndex + 1).padStart(2, '0'), { align: 'center', bold: true }),
+          tableCell(line.description, { bold: true }),
+          tableCell(wordMultilineParagraph(line.materials || '—')),
+          tableCell(isPkg ? 'Package' : (line.quantity != null ? String(line.quantity) : '—'), { align: 'center' }),
+          tableCell(isPkg ? 'As Per Design' : (line.rate != null ? formatDetailAmount(line.rate) : '—'), { align: 'center' }),
+          tableCell(`${formatDetailAmount(line.amount)}${line.description.toLowerCase().includes('electric wiring') ? ' (Approx)' : ''}`, { align: 'right', bold: true }),
+        ])
+      }),
+      tableRow([
+        tableCell('TOTAL', { colspan: 5, shade: '0070C0', color: 'FFFFFF', align: 'center', bold: true }),
+        tableCell(formatDetailAmount(entry.total), { shade: '0070C0', color: 'FFFFFF', align: 'right', bold: true }),
+      ]),
+    ]
+    return [wordParagraph(entry.floor.name, { heading: true, align: 'center' }), wordTable(rows), wordParagraph(`In Words: ${amountInWordsTaka(entry.total)}`, { bold: true })].join('')
+  }).join('')
+
+  const header = [
+    wordParagraph('Aesthetic Interior - Detail Quotation', { heading: true, align: 'center', color: '0F5B53' }),
+    wordParagraph(`Quotation for: ${clientName}`, { bold: true }),
+    wordParagraph(`Address: ${clientAddress || '—'}`),
+    wordParagraph(`Date: ${content.quotationDate ?? ''}`),
+    wordParagraph(`Subject: ${content.summarySubject ?? content.subject ?? ''}`, { bold: true }),
+    wordParagraph('Dear Sir,', { bold: true }),
+    wordMultilineParagraph((content.introLetter ?? '').replace('Dear Sir,\n', '').replace('Dear Sir,', '')),
+  ].join('')
+
+  const footer = [
+    wordParagraph('Notes:', { bold: true }), wordMultilineParagraph(content.notes ?? ''),
+    wordParagraph('Terms & Condition:', { bold: true }), wordMultilineParagraph(content.terms ?? ''),
+    wordParagraph('Mode of Payment:', { bold: true }), wordMultilineParagraph(content.paymentTerms ?? ''),
+    wordParagraph('Duration Of Work:', { bold: true }), wordMultilineParagraph(content.durationNotes ?? ''),
+    content.drawingDesign ? wordMultilineParagraph(content.drawingDesign, { bold: true, color: 'FF0000' }) : '',
+    wordParagraph(`Customer Name & Sign                       ${content.signatoryName ?? ''} ${content.signatoryTitle ?? ''}`, { bold: true }),
+  ].join('')
+
+  return buildDocxFromDocumentXml(`${header}${wordParagraph('Quotation Summary', { heading: true, align: 'center' })}${wordTable(summaryRows)}${wordParagraph(`In Words: ${amountInWordsTaka(totals.grandTotal)}`, { bold: true })}${detailTables}${footer}`)
+}
+
 function downloadWord(html: string, fileName: string, format: WordFormat) {
   if (format === 'doc') {
     saveBlob(new Blob([html], { type: 'application/msword;charset=utf-8' }), fileName)
@@ -133,5 +264,9 @@ export function downloadShortQuotationWord(content: ShortQuotationContent, fileN
 }
 
 export function downloadDetailQuotationWord(input: DetailInput, fileName: string, format: WordFormat) {
+  if (format === 'docx') {
+    saveBlob(buildDetailQuotationDocxBlob(input), fileName)
+    return
+  }
   downloadWord(buildDetailQuotationHtml(input), fileName, format)
 }
