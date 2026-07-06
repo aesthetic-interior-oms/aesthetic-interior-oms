@@ -210,6 +210,7 @@ type VisitsPageProps = {
   pageTitle?: string
   pageSubtitle?: string
   cardNavigatesToLead?: boolean
+  visitTeamView?: boolean
 }
 
 function getVisitScheduleListUrl(visitScope: NonNullable<VisitsPageProps['visitScope']>) {
@@ -231,9 +232,10 @@ export function VisitsPageView({
   pageTitle = 'Visits',
   pageSubtitle = 'Schedule and manage site visits',
   cardNavigatesToLead = false,
+  visitTeamView = false,
 }: VisitsPageProps) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState('calendar')
+  const [activeTab, setActiveTab] = useState(() => (visitTeamView ? 'list' : 'calendar'))
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [visits, setVisits] = useState<VisitRecord[]>([])
@@ -309,7 +311,7 @@ export function VisitsPageView({
   const [listDateRange, setListDateRange] = useState<DateRange | undefined>(undefined)
   const [listMemberFilter, setListMemberFilter] = useState('ALL')
   const [srCrmFilter, setSrCrmFilter] = useState('ALL')
-  const [listViewMode, setListViewMode] = useState<'table' | 'card'>('table')
+  const [listViewMode, setListViewMode] = useState<'table' | 'card'>(() => (visitTeamView ? 'card' : 'table'))
   const listDetailsRef = useRef<HTMLDivElement | null>(null)
 
   const formatLocalDateKey = (date: Date) => {
@@ -359,6 +361,12 @@ export function VisitsPageView({
   useEffect(() => {
     setSelectedDate(formatLocalDateKey(new Date()))
   }, [])
+
+  useEffect(() => {
+    if (!visitTeamView) return
+    setActiveTab('list')
+    setListViewMode('card')
+  }, [visitTeamView])
 
   useEffect(() => {
     const loadVisits = async () => {
@@ -548,7 +556,7 @@ export function VisitsPageView({
       const visitDate = formatLocalDateKey(new Date(visit.scheduledAt))
       if (listDateFrom && visitDate < listDateFrom) return false
       if (listDateTo && visitDate > listDateTo) return false
-      if (listMemberFilter !== 'ALL' && visit.assignedTo?.id !== listMemberFilter) return false
+      if (!visitTeamView && listMemberFilter !== 'ALL' && visit.assignedTo?.id !== listMemberFilter) return false
       return true
     })
   }, [
@@ -556,6 +564,7 @@ export function VisitsPageView({
     listDateFrom,
     listDateTo,
     listMemberFilter,
+    visitTeamView,
     isAdminActor,
     isVisitTeamLeaderActor,
     currentUserId,
@@ -573,6 +582,7 @@ export function VisitsPageView({
   )
 
   const monthlyVisibleVisits = useMemo(() => {
+    if (visitTeamView) return listDateMemberFilteredVisits
     return filteredVisits.filter((visit) => {
       if (!canViewVisit(visit)) return false
       const visitDate = formatLocalDateKey(new Date(visit.scheduledAt))
@@ -582,9 +592,11 @@ export function VisitsPageView({
     })
   }, [
     filteredVisits,
+    listDateMemberFilteredVisits,
     monthStartKey,
     monthEndKey,
     listMemberFilter,
+    visitTeamView,
     isAdminActor,
     isVisitTeamLeaderActor,
     currentUserId,
@@ -686,6 +698,7 @@ export function VisitsPageView({
   }, [currentDate, daysInMonth, visitsByDate])
 
   function canViewVisit(visit: VisitRecord) {
+    if (visitTeamView) return getVisitRole(visit) !== 'NONE'
     if (isAdminActor || isVisitTeamLeaderActor) return true
     if (blurUnassignedVisitDetails) {
       return getVisitRole(visit) !== 'NONE'
@@ -1461,15 +1474,15 @@ export function VisitsPageView({
           </div>
         ) : null}
 
-        {showSummaryDashboard && activeTab === 'list' ? (
+        {(showSummaryDashboard || visitTeamView) && activeTab === 'list' ? (
           <div className="space-y-3">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Monthly visits</p>
-                <h2 className="text-xl font-semibold text-foreground">{monthYear} performance</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">{visitTeamView ? 'My visits' : 'Monthly visits'}</p>
+                <h2 className="text-xl font-semibold text-foreground">{visitTeamView ? 'Visit summary' : `${monthYear} performance`}</h2>
               </div>
               <p className="text-sm text-muted-foreground">
-                Stats are based on the active calendar month.
+                {visitTeamView ? 'Stats update from your filtered visit cards.' : 'Stats are based on the active calendar month.'}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
@@ -1554,12 +1567,15 @@ export function VisitsPageView({
         <p className="text-sm text-destructive">{error}</p>
       ) : null}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(visitTeamView ? 'list' : value)}>
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          {!visitTeamView ? (
           <TabsList className="grid w-full grid-cols-2 rounded-lg bg-muted p-1 md:hidden">
             <TabsTrigger value="calendar" className="text-sm">Calendar View</TabsTrigger>
             <TabsTrigger value="list" className="text-sm">List View</TabsTrigger>
           </TabsList>
+          ) : null}
+          {!visitTeamView ? (
           <div className="hidden md:flex items-center gap-2 rounded-lg border border-border bg-card p-1">
             <Button
               type="button"
@@ -1578,6 +1594,8 @@ export function VisitsPageView({
               List View
             </Button>
           </div>
+          ) : null}
+          {!visitTeamView ? (
           <div className="w-full md:w-72">
             <Label htmlFor="sr-crm-filter" className="sr-only">SR CRM Filter</Label>
             <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
@@ -1595,6 +1613,7 @@ export function VisitsPageView({
               </SelectContent>
             </Select>
           </div>
+          ) : null}
         </div>
 
         <TabsContent value="calendar" className="mt-6">
@@ -1922,10 +1941,10 @@ export function VisitsPageView({
 
         <TabsContent value="list" className="mt-6">
           <div className="space-y-6" ref={listDetailsRef}>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.5fr_auto]">
+            <div className={visitTeamView ? 'grid gap-3' : 'grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.5fr_auto]'}>
               <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
                 <div className="grid gap-4">
-                  <div className="grid gap-3 lg:grid-cols-[1.8fr_auto]">
+                  <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
                     <div className="space-y-1">
                       <Label htmlFor="list-search">Search</Label>
                       <Input
@@ -1948,7 +1967,7 @@ export function VisitsPageView({
                       </Button>
                     </div>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                  <div className={visitTeamView ? 'grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end' : 'grid gap-3 sm:grid-cols-3 xl:grid-cols-4'}>
                     <div className="space-y-1">
                       <Label htmlFor="list-date-range">Date Range</Label>
                       <DateRangePicker
@@ -1984,7 +2003,24 @@ export function VisitsPageView({
                         </SelectContent>
                       </Select>
                     </div>
-                    {(visitScope as string) === 'visit' ? (
+                    {visitTeamView ? (
+                      <div className="flex justify-end md:items-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSearchTerm('')
+                            setListDateFrom('')
+                            setListDateTo('')
+                            setListDateRange(undefined)
+                            setSrCrmFilter('ALL')
+                          }}
+                        >
+                          Reset Filters
+                        </Button>
+                      </div>
+                    ) : (visitScope as string) === 'visit' ? (
                       <div className="space-y-1" />
                     ) : (
                       <div className="space-y-1">
@@ -2005,25 +2041,28 @@ export function VisitsPageView({
                       </div>
                     )}
                   </div>
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setListDateFrom('')
-                        setListDateTo('')
-                        setListDateRange(undefined)
-                        setListMemberFilter('ALL')
-                        setSrCrmFilter('ALL')
-                      }}
-                    >
-                      Reset Filters
-                    </Button>
-                  </div>
+                  {!visitTeamView ? (
+                    <div className="flex justify-end md:items-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setListDateFrom('')
+                          setListDateTo('')
+                          setListDateRange(undefined)
+                          setListMemberFilter('ALL')
+                          setSrCrmFilter('ALL')
+                        }}
+                      >
+                        Reset Filters
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
+              {!visitTeamView ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
                   <p className="text-sm font-medium text-muted-foreground">Current filter</p>
@@ -2036,9 +2075,11 @@ export function VisitsPageView({
                   <p className="text-sm text-muted-foreground">Currently filtered members</p>
                 </div>
               </div>
+              ) : null}
             </div>
 
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {!visitTeamView ? (
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-1">
@@ -2076,6 +2117,8 @@ export function VisitsPageView({
                   ))}
                 </PopoverContent>
               </Popover>
+              ) : null}
+              {!visitTeamView ? (
               <Button variant="outline" size="sm" onClick={() => {
                 setListFilter('ALL')
                 setListDateFrom('')
@@ -2085,7 +2128,9 @@ export function VisitsPageView({
               }}>
                 Reset Filters
               </Button>
+              ) : null}
               <p className="text-xs text-muted-foreground">Showing {filteredListVisits.length} visits</p>
+              {!visitTeamView ? (
               <div className="hidden md:flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
                 <Button
                   type="button"
@@ -2104,6 +2149,7 @@ export function VisitsPageView({
                   Card View
                 </Button>
               </div>
+              ) : null}
             </div>
 
             <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -2116,7 +2162,7 @@ export function VisitsPageView({
                   Show all
                 </Button>
               </div>
-              {listViewMode === 'table' ? (
+              {!visitTeamView && listViewMode === 'table' ? (
                 <Table className="min-w-[1000px]">
                   <TableHeader>
                     <TableRow>
