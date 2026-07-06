@@ -1,22 +1,14 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { Clock3, LayoutGrid, List, MapPin, MoreHorizontal, Sparkles, UserRound } from 'lucide-react'
+import { MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   DropdownMenu,
@@ -89,8 +81,6 @@ type QueueResponse = {
   }
   error?: string
 }
-type ViewMode = 'card' | 'list'
-
 type DepartmentUsersResponse = {
   success: boolean
   users?: Array<{ id: string; fullName: string; email: string }>
@@ -103,13 +93,14 @@ type VisitCompleteQueueBoardProps = {
   leadHrefPrefix?: string | null
 }
 
-function formatDateTime(value: string | null): string {
+function formatDate(value: string | null): string {
   if (!value) return 'N/A'
   const parsed = new Date(value)
   if (Number.isNaN(parsed.getTime())) return 'N/A'
-  return parsed.toLocaleString('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+  return parsed.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
   })
 }
 
@@ -125,11 +116,9 @@ export function VisitCompleteQueueBoard({
   const [canRequest, setCanRequest] = useState(false)
   const [selectedByLead, setSelectedByLead] = useState<Record<string, string>>({})
   const [busyLeadId, setBusyLeadId] = useState<string | null>(null)
-  const [isJrArchitectureLeader, setIsJrArchitectureLeader] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameLeadId, setRenameLeadId] = useState('')
   const [renameValue, setRenameValue] = useState('')
-  const [viewMode, setViewMode] = useState<ViewMode>('card')
 
   const loadQueue = useCallback(async () => {
     setLoading(true)
@@ -156,7 +145,6 @@ export function VisitCompleteQueueBoard({
       setJrArchitectUsers(nextJrArchitectUsers)
       setCanAssign(canAssignFlag)
       setCanRequest(Boolean(payload.permissions?.canRequest))
-      setIsJrArchitectureLeader(Boolean(payload.permissions?.isJrArchitectureLeader))
       setSelectedByLead((prev) => {
         const next: Record<string, string> = { ...prev }
         for (const item of payload.data ?? []) {
@@ -183,15 +171,6 @@ export function VisitCompleteQueueBoard({
     loadQueue()
   }, [loadQueue])
 
-  const queueStats = useMemo(() => {
-    const pendingRequests = items.reduce((count, item) => count + item.pendingRequests.length, 0)
-    return {
-      total: items.length,
-      pendingRequests,
-      withSrAssigned: items.filter((item) => Boolean(item.srCrmAssignee)).length,
-      withoutSrAssigned: items.filter((item) => !item.srCrmAssignee).length,
-    }
-  }, [items])
 
   const requestLead = useCallback(async (leadId: string) => {
     setBusyLeadId(leadId)
@@ -249,16 +228,7 @@ export function VisitCompleteQueueBoard({
     }
   }, [items, loadQueue, selectedByLead])
 
-  const getVisitTeam = (item: QueueItem) => {
-    const lead = item.latestCompletedVisit?.assignedVisitLead
-    const supportMembers = item.latestCompletedVisit?.supportMembers ?? []
-    const members = [
-      lead ? `${lead.fullName} (Lead)` : null,
-      ...supportMembers.map((member) => `${member.fullName} (Support)`),
-    ].filter(Boolean)
 
-    return members.length ? members.join(', ') : 'N/A'
-  }
 
   const openRenameDialog = (leadId: string, currentName: string) => {
     setRenameLeadId(leadId)
@@ -291,57 +261,11 @@ export function VisitCompleteQueueBoard({
       <CrmPageHeader title={title} subtitle={subtitle} />
 
       <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-4">
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Visit Completed Leads</CardTitle>
-            </CardHeader>
-            <CardContent className="text-2xl font-semibold">{queueStats.total}</CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Pending JR Requests</CardTitle>
-            </CardHeader>
-            <CardContent className="text-2xl font-semibold">{queueStats.pendingRequests}</CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">With SR Assigned</CardTitle>
-            </CardHeader>
-            <CardContent className="text-2xl font-semibold">{queueStats.withSrAssigned}</CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Without SR Assigned</CardTitle>
-            </CardHeader>
-            <CardContent className="text-2xl font-semibold">{queueStats.withoutSrAssigned}</CardContent>
-          </Card>
-        </div>
-
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-3">
-            <CardTitle className="text-base">Visit Complete Queue</CardTitle>
-            <div className="flex rounded-md border bg-muted/30 p-1">
-              <Button
-                type="button"
-                size="sm"
-                variant={viewMode === 'card' ? 'default' : 'ghost'}
-                className="h-8 gap-1.5"
-                onClick={() => setViewMode('card')}
-              >
-                <LayoutGrid className="h-4 w-4" />
-                Card
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                className="h-8 gap-1.5"
-                onClick={() => setViewMode('list')}
-              >
-                <List className="h-4 w-4" />
-                List
-              </Button>
+          <CardHeader className="flex flex-row items-center justify-between gap-3 border-b bg-gradient-to-r from-slate-50 via-white to-slate-50">
+            <div>
+              <CardTitle className="text-base">Visit Complete Queue</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">{items.length} data on this page</p>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -355,40 +279,53 @@ export function VisitCompleteQueueBoard({
               </div>
             ) : null}
 
-            {!loading && viewMode === 'list' && items.length > 0 ? (
-              <div className="overflow-hidden rounded-lg border">
+            {!loading && items.length > 0 ? (
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
                 <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[150px]">Visit Date</TableHead>
-                      <TableHead className="min-w-[150px]">Complete Date</TableHead>
-                      <TableHead className="min-w-[180px]">Location</TableHead>
-                      <TableHead className="w-[280px] max-w-[280px]">Summary</TableHead>
-                      <TableHead className="min-w-[220px]">Visit Team</TableHead>
-                      <TableHead className="min-w-[160px]">SR CRM</TableHead>
-                      <TableHead className="w-[80px] text-right">Actions</TableHead>
+                  <TableHeader className="bg-slate-950">
+                    <TableRow className="border-slate-800 hover:bg-slate-950">
+                      <TableHead className="min-w-[240px] py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">Client Name</TableHead>
+                      <TableHead className="min-w-[210px] py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">Visit / Complete Date</TableHead>
+                      <TableHead className="min-w-[260px] py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">Visit Team</TableHead>
+                      <TableHead className="w-[80px] py-4 text-right text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {items.map((item) => {
-                      const summary = item.latestCompletedVisit?.summary ?? 'No summary'
+                      const visitLead = item.latestCompletedVisit?.assignedVisitLead
+                      const supportMembers = item.latestCompletedVisit?.supportMembers ?? []
                       return (
-                        <TableRow key={item.leadId}>
-                          <TableCell>{formatDateTime(item.latestCompletedVisit?.scheduledAt ?? null)}</TableCell>
-                          <TableCell>{formatDateTime(item.latestCompletedVisit?.completedAt ?? null)}</TableCell>
-                          <TableCell className="max-w-[220px] truncate" title={item.latestCompletedVisit?.location ?? 'N/A'}>
-                            {item.latestCompletedVisit?.location ?? 'N/A'}
+                        <TableRow key={item.leadId} className="border-slate-100 transition-colors hover:bg-slate-50/80">
+                          <TableCell className="py-5 align-top">
+                            <button
+                              type="button"
+                              onClick={() => openRenameDialog(item.leadId, item.leadName)}
+                              className="text-left text-base font-semibold text-slate-950 transition hover:text-primary hover:underline"
+                            >
+                              {item.leadName}
+                            </button>
                           </TableCell>
-                          <TableCell className="w-[280px] max-w-[280px] truncate" title={summary}>
-                            {summary}
+                          <TableCell className="py-5 align-top">
+                            <div className="space-y-1">
+                              <p className="text-base font-semibold text-slate-950">
+                                {formatDate(item.latestCompletedVisit?.scheduledAt ?? null)}
+                              </p>
+                              <p className="text-xs font-medium text-slate-500">
+                                Complete: {formatDate(item.latestCompletedVisit?.completedAt ?? null)}
+                              </p>
+                            </div>
                           </TableCell>
-                          <TableCell className="max-w-[260px] truncate" title={getVisitTeam(item)}>
-                            {getVisitTeam(item)}
+                          <TableCell className="py-5 align-top">
+                            <div className="space-y-1">
+                              <p className="text-base font-bold text-slate-950">{visitLead?.fullName ?? 'N/A'}</p>
+                              <p className="text-xs font-normal text-slate-500">
+                                {supportMembers.length > 0
+                                  ? supportMembers.map((member) => member.fullName).join(', ')
+                                  : 'No support member'}
+                              </p>
+                            </div>
                           </TableCell>
-                          <TableCell className="max-w-[180px] truncate" title={item.srCrmAssignee?.fullName ?? 'Unassigned'}>
-                            {item.srCrmAssignee?.fullName ?? 'Unassigned'}
-                          </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="py-5 text-right align-top">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" disabled={busyLeadId === item.leadId}>
@@ -461,188 +398,6 @@ export function VisitCompleteQueueBoard({
               </div>
             ) : null}
 
-            {viewMode === 'card' ? items.map((item) => (
-              <Card
-                key={item.leadId}
-                className="overflow-hidden border-border/70 shadow-sm transition hover:shadow-md"
-              >
-                <CardContent className="space-y-4 p-4 sm:p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <button type="button" onClick={() => openRenameDialog(item.leadId, item.leadName)} className="text-base font-semibold text-foreground hover:text-primary hover:underline">
-                          {item.leadName}
-                        </button>
-                        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                          <Sparkles className="mr-1 h-3 w-3" />
-                          Visit Completed
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {item.stage}
-                        {item.subStatus ? ` -> ${item.subStatus}` : ''}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {leadHrefPrefix ? (
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`${leadHrefPrefix}/${item.leadId}`}>Open Lead</Link>
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 text-sm md:grid-cols-2">
-                    <p className="inline-flex items-center gap-1 text-muted-foreground">
-                      <Clock3 className="h-3.5 w-3.5" />
-                      Visit Date:
-                      <span className="font-medium text-foreground">
-                        {formatDateTime(item.latestCompletedVisit?.scheduledAt ?? null)}
-                      </span>
-                    </p>
-                    <p className="inline-flex items-center gap-1 text-muted-foreground">
-                      <Clock3 className="h-3.5 w-3.5" />
-                      Completed:
-                      <span className="font-medium text-foreground">
-                        {formatDateTime(item.latestCompletedVisit?.completedAt ?? null)}
-                      </span>
-                    </p>
-                    <p className="inline-flex items-center gap-1 text-muted-foreground md:col-span-2">
-                      <MapPin className="h-3.5 w-3.5" />
-                      Location:
-                      <span className="font-medium text-foreground">
-                        {item.latestCompletedVisit?.location ?? 'N/A'}
-                      </span>
-                    </p>
-                    <p className="text-muted-foreground md:col-span-2">
-                      Summary:{' '}
-                      <span className="font-medium text-foreground">
-                        {item.latestCompletedVisit?.summary ?? 'No summary'}
-                      </span>
-                    </p>
-                    <p className="text-muted-foreground md:col-span-2">
-                      Visit Team:{' '}
-                      <span className="font-medium text-foreground">
-                        {item.latestCompletedVisit?.assignedVisitLead?.fullName ?? 'N/A'}
-                        {item.latestCompletedVisit?.assignedVisitLead ? ' (Lead)' : ''}
-                        {item.latestCompletedVisit?.supportMembers?.length
-                          ? ` + ${item.latestCompletedVisit.supportMembers.map((member) => member.fullName).join(', ')} (Support)`
-                          : ''}
-                      </span>
-                    </p>
-                    {isJrArchitectureLeader ? (
-                      <>
-                        <p className="text-muted-foreground">
-                          Project Sqft:{' '}
-                          <span className="font-medium text-foreground">
-                            {item.latestCompletedVisit?.projectSqft ?? 'N/A'}
-                          </span>
-                        </p>
-                        <p className="text-muted-foreground">
-                          Project Status:{' '}
-                          <span className="font-medium text-foreground">
-                            {item.latestCompletedVisit?.projectStatus ?? 'N/A'}
-                          </span>
-                        </p>
-                        <p className="text-muted-foreground md:col-span-2">
-                          Urgency:{' '}
-                          <span className="font-medium text-foreground">
-                            {item.latestCompletedVisit?.timelineUrgency ?? 'N/A'}
-                          </span>
-                        </p>
-                      </>
-                    ) : null}
-                  </div>
-
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-lg border border-border/60 bg-background p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">SR CRM</p>
-                      <p className="mt-1 inline-flex items-center gap-1 text-sm text-foreground">
-                        <UserRound className="h-3.5 w-3.5 text-muted-foreground" />
-                        {item.srCrmAssignee?.fullName ?? 'Unassigned'}
-                      </p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-background p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">JR Architect</p>
-                      <p className="mt-1 inline-flex items-center gap-1 text-sm text-foreground">
-                        <UserRound className="h-3.5 w-3.5 text-muted-foreground" />
-                        {item.jrArchitectAssignee?.fullName ?? 'Unassigned'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {item.pendingRequests.length > 0 ? (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3 space-y-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-                        Pending JR Architect Requests
-                      </p>
-                      {item.pendingRequests.map((request) => (
-                        <div key={request.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-white p-2">
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{request.requestedByName}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Requested at {formatDateTime(request.createdAt)}
-                            </p>
-                            {request.note ? (
-                              <p className="text-xs text-muted-foreground mt-1">{request.note}</p>
-                            ) : null}
-                          </div>
-                          {canAssign ? (
-                            <Button
-                              size="sm"
-                              disabled={busyLeadId === item.leadId}
-                              onClick={() => assignLead(item.leadId, request.id)}
-                            >
-                              Approve & Assign
-                            </Button>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    {canAssign ? (
-                      <>
-                        <Select
-                          value={selectedByLead[item.leadId] ?? ''}
-                          onValueChange={(value) =>
-                            setSelectedByLead((prev) => ({ ...prev, [item.leadId]: value }))
-                          }
-                        >
-                          <SelectTrigger className="w-[280px]">
-                            <SelectValue placeholder="Select JR Architect" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {jrArchitectUsers.map((user) => (
-                              <SelectItem key={user.id} value={user.id}>
-                                {user.fullName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          onClick={() => assignLead(item.leadId)}
-                          disabled={busyLeadId === item.leadId || !selectedByLead[item.leadId]}
-                        >
-                          Assign JR Architect
-                        </Button>
-                      </>
-                    ) : null}
-
-                    {canRequest ? (
-                      <Button
-                        variant="secondary"
-                        disabled={busyLeadId === item.leadId || Boolean(item.jrArchitectAssignee)}
-                        onClick={() => requestLead(item.leadId)}
-                      >
-                        {item.jrArchitectAssignee ? 'Already Assigned' : 'Request to Work'}
-                      </Button>
-                    ) : null}
-                  </div>
-                </CardContent>
-              </Card>
-            )) : null}
           </CardContent>
         </Card>
       </main>
