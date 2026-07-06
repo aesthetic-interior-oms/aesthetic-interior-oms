@@ -15,6 +15,7 @@ export default function VisitTeamVisitsPage() {
       allowManageAssignment={false}
       showScheduleButton={false}
       cardNavigatesToLead
+      visitTeamView
     />
   )
 }

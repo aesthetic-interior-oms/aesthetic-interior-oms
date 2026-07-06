@@ -210,6 +210,7 @@ type VisitsPageProps = {
   pageTitle?: string
   pageSubtitle?: string
   cardNavigatesToLead?: boolean
+  visitTeamView?: boolean
 }
 
 function getVisitScheduleListUrl(visitScope: NonNullable<VisitsPageProps['visitScope']>) {
@@ -231,9 +232,10 @@ export function VisitsPageView({
   pageTitle = 'Visits',
   pageSubtitle = 'Schedule and manage site visits',
   cardNavigatesToLead = false,
+  visitTeamView = false,
 }: VisitsPageProps) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState('calendar')
+  const [activeTab, setActiveTab] = useState(() => (visitTeamView ? 'list' : 'calendar'))
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [visits, setVisits] = useState<VisitRecord[]>([])
@@ -291,6 +293,16 @@ export function VisitsPageView({
   const [supportDialogMembers, setSupportDialogMembers] = useState<SupportMemberOption[]>([])
   const [supportDialogLoading, setSupportDialogLoading] = useState(false)
   const [supportDialogSaving, setSupportDialogSaving] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
+  const [editVisitId, setEditVisitId] = useState('')
+  const [editScheduledAt, setEditScheduledAt] = useState('')
+  const [editLocation, setEditLocation] = useState('')
+  const [editVisitFee, setEditVisitFee] = useState('')
+  const [editProjectSqft, setEditProjectSqft] = useState('')
+  const [editProjectStatus, setEditProjectStatus] = useState('')
+  const [editNotes, setEditNotes] = useState('')
+  const [editError, setEditError] = useState<string | null>(null)
+  const [editSaving, setEditSaving] = useState(false)
   const [listFilter, setListFilter] = useState<
     'ALL' | 'SCHEDULED' | 'COMPLETED' | 'RESCHEDULED' | 'CANCELLED' | 'LEAD' | 'SUPPORT'
   >('ALL')
@@ -299,7 +311,7 @@ export function VisitsPageView({
   const [listDateRange, setListDateRange] = useState<DateRange | undefined>(undefined)
   const [listMemberFilter, setListMemberFilter] = useState('ALL')
   const [srCrmFilter, setSrCrmFilter] = useState('ALL')
-  const [listViewMode, setListViewMode] = useState<'table' | 'card'>('table')
+  const [listViewMode, setListViewMode] = useState<'table' | 'card'>(() => (visitTeamView ? 'card' : 'table'))
   const listDetailsRef = useRef<HTMLDivElement | null>(null)
 
   const formatLocalDateKey = (date: Date) => {
@@ -349,6 +361,12 @@ export function VisitsPageView({
   useEffect(() => {
     setSelectedDate(formatLocalDateKey(new Date()))
   }, [])
+
+  useEffect(() => {
+    if (!visitTeamView) return
+    setActiveTab('list')
+    setListViewMode('card')
+  }, [visitTeamView])
 
   useEffect(() => {
     const loadVisits = async () => {
@@ -470,6 +488,27 @@ export function VisitsPageView({
     return (visit.lead?.assignments ?? []).find((assignment) => assignment.department === 'SR_CRM') ?? null
   }
 
+  const getVisitAddress = (visit: VisitRecord) => visit.location || visit.lead?.location || 'N/A'
+
+  const getVisitTeamMembers = (visit: VisitRecord) => {
+    const members: Array<{ id: string; name: string; role: 'LEAD' | 'SUPPORT' }> = []
+    if (visit.assignedTo?.id) {
+      members.push({ id: visit.assignedTo.id, name: visit.assignedTo.fullName || 'Unassigned', role: 'LEAD' })
+    }
+    ;(visit.supportAssignments ?? []).forEach((item) => {
+      if (visit.assignedTo?.id && item.supportUserId === visit.assignedTo.id) return
+      members.push({ id: item.supportUserId, name: item.supportUser.fullName, role: 'SUPPORT' })
+    })
+    return members
+  }
+
+  const formatDateTimeLocal = (value: string | Date) => {
+    const date = value instanceof Date ? value : new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+    const offsetMs = date.getTimezoneOffset() * 60_000
+    return new Date(date.getTime() - offsetMs).toISOString().slice(0, 16)
+  }
+
   const srCrmOptions = useMemo(() => {
     const srCrmMap = new Map<string, string>()
     visits.forEach((visit) => {
@@ -517,7 +556,7 @@ export function VisitsPageView({
       const visitDate = formatLocalDateKey(new Date(visit.scheduledAt))
       if (listDateFrom && visitDate < listDateFrom) return false
       if (listDateTo && visitDate > listDateTo) return false
-      if (listMemberFilter !== 'ALL' && visit.assignedTo?.id !== listMemberFilter) return false
+      if (!visitTeamView && listMemberFilter !== 'ALL' && visit.assignedTo?.id !== listMemberFilter) return false
       return true
     })
   }, [
@@ -525,6 +564,7 @@ export function VisitsPageView({
     listDateFrom,
     listDateTo,
     listMemberFilter,
+    visitTeamView,
     isAdminActor,
     isVisitTeamLeaderActor,
     currentUserId,
@@ -542,6 +582,7 @@ export function VisitsPageView({
   )
 
   const monthlyVisibleVisits = useMemo(() => {
+    if (visitTeamView) return listDateMemberFilteredVisits
     return filteredVisits.filter((visit) => {
       if (!canViewVisit(visit)) return false
       const visitDate = formatLocalDateKey(new Date(visit.scheduledAt))
@@ -551,9 +592,11 @@ export function VisitsPageView({
     })
   }, [
     filteredVisits,
+    listDateMemberFilteredVisits,
     monthStartKey,
     monthEndKey,
     listMemberFilter,
+    visitTeamView,
     isAdminActor,
     isVisitTeamLeaderActor,
     currentUserId,
@@ -655,6 +698,7 @@ export function VisitsPageView({
   }, [currentDate, daysInMonth, visitsByDate])
 
   function canViewVisit(visit: VisitRecord) {
+    if (visitTeamView) return getVisitRole(visit) !== 'NONE'
     if (isAdminActor || isVisitTeamLeaderActor) return true
     if (blurUnassignedVisitDetails) {
       return getVisitRole(visit) !== 'NONE'
@@ -954,6 +998,70 @@ export function VisitsPageView({
     }
   }
 
+  const openEditDialog = (visit: VisitRecord) => {
+    setEditVisitId(visit.id)
+    setEditScheduledAt(formatDateTimeLocal(visit.scheduledAt))
+    setEditLocation(getVisitAddress(visit) === 'N/A' ? '' : getVisitAddress(visit))
+    setEditVisitFee(visit.visitFee !== null && visit.visitFee !== undefined ? String(visit.visitFee) : '')
+    setEditProjectSqft(visit.projectSqft !== null && visit.projectSqft !== undefined ? String(visit.projectSqft) : '')
+    setEditProjectStatus(visit.projectStatus ?? '')
+    setEditNotes(visit.notes ?? '')
+    setEditError(null)
+    setEditOpen(true)
+  }
+
+  const submitEditVisit = async () => {
+    if (!editVisitId) return
+    if (!editScheduledAt) {
+      setEditError('Scheduled date & time is required.')
+      return
+    }
+    if (!editLocation.trim()) {
+      setEditError('Address is required.')
+      return
+    }
+
+    setEditSaving(true)
+    setEditError(null)
+    try {
+      const response = await fetch(`/api/visit-schedule/${editVisitId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scheduledAt: new Date(editScheduledAt).toISOString(),
+          location: editLocation.trim(),
+          visitFee: editVisitFee === '' ? undefined : Number(editVisitFee),
+          projectSqft: editProjectSqft === '' ? undefined : Number(editProjectSqft),
+          projectStatus: editProjectStatus || undefined,
+          notes: editNotes,
+          reason: 'Admin edited visit data.',
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to update visit data')
+      }
+
+      visitsCacheByScope = {}
+      const refreshResponse = await fetch(getVisitScheduleListUrl(visitScope), { cache: 'no-store' })
+      const refreshPayload = (await refreshResponse.json()) as ApiResponse
+      if (!refreshResponse.ok || !refreshPayload.success) {
+        throw new Error(refreshPayload?.error || 'Failed to refresh visits')
+      }
+      visitsCacheByScope[visitScope] = { data: refreshPayload.data ?? [], savedAt: Date.now() }
+      setVisits(refreshPayload.data ?? [])
+      setEditOpen(false)
+      setEditVisitId('')
+      toast.success('Visit data updated.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to update visit data'
+      setEditError(message)
+      toast.error(message)
+    } finally {
+      setEditSaving(false)
+    }
+  }
+
   const submitAddSupportMember = async () => {
     if (!supportDialogVisitId || !supportDialogSelection) {
       setSupportDialogError('Please select a support member.')
@@ -1190,7 +1298,6 @@ export function VisitsPageView({
             <div className="flex-1">
               <div className="flex flex-col gap-1">
                 <h3 className="font-semibold text-foreground">{visit.lead?.name || 'Unknown'}</h3>
-                <p className="text-sm text-muted-foreground">{visit.lead?.location || 'N/A'}</p>
               </div>
               <div className="mt-3 flex flex-col gap-2 text-sm">
                 <div className="flex items-center gap-2 text-muted-foreground">
@@ -1210,8 +1317,9 @@ export function VisitsPageView({
                 </div>
                 <div className="flex items-start gap-2 text-muted-foreground">
                   <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>{visit.location}</span>
+                  <span>{getVisitAddress(visit)}</span>
                 </div>
+                <p className="text-sm text-muted-foreground">SR CRM: {getSeniorCrmAssignment(visit)?.user?.fullName || 'Unassigned'}</p>
                 <p className="text-sm text-muted-foreground">Visit Fee: Tk {visit.visitFee ?? 0}</p>
                 {visit.projectSqft ? (
                   <p className="text-sm text-muted-foreground">Sqft: {visit.projectSqft}</p>
@@ -1222,9 +1330,21 @@ export function VisitsPageView({
                   </p>
                 ) : null}
                 {visit.notes && <p className="text-sm text-muted-foreground italic mt-2">{visit.notes}</p>}
-                <p className="text-sm text-muted-foreground">
-                  Assigned: {visit.assignedTo?.fullName || 'Unassigned'}
-                </p>
+                <div className="text-sm text-muted-foreground">
+                  <span>Visit Team: </span>
+                  {getVisitTeamMembers(visit).length > 0 ? (
+                    getVisitTeamMembers(visit).map((member, index) => (
+                      <span key={`${member.role}-${member.id}`}>
+                        {index > 0 ? ', ' : ''}
+                        <span className={member.role === 'LEAD' ? 'font-bold text-foreground' : ''}>
+                          {member.name}
+                        </span>
+                      </span>
+                    ))
+                  ) : (
+                    <span>Unassigned</span>
+                  )}
+                </div>
                 <div className="rounded-md border border-border bg-muted/40 p-2 text-sm">
                   <p className="font-semibold text-foreground">Support Members</p>
                   {(visit.supportAssignments ?? []).length > 0 ? (
@@ -1354,15 +1474,15 @@ export function VisitsPageView({
           </div>
         ) : null}
 
-        {showSummaryDashboard && activeTab === 'list' ? (
+        {(showSummaryDashboard || visitTeamView) && activeTab === 'list' ? (
           <div className="space-y-3">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">Monthly visits</p>
-                <h2 className="text-xl font-semibold text-foreground">{monthYear} performance</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-primary">{visitTeamView ? 'My visits' : 'Monthly visits'}</p>
+                <h2 className="text-xl font-semibold text-foreground">{visitTeamView ? 'Visit summary' : `${monthYear} performance`}</h2>
               </div>
               <p className="text-sm text-muted-foreground">
-                Stats are based on the active calendar month.
+                {visitTeamView ? 'Stats update from your filtered visit cards.' : 'Stats are based on the active calendar month.'}
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
@@ -1447,12 +1567,15 @@ export function VisitsPageView({
         <p className="text-sm text-destructive">{error}</p>
       ) : null}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(visitTeamView ? 'list' : value)}>
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          {!visitTeamView ? (
           <TabsList className="grid w-full grid-cols-2 rounded-lg bg-muted p-1 md:hidden">
             <TabsTrigger value="calendar" className="text-sm">Calendar View</TabsTrigger>
             <TabsTrigger value="list" className="text-sm">List View</TabsTrigger>
           </TabsList>
+          ) : null}
+          {!visitTeamView ? (
           <div className="hidden md:flex items-center gap-2 rounded-lg border border-border bg-card p-1">
             <Button
               type="button"
@@ -1471,6 +1594,8 @@ export function VisitsPageView({
               List View
             </Button>
           </div>
+          ) : null}
+          {!visitTeamView ? (
           <div className="w-full md:w-72">
             <Label htmlFor="sr-crm-filter" className="sr-only">SR CRM Filter</Label>
             <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
@@ -1488,6 +1613,7 @@ export function VisitsPageView({
               </SelectContent>
             </Select>
           </div>
+          ) : null}
         </div>
 
         <TabsContent value="calendar" className="mt-6">
@@ -1639,9 +1765,22 @@ export function VisitsPageView({
                                             })}
                                           </p>
                                           <p className="text-xs text-muted-foreground">
-                                            Support:{' '}
-                                            {(visit.supportAssignments ?? []).length > 0
-                                              ? (visit.supportAssignments ?? []).map((item) => item.supportUser.fullName).join(', ')
+                                            Address: {getVisitAddress(visit)}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            SR CRM: {getSeniorCrmAssignment(visit)?.user?.fullName || 'Unassigned'}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            Team:{' '}
+                                            {getVisitTeamMembers(visit).length > 0
+                                              ? getVisitTeamMembers(visit).map((member, index) => (
+                                                  <span key={`${member.role}-${member.id}`}>
+                                                    {index > 0 ? ', ' : ''}
+                                                    <span className={member.role === 'LEAD' ? 'font-bold text-foreground' : ''}>
+                                                      {member.name}
+                                                    </span>
+                                                  </span>
+                                                ))
                                               : 'None'}
                                           </p>
                                           {!cardNavigatesToLead ? (
@@ -1726,7 +1865,6 @@ export function VisitsPageView({
                             <div className={!isVisible ? 'blur-xs pointer-events-none select-none' : ''}>
                               <div>
                                 <h4 className="font-semibold text-sm">{visit.lead?.name || 'Unknown'}</h4>
-                                <p className="text-xs text-muted-foreground">{visit.lead?.location}</p>
                               </div>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Clock className="w-3 h-3" />
@@ -1737,12 +1875,22 @@ export function VisitsPageView({
                               </div>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <MapPin className="w-3 h-3" />
-                                <span className="line-clamp-2">{visit.location}</span>
+                                <span className="line-clamp-2">{getVisitAddress(visit)}</span>
                               </div>
                               <p className="text-[11px] text-muted-foreground">
-                                Support:{' '}
-                                {(visit.supportAssignments ?? []).length > 0
-                                  ? (visit.supportAssignments ?? []).map((item) => item.supportUser.fullName).join(', ')
+                                SR CRM: {getSeniorCrmAssignment(visit)?.user?.fullName || 'Unassigned'}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                Team:{' '}
+                                {getVisitTeamMembers(visit).length > 0
+                                  ? getVisitTeamMembers(visit).map((member, index) => (
+                                      <span key={`${member.role}-${member.id}`}>
+                                        {index > 0 ? ', ' : ''}
+                                        <span className={member.role === 'LEAD' ? 'font-bold text-foreground' : ''}>
+                                          {member.name}
+                                        </span>
+                                      </span>
+                                    ))
                                   : 'None'}
                               </p>
                               <span
@@ -1793,10 +1941,10 @@ export function VisitsPageView({
 
         <TabsContent value="list" className="mt-6">
           <div className="space-y-6" ref={listDetailsRef}>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.5fr_auto]">
+            <div className={visitTeamView ? 'grid gap-3' : 'grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.5fr_auto]'}>
               <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
                 <div className="grid gap-4">
-                  <div className="grid gap-3 lg:grid-cols-[1.8fr_auto]">
+                  <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
                     <div className="space-y-1">
                       <Label htmlFor="list-search">Search</Label>
                       <Input
@@ -1819,7 +1967,7 @@ export function VisitsPageView({
                       </Button>
                     </div>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                  <div className={visitTeamView ? 'grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end' : 'grid gap-3 sm:grid-cols-3 xl:grid-cols-4'}>
                     <div className="space-y-1">
                       <Label htmlFor="list-date-range">Date Range</Label>
                       <DateRangePicker
@@ -1855,7 +2003,24 @@ export function VisitsPageView({
                         </SelectContent>
                       </Select>
                     </div>
-                    {(visitScope as string) === 'visit' ? (
+                    {visitTeamView ? (
+                      <div className="flex justify-end md:items-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSearchTerm('')
+                            setListDateFrom('')
+                            setListDateTo('')
+                            setListDateRange(undefined)
+                            setSrCrmFilter('ALL')
+                          }}
+                        >
+                          Reset Filters
+                        </Button>
+                      </div>
+                    ) : (visitScope as string) === 'visit' ? (
                       <div className="space-y-1" />
                     ) : (
                       <div className="space-y-1">
@@ -1876,25 +2041,28 @@ export function VisitsPageView({
                       </div>
                     )}
                   </div>
-                  <div className="flex justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setListDateFrom('')
-                        setListDateTo('')
-                        setListDateRange(undefined)
-                        setListMemberFilter('ALL')
-                        setSrCrmFilter('ALL')
-                      }}
-                    >
-                      Reset Filters
-                    </Button>
-                  </div>
+                  {!visitTeamView ? (
+                    <div className="flex justify-end md:items-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setListDateFrom('')
+                          setListDateTo('')
+                          setListDateRange(undefined)
+                          setListMemberFilter('ALL')
+                          setSrCrmFilter('ALL')
+                        }}
+                      >
+                        Reset Filters
+                      </Button>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
+              {!visitTeamView ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
                   <p className="text-sm font-medium text-muted-foreground">Current filter</p>
@@ -1907,9 +2075,11 @@ export function VisitsPageView({
                   <p className="text-sm text-muted-foreground">Currently filtered members</p>
                 </div>
               </div>
+              ) : null}
             </div>
 
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {!visitTeamView ? (
               <Popover>
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className="gap-1">
@@ -1947,6 +2117,8 @@ export function VisitsPageView({
                   ))}
                 </PopoverContent>
               </Popover>
+              ) : null}
+              {!visitTeamView ? (
               <Button variant="outline" size="sm" onClick={() => {
                 setListFilter('ALL')
                 setListDateFrom('')
@@ -1956,7 +2128,9 @@ export function VisitsPageView({
               }}>
                 Reset Filters
               </Button>
+              ) : null}
               <p className="text-xs text-muted-foreground">Showing {filteredListVisits.length} visits</p>
+              {!visitTeamView ? (
               <div className="hidden md:flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
                 <Button
                   type="button"
@@ -1975,6 +2149,7 @@ export function VisitsPageView({
                   Card View
                 </Button>
               </div>
+              ) : null}
             </div>
 
             <div className="rounded-lg border border-border bg-card overflow-hidden">
@@ -1987,7 +2162,7 @@ export function VisitsPageView({
                   Show all
                 </Button>
               </div>
-              {listViewMode === 'table' ? (
+              {!visitTeamView && listViewMode === 'table' ? (
                 <Table className="min-w-[1000px]">
                   <TableHeader>
                     <TableRow>
@@ -2017,16 +2192,15 @@ export function VisitsPageView({
                       filteredListVisits.map((visit) => {
                         const leadHref = `${leadHrefPrefix}/${visit.lead.id}`
                         const role = getVisitRole(visit)
-                        const assignedName = visit.assignedTo?.fullName ?? 'Unassigned'
-                        const supportNames = (visit.supportAssignments ?? [])
-                          .map((item) => item.supportUser.fullName)
-                          .join(', ')
+                        const teamMembers = getVisitTeamMembers(visit)
+                        const srCrmName = getSeniorCrmAssignment(visit)?.user?.fullName || 'Unassigned'
                         return (
                           <TableRow key={visit.id}>
                             <TableCell className="max-w-[220px]">
                               <div className="min-w-0">
                                 <p className="font-semibold text-foreground truncate">{visit.lead?.name || 'Unknown Lead'}</p>
                                 <p className="text-xs text-muted-foreground truncate">{visit.lead?.phone || 'No phone'}</p>
+                                <p className="text-xs text-muted-foreground truncate">SR CRM: {srCrmName}</p>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -2048,15 +2222,29 @@ export function VisitsPageView({
                             </TableCell>
                             <TableCell className="max-w-[220px]">
                               <div className="min-w-0">
-                                <p className="truncate">{visit.location || visit.lead?.location || 'No location'}</p>
+                                <p className="truncate">{getVisitAddress(visit)}</p>
                               </div>
                             </TableCell>
                             <TableCell className="max-w-[240px]">
-                              <div className="space-y-1">
-                                <p className="font-medium text-foreground truncate">{assignedName}</p>
-                                {supportNames ? (
-                                  <p className="text-xs text-muted-foreground truncate">Support: {supportNames}</p>
-                                ) : null}
+                              <div className="space-y-1 text-sm">
+                                {teamMembers.length > 0 ? (
+                                  teamMembers.map((member) => (
+                                    <p
+                                      key={`${member.role}-${member.id}`}
+                                      className={cn(
+                                        'truncate',
+                                        member.role === 'LEAD'
+                                          ? 'font-bold text-foreground'
+                                          : 'text-xs text-muted-foreground',
+                                      )}
+                                    >
+                                      {member.role === 'LEAD' ? 'Lead: ' : 'Support: '}
+                                      {member.name}
+                                    </p>
+                                  ))
+                                ) : (
+                                  <p className="text-muted-foreground">Unassigned</p>
+                                )}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -2074,9 +2262,16 @@ export function VisitsPageView({
                               </span>
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button size="sm" variant="outline" asChild>
-                                <Link href={leadHref}>View</Link>
-                              </Button>
+                              <div className="flex justify-end gap-2">
+                                {isAdminActor ? (
+                                  <Button size="sm" variant="outline" onClick={() => openEditDialog(visit)}>
+                                    Edit Visit
+                                  </Button>
+                                ) : null}
+                                <Button size="sm" variant="outline" asChild>
+                                  <Link href={leadHref}>View</Link>
+                                </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         )
@@ -2195,6 +2390,104 @@ export function VisitsPageView({
                 'Save Reschedule'
               ) : (
                 'Confirm Cancel'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open)
+          if (!open) {
+            setEditVisitId('')
+            setEditError(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Visit Data</DialogTitle>
+            <DialogDescription>
+              Admin-only edit form for visit schedule, address, fee, project data, and notes.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-2 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Scheduled Date & Time</Label>
+              <Input
+                type="datetime-local"
+                value={editScheduledAt}
+                onChange={(event) => setEditScheduledAt(event.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Visit Fee</Label>
+              <Input
+                type="number"
+                min="0"
+                value={editVisitFee}
+                onChange={(event) => setEditVisitFee(event.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Address</Label>
+              <Input
+                value={editLocation}
+                onChange={(event) => setEditLocation(event.target.value)}
+                placeholder="Visit address"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Project Sqft</Label>
+              <Input
+                type="number"
+                min="1"
+                value={editProjectSqft}
+                onChange={(event) => setEditProjectSqft(event.target.value)}
+                placeholder="Project sqft"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Project Status</Label>
+              <select
+                value={editProjectStatus}
+                onChange={(event) => setEditProjectStatus(event.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Select project status</option>
+                {projectStatusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Notes</Label>
+              <Textarea
+                rows={3}
+                value={editNotes}
+                onChange={(event) => setEditNotes(event.target.value)}
+                placeholder="Visit notes"
+              />
+            </div>
+            {editError ? <p className="text-sm text-destructive sm:col-span-2">{editError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Close
+            </Button>
+            <Button onClick={submitEditVisit} disabled={editSaving}>
+              {editSaving ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Update Visit'
               )}
             </Button>
           </DialogFooter>
