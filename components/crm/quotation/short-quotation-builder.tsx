@@ -9,10 +9,9 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CollapsibleCard } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
-import { SHORT_QUOTATION_NAMES, searchShortQuotationNames } from '@/lib/short-quotation-names'
+import { searchShortQuotationNames } from '@/lib/short-quotation-names'
 import { ShortQuotationPrint } from '@/components/crm/quotation/short-quotation-print'
- import { ShortQuotationDocument } from '@/components/crm/quotation/pdf/ShortQuotationDocument'
-import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
+import { downloadShortQuotationWord } from '@/components/crm/quotation/word-download'
 import { buildDefaultShortQuotationContent } from '@/lib/short-quotation-default'
 import {
   buildShortQuotationSummary,
@@ -355,23 +354,15 @@ export function ShortQuotationBuilder({
     )
   }
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadWord = async (format: 'doc' | 'docx') => {
     setGeneratingPdf(true)
     try {
       const safeClientName = (content.clientName || 'Quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase()
-      await downloadPdfFromDocument(
-        <ShortQuotationDocument content={content} />,
-        `Short_Quotation_${safeClientName}.pdf`,
-      )
-      toast.success('PDF downloaded successfully')
+      downloadShortQuotationWord(content, `Short_Quotation_${safeClientName}.${format}`, format)
+      toast.success(`${format.toUpperCase()} downloaded successfully`)
     } catch (error) {
-      console.error('PDF generation error:', error)
-      const msg = error instanceof Error ? error.message : String(error)
-      if (/taint|cross-origin|security/i.test(msg)) {
-        toast.error('Failed to generate PDF: rendering error. See console for details.')
-      } else {
-        toast.error('Failed to generate PDF')
-      }
+      console.error('Word document generation error:', error)
+      toast.error('Failed to generate Word document')
     } finally {
       setGeneratingPdf(false)
     }
@@ -575,19 +566,28 @@ export function ShortQuotationBuilder({
               type="button"
               variant="secondary"
               disabled={generatingPdf}
-              onClick={() => void handleDownloadPdf()}
+              onClick={() => void handleDownloadWord('docx')}
             >
               {generatingPdf ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating PDF...
+                  Generating DOCX...
                 </>
               ) : (
                 <>
                   <Printer className="mr-2 h-4 w-4" />
-                  Download PDF
+                  Download DOCX
                 </>
               )}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={generatingPdf}
+              onClick={() => void handleDownloadWord('doc')}
+            >
+              <Printer className="mr-2 h-4 w-4" />
+              Download DOC
             </Button>
             {!isPlayground ? (
               <Button type="button" variant="outline" asChild>

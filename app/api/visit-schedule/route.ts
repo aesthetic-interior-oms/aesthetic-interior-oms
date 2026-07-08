@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { LeadAssignmentDepartment, VisitStatus } from '@/generated/prisma/client';
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles';
+import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles';
 
 function toOptionalString(value: string | null): string | null {
   if (!value) return null;
@@ -46,8 +47,10 @@ export async function GET(request: NextRequest) {
     const isJuniorCrm = departmentNames.has('JR_CRM');
     const isSeniorCrm = departmentNames.has('SR_CRM');
     const isVisitTeamLeader = hasVisitTeamLeadershipRole(authResult.actorRoles);
+    const isJrArchitect = departmentNames.has('JR_ARCHITECT');
+    const isJrArchitectLeader = isJrArchitect && hasJrArchitectureLeaderRole(authResult.actorRoles);
 
-    if (!isAdmin && !isVisitTeam && !isJuniorCrm && !isSeniorCrm) {
+    if (!isAdmin && !isVisitTeam && !isJuniorCrm && !isSeniorCrm && !isJrArchitectLeader) {
       return NextResponse.json(
         { success: false, error: 'Not authorized to view visit schedules' },
         { status: 403 },
@@ -90,7 +93,7 @@ export async function GET(request: NextRequest) {
               },
               ...(assignedToId ? { assignedToId } : {}),
             }
-          : isAdmin || isJuniorCrm
+          : isAdmin || isJuniorCrm || isJrArchitectLeader
             ? assignedToId
               ? { assignedToId }
               : {}
@@ -123,7 +126,22 @@ export async function GET(request: NextRequest) {
         createdById: true,
         createdAt: true,
         updatedAt: true,
-        lead: { select: { id: true, name: true, phone: true, location: true } },
+        lead: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            location: true,
+            assignments: {
+              where: { department: LeadAssignmentDepartment.SR_CRM },
+              select: {
+                id: true,
+                department: true,
+                user: { select: { id: true, fullName: true, email: true } },
+              },
+            },
+          },
+        },
         assignedTo: { select: { id: true, fullName: true, email: true, phone: true } },
         createdBy: { select: { id: true, fullName: true } },
         supportAssignments: {

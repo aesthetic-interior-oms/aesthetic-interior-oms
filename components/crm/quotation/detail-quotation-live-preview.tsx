@@ -115,12 +115,7 @@ export function DetailQuotationLivePreview({
       )
     } catch (error) {
       console.error('Failed to generate PDF:', error)
-      const msg = error instanceof Error ? error.message : String(error)
-      if (/taint|cross-origin|security/i.test(msg)) {
-        alert('Failed to generate PDF: rendering error. Check console for details.')
-      } else {
-        alert('Failed to generate PDF')
-      }
+      alert('Failed to generate PDF')
     } finally {
       setDownloading(false)
     }

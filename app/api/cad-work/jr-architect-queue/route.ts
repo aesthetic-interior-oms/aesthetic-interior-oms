@@ -160,6 +160,9 @@ export async function GET(request: NextRequest) {
           orderBy: { scheduledAt: 'desc' },
           take: 1,
           select: {
+            id: true,
+            scheduledAt: true,
+            projectSqft: true,
             assignedTo: {
               select: {
                 id: true,
@@ -206,6 +209,9 @@ export async function GET(request: NextRequest) {
           quotationAssignment,
           latestCompletedVisit: lead.visits[0]
             ? {
+                id: lead.visits[0].id,
+                scheduledAt: lead.visits[0].scheduledAt,
+                projectSqft: lead.visits[0].projectSqft,
                 assignedVisitLead: lead.visits[0].assignedTo ?? null,
                 supportMembers: (lead.visits[0].supportAssignments ?? []).map((row) => row.supportUser),
               }
