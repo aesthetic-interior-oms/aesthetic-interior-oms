@@ -1,8 +1,16 @@
 'use client'
 
+/* eslint-disable jsx-a11y/alt-text -- @react-pdf/renderer Image does not support the DOM alt prop. */
+
 import { Document, Page, StyleSheet, Text, View, Image, Svg, Path } from '@react-pdf/renderer'
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
-import { buildDetailFloorSummaries, formatDetailAmount, isPackageLine } from '@/lib/detail-quotation-format'
+import {
+  buildDetailFloorSummaries,
+  formatDetailAmount,
+  formatDetailQtyCell,
+  formatDetailTotalCell,
+  formatDetailUnitPriceCell,
+} from '@/lib/detail-quotation-format'
 import { amountInWordsTaka } from '@/lib/number-to-words'
 
 const styles = StyleSheet.create({
@@ -15,6 +23,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica',
     color: '#111',
     lineHeight: 1.4,
+    backgroundColor: '#ffffff',
   },
   watermarkContainer: {
     position: 'absolute',
@@ -38,9 +47,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: 8,
+    paddingBottom: 10,
     paddingLeft: 0,
     paddingRight: 0,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#0f5b53',
   },
   headerLogoImage: {
     width: 150,
@@ -60,7 +71,7 @@ const styles = StyleSheet.create({
     right: 0,
     width: '100%',
     borderTopWidth: 1,
-    borderTopColor: '#0070c0',
+    borderTopColor: '#0f5b53',
     borderTopStyle: 'solid',
     paddingTop: 6,
     paddingBottom: 6,
@@ -86,7 +97,7 @@ const styles = StyleSheet.create({
   },
   footerWebsite: {
     fontSize: 6.5,
-    color: '#444',
+    color: '#0f5b53',
     fontWeight: 'bold',
   },
   contentWrapper: {
@@ -110,7 +121,7 @@ const styles = StyleSheet.create({
   },
   detailHeaderValueText: {
     fontSize: 8,
-    marginTop: 1.5,
+    marginTop: 1,
   },
   detailHeaderIntroText: {
     fontSize: 8,
@@ -121,7 +132,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: 'bold',
     textTransform: 'uppercase',
-    backgroundColor: '#0070c0',
+    backgroundColor: '#76933c',
     color: '#ffffff',
     padding: 5,
     textAlign: 'center',
@@ -130,22 +141,22 @@ const styles = StyleSheet.create({
   },
   tableWrapper: {
     borderWidth: 0.5,
-    borderColor: '#0070c0',
+    borderColor: '#000000',
     marginBottom: 6,
   },
   tableHeaderRow: {
     flexDirection: 'row',
     backgroundColor: '#0070c0',
     borderBottomWidth: 0.5,
-    borderBottomColor: '#0070c0',
+    borderBottomColor: '#000000',
   },
   tableDataRow: {
     flexDirection: 'row',
     borderBottomWidth: 0.5,
-    borderBottomColor: '#0070c0',
+    borderBottomColor: '#000000',
   },
   tableDataRowEven: {
-    backgroundColor: '#e8f1ff',
+    backgroundColor: '#ffffff',
   },
   tableDataRowOdd: {
     backgroundColor: '#ffffff',
@@ -156,7 +167,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
     borderRightWidth: 0.5,
-    borderRightColor: '#0070c0',
+    borderRightColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -170,17 +181,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tableCell: {
-    padding: 5,
-    fontSize: 7,
+    padding: 4,
+    fontSize: 6.6,
     color: '#000000',
     borderRightWidth: 0.5,
-    borderRightColor: '#0070c0',
+    borderRightColor: '#000000',
   },
   tableCellLast: {
-    padding: 5,
-    fontSize: 7,
+    padding: 4,
+    fontSize: 6.6,
     color: '#000000',
     borderRightWidth: 0,
+  },
+  materialLine: {
+    fontWeight: 'medium',
+  },
+  materialPrefix: {
+    fontWeight: 'bold',
   },
   slCell: {
     width: '5%',
@@ -189,19 +206,26 @@ const styles = StyleSheet.create({
   nameCell: {
     width: '18%',
   },
+  summaryNameCell: {
+    width: '75%',
+  },
+  summaryAmountCell: {
+    width: '20%',
+    textAlign: 'center',
+  },
   materialsCell: {
-    width: '42%',
+    width: '47%',
   },
   qtyCell: {
     width: '10%',
     textAlign: 'center',
   },
   unitPriceCell: {
-    width: '12%',
+    width: '10%',
     textAlign: 'center',
   },
   amountCell: {
-    width: '13%',
+    width: '10%',
     textAlign: 'center',
   },
   grandTotalRow: {
@@ -215,7 +239,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
     borderRightWidth: 0.5,
-    borderRightColor: '#0070c0',
+    borderRightColor: '#000000',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -243,16 +267,16 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     justifyContent: 'space-between',
     marginBottom: 0,
-    paddingTop: 6,
+    paddingTop: 8,
   },
   detailFooterContent: {
     borderTopWidth: 0.5,
     borderTopColor: '#ccc',
     borderTopStyle: 'solid',
-    paddingTop: 6,
+    paddingTop: 8,
   },
   detailFooterSection: {
-    marginBottom: 4,
+    marginBottom: 6,
   },
   detailFooterHeading: {
     fontSize: 8,
@@ -271,7 +295,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    marginTop: 20,
+    marginTop: 24,
     paddingBottom: 0,
   },
   signatureBlockLeft: {
@@ -279,14 +303,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 0.5,
     borderTopColor: '#000000',
     borderTopStyle: 'solid',
-    paddingTop: 3,
+    paddingTop: 4,
   },
   signatureBlockRight: {
     width: '40%',
     borderTopWidth: 0.5,
     borderTopColor: '#000000',
     borderTopStyle: 'solid',
-    paddingTop: 3,
+    paddingTop: 4,
   },
   signatureText: {
     fontSize: 7.5,
@@ -303,7 +327,7 @@ const HeaderLogoPdf = () => (
   <View style={styles.headerContainer}>
     <Image src="/Logo/HeaderLogo.png" style={styles.headerLogoImage} />
     <View style={styles.headerRight}>
-      <Svg width={'30'} height={'30'} viewBox="0 0 29 29" style={{ fill: '#0070c0' }}>
+      <Svg width={'30'} height={'30'} viewBox="0 0 29 29" style={{ fill: '#0f5b53' }}>
         <Path d="M0 0h9v9H0zm1 1v7h7V1zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2V2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zM0 10h9v9H0zm1 1v7h7v-7zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2v-2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zM0 20h9v9H0zm1 1v7h7v-7zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2v-2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1z" />
       </Svg>
     </View>
@@ -314,19 +338,19 @@ const FooterContactsPdf = () => (
   <View style={styles.footerContainer}>
     <View style={styles.footerContent}>
       <View style={styles.footerSection}>
-        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#0070c0' }}>
+        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#0f5b53' }}>
           <Path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1v3.5c0 .55-.45 1-1 1H4c0 5.07 4.02 9.2 9 9.5z" />
         </Svg>
         <Text style={styles.footerText}>+88 01329 694660, +88 01329 694661, +88 01329 694662</Text>
       </View>
       <View style={styles.footerSection}>
-        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#0070c0' }}>
+        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#0f5b53' }}>
           <Path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
         </Svg>
         <Text style={styles.footerText}>aestheticinteriorstudio@gmail.com</Text>
       </View>
       <View style={styles.footerSection}>
-        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#0070c0' }}>
+        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#0f5b53' }}>
           <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
         </Svg>
         <Text style={styles.footerText}>2nd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka</Text>
@@ -363,7 +387,7 @@ const DetailHeaderPdf = ({
         month: 'short', 
         day: 'numeric' 
       })
-    } catch (error) {
+    } catch {
       return dateString
     }
   }
@@ -393,6 +417,41 @@ const DetailHeaderPdf = ({
         {introLetter.replace('Dear Sir,\n', '').replace('Dear Sir,', '')}
       </Text>
     </View>
+  )
+}
+
+function MaterialTextPdf({ text }: { text: string | null | undefined }) {
+  if (!text) return <Text>—</Text>
+
+  const lines = text.split('\n')
+
+  return (
+    <Text>
+      {lines.map((line, index) => {
+        const match = line.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
+        const suffix = index < lines.length - 1 ? '\n' : ''
+
+        if (!match) {
+          return (
+            <Text key={`${line}-${index}`} style={styles.materialLine}>
+              {line}
+              {suffix}
+            </Text>
+          )
+        }
+
+        const prefix = match[1]
+        const rest = line.substring(prefix.length)
+
+        return (
+          <Text key={`${line}-${index}`}>
+            <Text style={styles.materialPrefix}>{prefix}</Text>
+            {rest}
+            {suffix}
+          </Text>
+        )
+      })}
+    </Text>
   )
 }
 
@@ -504,10 +563,10 @@ export function DetailQuotationDocument({
                 <View style={[styles.tableHeaderCell, styles.slCell]}>
                   <Text>SL</Text>
                 </View>
-                <View style={[styles.tableHeaderCell, { width: '70%' }]}>
+                <View style={[styles.tableHeaderCell, styles.summaryNameCell]}>
                   <Text>NAME</Text>
                 </View>
-                <View style={[styles.tableHeaderCellLast, styles.amountCell]}>
+                <View style={[styles.tableHeaderCellLast, styles.summaryAmountCell]}>
                   <Text>TOTAL</Text>
                 </View>
               </View>
@@ -524,10 +583,10 @@ export function DetailQuotationDocument({
                   <View style={[styles.tableCell, styles.slCell]}>
                     <Text>{String(index + 1).padStart(2, '0')}</Text>
                   </View>
-                  <View style={[styles.tableCell, { width: '70%' }]}>
+                  <View style={[styles.tableCell, styles.summaryNameCell]}>
                     <Text>{entry.floor.name}</Text>
                   </View>
-                  <View style={[styles.tableCellLast, styles.amountCell]}>
+                  <View style={[styles.tableCellLast, styles.summaryAmountCell]}>
                     <Text>{formatDetailAmount(entry.total)}</Text>
                   </View>
                 </View>
@@ -535,10 +594,10 @@ export function DetailQuotationDocument({
 
               {/* GRAND TOTAL ROW */}
               <View style={styles.grandTotalRow}>
-                <View style={[styles.grandTotalCell, { width: '75%' }]}>
+                <View style={[styles.grandTotalCell, { width: '80%' }]}>
                   <Text>GRAND TOTAL</Text>
                 </View>
-                <View style={[styles.grandTotalCellLast, styles.amountCell]}>
+                <View style={[styles.grandTotalCellLast, styles.summaryAmountCell]}>
                   <Text>{formatDetailAmount(totals.grandTotal)}</Text>
                 </View>
               </View>
@@ -593,52 +652,41 @@ export function DetailQuotationDocument({
               </View>
 
               {/* DATA ROWS */}
-              {entry.lines.map((line, lineIndex) => {
-                const isPkg = isPackageLine(line)
-                return (
-                  <View
-                    key={line.id}
-                    style={[
-                      styles.tableDataRow,
-                      lineIndex % 2 === 0 ? styles.tableDataRowOdd : styles.tableDataRowEven,
-                    ]}
-                  >
-                    <View style={[styles.tableCell, styles.slCell]}>
-                      <Text>{String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}</Text>
-                    </View>
-                    <View style={[styles.tableCell, styles.nameCell]}>
-                      <Text style={{ fontWeight: 'bold' }}>{line.description}</Text>
-                    </View>
-                    <View style={[styles.tableCell, styles.materialsCell]}>
-                      <Text>{line.materials || '—'}</Text>
-                    </View>
-                    {isPkg ? (
-                      <View style={[styles.tableCell, { width: '22%', textAlign: 'center' }]}>
-                        <Text>Package As Per Design</Text>
-                      </View>
-                    ) : (
-                      <>
-                        <View style={[styles.tableCell, styles.qtyCell]}>
-                          <Text>{line.quantity != null ? String(line.quantity) : '—'}</Text>
-                        </View>
-                        <View style={[styles.tableCell, styles.unitPriceCell]}>
-                          <Text>{line.rate != null ? formatDetailAmount(line.rate) : '—'}</Text>
-                        </View>
-                      </>
-                    )}
-                    <View style={[styles.tableCellLast, styles.amountCell]}>
-                      <Text style={{ fontWeight: 'bold' }}>
-                        {formatDetailAmount(line.amount)}
-                        {line.description.toLowerCase().includes('electric wiring') ? ' (Approx)' : ''}
-                      </Text>
-                    </View>
+              {entry.lines.map((line, lineIndex) => (
+                <View
+                  key={line.id}
+                  style={[
+                    styles.tableDataRow,
+                    lineIndex % 2 === 0 ? styles.tableDataRowOdd : styles.tableDataRowEven,
+                  ]}
+                >
+                  <View style={[styles.tableCell, styles.slCell]}>
+                    <Text>{String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}</Text>
                   </View>
-                )
-              })}
+                  <View style={[styles.tableCell, styles.nameCell]}>
+                    <Text style={{ fontWeight: 'bold' }}>{line.description}</Text>
+                  </View>
+                  <View style={[styles.tableCell, styles.materialsCell]}>
+                    <MaterialTextPdf text={line.materials} />
+                  </View>
+                  <View style={[styles.tableCell, styles.qtyCell]}>
+                    <Text>{formatDetailQtyCell(line)}</Text>
+                  </View>
+                  <View style={[styles.tableCell, styles.unitPriceCell]}>
+                    <Text>{formatDetailUnitPriceCell(line)}</Text>
+                  </View>
+                  <View style={[styles.tableCellLast, styles.amountCell]}>
+                    <Text style={{ fontWeight: 'bold' }}>
+                      {formatDetailTotalCell(line)}
+                      {line.description.toLowerCase().includes('electric wiring') ? ' (Approx)' : ''}
+                    </Text>
+                  </View>
+                </View>
+              ))}
 
               {/* GRAND TOTAL ROW */}
               <View style={styles.grandTotalRow}>
-                <View style={[styles.grandTotalCell, { width: '87%' }]}>
+                <View style={[styles.grandTotalCell, { width: '90%' }]}>
                   <Text>TOTAL</Text>
                 </View>
                 <View style={[styles.grandTotalCellLast, styles.amountCell]}>
