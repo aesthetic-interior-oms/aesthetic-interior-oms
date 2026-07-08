@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable jsx-a11y/alt-text -- @react-pdf/renderer Image does not support the DOM alt prop. */
+
 import { Document, Page, StyleSheet, Text, View, Image, Svg, Path } from '@react-pdf/renderer'
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 import { buildDetailFloorSummaries, formatDetailAmount, isPackageLine } from '@/lib/detail-quotation-format'
@@ -13,8 +15,9 @@ const styles = StyleSheet.create({
     paddingRight: 0,
     fontSize: 9,
     fontFamily: 'Helvetica',
-    color: '#111',
-    lineHeight: 1.4,
+    color: '#2c2c2c',
+    lineHeight: 1.5,
+    backgroundColor: '#fafaf8',
   },
   watermarkContainer: {
     position: 'absolute',
@@ -28,7 +31,7 @@ const styles = StyleSheet.create({
   },
   watermarkImage: {
     width: '70%',
-    opacity: 0.04,
+    opacity: 0.02,
   },
   headerContainer: {
     position: 'absolute',
@@ -38,20 +41,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: 8,
+    paddingBottom: 10,
     paddingLeft: 0,
     paddingRight: 0,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#c9a961',
   },
   headerLogoImage: {
     width: 150,
     height: 'auto',
   },
   headerRight: {
-    borderWidth: 0.5,
-    borderColor: '#ccc',
-    padding: 2,
-    backgroundColor: '#ffffff',
-    borderRadius: 1.5,
+    borderWidth: 1.5,
+    borderColor: '#c9a961',
+    padding: 4,
+    backgroundColor: '#fafaf8',
+    borderRadius: 2,
   },
   footerContainer: {
     position: 'absolute',
@@ -59,13 +64,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     width: '100%',
-    borderTopWidth: 1,
-    borderTopColor: '#0070c0',
+    borderTopWidth: 1.5,
+    borderTopColor: '#c9a961',
     borderTopStyle: 'solid',
     paddingTop: 6,
     paddingBottom: 6,
     paddingHorizontal: 30,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fafaf8',
   },
   footerContent: {
     flexDirection: 'row',
@@ -81,12 +86,12 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 6.5,
-    color: '#444',
+    color: '#666',
     flex: 1,
   },
   footerWebsite: {
     fontSize: 6.5,
-    color: '#444',
+    color: '#c9a961',
     fontWeight: 'bold',
   },
   contentWrapper: {
@@ -98,88 +103,104 @@ const styles = StyleSheet.create({
   },
   detailHeader: {
     flexDirection: 'column',
-    marginBottom: 8,
+    marginBottom: 12,
+    backgroundColor: '#ffffff',
+    padding: 8,
+    borderRadius: 2,
   },
   detailHeaderMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   detailHeaderLabel: {
-    fontSize: 8,
+    fontSize: 7.5,
     fontWeight: 'bold',
+    color: '#c9a961',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   detailHeaderValueText: {
-    fontSize: 8,
-    marginTop: 1.5,
+    fontSize: 8.5,
+    marginTop: 2,
+    color: '#2c2c2c',
+    fontWeight: '600',
   },
   detailHeaderIntroText: {
     fontSize: 8,
-    marginTop: 2,
+    marginTop: 3,
     textAlign: 'justify',
+    color: '#555',
+    lineHeight: 1.5,
   },
   sectionTitle: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 'bold',
     textTransform: 'uppercase',
-    backgroundColor: '#0070c0',
-    color: '#ffffff',
-    padding: 5,
+    backgroundColor: '#1a1a1a',
+    color: '#c9a961',
+    padding: 6,
     textAlign: 'center',
     marginBottom: 0,
-    marginTop: 10,
+    marginTop: 12,
+    letterSpacing: 1,
   },
   tableWrapper: {
-    borderWidth: 0.5,
-    borderColor: '#0070c0',
-    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#d4d0c8',
+    marginBottom: 8,
+    backgroundColor: '#ffffff',
   },
   tableHeaderRow: {
     flexDirection: 'row',
-    backgroundColor: '#0070c0',
-    borderBottomWidth: 0.5,
-    borderBottomColor: '#0070c0',
+    backgroundColor: '#2c2c2c',
+    borderBottomWidth: 2,
+    borderBottomColor: '#c9a961',
   },
   tableDataRow: {
     flexDirection: 'row',
     borderBottomWidth: 0.5,
-    borderBottomColor: '#0070c0',
+    borderBottomColor: '#e8e3d8',
   },
   tableDataRowEven: {
-    backgroundColor: '#e8f1ff',
+    backgroundColor: '#fdfcfa',
   },
   tableDataRowOdd: {
     backgroundColor: '#ffffff',
   },
   tableHeaderCell: {
-    padding: 5,
-    fontSize: 7.5,
-    color: '#ffffff',
+    padding: 6,
+    fontSize: 7,
+    color: '#c9a961',
     fontWeight: 'bold',
     borderRightWidth: 0.5,
-    borderRightColor: '#0070c0',
+    borderRightColor: '#d4d0c8',
     justifyContent: 'center',
     alignItems: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   tableHeaderCellLast: {
-    padding: 5,
-    fontSize: 7.5,
-    color: '#ffffff',
+    padding: 6,
+    fontSize: 7,
+    color: '#c9a961',
     fontWeight: 'bold',
     borderRightWidth: 0,
     justifyContent: 'center',
     alignItems: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   tableCell: {
-    padding: 5,
-    fontSize: 7,
-    color: '#000000',
+    padding: 6,
+    fontSize: 7.5,
+    color: '#2c2c2c',
     borderRightWidth: 0.5,
-    borderRightColor: '#0070c0',
+    borderRightColor: '#e8e3d8',
   },
   tableCellLast: {
-    padding: 5,
-    fontSize: 7,
-    color: '#000000',
+    padding: 6,
+    fontSize: 7.5,
+    color: '#2c2c2c',
     borderRightWidth: 0,
   },
   slCell: {
@@ -206,23 +227,25 @@ const styles = StyleSheet.create({
   },
   grandTotalRow: {
     flexDirection: 'row',
-    backgroundColor: '#0070c0',
+    backgroundColor: '#2c2c2c',
     borderBottomWidth: 0,
+    borderTopWidth: 2,
+    borderTopColor: '#c9a961',
   },
   grandTotalCell: {
-    padding: 5,
+    padding: 6,
     fontSize: 7.5,
-    color: '#ffffff',
+    color: '#c9a961',
     fontWeight: 'bold',
     borderRightWidth: 0.5,
-    borderRightColor: '#0070c0',
+    borderRightColor: '#d4d0c8',
     justifyContent: 'center',
     alignItems: 'center',
   },
   grandTotalCellLast: {
-    padding: 5,
+    padding: 6,
     fontSize: 7.5,
-    color: '#ffffff',
+    color: '#c9a961',
     fontWeight: 'bold',
     borderRightWidth: 0,
     justifyContent: 'center',
@@ -230,12 +253,16 @@ const styles = StyleSheet.create({
   },
   inWordsSection: {
     fontSize: 8,
-    marginTop: 4,
-    marginBottom: 8,
+    marginTop: 6,
+    marginBottom: 10,
+    backgroundColor: '#ffffff',
+    padding: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#c9a961',
   },
   boldUnderline: {
     fontWeight: 'bold',
-    textDecoration: 'underline',
+    color: '#c9a961',
   },
   detailFooterContainer: {
     flex: 1,
@@ -243,59 +270,63 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     justifyContent: 'space-between',
     marginBottom: 0,
-    paddingTop: 6,
+    paddingTop: 8,
   },
   detailFooterContent: {
-    borderTopWidth: 0.5,
-    borderTopColor: '#ccc',
+    borderTopWidth: 1,
+    borderTopColor: '#d4d0c8',
     borderTopStyle: 'solid',
-    paddingTop: 6,
+    paddingTop: 8,
   },
   detailFooterSection: {
-    marginBottom: 4,
+    marginBottom: 6,
   },
   detailFooterHeading: {
-    fontSize: 8,
+    fontSize: 7.5,
     fontWeight: 'bold',
-    textDecoration: 'underline',
+    textDecoration: 'none',
     textTransform: 'uppercase',
     marginBottom: 2,
     marginTop: 4,
+    color: '#c9a961',
+    letterSpacing: 0.5,
   },
   detailFooterText: {
     fontSize: 7.5,
     textAlign: 'justify',
-    lineHeight: 1.3,
+    lineHeight: 1.4,
+    color: '#555',
   },
   signatureRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    marginTop: 20,
+    marginTop: 24,
     paddingBottom: 0,
   },
   signatureBlockLeft: {
     width: '35%',
-    borderTopWidth: 0.5,
-    borderTopColor: '#000000',
+    borderTopWidth: 1,
+    borderTopColor: '#2c2c2c',
     borderTopStyle: 'solid',
-    paddingTop: 3,
+    paddingTop: 4,
   },
   signatureBlockRight: {
     width: '40%',
-    borderTopWidth: 0.5,
-    borderTopColor: '#000000',
+    borderTopWidth: 1,
+    borderTopColor: '#2c2c2c',
     borderTopStyle: 'solid',
-    paddingTop: 3,
+    paddingTop: 4,
   },
   signatureText: {
     fontSize: 7.5,
     fontWeight: 'bold',
+    color: '#2c2c2c',
   },
   signatureSubtext: {
     fontSize: 7,
-    color: '#444444',
-    marginTop: 1,
+    color: '#999',
+    marginTop: 1.5,
   },
 })
 
@@ -303,7 +334,7 @@ const HeaderLogoPdf = () => (
   <View style={styles.headerContainer}>
     <Image src="/Logo/HeaderLogo.png" style={styles.headerLogoImage} />
     <View style={styles.headerRight}>
-      <Svg width={'30'} height={'30'} viewBox="0 0 29 29" style={{ fill: '#0070c0' }}>
+      <Svg width={'30'} height={'30'} viewBox="0 0 29 29" style={{ fill: '#c9a961' }}>
         <Path d="M0 0h9v9H0zm1 1v7h7V1zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2V2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zM0 10h9v9H0zm1 1v7h7v-7zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2v-2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zM0 20h9v9H0zm1 1v7h7v-7zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2v-2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1z" />
       </Svg>
     </View>
@@ -314,19 +345,19 @@ const FooterContactsPdf = () => (
   <View style={styles.footerContainer}>
     <View style={styles.footerContent}>
       <View style={styles.footerSection}>
-        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#0070c0' }}>
+        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#c9a961' }}>
           <Path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1v3.5c0 .55-.45 1-1 1H4c0 5.07 4.02 9.2 9 9.5z" />
         </Svg>
         <Text style={styles.footerText}>+88 01329 694660, +88 01329 694661, +88 01329 694662</Text>
       </View>
       <View style={styles.footerSection}>
-        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#0070c0' }}>
+        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#c9a961' }}>
           <Path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
         </Svg>
         <Text style={styles.footerText}>aestheticinteriorstudio@gmail.com</Text>
       </View>
       <View style={styles.footerSection}>
-        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#0070c0' }}>
+        <Svg width={'12'} height={'12'} viewBox="0 0 24 24" style={{ fill: '#c9a961' }}>
           <Path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
         </Svg>
         <Text style={styles.footerText}>2nd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka</Text>
@@ -363,7 +394,7 @@ const DetailHeaderPdf = ({
         month: 'short', 
         day: 'numeric' 
       })
-    } catch (error) {
+    } catch {
       return dateString
     }
   }
