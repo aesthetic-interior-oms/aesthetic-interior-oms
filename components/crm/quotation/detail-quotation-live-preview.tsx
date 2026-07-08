@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { DetailQuotationPreview } from '@/components/crm/quotation/detail-quotation-preview'
-import { downloadDetailQuotationWord } from '@/components/crm/quotation/word-download'
+import { DetailQuotationDocument } from '@/components/crm/quotation/pdf/DetailQuotationDocument'
+import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
 import {
   buildDetailPreviewUrl,
   readDetailPreview,
@@ -98,24 +99,23 @@ export function DetailQuotationLivePreview({
     setLoading(false)
   }, [context, contextId])
 
-  const handleDownloadWord = async (format: 'doc' | 'docx') => {
+  const handleDownloadPdf = async () => {
     if (!payload) return
     setDownloading(true)
     try {
       const safeClientName = payload.clientName.replace(/[^a-z0-9]/gi, '_').toLowerCase()
-      downloadDetailQuotationWord(
-        {
-          clientName: payload.clientName,
-          clientAddress: payload.clientAddress,
-          content: payload.content,
-          totals: payload.totals,
-        },
-        `Detail_Quotation_${safeClientName}.${format}`,
-        format,
+      await downloadPdfFromDocument(
+        <DetailQuotationDocument
+          clientName={payload.clientName}
+          clientAddress={payload.clientAddress}
+          content={payload.content}
+          totals={payload.totals}
+        />,
+        `Detail_Quotation_${safeClientName}.pdf`,
       )
     } catch (error) {
-      console.error('Failed to generate Word document:', error)
-      alert('Failed to generate Word document')
+      console.error('Failed to generate PDF:', error)
+      alert('Failed to generate PDF')
     } finally {
       setDownloading(false)
     }
@@ -176,24 +176,16 @@ export function DetailQuotationLivePreview({
             type="button"
             disabled={downloading}
             className="rounded-md border bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-muted flex items-center gap-1.5 disabled:opacity-50"
-            onClick={() => void handleDownloadWord('docx')}
+            onClick={() => void handleDownloadPdf()}
           >
             {downloading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Generating DOCX...
+                Generating PDF...
               </>
             ) : (
-              'Download DOCX'
+              'Download PDF'
             )}
-          </button>
-          <button
-            type="button"
-            disabled={downloading}
-            className="rounded-md border bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-muted disabled:opacity-50"
-            onClick={() => void handleDownloadWord('doc')}
-          >
-            Download DOC
           </button>
         </div>
       </div>
