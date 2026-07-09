@@ -476,10 +476,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
       }
 
       if (shouldSubmitSupport && supportAssignment) {
-        if (!visitWorkflow.supportDataEnabled) {
-          throw new Error('SUPPORT_DISABLED')
-        }
-
         if (!supportClientName || !supportProjectArea || !supportProjectStatus) {
           throw new Error('SUPPORT_FIELDS_REQUIRED')
         }
@@ -814,16 +810,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
         {
           success: false,
           error: 'Only the first assigned support member can submit support data for this visit.',
-        },
-        { status: 403 },
-      )
-    }
-
-    if (error instanceof Error && error.message === 'SUPPORT_DISABLED') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Support data submission is disabled by admin settings.',
         },
         { status: 403 },
       )
