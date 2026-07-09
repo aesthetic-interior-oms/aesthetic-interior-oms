@@ -22,6 +22,7 @@ type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
 const debugLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') {
+    void args;
     // console.log(...args);
   }
 };
@@ -91,6 +92,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const isJrArchitectLeader =
       actorDepartments.includes('JR_ARCHITECT') &&
       hasJrArchitectureLeaderRole(authResult.actorRoles);
+    const canDropVisitQueueLead =
+      actorDepartments.includes('ADMIN') ||
+      actorDepartments.includes('SR_CRM') ||
+      isJrArchitectLeader;
     debugLog('🔐 [lead/:id/stage][PATCH] - Auth verified for user:', userId);
     
     const leadId = await resolveLeadId(context);
@@ -111,11 +116,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ success: false, error: 'Valid stage is required' }, { status: 400 });
     }
 
-    const isCadQueueDropRequest =
-      isJrArchitectLeader &&
+    const closedDropSubStatuses = new Set<LeadSubStatus>([
+      LeadSubStatus.PROJECT_DROPPED,
+      LeadSubStatus.REJECTED_OFFER,
+      LeadSubStatus.SMALL_BUDGET,
+      LeadSubStatus.INVALID,
+      LeadSubStatus.NOT_INTERESTED,
+      LeadSubStatus.LOST,
+      LeadSubStatus.DEAD_LEAD,
+    ]);
+    const isVisitQueueDropRequest =
+      canDropVisitQueueLead &&
       nextStage === LeadStage.CLOSED &&
-      requestedSubStatus !== undefined;
-
+      requestedSubStatus !== undefined &&
+      requestedSubStatus !== null &&
+      closedDropSubStatuses.has(requestedSubStatus);
     const isBudgetMeetingCompletionRequest =
       actorDepartments.some((department) =>
         ['ADMIN', 'SR_CRM', 'JR_ARCHITECT'].includes(department),
@@ -124,7 +139,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         requestedSubStatus === LeadSubStatus.VISUAL_ASSIGNED) ||
         (nextStage === LeadStage.BUDGET_PHASE &&
           requestedSubStatus === LeadSubStatus.REJECTED_OFFER));
-    const leadWhere = isBudgetMeetingCompletionRequest || isCadQueueDropRequest
+    const leadWhere = isBudgetMeetingCompletionRequest || isVisitQueueDropRequest
       ? { id: leadId }
       : buildScopedLeadWhere({
           leadId,
@@ -274,12 +289,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       existingLead.stage === LeadStage.BUDGET_PHASE &&
       existingLead.subStatus === LeadSubStatus.BUDGET_MEETING_SET &&
       isBudgetMeetingCompletionRequest;
-    const isJrArchitectLeaderCadDrop =
-      isCadQueueDropRequest && existingLead.stage === LeadStage.CAD_PHASE;
+    const isAuthorizedVisitQueueDrop = isVisitQueueDropRequest;
 
     if (
       !isBudgetMeetingCompletion &&
-      !isJrArchitectLeaderCadDrop &&
+      !isAuthorizedVisitQueueDrop &&
       !canManagePrimaryLeadFlow({
         actorUserId: userId,
         actorDepartments,
@@ -287,7 +301,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       })
     ) {
       return NextResponse.json(
-        { success: false, error: 'Only primary owner, Senior CRM, Admin, JR Architect leader CAD drop, or JR Architect budget meeting completion can change lead flow' },
+        { success: false, error: 'Only primary owner, Senior CRM, Admin, JR Architect leader drop, or JR Architect budget meeting completion can change lead flow' },
         { status: 403 },
       );
     }
