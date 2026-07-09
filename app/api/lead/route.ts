@@ -3,7 +3,11 @@ import {
   LeadAssignmentDepartment,
   LeadPhaseType,
   LeadPrimaryOwnerDepartment,
+  LeadSubStatus,
   LeadStage,
+  ActivityType,
+  NotificationType,
+  ProjectStatus,
   Prisma,
 } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
@@ -146,6 +150,22 @@ type CreateLeadBody = {
   visit?: unknown;
 };
 
+type CreateLeadVisitBody = {
+  visitTeamUserId?: unknown;
+  seniorCrmUserId?: unknown;
+  notes?: unknown;
+  reason?: unknown;
+  projectSqft?: unknown;
+  visitFee?: unknown;
+  projectStatus?: unknown;
+  scheduledAt?: unknown;
+  location?: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 // Utility function to safely convert unknown values to optional strings
 // Returns null if value is not a string or is empty after trimming
 function toOptionalString(value: unknown): string | null {
@@ -198,11 +218,10 @@ function toOptionalNumber(value: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function toProjectStatus(value: unknown) {
+function toProjectStatus(value: unknown): ProjectStatus | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toUpperCase();
-  const vals = Object.values((Prisma as any).ProjectStatus || {});
-  return vals.includes(normalized) ? (normalized as any) : null;
+  return Object.values(ProjectStatus).includes(normalized as ProjectStatus) ? (normalized as ProjectStatus) : null;
 }
 
 function toPositiveInt(value: string | null, fallback: number): number {
@@ -231,6 +250,59 @@ function parseDateAtEndOfDayUtc(value: string | null): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null;
   const date = new Date(`${normalized}T23:59:59.999Z`);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getCreateLeadErrorResponse(error: unknown) {
+  const message = error instanceof Error ? error.message : null;
+  switch (message) {
+    case 'INVALID_VISIT_PARAMS':
+      return NextResponse.json(
+        { success: false, error: 'Visit team member and a valid visit date/time are required to schedule a visit.' },
+        { status: 400 },
+      );
+    case 'LOCATION_REQUIRED':
+      return NextResponse.json(
+        { success: false, error: 'Lead location is required when scheduling a visit.' },
+        { status: 400 },
+      );
+    case 'INVALID_PROJECT_SQFT':
+      return NextResponse.json(
+        { success: false, error: 'Project square feet must be greater than 0.' },
+        { status: 400 },
+      );
+    case 'INVALID_VISIT_FEE':
+      return NextResponse.json(
+        { success: false, error: 'Visit fee cannot be negative.' },
+        { status: 400 },
+      );
+    case 'INVALID_PROJECT_STATUS':
+      return NextResponse.json(
+        { success: false, error: 'Selected project status is not valid.' },
+        { status: 400 },
+      );
+    case 'VISIT_ASSIGNEE_NOT_FOUND':
+      return NextResponse.json(
+        { success: false, error: 'Selected visit team member was not found.' },
+        { status: 400 },
+      );
+    case 'VISIT_ASSIGNEE_INVALID_DEPT':
+      return NextResponse.json(
+        { success: false, error: 'Selected user is not mapped to the visit team.' },
+        { status: 400 },
+      );
+    case 'LATEST_VISIT_BLOCKS_SCHEDULING':
+      return NextResponse.json(
+        { success: false, error: 'This lead already has an active visit. Complete or cancel it before scheduling another visit.' },
+        { status: 409 },
+      );
+    case 'VISIT_CONFLICT':
+      return NextResponse.json(
+        { success: false, error: 'Selected visit team member already has a nearby scheduled visit.' },
+        { status: 409 },
+      );
+    default:
+      return null;
+  }
 }
 
 // GET endpoint - Retrieve leads from the database (paginated)
@@ -668,10 +740,10 @@ export async function POST(request: NextRequest) {
       });
 
       // Optionally schedule a visit as part of lead creation
-      const shouldSchedule = Boolean((body as any)?.scheduleVisit);
+      const shouldSchedule = Boolean(body.scheduleVisit);
       if (shouldSchedule) {
         try {
-          const visitBody = (body as any).visit ?? {};
+          const visitBody: CreateLeadVisitBody = isRecord(body.visit) ? body.visit : {};
           const visitTeamUserId = toOptionalString(visitBody.visitTeamUserId);
           const seniorCrmUserId = toOptionalString(visitBody.seniorCrmUserId);
           const notes = toOptionalString(visitBody.notes);
@@ -737,7 +809,7 @@ export async function POST(request: NextRequest) {
           if (conflict) throw new Error('VISIT_CONFLICT');
 
           // update lead stage
-          await tx.lead.update({ where: { id: newLead.id }, data: { stage: LeadStage.VISIT_PHASE, subStatus: (Prisma as any).LeadSubStatus ? (Prisma as any).LeadSubStatus.VISIT_SCHEDULED : undefined, location: locationToUse } });
+          await tx.lead.update({ where: { id: newLead.id }, data: { stage: LeadStage.VISIT_PHASE, subStatus: LeadSubStatus.VISIT_SCHEDULED, location: locationToUse } });
 
           const visit = await tx.visit.create({
             data: {
@@ -759,12 +831,12 @@ export async function POST(request: NextRequest) {
                 userId: visitTeamUserId,
                 leadId: newLead.id,
                 visitId: visit.id,
-                type: (Prisma as any).NotificationType ? (Prisma as any).NotificationType.VISIT_ASSIGNED : undefined,
+                type: NotificationType.VISIT_ASSIGNED,
                 title: 'New visit assigned',
                 message: `You have been assigned a new visit for ${newLead.name}.`,
                 scheduledFor: parsedScheduledAt,
               },
-            ].filter(Boolean as any),
+            ],
             skipDuplicates: true,
           });
 
@@ -775,7 +847,7 @@ export async function POST(request: NextRequest) {
                 userId: admin.id,
                 leadId: newLead.id,
                 visitId: visit.id,
-                type: (Prisma as any).NotificationType ? (Prisma as any).NotificationType.VISIT_SCHEDULED_ADMIN : undefined,
+                type: NotificationType.VISIT_SCHEDULED_ADMIN,
                 title: 'Visit scheduled',
                 message: `Lead: ${newLead.name} visit scheduled at ${parsedScheduledAt.toISOString()} and assigned to ${visitAssignee.fullName}.`,
                 scheduledFor: parsedScheduledAt,
@@ -805,7 +877,7 @@ export async function POST(request: NextRequest) {
           }
 
           await logLeadStageChanged(tx, { leadId: newLead.id, userId: authResult.actorUserId, from: newLead.stage, to: LeadStage.VISIT_PHASE, reason });
-          await logActivity(tx, { leadId: newLead.id, userId: authResult.actorUserId, type: (Prisma as any).ActivityType ? (Prisma as any).ActivityType.VISIT_SCHEDULED : undefined, description: `Visit ${visit.id} scheduled at ${parsedScheduledAt.toISOString()} and assigned to ${visitAssignee.fullName}. Reason: ${reason}` });
+          await logActivity(tx, { leadId: newLead.id, userId: authResult.actorUserId, type: ActivityType.VISIT_SCHEDULED, description: `Visit ${visit.id} scheduled at ${parsedScheduledAt.toISOString()} and assigned to ${visitAssignee.fullName}. Reason: ${reason}` });
           await logUserAssigned(tx, { leadId: newLead.id, userId: authResult.actorUserId, leadName: `${visitAssignee.fullName} assigned as visit lead` });
           await autoCompletePendingFollowups(tx, { leadId: newLead.id, userId: authResult.actorUserId, action: 'visit scheduled' });
         } catch (err) {
@@ -832,6 +904,11 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'A lead with this phone number already exists' },
         { status: 409 }
       );
+    }
+
+    const knownErrorResponse = getCreateLeadErrorResponse(error);
+    if (knownErrorResponse) {
+      return knownErrorResponse;
     }
 
     // Return generic 500 error for other unexpected errors

@@ -18,6 +18,31 @@ type JrCrmUser = {
   phone: string
 }
 
+type CurrentUserResponse = {
+  id?: string
+  userDepartments?: Array<{ department?: { name?: string } }>
+}
+
+type CreateLeadPayload = {
+  name: string
+  email?: string
+  phone?: string
+  location?: string
+  budget?: number
+  source: string
+  assignedToId?: string
+  scheduleVisit?: boolean
+  visit?: {
+    visitTeamUserId?: string
+    scheduledAt?: string
+    notes?: string
+    visitFee?: number
+    projectSqft?: number
+    projectStatus?: string
+    seniorCrmUserId?: string
+  }
+}
+
 type ModalBootstrapCache = {
   savedAt: number
   currentUserId: string | null
@@ -56,7 +81,6 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
     visitTeamUserId: '',
     scheduledAt: '',
     notes: '',
-    location: '',
     visitFee: '',
     projectSqft: '',
     projectStatus: '',
@@ -91,12 +115,12 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
 
     setJrCrmLoading(true)
 
-    Promise.all([fetchMeCached(), fetch('/api/department/available/JR_CRM').then((res) => res.json())])
+    Promise.all([fetchMeCached() as Promise<CurrentUserResponse>, fetch('/api/department/available/JR_CRM').then((res) => res.json())])
       .then(async ([meData, jrData]) => {
         if (!active) return
 
         const departments = Array.isArray(meData?.userDepartments)
-          ? meData.userDepartments.map((entry: any) => entry?.department?.name)
+          ? meData.userDepartments.map((entry) => entry?.department?.name)
           : []
         const isAdminUser = departments.includes('ADMIN')
         const isJrUser = departments.includes('JR_CRM')
@@ -172,7 +196,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
     }
     setLoading(true)
     setError('')
-    const payload: any = {
+    const payload: CreateLeadPayload = {
       name: form.name.trim(),
       email: form.email.trim() || undefined,
       phone: form.phone.trim() || undefined,
@@ -183,23 +207,51 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
     }
     if (scheduleVisit) {
       payload.scheduleVisit = true
+      if (!form.location.trim()) {
+        setError('Location is required when scheduling a visit.')
+        setLoading(false)
+        return
+      }
+      if (!visitForm.visitTeamUserId) {
+        setError('Please select a visit team member.')
+        setLoading(false)
+        return
+      }
+      if (!visitForm.scheduledAt) {
+        setError('Please choose the visit date and time.')
+        setLoading(false)
+        return
+      }
       payload.visit = {
         visitTeamUserId: visitForm.visitTeamUserId || undefined,
         scheduledAt: visitForm.scheduledAt || undefined,
         notes: visitForm.notes || undefined,
-        location: visitForm.location || form.location || undefined,
         visitFee: visitForm.visitFee ? Number(visitForm.visitFee) : undefined,
         projectSqft: visitForm.projectSqft ? Number(visitForm.projectSqft) : undefined,
         projectStatus: visitForm.projectStatus || undefined,
         seniorCrmUserId: visitForm.seniorCrmUserId || undefined,
       }
     }
-    const res = await fetch('/api/lead', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    const data = await res.json()
+    let data: { success?: boolean; error?: string } = {}
+    try {
+      const res = await fetch('/api/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Failed to create lead')
+        setLoading(false)
+        return
+      }
+    } catch (err) {
+      console.error('Error creating lead:', err)
+      setError('Failed to create lead. Please try again.')
+      setLoading(false)
+      return
+    }
+
     setLoading(false)
     if (data.success) {
       setOpen(false)
@@ -213,7 +265,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
         jrCrmUserId: currentUserId && isJuniorCrm && !isAdmin ? currentUserId : '',
       })
       setScheduleVisit(false)
-      setVisitForm({ visitTeamUserId: '', scheduledAt: '', notes: '', location: '', visitFee: '', projectSqft: '', projectStatus: '', seniorCrmUserId: '' })
+      setVisitForm({ visitTeamUserId: '', scheduledAt: '', notes: '', visitFee: '', projectSqft: '', projectStatus: '', seniorCrmUserId: '' })
       if (onCreated) onCreated()
     } else {
       setError(data.error || 'Failed to create lead')
@@ -377,6 +429,12 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
 
           {scheduleVisit && (
             <div className="space-y-3 p-3 rounded border border-gray-100 bg-background">
+              {visitError && (
+                <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700">
+                  {visitError}
+                </div>
+              )}
+
               <div className="space-y-2">
                 <label htmlFor="visitTeamUserId" className="text-sm font-medium text-foreground">Visit Team</label>
                 <select
@@ -406,16 +464,8 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label htmlFor="location" className="text-sm font-medium text-foreground">Location</label>
-                <Input
-                  id="location"
-                  name="location"
-                  value={visitForm.location}
-                  onChange={handleVisitChange}
-                  placeholder={form.location || 'Visit location'}
-                  className="border-gray-200"
-                />
+              <div className="rounded-md border border-dashed border-gray-200 bg-muted/30 p-3 text-sm text-muted-foreground">
+                Visit location will use the lead location above. Enter it once in the lead Location field.
               </div>
 
               <div className="space-y-2">
