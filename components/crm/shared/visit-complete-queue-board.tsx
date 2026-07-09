@@ -5,9 +5,23 @@ import Link from 'next/link'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { MoreHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -93,6 +107,15 @@ type VisitCompleteQueueBoardProps = {
   leadHrefPrefix?: string | null
 }
 
+function formatLabel(value: string | null | undefined) {
+  if (!value) return 'N/A'
+  if (value === 'PROPOSAL_SENT') return 'Quotation Sent'
+  return value
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
 function formatDate(value: string | null): string {
   if (!value) return 'N/A'
   const parsed = new Date(value)
@@ -119,6 +142,20 @@ export function VisitCompleteQueueBoard({
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameLeadId, setRenameLeadId] = useState('')
   const [renameValue, setRenameValue] = useState('')
+  const [dropOpen, setDropOpen] = useState(false)
+  const [dropLeadId, setDropLeadId] = useState('')
+  const [dropLeadName, setDropLeadName] = useState('')
+  const [dropSubStatus, setDropSubStatus] = useState('')
+
+  const closedSubStatusOptions = [
+    'PROJECT_DROPPED',
+    'REJECTED_OFFER',
+    'SMALL_BUDGET',
+    'INVALID',
+    'NOT_INTERESTED',
+    'LOST',
+    'DEAD_LEAD',
+  ]
 
   const loadQueue = useCallback(async () => {
     setLoading(true)
@@ -235,6 +272,40 @@ export function VisitCompleteQueueBoard({
     setRenameValue(currentName)
     setRenameOpen(true)
   }
+  const openDropDialog = (leadId: string, leadName: string) => {
+    setDropLeadId(leadId)
+    setDropLeadName(leadName)
+    setDropSubStatus('')
+    setDropOpen(true)
+  }
+
+  const submitDropProject = async () => {
+    if (!dropLeadId || !dropSubStatus) return
+    setBusyLeadId(dropLeadId)
+    try {
+      const response = await fetch(`/api/lead/${dropLeadId}/stage`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: 'CLOSED',
+          subStatus: dropSubStatus,
+          reason: 'Project dropped from Visit Complete Queue.',
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) throw new Error(payload?.error ?? 'Failed to drop project')
+      toast.success('Project moved to Closed')
+      setDropOpen(false)
+      setDropLeadId('')
+      setDropLeadName('')
+      await loadQueue()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to drop project')
+    } finally {
+      setBusyLeadId(null)
+    }
+  }
+
   const submitRenameLead = async () => {
     if (!renameLeadId || !renameValue.trim()) return
     setBusyLeadId(renameLeadId)
@@ -262,32 +333,32 @@ export function VisitCompleteQueueBoard({
 
       <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-3 border-b bg-gradient-to-r from-slate-50 via-white to-slate-50">
+          <CardHeader className="flex flex-row items-center justify-between gap-3 border-b">
             <div>
-              <CardTitle className="text-base">Visit Complete Queue</CardTitle>
-              <p className="mt-1 text-sm text-muted-foreground">{items.length} data on this page</p>
+              <CardTitle className="text-base text-card-foreground">Visit Complete Queue</CardTitle>
+              <p className="mt-1 text-sm text-muted-foreground">{items.length} items on this page</p>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-3 p-0">
             {loading ? (
-              <p className="text-sm text-muted-foreground">Loading queue...</p>
+              <p className="px-6 py-4 text-sm text-muted-foreground">Loading queue...</p>
             ) : null}
 
             {!loading && items.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+              <div className="m-6 rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
                 No leads are waiting in visit completed queue.
               </div>
             ) : null}
 
             {!loading && items.length > 0 ? (
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/70">
+              <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader className="bg-slate-950">
-                    <TableRow className="border-slate-800 hover:bg-slate-950">
-                      <TableHead className="min-w-[240px] py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">Client Name</TableHead>
-                      <TableHead className="min-w-[210px] py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">Visit / Complete Date</TableHead>
-                      <TableHead className="min-w-[260px] py-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">Visit Team</TableHead>
-                      <TableHead className="w-[80px] py-4 text-right text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">Actions</TableHead>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="min-w-[240px] pl-6">Client Name</TableHead>
+                      <TableHead className="min-w-[210px]">Visit / Complete Date</TableHead>
+                      <TableHead className="min-w-[260px]">Visit Team</TableHead>
+                      <TableHead className="w-[80px] pr-6 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -295,37 +366,37 @@ export function VisitCompleteQueueBoard({
                       const visitLead = item.latestCompletedVisit?.assignedVisitLead
                       const supportMembers = item.latestCompletedVisit?.supportMembers ?? []
                       return (
-                        <TableRow key={item.leadId} className="border-slate-100 transition-colors hover:bg-slate-50/80">
-                          <TableCell className="py-5 align-top">
+                        <TableRow key={item.leadId}>
+                          <TableCell className="py-4 pl-6 align-top">
                             <button
                               type="button"
                               onClick={() => openRenameDialog(item.leadId, item.leadName)}
-                              className="text-left text-base font-semibold text-slate-950 transition hover:text-primary hover:underline"
+                              className="text-left font-medium text-foreground transition hover:text-primary hover:underline"
                             >
                               {item.leadName}
                             </button>
                           </TableCell>
-                          <TableCell className="py-5 align-top">
+                          <TableCell className="py-4 align-top">
                             <div className="space-y-1">
-                              <p className="text-base font-semibold text-slate-950">
+                              <p className="font-medium text-foreground">
                                 {formatDate(item.latestCompletedVisit?.scheduledAt ?? null)}
                               </p>
-                              <p className="text-xs font-medium text-slate-500">
+                              <p className="text-xs text-muted-foreground">
                                 Complete: {formatDate(item.latestCompletedVisit?.completedAt ?? null)}
                               </p>
                             </div>
                           </TableCell>
-                          <TableCell className="py-5 align-top">
+                          <TableCell className="py-4 align-top">
                             <div className="space-y-1">
-                              <p className="text-base font-bold text-slate-950">{visitLead?.fullName ?? 'N/A'}</p>
-                              <p className="text-xs font-normal text-slate-500">
+                              <p className="font-medium text-foreground">{visitLead?.fullName ?? 'N/A'}</p>
+                              <p className="text-xs text-muted-foreground">
                                 {supportMembers.length > 0
                                   ? supportMembers.map((member) => member.fullName).join(', ')
                                   : 'No support member'}
                               </p>
                             </div>
                           </TableCell>
-                          <TableCell className="py-5 text-right align-top">
+                          <TableCell className="py-4 pr-6 text-right align-top">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" disabled={busyLeadId === item.leadId}>
@@ -343,6 +414,12 @@ export function VisitCompleteQueueBoard({
                                 ) : null}
                                 <DropdownMenuItem onClick={() => openRenameDialog(item.leadId, item.leadName)}>
                                   Change Client Name
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => openDropDialog(item.leadId, item.leadName)}
+                                >
+                                  Drop Project
                                 </DropdownMenuItem>
                                 {canRequest ? (
                                   <DropdownMenuItem
@@ -401,6 +478,50 @@ export function VisitCompleteQueueBoard({
           </CardContent>
         </Card>
       </main>
+      <Dialog open={dropOpen} onOpenChange={setDropOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Drop Project</DialogTitle>
+            <DialogDescription>
+              Move {dropLeadName || 'this lead'} to Closed. Select the Closed substatus to save with the project.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Stage</Label>
+              <Select value="CLOSED" disabled>
+                <SelectTrigger>
+                  <SelectValue placeholder="Closed" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CLOSED">Closed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>Substatus</Label>
+              <Select value={dropSubStatus} onValueChange={setDropSubStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Closed substatus" />
+                </SelectTrigger>
+                <SelectContent>
+                  {closedSubStatusOptions.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {formatLabel(status)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDropOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={submitDropProject} disabled={!dropSubStatus || busyLeadId === dropLeadId}>
+              Confirm Drop
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
         <DialogContent>
           <DialogHeader>
