@@ -353,12 +353,12 @@ export function VisitCompleteQueueBoard({
             {!loading && items.length > 0 ? (
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="min-w-[240px] pl-6">Client Name</TableHead>
-                      <TableHead className="min-w-[210px]">Visit / Complete Date</TableHead>
-                      <TableHead className="min-w-[260px]">Visit Team</TableHead>
-                      <TableHead className="w-[80px] pr-6 text-right">Actions</TableHead>
+                  <TableHeader className="bg-gradient-to-r from-primary/12 via-primary/8 to-transparent">
+                    <TableRow className="border-b border-primary/20 hover:bg-transparent">
+                      <TableHead className="min-w-[240px] pl-6 text-xs font-bold uppercase tracking-[0.18em] text-primary">Client Name</TableHead>
+                      <TableHead className="min-w-[210px] text-xs font-bold uppercase tracking-[0.18em] text-primary">Visit / Complete Date</TableHead>
+                      <TableHead className="min-w-[260px] text-xs font-bold uppercase tracking-[0.18em] text-primary">Visit Team</TableHead>
+                      <TableHead className="w-[80px] pr-6 text-right text-xs font-bold uppercase tracking-[0.18em] text-primary">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
