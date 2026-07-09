@@ -1,28 +1,24 @@
 'use client'
 
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   AlertTriangle,
   ArrowRight,
-  BadgeCheck,
   BarChart3,
   CalendarClock,
   CheckCircle2,
   ClipboardCheck,
   Clock3,
-  FileWarning,
-  Gauge,
   LayoutDashboard,
   MapPin,
   Navigation,
-  RefreshCcw,
-  Route,
-  ShieldAlert,
   TimerReset,
   UserCheck,
-  UsersRound,
+  XCircle,
+  type LucideIcon,
 } from 'lucide-react'
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 'recharts'
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -38,125 +34,263 @@ const statusColors = {
   neutral: 'text-slate-700 bg-slate-500/10 border-slate-500/20 dark:text-slate-300',
 }
 
-const kpis = [
-  { title: 'Today Scheduled', value: '18', detail: '15 assigned • 3 need owner', icon: CalendarClock, tone: statusColors.scheduled, href: '/visit-team/visit-today' },
-  { title: 'Completed Today', value: '11', detail: '61% completion before 6 PM', icon: CheckCircle2, tone: statusColors.completed, href: '/visit-team/visits' },
-  { title: 'Pending Reschedule', value: '5', detail: '2 client callbacks overdue', icon: RefreshCcw, tone: statusColors.warning, href: '/visit-team/visit-schedule-queue' },
-  { title: 'Overdue / Blocked', value: '3', detail: 'Immediate follow-up required', icon: ShieldAlert, tone: statusColors.danger, href: '/visit-team/visit-today' },
-]
+type VisitRecord = {
+  id: string
+  scheduledAt: string
+  location: string
+  notes: string | null
+  status: string
+  projectSqft?: number | null
+  projectStatus?: string | null
+  lead: { id: string; name: string; phone?: string | null; location: string | null }
+  assignedTo?: { id: string; fullName: string; email: string; phone?: string | null } | null
+  supportAssignments?: Array<{ id: string; supportUserId: string; supportUser: { id: string; fullName: string; email: string }; result?: { id: string; completedAt: string } | null }>
+  supportResults?: Array<{ id: string; supportUserId: string; completedAt: string; projectArea?: string | null; projectStatus?: string | null; extraConcern?: string | null }>
+  result?: {
+    id: string
+    completedAt: string
+    summary?: string | null
+    measurements?: unknown
+    clientMood?: string | null
+    clientPotentiality?: string | null
+    projectType?: string | null
+    clientPersonality?: string | null
+    budgetRange?: string | null
+    timelineUrgency?: string | null
+    stylePreference?: string | null
+    files?: unknown[]
+  } | null
+  updateRequests?: Array<{ id: string; type: string; createdAt: string; requestedBy?: { fullName: string } | null }>
+}
 
-const secondaryKpis = [
-  { label: 'Report completeness', value: '82%', icon: ClipboardCheck },
-  { label: 'Ready for handoff', value: '7', icon: BadgeCheck },
-  { label: 'Active members', value: '9', icon: UsersRound },
-  { label: 'Avg. visit cycle', value: '3.4h', icon: Gauge },
-]
+type ApiResponse = { success: boolean; data?: VisitRecord[]; error?: string }
+type DashboardData = ReturnType<typeof buildDashboardData>
+type KpiCard = { title: string; value: string; detail: string; icon: LucideIcon; tone: string; href: string }
+type ScheduleRow = { id: string; lead: string; area: string; time: string; member: string; status: string; tone: string }
+type PriorityAction = { id: string; lead: string; owner: string; scheduledDate: string; missedDays: number; href: string }
+type TeamRow = { id: string; name: string; totalVisits: number; completed: number; reportCompleteness: number; deepData: number; performance: number; leadVisits: number; supportVisits: number }
+type TrendRow = { day: string; scheduled: number; completed: number; pending: number }
+type StatusRow = { name: string; value: number; fill: string }
 
-const priorityActions = [
-  { title: 'Overdue site visit confirmation', lead: 'Rahman Residence', owner: 'Tanvir Ahmed', time: '42m overdue', href: '/visit-team/visit-today', tone: 'danger' },
-  { title: 'Completed visit missing report notes', lead: 'North Avenue Duplex', owner: 'Nusrat Jahan', time: 'Due today', href: '/visit-team/my-visits', tone: 'warning' },
-  { title: 'Unassigned scheduled visit', lead: 'Banani Office Fit-out', owner: 'Assign member', time: 'Starts 3:30 PM', href: '/visit-team/visit-schedule-queue', tone: 'warning' },
-  { title: 'Ready for department handoff', lead: 'Mirpur Apartment', owner: 'Sadia Islam', time: 'Completed 1h ago', href: '/visit-team/supported-visits', tone: 'success' },
-]
+const DAY_MS = 24 * 60 * 60 * 1000
 
-const workflowStages = [
-  { label: 'Request', value: 24, helper: 'Visit needed', tone: statusColors.neutral },
-  { label: 'Scheduled', value: 18, helper: 'Date & time fixed', tone: statusColors.scheduled },
-  { label: 'Assigned', value: 15, helper: 'Member attached', tone: statusColors.scheduled },
-  { label: 'Completed', value: 11, helper: 'Site work done', tone: statusColors.completed },
-  { label: 'Report', value: 9, helper: 'Notes submitted', tone: statusColors.warning },
-  { label: 'Handoff', value: 7, helper: 'Next team ready', tone: statusColors.completed },
-]
+function startOfDay(date: Date) {
+  const next = new Date(date)
+  next.setHours(0, 0, 0, 0)
+  return next
+}
 
-const visits = [
-  { lead: 'Rahman Residence', area: 'Uttara Sector 7', time: '10:30 AM', member: 'Tanvir Ahmed', status: 'Overdue', tone: statusColors.danger },
-  { lead: 'North Avenue Duplex', area: 'Gulshan 2', time: '12:00 PM', member: 'Nusrat Jahan', status: 'Report Due', tone: statusColors.warning },
-  { lead: 'Banani Office Fit-out', area: 'Banani 11', time: '03:30 PM', member: 'Unassigned', status: 'Needs Owner', tone: statusColors.warning },
-  { lead: 'Mirpur Apartment', area: 'Mirpur DOHS', time: '04:15 PM', member: 'Sadia Islam', status: 'Completed', tone: statusColors.completed },
-  { lead: 'Dhanmondi Retail', area: 'Dhanmondi 27', time: '06:00 PM', member: 'Arif Hossain', status: 'Scheduled', tone: statusColors.scheduled },
-]
+function startOfMonth(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1)
+}
 
-const teamRows = [
-  { name: 'Tanvir Ahmed', assigned: 5, completed: 3, pending: 1, workload: 92, status: 'Overloaded' },
-  { name: 'Nusrat Jahan', assigned: 4, completed: 3, pending: 1, workload: 78, status: 'Balanced' },
-  { name: 'Sadia Islam', assigned: 3, completed: 3, pending: 0, workload: 64, status: 'Available' },
-  { name: 'Arif Hossain', assigned: 3, completed: 1, pending: 2, workload: 71, status: 'Balanced' },
-]
+function isSameDay(a: Date, b: Date) {
+  return startOfDay(a).getTime() === startOfDay(b).getTime()
+}
 
-const trendData = [
-  { day: 'Sat', scheduled: 14, completed: 10, rescheduled: 2 },
-  { day: 'Sun', scheduled: 16, completed: 12, rescheduled: 3 },
-  { day: 'Mon', scheduled: 19, completed: 14, rescheduled: 2 },
-  { day: 'Tue', scheduled: 15, completed: 11, rescheduled: 1 },
-  { day: 'Wed', scheduled: 20, completed: 15, rescheduled: 4 },
-  { day: 'Thu', scheduled: 18, completed: 11, rescheduled: 5 },
-]
+function isInRunningMonth(value: string, now = new Date()) {
+  const date = new Date(value)
+  return date >= startOfMonth(now) && date < new Date(now.getFullYear(), now.getMonth() + 1, 1)
+}
 
-const statusData = [
-  { name: 'Completed', value: 11, fill: '#10b981' },
-  { name: 'Scheduled', value: 7, fill: '#3b82f6' },
-  { name: 'Reschedule', value: 5, fill: '#f59e0b' },
-  { name: 'Overdue', value: 3, fill: '#ef4444' },
-]
+function formatVisitTime(value: string) {
+  return new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date(value))
+}
 
-const workloadData = teamRows.map((member) => ({ name: member.name.split(' ')[0], assigned: member.assigned, completed: member.completed }))
+function formatVisitDate(value: string) {
+  return new Intl.DateTimeFormat('en-US', { day: 'numeric', month: 'short' }).format(new Date(value))
+}
+
+function hasReport(visit: VisitRecord) {
+  return Boolean(visit.result || visit.supportResults?.length || visit.supportAssignments?.some((assignment) => assignment.result))
+}
+
+function completedWithin48Hours(visit: VisitRecord) {
+  if (visit.status !== 'COMPLETED' || !visit.result?.completedAt) return false
+  const scheduledAt = new Date(visit.scheduledAt).getTime()
+  const completedAt = new Date(visit.result.completedAt).getTime()
+  return completedAt >= scheduledAt && completedAt - scheduledAt <= 2 * DAY_MS
+}
+
+function getVisitStatus(visit: VisitRecord, now = new Date()) {
+  if (visit.status === 'COMPLETED') return 'Completed'
+  if (visit.status === 'CANCELLED') return 'Cancelled'
+  if (visit.status === 'RESCHEDULED') return 'Rescheduled'
+  if (visit.updateRequests?.some((request) => request.type === 'RESCHEDULE')) return 'Reschedule Pending'
+  if (visit.status === 'SCHEDULED' && new Date(visit.scheduledAt) < startOfDay(now)) return 'Overdue'
+  if (!visit.assignedTo) return 'Needs Owner'
+  return 'Scheduled'
+}
+
+function getToneForStatus(status: string) {
+  if (status === 'Completed') return statusColors.completed
+  if (status === 'Overdue' || status === 'Cancelled') return statusColors.danger
+  if (status.includes('Reschedule') || status === 'Needs Owner') return statusColors.warning
+  return statusColors.scheduled
+}
+
+function getDeepDataScore(visit: VisitRecord) {
+  const resultFields = [
+    visit.result?.summary,
+    visit.result?.measurements,
+    visit.result?.clientMood,
+    visit.result?.clientPotentiality,
+    visit.result?.projectType,
+    visit.result?.clientPersonality,
+    visit.result?.budgetRange,
+    visit.result?.timelineUrgency,
+    visit.result?.stylePreference,
+    visit.result?.files?.length,
+    visit.projectSqft,
+    visit.projectStatus,
+    visit.notes,
+  ]
+  const supportDepth = (visit.supportResults ?? []).reduce((sum, result) => {
+    return sum + [result.projectArea, result.projectStatus, result.extraConcern].filter(Boolean).length
+  }, 0)
+  return resultFields.filter(Boolean).length + supportDepth
+}
+
+function buildDashboardData(visits: VisitRecord[]) {
+  const now = new Date()
+  const todayStart = startOfDay(now)
+  const monthVisits = visits.filter((visit) => isInRunningMonth(visit.scheduledAt, now))
+  const todayVisits = visits.filter((visit) => isSameDay(new Date(visit.scheduledAt), now))
+  const completedMonth = monthVisits.filter((visit) => visit.status === 'COMPLETED')
+  const pendingMonth = monthVisits.filter((visit) => visit.status === 'SCHEDULED' && new Date(visit.scheduledAt) >= todayStart)
+  const rescheduledOrCanceledMonth = monthVisits.filter((visit) => visit.status === 'RESCHEDULED' || visit.status === 'CANCELLED' || visit.updateRequests?.some((request) => request.type === 'RESCHEDULE'))
+  const overdueVisits = monthVisits.filter((visit) => visit.status === 'SCHEDULED' && new Date(visit.scheduledAt) < todayStart)
+  const completedIn48Hours = completedMonth.filter(completedWithin48Hours)
+  const visitCompleteWithin48HoursPercent = completedMonth.length ? Math.round((completedIn48Hours.length / completedMonth.length) * 100) : 0
+
+  const kpis: KpiCard[] = [
+    { title: 'Monthly schedule', value: String(monthVisits.length), detail: 'Visits scheduled this month', icon: CalendarClock, tone: statusColors.scheduled, href: '/visit-team/visits' },
+    { title: 'Completed', value: String(completedMonth.length), detail: 'Completed visits this month', icon: CheckCircle2, tone: statusColors.completed, href: '/visit-team/visits' },
+    { title: 'Pending schedule', value: String(pendingMonth.length), detail: 'Upcoming scheduled visits', icon: Clock3, tone: statusColors.warning, href: '/visit-team/visit-schedule-queue' },
+    { title: 'Reschedule / Canceled', value: String(rescheduledOrCanceledMonth.length), detail: 'Changed or canceled visits', icon: XCircle, tone: statusColors.danger, href: '/visit-team/visit-schedule-queue' },
+    { title: '48h completion', value: `${visitCompleteWithin48HoursPercent}%`, detail: 'Completed within 48h of scheduled time this month', icon: ClipboardCheck, tone: statusColors.completed, href: '/visit-team/my-visits' },
+  ]
+
+  const scheduleRows: ScheduleRow[] = [...todayVisits].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()).map((visit) => {
+    const status = getVisitStatus(visit, now)
+    return { id: visit.id, lead: visit.lead.name, area: visit.location || visit.lead.location || 'No location', time: formatVisitTime(visit.scheduledAt), member: visit.assignedTo?.fullName ?? 'Unassigned', status, tone: getToneForStatus(status) }
+  })
+
+  const priorityActions: PriorityAction[] = overdueVisits
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+    .map((visit) => ({
+      id: visit.id,
+      lead: visit.lead.name,
+      owner: visit.assignedTo?.fullName ?? 'Unassigned',
+      scheduledDate: formatVisitDate(visit.scheduledAt),
+      missedDays: Math.max(1, Math.floor((todayStart.getTime() - startOfDay(new Date(visit.scheduledAt)).getTime()) / DAY_MS)),
+      href: '/visit-team/visit-today',
+    }))
+
+  const memberMap = new Map<string, TeamRow & { deepSum: number }>()
+  const ensureMember = (id: string, name: string) => {
+    const current = memberMap.get(id) ?? { id, name, totalVisits: 0, completed: 0, reportCompleteness: 0, deepData: 0, performance: 0, leadVisits: 0, supportVisits: 0, deepSum: 0 }
+    memberMap.set(id, current)
+    return current
+  }
+
+  for (const visit of monthVisits) {
+    const depth = getDeepDataScore(visit)
+    if (visit.assignedTo) {
+      const row = ensureMember(visit.assignedTo.id, visit.assignedTo.fullName)
+      row.totalVisits += 1
+      row.leadVisits += 1
+      if (visit.status === 'COMPLETED') row.completed += 1
+      if (hasReport(visit)) row.reportCompleteness += 1
+      row.deepSum += depth
+    }
+    for (const assignment of visit.supportAssignments ?? []) {
+      const row = ensureMember(assignment.supportUserId, assignment.supportUser.fullName)
+      row.totalVisits += 1
+      row.supportVisits += 1
+      if (assignment.result || visit.status === 'COMPLETED') row.completed += 1
+      if (assignment.result || visit.supportResults?.some((result) => result.supportUserId === assignment.supportUserId)) row.reportCompleteness += 1
+      row.deepSum += depth
+    }
+  }
+
+  const maxVisitsDone = Math.max(1, ...Array.from(memberMap.values()).map((row) => row.completed))
+  const teamRows: TeamRow[] = Array.from(memberMap.values()).map((row) => {
+    const reportCompleteness = row.totalVisits ? Math.round((row.reportCompleteness / row.totalVisits) * 100) : 0
+    const completionRate = row.totalVisits ? row.completed / row.totalVisits : 0
+    const volumeScore = row.completed / maxVisitsDone
+    const deepData = row.totalVisits ? Math.min(100, Math.round((row.deepSum / row.totalVisits / 13) * 100)) : 0
+    const performance = Math.round((completionRate * 35) + (reportCompleteness * 0.25) + (deepData * 0.25) + (volumeScore * 15))
+    return { ...row, reportCompleteness, deepData, performance: Math.min(100, performance) }
+  }).sort((a, b) => b.performance - a.performance || b.completed - a.completed)
+
+  const monthStart = startOfMonth(now)
+  const trendData: TrendRow[] = Array.from({ length: Math.max(1, Math.ceil((todayStart.getTime() - monthStart.getTime() + DAY_MS) / DAY_MS)) }, (_, index) => {
+    const day = new Date(monthStart.getTime() + index * DAY_MS)
+    const dayVisits = monthVisits.filter((visit) => isSameDay(new Date(visit.scheduledAt), day))
+    return { day: new Intl.DateTimeFormat('en-US', { day: 'numeric' }).format(day), scheduled: dayVisits.length, completed: dayVisits.filter((visit) => visit.status === 'COMPLETED').length, pending: dayVisits.filter((visit) => visit.status === 'SCHEDULED').length }
+  })
+
+  const statusData: StatusRow[] = [
+    { name: 'Completed', value: completedMonth.length, fill: '#10b981' },
+    { name: 'Pending', value: pendingMonth.length, fill: '#3b82f6' },
+    { name: 'Rescheduled', value: monthVisits.filter((visit) => visit.status === 'RESCHEDULED').length, fill: '#f59e0b' },
+    { name: 'Canceled', value: monthVisits.filter((visit) => visit.status === 'CANCELLED').length, fill: '#ef4444' },
+  ]
+
+  const memberOutputData = teamRows.map((member) => ({ name: member.name.split(' ')[0], performance: member.performance, reportCompleteness: member.reportCompleteness }))
+
+  return { kpis, scheduleRows, priorityActions, teamRows, trendData, statusData, memberOutputData, todayCount: todayVisits.length }
+}
 
 const trendConfig = {
   scheduled: { label: 'Scheduled', color: 'var(--color-chart-1)' },
   completed: { label: 'Completed', color: 'var(--color-chart-2)' },
-  rescheduled: { label: 'Rescheduled', color: 'var(--color-chart-4)' },
+  pending: { label: 'Pending', color: 'var(--color-chart-4)' },
 } satisfies ChartConfig
 
-const workloadConfig = {
-  assigned: { label: 'Assigned', color: 'var(--color-chart-1)' },
-  completed: { label: 'Completed', color: 'var(--color-chart-2)' },
+const memberOutputConfig = {
+  performance: { label: 'Performance', color: 'var(--color-chart-1)' },
+  reportCompleteness: { label: 'Report completeness', color: 'var(--color-chart-2)' },
 } satisfies ChartConfig
 
 const statusConfig = {
   Completed: { label: 'Completed', color: '#10b981' },
-  Scheduled: { label: 'Scheduled', color: '#3b82f6' },
-  Reschedule: { label: 'Reschedule', color: '#f59e0b' },
-  Overdue: { label: 'Overdue', color: '#ef4444' },
+  Pending: { label: 'Pending', color: '#3b82f6' },
+  Rescheduled: { label: 'Rescheduled', color: '#f59e0b' },
+  Canceled: { label: 'Canceled', color: '#ef4444' },
 } satisfies ChartConfig
 
 function OperationHero() {
   return (
-    <section className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+    <section className="hidden overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm md:block">
       <div className="grid lg:grid-cols-[1.35fr_0.65fr]">
-        <div className="relative p-4 sm:p-8">
+        <div className="relative p-8">
           <div className="absolute -right-16 -top-16 size-52 rounded-full bg-primary/10 blur-3xl" />
-          <Badge variant="secondary" className="mb-3 gap-1.5 rounded-full px-3 py-1 sm:mb-4">
+          <Badge variant="secondary" className="mb-4 gap-1.5 rounded-full px-3 py-1">
             <LayoutDashboard className="size-3.5" />
             Visit command center
           </Badge>
-          <h2 className="max-w-3xl text-xl font-bold tracking-tight text-foreground sm:text-3xl">
+          <h2 className="max-w-3xl text-3xl font-bold tracking-tight text-foreground">
             Run today&apos;s visits, reports, and department handoffs from one place.
           </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-5 text-muted-foreground sm:mt-3 sm:text-base sm:leading-6">
+          <p className="mt-3 max-w-3xl text-base leading-6 text-muted-foreground">
             Start with overdue visits and missing reports, balance team capacity, then move completed site outputs to the next department without losing context.
           </p>
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-6 sm:flex sm:flex-wrap sm:gap-3">
-            <Button asChild className="h-10 px-3 text-xs sm:text-sm">
-              <Link href="/visit-team/visit-today">Today&apos;s visits <ArrowRight className="size-4" /></Link>
-            </Button>
-            <Button asChild variant="outline" className="h-10 px-3 text-xs sm:text-sm">
-              <Link href="/visit-team/visit-schedule-queue">Schedule queue</Link>
-            </Button>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button asChild><Link href="/visit-team/visit-today">Today&apos;s visits <ArrowRight className="size-4" /></Link></Button>
+            <Button asChild variant="outline"><Link href="/visit-team/visit-schedule-queue">Schedule queue</Link></Button>
           </div>
         </div>
-        <div className="border-t border-border/70 bg-muted/30 p-4 sm:p-6 lg:border-l lg:border-t-0">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-foreground">Today&apos;s operating policy</p>
-            <Badge variant="outline" className="shrink-0 rounded-full px-2 py-0.5 text-[10px] sm:hidden">3-step flow</Badge>
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2 sm:mt-4 sm:grid-cols-1 sm:gap-3">
-            {[['Overdue', 'Clear overdue first', 'Protect client commitments before new assignments.', TimerReset], ['Reports', 'Complete reports', 'A visit is actionable only after notes are submitted.', ClipboardCheck], ['Handoff', 'Handoff fast', 'Send completed outputs to the next department same day.', Navigation]].map(([mobileTitle, title, text, Icon]) => (
-              <div key={title as string} className="rounded-xl border border-border/70 bg-background p-2.5 sm:flex sm:gap-3 sm:p-3">
-                <Icon className="size-4 text-primary sm:mt-0.5" />
-                <div className="mt-2 min-w-0 sm:mt-0">
-                  <p className="text-xs font-semibold leading-tight text-foreground sm:hidden">{mobileTitle as string}</p>
-                  <p className="hidden text-sm font-medium text-foreground sm:block">{title as string}</p>
-                  <p className="mt-1 hidden text-xs text-muted-foreground sm:block">{text as string}</p>
+        <div className="border-l border-border/70 bg-muted/30 p-6">
+          <p className="text-sm font-semibold text-foreground">Today&apos;s operating policy</p>
+          <div className="mt-4 grid gap-3">
+            {[['Clear overdue first', 'Protect client commitments before new assignments.', TimerReset], ['Complete reports', 'A visit is actionable only after notes are submitted.', ClipboardCheck], ['Handoff fast', 'Send completed outputs to the next department same day.', Navigation]].map(([title, text, Icon]) => (
+              <div key={title as string} className="flex gap-3 rounded-xl border border-border/70 bg-background p-3">
+                <Icon className="mt-0.5 size-4 text-primary" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">{title as string}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{text as string}</p>
                 </div>
               </div>
             ))}
@@ -167,21 +301,21 @@ function OperationHero() {
   )
 }
 
-function KpiGrid() {
+function KpiGrid({ kpis }: { kpis: DashboardData['kpis'] }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
       {kpis.map((card) => {
         const Icon = card.icon
         return (
-          <Link key={card.title} href={card.href} className="group rounded-xl focus:outline-none focus:ring-2 focus:ring-ring">
+          <Link key={card.title} href={card.href} className="group min-w-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-ring">
             <Card className="h-full transition-all group-hover:-translate-y-0.5 group-hover:shadow-md">
               <CardContent className="p-3 sm:p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground sm:text-sm">{card.title}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-muted-foreground sm:text-sm">{card.title}</p>
                     <p className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:mt-2 sm:text-3xl">{card.value}</p>
                   </div>
-                  <div className={`rounded-xl border p-2 sm:p-2.5 ${card.tone}`}><Icon className="size-4 sm:size-5" /></div>
+                  <div className={`shrink-0 rounded-xl border p-2 sm:p-2.5 ${card.tone}`}><Icon className="size-4 sm:size-5" /></div>
                 </div>
                 <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-muted-foreground sm:mt-3 sm:text-xs">{card.detail}</p>
               </CardContent>
@@ -193,190 +327,130 @@ function KpiGrid() {
   )
 }
 
-function SecondaryMetrics() {
+function ScheduleBoard({ scheduleRows, todayCount }: { scheduleRows: DashboardData['scheduleRows']; todayCount: number }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-      {secondaryKpis.map((item) => {
-        const Icon = item.icon
-        return (
-          <Card key={item.label} className="bg-muted/20">
-            <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
-              <div className="rounded-lg bg-background p-2 shadow-sm"><Icon className="size-4 text-primary" /></div>
-              <div>
-                <p className="text-xs text-muted-foreground">{item.label}</p>
-                <p className="text-xl font-semibold text-foreground">{item.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )
-      })}
-    </div>
-  )
-}
-
-function PriorityActions() {
-  return (
-    <Card className="h-full">
-      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><AlertTriangle className="size-4 text-amber-500" /> Priority actions</CardTitle></CardHeader>
+    <Card className="min-w-0">
+      <CardHeader className="space-y-1">
+        <CardTitle className="flex items-center gap-2 text-base"><Clock3 className="size-4 text-primary" /> Today schedule board</CardTitle>
+        <p className="text-sm text-muted-foreground">{todayCount} {todayCount === 1 ? 'visit is' : 'visits are'} happening today.</p>
+      </CardHeader>
       <CardContent className="space-y-3">
-        {priorityActions.map((action) => (
-          <div key={action.lead} className="rounded-xl border border-border/70 p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">{action.title}</p>
-                <p className="mt-1 truncate text-xs text-muted-foreground">{action.lead} • {action.owner}</p>
-              </div>
-              <Badge variant="outline" className={action.tone === 'danger' ? statusColors.danger : action.tone === 'success' ? statusColors.completed : statusColors.warning}>{action.time}</Badge>
-            </div>
-            <Button asChild variant="ghost" size="sm" className="mt-2 px-0 text-primary hover:bg-transparent">
-              <Link href={action.href}>Open action <ArrowRight className="size-3.5" /></Link>
-            </Button>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  )
-}
-
-function WorkflowFunnel() {
-  return (
-    <Card className="h-full">
-      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Route className="size-4 text-primary" /> Visit workflow funnel</CardTitle></CardHeader>
-      <CardContent>
-        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-          {workflowStages.map((stage) => (
-            <div key={stage.label} className={`rounded-xl border p-3 text-center ${stage.tone}`}>
-              <p className="text-xs font-medium">{stage.label}</p>
-              <p className="mt-1 text-2xl font-bold">{stage.value}</p>
-              <p className="mt-1 text-[11px] opacity-80">{stage.helper}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mt-5 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4">
-          <div className="flex gap-3">
-            <FileWarning className="mt-0.5 size-5 text-amber-600" />
-            <div>
-              <p className="text-sm font-semibold text-foreground">Bottleneck: report submission</p>
-              <p className="mt-1 text-xs text-muted-foreground">2 completed visits still need notes before they can be handed off to the next department.</p>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function ScheduleBoard() {
-  return (
-    <Card>
-      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Clock3 className="size-4 text-primary" /> Today schedule board</CardTitle></CardHeader>
-      <CardContent className="space-y-3">
-        {visits.map((visit) => (
-          <div key={visit.lead} className="grid gap-3 rounded-xl border border-border/70 p-3 md:grid-cols-[1.2fr_0.8fr_0.8fr_auto] md:items-center">
-            <div>
-              <p className="font-medium text-foreground">{visit.lead}</p>
-              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="size-3" /> {visit.area}</p>
+        {scheduleRows.length ? scheduleRows.map((visit) => (
+          <div key={visit.id} className="grid min-w-0 gap-2 rounded-xl border border-border/70 p-3 sm:grid-cols-[1.2fr_0.6fr_0.8fr_auto] sm:items-center">
+            <div className="min-w-0">
+              <p className="truncate font-medium text-foreground">{visit.lead}</p>
+              <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground"><MapPin className="size-3 shrink-0" /> <span className="truncate">{visit.area}</span></p>
             </div>
             <div className="text-sm text-muted-foreground">{visit.time}</div>
-            <div className="text-sm text-muted-foreground">{visit.member}</div>
-            <Badge variant="outline" className={visit.tone}>{visit.status}</Badge>
+            <div className="truncate text-sm text-muted-foreground">{visit.member}</div>
+            <Badge variant="outline" className={`${visit.tone} w-fit`}>{visit.status}</Badge>
           </div>
-        ))}
+        )) : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No visits scheduled for today.</p>}
       </CardContent>
     </Card>
   )
 }
 
-function TeamPerformance() {
+function PriorityActions({ priorityActions }: { priorityActions: DashboardData['priorityActions'] }) {
   return (
-    <Card>
-      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><UserCheck className="size-4 text-primary" /> Team workload & performance</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
-        {teamRows.map((member) => (
-          <div key={member.name} className="space-y-2 rounded-xl border border-border/70 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-medium text-foreground">{member.name}</p>
-                <p className="text-xs text-muted-foreground">{member.completed}/{member.assigned} completed • {member.pending} pending report</p>
+    <Card className="min-w-0">
+      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><AlertTriangle className="size-4 text-red-500" /> Missed schedule priority</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        {priorityActions.length ? priorityActions.map((action) => (
+          <div key={action.id} className="rounded-xl border border-red-500/20 bg-red-500/5 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{action.lead}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{action.owner} • scheduled {action.scheduledDate}</p>
               </div>
-              <Badge variant="outline" className={member.status === 'Overloaded' ? statusColors.danger : member.status === 'Available' ? statusColors.completed : statusColors.scheduled}>{member.status}</Badge>
+              <Badge variant="outline" className={statusColors.danger}>{action.missedDays}d missed</Badge>
             </div>
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full bg-primary" style={{ width: `${member.workload}%` }} />
-            </div>
+            <Button asChild variant="ghost" size="sm" className="mt-2 px-0 text-primary hover:bg-transparent">
+              <Link href={action.href}>Open visit <ArrowRight className="size-3.5" /></Link>
+            </Button>
           </div>
-        ))}
+        )) : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No missed scheduled visits this month.</p>}
       </CardContent>
     </Card>
   )
 }
 
-function ReportHealth() {
-  const items = [
-    ['Submitted reports', '9', statusColors.completed],
-    ['Missing notes/photos', '2', statusColors.warning],
-    ['Need correction', '1', statusColors.danger],
-    ['Ready for handoff', '7', statusColors.completed],
-  ]
+function TeamPerformance({ teamRows }: { teamRows: DashboardData['teamRows'] }) {
   return (
-    <Card>
-      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><ClipboardCheck className="size-4 text-primary" /> Visit report health</CardTitle></CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-2">
-        {items.map(([label, value, tone]) => (
-          <div key={label} className={`rounded-xl border p-4 ${tone}`}>
-            <p className="text-xs font-medium">{label}</p>
-            <p className="mt-2 text-2xl font-bold">{value}</p>
+    <Card className="min-w-0">
+      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><UserCheck className="size-4 text-primary" /> Team workload & performance</CardTitle></CardHeader>
+      <CardContent className="grid gap-3 lg:grid-cols-2">
+        {teamRows.length ? teamRows.map((member) => (
+          <div key={member.id} className="min-w-0 space-y-3 rounded-xl border border-border/70 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-foreground">{member.name}</p>
+                <p className="text-xs text-muted-foreground">{member.completed}/{member.totalVisits} done • {member.leadVisits} lead • {member.supportVisits} support</p>
+              </div>
+              <Badge variant="outline" className={member.performance >= 80 ? statusColors.completed : member.performance >= 55 ? statusColors.scheduled : statusColors.warning}>{member.performance}/100</Badge>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-lg bg-muted/40 p-2"><span className="text-muted-foreground">Report</span><p className="font-semibold text-foreground">{member.reportCompleteness}%</p></div>
+              <div className="rounded-lg bg-muted/40 p-2"><span className="text-muted-foreground">Deep data</span><p className="font-semibold text-foreground">{member.deepData}%</p></div>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${member.performance}%` }} /></div>
           </div>
-        ))}
+        )) : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No visit-team member activity found for this month.</p>}
       </CardContent>
     </Card>
   )
 }
 
-function ReportingCharts() {
+function ReportingCharts({ trendData, statusData, memberOutputData }: { trendData: DashboardData['trendData']; statusData: DashboardData['statusData']; memberOutputData: DashboardData['memberOutputData'] }) {
   return (
-    <div className="grid gap-4 xl:grid-cols-3">
-      <Card>
+    <div className="grid min-w-0 gap-4 xl:grid-cols-3">
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader><CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="size-4 text-primary" /> Visit trend</CardTitle></CardHeader>
-        <CardContent>
-          <ChartContainer config={trendConfig} className="h-[260px] w-full">
-            <AreaChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
-              <XAxis dataKey="day" tickLine={false} axisLine={false} />
-              <YAxis tickLine={false} axisLine={false} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Area dataKey="scheduled" stroke="var(--color-chart-1)" fill="var(--color-chart-1)" fillOpacity={0.12} strokeWidth={2} />
-              <Area dataKey="completed" stroke="var(--color-chart-2)" fill="var(--color-chart-2)" fillOpacity={0.12} strokeWidth={2} />
-              <Area dataKey="rescheduled" stroke="var(--color-chart-4)" fill="var(--color-chart-4)" fillOpacity={0.12} strokeWidth={2} />
-            </AreaChart>
+        <CardContent className="min-w-0 px-2 sm:px-6">
+          <ChartContainer config={trendConfig} className="h-[240px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={trendData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                <XAxis dataKey="day" tickLine={false} axisLine={false} minTickGap={12} />
+                <YAxis tickLine={false} axisLine={false} width={24} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Area dataKey="scheduled" stroke="var(--color-chart-1)" fill="var(--color-chart-1)" fillOpacity={0.12} strokeWidth={2} />
+                <Area dataKey="completed" stroke="var(--color-chart-2)" fill="var(--color-chart-2)" fillOpacity={0.12} strokeWidth={2} />
+                <Area dataKey="pending" stroke="var(--color-chart-4)" fill="var(--color-chart-4)" fillOpacity={0.12} strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
       </Card>
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader><CardTitle className="text-base">Status mix</CardTitle></CardHeader>
-        <CardContent>
-          <ChartContainer config={statusConfig} className="h-[260px] w-full">
-            <PieChart>
-              <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
-              <Pie data={statusData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={92} stroke="var(--color-card)" strokeWidth={2}>
-                {statusData.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
-              </Pie>
-            </PieChart>
+        <CardContent className="min-w-0 px-2 sm:px-6">
+          <ChartContainer config={statusConfig} className="h-[240px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart margin={{ top: 4, right: 4, bottom: 4, left: 4 }}>
+                <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
+                <Pie data={statusData} dataKey="value" nameKey="name" innerRadius="45%" outerRadius="72%" stroke="var(--color-card)" strokeWidth={2}>
+                  {statusData.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
       </Card>
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader><CardTitle className="text-base">Member output</CardTitle></CardHeader>
-        <CardContent>
-          <ChartContainer config={workloadConfig} className="h-[260px] w-full">
-            <BarChart data={workloadData} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
-              <XAxis dataKey="name" tickLine={false} axisLine={false} />
-              <YAxis tickLine={false} axisLine={false} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="assigned" fill="var(--color-chart-1)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="completed" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]} />
-            </BarChart>
+        <CardContent className="min-w-0 px-2 sm:px-6">
+          <ChartContainer config={memberOutputConfig} className="h-[240px] w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={memberOutputData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                <XAxis dataKey="name" tickLine={false} axisLine={false} minTickGap={10} />
+                <YAxis tickLine={false} axisLine={false} width={24} domain={[0, 100]} />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="performance" fill="var(--color-chart-1)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="reportCompleteness" fill="var(--color-chart-2)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
       </Card>
@@ -385,17 +459,44 @@ function ReportingCharts() {
 }
 
 export default function DashboardPage() {
+  const [visits, setVisits] = useState<VisitRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadDashboard() {
+      try {
+        setLoading(true)
+        setError(null)
+        const response = await fetch('/api/visit-schedule?scope=all', { cache: 'no-store' })
+        const payload = (await response.json()) as ApiResponse
+        if (!response.ok || !payload.success) throw new Error(payload.error || 'Failed to load visit dashboard')
+        if (!cancelled) setVisits(payload.data ?? [])
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load visit dashboard')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    loadDashboard()
+    return () => { cancelled = true }
+  }, [])
+
+  const dashboard = useMemo(() => buildDashboardData(visits), [visits])
+
   return (
-    <div className="min-h-screen bg-muted/20">
-      <CrmPageHeader title="Visit Team Dashboard" subtitle="Action-first reporting for site visits, team capacity, and handoffs." />
-      <main className="mx-auto flex max-w-[1440px] flex-col gap-4 px-3 py-4 sm:gap-6 sm:px-6 sm:py-6">
+    <div className="min-h-screen overflow-x-hidden bg-muted/20">
+      <CrmPageHeader title="Visit Team Dashboard" subtitle="Live reporting from this month&apos;s scheduled visits and team performance." />
+      <main className="mx-auto flex w-full max-w-[1440px] min-w-0 flex-col gap-4 px-3 py-4 sm:gap-6 sm:px-6 sm:py-6">
         <OperationHero />
-        <KpiGrid />
-        <SecondaryMetrics />
-        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]"><PriorityActions /><WorkflowFunnel /></div>
-        <ScheduleBoard />
-        <div className="grid gap-6 xl:grid-cols-2"><TeamPerformance /><ReportHealth /></div>
-        <ReportingCharts />
+        {error ? <Card className="border-destructive/40"><CardContent className="p-4 text-sm text-destructive">{error}</CardContent></Card> : null}
+        {loading ? <Card><CardContent className="p-4 text-sm text-muted-foreground">Loading real visit data...</CardContent></Card> : null}
+        <ScheduleBoard scheduleRows={dashboard.scheduleRows} todayCount={dashboard.todayCount} />
+        <KpiGrid kpis={dashboard.kpis} />
+        <PriorityActions priorityActions={dashboard.priorityActions} />
+        <TeamPerformance teamRows={dashboard.teamRows} />
+        <ReportingCharts trendData={dashboard.trendData} statusData={dashboard.statusData} memberOutputData={dashboard.memberOutputData} />
       </main>
     </div>
   )
