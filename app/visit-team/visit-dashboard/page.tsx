@@ -123,36 +123,40 @@ function OperationHero() {
   return (
     <section className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
       <div className="grid lg:grid-cols-[1.35fr_0.65fr]">
-        <div className="relative p-6 sm:p-8">
+        <div className="relative p-4 sm:p-8">
           <div className="absolute -right-16 -top-16 size-52 rounded-full bg-primary/10 blur-3xl" />
-          <Badge variant="secondary" className="mb-4 gap-1.5 rounded-full px-3 py-1">
+          <Badge variant="secondary" className="mb-3 gap-1.5 rounded-full px-3 py-1 sm:mb-4">
             <LayoutDashboard className="size-3.5" />
             Visit command center
           </Badge>
-          <h2 className="max-w-3xl text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          <h2 className="max-w-3xl text-xl font-bold tracking-tight text-foreground sm:text-3xl">
             Run today&apos;s visits, reports, and department handoffs from one place.
           </h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">
+          <p className="mt-2 max-w-3xl text-sm leading-5 text-muted-foreground sm:mt-3 sm:text-base sm:leading-6">
             Start with overdue visits and missing reports, balance team capacity, then move completed site outputs to the next department without losing context.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild>
-              <Link href="/visit-team/visit-today">Open today&apos;s visits <ArrowRight className="size-4" /></Link>
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-6 sm:flex sm:flex-wrap sm:gap-3">
+            <Button asChild className="h-10 px-3 text-xs sm:text-sm">
+              <Link href="/visit-team/visit-today">Today&apos;s visits <ArrowRight className="size-4" /></Link>
             </Button>
-            <Button asChild variant="outline">
-              <Link href="/visit-team/visit-schedule-queue">Manage schedule queue</Link>
+            <Button asChild variant="outline" className="h-10 px-3 text-xs sm:text-sm">
+              <Link href="/visit-team/visit-schedule-queue">Schedule queue</Link>
             </Button>
           </div>
         </div>
-        <div className="border-t border-border/70 bg-muted/30 p-6 lg:border-l lg:border-t-0">
-          <p className="text-sm font-semibold text-foreground">Today&apos;s operating policy</p>
-          <div className="mt-4 space-y-3">
-            {[['Clear overdue first', 'Protect client commitments before new assignments.', TimerReset], ['Complete reports', 'A visit is actionable only after notes are submitted.', ClipboardCheck], ['Handoff fast', 'Send completed outputs to the next department same day.', Navigation]].map(([title, text, Icon]) => (
-              <div key={title as string} className="flex gap-3 rounded-xl border border-border/70 bg-background p-3">
-                <Icon className="mt-0.5 size-4 text-primary" />
-                <div>
-                  <p className="text-sm font-medium text-foreground">{title as string}</p>
-                  <p className="text-xs text-muted-foreground">{text as string}</p>
+        <div className="border-t border-border/70 bg-muted/30 p-4 sm:p-6 lg:border-l lg:border-t-0">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-foreground">Today&apos;s operating policy</p>
+            <Badge variant="outline" className="shrink-0 rounded-full px-2 py-0.5 text-[10px] sm:hidden">3-step flow</Badge>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 sm:mt-4 sm:grid-cols-1 sm:gap-3">
+            {[['Overdue', 'Clear overdue first', 'Protect client commitments before new assignments.', TimerReset], ['Reports', 'Complete reports', 'A visit is actionable only after notes are submitted.', ClipboardCheck], ['Handoff', 'Handoff fast', 'Send completed outputs to the next department same day.', Navigation]].map(([mobileTitle, title, text, Icon]) => (
+              <div key={title as string} className="rounded-xl border border-border/70 bg-background p-2.5 sm:flex sm:gap-3 sm:p-3">
+                <Icon className="size-4 text-primary sm:mt-0.5" />
+                <div className="mt-2 min-w-0 sm:mt-0">
+                  <p className="text-xs font-semibold leading-tight text-foreground sm:hidden">{mobileTitle as string}</p>
+                  <p className="hidden text-sm font-medium text-foreground sm:block">{title as string}</p>
+                  <p className="mt-1 hidden text-xs text-muted-foreground sm:block">{text as string}</p>
                 </div>
               </div>
             ))}
@@ -165,21 +169,21 @@ function OperationHero() {
 
 function KpiGrid() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
       {kpis.map((card) => {
         const Icon = card.icon
         return (
           <Link key={card.title} href={card.href} className="group rounded-xl focus:outline-none focus:ring-2 focus:ring-ring">
             <Card className="h-full transition-all group-hover:-translate-y-0.5 group-hover:shadow-md">
-              <CardContent className="p-5">
+              <CardContent className="p-3 sm:p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">{card.title}</p>
-                    <p className="mt-2 text-3xl font-bold tracking-tight text-foreground">{card.value}</p>
+                    <p className="text-xs font-medium text-muted-foreground sm:text-sm">{card.title}</p>
+                    <p className="mt-1 text-2xl font-bold tracking-tight text-foreground sm:mt-2 sm:text-3xl">{card.value}</p>
                   </div>
-                  <div className={`rounded-xl border p-2.5 ${card.tone}`}><Icon className="size-5" /></div>
+                  <div className={`rounded-xl border p-2 sm:p-2.5 ${card.tone}`}><Icon className="size-4 sm:size-5" /></div>
                 </div>
-                <p className="mt-3 text-xs text-muted-foreground">{card.detail}</p>
+                <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-muted-foreground sm:mt-3 sm:text-xs">{card.detail}</p>
               </CardContent>
             </Card>
           </Link>
@@ -191,12 +195,12 @@ function KpiGrid() {
 
 function SecondaryMetrics() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
       {secondaryKpis.map((item) => {
         const Icon = item.icon
         return (
           <Card key={item.label} className="bg-muted/20">
-            <CardContent className="flex items-center gap-3 p-4">
+            <CardContent className="flex items-center gap-2 p-3 sm:gap-3 sm:p-4">
               <div className="rounded-lg bg-background p-2 shadow-sm"><Icon className="size-4 text-primary" /></div>
               <div>
                 <p className="text-xs text-muted-foreground">{item.label}</p>
@@ -384,7 +388,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-muted/20">
       <CrmPageHeader title="Visit Team Dashboard" subtitle="Action-first reporting for site visits, team capacity, and handoffs." />
-      <main className="mx-auto flex max-w-[1440px] flex-col gap-6 px-4 py-6 sm:px-6">
+      <main className="mx-auto flex max-w-[1440px] flex-col gap-4 px-3 py-4 sm:gap-6 sm:px-6 sm:py-6">
         <OperationHero />
         <KpiGrid />
         <SecondaryMetrics />
