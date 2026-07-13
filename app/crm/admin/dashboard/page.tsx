@@ -64,7 +64,10 @@ export default async function AdminDashboardPage() {
     ],
   }
 
-  const [cadCount, reviewCount, meetingCount, budgetCount, visitItems, upcomingMeetings, overdueCadTasks, overdueQuotationTasks, reviewSubmissions, budgetLeads, overdueQuotationReviews, designQueueCount, overdueDesignQueueCount, designReviewPendingCount, overdueDesignReviews, visitStatusCounts, pendingOverdueVisitCount, overduePendingVisits] =
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+
+  const [cadCount, reviewCount, meetingCount, budgetCount, visitItems, upcomingMeetings, overdueCadTasks, overdueQuotationTasks, reviewSubmissions, budgetLeads, overdueQuotationReviews, designQueueCount, overdueDesignQueueCount, designReviewPendingCount, overdueDesignReviews, visitStatusCounts, pendingOverdueVisitCount, overduePendingVisits, monthlyVisitPerformanceData] =
     await Promise.all([
       prisma.lead.count({ where: cadScope }),
       prisma.lead.count({ where: reviewScope }),
@@ -220,7 +223,80 @@ export default async function AdminDashboardPage() {
           lead: { select: { id: true, name: true, location: true } },
         },
       }),
+      prisma.visit.findMany({
+        where: { scheduledAt: { gte: monthStart, lt: nextMonthStart } },
+        select: {
+          id: true,
+          status: true,
+          assignedTo: { select: { id: true, fullName: true } },
+          lead: { select: { stage: true, subStatus: true } },
+          result: { select: { id: true } },
+          supportAssignments: {
+            select: {
+              supportUserId: true,
+              supportUser: { select: { fullName: true } },
+              result: { select: { id: true } },
+            },
+          },
+          supportResults: {
+            select: {
+              supportUserId: true,
+            },
+          },
+        },
+      }),
     ])
+
+
+  const memberMap = new Map<string, { id: string; name: string; totalVisits: number; completed: number; reports: number; leadVisits: number; supportVisits: number; deepSum: number }>()
+  const ensureMember = (id: string, name: string) => {
+    const current = memberMap.get(id) ?? { id, name, totalVisits: 0, completed: 0, reports: 0, leadVisits: 0, supportVisits: 0, deepSum: 0 }
+    memberMap.set(id, current)
+    return current
+  }
+  const leadStageDepthPercent = (stage: LeadStage, subStatus: LeadSubStatus | null) => {
+    if (stage === LeadStage.CONVERSION || subStatus === LeadSubStatus.CLIENT_CONFIRMED || subStatus === LeadSubStatus.CLIENT_PARTIALLY_PAID || subStatus === LeadSubStatus.CLIENT_FULL_PAID) return 100
+    if (stage === LeadStage.VISUALIZATION_PHASE) return 90
+    if (stage === LeadStage.BUDGET_PHASE || subStatus === LeadSubStatus.BUDGET_MEETING_SET) return 75
+    if (stage === LeadStage.QUOTATION_PHASE || subStatus === LeadSubStatus.QUOTATION_ASSIGNED || subStatus === LeadSubStatus.QUOTATION_WORKING || subStatus === LeadSubStatus.QUOTATION_COMPLETED || subStatus === LeadSubStatus.QUOTATION_APPROVED) return 65
+    if (stage === LeadStage.CAD_PHASE || subStatus === LeadSubStatus.CAD_ASSIGNED || subStatus === LeadSubStatus.CAD_WORKING || subStatus === LeadSubStatus.CAD_COMPLETED || subStatus === LeadSubStatus.CAD_APPROVED) return 45
+    if (stage === LeadStage.DISCOVERY || subStatus === LeadSubStatus.FIRST_MEETING_SET || subStatus === LeadSubStatus.PROPOSAL_SENT) return 35
+    if (stage === LeadStage.VISIT_COMPLETED || subStatus === LeadSubStatus.VISIT_COMPLETED) return 25
+    if (stage === LeadStage.VISIT_PHASE || stage === LeadStage.VISIT_SCHEDULED || stage === LeadStage.VISIT_RESCHEDULED || subStatus === LeadSubStatus.VISIT_SCHEDULED || subStatus === LeadSubStatus.VISIT_RESCHEDULED) return 15
+    return 0
+  }
+
+  for (const visit of monthlyVisitPerformanceData) {
+    const depth = leadStageDepthPercent(visit.lead.stage, visit.lead.subStatus)
+    if (visit.assignedTo) {
+      const row = ensureMember(visit.assignedTo.id, visit.assignedTo.fullName)
+      row.totalVisits += 1
+      row.leadVisits += 1
+      if (visit.status === VisitStatus.COMPLETED) row.completed += 1
+      if (visit.result) row.reports += 1
+      row.deepSum += depth
+    }
+    for (const assignment of visit.supportAssignments) {
+      const row = ensureMember(assignment.supportUserId, assignment.supportUser.fullName)
+      row.totalVisits += 1
+      row.supportVisits += 1
+      if (assignment.result || visit.status === VisitStatus.COMPLETED) row.completed += 1
+      if (assignment.result || visit.supportResults.some((result) => result.supportUserId === assignment.supportUserId)) row.reports += 1
+      row.deepSum += depth
+    }
+  }
+
+  const maxCompletedVisits = Math.max(1, ...Array.from(memberMap.values()).map((row) => row.completed))
+  const visitTeamPerformance = Array.from(memberMap.values())
+    .map((row) => {
+      const completionRate = row.totalVisits ? row.completed / row.totalVisits : 0
+      const reportCompleteness = row.totalVisits ? Math.round((row.reports / row.totalVisits) * 100) : 0
+      const deepData = row.totalVisits ? Math.round(row.deepSum / row.totalVisits) : 0
+      const volumeScore = row.completed / maxCompletedVisits
+      const performance = Math.min(100, Math.round((completionRate * 35) + (reportCompleteness * 0.25) + (deepData * 0.25) + (volumeScore * 15)))
+      return { ...row, reportCompleteness, deepData, performance }
+    })
+    .sort((first, second) => second.performance - first.performance || second.completed - first.completed)
 
   const priorityActions: PriorityAction[] = [
     ...overdueCadTasks.map((task): PriorityAction => ({
@@ -340,6 +416,7 @@ export default async function AdminDashboardPage() {
         ],
         pendingOverdueCount: pendingOverdueVisitCount,
       }}
+      visitTeamPerformance={visitTeamPerformance}
       overduePendingVisits={overduePendingVisits.map((visit) => ({
         id: visit.id,
         leadId: visit.lead.id,
