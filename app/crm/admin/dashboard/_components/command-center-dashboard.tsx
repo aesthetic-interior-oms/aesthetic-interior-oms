@@ -431,15 +431,8 @@ function VisitTeamPerformanceSection({ members }: { members: VisitTeamPerformanc
               <UserCheck className="size-4 text-primary" />
               Visit Team Performance
             </CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Current month overall result for visit team members, calculated from completion, report submission, lead-stage depth, and workload volume.
-            </p>
           </div>
           <Badge variant="outline">Team avg {averagePerformance}/100</Badge>
-        </div>
-        <div className="rounded-xl border border-dashed border-border bg-muted/30 p-3 text-xs leading-5 text-muted-foreground">
-          Formula: <span className="font-medium text-foreground">Performance = (Completion Rate × 35) + (Report Completeness % × 0.25) + (Deep Data % × 0.25) + (Volume Score × 15)</span>.
-          Completion Rate = completed visits ÷ assigned visits. Report Completeness = member-submitted reports ÷ assigned visits. Deep Data = average current lead-stage depth after the visit: Visit 15, Visit Completed 25, Consulting 35, CAD 45, Quotation 65, Budget 75, Visualizer 90, Conversion 100. Volume Score = member completed visits ÷ highest completed visits by any member this month.
         </div>
       </CardHeader>
       <CardContent className="grid gap-3 lg:grid-cols-2">
@@ -451,18 +444,10 @@ function VisitTeamPerformanceSection({ members }: { members: VisitTeamPerformanc
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-foreground">{member.name}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {member.completed}/{member.totalVisits} done · {member.leadVisits} lead · {member.supportVisits} support
-                  </p>
                 </div>
                 <Badge variant="outline" className={member.performance >= 80 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : member.performance >= 55 ? 'border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300'}>
                   {member.performance}/100
                 </Badge>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                <div className="rounded-lg bg-muted/40 p-2"><span className="text-muted-foreground">Reports</span><p className="font-semibold text-foreground">{member.reportCompleteness}%</p></div>
-                <div className="rounded-lg bg-muted/40 p-2"><span className="text-muted-foreground">Deep data</span><p className="font-semibold text-foreground">{member.deepData}%</p></div>
-                <div className="rounded-lg bg-muted/40 p-2"><span className="text-muted-foreground">Submitted</span><p className="font-semibold text-foreground">{member.reports}</p></div>
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-primary" style={{ width: `${member.performance}%` }} />
