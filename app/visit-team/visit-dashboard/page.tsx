@@ -14,6 +14,8 @@ import {
   MapPin,
   Navigation,
   TimerReset,
+  TrendingUp,
+  Trophy,
   XCircle,
   type LucideIcon,
 } from 'lucide-react'
@@ -63,6 +65,8 @@ type VisitRecord = {
 }
 
 type ApiResponse = { success: boolean; data?: VisitRecord[]; error?: string }
+type PerformanceRow = { id: string; name: string; totalVisits: number; completed: number; performance: number }
+type PerformanceResponse = { success: boolean; data?: { topPerformer: PerformanceRow | null; currentUserPerformance: PerformanceRow | null; averagePerformance: number }; error?: string }
 type DashboardData = ReturnType<typeof buildDashboardData>
 type CurrentUser = { id: string; fullName: string; userDepartments?: Array<{ department?: { name?: string } }> }
 type KpiCard = { title: string; value: string; detail: string; icon: LucideIcon; tone: string; href: string }
@@ -237,6 +241,63 @@ function OperationHero() {
   )
 }
 
+function PerformanceHighlights({ performance, currentUser }: { performance: PerformanceResponse['data'] | null; currentUser: CurrentUser | null }) {
+  const topPerformer = performance?.topPerformer ?? null
+  const userPerformance = performance?.currentUserPerformance ?? null
+  const compareValue = userPerformance?.performance ?? performance?.averagePerformance ?? 0
+  const compareLabel = userPerformance
+    ? `${userPerformance.name.split(' ')[0]}'s performance`
+    : 'Team average performance'
+  const compareDetail = userPerformance
+    ? `${userPerformance.completed}/${userPerformance.totalVisits} done this month`
+    : 'Backend-calculated team performance'
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card className="overflow-hidden border-amber-500/25 bg-amber-500/5">
+        <CardContent className="flex items-center justify-between gap-4 p-4 sm:p-5">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
+              <Trophy className="size-4 fill-amber-400 text-amber-500" />
+              Top performer
+            </p>
+            <p className="mt-2 truncate text-2xl font-bold text-foreground">
+              {topPerformer?.name ?? 'No performer yet'}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {topPerformer
+                ? `${topPerformer.performance}/100 score • ${topPerformer.completed}/${topPerformer.totalVisits} done`
+                : 'Performance will appear after backend monthly data is available.'}
+            </p>
+          </div>
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-600">
+            <Trophy className="size-7" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden border-primary/20 bg-primary/5">
+        <CardContent className="flex items-center justify-between gap-4 p-4 sm:p-5">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <TrendingUp className="size-4" />
+              {compareLabel}
+            </p>
+            <p className="mt-2 text-2xl font-bold text-foreground">{compareValue}/100</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {currentUser?.fullName ? `${currentUser.fullName} • ` : ''}{compareDetail}
+            </p>
+          </div>
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <TrendingUp className="size-7" />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+
 function KpiGrid({ kpis }: { kpis: DashboardData['kpis'] }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
@@ -356,6 +417,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+  const [performance, setPerformance] = useState<PerformanceResponse['data'] | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -363,13 +425,18 @@ export default function DashboardPage() {
       try {
         setLoading(true)
         setError(null)
-        const [meResponse, visitsResponse] = await Promise.all([
+        const [meResponse, visitsResponse, performanceResponse] = await Promise.all([
           fetch('/api/me', { cache: 'no-store' }),
           fetch('/api/visit-schedule?scope=dashboard', { cache: 'no-store' }),
+          fetch('/api/visit-dashboard/performance', { cache: 'no-store' }),
         ])
         if (meResponse.ok) {
           const mePayload = (await meResponse.json()) as CurrentUser
           if (!cancelled) setCurrentUser(mePayload)
+        }
+        if (performanceResponse.ok) {
+          const performancePayload = (await performanceResponse.json()) as PerformanceResponse
+          if (!cancelled && performancePayload.success) setPerformance(performancePayload.data ?? null)
         }
         const response = visitsResponse
         const payload = (await response.json()) as ApiResponse
@@ -394,6 +461,7 @@ export default function DashboardPage() {
         <OperationHero />
         {error ? <Card className="border-destructive/40"><CardContent className="p-4 text-sm text-destructive">{error}</CardContent></Card> : null}
         {loading ? <Card><CardContent className="p-4 text-sm text-muted-foreground">Loading real visit data...</CardContent></Card> : null}
+        <PerformanceHighlights performance={performance} currentUser={currentUser} />
         <KpiGrid kpis={dashboard.kpis} />
         <ScheduleBoard scheduleRows={dashboard.scheduleRows} todayCount={dashboard.todayCount} />
         <PriorityActions priorityActions={dashboard.priorityActions} />
