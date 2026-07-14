@@ -1,17 +1,24 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { ComponentType } from 'react'
 import Link from 'next/link'
 import {
   CalendarClock,
+  CheckCircle2,
+  ClipboardCheck,
+  DraftingCompass,
   LayoutGrid,
+  ListFilter,
   Loader2,
   MapPin,
   MoreHorizontal,
   Phone,
   Search,
+  Send,
   TableIcon,
   UserRound,
+  Wrench,
 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
@@ -105,6 +112,57 @@ type DepartmentUsersResponse = {
   success: boolean
   users?: DepartmentUser[]
   error?: string
+}
+
+type StatCardConfig = {
+  key: string
+  label: string
+  count: number
+  Icon: ComponentType<{ className?: string }>
+  className: string
+  iconClassName: string
+}
+
+const CAD_PHASE_STAT_META: Record<
+  string,
+  { label: string; Icon: ComponentType<{ className?: string }>; className: string; iconClassName: string }
+> = {
+  ALL: {
+    label: 'Total CAD Phase',
+    Icon: DraftingCompass,
+    className: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200',
+    iconClassName: 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200',
+  },
+  CAD_ASSIGNED: {
+    label: 'CAD Assigned',
+    Icon: Send,
+    className: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-200',
+    iconClassName: 'bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200',
+  },
+  CAD_WORKING: {
+    label: 'CAD Working',
+    Icon: Wrench,
+    className: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200',
+    iconClassName: 'bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200',
+  },
+  CAD_COMPLETED: {
+    label: 'CAD Completed',
+    Icon: ClipboardCheck,
+    className: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-200',
+    iconClassName: 'bg-violet-100 text-violet-700 dark:bg-violet-900/60 dark:text-violet-200',
+  },
+  CAD_APPROVED: {
+    label: 'CAD Approved',
+    Icon: CheckCircle2,
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200',
+    iconClassName: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200',
+  },
+}
+
+const DEFAULT_STAT_META = {
+  Icon: ListFilter,
+  className: 'border-border bg-card text-foreground',
+  iconClassName: 'bg-muted text-muted-foreground',
 }
 
 function formatLabel(value: string | null | undefined) {
@@ -877,8 +935,16 @@ export function CadPhaseQueueBoard({
   }, [leads])
 
   const statCards = useMemo(() => {
-    const cards: Array<{ key: string; label: string; count: number }> = [
-      { key: 'ALL', label: 'Total', count: memberFilteredLeads.length },
+    const totalMeta = isCadQueue ? CAD_PHASE_STAT_META.ALL : DEFAULT_STAT_META
+    const cards: StatCardConfig[] = [
+      {
+        key: 'ALL',
+        label: isCadQueue ? CAD_PHASE_STAT_META.ALL.label : 'Total',
+        count: memberFilteredLeads.length,
+        Icon: totalMeta.Icon,
+        className: totalMeta.className,
+        iconClassName: totalMeta.iconClassName,
+      },
     ]
     const config = isMeetingQueue
       ? Array.from(
@@ -909,12 +975,16 @@ export function CadPhaseQueueBoard({
             ]
 
     for (const item of config) {
+      const meta = isCadQueue ? CAD_PHASE_STAT_META[item.key] : undefined
       cards.push({
         key: item.key,
-        label: item.label,
+        label: meta?.label ?? item.label,
         count: memberFilteredLeads.filter(
           (lead) => lead.subStatus === item.key || lead.stage === item.key,
         ).length,
+        Icon: meta?.Icon ?? DEFAULT_STAT_META.Icon,
+        className: meta?.className ?? DEFAULT_STAT_META.className,
+        iconClassName: meta?.iconClassName ?? DEFAULT_STAT_META.iconClassName,
       })
     }
 
@@ -923,6 +993,7 @@ export function CadPhaseQueueBoard({
     isBudgetQueue,
     isDesignQueue,
     isMeetingQueue,
+    isCadQueue,
     memberFilteredLeads,
   ])
 
@@ -985,84 +1056,123 @@ export function CadPhaseQueueBoard({
       <CrmPageHeader title={title} subtitle={subtitle} />
 
       <main className="mx-auto max-w-[1440px] px-4 py-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search by lead name, phone, or location..."
-              className="pl-10"
-            />
-          </div>
-          {isCadQueue ? (
-            <div className="w-full sm:w-64">
-              <Select
-                value={jrArchitectFilter}
-                onValueChange={setJrArchitectFilter}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by JR Architect" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_MEMBER_FILTER}>
-                    All JR Architects
-                  </SelectItem>
-                  {jrArchitectFilterOptions.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <Card className="mb-4 border-border/70">
+          <CardContent className="space-y-4 p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex min-w-[180px] items-center gap-2 text-sm font-semibold text-foreground">
+                <ListFilter className="h-4 w-4 text-primary" />
+                Filter CAD Queue
+              </div>
+              <div className="relative min-w-[260px] flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Search by lead name, phone, or location..."
+                  className="pl-10"
+                />
+              </div>
+              {isCadQueue ? (
+                <div className="w-full sm:w-56">
+                  <Select value={activeFilter} onValueChange={setActiveFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by CAD status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statCards.map((card) => (
+                        <SelectItem key={card.key} value={card.key}>
+                          {card.label} ({card.count})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+              {isCadQueue ? (
+                <div className="w-full sm:w-56">
+                  <Select
+                    value={jrArchitectFilter}
+                    onValueChange={setJrArchitectFilter}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by JR Architect" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_MEMBER_FILTER}>
+                        All JR Architects
+                      </SelectItem>
+                      {jrArchitectFilterOptions.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+              {showSrCrmFilter ? (
+                <div className="w-full sm:w-56">
+                  <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by SR CRM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_MEMBER_FILTER}>All SR CRMs</SelectItem>
+                      {srCrmFilterOptions.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+              <div className="w-full sm:w-56">
+                <Select value={visitMonthFilter} onValueChange={setVisitMonthFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by Visit Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_MONTH_FILTER}>All Visit Months</SelectItem>
+                    {visitMonthFilterOptions.map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          ) : null}
-          {showSrCrmFilter ? (
-            <div className="w-full sm:w-64">
-              <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by SR CRM" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_MEMBER_FILTER}>All SR CRMs</SelectItem>
-                  {srCrmFilterOptions.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {statCards.map((card) => {
+                const Icon = card.Icon
+                return (
+                  <button
+                    key={card.key}
+                    type="button"
+                    onClick={() => setActiveFilter(card.key)}
+                    className={`rounded-xl border p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.className} ${activeFilter === card.key ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                    aria-pressed={activeFilter === card.key}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide opacity-80">
+                          {card.label}
+                        </p>
+                        <p className="mt-1 text-2xl font-bold leading-none">
+                          {card.count}
+                        </p>
+                      </div>
+                      <span className={`rounded-full p-2 ${card.iconClassName}`}>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
-          ) : null}
-          <div className="w-full sm:w-64">
-            <Select value={visitMonthFilter} onValueChange={setVisitMonthFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by Visit Month" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_MONTH_FILTER}>All Visit Months</SelectItem>
-                {visitMonthFilterOptions.map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {statCards.map((card) => (
-              <Button
-                key={card.key}
-                size="sm"
-                variant={activeFilter === card.key ? 'default' : 'outline'}
-                onClick={() => setActiveFilter(card.key)}
-                className="h-8"
-              >
-                {card.label}: {card.count}
-              </Button>
-            ))}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {isCadQueue ? (
           <div className="mb-4 flex justify-end gap-2">

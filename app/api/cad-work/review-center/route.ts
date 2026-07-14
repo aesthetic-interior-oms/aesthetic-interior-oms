@@ -82,6 +82,17 @@ export async function GET(request: NextRequest) {
     const reviewableLeadScope: Prisma.LeadWhereInput = {
       OR: [
         { stage: LeadStage.CAD_PHASE, subStatus: LeadSubStatus.CAD_COMPLETED },
+        { stage: LeadStage.CAD_PHASE, subStatus: LeadSubStatus.CAD_APPROVED },
+        {
+          stage: LeadStage.DISCOVERY,
+          subStatus: LeadSubStatus.FIRST_MEETING_SET,
+          cadWorkSubmissions: { some: {} },
+        },
+        {
+          stage: LeadStage.DISCOVERY,
+          subStatus: LeadSubStatus.PROPOSAL_SENT,
+          cadWorkSubmissions: { some: {} },
+        },
         { stage: LeadStage.QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_COMPLETED },
         { stage: LeadStage.VISUALIZATION_PHASE, subStatus: LeadSubStatus.VISUAL_COMPLETED },
       ],
