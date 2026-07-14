@@ -10,10 +10,12 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Clock3,
+  Crown,
   LayoutDashboard,
   MapPin,
   Navigation,
   TimerReset,
+  TrendingUp,
   UserCheck,
   XCircle,
   type LucideIcon,
@@ -65,6 +67,7 @@ type VisitRecord = {
 
 type ApiResponse = { success: boolean; data?: VisitRecord[]; error?: string }
 type DashboardData = ReturnType<typeof buildDashboardData>
+type CurrentUser = { id: string; fullName: string; userDepartments?: Array<{ department?: { name?: string } }> }
 type KpiCard = { title: string; value: string; detail: string; icon: LucideIcon; tone: string; href: string }
 type ScheduleRow = { id: string; lead: string; area: string; time: string; member: string; status: string; tone: string }
 type PriorityAction = { id: string; lead: string; owner: string; scheduledDate: string; missedDays: number; href: string }
@@ -151,7 +154,7 @@ function getDeepDataScore(visit: VisitRecord) {
   return resultFields.filter(Boolean).length + supportDepth
 }
 
-function buildDashboardData(visits: VisitRecord[]) {
+function buildDashboardData(visits: VisitRecord[], currentUserId?: string | null) {
   const now = new Date()
   const todayStart = startOfDay(now)
   const monthVisits = visits.filter((visit) => isInRunningMonth(visit.scheduledAt, now))
@@ -239,8 +242,15 @@ function buildDashboardData(visits: VisitRecord[]) {
   ]
 
   const memberOutputData = teamRows.map((member) => ({ name: member.name.split(' ')[0], performance: member.performance, reportCompleteness: member.reportCompleteness }))
+  const topPerformer = teamRows[0] ?? null
+  const currentUserPerformance = currentUserId
+    ? teamRows.find((member) => member.id === currentUserId) ?? null
+    : null
+  const averagePerformance = teamRows.length
+    ? Math.round(teamRows.reduce((sum, member) => sum + member.performance, 0) / teamRows.length)
+    : 0
 
-  return { kpis, scheduleRows, priorityActions, teamRows, trendData, statusData, memberOutputData, todayCount: todayVisits.length }
+  return { kpis, scheduleRows, priorityActions, teamRows, trendData, statusData, memberOutputData, todayCount: todayVisits.length, topPerformer, currentUserPerformance, averagePerformance }
 }
 
 const trendConfig = {
@@ -298,6 +308,62 @@ function OperationHero() {
         </div>
       </div>
     </section>
+  )
+}
+
+function PerformanceHighlights({ dashboard, currentUser }: { dashboard: DashboardData; currentUser: CurrentUser | null }) {
+  const topPerformer = dashboard.topPerformer
+  const userPerformance = dashboard.currentUserPerformance
+  const compareValue = userPerformance?.performance ?? dashboard.averagePerformance
+  const compareLabel = userPerformance
+    ? `${userPerformance.name.split(' ')[0]}'s performance`
+    : 'Team average performance'
+  const compareDetail = userPerformance
+    ? `${userPerformance.completed}/${userPerformance.totalVisits} done this month`
+    : `${dashboard.teamRows.length} active member${dashboard.teamRows.length === 1 ? '' : 's'} this month`
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card className="overflow-hidden border-amber-500/25 bg-amber-500/5">
+        <CardContent className="flex items-center justify-between gap-4 p-4 sm:p-5">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-300">
+              <Crown className="size-4 fill-amber-400 text-amber-500" />
+              Top performer
+            </p>
+            <p className="mt-2 truncate text-2xl font-bold text-foreground">
+              {topPerformer?.name ?? 'No performer yet'}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {topPerformer
+                ? `${topPerformer.performance}/100 score • ${topPerformer.completed}/${topPerformer.totalVisits} done`
+                : 'Performance will appear after monthly visits are assigned.'}
+            </p>
+          </div>
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-amber-400/15 text-amber-600">
+            <Crown className="size-7" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden border-primary/20 bg-primary/5">
+        <CardContent className="flex items-center justify-between gap-4 p-4 sm:p-5">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <TrendingUp className="size-4" />
+              {compareLabel}
+            </p>
+            <p className="mt-2 text-2xl font-bold text-foreground">{compareValue}/100</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {currentUser?.fullName ? `${currentUser.fullName} • ` : ''}{compareDetail}
+            </p>
+          </div>
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <UserCheck className="size-7" />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 
@@ -462,6 +528,7 @@ export default function DashboardPage() {
   const [visits, setVisits] = useState<VisitRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -469,7 +536,15 @@ export default function DashboardPage() {
       try {
         setLoading(true)
         setError(null)
-        const response = await fetch('/api/visit-schedule?scope=all', { cache: 'no-store' })
+        const [meResponse, visitsResponse] = await Promise.all([
+          fetch('/api/me', { cache: 'no-store' }),
+          fetch('/api/visit-schedule?scope=dashboard', { cache: 'no-store' }),
+        ])
+        if (meResponse.ok) {
+          const mePayload = (await meResponse.json()) as CurrentUser
+          if (!cancelled) setCurrentUser(mePayload)
+        }
+        const response = visitsResponse
         const payload = (await response.json()) as ApiResponse
         if (!response.ok || !payload.success) throw new Error(payload.error || 'Failed to load visit dashboard')
         if (!cancelled) setVisits(payload.data ?? [])
@@ -483,7 +558,7 @@ export default function DashboardPage() {
     return () => { cancelled = true }
   }, [])
 
-  const dashboard = useMemo(() => buildDashboardData(visits), [visits])
+  const dashboard = useMemo(() => buildDashboardData(visits, currentUser?.id), [currentUser?.id, visits])
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-muted/20">
@@ -492,8 +567,9 @@ export default function DashboardPage() {
         <OperationHero />
         {error ? <Card className="border-destructive/40"><CardContent className="p-4 text-sm text-destructive">{error}</CardContent></Card> : null}
         {loading ? <Card><CardContent className="p-4 text-sm text-muted-foreground">Loading real visit data...</CardContent></Card> : null}
-        <ScheduleBoard scheduleRows={dashboard.scheduleRows} todayCount={dashboard.todayCount} />
+        <PerformanceHighlights dashboard={dashboard} currentUser={currentUser} />
         <KpiGrid kpis={dashboard.kpis} />
+        <ScheduleBoard scheduleRows={dashboard.scheduleRows} todayCount={dashboard.todayCount} />
         <PriorityActions priorityActions={dashboard.priorityActions} />
         <TeamPerformance teamRows={dashboard.teamRows} />
         <ReportingCharts trendData={dashboard.trendData} statusData={dashboard.statusData} memberOutputData={dashboard.memberOutputData} />
