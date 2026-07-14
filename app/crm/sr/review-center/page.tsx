@@ -26,11 +26,13 @@ import {
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import {
   CheckCircle2,
+  CircleAlert,
   CalendarClock,
   ClipboardCheck,
   Download,
   FileText,
   ListFilter,
+  Sparkles,
   ImageIcon,
   Loader2,
   MapPin,
@@ -101,6 +103,7 @@ type ReviewStatCard = {
   Icon: ComponentType<{ className?: string }>
   className: string
   iconClassName: string
+  accentClassName: string
 }
 
 const REVIEW_STATUS_STATS: Array<{
@@ -109,42 +112,48 @@ const REVIEW_STATUS_STATS: Array<{
   Icon: ComponentType<{ className?: string }>
   className: string
   iconClassName: string
+  accentClassName: string
 }> = [
   {
     key: 'CAD_COMPLETED',
     label: 'CAD Completed',
     Icon: ClipboardCheck,
-    className: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-200',
-    iconClassName: 'bg-violet-100 text-violet-700 dark:bg-violet-900/60 dark:text-violet-200',
+    className: 'border-violet-200/70 from-violet-50 via-white to-fuchsia-50 text-violet-800 dark:border-violet-500/30 dark:from-violet-950/60 dark:via-slate-950 dark:to-fuchsia-950/40 dark:text-violet-100',
+    iconClassName: 'bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-500/15 dark:text-violet-200 dark:ring-violet-400/20',
+    accentClassName: 'from-violet-500 to-fuchsia-500',
   },
   {
     key: 'CAD_APPROVED',
     label: 'CAD Approved',
     Icon: CheckCircle2,
-    className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200',
-    iconClassName: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200',
+    className: 'border-emerald-200/70 from-emerald-50 via-white to-teal-50 text-emerald-800 dark:border-emerald-500/30 dark:from-emerald-950/60 dark:via-slate-950 dark:to-teal-950/40 dark:text-emerald-100',
+    iconClassName: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20',
+    accentClassName: 'from-emerald-500 to-teal-500',
   },
   {
     key: 'FIRST_MEETING_SET',
     label: 'First Meeting Set',
     Icon: CalendarClock,
-    className: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-200',
-    iconClassName: 'bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200',
+    className: 'border-sky-200/70 from-sky-50 via-white to-cyan-50 text-sky-800 dark:border-sky-500/30 dark:from-sky-950/60 dark:via-slate-950 dark:to-cyan-950/40 dark:text-sky-100',
+    iconClassName: 'bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/15 dark:text-sky-200 dark:ring-sky-400/20',
+    accentClassName: 'from-sky-500 to-cyan-500',
   },
   {
     key: 'PROPOSAL_SENT',
     label: 'Quotation Sent',
     Icon: Send,
-    className: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200',
-    iconClassName: 'bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200',
+    className: 'border-amber-200/70 from-amber-50 via-white to-orange-50 text-amber-800 dark:border-amber-500/30 dark:from-amber-950/60 dark:via-slate-950 dark:to-orange-950/40 dark:text-amber-100',
+    iconClassName: 'bg-amber-100 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20',
+    accentClassName: 'from-amber-500 to-orange-500',
   },
 ]
 
 const TOTAL_REVIEW_STAT = {
   label: 'Total Review',
   Icon: ListFilter,
-  className: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200',
-  iconClassName: 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200',
+  className: 'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950',
+  iconClassName: 'bg-white/15 text-white ring-white/25 dark:bg-slate-950/10 dark:text-slate-950 dark:ring-slate-950/15',
+  accentClassName: 'from-primary to-amber-400',
 }
 
 type ReviewCenterViewProps = {
@@ -177,6 +186,24 @@ function isSubmissionPendingReview(submission: ReviewSubmission): boolean {
     (submission.lead.stage === 'QUOTATION_PHASE' && submission.lead.subStatus === 'QUOTATION_COMPLETED') ||
     (submission.lead.stage === 'VISUALIZATION_PHASE' && submission.lead.subStatus === 'VISUAL_COMPLETED')
   )
+}
+
+
+function getReviewActionUnavailableMessage(submission: ReviewSubmission): string | null {
+  if (isSubmissionPendingReview(submission)) return null
+  if (submission.lead.subStatus === 'CAD_APPROVED') {
+    return 'CAD has already been approved. Approval and correction actions are only available while CAD is completed and pending review.'
+  }
+  if (submission.lead.subStatus === 'FIRST_MEETING_SET') {
+    return 'This lead already moved to First Meeting Set after review. Review actions are no longer available.'
+  }
+  if (submission.lead.subStatus === 'PROPOSAL_SENT') {
+    return 'This lead already moved to Quotation Sent after review. Review actions are no longer available.'
+  }
+  if (submission.lead.subStatus?.includes('APPROVED')) {
+    return 'This submission has already been approved. Review actions are only available for pending submissions.'
+  }
+  return 'Review actions are only available for submissions currently pending Senior CRM/Admin review.'
 }
 
 function getSubmissionKindLabel(submission: ReviewSubmission): string {
@@ -433,6 +460,7 @@ export function ReviewCenterView({
         Icon: TOTAL_REVIEW_STAT.Icon,
         className: TOTAL_REVIEW_STAT.className,
         iconClassName: TOTAL_REVIEW_STAT.iconClassName,
+        accentClassName: TOTAL_REVIEW_STAT.accentClassName,
       },
     ]
 
@@ -534,33 +562,71 @@ export function ReviewCenterView({
               </Badge>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              {statCards.map((card) => {
-                const Icon = card.Icon
-                return (
-                  <button
-                    key={card.key}
-                    type="button"
-                    onClick={() => setStageFilter(card.key)}
-                    className={`rounded-xl border p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.className} ${stageFilter === card.key ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
-                    aria-pressed={stageFilter === card.key}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wide opacity-80">
-                          {card.label}
-                        </p>
-                        <p className="mt-1 text-2xl font-bold leading-none">
-                          {card.count}
-                        </p>
+            <div className="rounded-[1.35rem] border border-border/70 bg-gradient-to-br from-background via-muted/20 to-background p-3 shadow-sm">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+                <div>
+                  <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Review Intelligence
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Premium snapshot of the active review queue and approval flow.
+                  </p>
+                </div>
+                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+                  Live queue metrics
+                </Badge>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                {statCards.map((card) => {
+                  const Icon = card.Icon
+                  const percentage = submissions.length > 0 ? Math.round((card.count / submissions.length) * 100) : 0
+                  const isActive = stageFilter === card.key
+
+                  return (
+                    <button
+                      key={card.key}
+                      type="button"
+                      onClick={() => setStageFilter(card.key)}
+                      className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${card.className} ${isActive ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                      aria-pressed={isActive}
+                    >
+                      <span className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/30 blur-2xl transition group-hover:scale-125 dark:bg-white/10" />
+                      <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${card.accentClassName}`} />
+
+                      <div className="relative flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] opacity-75">
+                            {card.label}
+                          </p>
+                          <div className="mt-3 flex items-end gap-2">
+                            <p className="text-3xl font-black leading-none tracking-tight">
+                              {card.count}
+                            </p>
+                            <span className="mb-0.5 rounded-full bg-white/45 px-2 py-0.5 text-[10px] font-bold shadow-sm ring-1 ring-black/5 dark:bg-black/15 dark:ring-white/10">
+                              {percentage}%
+                            </span>
+                          </div>
+                        </div>
+                        <span className={`rounded-2xl p-2.5 shadow-sm ring-1 ${card.iconClassName}`}>
+                          <Icon className="h-5 w-5" />
+                        </span>
                       </div>
-                      <span className={`rounded-full p-2 ${card.iconClassName}`}>
-                        <Icon className="h-5 w-5" />
-                      </span>
-                    </div>
-                  </button>
-                )
-              })}
+
+                      <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
+                        <span
+                          className={`block h-full rounded-full bg-gradient-to-r ${card.accentClassName} transition-all duration-500`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <p className="relative mt-2 text-[11px] font-medium opacity-70">
+                        {card.key === ALL_STAGE_FILTER ? 'All submissions in view' : 'Share of total review queue'}
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -602,26 +668,49 @@ export function ReviewCenterView({
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      {isSubmissionPendingReview(submission) ? (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => openDecisionDialog(submission, 'APPROVE')}
-                          >
-                            <CheckCircle2 className="mr-1 h-4 w-4" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openDecisionDialog(submission, 'CORRECTION')}
-                          >
-                            <RotateCcw className="mr-1 h-4 w-4" />
-                            Correction
-                          </Button>
-                        </>
-                      ) : null}
+                      {(() => {
+                        const unavailableMessage = getReviewActionUnavailableMessage(submission)
+
+                        if (!unavailableMessage) {
+                          return (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => openDecisionDialog(submission, 'APPROVE')}
+                              >
+                                <CheckCircle2 className="mr-1 h-4 w-4" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openDecisionDialog(submission, 'CORRECTION')}
+                              >
+                                <RotateCcw className="mr-1 h-4 w-4" />
+                                Correction
+                              </Button>
+                            </>
+                          )
+                        }
+
+                        return (
+                          <div className="flex flex-wrap items-center gap-2" title={unavailableMessage}>
+                            <Badge variant="outline" className="h-8 gap-1.5 border-amber-200 bg-amber-50 px-2.5 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                              <CircleAlert className="h-3.5 w-3.5" />
+                              Already moved
+                            </Badge>
+                            <Button size="sm" variant="secondary" disabled>
+                              <CheckCircle2 className="mr-1 h-4 w-4" />
+                              Approve
+                            </Button>
+                            <Button size="sm" variant="outline" disabled>
+                              <RotateCcw className="mr-1 h-4 w-4" />
+                              Correction
+                            </Button>
+                          </div>
+                        )
+                      })()}
                       <Button asChild size="sm" variant="outline">
                         <Link href={`${leadBasePath}/${submission.lead.id}`}>Open Lead</Link>
                       </Button>
