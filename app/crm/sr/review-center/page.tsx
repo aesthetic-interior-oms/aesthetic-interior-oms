@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { ComponentType } from 'react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -26,13 +27,16 @@ import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import {
   CheckCircle2,
   CalendarClock,
+  ClipboardCheck,
   Download,
   FileText,
+  ListFilter,
   ImageIcon,
   Loader2,
   MapPin,
   Phone,
   RotateCcw,
+  Send,
   Search,
   UserRound,
 } from 'lucide-react'
@@ -90,6 +94,59 @@ type ReviewApiResponse = {
 
 type ReviewDecision = 'APPROVE' | 'CORRECTION'
 
+type ReviewStatCard = {
+  key: string
+  label: string
+  count: number
+  Icon: ComponentType<{ className?: string }>
+  className: string
+  iconClassName: string
+}
+
+const REVIEW_STATUS_STATS: Array<{
+  key: string
+  label: string
+  Icon: ComponentType<{ className?: string }>
+  className: string
+  iconClassName: string
+}> = [
+  {
+    key: 'CAD_COMPLETED',
+    label: 'CAD Completed',
+    Icon: ClipboardCheck,
+    className: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-200',
+    iconClassName: 'bg-violet-100 text-violet-700 dark:bg-violet-900/60 dark:text-violet-200',
+  },
+  {
+    key: 'CAD_APPROVED',
+    label: 'CAD Approved',
+    Icon: CheckCircle2,
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200',
+    iconClassName: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200',
+  },
+  {
+    key: 'FIRST_MEETING_SET',
+    label: 'First Meeting Set',
+    Icon: CalendarClock,
+    className: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-200',
+    iconClassName: 'bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200',
+  },
+  {
+    key: 'PROPOSAL_SENT',
+    label: 'Quotation Sent',
+    Icon: Send,
+    className: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200',
+    iconClassName: 'bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200',
+  },
+]
+
+const TOTAL_REVIEW_STAT = {
+  label: 'Total Review',
+  Icon: ListFilter,
+  className: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200',
+  iconClassName: 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200',
+}
+
 type ReviewCenterViewProps = {
   title?: string
   subtitle?: string
@@ -112,6 +169,14 @@ function getSubmissionKind(submission: ReviewSubmission): 'quotation' | 'visuali
   if (submission.lead.stage === 'QUOTATION_PHASE') return 'quotation'
   if (submission.lead.stage === 'VISUALIZATION_PHASE') return 'visualizer'
   return 'cad'
+}
+
+function isSubmissionPendingReview(submission: ReviewSubmission): boolean {
+  return (
+    (submission.lead.stage === 'CAD_PHASE' && submission.lead.subStatus === 'CAD_COMPLETED') ||
+    (submission.lead.stage === 'QUOTATION_PHASE' && submission.lead.subStatus === 'QUOTATION_COMPLETED') ||
+    (submission.lead.stage === 'VISUALIZATION_PHASE' && submission.lead.subStatus === 'VISUAL_COMPLETED')
+  )
 }
 
 function getSubmissionKindLabel(submission: ReviewSubmission): string {
@@ -360,25 +425,21 @@ export function ReviewCenterView({
   }, [submissions])
 
   const statCards = useMemo(() => {
-    const cards: Array<{ key: string; label: string; count: number }> = [
-      { key: ALL_STAGE_FILTER, label: 'Total', count: submissions.length },
+    const cards: ReviewStatCard[] = [
+      {
+        key: ALL_STAGE_FILTER,
+        label: TOTAL_REVIEW_STAT.label,
+        count: submissions.length,
+        Icon: TOTAL_REVIEW_STAT.Icon,
+        className: TOTAL_REVIEW_STAT.className,
+        iconClassName: TOTAL_REVIEW_STAT.iconClassName,
+      },
     ]
-    const config = Array.from(
-      new Map(
-        submissions
-          .flatMap((submission) => [submission.lead.subStatus, submission.lead.stage])
-          .filter((value): value is string => Boolean(value))
-          .map((value) => [value, { key: value, label: formatLabel(value) }]),
-      ).values(),
-    )
 
-    for (const item of config) {
+    for (const item of REVIEW_STATUS_STATS) {
       cards.push({
-        key: item.key,
-        label: item.label,
-        count: submissions.filter(
-          (submission) => submission.lead.subStatus === item.key || submission.lead.stage === item.key,
-        ).length,
+        ...item,
+        count: submissions.filter((submission) => submission.lead.subStatus === item.key).length,
       })
     }
 
@@ -405,67 +466,104 @@ export function ReviewCenterView({
       />
 
       <main className="mx-auto max-w-[1440px] px-4 py-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search by lead name, phone, or file..."
-              className="pl-10"
-            />
-          </div>
-          {showSrCrmFilter ? (
-            <div className="w-full sm:w-64">
-              <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filter by SR CRM" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_MEMBER_FILTER}>All SR CRMs</SelectItem>
-                  {srCrmFilterOptions.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <Card className="mb-4 border-border/70">
+          <CardContent className="space-y-4 p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex min-w-[180px] items-center gap-2 text-sm font-semibold text-foreground">
+                <ListFilter className="h-4 w-4 text-primary" />
+                Filter Review Center
+              </div>
+              <div className="relative min-w-[260px] flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Search by lead name, phone, or file..."
+                  className="pl-10"
+                />
+              </div>
+              <div className="w-full sm:w-56">
+                <Select value={stageFilter} onValueChange={setStageFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statCards.map((card) => (
+                      <SelectItem key={card.key} value={card.key}>
+                        {card.label} ({card.count})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {showSrCrmFilter ? (
+                <div className="w-full sm:w-56">
+                  <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by SR CRM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_MEMBER_FILTER}>All SR CRMs</SelectItem>
+                      {srCrmFilterOptions.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+              <div className="w-full sm:w-56">
+                <Select value={visitMonthFilter} onValueChange={setVisitMonthFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by Visit Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_MONTH_FILTER}>All Visit Months</SelectItem>
+                    {visitMonthFilterOptions.map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Badge variant="outline" className="h-9 px-3">
+                {filteredSubmissions.length} submission{filteredSubmissions.length === 1 ? '' : 's'} • {filteredTotalFiles} file
+                {filteredTotalFiles === 1 ? '' : 's'}
+              </Badge>
             </div>
-          ) : null}
-          <div className="w-full sm:w-64">
-            <Select value={visitMonthFilter} onValueChange={setVisitMonthFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by Visit Month" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL_MONTH_FILTER}>All Visit Months</SelectItem>
-                {visitMonthFilterOptions.map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Badge variant="outline" className="h-8 px-3">
-            {filteredSubmissions.length} submission{filteredSubmissions.length === 1 ? '' : 's'} • {filteredTotalFiles} file
-            {filteredTotalFiles === 1 ? '' : 's'}
-          </Badge>
-        </div>
 
-        <div className="mb-4 flex flex-wrap gap-2">
-          {statCards.map((card) => (
-            <Button
-              key={card.key}
-              size="sm"
-              variant={stageFilter === card.key ? 'default' : 'outline'}
-              onClick={() => setStageFilter(card.key)}
-              className="h-8"
-            >
-              {card.label}: {card.count}
-            </Button>
-          ))}
-        </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {statCards.map((card) => {
+                const Icon = card.Icon
+                return (
+                  <button
+                    key={card.key}
+                    type="button"
+                    onClick={() => setStageFilter(card.key)}
+                    className={`rounded-xl border p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.className} ${stageFilter === card.key ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                    aria-pressed={stageFilter === card.key}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide opacity-80">
+                          {card.label}
+                        </p>
+                        <p className="mt-1 text-2xl font-bold leading-none">
+                          {card.count}
+                        </p>
+                      </div>
+                      <span className={`rounded-full p-2 ${card.iconClassName}`}>
+                        <Icon className="h-5 w-5" />
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
 
         {loading ? (
           <div className="space-y-3">
@@ -504,22 +602,26 @@ export function ReviewCenterView({
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => openDecisionDialog(submission, 'APPROVE')}
-                      >
-                        <CheckCircle2 className="mr-1 h-4 w-4" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openDecisionDialog(submission, 'CORRECTION')}
-                      >
-                        <RotateCcw className="mr-1 h-4 w-4" />
-                        Correction
-                      </Button>
+                      {isSubmissionPendingReview(submission) ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => openDecisionDialog(submission, 'APPROVE')}
+                          >
+                            <CheckCircle2 className="mr-1 h-4 w-4" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openDecisionDialog(submission, 'CORRECTION')}
+                          >
+                            <RotateCcw className="mr-1 h-4 w-4" />
+                            Correction
+                          </Button>
+                        </>
+                      ) : null}
                       <Button asChild size="sm" variant="outline">
                         <Link href={`${leadBasePath}/${submission.lead.id}`}>Open Lead</Link>
                       </Button>
