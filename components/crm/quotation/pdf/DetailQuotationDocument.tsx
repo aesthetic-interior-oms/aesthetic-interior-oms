@@ -50,16 +50,12 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     paddingLeft: 0,
     paddingRight: 0,
-    borderBottomWidth: 1.5,
-    borderBottomColor: '#0f5b53',
   },
   headerLogoImage: {
     width: 150,
     height: 'auto',
   },
   headerRight: {
-    borderWidth: 1.5,
-    borderColor: '#c9a961',
     padding: 4,
     backgroundColor: '#fafaf8',
     borderRadius: 2,
@@ -121,7 +117,7 @@ const styles = StyleSheet.create({
   detailHeaderLabel: {
     fontSize: 7.5,
     fontWeight: 'bold',
-    color: '#c9a961',
+    color: '#000000',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -173,7 +169,7 @@ const styles = StyleSheet.create({
   tableHeaderCell: {
     padding: 6,
     fontSize: 7,
-    color: '#c9a961',
+    color: '#000000',
     fontWeight: 'bold',
     borderRightWidth: 0.5,
     borderRightColor: '#000000',
@@ -185,7 +181,7 @@ const styles = StyleSheet.create({
   tableHeaderCellLast: {
     padding: 6,
     fontSize: 7,
-    color: '#c9a961',
+    color: '#000000',
     fontWeight: 'bold',
     borderRightWidth: 0,
     justifyContent: 'center',
@@ -217,7 +213,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   nameCell: {
-    width: '18%',
+    width: '15%',
   },
   summaryNameCell: {
     width: '75%',
@@ -227,14 +223,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   materialsCell: {
-    width: '47%',
+    width: '50%',
   },
   qtyCell: {
-    width: '10%',
+    width: '8%',
     textAlign: 'center',
   },
   unitPriceCell: {
-    width: '10%',
+    width: '12%',
     textAlign: 'center',
   },
   amountCell: {
@@ -246,12 +242,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#2c2c2c',
     borderBottomWidth: 0,
     borderTopWidth: 2,
-    borderTopColor: '#c9a961',
+    borderTopColor: '#0070c0',
   },
   grandTotalCell: {
     padding: 6,
     fontSize: 7.5,
-    color: '#c9a961',
+    color: '#0070c0',
     fontWeight: 'bold',
     borderRightWidth: 0.5,
     borderRightColor: '#000000',
@@ -261,7 +257,7 @@ const styles = StyleSheet.create({
   grandTotalCellLast: {
     padding: 6,
     fontSize: 7.5,
-    color: '#c9a961',
+    color: '#0070c0',
     fontWeight: 'bold',
     borderRightWidth: 0,
     justifyContent: 'center',
@@ -274,11 +270,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     padding: 6,
     borderLeftWidth: 3,
-    borderLeftColor: '#c9a961',
+    borderLeftColor: '#0070c0',
   },
   boldUnderline: {
     fontWeight: 'bold',
-    color: '#c9a961',
+    color: '#0070c0',
   },
   detailFooterContainer: {
     flex: 1,
@@ -304,7 +300,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 2,
     marginTop: 4,
-    color: '#c9a961',
+    color: '#000000',
     letterSpacing: 0.5,
   },
   detailFooterText: {
@@ -350,9 +346,7 @@ const HeaderLogoPdf = () => (
   <View style={styles.headerContainer}>
     <Image src="/Logo/HeaderLogo.png" style={styles.headerLogoImage} />
     <View style={styles.headerRight}>
-      <Svg width={'30'} height={'30'} viewBox="0 0 29 29" style={{ fill: '#0f5b53' }}>
-        <Path d="M0 0h9v9H0zm1 1v7h7V1zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2V2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zM0 10h9v9H0zm1 1v7h7v-7zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2v-2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zM0 20h9v9H0zm1 1v7h7v-7zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2v-2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm11-1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-2 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-3 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1z" />
-      </Svg>
+      <Image src="/files/QR_code.svg" style={{ width: 45, height: 45 }} />
     </View>
   </View>
 )
