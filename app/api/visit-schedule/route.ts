@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
     const statusParam = toOptionalString(request.nextUrl.searchParams.get('status'));
     const status = toVisitStatus(statusParam);
     const requiresVisitTeamLeader = scope === 'all' && accessContext === 'queue';
+    const isGlobalVisitDashboardScope = scope === 'dashboard' && (isAdmin || isVisitTeam);
     const shouldRestrictToSeniorCrmLeads =
       isSeniorCrm && (scope === 'sr-assigned' || (!isAdmin && !isJuniorCrm && !isVisitTeam));
     if (isVisitTeam && requiresVisitTeamLeader && !isVisitTeamLeader) {
@@ -93,7 +94,9 @@ export async function GET(request: NextRequest) {
               },
               ...(assignedToId ? { assignedToId } : {}),
             }
-          : isAdmin || isJuniorCrm || isJrArchitectLeader
+          : isGlobalVisitDashboardScope
+            ? {}
+            : isAdmin || isJuniorCrm || isJrArchitectLeader
             ? assignedToId
               ? { assignedToId }
               : {}
