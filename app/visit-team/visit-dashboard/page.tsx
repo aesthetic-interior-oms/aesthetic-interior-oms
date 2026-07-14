@@ -154,27 +154,35 @@ function getDeepDataScore(visit: VisitRecord) {
   return resultFields.filter(Boolean).length + supportDepth
 }
 
-function buildDashboardData(visits: VisitRecord[], currentUserId?: string | null) {
+function isUserVisit(visit: VisitRecord, userId?: string | null) {
+  if (!userId) return false
+  return visit.assignedTo?.id === userId || (visit.supportAssignments ?? []).some((assignment) => assignment.supportUserId === userId)
+}
+
+function buildDashboardData(visits: VisitRecord[], currentUserId?: string | null, showTeamStats = false) {
   const now = new Date()
   const todayStart = startOfDay(now)
   const monthVisits = visits.filter((visit) => isInRunningMonth(visit.scheduledAt, now))
-  const todayVisits = visits.filter((visit) => isSameDay(new Date(visit.scheduledAt), now))
-  const completedMonth = monthVisits.filter((visit) => visit.status === 'COMPLETED')
-  const pendingMonth = monthVisits.filter((visit) => visit.status === 'SCHEDULED' && new Date(visit.scheduledAt) >= todayStart)
-  const rescheduledOrCanceledMonth = monthVisits.filter((visit) => visit.status === 'RESCHEDULED' || visit.status === 'CANCELLED' || visit.updateRequests?.some((request) => request.type === 'RESCHEDULE'))
-  const overdueVisits = monthVisits.filter((visit) => visit.status === 'SCHEDULED' && new Date(visit.scheduledAt) < todayStart)
+  const visibleVisits = showTeamStats || !currentUserId ? visits : visits.filter((visit) => isUserVisit(visit, currentUserId))
+  const visibleMonthVisits = visibleVisits.filter((visit) => isInRunningMonth(visit.scheduledAt, now))
+  const visibleTodayVisits = visibleVisits.filter((visit) => isSameDay(new Date(visit.scheduledAt), now))
+  const completedMonth = visibleMonthVisits.filter((visit) => visit.status === 'COMPLETED')
+  const pendingMonth = visibleMonthVisits.filter((visit) => visit.status === 'SCHEDULED' && new Date(visit.scheduledAt) >= todayStart)
+  const rescheduledOrCanceledMonth = visibleMonthVisits.filter((visit) => visit.status === 'RESCHEDULED' || visit.status === 'CANCELLED' || visit.updateRequests?.some((request) => request.type === 'RESCHEDULE'))
+  const overdueVisits = visibleMonthVisits.filter((visit) => visit.status === 'SCHEDULED' && new Date(visit.scheduledAt) < todayStart)
   const completedIn48Hours = completedMonth.filter(completedWithin48Hours)
   const visitCompleteWithin48HoursPercent = completedMonth.length ? Math.round((completedIn48Hours.length / completedMonth.length) * 100) : 0
+  const ownershipLabel = showTeamStats ? 'team' : 'your'
 
   const kpis: KpiCard[] = [
-    { title: 'Monthly schedule', value: String(monthVisits.length), detail: 'Visits scheduled this month', icon: CalendarClock, tone: statusColors.scheduled, href: '/visit-team/visits' },
-    { title: 'Completed', value: String(completedMonth.length), detail: 'Completed visits this month', icon: CheckCircle2, tone: statusColors.completed, href: '/visit-team/visits' },
-    { title: 'Pending schedule', value: String(pendingMonth.length), detail: 'Upcoming scheduled visits', icon: Clock3, tone: statusColors.warning, href: '/visit-team/visit-schedule-queue' },
-    { title: 'Reschedule / Canceled', value: String(rescheduledOrCanceledMonth.length), detail: 'Changed or canceled visits', icon: XCircle, tone: statusColors.danger, href: '/visit-team/visit-schedule-queue' },
-    { title: '48h completion', value: `${visitCompleteWithin48HoursPercent}%`, detail: 'Completed within 48h of scheduled time this month', icon: ClipboardCheck, tone: statusColors.completed, href: '/visit-team/my-visits' },
+    { title: 'Monthly schedule', value: String(visibleMonthVisits.length), detail: `${showTeamStats ? 'Team visits' : 'Your visits'} scheduled this month`, icon: CalendarClock, tone: statusColors.scheduled, href: '/visit-team/visits' },
+    { title: 'Completed', value: String(completedMonth.length), detail: `Completed from ${ownershipLabel} monthly visits`, icon: CheckCircle2, tone: statusColors.completed, href: '/visit-team/visits' },
+    { title: 'Pending schedule', value: String(pendingMonth.length), detail: `Upcoming scheduled visits from ${ownershipLabel} workload`, icon: Clock3, tone: statusColors.warning, href: '/visit-team/visit-schedule-queue' },
+    { title: 'Reschedule / Canceled', value: String(rescheduledOrCanceledMonth.length), detail: `Changed or canceled visits from ${ownershipLabel} workload`, icon: XCircle, tone: statusColors.danger, href: '/visit-team/visit-schedule-queue' },
+    { title: '48h completion', value: `${visitCompleteWithin48HoursPercent}%`, detail: `Completed within 48h of scheduled time from ${ownershipLabel} visits`, icon: ClipboardCheck, tone: statusColors.completed, href: '/visit-team/my-visits' },
   ]
 
-  const scheduleRows: ScheduleRow[] = [...todayVisits].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()).map((visit) => {
+  const scheduleRows: ScheduleRow[] = [...visibleTodayVisits].sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()).map((visit) => {
     const status = getVisitStatus(visit, now)
     return { id: visit.id, lead: visit.lead.name, area: visit.location || visit.lead.location || 'No location', time: formatVisitTime(visit.scheduledAt), member: visit.assignedTo?.fullName ?? 'Unassigned', status, tone: getToneForStatus(status) }
   })
@@ -230,15 +238,15 @@ function buildDashboardData(visits: VisitRecord[], currentUserId?: string | null
   const monthStart = startOfMonth(now)
   const trendData: TrendRow[] = Array.from({ length: Math.max(1, Math.ceil((todayStart.getTime() - monthStart.getTime() + DAY_MS) / DAY_MS)) }, (_, index) => {
     const day = new Date(monthStart.getTime() + index * DAY_MS)
-    const dayVisits = monthVisits.filter((visit) => isSameDay(new Date(visit.scheduledAt), day))
+    const dayVisits = visibleMonthVisits.filter((visit) => isSameDay(new Date(visit.scheduledAt), day))
     return { day: new Intl.DateTimeFormat('en-US', { day: 'numeric' }).format(day), scheduled: dayVisits.length, completed: dayVisits.filter((visit) => visit.status === 'COMPLETED').length, pending: dayVisits.filter((visit) => visit.status === 'SCHEDULED').length }
   })
 
   const statusData: StatusRow[] = [
     { name: 'Completed', value: completedMonth.length, fill: '#10b981' },
     { name: 'Pending', value: pendingMonth.length, fill: '#3b82f6' },
-    { name: 'Rescheduled', value: monthVisits.filter((visit) => visit.status === 'RESCHEDULED').length, fill: '#f59e0b' },
-    { name: 'Canceled', value: monthVisits.filter((visit) => visit.status === 'CANCELLED').length, fill: '#ef4444' },
+    { name: 'Rescheduled', value: visibleMonthVisits.filter((visit) => visit.status === 'RESCHEDULED').length, fill: '#f59e0b' },
+    { name: 'Canceled', value: visibleMonthVisits.filter((visit) => visit.status === 'CANCELLED').length, fill: '#ef4444' },
   ]
 
   const memberOutputData = teamRows.map((member) => ({ name: member.name.split(' ')[0], performance: member.performance, reportCompleteness: member.reportCompleteness }))
@@ -250,7 +258,7 @@ function buildDashboardData(visits: VisitRecord[], currentUserId?: string | null
     ? Math.round(teamRows.reduce((sum, member) => sum + member.performance, 0) / teamRows.length)
     : 0
 
-  return { kpis, scheduleRows, priorityActions, teamRows, trendData, statusData, memberOutputData, todayCount: todayVisits.length, topPerformer, currentUserPerformance, averagePerformance }
+  return { kpis, scheduleRows, priorityActions, teamRows, trendData, statusData, memberOutputData, todayCount: visibleTodayVisits.length, topPerformer, currentUserPerformance, averagePerformance }
 }
 
 const trendConfig = {
@@ -441,10 +449,10 @@ function PriorityActions({ priorityActions }: { priorityActions: DashboardData['
   )
 }
 
-function TeamPerformance({ teamRows }: { teamRows: DashboardData['teamRows'] }) {
+function TeamPerformance({ teamRows, showTeamStats }: { teamRows: DashboardData['teamRows']; showTeamStats: boolean }) {
   return (
     <Card className="min-w-0">
-      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><UserCheck className="size-4 text-primary" /> Team workload & performance</CardTitle></CardHeader>
+      <CardHeader><CardTitle className="flex items-center gap-2 text-base"><UserCheck className="size-4 text-primary" /> {showTeamStats ? 'Team workload & performance' : 'Your workload & performance'}</CardTitle></CardHeader>
       <CardContent className="grid gap-3 lg:grid-cols-2">
         {teamRows.length ? teamRows.map((member) => (
           <div key={member.id} className="min-w-0 space-y-3 rounded-xl border border-border/70 p-3">
@@ -461,7 +469,7 @@ function TeamPerformance({ teamRows }: { teamRows: DashboardData['teamRows'] }) 
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${member.performance}%` }} /></div>
           </div>
-        )) : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No visit-team member activity found for this month.</p>}
+        )) : <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">No visit-team activity found for this month.</p>}
       </CardContent>
     </Card>
   )
@@ -558,7 +566,11 @@ export default function DashboardPage() {
     return () => { cancelled = true }
   }, [])
 
-  const dashboard = useMemo(() => buildDashboardData(visits, currentUser?.id), [currentUser?.id, visits])
+  const showTeamStats = currentUser?.userDepartments?.some((row) => row.department?.name === 'ADMIN') ?? false
+  const dashboard = useMemo(() => buildDashboardData(visits, currentUser?.id, showTeamStats), [currentUser?.id, showTeamStats, visits])
+  const workloadRows = showTeamStats
+    ? dashboard.teamRows
+    : dashboard.teamRows.filter((member) => member.id === currentUser?.id)
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-muted/20">
@@ -571,7 +583,7 @@ export default function DashboardPage() {
         <KpiGrid kpis={dashboard.kpis} />
         <ScheduleBoard scheduleRows={dashboard.scheduleRows} todayCount={dashboard.todayCount} />
         <PriorityActions priorityActions={dashboard.priorityActions} />
-        <TeamPerformance teamRows={dashboard.teamRows} />
+        <TeamPerformance teamRows={workloadRows} showTeamStats={showTeamStats} />
         <ReportingCharts trendData={dashboard.trendData} statusData={dashboard.statusData} memberOutputData={dashboard.memberOutputData} />
       </main>
     </div>
