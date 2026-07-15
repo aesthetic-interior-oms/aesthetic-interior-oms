@@ -12,226 +12,123 @@ import {
 import { amountInWordsTaka } from '@/lib/number-to-words'
 
 const PRIMARY = '#0f5b53';
-const TEXT_MAIN = '#333333';
-const TEXT_LIGHT = '#666666';
-const BORDER = '#cccccc';
-const BG_ALT = '#f5f9f8';
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 40,
-    paddingBottom: 70,
-    paddingLeft: 40,
-    paddingRight: 40,
+    padding: 40,
     fontFamily: 'Helvetica',
     fontSize: 9,
-    color: TEXT_MAIN,
+    color: '#000000',
+    backgroundColor: '#ffffff',
+    lineHeight: 1.4,
   },
-  detailPage: {
-    paddingTop: 160,
-    paddingBottom: 70,
-    paddingLeft: 40,
-    paddingRight: 40,
-    fontFamily: 'Helvetica',
-    fontSize: 9,
-    color: TEXT_MAIN,
-  },
-  
-  // Global Header
-  globalHeader: {
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#dddddd',
+    paddingBottom: 20,
     marginBottom: 20,
-    borderBottomWidth: 2,
-    borderBottomColor: PRIMARY,
-    paddingBottom: 10,
   },
   logo: {
-    width: 140,
+    width: 150,
   },
   headerRight: {
     alignItems: 'flex-end',
   },
-  title: {
-    fontSize: 22,
+  docTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: PRIMARY,
-    letterSpacing: 2,
-    marginBottom: 5,
+    letterSpacing: 1,
+    marginBottom: 10,
   },
   metaText: {
     fontSize: 9,
-    color: TEXT_LIGHT,
-    marginBottom: 2,
+    color: '#555555',
+    marginBottom: 3,
   },
-  metaValue: {
-    color: TEXT_MAIN,
+  bold: {
     fontWeight: 'bold',
+    color: '#000000',
   },
-
-  // Boxes for Client Info
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  infoBox: {
-    width: '48%',
-    backgroundColor: '#f9f9f9',
-    padding: 10,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#eeeeee',
-  },
-  infoTitle: {
-    fontSize: 8,
-    color: PRIMARY,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#dddddd',
-    paddingBottom: 4,
-  },
-  infoContent: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  infoSub: {
-    fontSize: 9,
-    color: TEXT_LIGHT,
-    lineHeight: 1.4,
-  },
-
-  // Intro
-  introBox: {
-    marginBottom: 20,
-  },
-  introGreeting: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  introText: {
-    color: TEXT_LIGHT,
-    lineHeight: 1.4,
-    textAlign: 'justify',
-  },
-
-  // Tables
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: PRIMARY,
-    marginBottom: 10,
-    textTransform: 'uppercase',
-  },
-  table: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: PRIMARY,
-  },
-  thCell: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    color: '#ffffff',
-    fontWeight: 'bold',
-    fontSize: 8,
-    textTransform: 'uppercase',
-    borderRightWidth: 1,
-    borderRightColor: '#ffffff',
-    textAlign: 'center',
-  },
-  thCellLast: {
-    borderRightWidth: 0,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
-  },
-  tableRowAlt: {
-    backgroundColor: BG_ALT,
-  },
-  tdCell: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    fontSize: 8.5,
-    borderRightWidth: 1,
-    borderRightColor: BORDER,
-  },
-  tdCellLast: {
-    borderRightWidth: 0,
-  },
-
-  // Column Widths
-  colSl: { width: '6%', textAlign: 'center' },
-  colName: { width: '22%' },
-  colMats: { width: '36%' },
-  colQty: { width: '10%', textAlign: 'center' },
-  colPrice: { width: '12%', textAlign: 'center' },
-  colTotal: { width: '14%', textAlign: 'right' },
   
-  colSummaryName: { width: '70%', textAlign: 'left' },
-  colSummaryTotal: { width: '24%', textAlign: 'right' },
-
-  // Mat Line
-  matLine: {
-    fontSize: 8,
-    color: TEXT_LIGHT,
-    lineHeight: 1.3,
-    marginBottom: 2,
-  },
-  matPrefix: {
+  // Table
+  sectionTitle: {
+    fontSize: 12,
     fontWeight: 'bold',
-    color: TEXT_MAIN,
+    color: PRIMARY,
+    backgroundColor: '#f0f5f4',
+    padding: 6,
+    marginTop: 15,
+    textTransform: 'uppercase',
   },
-
-  // Totals
-  totalRow: {
+  tHead: {
     flexDirection: 'row',
-    backgroundColor: '#e6f0ef',
+    borderBottomWidth: 1,
+    borderBottomColor: PRIMARY,
+    paddingBottom: 5,
+    paddingTop: 10,
   },
-  totalLabelCell: {
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    borderRightWidth: 1,
-    borderRightColor: BORDER,
-    textAlign: 'right',
+  thCol: {
+    fontSize: 8,
     fontWeight: 'bold',
     color: PRIMARY,
-    fontSize: 10,
+    textTransform: 'uppercase',
   },
-  totalValueCell: {
+  tRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#eeeeee',
     paddingVertical: 8,
-    paddingHorizontal: 6,
-    textAlign: 'right',
-    fontWeight: 'bold',
-    color: PRIMARY,
-    fontSize: 10,
   },
-  inWordsBox: {
-    marginTop: 10,
-    padding: 8,
-    backgroundColor: '#f9f9f9',
-    borderLeftWidth: 3,
-    borderLeftColor: PRIMARY,
-  },
-  inWordsText: {
+  tdCol: {
     fontSize: 9,
-    fontStyle: 'italic',
   },
-  inWordsBold: {
+  
+  // Columns Detail
+  wSl: { width: '8%', textAlign: 'center' },
+  wName: { width: '24%', paddingRight: 5 },
+  wMats: { width: '36%', paddingRight: 5 },
+  wQty: { width: '10%', textAlign: 'center' },
+  wPrice: { width: '10%', textAlign: 'right' },
+  wTotal: { width: '12%', textAlign: 'right' },
+  
+  // Columns Summary
+  wSumName: { width: '70%', paddingLeft: 10 },
+  wSumTotal: { width: '22%', textAlign: 'right' },
+  
+  // Totals
+  grandTotalRow: {
+    flexDirection: 'row',
+    paddingTop: 8,
+    marginTop: 5,
+    borderTopWidth: 1,
+    borderTopColor: PRIMARY,
+  },
+  grandTotalLabel: {
+    width: '88%',
+    textAlign: 'right',
+    paddingRight: 10,
     fontWeight: 'bold',
+    fontSize: 10,
     color: PRIMARY,
-    fontStyle: 'normal',
   },
-
+  grandTotalValue: {
+    width: '12%',
+    textAlign: 'right',
+    fontWeight: 'bold',
+    fontSize: 10,
+    color: PRIMARY,
+  },
+  inWords: {
+    fontSize: 8,
+    fontStyle: 'italic',
+    color: '#666666',
+    marginTop: 4,
+    textAlign: 'right',
+  },
+  
   // Footer
   footerFixed: {
     position: 'absolute',
@@ -239,71 +136,50 @@ const styles = StyleSheet.create({
     left: 40,
     right: 40,
     borderTopWidth: 1,
-    borderTopColor: BORDER,
-    paddingTop: 8,
+    borderTopColor: '#dddddd',
+    paddingTop: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
   footerText: {
     fontSize: 7,
-    color: TEXT_LIGHT,
+    color: '#888888',
   },
-
-  // Fixed header wrappers for detail pages
-  detailFixedHeader: {
-    position: 'absolute',
-    top: 40,
-    left: 40,
-    right: 40,
+  
+  // Materials
+  matText: {
+    fontSize: 8,
+    color: '#444444',
+    marginBottom: 2,
   },
-
-  // Terms & Signatures
-  termBox: {
-    marginBottom: 15,
+  
+  // Terms
+  termsContainer: {
+    marginTop: 10,
   },
   termTitle: {
     fontSize: 9,
     fontWeight: 'bold',
     color: PRIMARY,
-    marginBottom: 4,
+    marginBottom: 3,
+    marginTop: 10,
     textTransform: 'uppercase',
   },
-  termText: {
-    fontSize: 8.5,
-    color: TEXT_LIGHT,
+  termContent: {
+    fontSize: 8,
+    color: '#555555',
     lineHeight: 1.5,
-    textAlign: 'justify',
   },
-  alertBox: {
-    padding: 10,
-    backgroundColor: '#fff0f0',
-    borderWidth: 1,
-    borderColor: '#ffcccc',
-    color: '#d32f2f',
-    fontWeight: 'bold',
-    fontSize: 9,
-    marginTop: 10,
-  },
-  signaturesRow: {
+  signatureRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 50,
+    marginTop: 60,
   },
-  sigBlock: {
-    width: '40%',
+  sigLine: {
+    width: 150,
     borderTopWidth: 1,
-    borderTopColor: TEXT_MAIN,
-    paddingTop: 6,
-    alignItems: 'center',
-  },
-  sigName: {
-    fontWeight: 'bold',
-    fontSize: 10,
-  },
-  sigTitle: {
-    fontSize: 8,
-    color: TEXT_LIGHT,
+    borderTopColor: '#000000',
+    paddingTop: 5,
   }
 });
 
@@ -322,56 +198,46 @@ const formatDateString = (dateString: string) => {
   }
 }
 
-const GlobalHeader = ({ date, subject }: { date: string; subject: string }) => (
-  <View style={styles.globalHeader}>
-    <Image src="/Logo/HeaderLogo.png" style={styles.logo} />
+const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => (
+  <View style={styles.header}>
+    <View style={{ width: '50%' }}>
+      <Image src="/Logo/HeaderLogo.png" style={styles.logo} />
+      <View style={{ marginTop: 20 }}>
+        <Text style={styles.metaText}>Prepared For:</Text>
+        <Text style={[styles.metaText, styles.bold, { fontSize: 11, color: PRIMARY }]}>{clientName}</Text>
+        <Text style={styles.metaText}>{clientAddress}</Text>
+      </View>
+    </View>
     <View style={styles.headerRight}>
-      <Text style={styles.title}>QUOTATION</Text>
-      <Text style={styles.metaText}>
-        Date: <Text style={styles.metaValue}>{formatDateString(date)}</Text>
-      </Text>
-      <Text style={styles.metaText}>
-        Ref: <Text style={styles.metaValue}>{subject.substring(0, 40)}</Text>
-      </Text>
+      <Text style={styles.docTitle}>QUOTATION</Text>
+      <Text style={styles.metaText}>Date: <Text style={styles.bold}>{formatDateString(date)}</Text></Text>
+      <Text style={styles.metaText}>Ref: <Text style={styles.bold}>{subject.substring(0, 40)}</Text></Text>
     </View>
   </View>
 );
 
 const FooterFixed = () => (
   <View style={styles.footerFixed} fixed>
-    <View>
-      <Text style={styles.footerText}>+88 01329 694660 | +88 01329 694661 | aestheticinteriorstudio@gmail.com</Text>
-      <Text style={styles.footerText}>2nd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka</Text>
-    </View>
-    <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold' }]}>www.aestheticinteriorbd.com</Text>
+    <Text style={styles.footerText}>+88 01329 694660 | +88 01329 694661 | aestheticinteriorstudio@gmail.com</Text>
+    <Text style={styles.footerText}>www.aestheticinteriorbd.com</Text>
   </View>
 );
 
 function MaterialTextPdf({ text }: { text: string | null | undefined }) {
-  if (!text) return <Text style={styles.matLine}>—</Text>
-
+  if (!text) return <Text style={styles.matText}>—</Text>
   const lines = text.split('\n')
-
   return (
     <View>
       {lines.map((line, index) => {
         const match = line.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
-
         if (!match) {
-          return (
-            <Text key={`${line}-${index}`} style={styles.matLine}>
-              {line}
-            </Text>
-          )
+          return <Text key={`${line}-${index}`} style={styles.matText}>{line}</Text>
         }
-
         const prefix = match[1]
         const rest = line.substring(prefix.length)
-
         return (
-          <Text key={`${line}-${index}`} style={styles.matLine}>
-            <Text style={styles.matPrefix}>{prefix}</Text>
-            {rest}
+          <Text key={`${line}-${index}`} style={styles.matText}>
+            <Text style={styles.bold}>{prefix}</Text>{rest}
           </Text>
         )
       })}
@@ -397,106 +263,90 @@ export function DetailQuotationDocument({
     <Document>
       {/* SUMMARY PAGE */}
       <Page size="A4" style={styles.page}>
-        <GlobalHeader date={content.quotationDate ?? ''} subject={content.subject ?? ''} />
+        <GlobalHeader 
+          date={content.quotationDate ?? ''} 
+          subject={content.subject ?? ''} 
+          clientName={clientName} 
+          clientAddress={clientAddress || ''} 
+        />
         
-        <View style={styles.infoRow}>
-          <View style={styles.infoBox}>
-            <Text style={styles.infoTitle}>Prepared For</Text>
-            <Text style={styles.infoContent}>{clientName}</Text>
-            <Text style={styles.infoSub}>{clientAddress || '—'}</Text>
-          </View>
-          <View style={styles.infoBox}>
-            <Text style={styles.infoTitle}>Project Subject</Text>
-            <Text style={[styles.infoContent, { color: PRIMARY }]}>
-              {content.summarySubject ?? content.subject ?? '—'}
-            </Text>
-          </View>
-        </View>
-
         {cleanIntro ? (
-          <View style={styles.introBox}>
-            <Text style={styles.introGreeting}>Dear Sir,</Text>
-            <Text style={styles.introText}>{cleanIntro}</Text>
+          <View style={{ marginBottom: 20 }}>
+            <Text style={[styles.metaText, styles.bold]}>Dear Sir,</Text>
+            <Text style={[styles.metaText, { textAlign: 'justify', lineHeight: 1.5 }]}>{cleanIntro}</Text>
           </View>
         ) : null}
 
         <Text style={styles.sectionTitle}>Project Summary</Text>
         
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.thCell, styles.colSl]}>SL</Text>
-            <Text style={[styles.thCell, styles.colSummaryName]}>Description</Text>
-            <Text style={[styles.thCell, styles.colSummaryTotal, styles.thCellLast]}>Amount</Text>
-          </View>
-
-          {floorSummaries.map((entry, index) => (
-            <View key={entry.floor.id} style={[styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}]} wrap={false}>
-              <Text style={[styles.tdCell, styles.colSl]}>{String(index + 1).padStart(2, '0')}</Text>
-              <Text style={[styles.tdCell, styles.colSummaryName, { fontWeight: 'bold' }]}>{entry.floor.name}</Text>
-              <Text style={[styles.tdCell, styles.colSummaryTotal, styles.tdCellLast, { fontWeight: 'bold' }]}>{formatDetailAmount(entry.total)}</Text>
-            </View>
-          ))}
-
-          <View style={styles.totalRow} wrap={false}>
-            <Text style={[styles.totalLabelCell, { width: '76%' }]}>Grand Total</Text>
-            <Text style={[styles.totalValueCell, { width: '24%' }]}>{formatDetailAmount(totals.grandTotal)}</Text>
-          </View>
+        <View style={styles.tHead}>
+          <Text style={[styles.thCol, styles.wSl]}>SL</Text>
+          <Text style={[styles.thCol, styles.wSumName]}>Description</Text>
+          <Text style={[styles.thCol, styles.wSumTotal]}>Amount</Text>
         </View>
 
-        <View style={styles.inWordsBox} wrap={false}>
-          <Text style={styles.inWordsText}>In Words: <Text style={styles.inWordsBold}>{amountInWordsTaka(totals.grandTotal)}</Text></Text>
+        {floorSummaries.map((entry, index) => (
+          <View key={entry.floor.id} style={styles.tRow}>
+            <Text style={[styles.tdCol, styles.wSl]}>{String(index + 1).padStart(2, '0')}</Text>
+            <Text style={[styles.tdCol, styles.wSumName, styles.bold]}>{entry.floor.name}</Text>
+            <Text style={[styles.tdCol, styles.wSumTotal, styles.bold]}>{formatDetailAmount(entry.total)}</Text>
+          </View>
+        ))}
+
+        <View style={styles.grandTotalRow}>
+          <Text style={styles.grandTotalLabel}>Grand Total</Text>
+          <Text style={styles.grandTotalValue}>{formatDetailAmount(totals.grandTotal)}</Text>
         </View>
+        <Text style={styles.inWords}>In Words: <Text style={styles.bold}>{amountInWordsTaka(totals.grandTotal)}</Text></Text>
 
         <FooterFixed />
       </Page>
 
       {/* DETAIL PAGES */}
       {floorSummaries.map((entry) => (
-        <Page key={entry.floor.id} size="A4" style={styles.detailPage}>
-          {/* Fixed Header for this specific floor */}
-          <View style={styles.detailFixedHeader} fixed>
-            <GlobalHeader date={content.quotationDate ?? ''} subject={content.subject ?? ''} />
-            <Text style={styles.sectionTitle}>{entry.floor.name}</Text>
-            
-            {/* Table Header repeated on every page */}
-            <View style={styles.tableHeader}>
-              <Text style={[styles.thCell, styles.colSl]}>SL</Text>
-              <Text style={[styles.thCell, styles.colName]}>Name</Text>
-              <Text style={[styles.thCell, styles.colMats]}>Materials</Text>
-              <Text style={[styles.thCell, styles.colQty]}>Qty/Sft</Text>
-              <Text style={[styles.thCell, styles.colPrice]}>Unit Price</Text>
-              <Text style={[styles.thCell, styles.colTotal, styles.thCellLast]}>Total</Text>
-            </View>
+        <Page key={entry.floor.id} size="A4" style={styles.page}>
+          <GlobalHeader 
+            date={content.quotationDate ?? ''} 
+            subject={content.subject ?? ''} 
+            clientName={clientName} 
+            clientAddress={clientAddress || ''} 
+          />
+
+          <Text style={styles.sectionTitle}>{entry.floor.name}</Text>
+          
+          <View style={styles.tHead}>
+            <Text style={[styles.thCol, styles.wSl]}>SL</Text>
+            <Text style={[styles.thCol, styles.wName]}>Name</Text>
+            <Text style={[styles.thCol, styles.wMats]}>Materials</Text>
+            <Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text>
+            <Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text>
+            <Text style={[styles.thCol, styles.wTotal]}>Total</Text>
           </View>
 
-          <View style={[styles.table, { borderTopWidth: 0 }]}>
-            {entry.lines.map((line, lineIndex) => (
-              <View key={line.id} style={[styles.tableRow, lineIndex % 2 === 1 ? styles.tableRowAlt : {}]} wrap={false}>
-                <Text style={[styles.tdCell, styles.colSl]}>
-                  {String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}
-                </Text>
-                <Text style={[styles.tdCell, styles.colName, { fontWeight: 'bold' }]}>{line.description}</Text>
-                <View style={[styles.tdCell, styles.colMats]}>
-                  <MaterialTextPdf text={line.materials} />
-                </View>
-                <Text style={[styles.tdCell, styles.colQty]}>{formatDetailQtyCell(line)}</Text>
-                <Text style={[styles.tdCell, styles.colPrice]}>{formatDetailUnitPriceCell(line)}</Text>
-                <Text style={[styles.tdCell, styles.colTotal, styles.tdCellLast, { fontWeight: 'bold', color: PRIMARY }]}>
-                  {formatDetailTotalCell(line)}
-                  {line.description.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
-                </Text>
+          {entry.lines.map((line, lineIndex) => (
+            // Notice: wrap={false} is INTENTIONALLY REMOVED so long rows break naturally across pages without data loss
+            <View key={line.id} style={styles.tRow}>
+              <Text style={[styles.tdCol, styles.wSl]}>
+                {String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}
+              </Text>
+              <Text style={[styles.tdCol, styles.wName, styles.bold]}>{line.description}</Text>
+              <View style={[styles.wMats]}>
+                <MaterialTextPdf text={line.materials} />
               </View>
-            ))}
-            
-            <View style={styles.totalRow} wrap={false}>
-              <Text style={[styles.totalLabelCell, { width: '86%' }]}>Total for {entry.floor.name}</Text>
-              <Text style={[styles.totalValueCell, { width: '14%' }]}>{formatDetailAmount(entry.total)}</Text>
+              <Text style={[styles.tdCol, styles.wQty]}>{formatDetailQtyCell(line)}</Text>
+              <Text style={[styles.tdCol, styles.wPrice]}>{formatDetailUnitPriceCell(line)}</Text>
+              <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>
+                {formatDetailTotalCell(line)}
+                {line.description.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
+              </Text>
             </View>
+          ))}
+          
+          <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>
+            <Text style={styles.grandTotalLabel}>Total for {entry.floor.name}</Text>
+            <Text style={styles.grandTotalValue}>{formatDetailAmount(entry.total)}</Text>
           </View>
-
-          <View style={styles.inWordsBox} wrap={false}>
-            <Text style={styles.inWordsText}>In Words: <Text style={styles.inWordsBold}>{amountInWordsTaka(entry.total)}</Text></Text>
-          </View>
+          <Text style={styles.inWords} wrap={false}>In Words: <Text style={styles.bold}>{amountInWordsTaka(entry.total)}</Text></Text>
 
           <FooterFixed />
         </Page>
@@ -504,60 +354,67 @@ export function DetailQuotationDocument({
 
       {/* TERMS PAGE */}
       <Page size="A4" style={styles.page}>
-        <GlobalHeader date={content.quotationDate ?? ''} subject={content.subject ?? ''} />
+        <GlobalHeader 
+          date={content.quotationDate ?? ''} 
+          subject={content.subject ?? ''} 
+          clientName={clientName} 
+          clientAddress={clientAddress || ''} 
+        />
 
         <Text style={styles.sectionTitle}>Terms &amp; Signatures</Text>
 
-        <View style={{ marginTop: 10 }}>
+        <View style={styles.termsContainer}>
           {content.notes ? (
-            <View style={styles.termBox}>
+            <View>
               <Text style={styles.termTitle}>Notes</Text>
-              <Text style={styles.termText}>{content.notes}</Text>
+              <Text style={styles.termContent}>{content.notes}</Text>
             </View>
           ) : null}
           
           {content.terms ? (
-            <View style={styles.termBox}>
+            <View>
               <Text style={styles.termTitle}>Terms &amp; Conditions</Text>
-              <Text style={styles.termText}>{content.terms}</Text>
+              <Text style={styles.termContent}>{content.terms}</Text>
             </View>
           ) : null}
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <View style={{ width: '48%' }}>
               {content.paymentTerms ? (
-                <View style={styles.termBox}>
+                <View>
                   <Text style={styles.termTitle}>Mode of Payment</Text>
-                  <Text style={styles.termText}>{content.paymentTerms}</Text>
+                  <Text style={styles.termContent}>{content.paymentTerms}</Text>
                 </View>
               ) : null}
             </View>
             <View style={{ width: '48%' }}>
               {content.durationNotes ? (
-                <View style={styles.termBox}>
+                <View>
                   <Text style={styles.termTitle}>Duration of Work</Text>
-                  <Text style={styles.termText}>{content.durationNotes}</Text>
+                  <Text style={styles.termContent}>{content.durationNotes}</Text>
                 </View>
               ) : null}
             </View>
           </View>
 
           {content.drawingDesign ? (
-            <Text style={styles.alertBox}>
+            <Text style={[styles.termContent, { color: '#d32f2f', fontWeight: 'bold', marginTop: 10 }]}>
               {content.drawingDesign}
             </Text>
           ) : null}
         </View>
 
-        <View style={styles.signaturesRow}>
-          <View style={styles.sigBlock}>
-            <Text style={styles.sigName}>Customer Approval</Text>
-            <Text style={styles.sigTitle}>Sign &amp; Date</Text>
+        <View style={styles.signatureRow}>
+          <View>
+            <View style={styles.sigLine} />
+            <Text style={[styles.metaText, styles.bold, { marginTop: 4 }]}>Customer Approval</Text>
+            <Text style={styles.metaText}>Sign &amp; Date</Text>
           </View>
           
-          <View style={styles.sigBlock}>
-            <Text style={styles.sigName}>{content.signatoryName || 'Authorized Signature'}</Text>
-            <Text style={styles.sigTitle}>{content.signatoryTitle || 'Aesthetic Interior'}</Text>
+          <View>
+            <View style={styles.sigLine} />
+            <Text style={[styles.metaText, styles.bold, { marginTop: 4 }]}>{content.signatoryName || 'Authorized Signature'}</Text>
+            <Text style={styles.metaText}>{content.signatoryTitle || 'Aesthetic Interior'}</Text>
           </View>
         </View>
 
