@@ -51,19 +51,19 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   docTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
     color: PRIMARY,
     letterSpacing: 1,
   },
   metaBox: {
     backgroundColor: '#f5f9f8',
-    padding: 8,
+    padding: 6,
     borderRadius: 4,
     borderLeftWidth: 3,
     borderLeftColor: PRIMARY,
     marginTop: 8,
-    minWidth: 180,
+    minWidth: 160,
   },
   metaRowFlex: {
     flexDirection: 'row',
@@ -72,14 +72,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   metaBoxLabel: {
-    fontSize: 8,
+    fontSize: 7,
     color: '#555555',
     textTransform: 'uppercase',
     fontWeight: 'bold',
     marginLeft: 4,
   },
   metaBoxValue: {
-    fontSize: 9,
+    fontSize: 7.5,
     color: '#000000',
     fontWeight: 'bold',
     textAlign: 'right',
@@ -269,7 +269,21 @@ const QRCodeIcon = () => (
 );
 
 const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
-  const qtnId = "QTN-" + (date ? new Date(date).getTime().toString().slice(-6) : Math.floor(Math.random() * 1000000).toString());
+  let qtnIdSuffix = Math.floor(Math.random() * 1000000).toString();
+  if (date) {
+    let timestamp = Date.parse(date);
+    if (isNaN(timestamp) && date.includes('-')) {
+      const parts = date.split('-');
+      if (parts.length === 3) {
+        timestamp = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
+      }
+    }
+    if (!isNaN(timestamp)) {
+      qtnIdSuffix = timestamp.toString().slice(-6);
+    }
+  }
+  const qtnId = "QTN-" + qtnIdSuffix;
+  
   const formattedDate = formatDateString(date) + " " + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -277,9 +291,9 @@ const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
       <View style={{ width: '50%' }}>
         <Image src="/Logo/HeaderLogo.png" style={styles.logo} />
         <View style={{ marginTop: 20 }}>
-          <Text style={{ fontSize: 7, color: '#666666', marginBottom: 2 }}>PREPARED FOR</Text>
-          <Text style={[styles.bold, { fontSize: 10, color: PRIMARY, marginBottom: 2 }]}>{clientName}</Text>
-          <Text style={{ fontSize: 8, color: '#555555' }}>{clientAddress}</Text>
+          <Text style={{ fontSize: 6, color: '#666666', marginBottom: 2 }}>PREPARED FOR</Text>
+          <Text style={[styles.bold, { fontSize: 9, color: PRIMARY, marginBottom: 2 }]}>{clientName}</Text>
+          <Text style={{ fontSize: 7, color: '#555555' }}>{clientAddress}</Text>
         </View>
       </View>
       <View style={styles.headerRight}>
