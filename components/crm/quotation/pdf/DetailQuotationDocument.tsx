@@ -339,20 +339,22 @@ const HeaderPdf = ({ date, subject }: { date: string; subject: string }) => {
     <View style={styles.headerFlex}>
       <View style={styles.logoContainer}>
         <Image src="/Logo/HeaderLogo.png" style={styles.logo} />
-        <Image src="/files/QR_code.svg" style={{ width: 40, height: 40 }} />
       </View>
-      <View>
-        <Text style={styles.documentTitle}>Quotation</Text>
-        <View style={styles.metaGrid}>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Date</Text>
-            <Text style={styles.metaValue}>{formatDate(date)}</Text>
-          </View>
-          <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>Ref</Text>
-            <Text style={styles.metaValue}>{subject.substring(0, 30)}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+        <View style={{ alignItems: 'flex-end', marginRight: 15 }}>
+          <Text style={styles.documentTitle}>Quotation</Text>
+          <View style={styles.metaGrid}>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Date</Text>
+              <Text style={styles.metaValue}>{formatDate(date)}</Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.metaLabel}>Ref</Text>
+              <Text style={styles.metaValue}>{subject.substring(0, 30)}</Text>
+            </View>
           </View>
         </View>
+        <Image src="/files/QR_code.svg" style={{ width: 45, height: 45, marginTop: 4 }} />
       </View>
     </View>
   )
@@ -456,7 +458,7 @@ export function DetailQuotationDocument({
           </View>
 
           {floorSummaries.map((entry, index) => (
-            <View key={entry.floor.id} style={[styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}]}>
+            <View key={entry.floor.id} style={[styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}]} wrap={false}>
               <Text style={[styles.cellText, styles.wSl]}>{String(index + 1).padStart(2, '0')}</Text>
               <Text style={[styles.cellTextBold, styles.wSummaryName]}>{entry.floor.name}</Text>
               <Text style={[styles.cellTextBold, styles.wSummaryTotal]}>{formatDetailAmount(entry.total)}</Text>
@@ -496,7 +498,7 @@ export function DetailQuotationDocument({
             </View>
 
             {entry.lines.map((line, lineIndex) => (
-              <View key={line.id} style={[styles.tableRow, lineIndex % 2 === 1 ? styles.tableRowAlt : {}]}>
+              <View key={line.id} style={[styles.tableRow, lineIndex % 2 === 1 ? styles.tableRowAlt : {}]} wrap={false}>
                 <Text style={[styles.cellText, styles.wSl]}>
                   {String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}
                 </Text>
