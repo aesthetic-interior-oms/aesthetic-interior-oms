@@ -37,11 +37,38 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   docTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     color: PRIMARY,
-    letterSpacing: 1,
-    marginBottom: 10,
+    letterSpacing: 2,
+  },
+  metaBox: {
+    backgroundColor: '#f0f5f4',
+    padding: 8,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: PRIMARY,
+    marginTop: 8,
+    minWidth: 180,
+  },
+  metaRowFlex: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  metaBoxLabel: {
+    fontSize: 8,
+    color: '#555555',
+    textTransform: 'uppercase',
+    fontWeight: 'bold',
+  },
+  metaBoxValue: {
+    fontSize: 9,
+    color: '#000000',
+    fontWeight: 'bold',
+    textAlign: 'right',
+    maxWidth: 130,
   },
   metaText: {
     fontSize: 9,
@@ -78,6 +105,7 @@ const styles = StyleSheet.create({
   },
   tRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     borderBottomWidth: 0.5,
     borderBottomColor: '#eeeeee',
     paddingVertical: 8,
@@ -209,9 +237,20 @@ const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => (
       </View>
     </View>
     <View style={styles.headerRight}>
-      <Text style={styles.docTitle}>QUOTATION</Text>
-      <Text style={styles.metaText}>Date: <Text style={styles.bold}>{formatDateString(date)}</Text></Text>
-      <Text style={styles.metaText}>Ref: <Text style={styles.bold}>{subject.substring(0, 40)}</Text></Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={[styles.docTitle, { marginRight: 10 }]}>QUOTATION</Text>
+        <Image src="/files/QR_code.svg" style={{ width: 35, height: 35 }} />
+      </View>
+      <View style={styles.metaBox}>
+        <View style={styles.metaRowFlex}>
+          <Text style={styles.metaBoxLabel}>Date</Text>
+          <Text style={styles.metaBoxValue}>{formatDateString(date)}</Text>
+        </View>
+        <View style={[styles.metaRowFlex, { marginBottom: 0 }]}>
+          <Text style={styles.metaBoxLabel}>Ref</Text>
+          <Text style={styles.metaBoxValue}>{subject.substring(0, 40)}</Text>
+        </View>
+      </View>
     </View>
   </View>
 );
