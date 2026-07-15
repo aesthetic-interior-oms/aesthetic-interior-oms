@@ -100,8 +100,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: PRIMARY,
-    backgroundColor: '#f0f5f4',
-    padding: 6,
+    backgroundColor: '#e6f0ef',
+    padding: 8,
     marginTop: 15,
     textTransform: 'uppercase',
   },
@@ -112,47 +112,41 @@ const styles = StyleSheet.create({
     right: 40,
   },
   tableWrapper: {
-    borderWidth: 1,
-    borderColor: '#cccccc',
-    borderTopWidth: 0,
+    // No wrapper needed
   },
   tHead: {
     flexDirection: 'row',
-    backgroundColor: PRIMARY,
-    borderWidth: 1,
-    borderColor: PRIMARY,
+    borderBottomWidth: 1,
+    borderBottomColor: PRIMARY,
+    paddingBottom: 6,
+    paddingTop: 10,
   },
   thCol: {
     fontSize: 8,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: PRIMARY,
     textTransform: 'uppercase',
-    paddingVertical: 6,
     paddingHorizontal: 4,
-    borderRightWidth: 1,
-    borderRightColor: '#ffffff',
-    textAlign: 'center',
   },
   thColLast: {
-    borderRightWidth: 0,
+    
   },
   tRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
     borderBottomWidth: 1,
-    borderBottomColor: '#cccccc',
+    borderBottomColor: '#eeeeee',
   },
   tRowAlt: {
-    backgroundColor: '#fafafa',
+    // No zebra striping
   },
   tdCol: {
     fontSize: 9,
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 4,
-    borderRightWidth: 1,
-    borderRightColor: '#cccccc',
   },
   tdColLast: {
-    borderRightWidth: 0,
+    
   },
   
   // Columns Detail
@@ -412,30 +406,28 @@ export function DetailQuotationDocument({
 
       {/* DETAIL PAGES */}
       {floorSummaries.map((entry) => (
-        <Page key={entry.floor.id} size="A4" style={styles.detailPage}>
-          <View style={styles.detailFixedHeader} fixed>
-            <GlobalHeader 
-              date={content.quotationDate ?? ''} 
-              subject={content.subject ?? ''} 
-              clientName={clientName} 
-              clientAddress={clientAddress || ''} 
-            />
+        <Page key={entry.floor.id} size="A4" style={styles.page}>
+          <GlobalHeader 
+            date={content.quotationDate ?? ''} 
+            subject={content.subject ?? ''} 
+            clientName={clientName} 
+            clientAddress={clientAddress || ''} 
+          />
 
-            <Text style={styles.sectionTitle}>{entry.floor.name}</Text>
-            
-            <View style={styles.tHead}>
-              <Text style={[styles.thCol, styles.wSl]}>SL</Text>
-              <Text style={[styles.thCol, styles.wName]}>Name</Text>
-              <Text style={[styles.thCol, styles.wMats]}>Materials</Text>
-              <Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text>
-              <Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text>
-              <Text style={[styles.thCol, styles.wTotal, styles.thColLast]}>Total</Text>
-            </View>
+          <Text style={styles.sectionTitle}>{entry.floor.name}</Text>
+          
+          <View style={styles.tHead}>
+            <Text style={[styles.thCol, styles.wSl]}>SL</Text>
+            <Text style={[styles.thCol, styles.wName]}>Name</Text>
+            <Text style={[styles.thCol, styles.wMats]}>Materials</Text>
+            <Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text>
+            <Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text>
+            <Text style={[styles.thCol, styles.wTotal, styles.thColLast]}>Total</Text>
           </View>
 
           <View style={styles.tableWrapper}>
             {entry.lines.map((line, lineIndex) => (
-              <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]}>
+              <View key={line.id} style={styles.tRow} wrap={false}>
                 <Text style={[styles.tdCol, styles.wSl]}>
                   {String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}
                 </Text>
