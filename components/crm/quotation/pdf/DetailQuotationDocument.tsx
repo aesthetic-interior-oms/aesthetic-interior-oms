@@ -11,366 +11,341 @@ import {
 } from '@/lib/detail-quotation-format'
 import { amountInWordsTaka } from '@/lib/number-to-words'
 
-const ACCENT_COLOR = '#0f5b53';
-const TEXT_DARK = '#1a1a1a';
-const TEXT_MUTED = '#555555';
-const TEXT_LIGHT = '#888888';
-const BORDER_COLOR = '#e5e5e5';
-const BG_ALT = '#fafafa';
+const PRIMARY = '#0f5b53';
+const TEXT_MAIN = '#333333';
+const TEXT_LIGHT = '#666666';
+const BORDER = '#cccccc';
+const BG_ALT = '#f5f9f8';
 
 const styles = StyleSheet.create({
   page: {
     paddingTop: 40,
-    paddingBottom: 80,
+    paddingBottom: 70,
     paddingLeft: 40,
     paddingRight: 40,
-    fontSize: 9,
     fontFamily: 'Helvetica',
-    color: TEXT_DARK,
-    lineHeight: 1.4,
-    backgroundColor: '#ffffff',
+    fontSize: 9,
+    color: TEXT_MAIN,
   },
-  // Top brand strip
-  topStrip: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 8,
-    backgroundColor: ACCENT_COLOR,
+  detailPage: {
+    paddingTop: 160,
+    paddingBottom: 70,
+    paddingLeft: 40,
+    paddingRight: 40,
+    fontFamily: 'Helvetica',
+    fontSize: 9,
+    color: TEXT_MAIN,
   },
-  // Header section
-  headerFlex: {
+  
+  // Global Header
+  globalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginTop: 20,
-    marginBottom: 40,
-  },
-  logoContainer: {
-    width: '50%',
+    alignItems: 'center',
+    marginBottom: 20,
+    borderBottomWidth: 2,
+    borderBottomColor: PRIMARY,
+    paddingBottom: 10,
   },
   logo: {
     width: 140,
-    height: 'auto',
-    marginBottom: 10,
   },
-  documentTitle: {
-    fontSize: 24,
-    color: ACCENT_COLOR,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    textAlign: 'right',
-    marginBottom: 10,
-  },
-  metaGrid: {
-    flexDirection: 'column',
+  headerRight: {
     alignItems: 'flex-end',
-    gap: 4,
   },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    letterSpacing: 2,
+    marginBottom: 5,
   },
-  metaLabel: {
-    fontSize: 8,
+  metaText: {
+    fontSize: 9,
     color: TEXT_LIGHT,
-    textTransform: 'uppercase',
-    width: 60,
-    textAlign: 'right',
-    marginRight: 10,
+    marginBottom: 2,
   },
   metaValue: {
-    fontSize: 9,
-    color: TEXT_DARK,
+    color: TEXT_MAIN,
     fontWeight: 'bold',
-    width: 140,
-    textAlign: 'right',
   },
-  
-  // Client Info
-  clientSection: {
+
+  // Boxes for Client Info
+  infoRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 30,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: BORDER_COLOR,
-    paddingVertical: 15,
+    marginBottom: 20,
   },
-  clientBlock: {
-    width: '45%',
+  infoBox: {
+    width: '48%',
+    backgroundColor: '#f9f9f9',
+    padding: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#eeeeee',
   },
-  clientLabel: {
+  infoTitle: {
     fontSize: 8,
-    color: TEXT_LIGHT,
+    color: PRIMARY,
+    fontWeight: 'bold',
     textTransform: 'uppercase',
-    marginBottom: 4,
-    letterSpacing: 1,
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#dddddd',
+    paddingBottom: 4,
   },
-  clientName: {
-    fontSize: 12,
-    color: ACCENT_COLOR,
+  infoContent: {
+    fontSize: 10,
     fontWeight: 'bold',
     marginBottom: 4,
   },
-  clientAddress: {
+  infoSub: {
     fontSize: 9,
-    color: TEXT_MUTED,
+    color: TEXT_LIGHT,
     lineHeight: 1.4,
   },
 
-  // Greeting
-  greetingBox: {
+  // Intro
+  introBox: {
     marginBottom: 20,
   },
-  greetingText: {
-    fontSize: 9,
-    color: TEXT_MUTED,
-    lineHeight: 1.5,
+  introGreeting: {
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  introText: {
+    color: TEXT_LIGHT,
+    lineHeight: 1.4,
     textAlign: 'justify',
   },
 
   // Tables
-  tableContainer: {
-    marginTop: 10,
-    marginBottom: 20,
-  },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: ACCENT_COLOR,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    color: PRIMARY,
     marginBottom: 10,
-    borderBottomWidth: 2,
-    borderBottomColor: ACCENT_COLOR,
-    paddingBottom: 4,
+    textTransform: 'uppercase',
+  },
+  table: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: BORDER,
   },
   tableHeader: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: TEXT_DARK,
-    paddingBottom: 6,
-    marginBottom: 4,
+    backgroundColor: PRIMARY,
   },
-  tableHeaderCell: {
-    fontSize: 8,
-    color: TEXT_LIGHT,
-    textTransform: 'uppercase',
+  thCell: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    color: '#ffffff',
     fontWeight: 'bold',
-    letterSpacing: 1,
+    fontSize: 8,
+    textTransform: 'uppercase',
+    borderRightWidth: 1,
+    borderRightColor: '#ffffff',
+    textAlign: 'center',
+  },
+  thCellLast: {
+    borderRightWidth: 0,
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 8,
-    borderBottomWidth: 0.5,
-    borderBottomColor: BORDER_COLOR,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
   },
   tableRowAlt: {
     backgroundColor: BG_ALT,
   },
-  cellText: {
-    fontSize: 9,
-    color: TEXT_DARK,
+  tdCell: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    fontSize: 8.5,
+    borderRightWidth: 1,
+    borderRightColor: BORDER,
   },
-  cellTextBold: {
-    fontSize: 9,
-    color: TEXT_DARK,
-    fontWeight: 'bold',
+  tdCellLast: {
+    borderRightWidth: 0,
   },
+
+  // Column Widths
+  colSl: { width: '6%', textAlign: 'center' },
+  colName: { width: '22%' },
+  colMats: { width: '36%' },
+  colQty: { width: '10%', textAlign: 'center' },
+  colPrice: { width: '12%', textAlign: 'center' },
+  colTotal: { width: '14%', textAlign: 'right' },
   
-  // Columns
-  wSl: { width: '6%', textAlign: 'center' },
-  wName: { width: '30%' },
-  wMats: { width: '32%' },
-  wQty: { width: '10%', textAlign: 'center' },
-  wPrice: { width: '10%', textAlign: 'center' },
-  wTotal: { width: '12%', textAlign: 'right' },
-  wSummaryName: { width: '60%' },
-  wSummaryTotal: { width: '34%', textAlign: 'right' },
-  
-  // Totals
-  totalContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 10,
-  },
-  totalBox: {
-    width: '55%',
-  },
-  grandTotalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    borderBottomWidth: 2,
-    borderBottomColor: ACCENT_COLOR,
-    borderTopWidth: 2,
-    borderTopColor: ACCENT_COLOR,
-    marginTop: 4,
-    backgroundColor: '#f4f9f8',
-  },
-  grandTotalLabel: {
-    fontSize: 11,
-    color: ACCENT_COLOR,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    paddingLeft: 10,
-  },
-  grandTotalValue: {
-    fontSize: 11,
-    color: ACCENT_COLOR,
-    fontWeight: 'bold',
-    paddingRight: 10,
-  },
-  
-  // In Words
-  inWordsText: {
+  colSummaryName: { width: '70%', textAlign: 'left' },
+  colSummaryTotal: { width: '24%', textAlign: 'right' },
+
+  // Mat Line
+  matLine: {
     fontSize: 8,
-    color: TEXT_MUTED,
-    fontStyle: 'italic',
-    marginTop: 10,
+    color: TEXT_LIGHT,
+    lineHeight: 1.3,
+    marginBottom: 2,
+  },
+  matPrefix: {
+    fontWeight: 'bold',
+    color: TEXT_MAIN,
+  },
+
+  // Totals
+  totalRow: {
+    flexDirection: 'row',
+    backgroundColor: '#e6f0ef',
+  },
+  totalLabelCell: {
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRightWidth: 1,
+    borderRightColor: BORDER,
     textAlign: 'right',
+    fontWeight: 'bold',
+    color: PRIMARY,
+    fontSize: 10,
+  },
+  totalValueCell: {
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    textAlign: 'right',
+    fontWeight: 'bold',
+    color: PRIMARY,
+    fontSize: 10,
+  },
+  inWordsBox: {
+    marginTop: 10,
+    padding: 8,
+    backgroundColor: '#f9f9f9',
+    borderLeftWidth: 3,
+    borderLeftColor: PRIMARY,
+  },
+  inWordsText: {
+    fontSize: 9,
+    fontStyle: 'italic',
+  },
+  inWordsBold: {
+    fontWeight: 'bold',
+    color: PRIMARY,
+    fontStyle: 'normal',
   },
 
   // Footer
   footerFixed: {
     position: 'absolute',
-    bottom: 30,
+    bottom: 20,
     left: 40,
     right: 40,
     borderTopWidth: 1,
-    borderTopColor: BORDER_COLOR,
-    paddingTop: 10,
+    borderTopColor: BORDER,
+    paddingTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   footerText: {
     fontSize: 7,
     color: TEXT_LIGHT,
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  footerWebsite: {
-    fontSize: 8,
-    color: ACCENT_COLOR,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  
-  // Terms
-  termsSection: {
-    marginTop: 20,
-  },
-  termTitle: {
-    fontSize: 10,
-    color: ACCENT_COLOR,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  termText: {
-    fontSize: 8,
-    color: TEXT_MUTED,
-    lineHeight: 1.5,
-    marginBottom: 15,
-  },
-  drawingAlert: {
-    padding: 10,
-    backgroundColor: '#fff0f0',
-    color: '#d32f2f',
-    fontSize: 9,
-    fontWeight: 'bold',
-    marginTop: 10,
-  },
-  
-  // Signatures
-  signatureArea: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 60,
-  },
-  sigBlock: {
-    width: '35%',
-  },
-  sigLine: {
-    borderTopWidth: 1,
-    borderTopColor: TEXT_DARK,
-    marginBottom: 6,
-  },
-  sigName: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: TEXT_DARK,
-  },
-  sigRole: {
-    fontSize: 8,
-    color: TEXT_MUTED,
   },
 
-  // Material text formatting
-  matLine: {
-    fontSize: 8,
-    color: TEXT_MUTED,
-    lineHeight: 1.3,
+  // Fixed header wrappers for detail pages
+  detailFixedHeader: {
+    position: 'absolute',
+    top: 40,
+    left: 40,
+    right: 40,
   },
-  matPrefix: {
+
+  // Terms & Signatures
+  termBox: {
+    marginBottom: 15,
+  },
+  termTitle: {
+    fontSize: 9,
     fontWeight: 'bold',
-    color: TEXT_DARK,
+    color: PRIMARY,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  termText: {
+    fontSize: 8.5,
+    color: TEXT_LIGHT,
+    lineHeight: 1.5,
+    textAlign: 'justify',
+  },
+  alertBox: {
+    padding: 10,
+    backgroundColor: '#fff0f0',
+    borderWidth: 1,
+    borderColor: '#ffcccc',
+    color: '#d32f2f',
+    fontWeight: 'bold',
+    fontSize: 9,
+    marginTop: 10,
+  },
+  signaturesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 50,
+  },
+  sigBlock: {
+    width: '40%',
+    borderTopWidth: 1,
+    borderTopColor: TEXT_MAIN,
+    paddingTop: 6,
+    alignItems: 'center',
+  },
+  sigName: {
+    fontWeight: 'bold',
+    fontSize: 10,
+  },
+  sigTitle: {
+    fontSize: 8,
+    color: TEXT_LIGHT,
   }
 });
 
-const HeaderPdf = ({ date, subject }: { date: string; subject: string }) => {
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A'
-    try {
-      const timestamp = Date.parse(dateString)
-      if (isNaN(timestamp)) return dateString
-      return new Date(timestamp).toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
-      })
-    } catch {
-      return dateString
-    }
+const formatDateString = (dateString: string) => {
+  if (!dateString) return 'N/A'
+  try {
+    const timestamp = Date.parse(dateString)
+    if (isNaN(timestamp)) return dateString
+    return new Date(timestamp).toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    })
+  } catch {
+    return dateString
   }
-
-  return (
-    <View style={styles.headerFlex}>
-      <View style={styles.logoContainer}>
-        <Image src="/Logo/HeaderLogo.png" style={styles.logo} />
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-        <View style={{ alignItems: 'flex-end', marginRight: 15 }}>
-          <Text style={styles.documentTitle}>Quotation</Text>
-          <View style={styles.metaGrid}>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Date</Text>
-              <Text style={styles.metaValue}>{formatDate(date)}</Text>
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Ref</Text>
-              <Text style={styles.metaValue}>{subject.substring(0, 30)}</Text>
-            </View>
-          </View>
-        </View>
-        <Image src="/files/QR_code.svg" style={{ width: 45, height: 45, marginTop: 4 }} />
-      </View>
-    </View>
-  )
 }
 
-const FooterPdf = () => (
-  <View style={styles.footerFixed} fixed>
-    <Text style={styles.footerText}>
-      +88 01329 694660 | +88 01329 694661 | aestheticinteriorstudio@gmail.com
-    </Text>
-    <Text style={styles.footerText}>
-      2nd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka
-    </Text>
-    <Text style={styles.footerWebsite}>www.aestheticinteriorbd.com</Text>
+const GlobalHeader = ({ date, subject }: { date: string; subject: string }) => (
+  <View style={styles.globalHeader}>
+    <Image src="/Logo/HeaderLogo.png" style={styles.logo} />
+    <View style={styles.headerRight}>
+      <Text style={styles.title}>QUOTATION</Text>
+      <Text style={styles.metaText}>
+        Date: <Text style={styles.metaValue}>{formatDateString(date)}</Text>
+      </Text>
+      <Text style={styles.metaText}>
+        Ref: <Text style={styles.metaValue}>{subject.substring(0, 40)}</Text>
+      </Text>
+    </View>
   </View>
-)
+);
+
+const FooterFixed = () => (
+  <View style={styles.footerFixed} fixed>
+    <View>
+      <Text style={styles.footerText}>+88 01329 694660 | +88 01329 694661 | aestheticinteriorstudio@gmail.com</Text>
+      <Text style={styles.footerText}>2nd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka</Text>
+    </View>
+    <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold' }]}>www.aestheticinteriorbd.com</Text>
+  </View>
+);
 
 function MaterialTextPdf({ text }: { text: string | null | undefined }) {
   if (!text) return <Text style={styles.matLine}>—</Text>
@@ -422,148 +397,144 @@ export function DetailQuotationDocument({
     <Document>
       {/* SUMMARY PAGE */}
       <Page size="A4" style={styles.page}>
-        <View style={styles.topStrip} fixed />
-        <FooterPdf />
+        <GlobalHeader date={content.quotationDate ?? ''} subject={content.subject ?? ''} />
         
-        <HeaderPdf date={content.quotationDate ?? ''} subject={content.subject ?? ''} />
-
-        <View style={styles.clientSection}>
-          <View style={styles.clientBlock}>
-            <Text style={styles.clientLabel}>Prepared For</Text>
-            <Text style={styles.clientName}>{clientName}</Text>
-            <Text style={styles.clientAddress}>{clientAddress || '—'}</Text>
+        <View style={styles.infoRow}>
+          <View style={styles.infoBox}>
+            <Text style={styles.infoTitle}>Prepared For</Text>
+            <Text style={styles.infoContent}>{clientName}</Text>
+            <Text style={styles.infoSub}>{clientAddress || '—'}</Text>
           </View>
-          <View style={styles.clientBlock}>
-            <Text style={styles.clientLabel}>Project Subject</Text>
-            <Text style={[styles.clientAddress, { color: TEXT_DARK, fontWeight: 'bold' }]}>
+          <View style={styles.infoBox}>
+            <Text style={styles.infoTitle}>Project Subject</Text>
+            <Text style={[styles.infoContent, { color: PRIMARY }]}>
               {content.summarySubject ?? content.subject ?? '—'}
             </Text>
           </View>
         </View>
 
         {cleanIntro ? (
-          <View style={styles.greetingBox}>
-            <Text style={[styles.clientName, { fontSize: 10, marginBottom: 6 }]}>Dear Sir,</Text>
-            <Text style={styles.greetingText}>{cleanIntro}</Text>
+          <View style={styles.introBox}>
+            <Text style={styles.introGreeting}>Dear Sir,</Text>
+            <Text style={styles.introText}>{cleanIntro}</Text>
           </View>
         ) : null}
 
-        <View style={styles.tableContainer}>
-          <Text style={styles.sectionTitle}>Project Summary</Text>
-          
+        <Text style={styles.sectionTitle}>Project Summary</Text>
+        
+        <View style={styles.table}>
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, styles.wSl]}>Item</Text>
-            <Text style={[styles.tableHeaderCell, styles.wSummaryName]}>Description</Text>
-            <Text style={[styles.tableHeaderCell, styles.wSummaryTotal]}>Amount</Text>
+            <Text style={[styles.thCell, styles.colSl]}>SL</Text>
+            <Text style={[styles.thCell, styles.colSummaryName]}>Description</Text>
+            <Text style={[styles.thCell, styles.colSummaryTotal, styles.thCellLast]}>Amount</Text>
           </View>
 
           {floorSummaries.map((entry, index) => (
             <View key={entry.floor.id} style={[styles.tableRow, index % 2 === 1 ? styles.tableRowAlt : {}]} wrap={false}>
-              <Text style={[styles.cellText, styles.wSl]}>{String(index + 1).padStart(2, '0')}</Text>
-              <Text style={[styles.cellTextBold, styles.wSummaryName]}>{entry.floor.name}</Text>
-              <Text style={[styles.cellTextBold, styles.wSummaryTotal]}>{formatDetailAmount(entry.total)}</Text>
+              <Text style={[styles.tdCell, styles.colSl]}>{String(index + 1).padStart(2, '0')}</Text>
+              <Text style={[styles.tdCell, styles.colSummaryName, { fontWeight: 'bold' }]}>{entry.floor.name}</Text>
+              <Text style={[styles.tdCell, styles.colSummaryTotal, styles.tdCellLast, { fontWeight: 'bold' }]}>{formatDetailAmount(entry.total)}</Text>
             </View>
           ))}
 
-          <View style={styles.totalContainer}>
-            <View style={styles.totalBox}>
-              <View style={styles.grandTotalRow}>
-                <Text style={styles.grandTotalLabel}>Grand Total</Text>
-                <Text style={styles.grandTotalValue}>{formatDetailAmount(totals.grandTotal)}</Text>
-              </View>
-              <Text style={styles.inWordsText}>{amountInWordsTaka(totals.grandTotal)}</Text>
-            </View>
+          <View style={styles.totalRow} wrap={false}>
+            <Text style={[styles.totalLabelCell, { width: '76%' }]}>Grand Total</Text>
+            <Text style={[styles.totalValueCell, { width: '24%' }]}>{formatDetailAmount(totals.grandTotal)}</Text>
           </View>
         </View>
+
+        <View style={styles.inWordsBox} wrap={false}>
+          <Text style={styles.inWordsText}>In Words: <Text style={styles.inWordsBold}>{amountInWordsTaka(totals.grandTotal)}</Text></Text>
+        </View>
+
+        <FooterFixed />
       </Page>
 
       {/* DETAIL PAGES */}
       {floorSummaries.map((entry) => (
-        <Page key={entry.floor.id} size="A4" style={styles.page}>
-          <View style={styles.topStrip} fixed />
-          <FooterPdf />
-          
-          <HeaderPdf date={content.quotationDate ?? ''} subject={content.subject ?? ''} />
-
-          <View style={styles.tableContainer}>
+        <Page key={entry.floor.id} size="A4" style={styles.detailPage}>
+          {/* Fixed Header for this specific floor */}
+          <View style={styles.detailFixedHeader} fixed>
+            <GlobalHeader date={content.quotationDate ?? ''} subject={content.subject ?? ''} />
             <Text style={styles.sectionTitle}>{entry.floor.name}</Text>
-
+            
+            {/* Table Header repeated on every page */}
             <View style={styles.tableHeader}>
-              <Text style={[styles.tableHeaderCell, styles.wSl]}>SL</Text>
-              <Text style={[styles.tableHeaderCell, styles.wName]}>Name</Text>
-              <Text style={[styles.tableHeaderCell, styles.wMats]}>Materials</Text>
-              <Text style={[styles.tableHeaderCell, styles.wQty]}>Qty/Sft</Text>
-              <Text style={[styles.tableHeaderCell, styles.wPrice]}>Unit Price</Text>
-              <Text style={[styles.tableHeaderCell, styles.wTotal]}>Total</Text>
+              <Text style={[styles.thCell, styles.colSl]}>SL</Text>
+              <Text style={[styles.thCell, styles.colName]}>Name</Text>
+              <Text style={[styles.thCell, styles.colMats]}>Materials</Text>
+              <Text style={[styles.thCell, styles.colQty]}>Qty/Sft</Text>
+              <Text style={[styles.thCell, styles.colPrice]}>Unit Price</Text>
+              <Text style={[styles.thCell, styles.colTotal, styles.thCellLast]}>Total</Text>
             </View>
+          </View>
 
+          <View style={[styles.table, { borderTopWidth: 0 }]}>
             {entry.lines.map((line, lineIndex) => (
               <View key={line.id} style={[styles.tableRow, lineIndex % 2 === 1 ? styles.tableRowAlt : {}]} wrap={false}>
-                <Text style={[styles.cellText, styles.wSl]}>
+                <Text style={[styles.tdCell, styles.colSl]}>
                   {String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}
                 </Text>
-                <Text style={[styles.cellTextBold, styles.wName]}>{line.description}</Text>
-                <View style={[styles.wMats]}>
+                <Text style={[styles.tdCell, styles.colName, { fontWeight: 'bold' }]}>{line.description}</Text>
+                <View style={[styles.tdCell, styles.colMats]}>
                   <MaterialTextPdf text={line.materials} />
                 </View>
-                <Text style={[styles.cellText, styles.wQty]}>{formatDetailQtyCell(line)}</Text>
-                <Text style={[styles.cellText, styles.wPrice]}>{formatDetailUnitPriceCell(line)}</Text>
-                <Text style={[styles.cellTextBold, styles.wTotal, { color: ACCENT_COLOR }]}>
+                <Text style={[styles.tdCell, styles.colQty]}>{formatDetailQtyCell(line)}</Text>
+                <Text style={[styles.tdCell, styles.colPrice]}>{formatDetailUnitPriceCell(line)}</Text>
+                <Text style={[styles.tdCell, styles.colTotal, styles.tdCellLast, { fontWeight: 'bold', color: PRIMARY }]}>
                   {formatDetailTotalCell(line)}
                   {line.description.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
                 </Text>
               </View>
             ))}
-
-            <View style={styles.totalContainer}>
-              <View style={styles.totalBox}>
-                <View style={styles.grandTotalRow}>
-                  <Text style={styles.grandTotalLabel}>Total</Text>
-                  <Text style={styles.grandTotalValue}>{formatDetailAmount(entry.total)}</Text>
-                </View>
-                <Text style={styles.inWordsText}>{amountInWordsTaka(entry.total)}</Text>
-              </View>
+            
+            <View style={styles.totalRow} wrap={false}>
+              <Text style={[styles.totalLabelCell, { width: '86%' }]}>Total for {entry.floor.name}</Text>
+              <Text style={[styles.totalValueCell, { width: '14%' }]}>{formatDetailAmount(entry.total)}</Text>
             </View>
           </View>
+
+          <View style={styles.inWordsBox} wrap={false}>
+            <Text style={styles.inWordsText}>In Words: <Text style={styles.inWordsBold}>{amountInWordsTaka(entry.total)}</Text></Text>
+          </View>
+
+          <FooterFixed />
         </Page>
       ))}
 
       {/* TERMS PAGE */}
       <Page size="A4" style={styles.page}>
-        <View style={styles.topStrip} fixed />
-        <FooterPdf />
-        
-        <HeaderPdf date={content.quotationDate ?? ''} subject={content.subject ?? ''} />
+        <GlobalHeader date={content.quotationDate ?? ''} subject={content.subject ?? ''} />
 
         <Text style={styles.sectionTitle}>Terms &amp; Signatures</Text>
 
-        <View style={styles.termsSection}>
+        <View style={{ marginTop: 10 }}>
           {content.notes ? (
-            <View style={{ marginBottom: 15 }}>
+            <View style={styles.termBox}>
               <Text style={styles.termTitle}>Notes</Text>
               <Text style={styles.termText}>{content.notes}</Text>
             </View>
           ) : null}
           
           {content.terms ? (
-            <View style={{ marginBottom: 15 }}>
+            <View style={styles.termBox}>
               <Text style={styles.termTitle}>Terms &amp; Conditions</Text>
               <Text style={styles.termText}>{content.terms}</Text>
             </View>
           ) : null}
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <View style={{ width: '45%' }}>
+            <View style={{ width: '48%' }}>
               {content.paymentTerms ? (
-                <View style={{ marginBottom: 15 }}>
+                <View style={styles.termBox}>
                   <Text style={styles.termTitle}>Mode of Payment</Text>
                   <Text style={styles.termText}>{content.paymentTerms}</Text>
                 </View>
               ) : null}
             </View>
-            <View style={{ width: '45%' }}>
+            <View style={{ width: '48%' }}>
               {content.durationNotes ? (
-                <View style={{ marginBottom: 15 }}>
+                <View style={styles.termBox}>
                   <Text style={styles.termTitle}>Duration of Work</Text>
                   <Text style={styles.termText}>{content.durationNotes}</Text>
                 </View>
@@ -572,25 +543,25 @@ export function DetailQuotationDocument({
           </View>
 
           {content.drawingDesign ? (
-            <Text style={styles.drawingAlert}>
+            <Text style={styles.alertBox}>
               {content.drawingDesign}
             </Text>
           ) : null}
         </View>
 
-        <View style={styles.signatureArea}>
+        <View style={styles.signaturesRow}>
           <View style={styles.sigBlock}>
-            <View style={styles.sigLine} />
             <Text style={styles.sigName}>Customer Approval</Text>
-            <Text style={styles.sigRole}>Sign &amp; Date</Text>
+            <Text style={styles.sigTitle}>Sign &amp; Date</Text>
           </View>
           
           <View style={styles.sigBlock}>
-            <View style={styles.sigLine} />
             <Text style={styles.sigName}>{content.signatoryName || 'Authorized Signature'}</Text>
-            <Text style={styles.sigRole}>{content.signatoryTitle || 'Aesthetic Interior'}</Text>
+            <Text style={styles.sigTitle}>{content.signatoryTitle || 'Aesthetic Interior'}</Text>
           </View>
         </View>
+
+        <FooterFixed />
       </Page>
     </Document>
   )
