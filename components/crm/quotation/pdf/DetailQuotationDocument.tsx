@@ -15,7 +15,7 @@ const PRIMARY = '#0f5b53';
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 40,
+    paddingTop: 130,
     paddingBottom: 70,
     paddingLeft: 40,
     paddingRight: 40,
@@ -37,11 +37,10 @@ const styles = StyleSheet.create({
     lineHeight: 1.4,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#dddddd',
-    paddingBottom: 15,
+    position: 'absolute',
+    top: 40,
+    left: 40,
+    right: 40,
     marginBottom: 20,
   },
   logo: {
@@ -281,7 +280,7 @@ const formatDateString = (dateString: string) => {
 }
 
 const WatermarkBackground = () => (
-  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: -1, opacity: 0.05 }}>
+  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: -1, opacity: 0.05 }} fixed>
     <Image src="/android-chrome-512x512.png" style={{ width: 400, height: 400 }} />
   </View>
 );
@@ -306,7 +305,7 @@ const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
   const formattedDate = formatDateString(date) + " " + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <View style={styles.header}>
+    <View style={styles.header} fixed>
       {/* Top section: Logo and Meta */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 10 }}>
         {/* Left: Logo */}
