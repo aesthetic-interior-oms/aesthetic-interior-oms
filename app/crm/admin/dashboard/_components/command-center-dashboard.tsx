@@ -109,7 +109,6 @@ type VisitTeamPerformanceItem = {
   name: string
   totalVisits: number
   completed: number
-  reports: number
   reportCompleteness: number
   deepData: number
   performance: number

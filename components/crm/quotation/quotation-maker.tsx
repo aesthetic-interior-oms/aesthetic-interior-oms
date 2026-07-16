@@ -652,7 +652,7 @@ return (
                         {floorLines.map((line, lineIndex) => (
                           <tr key={line.id} className="border-t align-top">
                             <td className="px-3 py-2 text-muted-foreground">
-                              {line.serialNo ?? lineIndex + 1}
+                              {lineIndex + 1}
                             </td>
                             <td className="px-3 py-2">
                               {canEdit ? (
