@@ -157,6 +157,34 @@ const styles = StyleSheet.create({
   wPrice: { width: '10%', textAlign: 'right' },
   wTotal: { width: '12%', textAlign: 'right' },
   
+  // Wrapped Rows (Detail Table)
+  tRowDetail: {
+    position: 'relative',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eeeeee',
+    width: '100%',
+    minHeight: 25,
+  },
+  tdColAbs: {
+    position: 'absolute',
+    top: 0,
+    fontSize: 9,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  wMatsFlow: {
+    marginLeft: '32%',
+    width: '36%',
+    fontSize: 9,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+  },
+  posSl: { left: '0%', width: '8%', textAlign: 'center' },
+  posName: { left: '8%', width: '24%' },
+  posQty: { left: '68%', width: '10%', textAlign: 'center' },
+  posPrice: { left: '78%', width: '10%', textAlign: 'right' },
+  posTotal: { left: '88%', width: '12%', textAlign: 'right' },
+
   // Columns Summary
   wSumName: { width: '70%', paddingLeft: 10 },
   wSumTotal: { width: '22%', textAlign: 'right' },
@@ -451,17 +479,19 @@ export function DetailQuotationDocument({
 
           <View style={styles.tableWrapper}>
             {entry.lines.map((line, lineIndex) => (
-              <View key={line.id} style={styles.tRow}>
-                <Text style={[styles.tdCol, styles.wSl]}>
+              <View key={line.id} style={styles.tRowDetail}>
+                <Text style={[styles.tdColAbs, styles.posSl]}>
                   {String(lineIndex + 1).padStart(2, '0')}
                 </Text>
-                <Text style={[styles.tdCol, styles.wName, styles.bold]}>{line.description}</Text>
-                <View style={[styles.tdCol, styles.wMats]}>
+                <Text style={[styles.tdColAbs, styles.posName, styles.bold]}>{line.description}</Text>
+                
+                <View style={styles.wMatsFlow}>
                   <MaterialTextPdf text={line.materials} />
                 </View>
-                <Text style={[styles.tdCol, styles.wQty]}>{formatDetailQtyCell(line)}</Text>
-                <Text style={[styles.tdCol, styles.wPrice]}>{formatDetailUnitPriceCell(line)}</Text>
-                <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }]}>
+
+                <Text style={[styles.tdColAbs, styles.posQty]}>{formatDetailQtyCell(line)}</Text>
+                <Text style={[styles.tdColAbs, styles.posPrice]}>{formatDetailUnitPriceCell(line)}</Text>
+                <Text style={[styles.tdColAbs, styles.posTotal, styles.bold, { color: PRIMARY }]}>
                   {formatDetailTotalCell(line)}
                   {line.description.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
                 </Text>
