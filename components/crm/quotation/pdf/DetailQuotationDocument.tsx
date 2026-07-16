@@ -15,8 +15,8 @@ const PRIMARY = '#0f5b53';
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 170,
-    paddingBottom: 70,
+    paddingTop: 150,
+    paddingBottom: 90,
     paddingLeft: 40,
     paddingRight: 40,
     fontFamily: 'Helvetica',
@@ -323,14 +323,10 @@ const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
 
       {/* Client Details Section */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 5 }}>
-        <View style={{ width: '60%' }}>
+        <View style={{ width: '100%' }}>
           <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
           <Text style={[styles.bold, { fontSize: 11, color: PRIMARY, marginBottom: 2 }]}>{clientName}</Text>
           <Text style={{ fontSize: 9, color: '#555555' }}>{clientAddress}</Text>
-        </View>
-        <View style={{ width: '35%', alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Project</Text>
-          <Text style={[styles.bold, { fontSize: 9, color: PRIMARY, textAlign: 'right' }]}>{subject || 'Interior Design & Execution'}</Text>
         </View>
       </View>
     </View>

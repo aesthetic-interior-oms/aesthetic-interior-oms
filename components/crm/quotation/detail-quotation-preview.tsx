@@ -83,7 +83,7 @@ function PageHeader({
   const quoteId = getQuoteId(date)
 
   return (
-    <div className="flex flex-col mb-10 relative z-10">
+    <div className="flex flex-col mb-6 relative z-10">
       {/* Top section: Logo and Meta */}
       <div className="flex justify-between items-end pb-3">
         {/* Left: Logo */}
@@ -101,14 +101,10 @@ function PageHeader({
 
       {/* Client Details Section */}
       <div className="flex justify-between pb-2">
-        <div className="w-[60%]">
+        <div className="w-[100%]">
           <p className="text-[9px] text-[#a57c00] uppercase tracking-wider mb-1 font-bold">Prepared For</p>
           <p className="text-[14px] font-bold text-[#0f5b53] leading-snug mb-0.5">{clientName}</p>
           <p className="text-[10px] text-neutral-600 leading-snug max-w-[250px]">{clientAddress || '—'}</p>
-        </div>
-        <div className="w-[35%] flex flex-col items-end">
-          <p className="text-[9px] text-[#a57c00] uppercase tracking-wider mb-1 font-bold">Project</p>
-          <p className="text-[11px] font-bold text-[#0f5b53] text-right">Interior Design &amp; Execution</p>
         </div>
       </div>
     </div>
@@ -117,7 +113,7 @@ function PageHeader({
 
 function PageFooter() {
   return (
-    <div className="border-t border-[#a57c00] pt-3 mt-6 relative z-10 flex justify-between text-[9px] text-neutral-700">
+    <div className="border-t border-[#a57c00] pt-3 mt-12 relative z-10 flex justify-between text-[9px] text-neutral-700">
       <div className="w-[35%]">
         <p className="font-bold mb-1" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
         <p>183, East Senpara, Begum Rokeya Soroni</p>
