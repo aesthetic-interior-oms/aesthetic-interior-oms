@@ -15,7 +15,7 @@ const PRIMARY = '#0f5b53';
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 130,
+    paddingTop: 170,
     paddingBottom: 70,
     paddingLeft: 40,
     paddingRight: 40,

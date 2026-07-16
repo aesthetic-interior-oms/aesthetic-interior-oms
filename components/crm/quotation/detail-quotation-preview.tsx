@@ -83,7 +83,7 @@ function PageHeader({
   const quoteId = getQuoteId(date)
 
   return (
-    <div className="flex flex-col mb-6 relative z-10">
+    <div className="flex flex-col mb-10 relative z-10">
       {/* Top section: Logo and Meta */}
       <div className="flex justify-between items-end pb-3">
         {/* Left: Logo */}
