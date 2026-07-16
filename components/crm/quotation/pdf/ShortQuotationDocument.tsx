@@ -147,9 +147,9 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
                     <Text style={[styles.cell, styles.mediumCell, { textAlign: 'center' }]}>Unit Price</Text>
                     <Text style={[styles.cell, styles.amountCell]}>Total</Text>
                   </View>
-                  {room.lines.map((line) => (
+                  {room.lines.map((line, lineIndex) => (
                     <View key={line.id} style={styles.tableRow}>
-                      <Text style={[styles.cell, styles.smallCell]}>{line.serialNo}</Text>
+                      <Text style={[styles.cell, styles.smallCell]}>{lineIndex + 1}</Text>
                       <Text style={[styles.cell, styles.largeCell]}>{line.name}</Text>
                       <Text style={[styles.cell, styles.mediumCell, { textAlign: 'center' }]}>
                         {line.quantitySqft != null ? formatAmount(line.quantitySqft) : '-'}

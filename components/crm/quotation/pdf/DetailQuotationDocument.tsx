@@ -451,9 +451,9 @@ export function DetailQuotationDocument({
 
           <View style={styles.tableWrapper}>
             {entry.lines.map((line, lineIndex) => (
-              <View key={line.id} style={styles.tRow} wrap={false}>
+              <View key={line.id} style={styles.tRow}>
                 <Text style={[styles.tdCol, styles.wSl]}>
-                  {String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}
+                  {String(lineIndex + 1).padStart(2, '0')}
                 </Text>
                 <Text style={[styles.tdCol, styles.wName, styles.bold]}>{line.description}</Text>
                 <View style={[styles.tdCol, styles.wMats]}>

@@ -76,10 +76,10 @@ export function ShortQuotationPrint({ content }: ShortQuotationPrintProps) {
                     </td>
                   </tr>
                   {/* Item Rows */}
-                  {roomSummary.lines.map((line) => (
+                  {roomSummary.lines.map((line, lineIndex) => (
                     <tr key={line.id} className="bg-white text-black">
                       <td className="border border-black px-2 py-1.5 text-center align-middle font-medium">
-                        {line.serialNo}
+                        {lineIndex + 1}
                       </td>
                       <td className="border border-black px-3 py-1.5 text-left align-middle font-medium">
                         {line.name}

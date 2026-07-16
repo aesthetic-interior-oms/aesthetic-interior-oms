@@ -313,7 +313,7 @@ export function DetailQuotationPreview({
                 style={{ borderColor: '#eeeeee' }}
               >
                 <span className="w-[8%] text-center text-neutral-500 pt-0.5">
-                  {String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}
+                  {String(lineIndex + 1).padStart(2, '0')}
                 </span>
                 <span className="w-[22%] font-bold pr-1 leading-snug">{line.description}</span>
                 <span className="w-[36%] pr-1">{formatMaterialText(line.materials)}</span>
