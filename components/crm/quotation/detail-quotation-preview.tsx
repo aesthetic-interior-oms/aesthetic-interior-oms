@@ -58,12 +58,12 @@ function getQuoteId(date: string) {
   return `QTN-${suffix}`
 }
 
-// QR Code inline SVG matching the one in the PDF
-function QRCode() {
+// Watermark component for pages
+function WatermarkBackground() {
   return (
-    <svg viewBox="0 0 296 296" width={40} height={40} className="flex-shrink-0">
-      <path d="M32,236v-28h56v56H32V236L32,236z M80,236v-20H40v40h40V236L80,236z M48,236v-12h24v24H48V236L48,236z M104,260v-4h-8v-16h8v-24h8v-8H96v-8H64v-8h8v-8H56v16h-8v-8H32v-8h16v-16h-8v8h-8v-16h16v8h8v8h8v-8h8v8h16v-8h-8v-8H56v-8h24v-8H56v-8h-8v8H32v-24h8v8h48v-8h-8v-8H64v8h-8v-8H40V96h16v16h8v-8h16v-8h8v8h-8v8h8v8h8v-16h8v-8h-8V72h16v8h8v8h-8v8h8v48h-16v-8h-8v8h-8v8h-8v8h8v8h8v8h16v-8h-8v-8h-8v-8h16v16h8v-16h8v16h8v-24h8v-8h8v8h-8v8h8v8h24v-8h-8v-8h-8v-16h-8v-8h8v-8h8v-8h-8v-8h-8v16h-8v-8h-8v8h-8v-8h8v-8h-8V72h-8v-8h8v8h8V40h8v16h16v-8h-8V32h16v8h-8v8h16v-8h8v-8h16v24h-16v-8h-8v16h8v24h8v-8h8v40h16v-8h-8V96h16v24h16v-8h-8V96h8v16h8v-8h16v16h-8v-8h-8v8h-8v24h8v8h-8v8h-16v8h-8v8h-16v-8h-8v-8h-8v16h8v8h24v8h16v-8h-8v-8h8v-8h8v8h8v8h8v-16h-8v-8h16v24h-8v16h8v16h-8v24h8v8h-24v16h-24v-8h16v-8h-16v-16h-8v16h-8v8h8v8h-16v-24h-8v16h-8v-8h-8v-32h8v24h8v-24h8v-16h-8v-8h-8v-8h8v-8h-8v-8h-8v32h8v8h-16v16h-8v16h8v8h-8v8h16v8h-16v-8h-8v-8h-8v16h-32V260L104,260z M128,248v-8h8v-24h-16v8h8v8h-16v8h-8v8h8v8h16V248L128,248z M240,240v-8h8v-16h8v-8h-8v-24h-8v24h8v8h-8v8h-8v24h8V240L240,240z M200,236v-4h-8v8h8V236L200,236z M152,220v-4h-8v8h8V220L152,220z M224,212v-12h-24v24h24V212L224,212z M208,212v-4h8v8h-8V212L208,212z M144,204v-4h16v-8h-16v-8h-8v8h8v8h-16v-8h-8v8h-8v-8h-8v-8h-8v-8h-8v8h-8v8h8v-8h8v8h8v8h8v8h32V204L144,204z M120,180v-4h-8v8h8V180L120,180z M160,176v-8h-16v8h8v8h8V176L160,176z M208,164v-4h-8v8h8V164L208,164z M224,156v-4h8v-24h-8v8h-8v8h-8v-8h-16v-8h-8v-8h8V96h-8v-8h-8v-8h-8v8h-8V64h8v8h8v-8h-8v-8h-8v8h-8v24h8v8h8v-8h8v24h-8v8h-8v8h8v16h8v-8h16v8h8v8h16v8h8V156L224,156z M216,148v-4h8v8h-8V148L216,148z M88,140v-4h8v-8h-8v8h-8v8h8V140L88,140z M112,124v-4h-8v8h8V124L112,124z M112,84v-4h-8v8h8V84L112,84z M144,80v-8h-8v16h8V80L144,80z M192,44v-4h-8v8h8V44L192,44z M256,260v-4h8v8h-8V260L256,260z M256,144v-8h-8v-8h8v8h8v16h-8V144L256,144z M32,60V32h56v56H32V60L32,60zM80,60V40H40v40h40V60L80,60z M48,60V48h24v24H48V60L48,60z M208,60V32h56v56h-56V60L208,60z M256,60V40h-40v40h40V60L256,60zM224,60V48h24v24h-24V60L224,60z M96,60v-4h8v8h-8V60L96,60z M112,52v-4h-8V32h8v8h8v-8h8v8h-8v16h-8V52L112,52z" />
-    </svg>
+    <div className="absolute inset-0 z-0 flex items-center justify-center opacity-5 pointer-events-none">
+      <img src="/android-chrome-512x512.png" alt="watermark" className="w-[400px] h-[400px] object-contain" />
+    </div>
   )
 }
 
@@ -83,42 +83,32 @@ function PageHeader({
   const quoteId = getQuoteId(date)
 
   return (
-    <div className="flex justify-between items-start border-b border-neutral-200 pb-4 mb-5">
-      {/* Left: Logo + Client */}
-      <div className="flex flex-col gap-4">
-        <img src="/Logo/HeaderLogo.png" alt="Logo" className="h-10 object-contain object-left" />
-        <div>
-          <p className="text-[9px] text-neutral-400 uppercase tracking-wider mb-0.5">Prepared For</p>
-          <p className="text-[11px] font-bold text-[#0f5b53] leading-snug">{clientName}</p>
-          <p className="text-[9px] text-neutral-500 mt-0.5 leading-snug max-w-[200px]">{clientAddress || '—'}</p>
+    <div className="flex flex-col mb-6 relative z-10">
+      <div className="flex justify-between items-start border-b border-[#a57c00] pb-4">
+        {/* Left: Logo */}
+        <div className="w-[45%]">
+          <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[180px] object-contain object-left mb-2" />
+        </div>
+        {/* Right: Quotation Details */}
+        <div className="w-[50%] flex flex-col items-end">
+          <span className="text-xl font-bold uppercase tracking-widest mb-1" style={{ color: PRIMARY }}>
+            Quotation
+          </span>
+          <p className="text-[10px] text-neutral-500 mb-0.5"><span className="font-bold">Quote ID:</span> {quoteId}</p>
+          <p className="text-[10px] text-neutral-500"><span className="font-bold">Date:</span> {formattedDate}</p>
         </div>
       </div>
-
-      {/* Right: QUOTATION + QR + meta box */}
-      <div className="flex flex-col items-end gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-[14px] font-bold tracking-wider" style={{ color: PRIMARY }}>
-            QUOTATION
-          </span>
-          <QRCode />
+      
+      {/* Client Details Section */}
+      <div className="flex justify-between mt-4">
+        <div className="w-[60%]">
+          <p className="text-[9px] text-[#a57c00] uppercase tracking-wider mb-1">Prepared For</p>
+          <p className="text-[14px] font-bold text-[#0f5b53] leading-snug mb-0.5">{clientName}</p>
+          <p className="text-[10px] text-neutral-600 leading-snug max-w-[250px]">{clientAddress || '—'}</p>
         </div>
-        <div
-          className="rounded text-[9px]"
-          style={{
-            backgroundColor: '#f5f9f8',
-            borderLeft: `3px solid ${PRIMARY}`,
-            padding: '6px 10px',
-            minWidth: 170,
-          }}
-        >
-          <div className="flex justify-between items-center gap-4 mb-1">
-            <span className="text-neutral-400 uppercase text-[8px] font-bold">Date &amp; Time</span>
-            <span className="font-bold text-neutral-800 text-[8px]">{formattedDate}</span>
-          </div>
-          <div className="flex justify-between items-center gap-4">
-            <span className="text-neutral-400 uppercase text-[8px] font-bold">Quote ID</span>
-            <span className="font-bold text-neutral-800 text-[8px]">{quoteId}</span>
-          </div>
+        <div className="w-[35%] flex flex-col items-end">
+          <p className="text-[9px] text-[#a57c00] uppercase tracking-wider mb-1">Project / Subject</p>
+          <p className="text-[11px] font-bold text-[#0f5b53] text-right">Interior Design &amp; Execution</p>
         </div>
       </div>
     </div>
@@ -127,26 +117,19 @@ function PageHeader({
 
 function PageFooter() {
   return (
-    <div className="border-t border-neutral-200 pt-3 mt-6">
-      <div className="flex justify-between text-[8px] text-neutral-500 mb-1.5">
-        <div className="flex items-center gap-1.5">
-          <Phone className="w-2.5 h-2.5 flex-shrink-0" style={{ color: PRIMARY }} />
-          <span>+88 01329 694660, +88 01329 694661</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Mail className="w-2.5 h-2.5 flex-shrink-0" style={{ color: PRIMARY }} />
-          <span>aestheticinteriorstudio@gmail.com</span>
-        </div>
+    <div className="border-t border-[#a57c00] pt-3 mt-6 relative z-10 flex justify-between text-[9px] text-neutral-700">
+      <div className="w-[35%]">
+        <p className="font-bold mb-1" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
+        <p>183, East Senpara, Begum Rokeya Soroni</p>
+        <p>3rd floor, Mirpur 10, Dhaka-1216</p>
       </div>
-      <div className="flex justify-between text-[8px] text-neutral-500">
-        <div className="flex items-center gap-1.5">
-          <MapPin className="w-2.5 h-2.5 flex-shrink-0" style={{ color: PRIMARY }} />
-          <span>2nd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Globe className="w-2.5 h-2.5 flex-shrink-0" style={{ color: PRIMARY }} />
-          <span className="font-bold" style={{ color: PRIMARY }}>www.aestheticinteriorbd.com</span>
-        </div>
+      <div className="w-[30%] flex flex-col items-center">
+        <p>+88 0132969 4663</p>
+        <p>hello@aestheticinterior.com</p>
+        <p className="font-bold" style={{ color: PRIMARY }}>www.aestheticinteriorbd.com</p>
+      </div>
+      <div className="w-[35%] flex flex-col justify-end items-end">
+        <p className="text-neutral-500">© 2026 All rights reserved.</p>
       </div>
     </div>
   )
@@ -222,7 +205,8 @@ export function DetailQuotationPreview({
   return (
     <div className={`detail-quotation-preview w-full bg-neutral-100 ${className ?? ''}`}>
       {/* ── SUMMARY PAGE ─────────────────────────────── */}
-      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-16 box-border shadow-md mb-6">
+      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-16 box-border shadow-md mb-6 overflow-hidden">
+        <WatermarkBackground />
         <PageHeader
           date={normalized.quotationDate ?? ''}
           clientName={clientName}
@@ -284,8 +268,9 @@ export function DetailQuotationPreview({
       {floorSummaries.map((entry) => (
         <section
           key={entry.floor.id}
-          className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-16 box-border shadow-md mb-6"
+          className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-16 box-border shadow-md mb-6 flex flex-col overflow-hidden"
         >
+          <WatermarkBackground />
           <PageHeader
             date={normalized.quotationDate ?? ''}
             clientName={clientName}
@@ -355,7 +340,8 @@ export function DetailQuotationPreview({
       ))}
 
       {/* ── TERMS PAGE ───────────────────────────────── */}
-      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-16 box-border shadow-md mb-6">
+      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-16 box-border shadow-md flex flex-col overflow-hidden">
+        <WatermarkBackground />
         <PageHeader
           date={normalized.quotationDate ?? ''}
           clientName={clientName}

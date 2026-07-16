@@ -280,21 +280,12 @@ const formatDateString = (dateString: string) => {
   }
 }
 
-const HeaderIcon = ({ path }: { path: string }) => (
-  <View style={{ width: 10, height: 10, marginRight: 4 }}>
-    <Svg viewBox="0 0 24 24" width={10} height={10}>
-      <Path d={path} fill={PRIMARY} />
-    </Svg>
+const WatermarkBackground = () => (
+  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: -1, opacity: 0.05 }}>
+    <Image src="/android-chrome-512x512.png" style={{ width: 400, height: 400 }} />
   </View>
 );
 
-const QRCodeIcon = () => (
-  <View style={{ width: 35, height: 35 }}>
-    <Svg viewBox="0 0 296 296" width={35} height={35}>
-      <Path d="M32,236v-28h56v56H32V236L32,236z M80,236v-20H40v40h40V236L80,236z M48,236v-12h24v24H48V236L48,236z M104,260v-4h-8v-16h8v-24h8v-8H96v-8H64v-8h8v-8H56v16h-8v-8H32v-8h16v-16h-8v8h-8v-16h16v8h8v8h8v-8h8v8h16v-8h-8v-8H56v-8h24v-8H56v-8h-8v8H32v-24h8v8h48v-8h-8v-8H64v8h-8v-8H40V96h16v16h8v-8h16v-8h8v8h-8v8h8v8h8v-16h8v-8h-8V72h16v8h8v8h-8v8h8v48h-16v-8h-8v8h-8v8h-8v8h8v8h8v8h16v-8h-8v-8h-8v-8h16v16h8v-16h8v16h8v-24h8v-8h8v8h-8v8h8v8h24v-8h-8v-8h-8v-16h-8v-8h8v-8h8v-8h-8v-8h-8v16h-8v-8h-8v8h-8v-8h8v-8h-8V72h-8v-8h8v8h8V40h8v16h16v-8h-8V32h16v8h-8v8h16v-8h8v-8h16v24h-16v-8h-8v16h8v24h8v-8h8v40h16v-8h-8V96h16v24h16v-8h-8V96h8v16h8v-8h16v16h-8v-8h-8v8h-8v24h8v8h-8v8h-16v8h-8v8h-16v-8h-8v-8h-8v16h8v8h24v8h16v-8h-8v-8h8v-8h8v8h8v8h8v-16h-8v-8h16v24h-8v16h8v16h-8v24h8v8h-24v16h-24v-8h16v-8h-16v-16h-8v16h-8v8h8v8h-16v-24h-8v16h-8v-8h-8v-32h8v24h8v-24h8v-16h-8v-8h-8v-8h8v-8h-8v-8h-8v32h8v8h-16v16h-8v16h8v8h-8v8h16v8h-16v-8h-8v-8h-8v16h-32V260L104,260z M128,248v-8h8v-24h-16v8h8v8h-16v8h-8v8h8v8h16V248L128,248z M240,240v-8h8v-16h8v-8h-8v-24h-8v24h8v8h-8v8h-8v24h8V240L240,240z M200,236v-4h-8v8h8V236L200,236z M152,220v-4h-8v8h8V220L152,220z M224,212v-12h-24v24h24V212L224,212z M208,212v-4h8v8h-8V212L208,212z M144,204v-4h16v-8h-16v-8h-8v8h8v8h-16v-8h-8v8h-8v-8h-8v-8h-8v-8h-8v8h-8v8h8v-8h8v8h8v8h8v8h32V204L144,204z M120,180v-4h-8v8h8V180L120,180z M160,176v-8h-16v8h8v8h8V176L160,176z M208,164v-4h-8v8h8V164L208,164z M224,156v-4h8v-24h-8v8h-8v8h-8v-8h-16v-8h-8v-8h8V96h-8v-8h-8v-8h-8v8h-8V64h8v8h8v-8h-8v-8h-8v8h-8v24h8v8h8v-8h8v24h-8v8h-8v8h8v16h8v-8h16v8h8v8h16v8h8V156L224,156z M216,148v-4h8v8h-8V148L216,148z M88,140v-4h8v-8h-8v8h-8v8h8V140L88,140z M112,124v-4h-8v8h8V124L112,124z M112,84v-4h-8v8h8V84L112,84z M144,80v-8h-8v16h8V80L144,80z M192,44v-4h-8v8h8V44L192,44z M256,260v-4h8v8h-8V260L256,260z M256,144v-8h-8v-8h8v8h8v16h-8V144L256,144z M32,60V32h56v56H32V60L32,60zM80,60V40H40v40h40V60L80,60z M48,60V48h24v24H48V60L48,60z M208,60V32h56v56h-56V60L208,60z M256,60V40h-40v40h40V60L256,60zM224,60V48h24v24h-24V60L224,60z M96,60v-4h8v8h-8V60L96,60z M112,52v-4h-8V32h8v8h8v-8h8v8h-8v16h-8V52L112,52z" fill="#000000" />
-    </Svg>
-  </View>
-);
 
 const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
   let qtnIdSuffix = Math.floor(Math.random() * 1000000).toString();
@@ -316,34 +307,28 @@ const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
 
   return (
     <View style={styles.header}>
-      <View style={{ width: '50%' }}>
-        <Image src="/Logo/HeaderLogo.png" style={styles.logo} />
-        <View style={{ marginTop: 20 }}>
-          <Text style={{ fontSize: 6, color: '#666666', marginBottom: 2 }}>PREPARED FOR</Text>
-          <Text style={[styles.bold, { fontSize: 9, color: PRIMARY, marginBottom: 2 }]}>{clientName}</Text>
-          <Text style={{ fontSize: 7, color: '#555555' }}>{clientAddress}</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', borderBottomWidth: 1, borderBottomColor: '#a57c00', paddingBottom: 15 }}>
+        {/* Left: Logo */}
+        <View style={{ width: '45%' }}>
+          <Image src="/Logo/HeaderLogo.png" style={{ width: 140, marginBottom: 10 }} />
+        </View>
+        {/* Right: Quotation Details */}
+        <View style={{ width: '50%', alignItems: 'flex-end' }}>
+          <Text style={{ fontSize: 20, color: PRIMARY, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>Quotation</Text>
+          <Text style={{ fontSize: 9, color: '#555555', marginBottom: 2 }}><Text style={styles.bold}>Quote ID:</Text> {qtnId}</Text>
+          <Text style={{ fontSize: 9, color: '#555555', marginBottom: 2 }}><Text style={styles.bold}>Date:</Text> {formattedDate}</Text>
         </View>
       </View>
-      <View style={styles.headerRight}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Text style={[styles.docTitle, { marginRight: 10 }]}>QUOTATION</Text>
-          <QRCodeIcon />
+      {/* Client Details Section */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 }}>
+        <View style={{ width: '60%' }}>
+          <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
+          <Text style={[styles.bold, { fontSize: 11, color: PRIMARY, marginBottom: 2 }]}>{clientName}</Text>
+          <Text style={{ fontSize: 9, color: '#555555' }}>{clientAddress}</Text>
         </View>
-        <View style={styles.metaBox}>
-          <View style={styles.metaRowFlex}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <HeaderIcon path="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z" />
-              <Text style={styles.metaBoxLabel}>Date &amp; Time</Text>
-            </View>
-            <Text style={styles.metaBoxValue}>{formattedDate}</Text>
-          </View>
-          <View style={[styles.metaRowFlex, { marginBottom: 0 }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <HeaderIcon path="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
-              <Text style={styles.metaBoxLabel}>Quote ID</Text>
-            </View>
-            <Text style={styles.metaBoxValue}>{qtnId}</Text>
-          </View>
+        <View style={{ width: '35%', alignItems: 'flex-end' }}>
+          <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Project / Subject</Text>
+          <Text style={[styles.bold, { fontSize: 9, color: PRIMARY, textAlign: 'right' }]}>{subject || 'Interior Design & Execution'}</Text>
         </View>
       </View>
     </View>
@@ -352,24 +337,19 @@ const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
 
 const FooterFixed = () => (
   <View style={styles.footerFixed} fixed>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <HeaderIcon path="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1v3.5c0 .55-.45 1-1 1H4c0 5.07 4.02 9.2 9 9.5z" />
-        <Text style={styles.footerText}>+88 01329 694660, +88 01329 694661</Text>
+    <View style={{ borderTopWidth: 1, borderTopColor: '#a57c00', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
+      <View style={{ width: '35%' }}>
+        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', marginBottom: 3 }]}>Aesthetic Interior Studio</Text>
+        <Text style={styles.footerText}>183, East Senpara, Begum Rokeya Soroni</Text>
+        <Text style={styles.footerText}>3rd floor, Mirpur 10, Dhaka-1216</Text>
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <HeaderIcon path="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
-        <Text style={styles.footerText}>aestheticinteriorstudio@gmail.com</Text>
-      </View>
-    </View>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <HeaderIcon path="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-        <Text style={styles.footerText}>2nd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka</Text>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <HeaderIcon path="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" />
+      <View style={{ width: '30%', alignItems: 'center' }}>
+        <Text style={styles.footerText}>+88 0132969 4663</Text>
+        <Text style={styles.footerText}>hello@aestheticinterior.com</Text>
         <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold' }]}>www.aestheticinteriorbd.com</Text>
+      </View>
+      <View style={{ width: '35%', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
+        <Text style={styles.footerText}>© 2026 All rights reserved.</Text>
       </View>
     </View>
   </View>
@@ -415,6 +395,7 @@ export function DetailQuotationDocument({
     <Document>
       {/* SUMMARY PAGE */}
       <Page size="A4" style={styles.page}>
+        <WatermarkBackground />
         <GlobalHeader 
           date={content.quotationDate ?? ''} 
           subject={content.subject ?? ''} 
@@ -459,6 +440,7 @@ export function DetailQuotationDocument({
       {/* DETAIL PAGES */}
       {floorSummaries.map((entry) => (
         <Page key={entry.floor.id} size="A4" style={styles.page}>
+          <WatermarkBackground />
           <GlobalHeader 
             date={content.quotationDate ?? ''} 
             subject={content.subject ?? ''} 
@@ -511,6 +493,7 @@ export function DetailQuotationDocument({
 
       {/* TERMS PAGE */}
       <Page size="A4" style={styles.page}>
+        <WatermarkBackground />
         <GlobalHeader 
           date={content.quotationDate ?? ''} 
           subject={content.subject ?? ''} 
