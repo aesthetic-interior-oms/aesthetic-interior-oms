@@ -1,8 +1,6 @@
 'use client'
 
-import { Fragment } from 'react'
-import { Phone, Mail, MapPin, Globe, Instagram, Facebook } from 'lucide-react'
-import { formatShortQuotationDate } from '@/lib/short-quotation-calculations'
+import { Phone, Mail, MapPin, Globe } from 'lucide-react'
 import { amountInWordsTaka } from '@/lib/number-to-words'
 import {
   buildDetailFloorSummaries,
@@ -10,10 +8,11 @@ import {
   formatDetailQtyCell,
   formatDetailTotalCell,
   formatDetailUnitPriceCell,
-  isPackageLine,
   withDetailQuotationDefaults,
 } from '@/lib/detail-quotation-format'
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
+
+const PRIMARY = '#0f5b53'
 
 type DetailQuotationPreviewProps = {
   content: QuotationDraftContent
@@ -23,208 +22,181 @@ type DetailQuotationPreviewProps = {
   className?: string
 }
 
-function HeaderLogo() {
+function formatDateString(dateString: string) {
+  if (!dateString) return 'N/A'
+  try {
+    let timestamp = Date.parse(dateString)
+    if (isNaN(timestamp) && dateString.includes('-')) {
+      const parts = dateString.split('-')
+      if (parts.length === 3) {
+        timestamp = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime()
+      }
+    }
+    if (isNaN(timestamp)) return dateString
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    })
+  } catch {
+    return dateString
+  }
+}
+
+function getQuoteId(date: string) {
+  let suffix = Math.floor(Math.random() * 1000000).toString()
+  if (date) {
+    let timestamp = Date.parse(date)
+    if (isNaN(timestamp) && date.includes('-')) {
+      const parts = date.split('-')
+      if (parts.length === 3) {
+        timestamp = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime()
+      }
+    }
+    if (!isNaN(timestamp)) suffix = timestamp.toString().slice(-6)
+  }
+  return `QTN-${suffix}`
+}
+
+// QR Code inline SVG matching the one in the PDF
+function QRCode() {
   return (
-    <div className="w-full flex justify-between items-center border-b-2 border-[#0f5b53] pb-3 font-sans select-none pointer-events-none">
-      <div className="flex items-center gap-3">
-        <img
-          src="/android-chrome-192x192.png"
-          className="h-[48px] w-[48px] object-contain flex-shrink-0"
-          alt="Logo"
-        />
-        <div className="flex flex-col">
-          <h1 className="text-xl font-bold font-serif tracking-wide text-[#bf9000] uppercase leading-none">
-            Aesthetic Interior
-          </h1>
-          <div className="bg-[#0f5b53] text-white text-[9px] font-bold tracking-[0.25em] px-2.5 py-0.5 mt-1.5 text-center uppercase font-sans rounded-[2px] leading-tight">
-            Interior Studio
-          </div>
-        </div>
-      </div>
-      <div className="border border-neutral-300 p-1 bg-white rounded-sm shadow-sm flex items-center justify-center">
-        <svg width="45" height="45" viewBox="0 0 29 29" className="text-black fill-current">
-          <path d="M0 0h9v9H0zm1 1v7h7V1zm8 0h1v1H9zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h4v4h-4zm3 1v2h-2V2zm-2 2h1v1h-1zm-3-2h1v1h-1zm1 1h1v1h-1zm-2 0h1v1h-1zm-1 1h1v1h-1zm-2-2h1v1h-1zm1 1h1v1h-1zm1 1h1v1h-1zm5 1h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-9 1h1v1H9zm1 0h2v1h-2zm2 0h2v1h-2zm3 0h1v1h-1zm2 0h1v1h-1zm-8 1h1v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm3 0h1v1h-1zm1 0h2v1h-2zm1 0h1v1h-1zm-9 1h1v1H9zm2 0h1v1h-1zm2 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm2 0h2v1h-2zm-9 1h3v1H9zm4 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-9 1h1v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm2 0h2v1h-2zm-12 1h1v1H0zm1 0h2v1H1zm2 0h1v1H3zm1 0h1v1H4zm2 0h3v1H6zm4 0h1v1h-1zm3 0h1v1h-1zm1 0h2v1h-2zm3 0h1v1h-1zm2 0h1v1h-1zm1 0h3v1h-3zm-19 1v7h7v-7zm1 1h5v5h-5zm7-1h1v1h-1zm2 0h1v1h-1zm2 0h1v1h-1zm2 0h2v1h-2zm3 0h1v1h-1zm-8 1h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm2 0h2v1h-2zm1 0h1v1h-1zm1 0h1v1h-1zm-7 1h2v1h-2zm4 0h2v1h-2zm4 0h1v1h-1zm-10 1h1v1H8zm2 0h1v1h-1zm1 0h1v1h-1zm3 0h1v1h-1zm1 0h1v1h-1zm2 0h1v1h-1zm-9 1h1v1H9zm2 0h1v1h-1zm2 0h2v1h-2zm2 0h1v1h-1zm2 0h2v1h-2zm-9 1h1v1H9zm3 0h1v1h-1zm1 0h1v1h-1zm3 0h2v1h-2zm1 0h1v1h-1zm-19 1h9v9H0zm1 1v7h7V21zm11-1h1v1h-1zm2 0h1v1h-1zm1 0h2v1h-2zm2 0h1v1h-1zm1 0h2v1h-2zm-7 1h1v1h-1zm2 0h1v1h-1zm3 0h2v1h-2zm1 0h1v1h-1zm-7 1h1v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h2v1h-2zm4 0h1v1h-1zm1 0h1v1h-1zm-9 1h2v1H9zm3 0h1v1h-1zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm-7 1h1v1H9zm1 0h1v1h-1zm2 0h1v1h-1zm2 0h2v1h-2zm2 0h1v1h-1zm-8 1h1v1H9zm2 0h1v1h-1zm1 0h1v1h-1zm1 0h1v1h-1zm2 0h1v1h-1zm2 0h1v1h-1z" />
-        </svg>
-      </div>
-    </div>
+    <svg viewBox="0 0 296 296" width={40} height={40} className="flex-shrink-0">
+      <path d="M32,236v-28h56v56H32V236L32,236z M80,236v-20H40v40h40V236L80,236z M48,236v-12h24v24H48V236L48,236z M104,260v-4h-8v-16h8v-24h8v-8H96v-8H64v-8h8v-8H56v16h-8v-8H32v-8h16v-16h-8v8h-8v-16h16v8h8v8h8v-8h8v8h16v-8h-8v-8H56v-8h24v-8H56v-8h-8v8H32v-24h8v8h48v-8h-8v-8H64v8h-8v-8H40V96h16v16h8v-8h16v-8h8v8h-8v8h8v8h8v-16h8v-8h-8V72h16v8h8v8h-8v8h8v48h-16v-8h-8v8h-8v8h-8v8h8v8h8v8h16v-8h-8v-8h-8v-8h16v16h8v-16h8v16h8v-24h8v-8h8v8h-8v8h8v8h24v-8h-8v-8h-8v-16h-8v-8h8v-8h8v-8h-8v-8h-8v16h-8v-8h-8v8h-8v-8h8v-8h-8V72h-8v-8h8v8h8V40h8v16h16v-8h-8V32h16v8h-8v8h16v-8h8v-8h16v24h-16v-8h-8v16h8v24h8v-8h8v40h16v-8h-8V96h16v24h16v-8h-8V96h8v16h8v-8h16v16h-8v-8h-8v8h-8v24h8v8h-8v8h-16v8h-8v8h-16v-8h-8v-8h-8v16h8v8h24v8h16v-8h-8v-8h8v-8h8v8h8v8h8v-16h-8v-8h16v24h-8v16h8v16h-8v24h8v8h-24v16h-24v-8h16v-8h-16v-16h-8v16h-8v8h8v8h-16v-24h-8v16h-8v-8h-8v-32h8v24h8v-24h8v-16h-8v-8h-8v-8h8v-8h-8v-8h-8v32h8v8h-16v16h-8v16h8v8h-8v8h16v8h-16v-8h-8v-8h-8v16h-32V260L104,260z M128,248v-8h8v-24h-16v8h8v8h-16v8h-8v8h8v8h16V248L128,248z M240,240v-8h8v-16h8v-8h-8v-24h-8v24h8v8h-8v8h-8v24h8V240L240,240z M200,236v-4h-8v8h8V236L200,236z M152,220v-4h-8v8h8V220L152,220z M224,212v-12h-24v24h24V212L224,212z M208,212v-4h8v8h-8V212L208,212z M144,204v-4h16v-8h-16v-8h-8v8h8v8h-16v-8h-8v8h-8v-8h-8v-8h-8v-8h-8v8h-8v8h8v-8h8v8h8v8h8v8h32V204L144,204z M120,180v-4h-8v8h8V180L120,180z M160,176v-8h-16v8h8v8h8V176L160,176z M208,164v-4h-8v8h8V164L208,164z M224,156v-4h8v-24h-8v8h-8v8h-8v-8h-16v-8h-8v-8h8V96h-8v-8h-8v-8h-8v8h-8V64h8v8h8v-8h-8v-8h-8v8h-8v24h8v8h8v-8h8v24h-8v8h-8v8h8v16h8v-8h16v8h8v8h16v8h8V156L224,156z M216,148v-4h8v8h-8V148L216,148z M88,140v-4h8v-8h-8v8h-8v8h8V140L88,140z M112,124v-4h-8v8h8V124L112,124z M112,84v-4h-8v8h8V84L112,84z M144,80v-8h-8v16h8V80L144,80z M192,44v-4h-8v8h8V44L192,44z M256,260v-4h8v8h-8V260L256,260z M256,144v-8h-8v-8h8v8h8v16h-8V144L256,144z M32,60V32h56v56H32V60L32,60zM80,60V40H40v40h40V60L80,60z M48,60V48h24v24H48V60L48,60z M208,60V32h56v56h-56V60L208,60z M256,60V40h-40v40h40V60L256,60zM224,60V48h24v24h-24V60L224,60z M96,60v-4h8v8h-8V60L96,60z M112,52v-4h-8V32h8v8h8v-8h8v8h-8v16h-8V52L112,52z" />
+    </svg>
   )
 }
 
-function FooterContacts() {
-  return (
-    <div className="w-full flex flex-col font-sans select-none pointer-events-none">
-      <div className="w-full border-t border-neutral-300 pt-2 pb-1.5 flex justify-between items-center text-[10px] leading-tight text-neutral-800">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <Phone className="h-3 w-3 text-[#0f5b53] flex-shrink-0" />
-            <div className="font-bold text-neutral-900">
-              <p>+88 01329 694660, +88 01329 694661, +88 01329 694662</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Mail className="h-3 w-3 text-[#0f5b53] flex-shrink-0" />
-            <p className="font-bold text-neutral-900">aestheticinteriorstudio@gmail.com</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <MapPin className="h-3 w-3 text-[#0f5b53] flex-shrink-0" />
-            <div className="font-bold text-neutral-900">
-              <p>2nd Floor, 183 East Senpara Parbata, Begum Rokeya Sarani, Mirpur 10, Dhaka</p>
-            </div>
-          </div>
-        </div>
-        <div className="h-[55px] opacity-[0.15] text-neutral-600 flex items-end">
-          <svg width="110" height="55" viewBox="0 0 140 70" className="fill-current">
-            <path d="M0 70h140V45h-15V32h-10V18h-15V5h-20v15H80V27H70V40H55V55H35V40H20v30z" />
-          </svg>
-        </div>
-      </div>
-      <div className="bg-[#0f5b53] text-white text-[9px] font-bold py-1 px-4 flex justify-between items-center rounded-sm leading-none">
-        <div className="flex items-center gap-1.5">
-          <Globe className="h-3 w-3 text-white/90" />
-          <span>www.aestheticinteriorbd.com</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Instagram className="h-3 w-3 text-white/90" />
-          <span>aesthetic.interior.studio</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Facebook className="h-3 w-3 text-white/90" />
-          <span>facebook.com/aestheticinteriorofficial</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function DetailHeader({
+function PageHeader({
+  date,
   clientName,
   clientAddress,
-  date,
-  subject,
-  introLetter,
-  isSummary = false,
 }: {
+  date: string
   clientName: string
   clientAddress: string | null
-  date: string
-  subject: string
-  introLetter: string
-  isSummary?: boolean
 }) {
+  const formattedDate =
+    formatDateString(date) +
+    ' ' +
+    new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  const quoteId = getQuoteId(date)
+
   return (
-    <div className="space-y-1.5 text-[13px] leading-relaxed text-black font-sans">
-      <div className="flex flex-wrap justify-between items-start">
+    <div className="flex justify-between items-start border-b border-neutral-200 pb-4 mb-5">
+      {/* Left: Logo + Client */}
+      <div className="flex flex-col gap-4">
+        <img src="/Logo/HeaderLogo.png" alt="Logo" className="h-10 object-contain object-left" />
         <div>
-          <span className="font-bold">{isSummary ? 'Quotation Summary for:' : 'Quotation for:'}</span>
-          <p className="font-medium text-black mt-0.5">{clientName}</p>
-        </div>
-        <div className="text-right">
-          <span className="font-bold">Date:</span> {formatShortQuotationDate(date)}
+          <p className="text-[9px] text-neutral-400 uppercase tracking-wider mb-0.5">Prepared For</p>
+          <p className="text-[11px] font-bold text-[#0f5b53] leading-snug">{clientName}</p>
+          <p className="text-[9px] text-neutral-500 mt-0.5 leading-snug max-w-[200px]">{clientAddress || '—'}</p>
         </div>
       </div>
-      <p>
-        <span className="font-bold">Address:</span> {clientAddress || '—'}
-      </p>
-      <p>
-        <span className="font-bold">Subject:</span> {subject}
-      </p>
-      <p className="font-bold pt-2">Dear Sir,</p>
-      <div className="pt-0.5 font-medium whitespace-pre-wrap leading-relaxed">
-        {introLetter.replace('Dear Sir,\n', '').replace('Dear Sir,', '')}
+
+      {/* Right: QUOTATION + QR + meta box */}
+      <div className="flex flex-col items-end gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[14px] font-bold tracking-wider" style={{ color: PRIMARY }}>
+            QUOTATION
+          </span>
+          <QRCode />
+        </div>
+        <div
+          className="rounded text-[9px]"
+          style={{
+            backgroundColor: '#f5f9f8',
+            borderLeft: `3px solid ${PRIMARY}`,
+            padding: '6px 10px',
+            minWidth: 170,
+          }}
+        >
+          <div className="flex justify-between items-center gap-4 mb-1">
+            <span className="text-neutral-400 uppercase text-[8px] font-bold">Date &amp; Time</span>
+            <span className="font-bold text-neutral-800 text-[8px]">{formattedDate}</span>
+          </div>
+          <div className="flex justify-between items-center gap-4">
+            <span className="text-neutral-400 uppercase text-[8px] font-bold">Quote ID</span>
+            <span className="font-bold text-neutral-800 text-[8px]">{quoteId}</span>
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
-function DetailFooter({
-  notes,
-  terms,
-  paymentTerms,
-  durationNotes,
-  drawingDesign,
-  signatoryName,
-  signatoryTitle,
-}: {
-  notes: string
-  terms: string
-  paymentTerms: string
-  durationNotes: string
-  drawingDesign: string
-  signatoryName: string
-  signatoryTitle: string
-}) {
+function PageFooter() {
   return (
-    <div className="mt-8 space-y-4 text-[13px] leading-relaxed text-black font-sans border-t border-black/10 pt-4 print:border-t-0 print:pt-0">
-      {notes ? (
-        <div>
-          <p className="font-bold underline uppercase">Notes:</p>
-          <p className="whitespace-pre-wrap mt-1 font-medium">{notes}</p>
+    <div className="border-t border-neutral-200 pt-3 mt-6">
+      <div className="flex justify-between text-[8px] text-neutral-500 mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <Phone className="w-2.5 h-2.5 flex-shrink-0" style={{ color: PRIMARY }} />
+          <span>+88 01329 694660, +88 01329 694661</span>
         </div>
-      ) : null}
-
-      {terms && (
-        <div>
-          <p className="font-bold underline uppercase">Terms &amp;Condition:</p>
-          <p className="whitespace-pre-wrap mt-1 font-medium">{terms}</p>
-        </div>
-      )}
-
-      {paymentTerms && (
-        <div>
-          <p className="font-bold underline uppercase">Mode of Payment:</p>
-          <p className="whitespace-pre-wrap mt-1 font-medium">{paymentTerms.replace('Mode of Payment\n', '').replace('Mode of Payment', '')}</p>
-        </div>
-      )}
-
-      {durationNotes && (
-        <div>
-          <p className="font-bold underline uppercase">Duration Of Work:</p>
-          <p className="whitespace-pre-wrap mt-1 font-medium">{durationNotes.replace('Duration Of Work:\n', '').replace('Duration Of Work:', '')}</p>
-        </div>
-      )}
-
-      {drawingDesign && (
-        <p className="text-red-600 font-bold whitespace-pre-wrap leading-normal pt-2">
-          {drawingDesign}
-        </p>
-      )}
-
-      <div className="pt-12 flex justify-between items-end">
-        <div className="w-[40%] text-left">
-          <div className="border-t border-black/40 pt-1.5 font-bold">
-            Customer Name &amp; Sign
-          </div>
-        </div>
-        <div className="w-[45%] text-right">
-          <div className="border-t border-black/40 pt-1.5">
-            <p className="font-bold">{signatoryName}</p>
-            <p className="text-black/80 font-medium text-xs mt-0.5">{signatoryTitle}</p>
-          </div>
+        <div className="flex items-center gap-1.5">
+          <Mail className="w-2.5 h-2.5 flex-shrink-0" style={{ color: PRIMARY }} />
+          <span>aestheticinteriorstudio@gmail.com</span>
         </div>
       </div>
+      <div className="flex justify-between text-[8px] text-neutral-500">
+        <div className="flex items-center gap-1.5">
+          <MapPin className="w-2.5 h-2.5 flex-shrink-0" style={{ color: PRIMARY }} />
+          <span>2nd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Globe className="w-2.5 h-2.5 flex-shrink-0" style={{ color: PRIMARY }} />
+          <span className="font-bold" style={{ color: PRIMARY }}>www.aestheticinteriorbd.com</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="text-[11px] font-bold uppercase tracking-wider px-2 py-1.5 mt-4 mb-0"
+      style={{ color: PRIMARY, backgroundColor: '#e6f0ef' }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function TableHeader({ cols }: { cols: { label: string; className?: string }[] }) {
+  return (
+    <div
+      className="flex text-[8px] font-bold uppercase border-b pt-2 pb-1.5"
+      style={{ color: PRIMARY, borderColor: PRIMARY }}
+    >
+      {cols.map((col) => (
+        <span key={col.label} className={col.className}>
+          {col.label}
+        </span>
+      ))}
     </div>
   )
 }
 
 function formatMaterialText(text: string | null | undefined) {
-  if (!text) return '—'
+  if (!text) return <span className="text-neutral-400">—</span>
   const lines = text.split('\n')
   return (
-    <span className="space-y-0.5 block">
+    <span className="block space-y-0.5">
       {lines.map((line, idx) => {
         const match = line.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
         if (match) {
           const prefix = match[1]
           const rest = line.substring(prefix.length)
           return (
-            <span key={idx} className="block">
+            <span key={idx} className="block text-[8px] leading-snug">
               <span className="font-bold">{prefix}</span>
               {rest}
             </span>
           )
         }
         return (
-          <span key={idx} className="block font-medium">
+          <span key={idx} className="block text-[8px] leading-snug">
             {line}
           </span>
         )
@@ -242,278 +214,218 @@ export function DetailQuotationPreview({
 }: DetailQuotationPreviewProps) {
   const normalized = withDetailQuotationDefaults(content)
   const floorSummaries = buildDetailFloorSummaries(normalized)
-
-  if (floorSummaries.length === 0) {
-    return (
-      <div className={`detail-quotation-preview mx-auto max-w-[920px] bg-white p-8 text-black ${className ?? ''}`}>
-        <DetailHeader
-          clientName={clientName}
-          clientAddress={clientAddress}
-          date={normalized.quotationDate ?? ''}
-          subject={normalized.subject ?? ''}
-          introLetter={normalized.introLetter ?? ''}
-        />
-        <p className="mt-10 text-center text-sm text-black/60 font-sans">
-          Add floors and items to generate the detailed quotation preview.
-        </p>
-      </div>
-    )
-  }
-
-  const ScreenHeader = () => (
-    <div className="print-page-header absolute top-0 left-0 right-0 h-[35mm] px-8 pt-6 select-none pointer-events-none print:hidden">
-      <HeaderLogo />
-    </div>
-  )
-
-  const ScreenFooter = () => (
-    <div className="print-page-footer absolute bottom-0 left-0 right-0 h-[30mm] px-8 pb-4 print:hidden">
-      <FooterContacts />
-    </div>
-  )
-
-  const ScreenWatermark = () => (
-    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.06] print:hidden select-none">
-      <img src="/aesthetic-icon.png" className="max-w-[75%] max-h-[60%] object-contain" alt="Watermark" />
-    </div>
-  )
+  const cleanIntro = (normalized.introLetter || '')
+    .replace('Dear Sir,\n', '')
+    .replace('Dear Sir,', '')
+    .trim()
 
   return (
     <div className={`detail-quotation-preview w-full bg-neutral-100 ${className ?? ''}`}>
-      <div className="fixed-print-header hidden fixed top-0 left-0 right-0 h-[32mm] bg-white z-50 px-8 pt-6 print:block">
-        <HeaderLogo />
-      </div>
-      <div className="fixed-print-footer hidden fixed bottom-0 left-0 right-0 h-[30mm] bg-white z-50 px-8 pb-4 print:block">
-        <FooterContacts />
-      </div>
+      {/* ── SUMMARY PAGE ─────────────────────────────── */}
+      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-16 box-border shadow-md mb-6">
+        <PageHeader
+          date={normalized.quotationDate ?? ''}
+          clientName={clientName}
+          clientAddress={clientAddress}
+        />
 
-      <section className="print-page relative bg-white mx-auto w-[210mm] min-h-[297mm] p-[38mm_15mm_32mm_15mm] box-border shadow-md mb-6 page-break-after-always">
-        <ScreenWatermark />
-        <ScreenHeader />
-        
-        <div className="relative z-10 space-y-4">
-          <DetailHeader
-            clientName={clientName}
-            clientAddress={clientAddress}
-            date={normalized.quotationDate ?? ''}
-            subject={normalized.summarySubject ?? normalized.subject ?? ''}
-            introLetter={normalized.introLetter ?? ''}
-            isSummary={true}
-          />
-          
-          <table className="w-full border-collapse border border-black text-[13px] font-sans text-black">
-            <thead>
-              <tr className="bg-[#0070c0] text-white">
-                <th className="w-14 border border-black px-3 py-2 text-center font-bold">SL</th>
-                <th className="border border-black px-3 py-2 text-left font-bold">NAME</th>
-                <th className="w-36 border border-black px-3 py-2 text-center font-bold">TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {floorSummaries.map((entry, index) => (
-                <tr key={entry.floor.id} className="border border-black font-medium">
-                  <td className="border border-black px-3 py-2 text-center">{String(index + 1).padStart(2, '0')}</td>
-                  <td className="border border-black px-3 py-2 text-left">{entry.floor.name}</td>
-                  <td className="border border-black px-3 py-2 text-center">
-                    {formatDetailAmount(entry.total)}
-                  </td>
-                </tr>
-              ))}
-              <tr className="bg-[#0070c0] text-white font-bold">
-                <td colSpan={2} className="border border-black px-3 py-2 text-center font-bold">
-                  GRAND TOTAL
-                </td>
-                <td className="border border-black px-3 py-2 text-center font-bold">
-                  {formatDetailAmount(totals.grandTotal)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          
-          <p className="text-[13px] font-sans text-black">
-            <span className="font-bold underline">In Words:</span>{' '}
-            <span className="font-semibold">{amountInWordsTaka(totals.grandTotal)}</span>
-          </p>
+        {cleanIntro ? (
+          <div className="mb-4 text-[9px] text-neutral-700 leading-relaxed">
+            <p className="font-bold mb-1">Dear Sir,</p>
+            <p className="text-justify whitespace-pre-wrap">{cleanIntro}</p>
+          </div>
+        ) : null}
+
+        <SectionTitle>Project Summary</SectionTitle>
+
+        <TableHeader
+          cols={[
+            { label: 'SL', className: 'w-[8%] text-center' },
+            { label: 'Description', className: 'w-[70%]' },
+            { label: 'Amount', className: 'w-[22%] text-right' },
+          ]}
+        />
+
+        <div>
+          {floorSummaries.map((entry, index) => (
+            <div
+              key={entry.floor.id}
+              className="flex text-[9px] border-b py-2"
+              style={{ borderColor: '#eeeeee' }}
+            >
+              <span className="w-[8%] text-center text-neutral-500">
+                {String(index + 1).padStart(2, '0')}
+              </span>
+              <span className="w-[70%] font-bold">{entry.floor.name}</span>
+              <span className="w-[22%] text-right font-bold">{formatDetailAmount(entry.total)}</span>
+            </div>
+          ))}
         </div>
 
-        <ScreenFooter />
+        {/* Grand Total */}
+        <div className="flex justify-end items-center border-t pt-2 mt-2" style={{ borderColor: PRIMARY }}>
+          <span className="text-[10px] font-bold pr-4" style={{ color: PRIMARY }}>Grand Total</span>
+          <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>
+            {formatDetailAmount(totals.grandTotal)}
+          </span>
+        </div>
+        <p className="text-right text-[8px] italic text-neutral-500 mt-1">
+          In Words:{' '}
+          <span className="font-bold not-italic">{amountInWordsTaka(totals.grandTotal)}</span>
+        </p>
+
+        {/* Footer pinned to bottom */}
+        <div className="absolute bottom-6 left-10 right-10">
+          <PageFooter />
+        </div>
       </section>
 
+      {/* ── DETAIL PAGES ─────────────────────────────── */}
       {floorSummaries.map((entry) => (
         <section
           key={entry.floor.id}
-          className="print-page relative bg-white mx-auto w-[210mm] min-h-[297mm] p-[38mm_15mm_32mm_15mm] box-border shadow-md mb-6 page-break-after-always"
+          className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-16 box-border shadow-md mb-6"
         >
-          <ScreenWatermark />
-          <ScreenHeader />
+          <PageHeader
+            date={normalized.quotationDate ?? ''}
+            clientName={clientName}
+            clientAddress={clientAddress}
+          />
 
-          <div className="relative z-10 space-y-4">
-            <DetailHeader
-              clientName={clientName}
-              clientAddress={clientAddress}
-              date={normalized.quotationDate ?? ''}
-              subject={normalized.subject ?? ''}
-              introLetter={normalized.introLetter ?? ''}
-            />
+          <SectionTitle>{entry.floor.name}</SectionTitle>
 
-            <table className="w-full table-fixed border-collapse border border-black text-[11px] font-sans text-black break-words">
-              <thead>
-                <tr className="bg-[#76933c] text-white">
-                  <th colSpan={6} className="border border-black px-2 py-2 text-center text-sm font-bold uppercase tracking-wider break-words">
-                    {entry.floor.name}
-                  </th>
-                </tr>
-                <tr className="bg-[#0070c0] text-white">
-                  <th className="border border-black px-1.5 py-1.5 text-center w-[5%] font-bold break-words">SL</th>
-                  <th className="border border-black px-1.5 py-1.5 text-center w-[18%] font-bold break-words">NAME</th>
-                  <th className="border border-black px-1.5 py-1.5 text-center w-[47%] font-bold break-words">MATERIALS</th>
-                  <th className="border border-black px-1.5 py-1.5 text-center w-[10%] font-bold break-words">QTY SFT</th>
-                  <th className="border border-black px-1.5 py-1.5 text-center w-[10%] font-bold break-words">UNIT PRICE</th>
-                  <th className="border border-black px-1.5 py-1.5 text-center w-[10%] font-bold break-words">TOTAL</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entry.lines.map((line, lineIndex) => (
-                  <tr key={line.id} className="bg-white text-black align-top font-medium">
-                    <td className="border border-black px-1 py-1.5 text-center font-bold align-top break-words">
-                      {String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}
-                    </td>
-                    <td className="border border-black px-2 py-1.5 text-left font-bold align-top whitespace-pre-wrap break-words">
-                      {line.description}
-                    </td>
-                    <td className="border border-black px-2 py-1.5 text-left font-normal align-top whitespace-pre-wrap leading-normal break-words">
-                      {formatMaterialText(line.materials)}
-                    </td>
-                    {isPackageLine(line) ? (
-                      <>
-                        <td className="border border-black px-1 py-1.5 text-center align-middle font-medium">
-                          Package
-                        </td>
-                        <td className="border border-black px-1 py-1.5 text-center align-middle font-medium">
-                          As Per Design
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="border border-black px-1 py-1.5 text-center align-top font-medium">
-                          {formatDetailQtyCell(line)}
-                        </td>
-                        <td className="border border-black px-1 py-1.5 text-center align-top font-medium">
-                          {formatDetailUnitPriceCell(line)}
-                        </td>
-                      </>
-                    )}
-                    <td className="border border-black px-1 py-1.5 text-center align-top font-bold">
-                      {formatDetailTotalCell(line)}
-                      {line.description.toLowerCase().includes('electric wiring') ? ' (Approx)' : ''}
-                    </td>
-                  </tr>
-                ))}
-                <tr className="bg-[#0070c0] text-white font-bold">
-                  <td colSpan={5} className="border border-black px-2 py-1.5 text-center font-bold uppercase">
-                    TOTAL
-                  </td>
-                  <td className="border border-black px-2 py-1.5 text-center font-bold">
-                    {formatDetailAmount(entry.total)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <TableHeader
+            cols={[
+              { label: 'SL', className: 'w-[8%] text-center' },
+              { label: 'Name', className: 'w-[22%]' },
+              { label: 'Materials', className: 'w-[36%]' },
+              { label: 'Qty/Sft', className: 'w-[10%] text-center' },
+              { label: 'Unit Price', className: 'w-[12%] text-right' },
+              { label: 'Total', className: 'w-[12%] text-right' },
+            ]}
+          />
 
-            <p className="text-[13px] font-sans text-black">
-              <span className="font-bold underline">In Words:</span>{' '}
-              <span className="font-semibold">{amountInWordsTaka(entry.total)}</span>
-            </p>
-
-            <DetailFooter
-              notes={normalized.notes}
-              terms={normalized.terms}
-              paymentTerms={normalized.paymentTerms ?? ''}
-              durationNotes={normalized.durationNotes ?? ''}
-              drawingDesign={normalized.drawingDesign ?? ''}
-              signatoryName={normalized.signatoryName ?? ''}
-              signatoryTitle={normalized.signatoryTitle ?? ''}
-            />
+          <div>
+            {entry.lines.map((line, lineIndex) => (
+              <div
+                key={line.id}
+                className="flex text-[9px] border-b py-2 items-start"
+                style={{ borderColor: '#eeeeee' }}
+              >
+                <span className="w-[8%] text-center text-neutral-500 pt-0.5">
+                  {String(line.serialNo ?? lineIndex + 1).padStart(2, '0')}
+                </span>
+                <span className="w-[22%] font-bold pr-1 leading-snug">{line.description}</span>
+                <span className="w-[36%] pr-1">{formatMaterialText(line.materials)}</span>
+                <span className="w-[10%] text-center text-neutral-600">
+                  {formatDetailQtyCell(line)}
+                </span>
+                <span className="w-[12%] text-right text-neutral-600">
+                  {formatDetailUnitPriceCell(line)}
+                </span>
+                <span className="w-[12%] text-right font-bold" style={{ color: PRIMARY }}>
+                  {formatDetailTotalCell(line)}
+                  {line.description.toLowerCase().includes('electric wiring') ? (
+                    <span className="block text-[7px] font-normal text-neutral-500">(Approx)</span>
+                  ) : null}
+                </span>
+              </div>
+            ))}
           </div>
 
-          <ScreenFooter />
+          {/* Floor Total */}
+          <div className="flex justify-end items-center border-t pt-2 mt-2" style={{ borderColor: PRIMARY }}>
+            <span className="text-[10px] font-bold pr-4" style={{ color: PRIMARY }}>
+              Total for {entry.floor.name}
+            </span>
+            <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>
+              {formatDetailAmount(entry.total)}
+            </span>
+          </div>
+          <p className="text-right text-[8px] italic text-neutral-500 mt-1">
+            In Words:{' '}
+            <span className="font-bold not-italic">{amountInWordsTaka(entry.total)}</span>
+          </p>
+
+          {/* Footer */}
+          <div className="absolute bottom-6 left-10 right-10">
+            <PageFooter />
+          </div>
         </section>
       ))}
 
-      <style jsx global>{`
-        .detail-quotation-preview {
-          font-family: Arial, Helvetica, sans-serif !important;
-        }
-        @media print {
-          body {
-            background-color: white !important;
-            background-image: url('/aesthetic-icon.png') !important;
-            background-repeat: repeat-y !important;
-            background-position: center 50% !important;
-            background-size: 75% auto !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          .detail-quotation-preview {
-            background-color: transparent !important;
-            padding: 0 !important;
-          }
-          .print-page {
-            box-shadow: none !important;
-            margin: 0 !important;
-            padding: 35mm 0 32mm 0 !important;
-            width: 100% !important;
-            min-height: 297mm !important;
-            page-break-after: always !important;
-            background-color: transparent !important;
-          }
-          .print-page table {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            border-collapse: collapse !important;
-            width: 100% !important;
-          }
-          .print-page tr {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          .print-page th {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            background-color: inherit !important;
-            border: 1px solid black !important;
-          }
-          .print-page td {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            background-color: inherit !important;
-            border: 1px solid black !important;
-          }
-          .print-page table {
-            table-layout: fixed !important;
-          }
-          .print-page th,
-          .print-page td {
-            word-break: break-word !important;
-            overflow-wrap: anywhere !important;
-          }
-          .print-page .bg-\\[\\#76933c\\] {
-            background-color: #76933c !important;
-          }
-          .print-page .bg-\\[\\#0070c0\\] {
-            background-color: #0070c0 !important;
-          }
-          .print-page .bg-white {
-            background-color: transparent !important;
-          }
-          @page {
-            margin-top: 35mm !important;
-            margin-bottom: 32mm !important;
-            margin-left: 15mm !important;
-            margin-right: 15mm !important;
-          }
-        }
-      `}</style>
+      {/* ── TERMS PAGE ───────────────────────────────── */}
+      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-16 box-border shadow-md mb-6">
+        <PageHeader
+          date={normalized.quotationDate ?? ''}
+          clientName={clientName}
+          clientAddress={clientAddress}
+        />
+
+        <SectionTitle>Terms &amp; Signatures</SectionTitle>
+
+        <div className="mt-3 space-y-3 text-[9px]">
+          {normalized.notes ? (
+            <div>
+              <p className="font-bold uppercase text-[8px] mb-1" style={{ color: PRIMARY }}>Notes</p>
+              <p className="text-neutral-600 whitespace-pre-wrap leading-relaxed">{normalized.notes}</p>
+            </div>
+          ) : null}
+
+          {normalized.terms ? (
+            <div>
+              <p className="font-bold uppercase text-[8px] mb-1" style={{ color: PRIMARY }}>Terms &amp; Conditions</p>
+              <p className="text-neutral-600 whitespace-pre-wrap leading-relaxed">{normalized.terms}</p>
+            </div>
+          ) : null}
+
+          <div className="flex gap-6">
+            {normalized.paymentTerms ? (
+              <div className="flex-1">
+                <p className="font-bold uppercase text-[8px] mb-1" style={{ color: PRIMARY }}>Mode of Payment</p>
+                <p className="text-neutral-600 whitespace-pre-wrap leading-relaxed">
+                  {normalized.paymentTerms.replace('Mode of Payment\n', '').replace('Mode of Payment', '')}
+                </p>
+              </div>
+            ) : null}
+            {normalized.durationNotes ? (
+              <div className="flex-1">
+                <p className="font-bold uppercase text-[8px] mb-1" style={{ color: PRIMARY }}>Duration of Work</p>
+                <p className="text-neutral-600 whitespace-pre-wrap leading-relaxed">
+                  {normalized.durationNotes.replace('Duration Of Work:\n', '').replace('Duration Of Work:', '')}
+                </p>
+              </div>
+            ) : null}
+          </div>
+
+          {normalized.drawingDesign ? (
+            <p className="text-red-600 font-bold whitespace-pre-wrap leading-normal pt-2">
+              {normalized.drawingDesign}
+            </p>
+          ) : null}
+        </div>
+
+        {/* Signatures */}
+        <div className="flex justify-between items-end mt-16">
+          <div>
+            <div className="w-36 border-t border-neutral-800 pt-1">
+              <p className="text-[9px] font-bold">Customer Approval</p>
+              <p className="text-[8px] text-neutral-500">Sign &amp; Date</p>
+            </div>
+          </div>
+          <div>
+            <div className="w-36 border-t border-neutral-800 pt-1 text-right">
+              <p className="text-[9px] font-bold">{normalized.signatoryName || 'Authorized Signature'}</p>
+              <p className="text-[8px] text-neutral-500">{normalized.signatoryTitle || 'Aesthetic Interior'}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="absolute bottom-6 left-10 right-10">
+          <PageFooter />
+        </div>
+      </section>
     </div>
   )
 }
