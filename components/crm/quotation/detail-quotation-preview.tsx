@@ -84,30 +84,30 @@ function PageHeader({
 
   return (
     <div className="flex flex-col mb-6 relative z-10">
-      <div className="flex justify-between items-start border-b border-[#a57c00] pb-4">
+      {/* Top section: Logo and Meta */}
+      <div className="flex justify-between items-end pb-3">
         {/* Left: Logo */}
-        <div className="w-[45%]">
-          <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[180px] object-contain object-left mb-2" />
+        <div className="w-[50%]">
+          <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[160px] object-contain object-left" />
         </div>
         {/* Right: Quotation Details */}
-        <div className="w-[50%] flex flex-col items-end">
-          <span className="text-xl font-bold uppercase tracking-widest mb-1" style={{ color: PRIMARY }}>
-            Quotation
-          </span>
-          <p className="text-[10px] text-neutral-500 mb-0.5"><span className="font-bold">Quote ID:</span> {quoteId}</p>
-          <p className="text-[10px] text-neutral-500"><span className="font-bold">Date:</span> {formattedDate}</p>
+        <div className="w-[50%] flex flex-col items-end gap-1">
+          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Quote ID:</span> {quoteId}</p>
+          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Date:</span> {formattedDate}</p>
         </div>
       </div>
       
+      <div className="h-px bg-neutral-200 mb-4 w-full" />
+
       {/* Client Details Section */}
-      <div className="flex justify-between mt-4">
+      <div className="flex justify-between pb-2">
         <div className="w-[60%]">
-          <p className="text-[9px] text-[#a57c00] uppercase tracking-wider mb-1">Prepared For</p>
+          <p className="text-[9px] text-[#a57c00] uppercase tracking-wider mb-1 font-bold">Prepared For</p>
           <p className="text-[14px] font-bold text-[#0f5b53] leading-snug mb-0.5">{clientName}</p>
           <p className="text-[10px] text-neutral-600 leading-snug max-w-[250px]">{clientAddress || '—'}</p>
         </div>
         <div className="w-[35%] flex flex-col items-end">
-          <p className="text-[9px] text-[#a57c00] uppercase tracking-wider mb-1">Project / Subject</p>
+          <p className="text-[9px] text-[#a57c00] uppercase tracking-wider mb-1 font-bold">Project</p>
           <p className="text-[11px] font-bold text-[#0f5b53] text-right">Interior Design &amp; Execution</p>
         </div>
       </div>

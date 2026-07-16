@@ -307,27 +307,30 @@ const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
 
   return (
     <View style={styles.header}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', borderBottomWidth: 1, borderBottomColor: '#a57c00', paddingBottom: 15 }}>
+      {/* Top section: Logo and Meta */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 10 }}>
         {/* Left: Logo */}
-        <View style={{ width: '45%' }}>
-          <Image src="/Logo/HeaderLogo.png" style={{ width: 140, marginBottom: 10 }} />
+        <View style={{ width: '50%' }}>
+          <Image src="/Logo/HeaderLogo.png" style={{ width: 140 }} />
         </View>
-        {/* Right: Quotation Details */}
+        {/* Right: Meta Details */}
         <View style={{ width: '50%', alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 20, color: PRIMARY, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>Quotation</Text>
-          <Text style={{ fontSize: 9, color: '#555555', marginBottom: 2 }}><Text style={styles.bold}>Quote ID:</Text> {qtnId}</Text>
-          <Text style={{ fontSize: 9, color: '#555555', marginBottom: 2 }}><Text style={styles.bold}>Date:</Text> {formattedDate}</Text>
+          <Text style={{ fontSize: 9, color: '#555555', marginBottom: 3 }}><Text style={styles.bold}>Quote ID:</Text> {qtnId}</Text>
+          <Text style={{ fontSize: 9, color: '#555555' }}><Text style={styles.bold}>Date:</Text> {formattedDate}</Text>
         </View>
       </View>
+
+      <View style={{ height: 1, backgroundColor: '#eeeeee', marginBottom: 12 }} />
+
       {/* Client Details Section */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 5 }}>
         <View style={{ width: '60%' }}>
           <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
           <Text style={[styles.bold, { fontSize: 11, color: PRIMARY, marginBottom: 2 }]}>{clientName}</Text>
           <Text style={{ fontSize: 9, color: '#555555' }}>{clientAddress}</Text>
         </View>
         <View style={{ width: '35%', alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Project / Subject</Text>
+          <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Project</Text>
           <Text style={[styles.bold, { fontSize: 9, color: PRIMARY, textAlign: 'right' }]}>{subject || 'Interior Design & Execution'}</Text>
         </View>
       </View>
