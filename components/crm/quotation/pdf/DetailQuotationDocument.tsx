@@ -15,7 +15,7 @@ const PRIMARY = '#0f5b53';
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 150,
+    paddingTop: 110,
     paddingBottom: 90,
     paddingLeft: 40,
     paddingRight: 40,
@@ -225,8 +225,6 @@ const styles = StyleSheet.create({
     bottom: 20,
     left: 40,
     right: 40,
-    borderTopWidth: 1,
-    borderTopColor: '#dddddd',
     paddingTop: 8,
   },
   footerText: {
@@ -318,23 +316,23 @@ const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
           <Text style={{ fontSize: 9, color: '#555555' }}><Text style={styles.bold}>Date:</Text> {formattedDate}</Text>
         </View>
       </View>
-
-      <View style={{ height: 1, backgroundColor: '#eeeeee', marginBottom: 12 }} />
-
-      {/* Client Details Section */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingBottom: 5 }}>
-        <View style={{ width: '100%' }}>
-          <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
-          <Text style={[styles.bold, { fontSize: 11, color: PRIMARY, marginBottom: 2 }]}>{clientName}</Text>
-          <Text style={{ fontSize: 9, color: '#555555' }}>{clientAddress}</Text>
-        </View>
-      </View>
     </View>
   );
 };
 
+const ClientInfoBlock = ({ clientName, clientAddress }: { clientName: string, clientAddress: string | null }) => (
+  <View style={{ marginBottom: 20 }}>
+    <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
+    <Text style={[styles.bold, { fontSize: 13, color: PRIMARY, marginBottom: 2 }]}>{clientName}</Text>
+    <Text style={{ fontSize: 10, color: '#555555' }}>{clientAddress}</Text>
+  </View>
+);
+
 const FooterFixed = () => (
   <View style={styles.footerFixed} fixed>
+    <View style={{ position: 'absolute', bottom: -20, left: 0, right: 0, zIndex: -1 }}>
+      <Image src="/city.png" style={{ width: '100%', height: 60, opacity: 0.1, objectFit: 'cover' }} />
+    </View>
     <View style={{ borderTopWidth: 1, borderTopColor: '#a57c00', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
       <View style={{ width: '35%' }}>
         <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', marginBottom: 3 }]}>Aesthetic Interior Studio</Text>
@@ -401,6 +399,8 @@ export function DetailQuotationDocument({
           clientAddress={clientAddress || ''} 
         />
         
+        <ClientInfoBlock clientName={clientName} clientAddress={clientAddress} />
+
         {cleanIntro ? (
           <View style={{ marginBottom: 20 }}>
             <Text style={[styles.metaText, styles.bold]}>Dear Sir,</Text>

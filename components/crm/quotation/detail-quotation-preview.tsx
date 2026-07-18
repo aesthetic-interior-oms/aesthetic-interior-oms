@@ -96,16 +96,17 @@ function PageHeader({
           <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Date:</span> {formattedDate}</p>
         </div>
       </div>
-      
-      <div className="h-px bg-neutral-200 mb-4 w-full" />
+    </div>
+  )
+}
 
-      {/* Client Details Section */}
-      <div className="flex justify-between pb-2">
-        <div className="w-[100%]">
-          <p className="text-[9px] text-[#a57c00] uppercase tracking-wider mb-1 font-bold">Prepared For</p>
-          <p className="text-[14px] font-bold text-[#0f5b53] leading-snug mb-0.5">{clientName}</p>
-          <p className="text-[10px] text-neutral-600 leading-snug max-w-[250px]">{clientAddress || '—'}</p>
-        </div>
+function ClientInfoBlock({ clientName, clientAddress }: { clientName: string, clientAddress: string | null }) {
+  return (
+    <div className="flex justify-between pb-6">
+      <div className="w-[100%]">
+        <p className="text-[9px] text-[#a57c00] uppercase tracking-wider mb-1 font-bold">Prepared For</p>
+        <p className="text-[14px] font-bold text-[#0f5b53] leading-snug mb-0.5">{clientName}</p>
+        <p className="text-[10px] text-neutral-600 leading-snug max-w-[250px]">{clientAddress || '—'}</p>
       </div>
     </div>
   )
@@ -114,6 +115,9 @@ function PageHeader({
 function PageFooter() {
   return (
     <div className="border-t border-[#a57c00] pt-3 mt-12 relative z-10 flex justify-between text-[9px] text-neutral-700">
+      <div className="absolute -bottom-6 left-0 right-0 z-[-1] opacity-[0.12] pointer-events-none">
+        <img src="/city.png" alt="" className="w-full h-[60px] object-cover object-bottom" />
+      </div>
       <div className="w-[35%]">
         <p className="font-bold mb-1" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
         <p>183, East Senpara, Begum Rokeya Soroni</p>
@@ -208,6 +212,8 @@ export function DetailQuotationPreview({
           clientName={clientName}
           clientAddress={clientAddress}
         />
+
+        <ClientInfoBlock clientName={clientName} clientAddress={clientAddress} />
 
         {cleanIntro ? (
           <div className="mb-4 text-[9px] text-neutral-700 leading-relaxed">
