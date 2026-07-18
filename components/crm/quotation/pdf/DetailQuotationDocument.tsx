@@ -226,7 +226,6 @@ const styles = StyleSheet.create({
   },
   inWords: {
     fontSize: 8,
-    fontStyle: 'italic',
     color: '#666666',
     marginTop: 4,
     textAlign: 'right',
