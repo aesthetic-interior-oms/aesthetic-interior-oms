@@ -1,6 +1,14 @@
 'use client'
 
-import { Document, Page, StyleSheet, Text, View, Image, Svg, Path } from '@react-pdf/renderer'
+import { Document, Page, StyleSheet, Text, View, Image, Svg, Path, Font } from '@react-pdf/renderer'
+
+Font.register({
+  family: 'Noto Sans Bengali',
+  fonts: [
+    { src: '/fonts/NotoSansBengali-Regular.ttf' },
+    { src: '/fonts/NotoSansBengali-Bold.ttf', fontWeight: 'bold' }
+  ]
+});
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 import {
   buildDetailFloorSummaries,
@@ -19,7 +27,7 @@ const styles = StyleSheet.create({
     paddingBottom: 90,
     paddingLeft: 40,
     paddingRight: 40,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Noto Sans Bengali',
     fontSize: 9,
     color: '#000000',
     backgroundColor: '#ffffff',
@@ -137,7 +145,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eeeeee',
   },
   tRowAlt: {
-    // No zebra striping
+    backgroundColor: '#f5f5ea',
   },
   tdCol: {
     fontSize: 9,
@@ -330,9 +338,6 @@ const ClientInfoBlock = ({ clientName, clientAddress }: { clientName: string, cl
 
 const FooterFixed = () => (
   <View style={styles.footerFixed} fixed>
-    <View style={{ position: 'absolute', bottom: -20, left: 0, right: 0, zIndex: -1 }}>
-      <Image src="/city.png" style={{ width: '100%', height: 60, opacity: 0.1, objectFit: 'cover' }} />
-    </View>
     <View style={{ borderTopWidth: 1, borderTopColor: '#a57c00', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
       <View style={{ width: '35%' }}>
         <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', marginBottom: 3 }]}>Aesthetic Interior Studio</Text>
@@ -459,7 +464,7 @@ export function DetailQuotationDocument({
 
           <View style={styles.tableWrapper}>
             {entry.lines.map((line, lineIndex) => (
-              <View key={line.id} style={styles.tRowDetail}>
+              <View key={line.id} style={[styles.tRowDetail, lineIndex % 2 === 1 ? styles.tRowAlt : {}]}>
                 <Text style={[styles.tdColAbs, styles.posSl]}>
                   {String(lineIndex + 1).padStart(2, '0')}
                 </Text>

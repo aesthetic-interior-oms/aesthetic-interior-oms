@@ -17,6 +17,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { isPackageLine } from '@/lib/detail-quotation-format'
 import { QuotationItemPicker } from '@/components/crm/quotation/quotation-item-picker'
 import { applyQuotationTypeToContent } from '@/lib/quotation-templates'
 import { formatTemplatePriceHint } from '@/lib/quotation-templates/helpers'
@@ -117,6 +124,7 @@ export function QuotationMaker({
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerFloorId, setPickerFloorId] = useState<string | null>(null)
   const [pickerCatalogKey, setPickerCatalogKey] = useState('ceiling-curtain')
+  const [customTypeFloorId, setCustomTypeFloorId] = useState<string | null>(null)
 
   const loadDraft = useCallback(async () => {
     setLoading(true)
@@ -251,23 +259,36 @@ export function QuotationMaker({
     setContent((prev) => (prev ? removeFloorFromContent(prev, floorId) : prev))
   }
 
-  const addCustomLine = (floorId: string) => {
+  const addCustomLine = (floorId: string, type: 'regular' | 'package' = 'regular') => {
     setContent((prev) => {
       if (!prev) return prev
       const customCount = prev.lineItems.filter((line) => line.sectionId === floorId && line.isCustom).length
       const sqft = Number(projectSqft.replace(/,/g, ''))
-      const newLine: QuotationLineItem = {
-        id: `custom-${floorId}-${Date.now()}-${customCount}`,
-        sectionId: floorId,
-        description: 'Custom item',
-        materials: '',
-        unit: 'sqft',
-        rate: 0,
-        quantity: Number.isFinite(sqft) && sqft > 0 ? sqft : 0,
-        amount: 0,
-        included: true,
-        isCustom: true,
-      }
+      const newLine: QuotationLineItem = type === 'package'
+        ? {
+            id: `custom-${floorId}-${Date.now()}-${customCount}`,
+            sectionId: floorId,
+            description: 'Package item',
+            materials: '',
+            unit: 'ls',
+            rate: 0,
+            quantity: 0,
+            amount: 0,
+            included: true,
+            isCustom: true,
+          }
+        : {
+            id: `custom-${floorId}-${Date.now()}-${customCount}`,
+            sectionId: floorId,
+            description: 'Custom item',
+            materials: '',
+            unit: 'sqft',
+            rate: 0,
+            quantity: Number.isFinite(sqft) && sqft > 0 ? sqft : 0,
+            amount: 0,
+            included: true,
+            isCustom: true,
+          }
       return normalizeQuotationContent({ ...prev, lineItems: [...prev.lineItems, newLine] })
     })
   }
@@ -615,13 +636,6 @@ return (
                   </div>
                   {canEdit ? (
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" size="sm" variant="outline" onClick={() => openItemPicker(floor.id)}>
-                        <Plus className="mr-1 h-3.5 w-3.5" />
-                        Add from saved list
-                      </Button>
-                      <Button type="button" size="sm" variant="ghost" onClick={() => addCustomLine(floor.id)}>
-                        Custom item
-                      </Button>
                       <Button type="button" size="icon" variant="ghost" onClick={() => removeFloor(floor.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -649,7 +663,9 @@ return (
                         </tr>
                       </thead>
                       <tbody>
-                        {floorLines.map((line, lineIndex) => (
+                        {floorLines.map((line, lineIndex) => {
+                          const isPkg = isPackageLine(line)
+                          return (
                           <tr key={line.id} className="border-t align-top">
                             <td className="px-3 py-2 text-muted-foreground">
                               {lineIndex + 1}
@@ -680,44 +696,69 @@ return (
                                 <p className="whitespace-pre-wrap text-xs">{line.materials || '—'}</p>
                               )}
                             </td>
-                            <td className="px-3 py-2">
-                              {canEdit ? (
-                                <Input
-                                  type="text"
-                                  inputMode="decimal"
-                                  value={line.rate > 0 ? String(line.rate) : ''}
-                                  placeholder={lineNeedsManualPrice(line) ? 'Enter price' : '0'}
-                                  onChange={(event) =>
-                                    updateLineItem(line.id, {
-                                      rate: Number(event.target.value.replace(/,/g, '')) || 0,
-                                    })
-                                  }
-                                />
-                              ) : (
-                                formatCurrency(line.rate)
-                              )}
-                              <p className="mt-1 text-[11px] text-muted-foreground">
-                                PDF: {formatTemplatePriceHint(line)}
-                              </p>
-                            </td>
-                            <td className="px-3 py-2">
-                              {canEdit ? (
-                                <Input
-                                  type="text"
-                                  inputMode="decimal"
-                                  value={String(line.quantity)}
-                                  onChange={(event) =>
-                                    updateLineItem(line.id, {
-                                      quantity: Number(event.target.value.replace(/,/g, '')) || 0,
-                                    })
-                                  }
-                                />
-                              ) : (
-                                line.quantity
-                              )}
-                            </td>
+                            {isPkg ? (
+                              <td colSpan={2} className="px-3 py-2">
+                                <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                                  Package
+                                </span>
+                              </td>
+                            ) : (
+                              <>
+                                <td className="px-3 py-2">
+                                  {canEdit ? (
+                                    <Input
+                                      type="text"
+                                      inputMode="decimal"
+                                      value={line.rate > 0 ? String(line.rate) : ''}
+                                      placeholder={lineNeedsManualPrice(line) ? 'Enter price' : '0'}
+                                      onChange={(event) =>
+                                        updateLineItem(line.id, {
+                                          rate: Number(event.target.value.replace(/,/g, '')) || 0,
+                                        })
+                                      }
+                                    />
+                                  ) : (
+                                    formatCurrency(line.rate)
+                                  )}
+                                  <p className="mt-1 text-[11px] text-muted-foreground">
+                                    PDF: {formatTemplatePriceHint(line)}
+                                  </p>
+                                </td>
+                                <td className="px-3 py-2">
+                                  {canEdit ? (
+                                    <Input
+                                      type="text"
+                                      inputMode="decimal"
+                                      value={String(line.quantity)}
+                                      onChange={(event) =>
+                                        updateLineItem(line.id, {
+                                          quantity: Number(event.target.value.replace(/,/g, '')) || 0,
+                                        })
+                                      }
+                                    />
+                                  ) : (
+                                    line.quantity
+                                  )}
+                                </td>
+                              </>
+                            )}
                             <td className="px-3 py-2 text-right font-medium">
-                              {formatCurrency(line.amount)}
+                              {isPkg && canEdit ? (
+                                <Input
+                                  type="text"
+                                  inputMode="decimal"
+                                  className="text-right"
+                                  value={line.amount > 0 ? String(line.amount) : ''}
+                                  placeholder="Total"
+                                  onChange={(event) =>
+                                    updateLineItem(line.id, {
+                                      amount: Number(event.target.value.replace(/,/g, '')) || 0,
+                                    })
+                                  }
+                                />
+                              ) : (
+                                formatCurrency(line.amount)
+                              )}
                             </td>
                             <td className="px-3 py-2">
                               {canEdit ? (
@@ -732,11 +773,23 @@ return (
                               ) : null}
                             </td>
                           </tr>
-                        ))}
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>
                 )}
+                {canEdit ? (
+                  <div className="flex flex-wrap gap-2 border-t px-4 py-3 bg-muted/20">
+                    <Button type="button" size="sm" variant="outline" onClick={() => openItemPicker(floor.id)}>
+                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      Add from saved list
+                    </Button>
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setCustomTypeFloorId(floor.id)}>
+                      Custom item
+                    </Button>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           )
@@ -766,6 +819,42 @@ return (
         onCatalogTemplateKeyChange={setPickerCatalogKey}
         onSelectItem={addTemplateItemFromCatalog}
       />
+
+      {/* Custom item type picker dialog */}
+      <Dialog open={!!customTypeFloorId} onOpenChange={(open) => { if (!open) setCustomTypeFloorId(null) }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Choose item type</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground mb-4">What kind of item do you want to add?</p>
+          <div className="flex flex-col gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto flex-col items-start gap-1 px-4 py-3 text-left"
+              onClick={() => {
+                if (customTypeFloorId) addCustomLine(customTypeFloorId, 'regular')
+                setCustomTypeFloorId(null)
+              }}
+            >
+              <span className="font-semibold">Regular item</span>
+              <span className="text-xs text-muted-foreground">Has unit price × qty/sqft calculation</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-auto flex-col items-start gap-1 px-4 py-3 text-left"
+              onClick={() => {
+                if (customTypeFloorId) addCustomLine(customTypeFloorId, 'package')
+                setCustomTypeFloorId(null)
+              }}
+            >
+              <span className="font-semibold">Package item</span>
+              <span className="text-xs text-muted-foreground">Fixed total price, no unit price or sqft needed</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

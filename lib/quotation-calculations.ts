@@ -9,11 +9,16 @@ export function calculateLineAmount(rate: number, quantity: number): number {
 export function normalizeLineItem(line: QuotationLineItem): QuotationLineItem {
   const rate = Number.isFinite(line.rate) ? Math.max(0, line.rate) : 0
   const quantity = Number.isFinite(line.quantity) ? Math.max(0, line.quantity) : 0
+  // For package lines (unit 'ls', or zero qty with a fixed amount), preserve the manually set amount
+  const isPackage = line.unit === 'ls' || (quantity <= 0 && line.amount > 0)
+  const amount = isPackage
+    ? (Number.isFinite(line.amount) ? Math.max(0, line.amount) : 0)
+    : calculateLineAmount(rate, quantity)
   return {
     ...line,
     rate,
     quantity,
-    amount: calculateLineAmount(rate, quantity),
+    amount,
   }
 }
 
@@ -33,7 +38,7 @@ export function normalizeQuotationContent(content: QuotationDraftContent): Quota
 
 export function calculateQuotationTotals(content: QuotationDraftContent): QuotationTotals {
   const includedItems = content.lineItems.filter((line) => line.included)
-  const subtotal = includedItems.reduce((sum, line) => sum + calculateLineAmount(line.rate, line.quantity), 0)
+  const subtotal = includedItems.reduce((sum, line) => sum + line.amount, 0)
 
   const discountPercent = Number.isFinite(content.discountPercent)
     ? Math.min(100, Math.max(0, content.discountPercent))

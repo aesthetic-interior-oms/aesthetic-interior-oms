@@ -115,9 +115,6 @@ function ClientInfoBlock({ clientName, clientAddress }: { clientName: string, cl
 function PageFooter() {
   return (
     <div className="border-t border-[#a57c00] pt-3 mt-12 relative z-10 flex justify-between text-[9px] text-neutral-700">
-      <div className="absolute -bottom-6 left-0 right-0 z-[-1] opacity-[0.12] pointer-events-none">
-        <img src="/city.png" alt="" className="w-full h-[60px] object-cover object-bottom" />
-      </div>
       <div className="w-[35%]">
         <p className="font-bold mb-1" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
         <p>183, East Senpara, Begum Rokeya Soroni</p>
@@ -237,7 +234,7 @@ export function DetailQuotationPreview({
             <div
               key={entry.floor.id}
               className="flex text-[9px] border-b py-2"
-              style={{ borderColor: '#eeeeee' }}
+              style={{ borderColor: '#eeeeee', backgroundColor: index % 2 === 1 ? '#f5f5ea' : '#ffffff' }}
             >
               <span className="w-[8%] text-center text-neutral-500">
                 {String(index + 1).padStart(2, '0')}
@@ -297,7 +294,7 @@ export function DetailQuotationPreview({
               <div
                 key={line.id}
                 className="flex text-[9px] border-b py-2 items-start"
-                style={{ borderColor: '#eeeeee' }}
+                style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#f5f5ea' : '#ffffff' }}
               >
                 <span className="w-[8%] text-center text-neutral-500 pt-0.5">
                   {String(lineIndex + 1).padStart(2, '0')}

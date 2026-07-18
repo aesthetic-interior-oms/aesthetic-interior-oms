@@ -1,6 +1,14 @@
 'use client'
 
-import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { Document, Page, StyleSheet, Text, View, Font } from '@react-pdf/renderer'
+
+Font.register({
+  family: 'Noto Sans Bengali',
+  fonts: [
+    { src: '/fonts/NotoSansBengali-Regular.ttf' },
+    { src: '/fonts/NotoSansBengali-Bold.ttf', fontWeight: 'bold' }
+  ]
+});
 import { buildShortQuotationSummary } from '@/lib/short-quotation-calculations'
 import type { ShortQuotationContent } from '@/lib/short-quotation-types'
 
@@ -8,7 +16,7 @@ const styles = StyleSheet.create({
   page: {
     padding: 24,
     fontSize: 9,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Noto Sans Bengali',
     color: '#111',
     lineHeight: 1.4,
   },
