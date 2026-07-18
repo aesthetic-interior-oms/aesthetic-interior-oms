@@ -133,6 +133,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
       defaultOpen: false,
       items: [
         { icon: Settings, label: 'Settings', href: '/crm/admin/settings' },
+        { icon: Home, label: 'Website Management', href: '/crm/admin/website-management' },
         {
           icon: Settings,
           label: 'WhatsApp Monitor',

@@ -315,6 +315,9 @@ export async function POST(request: NextRequest) {
           })
         } else if (context === 'lead-attachment') {
           await authorizeLeadAttachmentUpload({ ownerId, pathname })
+        } else if (context === 'website-project') {
+          if (!actorDepartments.has('ADMIN')) throw new Error('UPLOAD_CONTEXT_NOT_ALLOWED')
+          assertPathnameScope(pathname, 'website-projects', ownerId)
         } else {
           throw new Error('UPLOAD_CONTEXT_NOT_ALLOWED')
         }

@@ -8,12 +8,22 @@ type BreadcrumbItem = {
 export function LocalBusinessJsonLd() {
   const data = {
     "@context": "https://schema.org",
-    "@type": "LocalBusiness",
+    "@type": ["LocalBusiness", "InteriorDesignService"],
+    "@id": `${siteUrl}/#localbusiness`,
     name: siteName,
-    image: absoluteUrl("/images/logo3.png"),
+    alternateName: ["Aesthetic Interior", "Aesthetic Interior Studio in BD"],
+    description:
+      "Aesthetic Interior Studio is a pioneer brand for modern contemporary interior design in Dhaka, Bangladesh.",
+    image: [
+      absoluteUrl("/Logo/HeaderLogo.png"),
+      absoluteUrl("/banner/Banner1.png"),
+      absoluteUrl("/banner/Banner9.png"),
+    ],
+    logo: absoluteUrl("/Logo/HeaderLogo.png"),
     url: siteUrl,
     telephone: "+8801329694663",
     email: "hello@aestheticinterior.com",
+    priceRange: "$$",
     address: {
       "@type": "PostalAddress",
       streetAddress: "183, East Senpara, Begum Rokeya Soroni, Mirpur 10",
@@ -21,7 +31,37 @@ export function LocalBusinessJsonLd() {
       postalCode: "1216",
       addressCountry: "BD",
     },
-    areaServed: "Bangladesh",
+    geo: {
+      "@type": "GeoCoordinates",
+      latitude: 23.8041425,
+      longitude: 90.3700876,
+    },
+    hasMap:
+      "https://www.google.com/maps/place/AESTHETIC+INTERIOR+STUDIO/@23.8041425,90.3675127,17z/data=!3m1!4b1!4m6!3m5!1s0x3755c1004bf76709:0xe781044b3428d1bc!8m2!3d23.8041425!4d90.3700876!16s%2Fg%2F11w324ds2h",
+    areaServed: [
+      { "@type": "City", name: "Dhaka" },
+      { "@type": "Country", name: "Bangladesh" },
+    ],
+    knowsAbout: [
+      "Modern contemporary interior design",
+      "Residential interior design",
+      "Commercial interior design",
+      "Architectural interior design",
+    ],
+    openingHoursSpecification: [
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
+        opens: "09:00",
+        closes: "18:00",
+      },
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: "Saturday",
+        opens: "10:00",
+        closes: "16:00",
+      },
+    ],
     sameAs: [
       "https://www.facebook.com/aestheticinteriorofficial",
       "https://www.instagram.com/aesthetic.interior.studio",
@@ -58,36 +98,23 @@ export function ServiceJsonLd() {
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
 }
 
-export function FaqJsonLd() {
+type FaqJsonLdItem = {
+  question: string
+  answer: string
+}
+
+export function FaqJsonLd({ items }: { items: FaqJsonLdItem[] }) {
   const data = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: [
-      {
-        "@type": "Question",
-        name: "বাসা ইন্টেরিয়রের খরচ কত",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "বাসার আকার, ডিজাইন, ম্যাটেরিয়াল ও ফিনিশিং অনুযায়ী খরচ পরিবর্তিত হয়। সঠিক বাজেট জানতে সাইট ভিজিট ও রিকোয়ারমেন্ট বিশ্লেষণ প্রয়োজন।",
-        },
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
       },
-      {
-        "@type": "Question",
-        name: "বাসা ইন্টেরিয়র করতে সর্বনিম্ন কত টাকা লাগবে? কি কি আইটেম থাকবে?",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "সর্বনিম্ন বাজেট নির্ভর করে কাজের পরিধি ও ম্যাটেরিয়ালের উপর। সাধারণত স্পেস প্ল্যানিং, সিলিং/লাইটিং, ফার্নিচার, স্টোরেজ, পেইন্ট ও ফিনিশিং আইটেম অন্তর্ভুক্ত থাকে।",
-        },
-      },
-      {
-        "@type": "Question",
-        name: "অফিস ইন্টেরিয়র করতে কত টাকা লাগবে",
-        acceptedAnswer: {
-          "@type": "Answer",
-          text: "অফিসের স্কয়ারফিট, ব্র্যান্ডিং, লেআউট ও ওয়ার্কস্টেশন প্রয়োজন অনুযায়ী বাজেট নির্ধারিত হয়। কনসালটেশনের পর ডিটেইলড কস্ট ব্রেকডাউন দেওয়া হয়।",
-        },
-      },
-    ],
+    })),
   }
 
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />

@@ -915,3 +915,39 @@ model CashFlowDaily {
   closingBank  Float    @default(0)
   isClosed     Boolean  @default(false)
 }
+
+model WebsiteProject {
+  id          String                @id @default(cuid())
+  slug        String                @unique
+  title       String
+  ownerName   String?
+  type        String?
+  sqft        String?
+  duration    String?
+  category    String                @default("residential")
+  location    String?
+  thumbnailUrl String
+  description String
+  details     String?
+  isPublished Boolean               @default(true)
+  sortOrder   Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  images      WebsiteProjectImage[]
+
+  @@index([isPublished, sortOrder])
+  @@index([category])
+}
+
+model WebsiteProjectImage {
+  id        String         @id @default(cuid())
+  projectId String
+  url       String
+  alt       String?
+  sortOrder Int            @default(0)
+  createdAt DateTime       @default(now())
+
+  project WebsiteProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+}
