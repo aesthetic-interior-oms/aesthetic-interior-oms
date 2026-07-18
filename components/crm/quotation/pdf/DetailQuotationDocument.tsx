@@ -2,11 +2,16 @@
 
 import { Document, Page, StyleSheet, Text, View, Image, Svg, Path, Font } from '@react-pdf/renderer'
 
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') return window.location.origin
+  return 'https://www.aestheticinteriorbd.com'
+}
+
 Font.register({
   family: 'Noto Sans Bengali',
   fonts: [
-    { src: '/fonts/NotoSansBengali-Regular.ttf' },
-    { src: '/fonts/NotoSansBengali-Bold.ttf', fontWeight: 'bold' }
+    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Regular.ttf` },
+    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold' }
   ]
 });
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
@@ -287,7 +292,7 @@ const formatDateString = (dateString: string) => {
 
 const WatermarkBackground = () => (
   <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: -1, opacity: 0.05 }} fixed>
-    <Image src="/android-chrome-512x512.png" style={{ width: 400, height: 400 }} />
+    <Image src={`${getBaseUrl()}/android-chrome-512x512.png`} style={{ width: 400, height: 400 }} />
   </View>
 );
 
@@ -315,8 +320,8 @@ const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
       {/* Top section: Logo and Meta */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 10 }}>
         {/* Left: Logo */}
-        <View style={{ width: '50%' }}>
-          <Image src="/Logo/HeaderLogo.png" style={{ width: 140 }} />
+        <View style={{ flex: 1 }}>
+          <Image src={`${getBaseUrl()}/Logo/HeaderLogo.png`} style={{ width: 140 }} />
         </View>
         {/* Right: Meta Details */}
         <View style={{ width: '50%', alignItems: 'flex-end' }}>
@@ -478,7 +483,7 @@ export function DetailQuotationDocument({
                 <Text style={[styles.tdColAbs, styles.posPrice]}>{formatDetailUnitPriceCell(line)}</Text>
                 <Text style={[styles.tdColAbs, styles.posTotal, styles.bold, { color: PRIMARY }]}>
                   {formatDetailTotalCell(line)}
-                  {line.description.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
+                  {line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
                 </Text>
               </View>
             ))}

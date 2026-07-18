@@ -2,11 +2,16 @@
 
 import { Document, Page, StyleSheet, Text, View, Font } from '@react-pdf/renderer'
 
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') return window.location.origin
+  return 'https://www.aestheticinteriorbd.com'
+}
+
 Font.register({
   family: 'Noto Sans Bengali',
   fonts: [
-    { src: '/fonts/NotoSansBengali-Regular.ttf' },
-    { src: '/fonts/NotoSansBengali-Bold.ttf', fontWeight: 'bold' }
+    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Regular.ttf` },
+    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold' }
   ]
 });
 import { buildShortQuotationSummary } from '@/lib/short-quotation-calculations'
