@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ExternalLink, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
+import { ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { isPackageLine } from '@/lib/detail-quotation-format'
 import { QuotationItemPicker } from '@/components/crm/quotation/quotation-item-picker'
 import { applyQuotationTypeToContent } from '@/lib/quotation-templates'
@@ -126,6 +143,25 @@ export function QuotationMaker({
   const [pickerCatalogKey, setPickerCatalogKey] = useState('ceiling-curtain')
   const [customTypeFloorId, setCustomTypeFloorId] = useState<string | null>(null)
 
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const reorderFloorLines = (floorId: string, event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setContent((prev) => {
+      if (!prev) return prev
+      const floorItems = prev.lineItems.filter((l) => l.sectionId === floorId && l.included)
+      const otherItems = prev.lineItems.filter((l) => !(l.sectionId === floorId && l.included))
+      const oldIndex = floorItems.findIndex((l) => l.id === active.id)
+      const newIndex = floorItems.findIndex((l) => l.id === over.id)
+      const reordered = arrayMove(floorItems, oldIndex, newIndex)
+      return { ...prev, lineItems: [...otherItems, ...reordered] }
+    })
+  }
+
   const loadDraft = useCallback(async () => {
     setLoading(true)
     try {
@@ -211,9 +247,13 @@ export function QuotationMaker({
       const nextItems = prev.lineItems.map((line) => {
         if (line.id !== lineId) return line
         const updated = { ...line, ...patch }
+        // For package lines (unit 'ls'), preserve the amount as-is (user sets it directly)
+        const isPackage = updated.unit === 'ls'
         return {
           ...updated,
-          amount: calculateLineAmount(updated.rate, updated.quantity),
+          amount: isPackage
+            ? (Number.isFinite(updated.amount) ? Math.max(0, updated.amount) : 0)
+            : calculateLineAmount(updated.rate, updated.quantity),
         }
       })
       return normalizeQuotationContent({ ...prev, lineItems: nextItems })
@@ -653,6 +693,7 @@ return (
                     <table className="w-full min-w-[980px] text-sm">
                       <thead className="bg-muted/50 text-left">
                         <tr>
+                          {canEdit && <th className="w-6 px-1 py-2" />}
                           <th className="w-12 px-3 py-2 font-medium">SL</th>
                           <th className="min-w-[160px] px-3 py-2 font-medium">Name</th>
                           <th className="min-w-[280px] px-3 py-2 font-medium">Materials</th>
@@ -662,120 +703,34 @@ return (
                           <th className="px-3 py-2" />
                         </tr>
                       </thead>
-                      <tbody>
-                        {floorLines.map((line, lineIndex) => {
-                          const isPkg = isPackageLine(line)
-                          return (
-                          <tr key={line.id} className="border-t align-top">
-                            <td className="px-3 py-2 text-muted-foreground">
-                              {lineIndex + 1}
-                            </td>
-                            <td className="px-3 py-2">
-                              {canEdit ? (
-                                <Input
-                                  value={line.description}
-                                  onChange={(event) =>
-                                    updateLineItem(line.id, { description: event.target.value })
-                                  }
+                      <DndContext
+                        sensors={dndSensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={(event) => reorderFloorLines(floor.id, event)}
+                      >
+                        <SortableContext
+                          items={floorLines.map((l) => l.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          <tbody>
+                            {floorLines.map((line, lineIndex) => {
+                              const isPkg = isPackageLine(line)
+                              return (
+                                <SortableRow
+                                  key={line.id}
+                                  line={line}
+                                  lineIndex={lineIndex}
+                                  isPkg={isPkg}
+                                  canEdit={canEdit}
+                                  updateLineItem={updateLineItem}
+                                  removeLine={removeLine}
+                                  lineNeedsManualPrice={lineNeedsManualPrice}
                                 />
-                              ) : (
-                                line.description
-                              )}
-                            </td>
-                            <td className="px-3 py-2">
-                              {canEdit ? (
-                                <Textarea
-                                  rows={4}
-                                  value={line.materials ?? ''}
-                                  className="min-w-[260px] text-xs"
-                                  onChange={(event) =>
-                                    updateLineItem(line.id, { materials: event.target.value })
-                                  }
-                                />
-                              ) : (
-                                <p className="whitespace-pre-wrap text-xs">{line.materials || '—'}</p>
-                              )}
-                            </td>
-                            {isPkg ? (
-                              <td colSpan={2} className="px-3 py-2">
-                                <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                                  Package
-                                </span>
-                              </td>
-                            ) : (
-                              <>
-                                <td className="px-3 py-2">
-                                  {canEdit ? (
-                                    <Input
-                                      type="text"
-                                      inputMode="decimal"
-                                      value={line.rate > 0 ? String(line.rate) : ''}
-                                      placeholder={lineNeedsManualPrice(line) ? 'Enter price' : '0'}
-                                      onChange={(event) =>
-                                        updateLineItem(line.id, {
-                                          rate: Number(event.target.value.replace(/,/g, '')) || 0,
-                                        })
-                                      }
-                                    />
-                                  ) : (
-                                    formatCurrency(line.rate)
-                                  )}
-                                  <p className="mt-1 text-[11px] text-muted-foreground">
-                                    PDF: {formatTemplatePriceHint(line)}
-                                  </p>
-                                </td>
-                                <td className="px-3 py-2">
-                                  {canEdit ? (
-                                    <Input
-                                      type="text"
-                                      inputMode="decimal"
-                                      value={String(line.quantity)}
-                                      onChange={(event) =>
-                                        updateLineItem(line.id, {
-                                          quantity: Number(event.target.value.replace(/,/g, '')) || 0,
-                                        })
-                                      }
-                                    />
-                                  ) : (
-                                    line.quantity
-                                  )}
-                                </td>
-                              </>
-                            )}
-                            <td className="px-3 py-2 text-right font-medium">
-                              {isPkg && canEdit ? (
-                                <Input
-                                  type="text"
-                                  inputMode="decimal"
-                                  className="text-right"
-                                  value={line.amount > 0 ? String(line.amount) : ''}
-                                  placeholder="Total"
-                                  onChange={(event) =>
-                                    updateLineItem(line.id, {
-                                      amount: Number(event.target.value.replace(/,/g, '')) || 0,
-                                    })
-                                  }
-                                />
-                              ) : (
-                                formatCurrency(line.amount)
-                              )}
-                            </td>
-                            <td className="px-3 py-2">
-                              {canEdit ? (
-                                <Button
-                                  type="button"
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => removeLine(line.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              ) : null}
-                            </td>
-                          </tr>
-                          )
-                        })}
-                      </tbody>
+                              )
+                            })}
+                          </tbody>
+                        </SortableContext>
+                      </DndContext>
                     </table>
                   </div>
                 )}
@@ -856,5 +811,101 @@ return (
         </DialogContent>
       </Dialog>
     </div>
+  )
+}
+
+type SortableRowProps = {
+  line: QuotationLineItem
+  lineIndex: number
+  isPkg: boolean
+  canEdit: boolean
+  updateLineItem: (id: string, patch: Partial<QuotationLineItem>) => void
+  removeLine: (id: string) => void
+  lineNeedsManualPrice: (line: QuotationLineItem) => boolean
+}
+
+function SortableRow({ line, lineIndex, isPkg, canEdit, updateLineItem, removeLine, lineNeedsManualPrice }: SortableRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: line.id })
+
+  const rowStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    backgroundColor: isDragging ? 'hsl(var(--muted))' : undefined,
+  }
+
+  function fmt(v: number) {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v)
+  }
+
+  return (
+    <tr ref={setNodeRef} style={rowStyle} className="border-t align-top">
+      {canEdit && (
+        <td className="px-1 py-2 text-muted-foreground">
+          <button
+            type="button"
+            className="cursor-grab touch-none rounded p-1 hover:bg-muted active:cursor-grabbing"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        </td>
+      )}
+      <td className="px-3 py-2 text-muted-foreground">{lineIndex + 1}</td>
+      <td className="px-3 py-2">
+        {canEdit ? (
+          <Input value={line.description} onChange={(e) => updateLineItem(line.id, { description: e.target.value })} />
+        ) : line.description}
+      </td>
+      <td className="px-3 py-2">
+        {canEdit ? (
+          <Textarea rows={4} value={line.materials ?? ''} className="min-w-[260px] text-xs"
+            onChange={(e) => updateLineItem(line.id, { materials: e.target.value })} />
+        ) : (
+          <p className="whitespace-pre-wrap text-xs">{line.materials || '—'}</p>
+        )}
+      </td>
+      {isPkg ? (
+        <td colSpan={2} className="px-3 py-2">
+          <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Package</span>
+        </td>
+      ) : (
+        <>
+          <td className="px-3 py-2">
+            {canEdit ? (
+              <Input type="text" inputMode="decimal"
+                value={line.rate > 0 ? String(line.rate) : ''}
+                placeholder={lineNeedsManualPrice(line) ? 'Enter price' : '0'}
+                onChange={(e) => updateLineItem(line.id, { rate: Number(e.target.value.replace(/,/g, '')) || 0 })} />
+            ) : fmt(line.rate)}
+            <p className="mt-1 text-[11px] text-muted-foreground">PDF: {formatTemplatePriceHint(line)}</p>
+          </td>
+          <td className="px-3 py-2">
+            {canEdit ? (
+              <Input type="text" inputMode="decimal" 
+                value={line.quantity > 0 ? String(line.quantity) : ''}
+                placeholder="0"
+                onChange={(e) => updateLineItem(line.id, { quantity: Number(e.target.value.replace(/,/g, '')) || 0 })} />
+            ) : line.quantity}
+          </td>
+        </>
+      )}
+      <td className="px-3 py-2 text-right font-medium">
+        {isPkg && canEdit ? (
+          <Input type="text" inputMode="decimal" className="text-right"
+            value={line.amount > 0 ? String(line.amount) : ''}
+            placeholder="Total"
+            onChange={(e) => updateLineItem(line.id, { amount: Number(e.target.value.replace(/,/g, '')) || 0 })} />
+        ) : fmt(line.amount)}
+      </td>
+      <td className="px-3 py-2">
+        {canEdit && (
+          <Button type="button" size="icon" variant="ghost" onClick={() => removeLine(line.id)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </td>
+    </tr>
   )
 }
