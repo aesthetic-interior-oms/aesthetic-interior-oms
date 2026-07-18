@@ -6,6 +6,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteShell } from "@/components/website/ui/site-shell";
+import { siteName, siteUrl } from "@/lib/site";
 
 
 const geistSans = Geist({
@@ -25,8 +26,64 @@ const notoSerifBengali = Noto_Serif_Bengali({
 });
 
 export const metadata: Metadata = {
-  title: "Aesthetic  Interior",
-  description: "Aesthetic Interior Design Operations Management System",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: `${siteName} | Modern Contemporary Interior Design in Dhaka, Bangladesh`,
+    template: `%s | ${siteName}`,
+  },
+  description:
+    "Aesthetic Interior Studio is a pioneer brand for modern contemporary interior design in Dhaka, Bangladesh, serving residential, commercial, and architectural spaces.",
+  applicationName: siteName,
+  authors: [{ name: siteName }],
+  creator: siteName,
+  publisher: siteName,
+  keywords: [
+    "Aesthetic Interior Studio",
+    "aesthetic interior studio in BD",
+    "interior design Dhaka",
+    "interior design Bangladesh",
+    "modern contemporary interior design",
+    "residential interior design Dhaka",
+    "commercial interior design Bangladesh",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_BD",
+    url: siteUrl,
+    siteName,
+    title: `${siteName} | Interior Design Studio in Dhaka, Bangladesh`,
+    description:
+      "Modern contemporary residential, commercial, and architectural interior design by Aesthetic Interior Studio in Dhaka, Bangladesh.",
+    images: [
+      {
+        url: "/Logo/HeaderLogo.png",
+        width: 1200,
+        height: 630,
+        alt: siteName,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${siteName} | Interior Design Studio in Dhaka, Bangladesh`,
+    description:
+      "A pioneer brand for modern contemporary interior design in Dhaka, Bangladesh.",
+    images: ["/Logo/HeaderLogo.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
 };
 
 export default function RootLayout({

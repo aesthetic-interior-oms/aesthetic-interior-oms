@@ -5,15 +5,15 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ProjectFilter } from "../projects/project-filter"
 import { ProjectCard } from "../projects/project-card"
-import { websiteProjects } from "@/lib/website-projects"
+import type { WebsiteProject } from "@/lib/website-projects"
 
 const INITIAL_DISPLAY_COUNT = 6
 
-export function ProjectSection() {
+export function ProjectSection({ projects }: { projects: WebsiteProject[] }) {
   const [activeFilter, setActiveFilter] = useState("all")
 
   const filteredProjects =
-    activeFilter === "all" ? websiteProjects : websiteProjects.filter((project) => project.category === activeFilter)
+    activeFilter === "all" ? projects : projects.filter((project) => project.category === activeFilter)
 
   const displayedProjects = filteredProjects.slice(0, INITIAL_DISPLAY_COUNT)
 
@@ -24,7 +24,7 @@ export function ProjectSection() {
           <p className="text-[#a57c00] text-sm uppercase tracking-widest mb-3 font-medium">Portfolio</p>
           <h2 className="text-3xl md:text-4xl font-serif text-[#0d3d3d] text-balance">Explore Our Work</h2>
           <p className="text-[#0d3d3d]/70 mt-4 max-w-2xl mx-auto">
-            Discover our collection of {websiteProjects.length}+ completed projects across Bangladesh, showcasing our
+            Discover our collection of {projects.length}+ completed projects across Bangladesh, showcasing our
             expertise in residential, renovation, and custom furniture design.
           </p>
         </div>

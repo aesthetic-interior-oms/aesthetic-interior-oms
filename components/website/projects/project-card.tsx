@@ -6,11 +6,11 @@ import Image from "next/image"
 import { cn } from "@/lib/utils"
 
 type ProjectCardItem = {
-  id: number
+  id: string
   slug: string
   title: string
   category: string
-  location: string
+  location: string | null
   bannerImage: string
   description: string
 }

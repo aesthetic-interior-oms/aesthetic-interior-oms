@@ -5,16 +5,20 @@ import { ProjectFilter } from "./project-filter"
 import { ProjectCard } from "./project-card"
 import { Button } from "@/components/ui/button"
 import { ChevronDown, ChevronUp } from "lucide-react"
-import { websiteProjects } from "@/lib/website-projects"
+import type { WebsiteProject } from "@/lib/website-projects"
 
 const INITIAL_DISPLAY_COUNT = 6
 
-export function ProjectGallery() {
+type ProjectGalleryProps = {
+  projects: WebsiteProject[]
+}
+
+export function ProjectGallery({ projects }: ProjectGalleryProps) {
   const [activeFilter, setActiveFilter] = useState("all")
   const [showAll, setShowAll] = useState(false)
 
   const filteredProjects =
-    activeFilter === "all" ? websiteProjects : websiteProjects.filter((project) => project.category === activeFilter)
+    activeFilter === "all" ? projects : projects.filter((project) => project.category === activeFilter)
 
   const displayedProjects = showAll ? filteredProjects : filteredProjects.slice(0, INITIAL_DISPLAY_COUNT)
   const hasMoreProjects = filteredProjects.length > INITIAL_DISPLAY_COUNT
@@ -28,8 +32,8 @@ export function ProjectGallery() {
             Explore Our Work
           </h2>
           <p className="text-[#0d3d3d]/70 mt-4 max-w-2xl mx-auto leading-relaxed">
-            Discover our collection of {websiteProjects.length}+ completed projects across Bangladesh, showcasing our
-            expertise in residential, renovation, and custom furniture design.
+            Discover our collection of {projects.length}+ completed projects across Bangladesh, showcasing our
+            expertise in residential, commercial, renovation, and custom furniture design.
           </p>
         </div>
 
