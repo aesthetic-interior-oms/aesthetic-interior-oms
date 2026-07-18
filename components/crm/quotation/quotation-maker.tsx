@@ -853,51 +853,51 @@ function SortableRow({ line, lineIndex, isPkg, canEdit, updateLineItem, removeLi
         </td>
       )}
       <td className="px-3 py-2 text-muted-foreground">{lineIndex + 1}</td>
-      <td className="px-3 py-2">
+      <td className="px-3 py-2 max-w-[200px]">
         {canEdit ? (
-          <Input value={line.description} onChange={(e) => updateLineItem(line.id, { description: e.target.value })} />
-        ) : line.description}
+          <Input value={line.description} className="break-words" onChange={(e) => updateLineItem(line.id, { description: e.target.value })} />
+        ) : <span className="break-words">{line.description}</span>}
       </td>
-      <td className="px-3 py-2">
+      <td className="px-3 py-2 max-w-[350px]">
         {canEdit ? (
-          <Textarea rows={4} value={line.materials ?? ''} className="min-w-[260px] text-xs"
+          <Textarea rows={4} value={line.materials ?? ''} className="min-w-[260px] text-xs break-words"
             onChange={(e) => updateLineItem(line.id, { materials: e.target.value })} />
         ) : (
-          <p className="whitespace-pre-wrap text-xs">{line.materials || '—'}</p>
+          <p className="whitespace-pre-wrap text-xs break-words">{line.materials || '—'}</p>
         )}
       </td>
       {isPkg ? (
-        <td colSpan={2} className="px-3 py-2">
-          <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Package</span>
+        <td colSpan={2} className="px-3 py-2 max-w-[200px]">
+          <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 break-words">Package</span>
         </td>
       ) : (
         <>
-          <td className="px-3 py-2">
+          <td className="px-3 py-2 max-w-[120px]">
             {canEdit ? (
               <Input type="text" inputMode="decimal"
                 value={line.rate > 0 ? String(line.rate) : ''}
                 placeholder={lineNeedsManualPrice(line) ? 'Enter price' : '0'}
                 onChange={(e) => updateLineItem(line.id, { rate: Number(e.target.value.replace(/,/g, '')) || 0 })} />
-            ) : fmt(line.rate)}
-            <p className="mt-1 text-[11px] text-muted-foreground">PDF: {formatTemplatePriceHint(line)}</p>
+            ) : <span className="break-all">{fmt(line.rate)}</span>}
+            <p className="mt-1 text-[11px] text-muted-foreground break-words">PDF: {formatTemplatePriceHint(line)}</p>
           </td>
-          <td className="px-3 py-2">
+          <td className="px-3 py-2 max-w-[100px]">
             {canEdit ? (
               <Input type="text" inputMode="decimal" 
                 value={line.quantity > 0 ? String(line.quantity) : ''}
                 placeholder="0"
                 onChange={(e) => updateLineItem(line.id, { quantity: Number(e.target.value.replace(/,/g, '')) || 0 })} />
-            ) : line.quantity}
+            ) : <span className="break-all">{line.quantity}</span>}
           </td>
         </>
       )}
-      <td className="px-3 py-2 text-right font-medium">
+      <td className="px-3 py-2 text-right font-medium max-w-[150px]">
         {isPkg && canEdit ? (
           <Input type="text" inputMode="decimal" className="text-right"
             value={line.amount > 0 ? String(line.amount) : ''}
             placeholder="Total"
             onChange={(e) => updateLineItem(line.id, { amount: Number(e.target.value.replace(/,/g, '')) || 0 })} />
-        ) : fmt(line.amount)}
+        ) : <span className="break-all">{fmt(line.amount)}</span>}
       </td>
       <td className="px-3 py-2">
         {canEdit && (

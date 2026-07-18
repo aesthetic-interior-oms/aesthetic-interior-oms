@@ -54,7 +54,13 @@ export function calculateQuotationTotals(content: QuotationDraftContent): Quotat
   const taxAmount = Math.round(taxableAmount * (taxPercent / 100) * 100) / 100
   const grandTotal = Math.round((taxableAmount + taxAmount) * 100) / 100
 
-  const itemsMissingPrice = includedItems.filter((line) => line.rate <= 0).length
+  const itemsMissingPrice = includedItems.filter((line) => {
+    const isPackage = line.unit === 'ls' || (line.quantity <= 0 && line.amount > 0)
+    if (isPackage) {
+      return line.amount <= 0
+    }
+    return line.rate <= 0
+  }).length
 
   return {
     subtotal: Math.round(subtotal * 100) / 100,

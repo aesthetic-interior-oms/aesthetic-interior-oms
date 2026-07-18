@@ -21,6 +21,7 @@ import {
   formatDetailQtyCell,
   formatDetailTotalCell,
   formatDetailUnitPriceCell,
+  isPackageLine,
 } from '@/lib/detail-quotation-format'
 import { amountInWordsTaka } from '@/lib/number-to-words'
 
@@ -467,25 +468,37 @@ export function DetailQuotationDocument({
           </View>
 
           <View style={styles.tableWrapper}>
-            {entry.lines.map((line, lineIndex) => (
-              <View key={line.id} style={[styles.tRowDetail, lineIndex % 2 === 1 ? styles.tRowAlt : {}]}>
-                <Text style={[styles.tdColAbs, styles.posSl]}>
-                  {String(lineIndex + 1).padStart(2, '0')}
-                </Text>
-                <Text style={[styles.tdColAbs, styles.posName, styles.bold]}>{line.description}</Text>
-                
-                <View style={styles.wMatsFlow}>
-                  <MaterialTextPdf text={line.materials} />
-                </View>
+            {entry.lines.map((line, lineIndex) => {
+              const isPkg = isPackageLine(line)
+              return (
+                <View key={line.id} style={[styles.tRowDetail, lineIndex % 2 === 1 ? styles.tRowAlt : {}]}>
+                  <Text style={[styles.tdColAbs, styles.posSl]}>
+                    {String(lineIndex + 1).padStart(2, '0')}
+                  </Text>
+                  <Text style={[styles.tdColAbs, styles.posName, styles.bold]}>{line.description}</Text>
+                  
+                  <View style={styles.wMatsFlow}>
+                    <MaterialTextPdf text={line.materials} />
+                  </View>
 
-                <Text style={[styles.tdColAbs, styles.posQty]}>{formatDetailQtyCell(line)}</Text>
-                <Text style={[styles.tdColAbs, styles.posPrice]}>{formatDetailUnitPriceCell(line)}</Text>
-                <Text style={[styles.tdColAbs, styles.posTotal, styles.bold, { color: PRIMARY }]}>
-                  {formatDetailTotalCell(line)}
-                  {line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
-                </Text>
-              </View>
-            ))}
+                  {isPkg ? (
+                    <Text style={[styles.tdColAbs, { left: '68%', width: '20%', textAlign: 'center', color: '#8b4513' }]}>
+                      Package As Per Design
+                    </Text>
+                  ) : (
+                    <>
+                      <Text style={[styles.tdColAbs, styles.posQty]}>{formatDetailQtyCell(line)}</Text>
+                      <Text style={[styles.tdColAbs, styles.posPrice]}>{formatDetailUnitPriceCell(line)}</Text>
+                    </>
+                  )}
+                  
+                  <Text style={[styles.tdColAbs, styles.posTotal, styles.bold, { color: PRIMARY }]}>
+                    {formatDetailTotalCell(line)}
+                    {line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
+                  </Text>
+                </View>
+              )
+            })}
           </View>
           
           <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>
