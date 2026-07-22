@@ -169,6 +169,18 @@ model User {
   notifications Notification[]
   signupNotifications Notification[] @relation("NotificationSubjectUser")
   transactionsRecorded Transaction[] @relation("TransactionRecorder")
+  deviceTokens DeviceToken[]
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String   // "android" | "ios"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model LeadPhaseTask {
