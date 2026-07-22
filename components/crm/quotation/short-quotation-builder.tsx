@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
+import { GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -26,6 +26,23 @@ import {
 } from '@/lib/quotation-playground-storage'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import type {
   ShortQuotationContent,
   ShortQuotationLine,
@@ -70,6 +87,26 @@ export function ShortQuotationBuilder({
   const [content, setContent] = useState<ShortQuotationContent | null>(null)
   const [selectedPackageTier, setSelectedPackageTier] = useState<ShortQuotationPackage>('PREMIUM')
   const [generatingPdf, setGeneratingPdf] = useState(false)
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const reorderRoomLines = (roomId: string, event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    updateContent((prev) => ({
+      ...prev,
+      rooms: prev.rooms.map((room) => {
+        if (room.id !== roomId) return room
+        const oldIndex = room.lines.findIndex((line) => line.id === active.id)
+        const newIndex = room.lines.findIndex((line) => line.id === over.id)
+        if (oldIndex < 0 || newIndex < 0) return room
+        return { ...room, lines: arrayMove(room.lines, oldIndex, newIndex) }
+      }),
+    }))
+  }
 
   const loadDraft = useCallback(async () => {
     setLoading(true)
@@ -673,6 +710,7 @@ export function ShortQuotationBuilder({
                           <table className="w-full min-w-[760px] text-sm">
                             <thead className="bg-muted/40 text-left">
                               <tr>
+                                {canEdit && <th className="w-6 px-1 py-2" />}
                                 <th className="px-2 py-2">Name</th>
                                 <th className="px-2 py-2">Qty Sft</th>
                                 <th className="px-2 py-2">Unit Price</th>
@@ -681,84 +719,27 @@ export function ShortQuotationBuilder({
                               </tr>
                             </thead>
                             <tbody>
-                              {room.lines.map((line) => (
-                                <tr key={line.id} className="border-t">
-                                  <td className="px-2 py-2">
-                                    <Input
-                                      value={line.name}
-                                      disabled={!canEdit}
-                                      onChange={(event) =>
-                                        updateLine(room.id, line.id, { name: event.target.value })
-                                      }
+                              <DndContext
+                                sensors={dndSensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={(event) => reorderRoomLines(room.id, event)}
+                              >
+                                <SortableContext
+                                  items={room.lines.map((line) => line.id)}
+                                  strategy={verticalListSortingStrategy}
+                                >
+                                  {room.lines.map((line) => (
+                                    <SortableShortRow
+                                      key={line.id}
+                                      line={line}
+                                      roomId={room.id}
+                                      canEdit={canEdit}
+                                      updateLine={updateLine}
+                                      removeLine={removeLine}
                                     />
-                                  </td>
-                                  <td className="px-2 py-2">
-                                    {line.isLumpSum ? (
-                                      <span className="text-xs text-muted-foreground">Lump sum</span>
-                                    ) : (
-                                      <Input
-                                        type="text"
-                                        inputMode="decimal"
-                                        disabled={!canEdit}
-                                        value={line.quantitySqft ?? ''}
-                                        onChange={(event) =>
-                                          updateLine(room.id, line.id, {
-                                            quantitySqft:
-                                              Number(event.target.value.replace(/,/g, '')) || 0,
-                                          })
-                                        }
-                                      />
-                                    )}
-                                  </td>
-                                  <td className="px-2 py-2">
-                                    {line.isLumpSum ? (
-                                      <span className="text-xs text-muted-foreground">—</span>
-                                    ) : (
-                                      <Input
-                                        type="text"
-                                        inputMode="decimal"
-                                        disabled={!canEdit}
-                                        value={line.unitPrice ?? ''}
-                                        onChange={(event) =>
-                                          updateLine(room.id, line.id, {
-                                            unitPrice:
-                                              Number(event.target.value.replace(/,/g, '')) || 0,
-                                          })
-                                        }
-                                      />
-                                    )}
-                                  </td>
-                                  <td className="px-2 py-2">
-                                    {line.isLumpSum ? (
-                                      <Input
-                                        type="text"
-                                        inputMode="decimal"
-                                        disabled={!canEdit}
-                                        value={line.total}
-                                        onChange={(event) =>
-                                          updateLine(room.id, line.id, {
-                                            total: Number(event.target.value.replace(/,/g, '')) || 0,
-                                          })
-                                        }
-                                      />
-                                    ) : (
-                                      <span className="font-medium">{formatAmount(line.total)}</span>
-                                    )}
-                                  </td>
-                                  <td className="px-2 py-2">
-                                    {canEdit ? (
-                                      <Button
-                                        type="button"
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => removeLine(room.id, line.id)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    ) : null}
-                                  </td>
-                                </tr>
-                              ))}
+                                  ))}
+                                </SortableContext>
+                              </DndContext>
                             </tbody>
                           </table>
                         </div>
@@ -818,6 +799,114 @@ export function ShortQuotationBuilder({
         }
       `}</style>
     </div>
+  )
+}
+
+type SortableShortRowProps = {
+  line: ShortQuotationLine
+  roomId: string
+  canEdit: boolean
+  updateLine: (roomId: string, lineId: string, patch: Partial<ShortQuotationLine>) => void
+  removeLine: (roomId: string, lineId: string) => void
+}
+
+function SortableShortRow({
+  line,
+  roomId,
+  canEdit,
+  updateLine,
+  removeLine,
+}: SortableShortRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: line.id })
+
+  const rowStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    backgroundColor: isDragging ? 'hsl(var(--muted))' : undefined,
+  }
+
+  return (
+    <tr ref={setNodeRef} style={rowStyle} className="border-t align-top">
+      {canEdit && (
+        <td className="px-1 py-2 text-muted-foreground">
+          <button
+            type="button"
+            className="cursor-grab touch-none rounded p-1 hover:bg-muted active:cursor-grabbing"
+            aria-label="Drag row"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="h-4 w-4" />
+          </button>
+        </td>
+      )}
+      <td className="px-2 py-2">
+        <Input
+          value={line.name}
+          disabled={!canEdit}
+          onChange={(event) => updateLine(roomId, line.id, { name: event.target.value })}
+        />
+      </td>
+      <td className="px-2 py-2">
+        {line.isLumpSum ? (
+          <span className="text-xs text-muted-foreground">Lump sum</span>
+        ) : (
+          <Input
+            type="text"
+            inputMode="decimal"
+            disabled={!canEdit}
+            value={line.quantitySqft ?? ''}
+            onChange={(event) =>
+              updateLine(roomId, line.id, {
+                quantitySqft: Number(event.target.value.replace(/,/g, '')) || 0,
+              })
+            }
+          />
+        )}
+      </td>
+      <td className="px-2 py-2">
+        {line.isLumpSum ? (
+          <span className="text-xs text-muted-foreground">—</span>
+        ) : (
+          <Input
+            type="text"
+            inputMode="decimal"
+            disabled={!canEdit}
+            value={line.unitPrice ?? ''}
+            onChange={(event) =>
+              updateLine(roomId, line.id, {
+                unitPrice: Number(event.target.value.replace(/,/g, '')) || 0,
+              })
+            }
+          />
+        )}
+      </td>
+      <td className="px-2 py-2">
+        {line.isLumpSum ? (
+          <Input
+            type="text"
+            inputMode="decimal"
+            disabled={!canEdit}
+            value={line.total}
+            onChange={(event) =>
+              updateLine(roomId, line.id, {
+                total: Number(event.target.value.replace(/,/g, '')) || 0,
+              })
+            }
+          />
+        ) : (
+          <span className="font-medium">{formatAmount(line.total)}</span>
+        )}
+      </td>
+      <td className="px-2 py-2">
+        {canEdit ? (
+          <Button type="button" size="icon" variant="ghost" onClick={() => removeLine(roomId, line.id)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ) : null}
+      </td>
+    </tr>
   )
 }
 
