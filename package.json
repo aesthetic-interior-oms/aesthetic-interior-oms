@@ -30,6 +30,7 @@
     "css-to-react-native": "^3.2.0",
     "date-fns": "^4.1.0",
     "dotenv": "^17.3.1",
+    "firebase-admin": "^14.2.0",
     "googleapis": "^171.4.0",
     "hsl-to-hex": "^1.0.0",
     "html2canvas": "^1.4.1",

@@ -1,202 +1,153 @@
 'use client'
 
 import { Fragment } from 'react'
-import {
-  buildShortQuotationSummary,
-  formatShortQuotationDate,
-} from '@/lib/short-quotation-calculations'
+import { amountInWordsTaka } from '@/lib/number-to-words'
+import { buildShortQuotationSummary, formatShortQuotationDate } from '@/lib/short-quotation-calculations'
 import type { ShortQuotationContent } from '@/lib/short-quotation-types'
 
-type ShortQuotationPrintProps = {
-  content: ShortQuotationContent
-}
+const PRIMARY = '#0f5b53'
 
 function formatAmount(value: number) {
   return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value)
 }
 
-export function ShortQuotationPrint({ content }: ShortQuotationPrintProps) {
-  const summary = buildShortQuotationSummary(content)
+function formatCurrency(value: number) {
+  return `৳ ${formatAmount(value)}`
+}
 
+function WatermarkBackground() {
   return (
-    <div className="short-quotation-print mx-auto max-w-[900px] bg-white p-8 text-black font-sans leading-relaxed">
-      <div className="mb-6 space-y-2 text-sm text-black">
-        <div className="flex flex-wrap justify-between gap-4">
-          <p>
-            <span className="font-bold">Quotation for:</span>
-            <br />
-            {content.clientName}
-          </p>
-          <p className="text-right">
-            <span className="font-bold">Date:</span> {formatShortQuotationDate(content.quotationDate)}
-          </p>
-        </div>
-        <p>
-          <span className="font-bold">Address:</span> {content.clientAddress}
-        </p>
-        <p>
-          <span className="font-bold">Subject:</span> {content.subject}
-        </p>
-        <p className="font-bold pt-2">Dear Sir,</p>
-        <p className="whitespace-pre-wrap pt-1 font-medium">{content.introLetter}</p>
-      </div>
-
-      <table className="w-full border-collapse border border-black text-sm text-black">
-        <thead>
-          {/* Package Tier Header (Green) */}
-          <tr className="bg-[#76933c] text-black">
-            <th colSpan={5} className="border border-black px-2 py-2 text-center text-base font-bold uppercase tracking-wider">
-              {content.packageTier}
-            </th>
-          </tr>
-          {/* Columns Header (Blue) */}
-          <tr className="bg-[#0070c0] text-black">
-            <th className="border border-black px-2 py-2 text-center font-bold w-[6%]">SL</th>
-            <th className="border border-black px-2 py-2 text-center font-bold w-[54%]">NAME</th>
-            <th className="border border-black px-2 py-2 text-center font-bold w-[12%]">QTY SFT</th>
-            <th className="border border-black px-2 py-2 text-center font-bold w-[13%]">UNIT PRICE</th>
-            <th className="border border-black px-2 py-2 text-center font-bold w-[15%]">TOTAL</th>
-          </tr>
-        </thead>
-        <tbody>
-          {summary.floors.map((floorSummary) => (
-            <Fragment key={floorSummary.floor.id}>
-              {/* Floor Header Row (Gold/Brown) */}
-              <tr className="bg-[#bf9000] text-black">
-                <td colSpan={5} className="border border-black px-2 py-2 text-center font-bold uppercase">
-                  {floorSummary.floor.name || 'Floor'}
-                </td>
-              </tr>
-              {floorSummary.rooms.map((roomSummary) => (
-                <Fragment key={roomSummary.room.id}>
-                  {/* Room Header Row (White) */}
-                  <tr className="bg-white text-black">
-                    <td colSpan={5} className="border border-black px-2 py-2 text-center font-bold uppercase">
-                      {roomSummary.room.name || 'Room'}
-                    </td>
-                  </tr>
-                  {/* Item Rows */}
-                  {roomSummary.lines.map((line, lineIndex) => (
-                    <tr key={line.id} className="bg-white text-black">
-                      <td className="border border-black px-2 py-1.5 text-center align-middle font-medium">
-                        {lineIndex + 1}
-                      </td>
-                      <td className="border border-black px-3 py-1.5 text-left align-middle font-medium">
-                        {line.name}
-                      </td>
-                      {line.isLumpSum ? (
-                        <td colSpan={2} className="border border-black px-2 py-1.5 text-center align-middle font-medium">
-                          Package
-                        </td>
-                      ) : (
-                        <>
-                          <td className="border border-black px-2 py-1.5 text-center align-middle font-medium">
-                            {line.quantitySqft !== null ? formatAmount(line.quantitySqft) : ''}
-                          </td>
-                          <td className="border border-black px-2 py-1.5 text-center align-middle font-medium">
-                            {line.unitPrice !== null ? formatAmount(line.unitPrice) : ''}
-                          </td>
-                        </>
-                      )}
-                      <td className="border border-black px-2 py-1.5 text-center align-middle font-medium">
-                        {formatAmount(line.total)}
-                      </td>
-                    </tr>
-                  ))}
-                  {/* Room Total Row (Blue) */}
-                  <tr className="bg-[#0070c0] text-black font-bold">
-                    <td colSpan={4} className="border border-black px-2 py-1.5 text-center font-bold uppercase">
-                      TOTAL
-                    </td>
-                    <td className="border border-black px-2 py-1.5 text-center font-bold">
-                      {formatAmount(roomSummary.total)}
-                    </td>
-                  </tr>
-                </Fragment>
-              ))}
-              {/* Floor All Total Row (Green) */}
-              <tr className="bg-[#76933c] text-black font-bold">
-                <td colSpan={4} className="border border-black px-2 py-2 text-center font-bold uppercase">
-                  ALL TOTAL
-                </td>
-                <td className="border border-black px-2 py-2 text-center font-bold">
-                  {formatAmount(floorSummary.total)}
-                </td>
-              </tr>
-            </Fragment>
-          ))}
-          {/* Grand Total Row (Gold/Brown) */}
-          <tr className="bg-[#bf9000] text-black font-bold">
-            <td colSpan={4} className="border border-black px-2 py-2 text-center font-bold uppercase">
-              GRAND TOTAL
-            </td>
-            <td className="border border-black px-2 py-2 text-center font-bold">
-              {formatAmount(summary.grandTotal)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      {content.footerNotes.length > 0 ? (
-        <div className="mt-8 space-y-2 text-sm text-black font-bold">
-          {content.footerNotes.map((note, index) => (
-            <div key={index} className="flex items-start gap-4">
-              <span className="w-5 flex-shrink-0 text-left">{index + 1}</span>
-              <span>{note}</span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      <style jsx global>{`
-        .short-quotation-print {
-          font-family: Arial, Helvetica, sans-serif !important;
-        }
-        @media print {
-          .short-quotation-print {
-            background-color: white !important;
-            color: black !important;
-            padding: 0 !important;
-            margin: 0 !important;
-          }
-          .short-quotation-print table {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            border-collapse: collapse !important;
-            width: 100% !important;
-          }
-          .short-quotation-print tr {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          .short-quotation-print th {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            background-color: inherit !important;
-            border: 1px solid black !important;
-          }
-          .short-quotation-print td {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            background-color: inherit !important;
-            border: 1px solid black !important;
-          }
-          /* Custom overrides for standard classes in print mode */
-          .short-quotation-print .bg-\\[\\#76933c\\] {
-            background-color: #76933c !important;
-          }
-          .short-quotation-print .bg-\\[\\#0070c0\\] {
-            background-color: #0070c0 !important;
-          }
-          .short-quotation-print .bg-\\[\\#bf9000\\] {
-            background-color: #bf9000 !important;
-          }
-          .short-quotation-print .bg-white {
-            background-color: #ffffff !important;
-          }
-        }
-      `}</style>
+    <div className="absolute inset-0 z-0 flex items-center justify-center opacity-5 pointer-events-none">
+      <img src="/android-chrome-512x512.png" alt="watermark" className="h-[400px] w-[400px] object-contain" />
     </div>
   )
 }
 
+function getQuoteId(date: string) {
+  const timestamp = Date.parse(date)
+  const suffix = Number.isNaN(timestamp) ? '000000' : timestamp.toString().slice(-6)
+  return `QTN-${suffix}`
+}
+
+function PageHeader({ date }: { date: string }) {
+  const formattedDate = `${formatShortQuotationDate(date)} ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+  return (
+    <div className="relative z-10 mb-6 flex flex-col">
+      <div className="flex items-end justify-between pb-3">
+        <div className="w-1/2">
+          <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[160px] object-contain object-left" />
+        </div>
+        <div className="flex w-1/2 flex-col items-end gap-1">
+          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Quote ID:</span> {getQuoteId(date)}</p>
+          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Date:</span> {formattedDate}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PageFooter() {
+  return (
+    <div className="relative z-10 mt-12 flex justify-between border-t border-[#a57c00] pt-3 text-[9px] text-neutral-700">
+      <div className="w-[35%]">
+        <p className="mb-1 font-bold" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
+        <p>183, East Senpara, Begum Rokeya Soroni</p>
+        <p>3rd floor, Mirpur 10, Dhaka-1216</p>
+      </div>
+      <div className="flex w-[30%] flex-col items-center">
+        <p>+88 0132969 4663</p>
+        <p>hello@aestheticinterior.com</p>
+        <p className="font-bold" style={{ color: PRIMARY }}>www.aestheticinteriorbd.com</p>
+      </div>
+      <div className="flex w-[35%] flex-col items-end justify-end">
+        <p className="text-neutral-500">© 2026 All rights reserved.</p>
+      </div>
+    </div>
+  )
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <div className="mb-0 mt-4 px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: PRIMARY, backgroundColor: '#e6f0ef' }}>{children}</div>
+}
+
+export function ShortQuotationPrint({ content }: { content: ShortQuotationContent }) {
+  const summary = buildShortQuotationSummary(content)
+  const cleanIntro = (content.introLetter || '').replace('Dear Sir,\n', '').replace('Dear Sir,', '').trim()
+
+  return (
+    <div className="short-quotation-print w-full bg-neutral-100">
+      <section className="relative mx-auto mb-6 min-h-[297mm] w-[210mm] overflow-hidden bg-white px-10 pb-16 pt-8 shadow-md">
+        <WatermarkBackground />
+        <PageHeader date={content.quotationDate} />
+
+        <div className="pb-6">
+          <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[#a57c00]">Prepared For</p>
+          <p className="mb-0.5 text-[14px] font-bold leading-snug text-[#0f5b53]">{content.clientName}</p>
+          <p className="max-w-[360px] text-[10px] leading-snug text-neutral-600">{content.clientAddress || '—'}</p>
+        </div>
+
+        {content.subject ? <p className="mb-3 text-[9px] text-neutral-700"><span className="font-bold">Subject:</span> {content.subject}</p> : null}
+        {cleanIntro ? <div className="mb-4 text-[9px] leading-relaxed text-neutral-700"><p className="mb-1 font-bold">Dear Sir,</p><p className="whitespace-pre-wrap text-justify">{cleanIntro}</p></div> : null}
+
+        <SectionTitle>{content.packageTier} Short Quotation Summary</SectionTitle>
+        <div className="flex border-b pb-1.5 pt-2 text-[8px] font-bold uppercase" style={{ color: PRIMARY, borderColor: PRIMARY }}>
+          <span className="w-[8%] text-center">SL</span><span className="w-[70%]">Description</span><span className="w-[22%] text-right">Amount</span>
+        </div>
+        {summary.floors.map((floorSummary, index) => (
+          <div key={floorSummary.floor.id} className="flex border-b py-2 text-[9px]" style={{ borderColor: '#eeeeee', backgroundColor: index % 2 === 1 ? '#f5f5ea' : '#ffffff' }}>
+            <span className="w-[8%] text-center text-neutral-500">{String(index + 1).padStart(2, '0')}</span>
+            <span className="w-[70%] font-bold">{floorSummary.floor.name}</span>
+            <span className="w-[22%] text-right font-bold">{formatCurrency(floorSummary.total)}</span>
+          </div>
+        ))}
+        <div className="mt-2 flex items-center justify-end border-t pt-2" style={{ borderColor: PRIMARY }}>
+          <span className="pr-4 text-[10px] font-bold" style={{ color: PRIMARY }}>Grand Total</span>
+          <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>{formatCurrency(summary.grandTotal)}</span>
+        </div>
+        <p className="mt-1 text-right text-[8px] italic text-neutral-500">In Words: <span className="font-bold not-italic">{amountInWordsTaka(summary.grandTotal)}</span></p>
+        <div className="absolute bottom-6 left-10 right-10"><PageFooter /></div>
+      </section>
+
+      {summary.floors.map((floorSummary) => (
+        <section key={floorSummary.floor.id} className="relative mx-auto mb-6 min-h-[297mm] w-[210mm] overflow-hidden bg-white px-10 pb-16 pt-8 shadow-md">
+          <WatermarkBackground />
+          <PageHeader date={content.quotationDate} />
+          <SectionTitle>{floorSummary.floor.name}</SectionTitle>
+          <div className="flex border-b pb-1.5 pt-2 text-[8px] font-bold uppercase" style={{ color: PRIMARY, borderColor: PRIMARY }}>
+            <span className="w-[8%] text-center">SL</span><span className="w-[42%]">Name</span><span className="w-[12%] text-center">Qty/Sft</span><span className="w-[18%] text-right">Unit Price</span><span className="w-[20%] text-right">Total</span>
+          </div>
+          {floorSummary.rooms.map((roomSummary) => (
+            <Fragment key={roomSummary.room.id}>
+              <div className="mt-3 px-2 py-1 text-[9px] font-bold uppercase" style={{ color: PRIMARY, backgroundColor: '#e6f0ef' }}>{roomSummary.room.name}</div>
+              {roomSummary.lines.map((line, lineIndex) => (
+                <div key={line.id} className="flex items-start border-b py-2 text-[9px]" style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#f5f5ea' : '#ffffff' }}>
+                  <span className="w-[8%] text-center text-neutral-500">{String(lineIndex + 1).padStart(2, '0')}</span>
+                  <span className="w-[42%] pr-1 font-bold leading-snug">{line.name}</span>
+                  <span className="w-[12%] text-center text-neutral-600">{line.isLumpSum ? 'Package' : formatAmount(line.quantitySqft ?? 0)}</span>
+                  <span className="w-[18%] text-right text-neutral-600">{line.isLumpSum ? '—' : formatCurrency(line.unitPrice ?? 0)}</span>
+                  <span className="w-[20%] text-right font-bold" style={{ color: PRIMARY }}>{formatCurrency(line.total)}</span>
+                </div>
+              ))}
+              <div className="mt-1 flex justify-end text-[9px] font-bold" style={{ color: PRIMARY }}><span className="pr-4">Total for {roomSummary.room.name}</span><span>{formatCurrency(roomSummary.total)}</span></div>
+            </Fragment>
+          ))}
+          <div className="mt-3 flex justify-end border-t pt-2 text-[10px] font-bold" style={{ borderColor: PRIMARY, color: PRIMARY }}><span className="pr-4">Total for {floorSummary.floor.name}</span><span>{formatCurrency(floorSummary.total)}</span></div>
+          <p className="mt-1 text-right text-[8px] italic text-neutral-500">In Words: <span className="font-bold not-italic">{amountInWordsTaka(floorSummary.total)}</span></p>
+          <div className="absolute bottom-6 left-10 right-10"><PageFooter /></div>
+        </section>
+      ))}
+
+      {content.footerNotes.length > 0 ? (
+        <section className="relative mx-auto min-h-[297mm] w-[210mm] overflow-hidden bg-white px-10 pb-16 pt-8 shadow-md">
+          <WatermarkBackground />
+          <PageHeader date={content.quotationDate} />
+          <SectionTitle>Terms &amp; Notes</SectionTitle>
+          <div className="mt-3 space-y-2 text-[9px] text-neutral-600">
+            {content.footerNotes.map((note, index) => <p key={index}><span className="font-bold" style={{ color: PRIMARY }}>{index + 1}.</span> {note}</p>)}
+          </div>
+          <div className="absolute bottom-6 left-10 right-10"><PageFooter /></div>
+        </section>
+      ) : null}
+    </div>
+  )
+}
