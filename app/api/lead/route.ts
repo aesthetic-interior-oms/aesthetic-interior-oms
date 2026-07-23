@@ -22,6 +22,7 @@ import { isFacebookConfigured } from '@/lib/facebook';
 import { maybeRunFacebookFallbackSync, runFacebookSyncWithControl } from '@/lib/facebook-sync-control';
 import { maybeRunInstagramFallbackSync } from '@/lib/instagram-sync-control';
 import { formatPhoneForStorage } from '@/lib/phone-normalize';
+import { sendPushToUser } from '@/lib/fcm-service';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'sin1';
@@ -889,6 +890,28 @@ export async function POST(request: NextRequest) {
       return newLead;
     });
     // console.log('✨ [POST /api/lead] - Lead and activity log created successfully');
+
+    // Send FCM push notification to the assigned visit team member's device
+    // if a visit was scheduled during lead creation.
+    const shouldSchedule = Boolean(body.scheduleVisit);
+    if (shouldSchedule) {
+      try {
+        const visitBody: CreateLeadVisitBody = isRecord(body.visit) ? body.visit : {};
+        const visitTeamUserId = toOptionalString(visitBody.visitTeamUserId);
+        const scheduledAtRaw = toOptionalString(visitBody.scheduledAt);
+        const parsedScheduledAt = scheduledAtRaw ? new Date(scheduledAtRaw) : null;
+        if (visitTeamUserId && parsedScheduledAt && !Number.isNaN(parsedScheduledAt.getTime())) {
+          await sendPushToUser(
+            visitTeamUserId,
+            'New visit assigned',
+            `You have been assigned a new visit for ${lead.name}.`,
+            { type: 'VISIT_ASSIGNED', leadId: lead.id }
+          );
+        }
+      } catch (pushErr) {
+        console.error('[POST /api/lead] Failed to send push notification:', pushErr);
+      }
+    }
 
     // Return 201 Created with the new lead data
     return NextResponse.json(
