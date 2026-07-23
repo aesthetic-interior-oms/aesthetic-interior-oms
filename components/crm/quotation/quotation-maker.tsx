@@ -393,7 +393,7 @@ export function QuotationMaker({
     void window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  const saveDraft = async () => {
+  const saveDraft = useCallback(async () => {
     if (!content || !canEdit) return
     const normalized = normalizeQuotationContent(content)
     const totalsPreview = calculateQuotationTotals(normalized)
@@ -438,7 +438,20 @@ export function QuotationMaker({
     } finally {
       setSaving(false)
     }
-  }
+  }, [canEdit, content, isPlayground, leadId, projectSqft, quotationType])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        if (!saving) void saveDraft()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [saving, saveDraft])
+
 
   const startWork = async () => {
     setStartingWork(true)
@@ -494,9 +507,24 @@ export function QuotationMaker({
   }
 
   const displayContent = withDetailQuotationDefaults(content)
+  const taskbarFloorId = displayContent.sections.at(-1)?.id ?? null
+  const openTaskbarSavedItem = () => {
+    if (!taskbarFloorId) {
+      toast.error('Add a floor first')
+      return
+    }
+    openItemPicker(taskbarFloorId)
+  }
+  const openTaskbarCustomItem = () => {
+    if (!taskbarFloorId) {
+      toast.error('Add a floor first')
+      return
+    }
+    setCustomTypeFloorId(taskbarFloorId)
+  }
 
 return (
-    <div className="space-y-4 quotation-maker-root">
+    <div className="space-y-4 pb-28 print:pb-0 quotation-maker-root">
       <Card className="print:hidden">
         <CardHeader className="space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -765,6 +793,41 @@ return (
           </div>
         </CardContent>
       </Card>
+
+
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-background/95 px-3 py-3 shadow-[0_-18px_45px_-28px_rgba(15,23,42,0.55)] backdrop-blur print:hidden">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-2">
+          <Button type="button" size="sm" variant="outline" disabled={!canEdit} onClick={addFloor}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add Floor
+          </Button>
+          <Button type="button" size="sm" disabled={!canEdit || saving} onClick={() => void saveDraft()}>
+            <Save className="mr-1.5 h-4 w-4" />
+            {saving ? 'Saving...' : 'Save'}
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={openLivePreviewTab}>
+            <ExternalLink className="mr-1.5 h-4 w-4" />
+            Live Preview
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={handlePrint}>
+            <Printer className="mr-1.5 h-4 w-4" />
+            Print
+          </Button>
+          {!isPlayground ? (
+            <Button type="button" size="sm" variant="outline" asChild>
+              <Link href="/quotation-team/my-work">Back to My Work</Link>
+            </Button>
+          ) : null}
+          <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarFloorId} onClick={openTaskbarSavedItem}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add from Saved Item
+          </Button>
+          <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarFloorId} onClick={openTaskbarCustomItem}>
+            Custom Item
+          </Button>
+          <span className="text-xs text-muted-foreground">Ctrl+S saves</span>
+        </div>
+      </div>
 
       <QuotationItemPicker
         open={pickerOpen}

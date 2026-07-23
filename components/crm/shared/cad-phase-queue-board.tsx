@@ -7,6 +7,7 @@ import {
   CalendarClock,
   CheckCircle2,
   ClipboardCheck,
+  FilePlus2,
   DraftingCompass,
   LayoutGrid,
   ListFilter,
@@ -161,8 +162,9 @@ const CAD_PHASE_STAT_META: Record<
 
 const DEFAULT_STAT_META = {
   Icon: ListFilter,
-  className: 'border-border bg-card text-foreground',
-  iconClassName: 'bg-muted text-muted-foreground',
+  className:
+    'border-border/70 bg-gradient-to-br from-card via-card to-muted/40 text-foreground shadow-[0_10px_30px_-18px_rgba(15,23,42,0.45)]',
+  iconClassName: 'bg-primary/10 text-primary ring-1 ring-primary/20',
 }
 
 function formatLabel(value: string | null | undefined) {
@@ -342,6 +344,7 @@ export function CadPhaseQueueBoard({
   const isBudgetQueue = queueType === 'budget'
   const isDesignQueue = queueType === 'design'
   const isCadQueue = !isMeetingQueue && !isBudgetQueue && !isDesignQueue
+  const canDropFromQueue = isCadQueue || isMeetingQueue || isBudgetQueue
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 400)
@@ -507,9 +510,42 @@ export function CadPhaseQueueBoard({
       return
     }
     setActiveLead(lead)
-    setQuotationMemberId(lead.quotationAssignment?.user.id ?? '')
+    setQuotationMemberId(
+      lead.subStatus === 'QUOTATION_APPROVED'
+        ? ''
+        : lead.quotationAssignment?.user.id ?? '',
+    )
     setReassignQuotationOpen(true)
     await loadQuotationMembers()
+  }
+
+  const submitNewQuotation = async () => {
+    if (!activeLead || !quotationMemberId) return
+    setSaving(true)
+    try {
+      const response = await fetch(
+        `/api/lead/${activeLead.id}/assignments/QUOTATION`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: quotationMemberId }),
+        },
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to assign new quotation')
+      }
+      toast.success('New quotation assigned successfully')
+      setReassignQuotationOpen(false)
+      setActiveLead(null)
+      await loadLeads()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to assign new quotation',
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
   const submitReassignQuotation = async () => {
@@ -745,7 +781,7 @@ export function CadPhaseQueueBoard({
         body: JSON.stringify({
           stage: 'CLOSED',
           subStatus: dropSubStatus,
-          reason: 'Project dropped from CAD Queue.',
+          reason: `Project dropped from ${isMeetingQueue ? 'Meeting Queue' : isBudgetQueue ? 'Budget Queue' : 'CAD Queue'}.`,
         }),
       })
       const payload = await response.json()
@@ -941,7 +977,7 @@ export function CadPhaseQueueBoard({
         key: 'ALL',
         label: isCadQueue ? CAD_PHASE_STAT_META.ALL.label : 'Total',
         count: memberFilteredLeads.length,
-        Icon: totalMeta.Icon,
+        Icon: isBudgetQueue || isMeetingQueue ? FilePlus2 : totalMeta.Icon,
         className: totalMeta.className,
         iconClassName: totalMeta.iconClassName,
       },
@@ -1018,6 +1054,10 @@ export function CadPhaseQueueBoard({
     }))
   }, [filteredLeads])
 
+  const leadCardClassName = canDropFromQueue
+    ? 'relative overflow-hidden border-primary/15 bg-gradient-to-br from-card via-card to-primary/5 shadow-[0_18px_45px_-28px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-xl'
+    : 'overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md'
+
   const renderLeadActionMenu = (lead: LeadRecord) => (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -1039,7 +1079,7 @@ export function CadPhaseQueueBoard({
             Reassign {assigneeLabel}
           </DropdownMenuItem>
         ) : null}
-        {isCadQueue ? (
+        {canDropFromQueue ? (
           <DropdownMenuItem
             variant="destructive"
             onClick={() => openDropDialog(lead)}
@@ -1151,9 +1191,10 @@ export function CadPhaseQueueBoard({
                     key={card.key}
                     type="button"
                     onClick={() => setActiveFilter(card.key)}
-                    className={`rounded-xl border p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${card.className} ${activeFilter === card.key ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                    className={`group relative overflow-hidden rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl ${card.className} ${activeFilter === card.key ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
                     aria-pressed={activeFilter === card.key}
                   >
+                    <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/70 via-amber-400/70 to-emerald-400/70 opacity-80" />
                     <div className="flex items-center justify-between gap-3">
                       <div>
                         <p className="text-xs font-medium uppercase tracking-wide opacity-80">
@@ -1279,8 +1320,11 @@ export function CadPhaseQueueBoard({
                 {group.leads.map((lead) => (
               <Card
                 key={lead.id}
-                className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                className={leadCardClassName}
               >
+                {canDropFromQueue ? (
+                  <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/80 via-rose-400/70 to-amber-400/80" />
+                ) : null}
                 <CardContent className="space-y-3 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
@@ -1354,7 +1398,7 @@ export function CadPhaseQueueBoard({
                               variant="outline"
                               onClick={() => void openReassignQuotation(lead)}
                             >
-                              Reassign Quotation
+                              {lead.subStatus === 'QUOTATION_APPROVED' ? 'New Quotation' : 'Reassign Quotation'}
                             </Button>
                           ) : null}
                           {lead.stage === 'QUOTATION_PHASE' &&
@@ -1380,7 +1424,7 @@ export function CadPhaseQueueBoard({
                           ) : null}
                         </>
                       ) : null}
-                      {isDesignQueue ? null : isCadQueue ? (
+                      {canDropFromQueue ? (
                         <Button
                           size="sm"
                           variant="destructive"
@@ -1458,8 +1502,11 @@ export function CadPhaseQueueBoard({
             {filteredLeads.map((lead) => (
               <Card
                 key={lead.id}
-                className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                className={leadCardClassName}
               >
+                {canDropFromQueue ? (
+                  <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/80 via-rose-400/70 to-amber-400/80" />
+                ) : null}
                 <CardContent className="space-y-3 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
@@ -1533,7 +1580,7 @@ export function CadPhaseQueueBoard({
                               variant="outline"
                               onClick={() => void openReassignQuotation(lead)}
                             >
-                              Reassign Quotation
+                              {lead.subStatus === 'QUOTATION_APPROVED' ? 'New Quotation' : 'Reassign Quotation'}
                             </Button>
                           ) : null}
                           {lead.stage === 'QUOTATION_PHASE' &&
@@ -1559,7 +1606,7 @@ export function CadPhaseQueueBoard({
                           ) : null}
                         </>
                       ) : null}
-                      {isDesignQueue ? null : isCadQueue ? (
+                      {canDropFromQueue ? (
                         <Button
                           size="sm"
                           variant="destructive"
@@ -1846,9 +1893,11 @@ export function CadPhaseQueueBoard({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reassign Quotation</DialogTitle>
+            <DialogTitle>{activeLead?.subStatus === 'QUOTATION_APPROVED' ? 'Assign New Quotation' : 'Reassign Quotation'}</DialogTitle>
             <DialogDescription>
-              Select a quotation member for this lead.
+              {activeLead?.subStatus === 'QUOTATION_APPROVED'
+                ? 'Create a fresh quotation assignment while keeping previous quotation creators and files intact.'
+                : 'Select a quotation member for this lead.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -1880,9 +1929,13 @@ export function CadPhaseQueueBoard({
           <DialogFooter>
             <Button
               disabled={saving || !quotationMemberId}
-              onClick={submitReassignQuotation}
+              onClick={
+                activeLead?.subStatus === 'QUOTATION_APPROVED'
+                  ? submitNewQuotation
+                  : submitReassignQuotation
+              }
             >
-              Save
+              {activeLead?.subStatus === 'QUOTATION_APPROVED' ? 'Assign New Quotation' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>
