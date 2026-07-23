@@ -55,17 +55,27 @@ function formatLabel(value: string | null | undefined) {
 }
 
 export default function QuotationAssignedTaskPage() {
-  type QuotationFileType = "PREMIUM" | "STANDARD" | "BASIC" | "MIXED";
-  type AttachmentInput = { id: string; file: File | null; quotationType: QuotationFileType; budget: string };
+  type QuotationPackageType = "PREMIUM" | "STANDARD" | "BASIC" | "MIXED";
+  type AttachmentDocumentType = "SHORT" | "DETAIL";
+  type AttachmentInput = {
+    id: string;
+    file: File | null;
+    documentType: AttachmentDocumentType;
+    packageType: QuotationPackageType;
+  };
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [leads, setLeads] = useState<TaskLead[]>([]);
   const [submitLead, setSubmitLead] = useState<TaskLead | null>(null);
   const [submitNote, setSubmitNote] = useState("");
   const [submitAttachments, setSubmitAttachments] = useState<AttachmentInput[]>([
-    { id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" },
+    { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" },
   ]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+
+  function createEmptyAttachment(): AttachmentInput {
+    return { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" };
+  }
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
@@ -143,7 +153,7 @@ export default function QuotationAssignedTaskPage() {
   const openSubmitDialog = (lead: TaskLead) => {
     setSubmitLead(lead);
     setSubmitNote("");
-    setSubmitAttachments([{ id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" }]);
+    setSubmitAttachments([{ id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }]);
   };
 
   const submitQuotationWork = async () => {
@@ -153,9 +163,9 @@ export default function QuotationAssignedTaskPage() {
       toast.error("Please add at least one attachment");
       return;
     }
-    const parsedBudgets = validAttachments.map((item) => Number(item.budget.trim().replace(/,/g, "")));
-    if (parsedBudgets.some((value) => !Number.isFinite(value) || value <= 0)) {
-      toast.error("Please enter a valid budget amount for each attachment");
+    const invalidFiles = validAttachments.filter((item) => item.file?.type && item.file.type !== "application/pdf");
+    if (invalidFiles.length > 0) {
+      toast.error("Please upload PDF files only for quotation submissions");
       return;
     }
     setBusyId(submitLead.id);
@@ -165,18 +175,27 @@ export default function QuotationAssignedTaskPage() {
       for (const attachment of validAttachments) {
         const file = attachment.file;
         if (!file) continue;
+        const quotationFileType = attachment.documentType === "SHORT" ? attachment.packageType : "DETAIL";
         const uploaded = await uploadDirectBlobFile({
           file,
           context: "quotation-work",
           ownerId: submitLead.id,
-          quotationFileType: attachment.quotationType,
+          quotationFileType,
         });
-        uploadedFiles.push(uploaded);
+        uploadedFiles.push({
+          ...uploaded,
+          fileName:
+            attachment.documentType === "SHORT"
+              ? `[Short - ${attachment.packageType}] ${uploaded.fileName}`
+              : `[Detail] ${uploaded.fileName}`,
+        });
       }
-      const distinctTypes = [...new Set(validAttachments.map((item) => item.quotationType))];
-      const finalQuotationType: QuotationFileType =
-        distinctTypes.length > 1 ? "MIXED" : distinctTypes[0];
-      const totalBudget = parsedBudgets.reduce((sum, value) => sum + value, 0);
+      const shortPackages = validAttachments
+        .filter((item) => item.documentType === "SHORT")
+        .map((item) => item.packageType);
+      const distinctPackages = [...new Set(shortPackages)];
+      const finalQuotationType: QuotationPackageType | undefined =
+        distinctPackages.length === 0 ? undefined : distinctPackages.length > 1 ? "MIXED" : distinctPackages[0];
       setUploadingFiles(false);
       const response = await fetch(
         `/api/lead/${submitLead.id}/quotation-work/submit`,
@@ -185,7 +204,6 @@ export default function QuotationAssignedTaskPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             note: submitNote.trim() || undefined,
-            budget: totalBudget,
             quotationType: finalQuotationType,
             files: uploadedFiles.length > 0 ? uploadedFiles : undefined,
           }),
@@ -198,7 +216,7 @@ export default function QuotationAssignedTaskPage() {
       toast.success("Quotation submitted to Senior CRM Review Center");
       setSubmitLead(null);
       setSubmitNote("");
-      setSubmitAttachments([{ id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" }]);
+      setSubmitAttachments([{ id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }]);
       await loadTasks();
     } catch (error) {
       toast.error(
@@ -390,36 +408,45 @@ export default function QuotationAssignedTaskPage() {
             />
           </div>
           <div className="space-y-2">
-            <p className="text-sm font-medium">Attachments (optional)</p>
+            <p className="text-sm font-medium">Quotation files</p>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Choose quotation file type and budget for each attachment</p>
+              <p className="text-xs text-muted-foreground">Choose Short or Detail for each PDF. Short quotations also need a package type.</p>
               {submitAttachments.map((attachment, index) => (
                 <div key={attachment.id} className="space-y-2 rounded-md border p-3">
                   <p className="text-xs font-medium text-muted-foreground">Attachment {index + 1}</p>
                   <select
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={attachment.quotationType}
-                    onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, quotationType: event.target.value as QuotationFileType } : item))}
+                    value={attachment.documentType}
+                    onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, documentType: event.target.value as AttachmentDocumentType } : item))}
                   >
-                    <option value="PREMIUM">Premium</option>
-                    <option value="STANDARD">Standard</option>
-                    <option value="BASIC">Basic</option>
-                    <option value="MIXED">Mixed</option>
+                    <option value="SHORT">Short</option>
+                    <option value="DETAIL">Detail</option>
                   </select>
-                  <Input type="text" inputMode="decimal" placeholder="e.g. 300000" value={attachment.budget} onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, budget: event.target.value } : item))} />
-                  <Input type="file" onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, file: event.target.files?.[0] ?? null } : item))} />
+                  {attachment.documentType === "SHORT" ? (
+                    <select
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={attachment.packageType}
+                      onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, packageType: event.target.value as QuotationPackageType } : item))}
+                    >
+                      <option value="PREMIUM">Premium</option>
+                      <option value="STANDARD">Standard</option>
+                      <option value="BASIC">Basic</option>
+                      <option value="MIXED">Mix</option>
+                    </select>
+                  ) : null}
+                  <Input type="file" accept="application/pdf,.pdf" onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, file: event.target.files?.[0] ?? null } : item))} />
                   {submitAttachments.length > 1 ? <Button type="button" variant="outline" size="sm" onClick={() => setSubmitAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}>Remove</Button> : null}
                 </div>
               ))}
-              <Button type="button" variant="secondary" onClick={() => setSubmitAttachments((prev) => [...prev, { id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" }])}>Add Attachment</Button>
+              <Button type="button" variant="secondary" onClick={() => setSubmitAttachments((prev) => [...prev, { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }])}>Add Attachment</Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Supported for quotation submit: PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, and CAD files when needed.
+              Supported for quotation submit: PDF files only. Quotation files are only exposed through authorized CRM review/download APIs.
             </p>
             {submitAttachments.some((item) => item.file) ? (
               <ul className="space-y-1 text-xs text-muted-foreground">
                 {submitAttachments.filter((item) => item.file).map((item) => (
-                  <li key={item.id}>{item.file?.name} <span className="font-medium">({item.quotationType})</span></li>
+                  <li key={item.id}>{item.file?.name} <span className="font-medium">({item.documentType}{item.documentType === "SHORT" ? ` / ${item.packageType}` : ""})</span></li>
                 ))}
               </ul>
             ) : null}
@@ -432,7 +459,7 @@ export default function QuotationAssignedTaskPage() {
               onClick={() => {
                 setSubmitLead(null);
                 setSubmitNote("");
-                setSubmitAttachments([{ id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" }]);
+                setSubmitAttachments([{ id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }]);
               }}
             >
               Cancel

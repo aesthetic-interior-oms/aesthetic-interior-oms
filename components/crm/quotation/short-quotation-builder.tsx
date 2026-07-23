@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
+import { Download, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,8 @@ import { CollapsibleCard } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { searchShortQuotationNames } from '@/lib/short-quotation-names'
 import { ShortQuotationPrint } from '@/components/crm/quotation/short-quotation-print'
-import { downloadShortQuotationWord } from '@/components/crm/quotation/word-download'
+import { ShortQuotationDocument } from '@/components/crm/quotation/pdf/ShortQuotationDocument'
+import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
 import { buildDefaultShortQuotationContent } from '@/lib/short-quotation-default'
 import {
   buildShortQuotationSummary,
@@ -391,15 +392,18 @@ export function ShortQuotationBuilder({
     )
   }
 
-  const handleDownloadWord = async (format: 'doc' | 'docx') => {
+  const handleDownloadPdf = async () => {
     setGeneratingPdf(true)
     try {
       const safeClientName = (content.clientName || 'Quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase()
-      downloadShortQuotationWord(content, `Short_Quotation_${safeClientName}.${format}`, format)
-      toast.success(`${format.toUpperCase()} downloaded successfully`)
+      await downloadPdfFromDocument(
+        <ShortQuotationDocument content={content} />,
+        `Short_Quotation_${safeClientName}.pdf`,
+      )
+      toast.success('PDF downloaded successfully')
     } catch (error) {
-      console.error('Word document generation error:', error)
-      toast.error('Failed to generate Word document')
+      console.error('PDF generation error:', error)
+      toast.error('Failed to generate PDF')
     } finally {
       setGeneratingPdf(false)
     }
@@ -603,28 +607,19 @@ export function ShortQuotationBuilder({
               type="button"
               variant="secondary"
               disabled={generatingPdf}
-              onClick={() => void handleDownloadWord('docx')}
+              onClick={() => void handleDownloadPdf()}
             >
               {generatingPdf ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating DOCX...
+                  Generating PDF...
                 </>
               ) : (
                 <>
-                  <Printer className="mr-2 h-4 w-4" />
-                  Download DOCX
+                  <Download className="mr-2 h-4 w-4" />
+                  Download PDF
                 </>
               )}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              disabled={generatingPdf}
-              onClick={() => void handleDownloadWord('doc')}
-            >
-              <Printer className="mr-2 h-4 w-4" />
-              Download DOC
             </Button>
             {!isPlayground ? (
               <Button type="button" variant="outline" asChild>
