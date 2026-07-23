@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { NotificationType } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
+import { sendPushToUser } from '@/lib/fcm-service'
 
 function toPositiveInt(value: string | null, fallback: number, max: number): number {
   if (!value) return fallback
@@ -71,20 +72,46 @@ async function ensureFollowupDueNotifications(userId: string) {
       })),
       skipDuplicates: true,
     })
+
+    // Send FCM push notifications in parallel (don't block the HTTP request)
+    Promise.allSettled(
+      reminderFollowups.map((f) =>
+        sendPushToUser(
+          userId,
+          'Follow-up in 15 minutes',
+          `Upcoming follow-up for ${f.lead.name}.`,
+          { type: 'FOLLOWUP_REMINDER_15M', leadId: f.leadId },
+        ),
+      ),
+    ).catch((err) => console.error('[notifications] FCM reminderFollowups push failed:', err))
   }
 
-  await prisma.notification.createMany({
-    data: dueFollowups.map((followup) => ({
-      userId,
-      leadId: followup.leadId,
-      followUpId: followup.id,
-      type: NotificationType.FOLLOWUP_DUE,
-      title: 'Follow-up due',
-      message: `Follow-up for ${followup.lead.name} is due now.`,
-      scheduledFor: followup.followupDate,
-    })),
-    skipDuplicates: true,
-  })
+  if (dueFollowups.length > 0) {
+    await prisma.notification.createMany({
+      data: dueFollowups.map((followup) => ({
+        userId,
+        leadId: followup.leadId,
+        followUpId: followup.id,
+        type: NotificationType.FOLLOWUP_DUE,
+        title: 'Follow-up due',
+        message: `Follow-up for ${followup.lead.name} is due now.`,
+        scheduledFor: followup.followupDate,
+      })),
+      skipDuplicates: true,
+    })
+
+    // Send FCM push notifications in parallel (don't block the HTTP request)
+    Promise.allSettled(
+      dueFollowups.map((f) =>
+        sendPushToUser(
+          userId,
+          'Follow-up due',
+          `Follow-up for ${f.lead.name} is due now.`,
+          { type: 'FOLLOWUP_DUE', leadId: f.leadId },
+        ),
+      ),
+    ).catch((err) => console.error('[notifications] FCM dueFollowups push failed:', err))
+  }
 }
 
 async function ensureVisitScheduleNotifications(userId: string) {
@@ -160,20 +187,46 @@ async function ensureVisitScheduleNotifications(userId: string) {
       })),
       skipDuplicates: true,
     })
+
+    // Send FCM push notifications in parallel (don't block the HTTP request)
+    Promise.allSettled(
+      reminderVisits.map((v) =>
+        sendPushToUser(
+          userId,
+          'Visit in 30 minutes',
+          `Upcoming visit for ${v.lead.name}.`,
+          { type: 'VISIT_REMINDER_30M', leadId: v.leadId },
+        ),
+      ),
+    ).catch((err) => console.error('[notifications] FCM reminderVisits push failed:', err))
   }
 
-  await prisma.notification.createMany({
-    data: dueVisits.map((visit) => ({
-      userId,
-      leadId: visit.leadId,
-      visitId: visit.id,
-      type: NotificationType.VISIT_DUE,
-      title: 'Visit due now',
-      message: `Visit for ${visit.lead.name} is due now.`,
-      scheduledFor: visit.scheduledAt,
-    })),
-    skipDuplicates: true,
-  })
+  if (dueVisits.length > 0) {
+    await prisma.notification.createMany({
+      data: dueVisits.map((visit) => ({
+        userId,
+        leadId: visit.leadId,
+        visitId: visit.id,
+        type: NotificationType.VISIT_DUE,
+        title: 'Visit due now',
+        message: `Visit for ${visit.lead.name} is due now.`,
+        scheduledFor: visit.scheduledAt,
+      })),
+      skipDuplicates: true,
+    })
+
+    // Send FCM push notifications in parallel (don't block the HTTP request)
+    Promise.allSettled(
+      dueVisits.map((v) =>
+        sendPushToUser(
+          userId,
+          'Visit due now',
+          `Visit for ${v.lead.name} is due now.`,
+          { type: 'VISIT_DUE', leadId: v.leadId },
+        ),
+      ),
+    ).catch((err) => console.error('[notifications] FCM dueVisits push failed:', err))
+  }
 }
 
 async function ensureSignupApprovalNotifications(userId: string, isAdmin: boolean) {
