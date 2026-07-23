@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { logUserAssigned } from '@/lib/activity-log-service';
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
+import { sendPushToUser } from '@/lib/fcm-service';
 import {
   LeadAssignmentDepartment,
   LeadPrimaryOwnerDepartment,
@@ -198,6 +199,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       );
     }
 
+    let hasVisitsToReassign = false;
+
     // Create or update assignment
     debugLog('💾 [POST /api/lead/[id]/assignments] - Creating or updating assignment');
     let isUpdate = false;
@@ -253,6 +256,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         });
 
         if (visitsToReassign.length > 0) {
+          hasVisitsToReassign = true;
           const visitIds = visitsToReassign.map((visit) => visit.id);
           await tx.visit.updateMany({
             where: { id: { in: visitIds } },
@@ -295,6 +299,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
       return result;
     });
+
+    if (hasVisitsToReassign) {
+      try {
+        await sendPushToUser(
+          userId,
+          'Visit reassigned to you',
+          `Visit for ${lead.name} has been assigned to you.`,
+          { type: 'VISIT_ASSIGNED', leadId: lead.id },
+        );
+      } catch (pushErr) {
+        console.error('[POST /api/lead/[id]/assignments] Failed to send push notification:', pushErr);
+      }
+    }
+
     debugLog('✨ [POST /api/lead/[id]/assignments] - Assignment', isUpdate ? 'updated' : 'created', 'successfully');
 
     return NextResponse.json(

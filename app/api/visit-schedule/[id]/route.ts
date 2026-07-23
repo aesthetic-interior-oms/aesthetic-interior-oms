@@ -6,6 +6,7 @@ import { logActivity, logLeadStageChanged } from '@/lib/activity-log-service';
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 import { findVisitConflict, isFutureDate } from '@/lib/visit-guards';
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles';
+import { sendPushToUser } from '@/lib/fcm-service';
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
@@ -217,6 +218,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
     }
 
+    let reassignedUserId: string | null = null;
+    let leadName = '';
+
     const updated = await prisma.$transaction(async (tx) => {
       const actor = await tx.user.findUnique({
         where: { id: actorUserId },
@@ -320,6 +324,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
 
       if (visitTeamUserId && visitTeamUserId !== existing.assignedToId) {
+        reassignedUserId = visitTeamUserId;
+        leadName = existing.lead.name;
         await tx.notification.createMany({
           data: [
             {
@@ -417,6 +423,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
       return visit;
     });
+
+    if (reassignedUserId) {
+      try {
+        await sendPushToUser(
+          reassignedUserId,
+          'Visit reassigned to you',
+          `Visit for ${leadName} has been assigned to you.`,
+          { type: 'VISIT_ASSIGNED', leadId: updated.leadId },
+        );
+      } catch (pushErr) {
+        console.error('[visit-schedule/:id][PATCH] Failed to send push notification:', pushErr);
+      }
+    }
 
     return NextResponse.json({ success: true, data: updated, message: 'Visit schedule updated successfully' });
   } catch (error) {
