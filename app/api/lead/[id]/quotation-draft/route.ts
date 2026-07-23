@@ -281,8 +281,18 @@ function buildDraftKey(documentType: 'short' | 'detail', packageTier?: ShortQuot
   return `short:${(packageTier ?? 'PREMIUM').toLowerCase()}`
 }
 
+function buildOwnedDraftKey(baseDraftKey: string, ownerUserId: string) {
+  return `${baseDraftKey}:owner:${ownerUserId}`
+}
+
+function matchesBaseDraftKey(draftKey: string, baseDraftKey: string) {
+  return draftKey === baseDraftKey || draftKey.startsWith(`${baseDraftKey}:owner:`)
+}
+
 function serializeDraft(draft: {
   id: string
+  draftKey?: string
+  createdById?: string
   quotationType: string
   projectSqft: number | null
   content: unknown
@@ -293,6 +303,8 @@ function serializeDraft(draft: {
 }): QuotationDraftPayload & { id: string; createdAt: string; updatedAt: string } {
   return {
     id: draft.id,
+    draftKey: draft.draftKey,
+    createdById: draft.createdById,
     quotationType: draft.quotationType as QuotationFileType,
     projectSqft: draft.projectSqft,
     content: draft.content as QuotationDraftContent,
@@ -381,7 +393,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
       : null
     const savedDrafts = lead.quotationDrafts ?? []
     const selectedDraft = requestedDraftKey
-      ? savedDrafts.find((draft) => draft.draftKey === requestedDraftKey) ?? null
+      ? savedDrafts.find((draft) => draft.draftKey === buildOwnedDraftKey(requestedDraftKey, authResult.actorUserId))
+        ?? savedDrafts.find((draft) => draft.draftKey === requestedDraftKey)
+        ?? savedDrafts.find((draft) => matchesBaseDraftKey(draft.draftKey, requestedDraftKey))
+        ?? null
       : savedDrafts[0] ?? null
 
     if (!selectedDraft) {
@@ -556,7 +571,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     const documentType = isShort ? 'short' : 'detail'
     const requestedShortPackage = documentType === 'short' ? (normalizedContent as ShortQuotationContent).packageTier : null
-    const draftKey = buildDraftKey(documentType, requestedShortPackage)
+    const baseDraftKey = buildDraftKey(documentType, requestedShortPackage)
+    const draftKey = buildOwnedDraftKey(baseDraftKey, authResult.actorUserId)
 
     const savedDraft = await prisma.quotationDraft.upsert({
       where: { leadId_draftKey: { leadId: lead.id, draftKey } },

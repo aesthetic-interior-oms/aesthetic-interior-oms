@@ -88,6 +88,8 @@ export type QuotationTotals = {
 }
 
 export type QuotationDraftPayload = {
+  draftKey?: string
+  createdById?: string
   quotationType: QuotationFileType
   projectSqft: number | null
   content: QuotationDraftContent
