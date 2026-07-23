@@ -1,4 +1,3 @@
-import { head } from '@vercel/blob'
 import { NextRequest, NextResponse } from 'next/server'
 import { LeadAssignmentDepartment, LeadStage, LeadSubStatus, Prisma } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
@@ -38,14 +37,8 @@ function parseVisitMonth(value: string | null): { start: Date; end: Date } | nul
   }
 }
 
-async function resolveAttachmentReadUrl(url: string): Promise<string> {
-  if (!url.includes('.private.blob.vercel-storage.com')) return url
-  try {
-    const blobMeta = await head(url)
-    return blobMeta.downloadUrl || url
-  } catch {
-    return url
-  }
+function getAuthorizedFileUrl(fileId: string): string {
+  return `/api/cad-work/submission-files/${fileId}/download`
 }
 
 export async function GET(request: NextRequest) {
@@ -82,17 +75,6 @@ export async function GET(request: NextRequest) {
     const reviewableLeadScope: Prisma.LeadWhereInput = {
       OR: [
         { stage: LeadStage.CAD_PHASE, subStatus: LeadSubStatus.CAD_COMPLETED },
-        { stage: LeadStage.CAD_PHASE, subStatus: LeadSubStatus.CAD_APPROVED },
-        {
-          stage: LeadStage.DISCOVERY,
-          subStatus: LeadSubStatus.FIRST_MEETING_SET,
-          cadWorkSubmissions: { some: {} },
-        },
-        {
-          stage: LeadStage.DISCOVERY,
-          subStatus: LeadSubStatus.PROPOSAL_SENT,
-          cadWorkSubmissions: { some: {} },
-        },
         { stage: LeadStage.QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_COMPLETED },
         { stage: LeadStage.VISUALIZATION_PHASE, subStatus: LeadSubStatus.VISUAL_COMPLETED },
       ],
@@ -231,7 +213,7 @@ export async function GET(request: NextRequest) {
           files: await Promise.all(
             submission.files.map(async (file) => ({
               ...file,
-              url: await resolveAttachmentReadUrl(file.url),
+              url: getAuthorizedFileUrl(file.id),
             })),
           ),
         }

@@ -27,6 +27,7 @@ import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import {
   CheckCircle2,
   CircleAlert,
+  Ban,
   CalendarClock,
   ClipboardCheck,
   Download,
@@ -94,7 +95,7 @@ type ReviewApiResponse = {
   error?: string
 }
 
-type ReviewDecision = 'APPROVE' | 'CORRECTION'
+type ReviewDecision = 'APPROVE' | 'CORRECTION' | 'DROP'
 
 type ReviewStatCard = {
   key: string
@@ -390,8 +391,8 @@ export function ReviewCenterView({
 
   const handleConfirmDecision = useCallback(async () => {
     if (!decisionTarget) return
-    if (decisionType === 'CORRECTION' && decisionSummary.trim().length === 0) {
-      toast.error('Correction summary is required')
+    if ((decisionType === 'CORRECTION' || decisionType === 'DROP') && decisionSummary.trim().length === 0) {
+      toast.error(decisionType === 'DROP' ? 'Drop reason is required' : 'Correction summary is required')
       return
     }
 
@@ -690,6 +691,14 @@ export function ReviewCenterView({
                                 <RotateCcw className="mr-1 h-4 w-4" />
                                 Correction
                               </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => openDecisionDialog(submission, 'DROP')}
+                              >
+                                <Ban className="mr-1 h-4 w-4" />
+                                Drop Project
+                              </Button>
                             </>
                           )
                         }
@@ -707,6 +716,10 @@ export function ReviewCenterView({
                             <Button size="sm" variant="outline" disabled>
                               <RotateCcw className="mr-1 h-4 w-4" />
                               Correction
+                            </Button>
+                            <Button size="sm" variant="destructive" disabled>
+                              <Ban className="mr-1 h-4 w-4" />
+                              Drop Project
                             </Button>
                           </div>
                         )
@@ -785,34 +798,38 @@ export function ReviewCenterView({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{decisionType === 'APPROVE' ? 'Approve Submission' : 'Send for Correction'}</DialogTitle>
+            <DialogTitle>{decisionType === 'APPROVE' ? 'Approve Submission' : decisionType === 'DROP' ? 'Drop Project' : 'Send for Correction'}</DialogTitle>
             <DialogDescription>
               {decisionTarget
                 ? decisionType === 'APPROVE'
                   ? getSubmissionKind(decisionTarget) === 'quotation'
-                    ? `Confirm quotation approval for ${decisionTarget.lead.name}. Lead will move to Quotation Phase / Quotation Approved and return to Budget Queue.`
+                    ? `Confirm quotation approval for ${decisionTarget.lead.name}. Lead will move to Quotation Phase / Quotation Approved and leave this review queue.`
                     : getSubmissionKind(decisionTarget) === 'visualizer'
-                      ? `Confirm 3D visualization approval for ${decisionTarget.lead.name}. Lead will move to Visualization Phase / Client Approved.`
-                      : `Confirm CAD approval for ${decisionTarget.lead.name}. Lead will stay in CAD Phase and move to CAD Approved.`
-                  : getSubmissionKind(decisionTarget) === 'quotation'
-                    ? `Send ${decisionTarget.lead.name} back to the assigned quotation team for correction.`
-                    : getSubmissionKind(decisionTarget) === 'visualizer'
-                      ? `Send ${decisionTarget.lead.name} back to the assigned 3D Visualizer for correction.`
-                      : `Send ${decisionTarget.lead.name} back to Junior Architect for correction. Lead will move to CAD Assigned.`
+                      ? `Confirm 3D visualization approval for ${decisionTarget.lead.name}. Lead will move to Visualization Phase / Client Approved and leave this review queue.`
+                      : `Confirm CAD approval for ${decisionTarget.lead.name}. Lead will move to CAD Approved and leave this review queue.`
+                  : decisionType === 'DROP'
+                    ? `Drop ${decisionTarget.lead.name}. Lead will move to Closed / Project Dropped and leave this review queue.`
+                    : getSubmissionKind(decisionTarget) === 'quotation'
+                      ? `Send ${decisionTarget.lead.name} back to the assigned quotation team for correction. It will leave this review queue.`
+                      : getSubmissionKind(decisionTarget) === 'visualizer'
+                        ? `Send ${decisionTarget.lead.name} back to the assigned 3D Visualizer for correction. It will leave this review queue.`
+                        : `Send ${decisionTarget.lead.name} back to Junior Architect for correction. Lead will move to CAD Assigned and leave this review queue.`
                 : 'Confirm your review decision.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {decisionType === 'APPROVE' ? 'Optional Note' : 'Correction Summary'}
+              {decisionType === 'APPROVE' ? 'Optional Note' : decisionType === 'DROP' ? 'Drop Reason' : 'Correction Summary'}
             </p>
             <Textarea
               rows={4}
               placeholder={
                 decisionType === 'APPROVE'
                   ? 'Optional approval note for history...'
-                  : 'Required: explain what should be corrected...'
+                  : decisionType === 'DROP'
+                    ? 'Required: explain why this project is being dropped...'
+                    : 'Required: explain what should be corrected...'
               }
               value={decisionSummary}
               onChange={(event) => setDecisionSummary(event.target.value)}
@@ -841,6 +858,8 @@ export function ReviewCenterView({
                 </>
               ) : decisionType === 'APPROVE' ? (
                 'Confirm Approve'
+              ) : decisionType === 'DROP' ? (
+                'Drop Project'
               ) : (
                 'Send Correction'
               )}
