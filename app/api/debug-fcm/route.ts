@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireDatabaseRoles } from '@/lib/authz'
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireDatabaseRoles([])
-    if (!authResult.ok) return authResult.response
-
     const serviceAccountRaw = process.env.FIREBASE_SERVICE_ACCOUNT
     if (!serviceAccountRaw) {
       return NextResponse.json({ success: false, error: 'FIREBASE_SERVICE_ACCOUNT not set' })
