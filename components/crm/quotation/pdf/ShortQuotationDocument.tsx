@@ -52,6 +52,19 @@ function formatAmount(value: number) {
 function formatCurrency(value: number) {
   return `৳ ${formatAmount(value)}`
 }
+
+function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
+  if (!value) return ''
+  return value
+    .split(/(\s+)/)
+    .map((part) => {
+      if (/^\s+$/.test(part) || part.length <= chunkSize) return part
+      const chunks = part.match(new RegExp(`.{1,${chunkSize}}`, 'g')) ?? [part]
+      return chunks.join('\u200B')
+    })
+    .join('')
+}
+
 function getQuoteId(date: string) {
   const timestamp = Date.parse(date)
   const suffix = Number.isNaN(timestamp) ? '000000' : timestamp.toString().slice(-6)
@@ -111,13 +124,13 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
         {cleanIntro ? <View style={{ marginBottom: 20 }}><Text style={[styles.bold, { fontSize: 9, marginBottom: 3 }]}>Dear Sir,</Text><Text style={{ fontSize: 9, textAlign: 'justify' }}>{cleanIntro}</Text></View> : null}
         <Text style={styles.sectionTitle}>{content.packageTier} Short Quotation Summary</Text>
         <View style={styles.tHead}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wSumName]}>Description</Text><Text style={[styles.thCol, styles.wSumTotal]}>Amount</Text></View>
-        {summary.floors.map((entry, index) => <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}><Text style={[styles.tdCol, styles.wSl]}>{String(index + 1).padStart(2, '0')}</Text><Text style={[styles.tdCol, styles.wSumName, styles.bold]}>{entry.floor.name}</Text><Text style={[styles.tdCol, styles.wSumTotal, styles.bold]}>{formatCurrency(entry.total)}</Text></View>)}
+        {summary.floors.map((entry, index) => <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}><Text style={[styles.tdCol, styles.wSl]}>{String(index + 1).padStart(2, '0')}</Text><Text style={[styles.tdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text><Text style={[styles.tdCol, styles.wSumTotal, styles.bold]}>{formatCurrency(entry.total)}</Text></View>)}
         <View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>Grand Total</Text><Text style={styles.grandTotalValue}>{formatCurrency(summary.grandTotal)}</Text></View>
         <Text style={styles.inWords}>In Words: <Text style={styles.bold}>{amountInWordsTaka(summary.grandTotal)}</Text></Text>
         <FooterFixed />
       </Page>
-      {summary.floors.map((floor) => <Page key={floor.floor.id} size="A4" style={styles.page}><WatermarkBackground /><GlobalHeader date={content.quotationDate} /><Text style={styles.sectionTitle}>{floor.floor.name}</Text><View style={styles.tHead}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wName]}>Name</Text><Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text><Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text><Text style={[styles.thCol, styles.wTotal]}>Total</Text></View>{floor.rooms.map((room) => <View key={room.room.id}><Text style={[styles.sectionTitle, { fontSize: 9, marginTop: 10 }]}>{room.room.name}</Text>{room.lines.map((line, index) => <View key={line.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}><Text style={[styles.tdCol, styles.wSl]}>{String(index + 1).padStart(2, '0')}</Text><Text style={[styles.tdCol, styles.wName, styles.bold]}>{line.name}</Text><Text style={[styles.tdCol, styles.wQty]}>{line.isLumpSum ? 'Package' : formatAmount(line.quantitySqft ?? 0)}</Text><Text style={[styles.tdCol, styles.wPrice]}>{line.isLumpSum ? '—' : formatCurrency(line.unitPrice ?? 0)}</Text><Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>{formatCurrency(line.total)}</Text></View>)}</View>)}<View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>Total for {floor.floor.name}</Text><Text style={styles.grandTotalValue}>{formatCurrency(floor.total)}</Text></View><Text style={styles.inWords}>In Words: <Text style={styles.bold}>{amountInWordsTaka(floor.total)}</Text></Text><FooterFixed /></Page>)}
-      {content.footerNotes.length > 0 ? <Page size="A4" style={styles.page}><WatermarkBackground /><GlobalHeader date={content.quotationDate} /><Text style={styles.sectionTitle}>Terms &amp; Notes</Text>{content.footerNotes.map((note, index) => <Text key={index} style={{ fontSize: 9, marginTop: 8 }}><Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>{note}</Text>)}<FooterFixed /></Page> : null}
+      {summary.floors.map((floor) => <Page key={floor.floor.id} size="A4" style={styles.page}><WatermarkBackground /><GlobalHeader date={content.quotationDate} /><Text style={styles.sectionTitle}>{softWrapPdfText(floor.floor.name)}</Text><View style={styles.tHead}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wName]}>Name</Text><Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text><Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text><Text style={[styles.thCol, styles.wTotal]}>Total</Text></View>{floor.rooms.map((room) => <View key={room.room.id}><Text style={[styles.sectionTitle, { fontSize: 9, marginTop: 10 }]}>{softWrapPdfText(room.room.name)}</Text>{room.lines.map((line, index) => <View key={line.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}><Text style={[styles.tdCol, styles.wSl]}>{String(index + 1).padStart(2, '0')}</Text><Text style={[styles.tdCol, styles.wName, styles.bold]}>{softWrapPdfText(line.name)}</Text><Text style={[styles.tdCol, styles.wQty]}>{line.isLumpSum ? 'Package' : formatAmount(line.quantitySqft ?? 0)}</Text><Text style={[styles.tdCol, styles.wPrice]}>{line.isLumpSum ? '—' : formatCurrency(line.unitPrice ?? 0)}</Text><Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>{formatCurrency(line.total)}</Text></View>)}</View>)}<View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(floor.floor.name)}</Text><Text style={styles.grandTotalValue}>{formatCurrency(floor.total)}</Text></View><Text style={styles.inWords}>In Words: <Text style={styles.bold}>{amountInWordsTaka(floor.total)}</Text></Text><FooterFixed /></Page>)}
+      {content.footerNotes.length > 0 ? <Page size="A4" style={styles.page}><WatermarkBackground /><GlobalHeader date={content.quotationDate} /><Text style={styles.sectionTitle}>Terms &amp; Notes</Text>{content.footerNotes.map((note, index) => <Text key={index} style={{ fontSize: 9, marginTop: 8 }}><Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>{softWrapPdfText(note)}</Text>)}<FooterFixed /></Page> : null}
     </Document>
   )
 }

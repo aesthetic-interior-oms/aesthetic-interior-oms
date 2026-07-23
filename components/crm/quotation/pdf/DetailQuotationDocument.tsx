@@ -170,34 +170,6 @@ const styles = StyleSheet.create({
   wPrice: { width: '10%', textAlign: 'right' },
   wTotal: { width: '12%', textAlign: 'right' },
   
-  // Wrapped Rows (Detail Table)
-  tRowDetail: {
-    position: 'relative',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eeeeee',
-    width: '100%',
-    minHeight: 25,
-  },
-  tdColAbs: {
-    position: 'absolute',
-    top: 0,
-    fontSize: 9,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  wMatsFlow: {
-    marginLeft: '32%',
-    width: '36%',
-    fontSize: 9,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  posSl: { left: '0%', width: '8%', textAlign: 'center' },
-  posName: { left: '8%', width: '24%' },
-  posQty: { left: '68%', width: '10%', textAlign: 'center' },
-  posPrice: { left: '78%', width: '10%', textAlign: 'right' },
-  posTotal: { left: '88%', width: '12%', textAlign: 'right' },
-
   // Columns Summary
   wSumName: { width: '70%', paddingLeft: 10 },
   wSumTotal: { width: '22%', textAlign: 'right' },
@@ -361,6 +333,19 @@ const FooterFixed = () => (
   </View>
 );
 
+
+function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
+  if (!value) return ''
+  return value
+    .split(/(\s+)/)
+    .map((part) => {
+      if (/^\s+$/.test(part) || part.length <= chunkSize) return part
+      const chunks = part.match(new RegExp(`.{1,${chunkSize}}`, 'g')) ?? [part]
+      return chunks.join('\u200B')
+    })
+    .join('')
+}
+
 function MaterialTextPdf({ text }: { text: string | null | undefined }) {
   if (!text) return <Text style={styles.matText}>—</Text>
   const lines = text.split('\n')
@@ -369,13 +354,13 @@ function MaterialTextPdf({ text }: { text: string | null | undefined }) {
       {lines.map((line, index) => {
         const match = line.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
         if (!match) {
-          return <Text key={`${line}-${index}`} style={styles.matText}>{line}</Text>
+          return <Text key={`${line}-${index}`} style={styles.matText}>{softWrapPdfText(line)}</Text>
         }
         const prefix = match[1]
         const rest = line.substring(prefix.length)
         return (
           <Text key={`${line}-${index}`} style={styles.matText}>
-            <Text style={styles.bold}>{prefix}</Text>{rest}
+            <Text style={styles.bold}>{softWrapPdfText(prefix)}</Text>{softWrapPdfText(rest)}
           </Text>
         )
       })}
@@ -430,7 +415,7 @@ export function DetailQuotationDocument({
           {floorSummaries.map((entry, index) => (
             <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}>
               <Text style={[styles.tdCol, styles.wSl]}>{String(index + 1).padStart(2, '0')}</Text>
-              <Text style={[styles.tdCol, styles.wSumName, styles.bold]}>{entry.floor.name}</Text>
+              <Text style={[styles.tdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text>
               <Text style={[styles.tdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailAmount(entry.total)}</Text>
             </View>
           ))}
@@ -456,7 +441,7 @@ export function DetailQuotationDocument({
             clientAddress={clientAddress || ''} 
           />
 
-          <Text style={styles.sectionTitle}>{entry.floor.name}</Text>
+          <Text style={styles.sectionTitle}>{softWrapPdfText(entry.floor.name)}</Text>
           
           <View style={styles.tHead}>
             <Text style={[styles.thCol, styles.wSl]}>SL</Text>
@@ -471,28 +456,29 @@ export function DetailQuotationDocument({
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
               return (
-                <View key={line.id} style={[styles.tRowDetail, lineIndex % 2 === 1 ? styles.tRowAlt : {}]}>
-                  <Text style={[styles.tdColAbs, styles.posSl]}>
+                <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]} wrap={false}>
+                  <Text style={[styles.tdCol, styles.wSl]}>
                     {String(lineIndex + 1).padStart(2, '0')}
                   </Text>
-                  <Text style={[styles.tdColAbs, styles.posName, styles.bold]}>{line.description}</Text>
-                  
-                  <View style={styles.wMatsFlow}>
+                  <Text style={[styles.tdCol, styles.wName, styles.bold]}>
+                    {softWrapPdfText(line.description)}
+                  </Text>
+                  <View style={[styles.tdCol, styles.wMats]}>
                     <MaterialTextPdf text={line.materials} />
                   </View>
 
                   {isPkg ? (
-                    <Text style={[styles.tdColAbs, { left: '68%', width: '20%', textAlign: 'center', color: '#8b4513' }]}>
+                    <Text style={[styles.tdCol, { width: '20%', textAlign: 'center', color: '#8b4513' }]}>
                       Package As Per Design
                     </Text>
                   ) : (
                     <>
-                      <Text style={[styles.tdColAbs, styles.posQty]}>{formatDetailQtyCell(line)}</Text>
-                      <Text style={[styles.tdColAbs, styles.posPrice]}>{formatDetailUnitPriceCell(line)}</Text>
+                      <Text style={[styles.tdCol, styles.wQty]}>{formatDetailQtyCell(line)}</Text>
+                      <Text style={[styles.tdCol, styles.wPrice]}>{formatDetailUnitPriceCell(line)}</Text>
                     </>
                   )}
                   
-                  <Text style={[styles.tdColAbs, styles.posTotal, styles.bold, { color: PRIMARY }]}>
+                  <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>
                     {formatDetailTotalCell(line)}
                     {line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
                   </Text>
@@ -502,7 +488,7 @@ export function DetailQuotationDocument({
           </View>
           
           <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>
-            <Text style={styles.grandTotalLabel}>Total for {entry.floor.name}</Text>
+            <Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(entry.floor.name)}</Text>
             <Text style={styles.grandTotalValue}>{formatDetailAmount(entry.total)}</Text>
           </View>
           <Text style={styles.inWords} wrap={false}>In Words: <Text style={styles.bold}>{amountInWordsTaka(entry.total)}</Text></Text>
