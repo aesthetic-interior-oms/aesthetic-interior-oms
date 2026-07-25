@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
-import { LeadStage, LeadSubStatus } from '@/generated/prisma/client';
+import { LeadStage, LeadSubStatus, LeadAssignmentDepartment } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
+import { sendPushToUser } from '@/lib/fcm-service';
 import { isSubStatusAllowedForStage } from '@/lib/lead-stage';
 import { logLeadStageChanged, logLeadSubStatusChanged } from '@/lib/activity-log-service';
 import { requireDatabaseRoles } from '@/lib/authz';
@@ -306,6 +307,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       );
     }
 
+    let notifyVisitMemberOfCadId: string | null = null;
+
     const updatedLead = await prisma.$transaction(async (tx) => {
       const updated = await tx.lead.update({
         where: { id: leadId },
@@ -401,8 +404,34 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         action: 'stage update',
       });
 
+      if (nextStage === LeadStage.CAD_PHASE && nextSubStatus === LeadSubStatus.CAD_ASSIGNED) {
+        const visitAssignment = await tx.leadAssignment.findFirst({
+          where: {
+            leadId,
+            department: LeadAssignmentDepartment.VISIT_TEAM,
+          },
+          select: { userId: true },
+        });
+        if (visitAssignment) {
+          notifyVisitMemberOfCadId = visitAssignment.userId;
+        }
+      }
+
       return updated;
     });
+
+    if (notifyVisitMemberOfCadId) {
+      try {
+        await sendPushToUser(
+          notifyVisitMemberOfCadId,
+          'CAD Assigned',
+          `CAD stage has been assigned for lead "${updatedLead.name}".`,
+          { type: 'CAD_ASSIGNED', leadId: updatedLead.id }
+        );
+      } catch (pushErr) {
+        console.error('[lead/:id/stage] Failed to send CAD assignment push to visit member:', pushErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,

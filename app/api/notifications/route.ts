@@ -172,7 +172,95 @@ async function ensureVisitScheduleNotifications(userId: string) {
     orderBy: { scheduledAt: 'asc' },
   })
 
-  if (reminderVisits.length === 0 && dueVisits.length === 0) return
+  const due36hVisits = await prisma.visit.findMany({
+    where: {
+      status: 'SCHEDULED',
+      scheduledAt: { lte: new Date(now.getTime() - 36 * 60 * 60 * 1000) },
+      OR: [
+        { assignedToId: userId },
+        { supportAssignments: { some: { supportUserId: userId } } },
+      ],
+      notifications: {
+        none: {
+          userId,
+          type: NotificationType.VISIT_DUE_36H,
+        },
+      },
+    },
+    select: {
+      id: true,
+      leadId: true,
+      scheduledAt: true,
+      lead: {
+        select: { id: true, name: true },
+      },
+    },
+    take: 100,
+    orderBy: { scheduledAt: 'asc' },
+  })
+
+  const due48hVisits = await prisma.visit.findMany({
+    where: {
+      status: 'SCHEDULED',
+      scheduledAt: { lte: new Date(now.getTime() - 48 * 60 * 60 * 1000) },
+      OR: [
+        { assignedToId: userId },
+        { supportAssignments: { some: { supportUserId: userId } } },
+      ],
+      notifications: {
+        none: {
+          userId,
+          type: NotificationType.VISIT_DUE_48H,
+        },
+      },
+    },
+    select: {
+      id: true,
+      leadId: true,
+      scheduledAt: true,
+      lead: {
+        select: { id: true, name: true },
+      },
+    },
+    take: 100,
+    orderBy: { scheduledAt: 'asc' },
+  })
+
+  const due72hVisits = await prisma.visit.findMany({
+    where: {
+      status: 'SCHEDULED',
+      scheduledAt: { lte: new Date(now.getTime() - 72 * 60 * 60 * 1000) },
+      OR: [
+        { assignedToId: userId },
+        { supportAssignments: { some: { supportUserId: userId } } },
+      ],
+      notifications: {
+        none: {
+          userId,
+          type: NotificationType.VISIT_DUE_72H,
+        },
+      },
+    },
+    select: {
+      id: true,
+      leadId: true,
+      scheduledAt: true,
+      lead: {
+        select: { id: true, name: true },
+      },
+    },
+    take: 100,
+    orderBy: { scheduledAt: 'asc' },
+  })
+
+  if (
+    reminderVisits.length === 0 &&
+    dueVisits.length === 0 &&
+    due36hVisits.length === 0 &&
+    due48hVisits.length === 0 &&
+    due72hVisits.length === 0
+  )
+    return
 
   if (reminderVisits.length > 0) {
     await prisma.notification.createMany({
@@ -227,6 +315,87 @@ async function ensureVisitScheduleNotifications(userId: string) {
       ),
     ).catch((err) => console.error('[notifications] FCM dueVisits push failed:', err))
   }
+
+  if (due36hVisits.length > 0) {
+    await prisma.notification.createMany({
+      data: due36hVisits.map((visit) => ({
+        userId,
+        leadId: visit.leadId,
+        visitId: visit.id,
+        type: NotificationType.VISIT_DUE_36H,
+        title: 'Visit 36h Overdue',
+        message: `Visit for ${visit.lead.name} has been overdue for 36 hours.`,
+        scheduledFor: visit.scheduledAt,
+      })),
+      skipDuplicates: true,
+    })
+
+    // Send FCM push notifications in parallel
+    Promise.allSettled(
+      due36hVisits.map((v) =>
+        sendPushToUser(
+          userId,
+          'Visit 36h Overdue',
+          `Visit for ${v.lead.name} has been overdue for 36 hours.`,
+          { type: 'VISIT_DUE_36H', leadId: v.leadId },
+        ),
+      ),
+    ).catch((err) => console.error('[notifications] FCM due36hVisits push failed:', err))
+  }
+
+  if (due48hVisits.length > 0) {
+    await prisma.notification.createMany({
+      data: due48hVisits.map((visit) => ({
+        userId,
+        leadId: visit.leadId,
+        visitId: visit.id,
+        type: NotificationType.VISIT_DUE_48H,
+        title: 'Visit 48h Overdue',
+        message: `Visit for ${visit.lead.name} has been overdue for 48 hours.`,
+        scheduledFor: visit.scheduledAt,
+      })),
+      skipDuplicates: true,
+    })
+
+    // Send FCM push notifications in parallel
+    Promise.allSettled(
+      due48hVisits.map((v) =>
+        sendPushToUser(
+          userId,
+          'Visit 48h Overdue',
+          `Visit for ${v.lead.name} has been overdue for 48 hours.`,
+          { type: 'VISIT_DUE_48H', leadId: v.leadId },
+        ),
+      ),
+    ).catch((err) => console.error('[notifications] FCM due48hVisits push failed:', err))
+  }
+
+  if (due72hVisits.length > 0) {
+    await prisma.notification.createMany({
+      data: due72hVisits.map((visit) => ({
+        userId,
+        leadId: visit.leadId,
+        visitId: visit.id,
+        type: NotificationType.VISIT_DUE_72H,
+        title: 'Visit 72h Overdue',
+        message: `Visit for ${visit.lead.name} has been overdue for 72 hours.`,
+        scheduledFor: visit.scheduledAt,
+      })),
+      skipDuplicates: true,
+    })
+
+    // Send FCM push notifications in parallel
+    Promise.allSettled(
+      due72hVisits.map((v) =>
+        sendPushToUser(
+          userId,
+          'Visit 72h Overdue',
+          `Visit for ${v.lead.name} has been overdue for 72 hours.`,
+          { type: 'VISIT_DUE_72H', leadId: v.leadId },
+        ),
+      ),
+    ).catch((err) => console.error('[notifications] FCM due72hVisits push failed:', err))
+  }
 }
 
 async function ensureSignupApprovalNotifications(userId: string, isAdmin: boolean) {
@@ -277,7 +446,14 @@ async function clearOrphanFollowupNotifications(userId: string) {
     where: {
       userId,
       type: {
-        in: [NotificationType.VISIT_DUE, NotificationType.VISIT_REMINDER_30M, NotificationType.VISIT_ASSIGNED],
+        in: [
+          NotificationType.VISIT_DUE,
+          NotificationType.VISIT_REMINDER_30M,
+          NotificationType.VISIT_ASSIGNED,
+          NotificationType.VISIT_DUE_36H,
+          NotificationType.VISIT_DUE_48H,
+          NotificationType.VISIT_DUE_72H,
+        ],
       },
       OR: [{ leadId: null }, { visitId: null }],
     },
