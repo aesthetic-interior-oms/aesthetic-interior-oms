@@ -473,6 +473,13 @@ export function ShortQuotationBuilder({
     }
     void window.open(buildShortPreviewUrl({ context: previewContext, contextId: previewContextId }), '_blank', 'noopener,noreferrer')
   }
+  const addTaskbarRoom = () => {
+    if (!taskbarFloorId) {
+      toast.error('Add a floor first')
+      return
+    }
+    addRoom(taskbarFloorId)
+  }
   const addTaskbarCustomItem = () => {
     if (!taskbarRoomId) {
       toast.error('Add a floor and room first')
@@ -852,6 +859,10 @@ export function ShortQuotationBuilder({
           <Button type="button" size="sm" variant="outline" disabled={!canEdit} onClick={addFloor}>
             <Plus className="mr-1.5 h-4 w-4" />
             Add Floor
+          </Button>
+          <Button type="button" size="sm" variant="outline" disabled={!canEdit || !taskbarFloorId} onClick={addTaskbarRoom}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add Room
           </Button>
           <Button type="button" size="sm" disabled={!canEdit || saving} onClick={() => void saveDraft()}>
             <Save className="mr-1.5 h-4 w-4" />
