@@ -544,12 +544,12 @@ export function QuotationMaker({
 
 return (
     <div className="space-y-5 pb-28 print:pb-0 quotation-maker-root">
-      <Card className="overflow-hidden border-0 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 text-white shadow-xl print:hidden">
+      <Card className="overflow-hidden border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-orange-50 shadow-lg print:hidden">
         <CardHeader className="space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
-              <CardTitle className="text-2xl text-white">Detail Quotation Studio</CardTitle>
-              <p className="text-sm text-white/75">
+              <CardTitle className="text-2xl text-amber-950">Detail Quotation Studio</CardTitle>
+              <p className="text-sm text-muted-foreground">
                 {isPlayground ? 'Premium playground for templates and pricing' : `${leadName} • floor-wise premium quotation workspace`}
               </p>
             </div>
@@ -562,7 +562,7 @@ return (
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4 rounded-t-3xl bg-background p-5 text-foreground md:p-6">
+        <CardContent className="space-y-4 border-t border-amber-100 bg-background p-5 text-foreground md:p-6">
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Client</p>
