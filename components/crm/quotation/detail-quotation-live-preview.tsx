@@ -155,10 +155,10 @@ export function DetailQuotationLivePreview({
   }
 
   return (
-    <div className="min-h-screen bg-neutral-200 py-6 print:bg-white print:py-0">
-      <div className="mx-auto mb-4 flex max-w-[920px] flex-wrap items-center justify-between gap-3 px-4 print:hidden">
-        <div className="rounded-lg border bg-white px-4 py-3 text-sm shadow-sm">
-          <p className="font-medium">Live preview</p>
+    <div className="min-h-screen bg-neutral-100 py-6 print:bg-white print:py-0">
+      <div className="mx-auto mb-4 flex max-w-[794px] flex-wrap items-center justify-between gap-3 rounded-xl border bg-white px-4 py-3 shadow-sm print:hidden">
+        <div className="text-sm">
+          <p className="font-semibold">Detail quotation live preview</p>
           <p className="text-muted-foreground">
             Updates automatically when you edit in the other tab. Last update:{' '}
             {new Date(payload.updatedAt).toLocaleTimeString()}
@@ -167,7 +167,7 @@ export function DetailQuotationLivePreview({
         <div className="flex gap-2">
           <button
             type="button"
-            className="rounded-md border bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-muted"
+            className="rounded-md border bg-white px-4 py-2 text-sm font-medium hover:bg-muted"
             onClick={() => window.print()}
           >
             Print
@@ -175,7 +175,7 @@ export function DetailQuotationLivePreview({
           <button
             type="button"
             disabled={downloading}
-            className="rounded-md border bg-white px-4 py-2 text-sm font-medium shadow-sm hover:bg-muted flex items-center gap-1.5 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-md border bg-white px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
             onClick={() => void handleDownloadPdf()}
           >
             {downloading ? (
