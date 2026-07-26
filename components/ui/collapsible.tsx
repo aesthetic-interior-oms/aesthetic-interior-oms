@@ -61,26 +61,28 @@ export function CollapsibleCard({
   children,
   defaultOpen = false,
   className,
+  compact = false,
 }: {
   title: string
   children: React.ReactNode
   defaultOpen?: boolean
   className?: string
+  compact?: boolean
 }) {
   const [open, setOpen] = React.useState(defaultOpen)
   return (
     <Collapsible className={cn("w-full", className)} open={open} onOpenChange={setOpen}>
-      <Card className="overflow-hidden">
+      <Card className={cn("overflow-hidden", compact && "shadow-sm")}>
         <CollapsibleTrigger className="w-full p-0 text-left hover:bg-accent/50 py-0">
-          <CardHeader className="py-3">
+          <CardHeader className={cn("py-3", compact && "px-4 py-2")}>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base">{title}</CardTitle>
-              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", open && "rotate-180")} />
+              <CardTitle className={cn("text-base", compact && "text-sm")}>{title}</CardTitle>
+              <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", compact && "h-3.5 w-3.5", open && "rotate-180")} />
             </div>
           </CardHeader>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <CardContent className="pt-0 pb-4">
+          <CardContent className={cn("pt-0 pb-4", compact && "px-4 pb-3")}>
             {children}
           </CardContent>
         </CollapsibleContent>
