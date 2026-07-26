@@ -36,8 +36,9 @@ export async function GET(request: Request) {
         ...(includeHistory
           ? {}
           : {
+              stage: LeadStage.QUOTATION_PHASE,
               NOT: {
-                AND: [{ stage: LeadStage.QUOTATION_PHASE }, { subStatus: LeadSubStatus.QUOTATION_APPROVED }],
+                subStatus: LeadSubStatus.QUOTATION_APPROVED,
               },
             }),
       },
