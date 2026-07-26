@@ -8,6 +8,7 @@ import {
   formatDetailQtyCell,
   formatDetailTotalCell,
   formatDetailUnitPriceCell,
+  isPackageLine,
   withDetailQuotationDefaults,
 } from '@/lib/detail-quotation-format'
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
@@ -136,7 +137,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div
       className="text-[11px] font-bold uppercase tracking-wider px-2 py-1.5 mt-4 mb-0"
-      style={{ color: PRIMARY, backgroundColor: '#e6f0ef' }}
+      style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}
     >
       {children}
     </div>
@@ -234,7 +235,7 @@ export function DetailQuotationPreview({
             <div
               key={entry.floor.id}
               className="flex text-[9px] border-b py-2"
-              style={{ borderColor: '#eeeeee', backgroundColor: index % 2 === 1 ? '#f5f5ea' : '#ffffff' }}
+              style={{ borderColor: '#eeeeee', backgroundColor: index % 2 === 1 ? '#fbfaf2' : '#ffffff' }}
             >
               <span className="w-[8%] text-center text-neutral-500">
                 {String(index + 1).padStart(2, '0')}
@@ -294,7 +295,7 @@ export function DetailQuotationPreview({
               <div
                 key={line.id}
                 className="flex text-[9px] border-b py-2 items-start"
-                style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#f5f5ea' : '#ffffff' }}
+                style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#fbfaf2' : '#ffffff' }}
               >
                 <span className="w-[8%] text-center text-neutral-500 pt-0.5">
                   {String(lineIndex + 1).padStart(2, '0')}
@@ -302,7 +303,11 @@ export function DetailQuotationPreview({
                 <span className="w-[22%] font-bold pr-1 leading-snug">{line.description}</span>
                 <span className="w-[36%] pr-1">{formatMaterialText(line.materials)}</span>
                 <span className="w-[10%] text-center text-neutral-600">
-                  {formatDetailQtyCell(line)}
+                  {isPackageLine(line) ? (
+                    <span className="inline-block rounded-full bg-[#0f5b53]/10 px-2 py-0.5 text-[7px] font-bold uppercase text-[#0f5b53]">Package</span>
+                  ) : (
+                    formatDetailQtyCell(line)
+                  )}
                 </span>
                 <span className="w-[12%] text-right text-neutral-600">
                   {formatDetailUnitPriceCell(line)}

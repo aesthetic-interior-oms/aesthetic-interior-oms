@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: PRIMARY,
-    backgroundColor: '#e6f0ef',
+    backgroundColor: '#f3f8f7',
     padding: 8,
     marginTop: 15,
     textTransform: 'uppercase',
@@ -151,12 +151,23 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eeeeee',
   },
   tRowAlt: {
-    backgroundColor: '#f5f5ea',
+    backgroundColor: '#fbfaf2',
   },
   tdCol: {
     fontSize: 9,
     paddingVertical: 8,
     paddingHorizontal: 4,
+  },
+  packageBadge: {
+    alignSelf: 'center',
+    borderRadius: 8,
+    backgroundColor: '#edf5f4',
+    color: PRIMARY,
+    fontSize: 7,
+    fontWeight: 'bold',
+    paddingVertical: 2,
+    paddingHorizontal: 5,
+    textTransform: 'uppercase',
   },
   tdColLast: {
     
@@ -468,9 +479,10 @@ export function DetailQuotationDocument({
                   </View>
 
                   {isPkg ? (
-                    <Text style={[styles.tdCol, { width: '20%', textAlign: 'center', color: '#8b4513' }]}>
-                      Package As Per Design
-                    </Text>
+                    <>
+                      <View style={[styles.tdCol, styles.wQty]}><Text style={styles.packageBadge}>Package</Text></View>
+                      <Text style={[styles.tdCol, styles.wPrice]}>Per Design</Text>
+                    </>
                   ) : (
                     <>
                       <Text style={[styles.tdCol, styles.wQty]}>{formatDetailQtyCell(line)}</Text>

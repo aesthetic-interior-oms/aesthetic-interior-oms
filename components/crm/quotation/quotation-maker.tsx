@@ -119,6 +119,10 @@ function lineNeedsManualPrice(line: QuotationLineItem) {
   return Boolean(line.priceOnRequest && line.rate <= 0)
 }
 
+function scrollToQuotationIssue(elementId: string) {
+  document.getElementById(elementId)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
 export function QuotationMaker({
   leadId,
   leadName,
@@ -396,6 +400,21 @@ export function QuotationMaker({
   const saveDraft = useCallback(async () => {
     if (!content || !canEdit) return
     const normalized = normalizeQuotationContent(content)
+    const firstMissingLine = normalized.lineItems.find((line) => {
+      if (!line.included) return false
+      if (isPackageLine(line)) return line.amount <= 0
+      return lineNeedsManualPrice(line) || line.rate <= 0 || line.quantity <= 0
+    })
+    if (firstMissingLine) {
+      const issue = isPackageLine(firstMissingLine)
+        ? 'Package item total price is missing.'
+        : firstMissingLine.quantity <= 0
+          ? 'Qty/SFT is missing for this item.'
+          : 'Unit price is missing for this item.'
+      toast.error(issue)
+      scrollToQuotationIssue(`detail-line-${firstMissingLine.id}`)
+      return
+    }
     const totalsPreview = calculateQuotationTotals(normalized)
     if (totalsPreview.itemsMissingPrice > 0) {
       toast.error(`${totalsPreview.itemsMissingPrice} item(s) still need a price.`)
@@ -524,14 +543,14 @@ export function QuotationMaker({
   }
 
 return (
-    <div className="space-y-4 pb-28 print:pb-0 quotation-maker-root">
-      <Card className="print:hidden">
+    <div className="space-y-5 pb-28 print:pb-0 quotation-maker-root">
+      <Card className="overflow-hidden border-0 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 text-white shadow-xl print:hidden">
         <CardHeader className="space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
-              <CardTitle>Floor-based Detail Quotation</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {isPlayground ? 'Practice without touching real leads' : leadName}
+              <CardTitle className="text-2xl text-white">Detail Quotation Studio</CardTitle>
+              <p className="text-sm text-white/75">
+                {isPlayground ? 'Premium playground for templates and pricing' : `${leadName} • floor-wise premium quotation workspace`}
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -543,7 +562,7 @@ return (
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4 rounded-t-3xl bg-background p-5 text-foreground md:p-6">
           <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Client</p>
@@ -623,6 +642,7 @@ return (
       </Card>
 
       <CollapsibleCard title="Letterhead & footer" defaultOpen={false}>
+        <p className="mb-3 text-sm text-muted-foreground">Default subject, intro letter, terms, payment and signature details stay here so frequent editors can focus on pricing below.</p>
         <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground">Date</p>
@@ -686,7 +706,7 @@ return (
           )
 
           return (
-            <Card key={floor.id} className="overflow-hidden print:hidden">
+            <Card key={floor.id} className="overflow-hidden border-muted/60 shadow-sm print:hidden">
               <CardHeader className="py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -902,7 +922,7 @@ function SortableRow({ line, lineIndex, isPkg, canEdit, updateLineItem, removeLi
   }
 
   return (
-    <tr ref={setNodeRef} style={rowStyle} className="border-t align-top">
+    <tr id={`detail-line-${line.id}`} ref={setNodeRef} style={rowStyle} className="border-t align-top scroll-mt-28">
       {canEdit && (
         <td className="px-1 py-2 text-muted-foreground">
           <button

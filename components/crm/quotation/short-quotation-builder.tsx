@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Download, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
+import { Download, ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CollapsibleCard } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import { searchShortQuotationNames } from '@/lib/short-quotation-names'
-import { ShortQuotationPrint } from '@/components/crm/quotation/short-quotation-print'
 import { ShortQuotationDocument } from '@/components/crm/quotation/pdf/ShortQuotationDocument'
 import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
 import { buildDefaultShortQuotationContent } from '@/lib/short-quotation-default'
@@ -21,6 +20,7 @@ import {
   todayShortQuotationDate,
 } from '@/lib/short-quotation-calculations'
 import { isShortQuotationContent } from '@/lib/quotation-document'
+import { buildShortPreviewUrl, publishShortPreview } from '@/lib/short-quotation-preview-sync'
 import {
   loadPlaygroundShortDraft,
   savePlaygroundShortDraft,
@@ -73,6 +73,10 @@ type DraftResponse = {
   canEdit: boolean
 }
 
+function scrollToQuotationIssue(elementId: string) {
+  document.getElementById(elementId)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
 export function ShortQuotationBuilder({
   leadId,
   leadName,
@@ -81,6 +85,8 @@ export function ShortQuotationBuilder({
   mode = 'lead',
 }: ShortQuotationBuilderProps) {
   const isPlayground = mode === 'playground'
+  const previewContext = isPlayground ? 'playground' : 'lead'
+  const previewContextId = isPlayground ? 'playground' : leadId
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [startingWork, setStartingWork] = useState(false)
@@ -178,6 +184,19 @@ export function ShortQuotationBuilder({
     setContent((prev) => (prev ? normalizeShortQuotationContent(updater(prev)) : prev))
   }
 
+  useEffect(() => {
+    if (!content) return
+    const timer = window.setTimeout(() => {
+      publishShortPreview({
+        updatedAt: new Date().toISOString(),
+        context: previewContext,
+        contextId: previewContextId,
+        content,
+      })
+    }, 250)
+    return () => window.clearTimeout(timer)
+  }, [content, previewContext, previewContextId])
+
   // Autocomplete state for client name
   const [nameQuery, setNameQuery] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
@@ -195,9 +214,23 @@ export function ShortQuotationBuilder({
 
   const saveDraft = useCallback(async () => {
     if (!content || !canEdit) return
+    const normalized = normalizeShortQuotationContent(content)
+    const firstMissingLine = normalized.rooms.flatMap((room) => room.lines.map((line) => ({ room, line }))).find(({ line }) => {
+      if (line.isLumpSum) return line.total <= 0
+      return (line.quantitySqft ?? 0) <= 0 || (line.unitPrice ?? 0) <= 0
+    })
+    if (firstMissingLine) {
+      const issue = firstMissingLine.line.isLumpSum
+        ? 'Package item total price is missing.'
+        : (firstMissingLine.line.quantitySqft ?? 0) <= 0
+          ? 'Qty/SFT is missing for this item.'
+          : 'Unit price is missing for this item.'
+      toast.error(issue)
+      scrollToQuotationIssue(`short-line-${firstMissingLine.line.id}`)
+      return
+    }
     setSaving(true)
     try {
-      const normalized = normalizeShortQuotationContent(content)
       if (isPlayground) {
         savePlaygroundShortDraft(normalized)
         setContent(normalized)
@@ -429,8 +462,23 @@ export function ShortQuotationBuilder({
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .at(-1)?.id ?? null
     : null
-  const scrollToLivePreview = () => {
-    document.getElementById('short-quotation-print-container')?.scrollIntoView({ behavior: 'smooth' })
+  const openLivePreviewTab = () => {
+    if (content) {
+      publishShortPreview({
+        updatedAt: new Date().toISOString(),
+        context: previewContext,
+        contextId: previewContextId,
+        content,
+      })
+    }
+    void window.open(buildShortPreviewUrl({ context: previewContext, contextId: previewContextId }), '_blank', 'noopener,noreferrer')
+  }
+  const addTaskbarRoom = () => {
+    if (!taskbarFloorId) {
+      toast.error('Add a floor first')
+      return
+    }
+    addRoom(taskbarFloorId)
   }
   const addTaskbarCustomItem = () => {
     if (!taskbarRoomId) {
@@ -448,14 +496,14 @@ export function ShortQuotationBuilder({
   }
 
   return (
-    <div className="space-y-4 pb-28 print:pb-0 short-quotation-root">
-      <Card className="print:hidden">
+    <div className="space-y-5 pb-28 print:pb-0 short-quotation-root">
+      <Card className="overflow-hidden border-0 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950 text-white shadow-xl print:hidden">
         <CardHeader className="space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
-              <CardTitle>Short Quotation</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Build the short quotation layout yourself — floors, rooms, items, sqft, and prices. Print matches your PDF format.
+              <CardTitle className="text-2xl text-white">Short Quotation Studio</CardTitle>
+              <p className="text-sm text-white/75">
+                Premium workspace for fast team editing — header, footer, rooms, prices, and totals stay organized.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -468,7 +516,7 @@ export function ShortQuotationBuilder({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 rounded-t-3xl bg-background p-5 text-foreground md:p-6">
           <div className="grid gap-3 md:grid-cols-3">
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Package</p>
@@ -506,7 +554,7 @@ export function ShortQuotationBuilder({
             </div>
           </div>
 
-          <CollapsibleCard title="Header details">
+          <CollapsibleCard title="Header details" defaultOpen={false}>
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1">
                 <p className="text-xs font-medium text-muted-foreground">Client Name</p>
@@ -635,9 +683,9 @@ export function ShortQuotationBuilder({
               <Save className="mr-2 h-4 w-4" />
               {saving ? 'Saving...' : 'Save Quotation'}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => window.print()}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print
+            <Button type="button" variant="secondary" onClick={openLivePreviewTab}>
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Live Preview
             </Button>
             <Button
               type="button"
@@ -812,14 +860,19 @@ export function ShortQuotationBuilder({
             <Plus className="mr-1.5 h-4 w-4" />
             Add Floor
           </Button>
+          <Button type="button" size="sm" variant="outline" disabled={!canEdit || !taskbarFloorId} onClick={addTaskbarRoom}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add Room
+          </Button>
           <Button type="button" size="sm" disabled={!canEdit || saving} onClick={() => void saveDraft()}>
             <Save className="mr-1.5 h-4 w-4" />
             {saving ? 'Saving...' : 'Save'}
           </Button>
-          <Button type="button" size="sm" variant="outline" onClick={scrollToLivePreview}>
+          <Button type="button" size="sm" variant="outline" onClick={openLivePreviewTab}>
+            <ExternalLink className="mr-1.5 h-4 w-4" />
             Live Preview
           </Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => window.print()}>
+          <Button type="button" size="sm" variant="outline" onClick={openLivePreviewTab}>
             <Printer className="mr-1.5 h-4 w-4" />
             Print
           </Button>
@@ -839,9 +892,6 @@ export function ShortQuotationBuilder({
         </div>
       </div>
 
-      <div id="short-quotation-print-container" className="short-quotation-print-area">
-        <ShortQuotationPrint content={content} />
-      </div>
 
       <style jsx global>{`
         @media print {
@@ -892,7 +942,7 @@ function SortableShortRow({
   }
 
   return (
-    <tr ref={setNodeRef} style={rowStyle} className="border-t align-top">
+    <tr id={`short-line-${line.id}`} ref={setNodeRef} style={rowStyle} className="border-t align-top scroll-mt-28">
       {canEdit && (
         <td className="px-1 py-2 text-muted-foreground">
           <button

@@ -4,8 +4,8 @@ import type { QuotationDraftContent, QuotationLineItem, QuotationSection } from 
 export const DEFAULT_DETAIL_INTRO_LETTER = `Dear Sir,
 Yours sincerely, I am interested in working on the interior of your Flat. So, the details of my work are described below.`
 
-export const DEFAULT_DETAIL_SUBJECT = 'Quotation for interior decoration work.'
-export const DEFAULT_DETAIL_SUMMARY_SUBJECT = 'Quotation Summary for interior decoration work.'
+export const DEFAULT_DETAIL_SUBJECT = 'Quotation for interior decoration work'
+export const DEFAULT_DETAIL_SUMMARY_SUBJECT = 'Quotation for interior decoration work'
 
 export const DEFAULT_DETAIL_PAYMENT_TERMS = `Mode of Payment
 1.60% of the total amount will be given by the client at time of work order given.
@@ -55,7 +55,7 @@ export function isRateOnlyLine(line: QuotationLineItem) {
 }
 
 export function formatDetailQtyCell(line: QuotationLineItem) {
-  if (isPackageLine(line)) return 'Package As Per Design'
+  if (isPackageLine(line)) return 'Package'
   if (isRateOnlyLine(line)) return '----'
   if (line.quantity <= 0) return '----'
   return formatDetailAmount(line.quantity)
@@ -63,9 +63,7 @@ export function formatDetailQtyCell(line: QuotationLineItem) {
 
 export function formatDetailUnitPriceCell(line: QuotationLineItem) {
   if (isPackageLine(line)) {
-    if (line.rate > 0) return formatDetailAmount(line.rate)
-    if (line.amount > 0) return formatDetailAmount(line.amount)
-    return '----'
+    return 'Per Design'
   }
   if (isRateOnlyLine(line)) return `---- ${formatDetailAmount(line.rate)} ----`
   if (line.rate <= 0) return '----'

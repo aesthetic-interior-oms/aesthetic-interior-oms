@@ -67,7 +67,7 @@ function PageFooter() {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="mb-0 mt-4 px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: PRIMARY, backgroundColor: '#e6f0ef' }}>{children}</div>
+  return <div className="mb-0 mt-4 px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}>{children}</div>
 }
 
 export function ShortQuotationPrint({ content }: { content: ShortQuotationContent }) {
@@ -94,7 +94,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
           <span className="w-[8%] text-center">SL</span><span className="w-[70%]">Description</span><span className="w-[22%] text-right">Amount</span>
         </div>
         {summary.floors.map((floorSummary, index) => (
-          <div key={floorSummary.floor.id} className="flex border-b py-2 text-[9px]" style={{ borderColor: '#eeeeee', backgroundColor: index % 2 === 1 ? '#f5f5ea' : '#ffffff' }}>
+          <div key={floorSummary.floor.id} className="flex border-b py-2 text-[9px]" style={{ borderColor: '#eeeeee', backgroundColor: index % 2 === 1 ? '#fbfaf2' : '#ffffff' }}>
             <span className="w-[8%] text-center text-neutral-500">{String(index + 1).padStart(2, '0')}</span>
             <span className="w-[70%] font-bold">{floorSummary.floor.name}</span>
             <span className="w-[22%] text-right font-bold">{formatCurrency(floorSummary.total)}</span>
@@ -118,13 +118,13 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
           </div>
           {floorSummary.rooms.map((roomSummary) => (
             <Fragment key={roomSummary.room.id}>
-              <div className="mt-3 px-2 py-1 text-[9px] font-bold uppercase" style={{ color: PRIMARY, backgroundColor: '#e6f0ef' }}>{roomSummary.room.name}</div>
+              <div className="mt-3 px-2 py-1 text-[9px] font-bold uppercase" style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}>{roomSummary.room.name}</div>
               {roomSummary.lines.map((line, lineIndex) => (
-                <div key={line.id} className="flex items-start border-b py-2 text-[9px]" style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#f5f5ea' : '#ffffff' }}>
+                <div key={line.id} className="flex items-start border-b py-2 text-[9px]" style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#fbfaf2' : '#ffffff' }}>
                   <span className="w-[8%] text-center text-neutral-500">{String(lineIndex + 1).padStart(2, '0')}</span>
                   <span className="w-[42%] pr-1 font-bold leading-snug">{line.name}</span>
-                  <span className="w-[12%] text-center text-neutral-600">{line.isLumpSum ? 'Package' : formatAmount(line.quantitySqft ?? 0)}</span>
-                  <span className="w-[18%] text-right text-neutral-600">{line.isLumpSum ? '—' : formatCurrency(line.unitPrice ?? 0)}</span>
+                  <span className="w-[12%] text-center text-neutral-600">{line.isLumpSum ? <span className="inline-block rounded-full bg-[#0f5b53]/10 px-2 py-0.5 text-[7px] font-bold uppercase text-[#0f5b53]">Package</span> : formatAmount(line.quantitySqft ?? 0)}</span>
+                  <span className="w-[18%] text-right text-neutral-600">{line.isLumpSum ? 'Per Design' : formatCurrency(line.unitPrice ?? 0)}</span>
                   <span className="w-[20%] text-right font-bold" style={{ color: PRIMARY }}>{formatCurrency(line.total)}</span>
                 </div>
               ))}
