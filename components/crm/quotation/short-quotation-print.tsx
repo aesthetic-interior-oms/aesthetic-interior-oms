@@ -67,12 +67,18 @@ function PageFooter() {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="mb-0 mt-4 px-2 py-1.5 text-[11px] font-bold uppercase tracking-wider" style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}>{children}</div>
+  return <div className="mb-0 mt-4 px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wider" style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}>{children}</div>
 }
 
 export function ShortQuotationPrint({ content }: { content: ShortQuotationContent }) {
   const summary = buildShortQuotationSummary(content)
   const cleanIntro = (content.introLetter || '').replace('Dear Sir,\n', '').replace('Dear Sir,', '').trim()
+  const lineSerials = new Map<string, number>()
+  summary.floors.forEach((floorSummary) => {
+    floorSummary.rooms.forEach((roomSummary) => {
+      roomSummary.lines.forEach((line) => lineSerials.set(line.id, lineSerials.size + 1))
+    })
+  })
 
   return (
     <div className="short-quotation-print w-full bg-neutral-100">
@@ -80,7 +86,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
         <WatermarkBackground />
         <PageHeader date={content.quotationDate} />
 
-        <div className="pb-6">
+        <div className="pb-3">
           <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[#a57c00]">Prepared For</p>
           <p className="mb-0.5 text-[14px] font-bold leading-snug text-[#0f5b53]">{content.clientName}</p>
           <p className="max-w-[360px] text-[10px] leading-snug text-neutral-600">{content.clientAddress || '—'}</p>
@@ -104,7 +110,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
           <span className="pr-4 text-[10px] font-bold" style={{ color: PRIMARY }}>Grand Total</span>
           <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>{formatCurrency(summary.grandTotal)}</span>
         </div>
-        <p className="mt-1 text-right text-[8px] italic text-neutral-500">In Words: <span className="font-bold not-italic">{amountInWordsTaka(summary.grandTotal)}</span></p>
+        <p className="mt-1 text-left text-[10px] italic text-neutral-500">In Words: <span className="font-bold not-italic">{amountInWordsTaka(summary.grandTotal)}</span></p>
         <div className="absolute bottom-6 left-10 right-10"><PageFooter /></div>
       </section>
 
@@ -118,21 +124,21 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
           </div>
           {floorSummary.rooms.map((roomSummary) => (
             <Fragment key={roomSummary.room.id}>
-              <div className="mt-3 px-2 py-1 text-[9px] font-bold uppercase" style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}>{roomSummary.room.name}</div>
+              <div className="mt-3 px-2 py-1 text-center text-[9px] font-bold uppercase" style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}>{roomSummary.room.name}</div>
               {roomSummary.lines.map((line, lineIndex) => (
                 <div key={line.id} className="flex items-start border-b py-2 text-[9px]" style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#fbfaf2' : '#ffffff' }}>
-                  <span className="w-[8%] text-center text-neutral-500">{String(lineIndex + 1).padStart(2, '0')}</span>
+                  <span className="w-[8%] text-center text-neutral-500">{String(lineSerials.get(line.id) ?? lineIndex + 1).padStart(2, '0')}</span>
                   <span className="w-[42%] pr-1 font-bold leading-snug">{line.name}</span>
                   <span className="w-[12%] text-center text-neutral-600">{line.isLumpSum ? <span className="inline-block rounded-full bg-[#0f5b53]/10 px-2 py-0.5 text-[7px] font-bold uppercase text-[#0f5b53]">Package</span> : formatAmount(line.quantitySqft ?? 0)}</span>
-                  <span className="w-[18%] text-right text-neutral-600">{line.isLumpSum ? 'Per Design' : formatCurrency(line.unitPrice ?? 0)}</span>
+                  <span className="w-[18%] text-right text-neutral-600">{line.isLumpSum ? '--' : formatCurrency(line.unitPrice ?? 0)}</span>
                   <span className="w-[20%] text-right font-bold" style={{ color: PRIMARY }}>{formatCurrency(line.total)}</span>
                 </div>
               ))}
-              <div className="mt-1 flex justify-end text-[9px] font-bold" style={{ color: PRIMARY }}><span className="pr-4">Total for {roomSummary.room.name}</span><span>{formatCurrency(roomSummary.total)}</span></div>
+              <div className="mt-1 flex justify-end text-[9px] font-bold" style={{ color: PRIMARY }}><span className="pr-4">Total for {roomSummary.room.name}</span><span>{formatAmount(roomSummary.total)}</span></div>
             </Fragment>
           ))}
           <div className="mt-3 flex justify-end border-t pt-2 text-[10px] font-bold" style={{ borderColor: PRIMARY, color: PRIMARY }}><span className="pr-4">Total for {floorSummary.floor.name}</span><span>{formatCurrency(floorSummary.total)}</span></div>
-          <p className="mt-1 text-right text-[8px] italic text-neutral-500">In Words: <span className="font-bold not-italic">{amountInWordsTaka(floorSummary.total)}</span></p>
+          <p className="mt-1 text-left text-[10px] italic text-neutral-500">In Words: <span className="font-bold not-italic">{amountInWordsTaka(floorSummary.total)}</span></p>
           <div className="absolute bottom-6 left-10 right-10"><PageFooter /></div>
         </section>
       ))}

@@ -51,20 +51,24 @@ export function QuotationWorkspace({
         <TabsTrigger value="detail">Detail Quotation</TabsTrigger>
       </TabsList>
       <TabsContent value="short" className="mt-4">
-        <ShortQuotationBuilder
-          leadId={leadId}
-          leadName={leadName}
-          leadLocation={leadLocation}
-          leadSubStatus={leadSubStatus}
-        />
+        {activeTab === 'short' ? (
+          <ShortQuotationBuilder
+            leadId={leadId}
+            leadName={leadName}
+            leadLocation={leadLocation}
+            leadSubStatus={leadSubStatus}
+          />
+        ) : null}
       </TabsContent>
       <TabsContent value="detail" className="mt-4">
-        <QuotationMaker
-          leadId={leadId}
-          leadName={leadName}
-          leadLocation={leadLocation}
-          leadSubStatus={leadSubStatus}
-        />
+        {activeTab === 'detail' ? (
+          <QuotationMaker
+            leadId={leadId}
+            leadName={leadName}
+            leadLocation={leadLocation}
+            leadSubStatus={leadSubStatus}
+          />
+        ) : null}
       </TabsContent>
     </Tabs>
   )
