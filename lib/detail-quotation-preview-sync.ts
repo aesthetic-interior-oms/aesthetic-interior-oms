@@ -26,7 +26,7 @@ export function publishDetailPreview(payload: DetailPreviewPayload) {
   if (typeof window === 'undefined') return
 
   const key = storageKey(payload.context, payload.contextId)
-  window.sessionStorage.setItem(key, JSON.stringify(payload))
+  window.localStorage.setItem(key, JSON.stringify(payload))
 
   const channel = new BroadcastChannel(channelName(payload.context, payload.contextId))
   channel.postMessage({ type: 'update', updatedAt: payload.updatedAt })
@@ -39,7 +39,7 @@ export function readDetailPreview(
 ): DetailPreviewPayload | null {
   if (typeof window === 'undefined') return null
   try {
-    const raw = window.sessionStorage.getItem(storageKey(context, contextId))
+    const raw = window.localStorage.getItem(storageKey(context, contextId))
     if (!raw) return null
     return JSON.parse(raw) as DetailPreviewPayload
   } catch {
