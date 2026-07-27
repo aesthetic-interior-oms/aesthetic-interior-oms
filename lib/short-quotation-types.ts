@@ -28,6 +28,8 @@ export type ShortQuotationContent = {
   documentType: 'short'
   packageTier: ShortQuotationPackage
   quotationDate: string
+  quotationCode?: string
+  downloadedAt?: string
   clientName: string
   clientAddress: string
   subject: string

@@ -171,6 +171,8 @@ function toShortQuotationContent(value: unknown): ShortQuotationContent | null {
     documentType: 'short',
     packageTier,
     quotationDate: typeof record.quotationDate === 'string' ? record.quotationDate : '',
+    quotationCode: typeof record.quotationCode === 'string' ? record.quotationCode : undefined,
+    downloadedAt: typeof record.downloadedAt === 'string' ? record.downloadedAt : undefined,
     clientName: typeof record.clientName === 'string' ? record.clientName : '',
     clientAddress: typeof record.clientAddress === 'string' ? record.clientAddress : '',
     subject: typeof record.subject === 'string' ? record.subject : '',
