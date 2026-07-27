@@ -23,14 +23,22 @@ function WatermarkBackground() {
   )
 }
 
-function getQuoteId(date: string) {
-  const timestamp = Date.parse(date)
-  const suffix = Number.isNaN(timestamp) ? '000000' : timestamp.toString().slice(-6)
-  return `QTN-${suffix}`
+function formatDownloadDateTime(value: string | undefined) {
+  if (!value) return 'Not downloaded yet'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
 }
 
-function PageHeader({ date }: { date: string }) {
-  const formattedDate = `${formatShortQuotationDate(date)} ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+function PageHeader({ content }: { content: ShortQuotationContent }) {
+  const formattedDate = formatShortQuotationDate(content.quotationDate)
   return (
     <div className="relative z-10 mb-6 flex flex-col">
       <div className="flex items-end justify-between pb-3">
@@ -38,8 +46,9 @@ function PageHeader({ date }: { date: string }) {
           <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[160px] object-contain object-left" />
         </div>
         <div className="flex w-1/2 flex-col items-end gap-1">
-          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Quote ID:</span> {getQuoteId(date)}</p>
-          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Date:</span> {formattedDate}</p>
+          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Quotation Code:</span> {content.quotationCode ?? 'Not generated yet'}</p>
+          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Download Time:</span> {formatDownloadDateTime(content.downloadedAt)}</p>
+          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Quotation Date:</span> {formattedDate}</p>
         </div>
       </div>
     </div>
@@ -84,7 +93,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
     <div className="short-quotation-print w-full bg-neutral-100">
       <section className="relative mx-auto mb-6 min-h-[297mm] w-[210mm] overflow-hidden bg-white px-10 pb-16 pt-8 shadow-md">
         <WatermarkBackground />
-        <PageHeader date={content.quotationDate} />
+        <PageHeader content={content} />
 
         <div className="pb-3">
           <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[#a57c00]">Prepared For</p>
@@ -117,7 +126,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
       {summary.floors.map((floorSummary) => (
         <section key={floorSummary.floor.id} className="relative mx-auto mb-6 min-h-[297mm] w-[210mm] overflow-hidden bg-white px-10 pb-16 pt-8 shadow-md">
           <WatermarkBackground />
-          <PageHeader date={content.quotationDate} />
+          <PageHeader content={content} />
           <SectionTitle>{floorSummary.floor.name}</SectionTitle>
           <div className="flex border-b pb-1.5 pt-2 text-[8px] font-bold uppercase" style={{ color: PRIMARY, borderColor: PRIMARY }}>
             <span className="w-[8%] text-center">SL</span><span className="w-[42%]">Name</span><span className="w-[12%] text-center">Qty/Sft</span><span className="w-[18%] text-right">Unit Price</span><span className="w-[20%] text-right">Total</span>
@@ -146,7 +155,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
       {content.footerNotes.length > 0 ? (
         <section className="relative mx-auto min-h-[297mm] w-[210mm] overflow-hidden bg-white px-10 pb-16 pt-8 shadow-md">
           <WatermarkBackground />
-          <PageHeader date={content.quotationDate} />
+          <PageHeader content={content} />
           <SectionTitle>Terms &amp; Notes</SectionTitle>
           <div className="mt-3 space-y-2 text-[9px] text-neutral-600">
             {content.footerNotes.map((note, index) => <p key={index}><span className="font-bold" style={{ color: PRIMARY }}>{index + 1}.</span> {note}</p>)}

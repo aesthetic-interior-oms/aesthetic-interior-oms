@@ -66,10 +66,18 @@ function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
     .join('')
 }
 
-function getQuoteId(date: string) {
-  const timestamp = Date.parse(date)
-  const suffix = Number.isNaN(timestamp) ? '000000' : timestamp.toString().slice(-6)
-  return `QTN-${suffix}`
+function formatDownloadDateTime(value: string | undefined) {
+  if (!value) return 'Not downloaded yet'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
 }
 
 const WatermarkBackground = () => (
@@ -78,13 +86,14 @@ const WatermarkBackground = () => (
   </View>
 )
 
-const GlobalHeader = ({ date }: { date: string }) => (
+const GlobalHeader = ({ content }: { content: ShortQuotationContent }) => (
   <View style={styles.header} fixed>
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 10 }}>
       <View style={{ flex: 1 }}><Image src={`${getBaseUrl()}/Logo/HeaderLogo.png`} style={{ width: 140 }} /></View>
       <View style={{ width: '50%', alignItems: 'flex-end' }}>
-        <Text style={{ fontSize: 9, color: '#555', marginBottom: 3 }}><Text style={styles.bold}>Quote ID:</Text> {getQuoteId(date)}</Text>
-        <Text style={{ fontSize: 9, color: '#555' }}><Text style={styles.bold}>Date:</Text> {formatShortQuotationDate(date)}</Text>
+        <Text style={{ fontSize: 9, color: '#555', marginBottom: 3 }}><Text style={styles.bold}>Quotation Code:</Text> {content.quotationCode ?? 'Not generated yet'}</Text>
+        <Text style={{ fontSize: 9, color: '#555', marginBottom: 3 }}><Text style={styles.bold}>Download Time:</Text> {formatDownloadDateTime(content.downloadedAt)}</Text>
+        <Text style={{ fontSize: 9, color: '#555' }}><Text style={styles.bold}>Quotation Date:</Text> {formatShortQuotationDate(content.quotationDate)}</Text>
       </View>
     </View>
   </View>
@@ -121,7 +130,7 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        <WatermarkBackground /><GlobalHeader date={content.quotationDate} />
+        <WatermarkBackground /><GlobalHeader content={content} />
         <View style={{ marginBottom: 12 }}>
           <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
           <Text style={[styles.bold, { fontSize: 13, color: PRIMARY, marginBottom: 2 }]}>{content.clientName}</Text>
@@ -136,8 +145,8 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
         <Text style={styles.inWords}>In Words: <Text style={styles.bold}>{amountInWordsTaka(summary.grandTotal)}</Text></Text>
         <FooterFixed />
       </Page>
-        {summary.floors.map((floor) => <Page key={floor.floor.id} size="A4" style={styles.page}><WatermarkBackground /><GlobalHeader date={content.quotationDate} /><Text style={styles.sectionTitle}>{softWrapPdfText(floor.floor.name)}</Text><View style={styles.tHead}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wName]}>Name</Text><Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text><Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text><Text style={[styles.thCol, styles.wTotal]}>Total</Text></View>{floor.rooms.map((room) => <View key={room.room.id}><Text style={[styles.sectionTitle, { fontSize: 9, marginTop: 10 }]}>{softWrapPdfText(room.room.name)}</Text>{room.lines.map((line, index) => <View key={line.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}><Text style={[styles.tdCol, styles.wSl]}>{String(lineSerials.get(line.id) ?? index + 1).padStart(2, '0')}</Text><Text style={[styles.tdCol, styles.wName, styles.bold]}>{softWrapPdfText(line.name)}</Text><View style={[styles.tdCol, styles.wQty]}>{line.isLumpSum ? <Text style={styles.packageBadge}>Package</Text> : <Text>{formatAmount(line.quantitySqft ?? 0)}</Text>}</View><Text style={[styles.tdCol, styles.wPrice]}>{line.isLumpSum ? '--' : formatCurrency(line.unitPrice ?? 0)}</Text><Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>{formatCurrency(line.total)}</Text></View>)}<View style={{ marginTop: 4, flexDirection: 'row', justifyContent: 'flex-end' }}><Text style={{ fontSize: 9, fontWeight: 'bold', color: PRIMARY, paddingRight: 10 }}>Total for {softWrapPdfText(room.room.name)}</Text><Text style={{ fontSize: 9, fontWeight: 'bold', color: PRIMARY }}>{formatAmount(room.total)}</Text></View></View>)}<View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(floor.floor.name)}</Text><Text style={styles.grandTotalValue}>{formatCurrency(floor.total)}</Text></View><Text style={styles.inWords}>In Words: <Text style={styles.bold}>{amountInWordsTaka(floor.total)}</Text></Text><FooterFixed /></Page>)}
-      {content.footerNotes.length > 0 ? <Page size="A4" style={styles.page}><WatermarkBackground /><GlobalHeader date={content.quotationDate} /><Text style={styles.sectionTitle}>Terms &amp; Notes</Text>{content.footerNotes.map((note, index) => <Text key={index} style={{ fontSize: 9, marginTop: 8 }}><Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>{softWrapPdfText(note)}</Text>)}<FooterFixed /></Page> : null}
+        {summary.floors.map((floor) => <Page key={floor.floor.id} size="A4" style={styles.page}><WatermarkBackground /><GlobalHeader content={content} /><Text style={styles.sectionTitle}>{softWrapPdfText(floor.floor.name)}</Text><View style={styles.tHead}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wName]}>Name</Text><Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text><Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text><Text style={[styles.thCol, styles.wTotal]}>Total</Text></View>{floor.rooms.map((room) => <View key={room.room.id}><Text style={[styles.sectionTitle, { fontSize: 9, marginTop: 10 }]}>{softWrapPdfText(room.room.name)}</Text>{room.lines.map((line, index) => <View key={line.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}><Text style={[styles.tdCol, styles.wSl]}>{String(lineSerials.get(line.id) ?? index + 1).padStart(2, '0')}</Text><Text style={[styles.tdCol, styles.wName, styles.bold]}>{softWrapPdfText(line.name)}</Text><View style={[styles.tdCol, styles.wQty]}>{line.isLumpSum ? <Text style={styles.packageBadge}>Package</Text> : <Text>{formatAmount(line.quantitySqft ?? 0)}</Text>}</View><Text style={[styles.tdCol, styles.wPrice]}>{line.isLumpSum ? '--' : formatCurrency(line.unitPrice ?? 0)}</Text><Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>{formatCurrency(line.total)}</Text></View>)}<View style={{ marginTop: 4, flexDirection: 'row', justifyContent: 'flex-end' }}><Text style={{ fontSize: 9, fontWeight: 'bold', color: PRIMARY, paddingRight: 10 }}>Total for {softWrapPdfText(room.room.name)}</Text><Text style={{ fontSize: 9, fontWeight: 'bold', color: PRIMARY }}>{formatAmount(room.total)}</Text></View></View>)}<View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(floor.floor.name)}</Text><Text style={styles.grandTotalValue}>{formatCurrency(floor.total)}</Text></View><Text style={styles.inWords}>In Words: <Text style={styles.bold}>{amountInWordsTaka(floor.total)}</Text></Text><FooterFixed /></Page>)}
+      {content.footerNotes.length > 0 ? <Page size="A4" style={styles.page}><WatermarkBackground /><GlobalHeader content={content} /><Text style={styles.sectionTitle}>Terms &amp; Notes</Text>{content.footerNotes.map((note, index) => <Text key={index} style={{ fontSize: 9, marginTop: 8 }}><Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>{softWrapPdfText(note)}</Text>)}<FooterFixed /></Page> : null}
     </Document>
   )
 }
