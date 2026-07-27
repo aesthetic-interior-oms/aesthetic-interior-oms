@@ -116,36 +116,28 @@ const REVIEW_STATUS_STATS: Array<{
   accentClassName: string
 }> = [
   {
-    key: 'CAD_COMPLETED',
-    label: 'CAD Completed',
+    key: 'CAD',
+    label: 'Cad',
     Icon: ClipboardCheck,
     className: 'border-violet-200/70 from-violet-50 via-white to-fuchsia-50 text-violet-800 dark:border-violet-500/30 dark:from-violet-950/60 dark:via-slate-950 dark:to-fuchsia-950/40 dark:text-violet-100',
     iconClassName: 'bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-500/15 dark:text-violet-200 dark:ring-violet-400/20',
     accentClassName: 'from-violet-500 to-fuchsia-500',
   },
   {
-    key: 'CAD_APPROVED',
-    label: 'CAD Approved',
-    Icon: CheckCircle2,
-    className: 'border-emerald-200/70 from-emerald-50 via-white to-teal-50 text-emerald-800 dark:border-emerald-500/30 dark:from-emerald-950/60 dark:via-slate-950 dark:to-teal-950/40 dark:text-emerald-100',
-    iconClassName: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20',
-    accentClassName: 'from-emerald-500 to-teal-500',
-  },
-  {
-    key: 'FIRST_MEETING_SET',
-    label: 'First Meeting Set',
-    Icon: CalendarClock,
-    className: 'border-sky-200/70 from-sky-50 via-white to-cyan-50 text-sky-800 dark:border-sky-500/30 dark:from-sky-950/60 dark:via-slate-950 dark:to-cyan-950/40 dark:text-sky-100',
-    iconClassName: 'bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/15 dark:text-sky-200 dark:ring-sky-400/20',
-    accentClassName: 'from-sky-500 to-cyan-500',
-  },
-  {
-    key: 'PROPOSAL_SENT',
-    label: 'Quotation Sent',
+    key: 'QUOTATION',
+    label: 'Quotation',
     Icon: Send,
     className: 'border-amber-200/70 from-amber-50 via-white to-orange-50 text-amber-800 dark:border-amber-500/30 dark:from-amber-950/60 dark:via-slate-950 dark:to-orange-950/40 dark:text-amber-100',
     iconClassName: 'bg-amber-100 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20',
     accentClassName: 'from-amber-500 to-orange-500',
+  },
+  {
+    key: 'VISUALIZATION',
+    label: '3D Visuals',
+    Icon: ImageIcon,
+    className: 'border-emerald-200/70 from-emerald-50 via-white to-teal-50 text-emerald-800 dark:border-emerald-500/30 dark:from-emerald-950/60 dark:via-slate-950 dark:to-teal-950/40 dark:text-emerald-100',
+    iconClassName: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20',
+    accentClassName: 'from-emerald-500 to-teal-500',
   },
 ]
 
@@ -187,6 +179,27 @@ function isSubmissionPendingReview(submission: ReviewSubmission): boolean {
     (submission.lead.stage === 'QUOTATION_PHASE' && submission.lead.subStatus === 'QUOTATION_COMPLETED') ||
     (submission.lead.stage === 'VISUALIZATION_PHASE' && submission.lead.subStatus === 'VISUAL_COMPLETED')
   )
+}
+
+function getCardThemeClasses(submission: ReviewSubmission) {
+  const kind = getSubmissionKind(submission)
+  const isPending = isSubmissionPendingReview(submission)
+  
+  if (kind === 'quotation') {
+    return isPending 
+      ? 'border-amber-300/80 bg-gradient-to-br from-amber-100/60 to-orange-50/40 dark:border-amber-700/50 dark:from-amber-900/40 dark:to-orange-900/20'
+      : 'border-amber-200/50 bg-gradient-to-br from-amber-50/40 to-orange-50/20 dark:border-amber-900/30 dark:from-amber-950/20 dark:to-orange-950/10 opacity-85'
+  }
+  if (kind === 'visualizer') {
+    return isPending
+      ? 'border-emerald-300/80 bg-gradient-to-br from-emerald-100/60 to-teal-50/40 dark:border-emerald-700/50 dark:from-emerald-900/40 dark:to-teal-900/20'
+      : 'border-emerald-200/50 bg-gradient-to-br from-emerald-50/40 to-teal-50/20 dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-teal-950/10 opacity-85'
+  }
+  
+  // cad
+  return isPending
+    ? 'border-violet-300/80 bg-gradient-to-br from-violet-100/60 to-fuchsia-50/40 dark:border-violet-700/50 dark:from-violet-900/40 dark:to-fuchsia-900/20'
+    : 'border-violet-200/50 bg-gradient-to-br from-violet-50/40 to-fuchsia-50/20 dark:border-violet-900/30 dark:from-violet-950/20 dark:to-fuchsia-950/10 opacity-85'
 }
 
 
@@ -468,7 +481,13 @@ export function ReviewCenterView({
     for (const item of REVIEW_STATUS_STATS) {
       cards.push({
         ...item,
-        count: submissions.filter((submission) => submission.lead.subStatus === item.key).length,
+        count: submissions.filter((submission) => {
+          const kind = getSubmissionKind(submission)
+          if (item.key === 'CAD') return kind === 'cad'
+          if (item.key === 'QUOTATION') return kind === 'quotation'
+          if (item.key === 'VISUALIZATION') return kind === 'visualizer'
+          return false
+        }).length,
       })
     }
 
@@ -477,9 +496,13 @@ export function ReviewCenterView({
 
   const filteredSubmissions = useMemo(() => {
     if (stageFilter === ALL_STAGE_FILTER) return submissions
-    return submissions.filter(
-      (submission) => submission.lead.subStatus === stageFilter || submission.lead.stage === stageFilter,
-    )
+    return submissions.filter((submission) => {
+      const kind = getSubmissionKind(submission)
+      if (stageFilter === 'CAD') return kind === 'cad'
+      if (stageFilter === 'QUOTATION') return kind === 'quotation'
+      if (stageFilter === 'VISUALIZATION') return kind === 'visualizer'
+      return false
+    })
   }, [stageFilter, submissions])
 
   const filteredTotalFiles = useMemo(
@@ -649,7 +672,7 @@ export function ReviewCenterView({
             {filteredSubmissions.map((submission) => (
               <Card
                 key={submission.id}
-                className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                className={`overflow-hidden shadow-sm transition hover:shadow-md border ${getCardThemeClasses(submission)}`}
               >
                 <CardContent className="space-y-4 p-4 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
