@@ -42,24 +42,14 @@ function PageHeader({ content }: { content: ShortQuotationContent }) {
   const formattedDate = formatShortQuotationDate(content.quotationDate)
   return (
     <div className="relative z-10 mb-6 flex flex-col">
-      <div className="flex items-end justify-between pb-3">
-        <div className="w-1/2">
-          <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[200px] object-contain object-left" />
-        </div>
-        <div className="w-1/2 items-end">
-          <div className="ml-auto w-[260px] rounded-xl border border-[#e7d49a] bg-[#fffdf7] px-3 py-2 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[7px] font-bold uppercase tracking-wider" style={{ color: GOLD }}>Quotation Code</span>
-              <span className="max-w-[145px] text-right text-[8px] font-bold text-neutral-700">{content.quotationCode ?? 'Not generated yet'}</span>
-            </div>
-            <div className="mt-1 flex items-center justify-between gap-3">
-              <span className="text-[7px] font-bold uppercase tracking-wider" style={{ color: GOLD }}>Generated Time</span>
-              <span className="max-w-[145px] text-right text-[8px] font-bold text-neutral-700">{formatDownloadDateTime(content.downloadedAt)}</span>
-            </div>
-            <div className="mt-1 flex items-center justify-between gap-3">
-              <span className="text-[7px] font-bold uppercase tracking-wider" style={{ color: GOLD }}>Quotation Date</span>
-              <span className="max-w-[145px] text-right text-[8px] font-bold text-neutral-700">{formattedDate}</span>
-            </div>
+      <div className="border-t-2 pt-3" style={{ borderColor: PRIMARY }}>
+        <div className="flex items-center justify-between border-b border-[#e7d49a] pb-3">
+          <div className="w-1/2">
+            <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[150px] object-contain object-left" />
+          </div>
+          <div className="ml-auto rounded-xl border border-[#e7d49a] bg-[#fffdf7] px-4 py-2 text-right shadow-sm">
+            <p className="text-[7px] font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Quotation Date</p>
+            <p className="mt-0.5 text-[10px] font-bold" style={{ color: PRIMARY }}>{formattedDate}</p>
           </div>
         </div>
       </div>
@@ -67,22 +57,25 @@ function PageHeader({ content }: { content: ShortQuotationContent }) {
   )
 }
 
-function PageFooter() {
+function PageFooter({ content }: { content: ShortQuotationContent }) {
   return (
-    <div className="relative z-10 mt-12 flex justify-between border-t border-[#a57c00] pt-3 text-[9px] text-neutral-700">
-      <div className="w-[35%]">
-        <p className="mb-1 font-bold" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
-        <p>183, East Senpara, Begum Rokeya Soroni</p>
-        <p>3rd floor, Mirpur 10, Dhaka-1216</p>
+    <div className="relative z-10 mt-12 border-t border-[#a57c00] pt-3 text-[9px] text-neutral-700">
+      <div className="flex justify-between">
+        <div className="w-[35%]">
+          <p className="mb-1 font-bold" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
+          <p>183, East Senpara, Begum Rokeya Soroni</p>
+          <p>3rd floor, Mirpur 10, Dhaka-1216</p>
+        </div>
+        <div className="flex w-[30%] flex-col items-center">
+          <p>+88 0132969 4663</p>
+          <p>hello@aestheticinterior.com</p>
+          <p className="font-bold" style={{ color: PRIMARY }}>www.aestheticinteriorbd.com</p>
+        </div>
+        <div className="flex w-[35%] flex-col items-end justify-end">
+          <p className="text-neutral-500">© 2026 All rights reserved.</p>
+        </div>
       </div>
-      <div className="flex w-[30%] flex-col items-center">
-        <p>+88 0132969 4663</p>
-        <p>hello@aestheticinterior.com</p>
-        <p className="font-bold" style={{ color: PRIMARY }}>www.aestheticinteriorbd.com</p>
-      </div>
-      <div className="flex w-[35%] flex-col items-end justify-end">
-        <p className="text-neutral-500">© 2026 All rights reserved.</p>
-      </div>
+      <p className="mt-1 text-right text-[6px] text-neutral-400">Quotation Code: {content.quotationCode ?? 'Not generated yet'} • Generated: {formatDownloadDateTime(content.downloadedAt)}</p>
     </div>
   )
 }
@@ -132,7 +125,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
           <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>{formatCurrency(summary.grandTotal)}</span>
         </div>
         <p className="mt-1 text-left text-[10px] font-bold text-neutral-900">In Words: <span>{amountInWordsTaka(summary.grandTotal)}</span></p>
-        <div className="absolute bottom-6 left-10 right-10"><PageFooter /></div>
+        <div className="absolute bottom-6 left-10 right-10"><PageFooter content={content} /></div>
       </section>
 
       {summary.floors.map((floorSummary, floorIndex) => (
@@ -168,7 +161,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
               </div>
             </div>
           ) : null}
-          <div className="absolute bottom-6 left-10 right-10"><PageFooter /></div>
+          <div className="absolute bottom-6 left-10 right-10"><PageFooter content={content} /></div>
         </section>
       ))}
     </div>
