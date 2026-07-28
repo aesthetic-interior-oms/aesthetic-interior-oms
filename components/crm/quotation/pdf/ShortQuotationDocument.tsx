@@ -23,8 +23,8 @@ const PRIMARY = '#0f5b53'
 const GOLD = '#a57c00'
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 122, paddingBottom: 92, paddingLeft: 40, paddingRight: 40, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
-  header: { position: 'absolute', top: 26, left: 0, right: 0, height: 82, paddingHorizontal: 40, overflow: 'hidden' },
+  page: { paddingTop: 94, paddingBottom: 92, paddingLeft: 40, paddingRight: 40, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
+  header: { position: 'absolute', top: 20, left: 0, right: 0, height: 58, paddingHorizontal: 40, overflow: 'hidden' },
   bold: { fontWeight: 'bold', color: '#000' },
   sectionTitle: { fontSize: 12, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, textAlign: 'center', textTransform: 'uppercase' },
   tHead: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: PRIMARY, paddingBottom: 6, paddingTop: 10 },
@@ -47,9 +47,9 @@ const styles = StyleSheet.create({
   datePanel: { minWidth: 112, alignItems: 'flex-end' },
   metaLabel: { fontSize: 5.5, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   metaValue: { fontSize: 7, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
-  headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 82, opacity: 0.08 },
-  headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  headerRule: { height: 1.3, backgroundColor: PRIMARY, flexGrow: 1 },
+  headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 58, opacity: 0.08 },
+  headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  headerRule: { height: 2.2, backgroundColor: PRIMARY },
   headerTitle: { color: PRIMARY, fontSize: 13, fontFamily: 'Times-Italic', letterSpacing: 2.8, marginHorizontal: 12, textTransform: 'uppercase' },
   footerFixed: { position: 'absolute', bottom: 20, left: 40, right: 40, paddingTop: 8 },
   footerText: { fontSize: 7, color: '#666', marginLeft: 4 },
@@ -98,14 +98,14 @@ const WatermarkBackground = () => (
 const GlobalHeader = ({ content }: { content: ShortQuotationContent }) => (
   <View style={styles.header} fixed>
     <Image src={`${getBaseUrl()}/backgrounddata.svg`} style={styles.headerPattern} />
-    <View style={{ paddingTop: 6 }}>
+    <View style={{ paddingTop: 3 }}>
       <View style={styles.headerRuleRow}>
-        <View style={styles.headerRule} />
+        <View style={[styles.headerRule, { flexGrow: 1.65 }]} />
         <Text style={styles.headerTitle}>Quotation</Text>
-        <View style={styles.headerRule} />
+        <View style={[styles.headerRule, { flexGrow: 0.85 }]} />
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <View style={{ flex: 1 }}><Image src={`${getBaseUrl()}/Logo/HeaderLogo.png`} style={{ width: 136 }} /></View>
+        <View style={{ flex: 1 }}><Image src={`${getBaseUrl()}/Logo/HeaderLogo.png`} style={{ width: 154 }} /></View>
         <View style={styles.datePanel}>
           <Text style={[styles.metaLabel, { textAlign: 'right' }]}>Quotation Date</Text>
           <Text style={styles.metaValue}>{formatShortQuotationDate(content.quotationDate)}</Text>
