@@ -8,6 +8,9 @@ import { OurStory } from "@/components/website/about/our-story"
 import { OurTeam } from "@/components/website/about/our-team"
 import { WhatWeDo } from "@/components/website/about/what-we-do"
 import { BreadcrumbJsonLd } from "@/components/website/seo/json-ld"
+import { getWebsiteTeamMembers } from "@/lib/website-team"
+
+export const dynamic = "force-dynamic"
 
 export const metadata: Metadata = {
   title: "About Aesthetic Interior Studio | Interior Design Company in Dhaka",
@@ -31,7 +34,8 @@ export const metadata: Metadata = {
   },
 }
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const teamMembers = await getWebsiteTeamMembers()
   return (
     <main className="min-h-screen bg-[#faf9f6]">
       <BreadcrumbJsonLd items={[{ name: "Home", path: "/" }, { name: "About", path: "/about" }]} />
@@ -40,7 +44,7 @@ export default function AboutPage() {
       <OurPhilosophy />
       <OurStory />
       <WhatWeDo />
-      <OurTeam />
+      <OurTeam members={teamMembers} />
       <AboutCTA />
     </main>
   )

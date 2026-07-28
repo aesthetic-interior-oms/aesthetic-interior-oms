@@ -3,59 +3,13 @@
 import { useEffect, useRef } from "react"
 import Image from "next/image"
 
-const teamMembers = [
-  {
-    name: "Nazrul Islam",
-    role: "General Manager",
-    image: "/user/User1.jpg",
-    specialty: "Administration Department",
-    quote: "We believe every project should reflect trust, clarity, and long-term value for our clients.",
-  },
-  {
-    name: "Arup Ratan Mandal",
-    role: "Assistant General Manager",
-    image: "/user/User4.jpg",
-    specialty: "Administration Department",
-    quote: "Our strength is teamwork, where every department works together to deliver a smooth client experience.",
-  },
-  {
-    name: "Jannatul Ferdous Urmi",
-    role: "Senior Architect",
-    image: "/user/User2.jpg",
-    specialty: "Architect Department",
-    quote: "Good design starts with listening deeply and turning each client vision into functional beauty.",
-  },
-  {
-    name: "James",
-    role: "Project Cordinator",
-    image: "/user/User3.jpg",
-    specialty: "Execution Department",
-    quote: "Execution quality and timeline discipline are the promises we bring to every project site.",
-  },
-  {
-    name: "Faima Shorna",
-    role: "HR Administration",
-    image: "/user/User5.jpeg",
-    specialty: "Human Resources Department",
-    quote: "A strong company culture helps us serve clients better and grow as a dependable design team.",
-  },
-  {
-    name: "Moriom Ritu",
-    role: "Junior Executive",
-    image: "/user/User6.jpeg",
-    specialty: "Client Relationship Management",
-    quote: "Clear communication and care for client needs are at the center of everything we do.",
-  },
-  {
-    name: "Ovijit Chowdhury",
-    role: "Junior Architect",
-    image: "/user/User7.jpeg",
-    specialty: "Architect Department",
-    quote: "We focus on meaningful details so every space feels thoughtful, practical, and timeless.",
-  },
-]
+import type { WebsiteTeamMember } from "@/lib/website-team"
 
-export function OurTeam() {
+type OurTeamProps = {
+  members: WebsiteTeamMember[]
+}
+
+export function OurTeam({ members }: OurTeamProps) {
   const sectionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -101,7 +55,7 @@ export function OurTeam() {
         </div>
 
         <div ref={sectionRef} className="space-y-8 lg:space-y-10">
-          {teamMembers.map((member, index) => {
+          {members.map((member, index) => {
             const isEven = index % 2 === 0
 
             return (

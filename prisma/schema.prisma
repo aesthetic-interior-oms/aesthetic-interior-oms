@@ -966,3 +966,18 @@ model WebsiteProjectImage {
 
   @@index([projectId, sortOrder])
 }
+
+model WebsiteTeamMember {
+  id          String   @id @default(cuid())
+  name        String
+  role        String
+  image       String
+  specialty   String
+  quote       String
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished, sortOrder])
+}
