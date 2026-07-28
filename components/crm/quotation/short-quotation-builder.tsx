@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CopyCheck, Download, ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
+import { CopyCheck, Download, ExternalLink, GripVertical, Loader2, Plus, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -991,22 +991,35 @@ export function ShortQuotationBuilder({
             <ExternalLink className="mr-1.5 h-4 w-4" />
             Live Preview
           </Button>
-          <Button type="button" size="sm" variant="outline" onClick={openLivePreviewTab}>
-            <Printer className="mr-1.5 h-4 w-4" />
-            Print
+          <Button type="button" size="sm" variant="secondary" disabled={generatingPdf} onClick={() => void handleDownloadPdf()}>
+            {generatingPdf ? (
+              <>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                Generating PDF...
+              </>
+            ) : (
+              <>
+                <Download className="mr-1.5 h-4 w-4" />
+                Download PDF
+              </>
+            )}
           </Button>
           {!isPlayground ? (
             <Button type="button" size="sm" variant="outline" asChild>
               <Link href="/quotation-team/my-work">Back to My Work</Link>
             </Button>
           ) : null}
-          <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarRoomId} onClick={addTaskbarSavedItem}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add from Saved Item
-          </Button>
-          <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarRoomId} onClick={addTaskbarCustomItem}>
-            Custom Item
-          </Button>
+          {isPlayground ? (
+            <>
+              <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarRoomId} onClick={addTaskbarSavedItem}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add from Saved Item
+              </Button>
+              <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarRoomId} onClick={addTaskbarCustomItem}>
+                Custom Item
+              </Button>
+            </>
+          ) : null}
           <span className="text-xs text-muted-foreground">Ctrl+S saves</span>
         </div>
       </div>
