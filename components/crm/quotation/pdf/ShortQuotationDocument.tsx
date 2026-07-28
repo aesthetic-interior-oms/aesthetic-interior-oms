@@ -23,8 +23,8 @@ const PRIMARY = '#0f5b53'
 const GOLD = '#a57c00'
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 112, paddingBottom: 92, paddingLeft: 40, paddingRight: 40, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
-  header: { position: 'absolute', top: 34, left: 40, right: 40 },
+  page: { paddingTop: 122, paddingBottom: 92, paddingLeft: 40, paddingRight: 40, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
+  header: { position: 'absolute', top: 26, left: 0, right: 0, height: 82, paddingHorizontal: 40, overflow: 'hidden' },
   bold: { fontWeight: 'bold', color: '#000' },
   sectionTitle: { fontSize: 12, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, textAlign: 'center', textTransform: 'uppercase' },
   tHead: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: PRIMARY, paddingBottom: 6, paddingTop: 10 },
@@ -44,9 +44,13 @@ const styles = StyleSheet.create({
   grandTotalLabel: { width: '78%', textAlign: 'right', paddingRight: 10, fontWeight: 'bold', fontSize: 10, color: PRIMARY },
   grandTotalValue: { width: '22%', textAlign: 'right', fontWeight: 'bold', fontSize: 10, color: PRIMARY },
   inWords: { fontSize: 10, color: '#000', marginTop: 4, textAlign: 'left', fontWeight: 'bold' },
-  datePanel: { borderWidth: 1, borderColor: '#e7d49a', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#fffdf7', minWidth: 148 },
-  metaLabel: { fontSize: 6.5, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.8 },
-  metaValue: { fontSize: 9, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
+  datePanel: { minWidth: 112, alignItems: 'flex-end' },
+  metaLabel: { fontSize: 5.5, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
+  metaValue: { fontSize: 7, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
+  headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 82, opacity: 0.08 },
+  headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  headerRule: { height: 1.3, backgroundColor: PRIMARY, flexGrow: 1 },
+  headerTitle: { color: PRIMARY, fontSize: 13, fontFamily: 'Times-Italic', letterSpacing: 2.8, marginHorizontal: 12, textTransform: 'uppercase' },
   footerFixed: { position: 'absolute', bottom: 20, left: 40, right: 40, paddingTop: 8 },
   footerText: { fontSize: 7, color: '#666', marginLeft: 4 },
   footerMeta: { fontSize: 5.5, color: '#8a8a8a', marginTop: 5, textAlign: 'right' },
@@ -93,11 +97,17 @@ const WatermarkBackground = () => (
 
 const GlobalHeader = ({ content }: { content: ShortQuotationContent }) => (
   <View style={styles.header} fixed>
-    <View style={{ borderTopWidth: 2, borderTopColor: PRIMARY, paddingTop: 10 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 10, borderBottomWidth: 0.8, borderBottomColor: '#e7d49a' }}>
+    <Image src={`${getBaseUrl()}/backgrounddata.svg`} style={styles.headerPattern} />
+    <View style={{ paddingTop: 6 }}>
+      <View style={styles.headerRuleRow}>
+        <View style={styles.headerRule} />
+        <Text style={styles.headerTitle}>Quotation</Text>
+        <View style={styles.headerRule} />
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flex: 1 }}><Image src={`${getBaseUrl()}/Logo/HeaderLogo.png`} style={{ width: 136 }} /></View>
         <View style={styles.datePanel}>
-          <Text style={[styles.metaLabel, { textAlign: 'right', marginBottom: 3 }]}>Quotation Date</Text>
+          <Text style={[styles.metaLabel, { textAlign: 'right' }]}>Quotation Date</Text>
           <Text style={styles.metaValue}>{formatShortQuotationDate(content.quotationDate)}</Text>
         </View>
       </View>
@@ -120,7 +130,10 @@ const FooterFixed = ({ content }: { content: ShortQuotationContent }) => (
       </View>
       <View style={{ width: '35%', alignItems: 'flex-end', justifyContent: 'flex-end' }}><Text style={styles.footerText}>© 2026 All rights reserved.</Text></View>
     </View>
-    <Text style={styles.footerMeta}>Quotation Code: {content.quotationCode ?? 'Not generated yet'}  •  Generated: {formatDownloadDateTime(content.downloadedAt)}</Text>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
+      <Text style={[styles.footerMeta, { marginTop: 0, textAlign: 'left' }]}>Quotation Code: {content.quotationCode ?? 'Not generated yet'}</Text>
+      <Text style={[styles.footerMeta, { marginTop: 0, textAlign: 'right' }]}>Generated: {formatDownloadDateTime(content.downloadedAt)}</Text>
+    </View>
   </View>
 )
 
