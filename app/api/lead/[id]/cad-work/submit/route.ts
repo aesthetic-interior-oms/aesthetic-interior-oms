@@ -43,6 +43,15 @@ function toOptionalString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+function toPositiveNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) && value > 0 ? value : null
+  if (typeof value !== 'string') return null
+  const normalized = value.replace(/,/g, '').trim()
+  if (!normalized) return null
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
 function toUploadedCadFileMeta(value: unknown): UploadedCadFileMeta | null {
   if (typeof value !== 'object' || value === null) return null
   const record = value as Record<string, unknown>
@@ -241,11 +250,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
     let note: string | null = null
     let files: File[] = []
     let cadFileTypes: CadSubmissionFileType[] = []
+    let projectSqft: number | null = null
     let directUploadedFiles: UploadedCadFileMeta[] | null = null
 
     if (contentType.includes('application/json')) {
-      const body = (await request.json()) as { note?: unknown; files?: unknown }
+      const body = (await request.json()) as { note?: unknown; files?: unknown; projectSqft?: unknown }
       note = toOptionalString(body.note)
+      projectSqft = toPositiveNumber(body.projectSqft)
       const uploadedFiles = Array.isArray(body.files)
         ? body.files.map((item) => toUploadedCadFileMeta(item)).filter((item): item is UploadedCadFileMeta => Boolean(item))
         : []
@@ -270,6 +281,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     } else {
       const formData = await request.formData()
       note = toOptionalString(formData.get('note'))
+      projectSqft = toPositiveNumber(formData.get('projectSqft'))
       files = formData
         .getAll('files')
         .filter((entry): entry is File => entry instanceof File && entry.size > 0)
@@ -323,6 +335,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
           )
         }
       }
+    }
+
+    if (!projectSqft) {
+      return NextResponse.json({ success: false, error: 'Project sqft is required and must be greater than 0' }, { status: 400 })
     }
 
     const lead = await prisma.lead.findFirst({
@@ -429,6 +445,19 @@ export async function POST(request: NextRequest, context: RouteContext) {
         })
 
         const now = new Date()
+
+        const latestVisit = await tx.visit.findFirst({
+          where: { leadId: scopedLead.id },
+          orderBy: { scheduledAt: 'desc' },
+          select: { id: true },
+        })
+
+        if (latestVisit) {
+          await tx.visit.update({
+            where: { id: latestVisit.id },
+            data: { projectSqft },
+          })
+        }
 
         await tx.leadPhaseTask.updateMany({
           where: {

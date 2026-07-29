@@ -10,6 +10,7 @@ import {
 import prisma from '@/lib/prisma'
 import { listVisitCompleteQueueItems } from '@/lib/visit-complete-queue'
 import { calculateVisitTeamPerformance } from '@/lib/visit-performance'
+import { calculateSrCrmPerformance } from '@/lib/sr-crm-performance'
 import {
   AdminCommandCenterDashboard,
   formatLabel,
@@ -249,6 +250,7 @@ export default async function AdminDashboardPage() {
 
   // Unified performance calculation — same formula as visit-team dashboard
   const visitTeamPerformance = calculateVisitTeamPerformance(monthlyVisitPerformanceData)
+  const srCrmPerformance = await calculateSrCrmPerformance(prisma)
 
   const priorityActions: PriorityAction[] = [
     ...overdueCadTasks.map((task): PriorityAction => ({
@@ -369,6 +371,7 @@ export default async function AdminDashboardPage() {
         pendingOverdueCount: pendingOverdueVisitCount,
       }}
       visitTeamPerformance={visitTeamPerformance}
+      srCrmPerformance={srCrmPerformance}
       overduePendingVisits={overduePendingVisits.map((visit) => ({
         id: visit.id,
         leadId: visit.lead.id,
