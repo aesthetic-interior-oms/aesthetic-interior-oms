@@ -357,6 +357,7 @@ export function VisitCompleteQueueBoard({
                     <TableRow className="border-b border-primary/20 hover:bg-transparent">
                       <TableHead className="min-w-[240px] pl-6 text-xs font-bold uppercase tracking-[0.18em] text-primary">Client Name</TableHead>
                       <TableHead className="min-w-[210px] text-xs font-bold uppercase tracking-[0.18em] text-primary">Visit / Complete Date</TableHead>
+                      <TableHead className="w-[260px] max-w-[260px] text-xs font-bold uppercase tracking-[0.18em] text-primary">Location</TableHead>
                       <TableHead className="min-w-[260px] text-xs font-bold uppercase tracking-[0.18em] text-primary">Visit Team</TableHead>
                       <TableHead className="w-[80px] pr-6 text-right text-xs font-bold uppercase tracking-[0.18em] text-primary">Actions</TableHead>
                     </TableRow>
@@ -365,6 +366,7 @@ export function VisitCompleteQueueBoard({
                     {items.map((item) => {
                       const visitLead = item.latestCompletedVisit?.assignedVisitLead
                       const supportMembers = item.latestCompletedVisit?.supportMembers ?? []
+                      const location = item.latestCompletedVisit?.location ?? item.leadLocation ?? 'N/A'
                       return (
                         <TableRow key={item.leadId}>
                           <TableCell className="py-4 pl-6 align-top">
@@ -385,6 +387,11 @@ export function VisitCompleteQueueBoard({
                                 Complete: {formatDate(item.latestCompletedVisit?.completedAt ?? null)}
                               </p>
                             </div>
+                          </TableCell>
+                          <TableCell className="w-[260px] max-w-[260px] py-4 align-top">
+                            <p className="truncate text-sm text-foreground" title={location}>
+                              {location}
+                            </p>
                           </TableCell>
                           <TableCell className="py-4 align-top">
                             <div className="space-y-1">
