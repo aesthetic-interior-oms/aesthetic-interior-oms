@@ -73,6 +73,55 @@ export function LocalBusinessJsonLd() {
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
 }
 
+export function WebsiteJsonLd() {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${siteUrl}/#website`,
+    name: siteName,
+    alternateName: ["Aesthetic Interior", "Aesthetic Interior Studio BD"],
+    url: siteUrl,
+    publisher: {
+      "@id": `${siteUrl}/#localbusiness`,
+    },
+    potentialAction: {
+      "@type": "SearchAction",
+      target: `${siteUrl}/projects?search={search_term_string}`,
+      "query-input": "required name=search_term_string",
+    },
+  }
+
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
+}
+
+export function OrganizationJsonLd() {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${siteUrl}/#organization`,
+    name: siteName,
+    alternateName: ["Aesthetic Interior", "Aesthetic Interior Studio in BD"],
+    url: siteUrl,
+    logo: absoluteUrl("/Logo/HeaderLogo.png"),
+    contactPoint: {
+      "@type": "ContactPoint",
+      telephone: "+8801329694663",
+      contactType: "customer service",
+      areaServed: "BD",
+      availableLanguage: ["English", "Bengali"],
+    },
+    sameAs: [
+      "https://www.facebook.com/aestheticinteriorofficial",
+      "https://www.instagram.com/aesthetic.interior.studio",
+      "https://www.linkedin.com/company/aesthetic-interior-studio",
+      "https://www.youtube.com/@AestheticInteriorofficial",
+      "https://www.google.com/maps/place/AESTHETIC+INTERIOR+STUDIO/@23.8041425,90.3675127,17z/data=!3m1!4b1!4m6!3m5!1s0x3755c1004bf76709:0xe781044b3428d1bc!8m2!3d23.8041425!4d90.3700876!16s%2Fg%2F11w324ds2h",
+    ],
+  }
+
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }} />
+}
+
 export function ServiceJsonLd() {
   const data = {
     "@context": "https://schema.org",
