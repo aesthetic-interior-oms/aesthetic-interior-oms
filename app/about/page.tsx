@@ -9,6 +9,8 @@ import { OurTeam } from "@/components/website/about/our-team"
 import { WhatWeDo } from "@/components/website/about/what-we-do"
 import { BreadcrumbJsonLd } from "@/components/website/seo/json-ld"
 
+export const dynamic = "force-dynamic"
+
 export const metadata: Metadata = {
   title: "About Aesthetic Interior Studio | Interior Design Company in Dhaka",
   description:

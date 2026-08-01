@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'crypto'
 import { requireDatabaseRoles } from '@/lib/authz'
 import prisma from '@/lib/prisma'
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
       )
     `
 
+    revalidatePath('/about')
     const teamMembers = await getWebsiteTeamMembers({ includeDrafts: true })
     return NextResponse.json({ teamMembers }, { status: 201 })
   } catch (error) {
