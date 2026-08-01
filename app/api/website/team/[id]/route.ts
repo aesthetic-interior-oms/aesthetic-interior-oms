@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { requireDatabaseRoles } from '@/lib/authz'
 import prisma from '@/lib/prisma'
 import { getWebsiteTeamMembers } from '@/lib/website-team'
@@ -51,6 +52,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       WHERE "id" = ${id}
     `
 
+    revalidatePath('/about')
     const teamMembers = await getWebsiteTeamMembers({ includeDrafts: true })
     return NextResponse.json({ teamMembers })
   } catch (error) {
@@ -65,6 +67,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
   const { id } = await params
   await prisma.$executeRaw`DELETE FROM "WebsiteTeamMember" WHERE "id" = ${id}`
+  revalidatePath('/about')
   const teamMembers = await getWebsiteTeamMembers({ includeDrafts: true })
   return NextResponse.json({ teamMembers })
 }

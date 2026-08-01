@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { Loader2, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { CheckCircle2, Loader2, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -127,13 +128,19 @@ export function WebsiteTeamManager() {
   }
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-      <Card>
-        <CardHeader>
-          <CardTitle>{editing ? 'Edit Website Team Member' : 'Create Website Team Member'}</CardTitle>
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(420px,1.1fr)]">
+      <Card className="overflow-hidden border-[#eadfca] bg-white/95 shadow-xl shadow-slate-200/70">
+        <CardHeader className="border-b border-[#efe5d2] bg-gradient-to-r from-[#fff9eb] to-white">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-xl text-[#17382d]">{editing ? 'Edit Website Team Member' : 'Create Website Team Member'}</CardTitle>
+              <CardDescription className="mt-2">Manage the experts shown in the About page team section.</CardDescription>
+            </div>
+            <Badge className="bg-[#17382d] text-white hover:bg-[#17382d]">{editing ? 'Editing' : 'New'}</Badge>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-5">
-          {message && <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">{message}</p>}
+        <CardContent className="space-y-5 p-6">
+          {message && <p className="flex items-center gap-2 rounded-xl border border-[#eadfca] bg-[#fffaf0] px-3 py-2 text-sm text-[#7a5a00]"><CheckCircle2 className="h-4 w-4" /> {message}</p>}
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
@@ -159,7 +166,7 @@ export function WebsiteTeamManager() {
             <Textarea value={form.quote} onChange={(event) => updateField('quote', event.target.value)} rows={4} />
           </div>
 
-          <div className="rounded-xl border border-dashed p-4">
+          <div className="rounded-2xl border border-dashed border-[#d8c28b] bg-[#fffaf0] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <Label>Profile image</Label>
@@ -183,7 +190,7 @@ export function WebsiteTeamManager() {
             )}
           </div>
 
-          <div className="flex items-center justify-between rounded-lg border p-3">
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div>
               <Label>Publish on website</Label>
               <p className="text-xs text-muted-foreground">Only published team members appear on the About page.</p>
@@ -201,24 +208,30 @@ export function WebsiteTeamManager() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Website Team Members</CardTitle>
+      <Card className="overflow-hidden border-[#eadfca] bg-white/95 shadow-xl shadow-slate-200/70">
+        <CardHeader className="border-b border-[#efe5d2] bg-white">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-xl text-[#17382d]">Website Team Members</CardTitle>
+              <CardDescription className="mt-2">Review, edit, publish, or remove public team profiles.</CardDescription>
+            </div>
+            <Badge variant="outline" className="border-[#d7b55f] bg-[#fff8e5] text-[#8a6500]">{teamMembers.length} total</Badge>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           {loading ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading team members...</div>
           ) : (
             <div className="space-y-4">
               {teamMembers.map((member) => (
-                <div key={member.id} className="flex gap-4 rounded-xl border p-3">
+                <div key={member.id} className="group flex gap-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-[#d7b55f] hover:shadow-md">
                   <div className="relative h-24 w-20 overflow-hidden rounded-lg bg-muted">
                     <Image src={member.image} alt={member.name} fill className="object-cover" sizes="80px" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-semibold">{member.name}</h3>
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs">{member.isPublished ? 'Published' : 'Draft'}</span>
+                      <Badge variant={member.isPublished ? 'default' : 'outline'} className={member.isPublished ? 'bg-emerald-600 hover:bg-emerald-600' : ''}>{member.isPublished ? 'Published' : 'Draft'}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">{member.role}{member.specialty ? ` in ${member.specialty}` : ''}</p>
                     {member.quote && <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{member.quote}</p>}
@@ -229,7 +242,7 @@ export function WebsiteTeamManager() {
                   </div>
                 </div>
               ))}
-              {teamMembers.length === 0 && <p className="text-sm text-muted-foreground">No website team members yet. Create one to populate the About page.</p>}
+              {teamMembers.length === 0 && <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm text-muted-foreground">No website team members yet. Create one to populate the About page.</div>}
             </div>
           )}
         </CardContent>
