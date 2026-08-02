@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { canManagePrimaryLeadFlow, isSrOrAdmin } from '@/lib/lead-workflow-auth'
 import { logActivity } from '@/lib/activity-log-service'
+import { sendPushToUser } from '@/lib/fcm-service'
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> }
 
@@ -122,6 +123,34 @@ export async function POST(request: NextRequest, context: RouteContext) {
         type: ActivityType.MEETING_SCHEDULED,
         description: `${defaultTitleForType(type)} scheduled at ${startsAt.toISOString()}.`,
       })
+      
+      const srAssignments = await tx.leadAssignment.findMany({
+        where: { leadId, department: 'SR_CRM' },
+        select: { userId: true },
+      })
+      const adminUsers = await tx.user.findMany({
+        where: { isActive: true, userDepartments: { some: { department: { name: 'ADMIN' } } } },
+        select: { id: true },
+      })
+      
+      const meetingTargets = Array.from(new Set([
+        ...srAssignments.map(a => a.userId),
+        ...adminUsers.map(u => u.id),
+        lead.primaryOwnerUserId
+      ]))
+
+      const dateStr = startsAt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+      const timeStr = startsAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      
+      for (const userId of meetingTargets) {
+        if (!userId) continue
+        sendPushToUser(
+          userId,
+          `Meeting Set: ${lead.name} 📅`,
+          `${defaultTitleForType(type)} scheduled for ${dateStr} at ${timeStr}.`,
+          { type: 'meeting', leadId, meetingId: created.id }
+        ).catch(() => {})
+      }
 
       return created
     })

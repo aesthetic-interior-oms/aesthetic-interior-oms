@@ -23,6 +23,7 @@ import {
   getCadFileExtension,
 } from '@/lib/cad-work'
 import { logActivity, logLeadStageChanged, logLeadSubStatusChanged } from '@/lib/activity-log-service'
+import { sendPushToUser } from '@/lib/fcm-service'
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> }
 const BLOB_UPLOAD_MAX_ATTEMPTS = 5
@@ -555,9 +556,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
           if (notifications.length > 0) {
             await tx.notification.createMany({ data: notifications })
           }
+
+          // Fire-and-forget FCM push to SR CRM + admins
+          for (const userId of targetUserIds.filter((id) => !existingUsers.has(id))) {
+            sendPushToUser(
+              userId,
+              'CAD Work Ready for Review ✏️',
+              `${scopedLead.name} CAD files are ready in the Review Center.`,
+              { type: 'review', leadId: scopedLead.id },
+            ).catch(() => {})
+          }
         }
 
         return {
+
           lead: updatedLead,
           submissionId: submission.id,
           uploadWarnings:
