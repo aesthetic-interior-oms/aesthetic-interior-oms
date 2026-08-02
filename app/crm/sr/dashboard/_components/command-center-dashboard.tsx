@@ -539,9 +539,6 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
                 <span>Meeting: {member.meeting.score} pts · {member.meeting.count} completions</span>
                 <span>Conversion: {member.conversion.score} pts · {member.conversion.count} moves</span>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Review/meeting quality: Best ≤24h, Better ≤48h, Good ≤72h. Later actions add no speed points.
-              </p>
             </div>
           ))
         )}

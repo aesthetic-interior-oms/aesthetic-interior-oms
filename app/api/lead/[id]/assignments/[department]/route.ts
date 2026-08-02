@@ -338,21 +338,25 @@ export async function PUT(
       )
     }
 
-    if (department === 'JR_ARCHITECT') {
+    if (department === 'JR_ARCHITECT' || department === 'SR_CRM') {
       const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
       const actorRoles = authResult.actorRoles ?? []
-      const canUpdateJrArchitectAssignment =
+      const isJrArchitectLeader =
+        actorDepartments.has('JR_ARCHITECT') &&
+        hasJrArchitectureLeaderRole(actorRoles)
+      const canUpdateAssignment =
         actorDepartments.has('ADMIN') ||
         actorDepartments.has('SR_CRM') ||
-        (actorDepartments.has('JR_ARCHITECT') &&
-          hasJrArchitectureLeaderRole(actorRoles))
+        isJrArchitectLeader
 
-      if (!canUpdateJrArchitectAssignment) {
+      if (!canUpdateAssignment) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'Only Admin, Senior CRM, or JR Architect leaders can reassign JR Architect',
+              department === 'JR_ARCHITECT'
+                ? 'Only Admin, Senior CRM, or JR Architect leaders can reassign JR Architect'
+                : 'Only Admin, Senior CRM, or JR Architect leaders can reassign SR CRM',
           },
           { status: 403 },
         )
