@@ -558,7 +558,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           }
 
           // Fire-and-forget FCM push to SR CRM + admins
-          for (const userId of targetUserIds.filter((id) => !existingUsers.has(id))) {
+          for (const userId of targetUserIds) {
             sendPushToUser(
               userId,
               'CAD Work Ready for Review ✏️',
