@@ -161,7 +161,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
               : LeadSubStatus.VISUAL_CORRECTION
             : decision === 'APPROVE'
               ? LeadSubStatus.CAD_APPROVED
-              : LeadSubStatus.CAD_ASSIGNED
+              : LeadSubStatus.CAD_WORKING
       const phaseType = isQuotationReview ? LeadPhaseType.QUOTATION : LeadPhaseType.CAD
       const reason =
         decision === 'APPROVE'

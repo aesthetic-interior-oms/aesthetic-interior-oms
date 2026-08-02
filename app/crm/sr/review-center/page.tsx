@@ -836,7 +836,7 @@ export function ReviewCenterView({
                       ? `Send ${decisionTarget.lead.name} back to the assigned quotation team for correction. It will leave this review queue.`
                       : getSubmissionKind(decisionTarget) === 'visualizer'
                         ? `Send ${decisionTarget.lead.name} back to the assigned 3D Visualizer for correction. It will leave this review queue.`
-                        : `Send ${decisionTarget.lead.name} back to Junior Architect for correction. Lead will move to CAD Assigned and leave this review queue.`
+                        : `Send ${decisionTarget.lead.name} back to the assigned Junior Architect for correction. Lead will move to CAD Working so they can upload new files again, and it will leave this review queue.`
                 : 'Confirm your review decision.'}
             </DialogDescription>
           </DialogHeader>
