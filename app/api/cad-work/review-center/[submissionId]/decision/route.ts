@@ -246,7 +246,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const notificationTargets = Array.from(
         new Set(
           submission.lead.assignments
-            .filter((assignment) => assignment.userId !== authResult.actorUserId)
             .map((assignment) => assignment.userId),
         ),
       )
