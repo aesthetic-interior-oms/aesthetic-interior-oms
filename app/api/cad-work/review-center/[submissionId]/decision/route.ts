@@ -11,6 +11,7 @@ import {
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { logLeadSubStatusChanged } from '@/lib/activity-log-service'
+import { sendPushToUser } from '@/lib/fcm-service'
 
 type RouteContext = { params: { submissionId: string } | Promise<{ submissionId: string }> }
 
@@ -266,6 +267,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
             scheduledFor: now,
           })),
         })
+
+        // Also send FCM push
+        for (const userId of notificationTargets) {
+          const pushTitle = decision === 'APPROVE' ? `${reviewLabel} Approved ✅` : decision === 'DROP' ? 'Project Dropped ❌' : `${reviewLabel} Correction Required 🔄`
+          const pushBody = decision === 'APPROVE'
+            ? `${submission.lead.name} ${reviewLabel.toLowerCase()} was approved.`
+            : decision === 'DROP'
+              ? `${submission.lead.name} was dropped. Reason: ${summary}`
+              : `${submission.lead.name} requires correction. Note: ${summary}`
+          sendPushToUser(userId, pushTitle, pushBody, { type: 'decision', leadId: submission.leadId }).catch(() => {})
+        }
       }
 
       return {
