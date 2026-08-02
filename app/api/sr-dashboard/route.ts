@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireDatabaseRoles } from '@/lib/authz'
 import prisma from '@/lib/prisma'
 import { listVisitCompleteQueueItems } from '@/lib/visit-complete-queue'
+import { calculateSrCrmPerformance } from '@/lib/sr-crm-performance'
 import {
   LeadAssignmentDepartment,
   LeadMeetingEventType,
@@ -283,6 +284,12 @@ export async function GET() {
       }),
     ])
 
+    const allPerformance = await calculateSrCrmPerformance(prisma)
+    const currentPerformance = actor?.id
+      ? allPerformance.find((p) => p.userId === actor.id) ?? null
+      : null
+    const topPerformance = allPerformance[0] ?? null
+
     return NextResponse.json({
       success: true,
       data: {
@@ -315,7 +322,11 @@ export async function GET() {
             { name: 'Pending', value: visitStatusCounts.find((row) => row.status === VisitStatus.SCHEDULED)?._count._all ?? 0, fill: 'var(--color-chart-1)' },
           ],
           pendingOverdueCount: pendingOverdueVisitCount,
-        }
+        },
+        performance: {
+          current: currentPerformance,
+          top: topPerformance,
+        },
       },
     })
   } catch (error) {
