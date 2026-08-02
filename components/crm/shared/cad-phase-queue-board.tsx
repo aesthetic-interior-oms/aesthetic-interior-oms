@@ -17,6 +17,7 @@ import {
   Phone,
   Search,
   Send,
+  Sparkles,
   TableIcon,
   UserRound,
   Wrench,
@@ -122,49 +123,64 @@ type StatCardConfig = {
   Icon: ComponentType<{ className?: string }>
   className: string
   iconClassName: string
+  accentClassName: string
 }
 
 const CAD_PHASE_STAT_META: Record<
   string,
-  { label: string; Icon: ComponentType<{ className?: string }>; className: string; iconClassName: string }
+  { label: string; Icon: ComponentType<{ className?: string }>; className: string; iconClassName: string; accentClassName: string }
 > = {
   ALL: {
     label: 'Total CAD Phase',
     Icon: DraftingCompass,
-    className: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-200',
-    iconClassName: 'bg-slate-100 text-slate-700 dark:bg-slate-900 dark:text-slate-200',
+    className: 'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950',
+    iconClassName: 'bg-white/15 text-white ring-white/25 dark:bg-slate-950/10 dark:text-slate-950 dark:ring-slate-950/15',
+    accentClassName: 'from-primary to-amber-400',
   },
   CAD_ASSIGNED: {
     label: 'CAD Assigned',
     Icon: Send,
-    className: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-200',
-    iconClassName: 'bg-sky-100 text-sky-700 dark:bg-sky-900/60 dark:text-sky-200',
+    className: 'border-sky-200/70 from-sky-50 via-white to-cyan-50 text-sky-800 dark:border-sky-500/30 dark:from-sky-950/60 dark:via-slate-950 dark:to-cyan-950/40 dark:text-sky-100',
+    iconClassName: 'bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/15 dark:text-sky-200 dark:ring-sky-400/20',
+    accentClassName: 'from-sky-500 to-cyan-500',
   },
   CAD_WORKING: {
     label: 'CAD Working',
     Icon: Wrench,
-    className: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200',
-    iconClassName: 'bg-amber-100 text-amber-700 dark:bg-amber-900/60 dark:text-amber-200',
+    className: 'border-amber-200/70 from-amber-50 via-white to-orange-50 text-amber-800 dark:border-amber-500/30 dark:from-amber-950/60 dark:via-slate-950 dark:to-orange-950/40 dark:text-amber-100',
+    iconClassName: 'bg-amber-100 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20',
+    accentClassName: 'from-amber-500 to-orange-500',
   },
   CAD_COMPLETED: {
     label: 'CAD Completed',
     Icon: ClipboardCheck,
-    className: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-200',
-    iconClassName: 'bg-violet-100 text-violet-700 dark:bg-violet-900/60 dark:text-violet-200',
+    className: 'border-violet-200/70 from-violet-50 via-white to-fuchsia-50 text-violet-800 dark:border-violet-500/30 dark:from-violet-950/60 dark:via-slate-950 dark:to-fuchsia-950/40 dark:text-violet-100',
+    iconClassName: 'bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-500/15 dark:text-violet-200 dark:ring-violet-400/20',
+    accentClassName: 'from-violet-500 to-fuchsia-500',
   },
   CAD_APPROVED: {
     label: 'CAD Approved',
     Icon: CheckCircle2,
-    className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200',
-    iconClassName: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/60 dark:text-emerald-200',
+    className: 'border-emerald-200/70 from-emerald-50 via-white to-teal-50 text-emerald-800 dark:border-emerald-500/30 dark:from-emerald-950/60 dark:via-slate-950 dark:to-teal-950/40 dark:text-emerald-100',
+    iconClassName: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20',
+    accentClassName: 'from-emerald-500 to-teal-500',
   },
+}
+
+const TOTAL_QUEUE_STAT_META = {
+  Icon: ListFilter,
+  className:
+    'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950',
+  iconClassName: 'bg-white/15 text-white ring-white/25 dark:bg-slate-950/10 dark:text-slate-950 dark:ring-slate-950/15',
+  accentClassName: 'from-primary to-amber-400',
 }
 
 const DEFAULT_STAT_META = {
   Icon: ListFilter,
   className:
-    'border-border/70 bg-gradient-to-br from-card via-card to-muted/40 text-foreground shadow-[0_10px_30px_-18px_rgba(15,23,42,0.45)]',
-  iconClassName: 'bg-primary/10 text-primary ring-1 ring-primary/20',
+    'border-indigo-200/70 from-indigo-50 via-white to-sky-50 text-indigo-800 dark:border-indigo-500/30 dark:from-indigo-950/60 dark:via-slate-950 dark:to-sky-950/40 dark:text-indigo-100',
+  iconClassName: 'bg-indigo-100 text-indigo-700 ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-200 dark:ring-indigo-400/20',
+  accentClassName: 'from-indigo-500 to-sky-500',
 }
 
 function formatLabel(value: string | null | undefined) {
@@ -312,12 +328,16 @@ export function CadPhaseQueueBoard({
   const [visualizerMembers, setVisualizerMembers] = useState<DepartmentUser[]>(
     [],
   )
+  const [srCrmMembers, setSrCrmMembers] = useState<DepartmentUser[]>([])
   const [quotationMemberId, setQuotationMemberId] = useState('')
   const [visualizerMemberId, setVisualizerMemberId] = useState('')
+  const [srCrmMemberId, setSrCrmMemberId] = useState('')
   const [loadingQuotationMembers, setLoadingQuotationMembers] = useState(false)
   const [loadingVisualizerMembers, setLoadingVisualizerMembers] =
     useState(false)
+  const [loadingSrCrmMembers, setLoadingSrCrmMembers] = useState(false)
   const [reassignQuotationOpen, setReassignQuotationOpen] = useState(false)
+  const [reassignSrCrmOpen, setReassignSrCrmOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string>('ALL')
   const [jrArchitectFilter, setJrArchitectFilter] = useState(ALL_MEMBER_FILTER)
   const [srCrmFilter, setSrCrmFilter] = useState(ALL_MEMBER_FILTER)
@@ -439,6 +459,61 @@ export function CadPhaseQueueBoard({
       )
     } finally {
       setLoadingVisualizerMembers(false)
+    }
+  }
+
+  const loadSrCrmMembers = async () => {
+    if (srCrmMembers.length > 0) return
+    setLoadingSrCrmMembers(true)
+    try {
+      const response = await fetch('/api/department/available/SR_CRM', {
+        cache: 'no-store',
+      })
+      const payload = (await response.json()) as DepartmentUsersResponse
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error ?? 'Failed to load SR CRM members')
+      }
+      setSrCrmMembers(Array.isArray(payload.users) ? payload.users : [])
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to load SR CRM members',
+      )
+    } finally {
+      setLoadingSrCrmMembers(false)
+    }
+  }
+
+  const openReassignSrCrm = async (lead: LeadRecord) => {
+    setActiveLead(lead)
+    setSrCrmMemberId(lead.srCrmAssignment?.user.id ?? '')
+    setReassignSrCrmOpen(true)
+    await loadSrCrmMembers()
+  }
+
+  const submitReassignSrCrm = async () => {
+    if (!activeLead || !srCrmMemberId) return
+    setSaving(true)
+    try {
+      const response = await fetch(
+        `/api/lead/${activeLead.id}/assignments/SR_CRM`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: srCrmMemberId }),
+        },
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to reassign SR CRM')
+      }
+      toast.success('SR CRM reassigned successfully')
+      setReassignSrCrmOpen(false)
+      setActiveLead(null)
+      await loadLeads()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to reassign SR CRM')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -971,7 +1046,7 @@ export function CadPhaseQueueBoard({
   }, [leads])
 
   const statCards = useMemo(() => {
-    const totalMeta = isCadQueue ? CAD_PHASE_STAT_META.ALL : DEFAULT_STAT_META
+    const totalMeta = isCadQueue ? CAD_PHASE_STAT_META.ALL : TOTAL_QUEUE_STAT_META
     const cards: StatCardConfig[] = [
       {
         key: 'ALL',
@@ -980,6 +1055,7 @@ export function CadPhaseQueueBoard({
         Icon: isBudgetQueue || isMeetingQueue ? FilePlus2 : totalMeta.Icon,
         className: totalMeta.className,
         iconClassName: totalMeta.iconClassName,
+        accentClassName: totalMeta.accentClassName,
       },
     ]
     const config = isMeetingQueue
@@ -1021,6 +1097,7 @@ export function CadPhaseQueueBoard({
         Icon: meta?.Icon ?? DEFAULT_STAT_META.Icon,
         className: meta?.className ?? DEFAULT_STAT_META.className,
         iconClassName: meta?.iconClassName ?? DEFAULT_STAT_META.iconClassName,
+        accentClassName: meta?.accentClassName ?? DEFAULT_STAT_META.accentClassName,
       })
     }
 
@@ -1077,6 +1154,11 @@ export function CadPhaseQueueBoard({
         lead.stage !== 'DISCOVERY' ? (
           <DropdownMenuItem onClick={() => void openReassign(lead)}>
             Reassign {assigneeLabel}
+          </DropdownMenuItem>
+        ) : null}
+        {isCadQueue ? (
+          <DropdownMenuItem onClick={() => void openReassignSrCrm(lead)}>
+            Reassign SR CRM
           </DropdownMenuItem>
         ) : null}
         {canDropFromQueue ? (
@@ -1183,34 +1265,71 @@ export function CadPhaseQueueBoard({
                 </Select>
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              {statCards.map((card) => {
-                const Icon = card.Icon
-                return (
-                  <button
-                    key={card.key}
-                    type="button"
-                    onClick={() => setActiveFilter(card.key)}
-                    className={`group relative overflow-hidden rounded-2xl border p-4 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl ${card.className} ${activeFilter === card.key ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
-                    aria-pressed={activeFilter === card.key}
-                  >
-                    <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/70 via-amber-400/70 to-emerald-400/70 opacity-80" />
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wide opacity-80">
-                          {card.label}
-                        </p>
-                        <p className="mt-1 text-2xl font-bold leading-none">
-                          {card.count}
-                        </p>
+            <div className="rounded-[1.35rem] border border-border/70 bg-gradient-to-br from-background via-muted/20 to-background p-3 shadow-sm">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+                <div>
+                  <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Queue Intelligence
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Premium snapshot of the active queue and workflow status.
+                  </p>
+                </div>
+                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+                  Live queue metrics
+                </Badge>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                {statCards.map((card) => {
+                  const Icon = card.Icon
+                  const percentage = memberFilteredLeads.length > 0 ? Math.round((card.count / memberFilteredLeads.length) * 100) : 0
+                  const isActive = activeFilter === card.key
+
+                  return (
+                    <button
+                      key={card.key}
+                      type="button"
+                      onClick={() => setActiveFilter(card.key)}
+                      className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${card.className} ${isActive ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                      aria-pressed={isActive}
+                    >
+                      <span className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/30 blur-2xl transition group-hover:scale-125 dark:bg-white/10" />
+                      <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${card.accentClassName}`} />
+
+                      <div className="relative flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] opacity-75">
+                            {card.label}
+                          </p>
+                          <div className="mt-3 flex items-end gap-2">
+                            <p className="text-3xl font-black leading-none tracking-tight">
+                              {card.count}
+                            </p>
+                            <span className="mb-0.5 rounded-full bg-white/45 px-2 py-0.5 text-[10px] font-bold shadow-sm ring-1 ring-black/5 dark:bg-black/15 dark:ring-white/10">
+                              {percentage}%
+                            </span>
+                          </div>
+                        </div>
+                        <span className={`rounded-2xl p-2.5 shadow-sm ring-1 ${card.iconClassName}`}>
+                          <Icon className="h-5 w-5" />
+                        </span>
                       </div>
-                      <span className={`rounded-full p-2 ${card.iconClassName}`}>
-                        <Icon className="h-5 w-5" />
-                      </span>
-                    </div>
-                  </button>
-                )
-              })}
+
+                      <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
+                        <span
+                          className={`block h-full rounded-full bg-gradient-to-r ${card.accentClassName} transition-all duration-500`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <p className="relative mt-2 text-[11px] font-medium opacity-70">
+                        {card.key === 'ALL' ? 'All leads in view' : 'Share of current queue'}
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -1361,6 +1480,15 @@ export function CadPhaseQueueBoard({
                           onClick={() => openReassign(lead)}
                         >
                           Reassign {assigneeLabel}
+                        </Button>
+                      ) : null}
+                      {isCadQueue ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void openReassignSrCrm(lead)}
+                        >
+                          Reassign SR CRM
                         </Button>
                       ) : null}
                       {isMeetingQueue ? (
@@ -1543,6 +1671,15 @@ export function CadPhaseQueueBoard({
                           onClick={() => openReassign(lead)}
                         >
                           Reassign {assigneeLabel}
+                        </Button>
+                      ) : null}
+                      {isCadQueue ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void openReassignSrCrm(lead)}
+                        >
+                          Reassign SR CRM
                         </Button>
                       ) : null}
                       {isMeetingQueue ? (
@@ -1880,6 +2017,48 @@ export function CadPhaseQueueBoard({
             <Button
               onClick={submitRenameLead}
               disabled={saving || !renameValue.trim()}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reassignSrCrmOpen} onOpenChange={setReassignSrCrmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reassign SR CRM</DialogTitle>
+            <DialogDescription>
+              Select the Senior CRM who should own this CAD phase lead.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>SR CRM Member</Label>
+            <Select value={srCrmMemberId} onValueChange={setSrCrmMemberId}>
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    loadingSrCrmMembers
+                      ? 'Loading members...'
+                      : srCrmMembers.length === 0
+                        ? 'No SR CRM members available'
+                        : 'Select SR CRM member'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {srCrmMembers.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              disabled={saving || loadingSrCrmMembers || !srCrmMemberId}
+              onClick={submitReassignSrCrm}
             >
               Save
             </Button>

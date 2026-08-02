@@ -4,7 +4,7 @@ import { ActivityType, LeadAssignmentDepartment, LeadStage, LeadSubStatus, Notif
 import { requireDatabaseRoles } from '@/lib/authz';
 import { logActivity, logLeadStageChanged } from '@/lib/activity-log-service';
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
-import { findVisitConflict, isFutureDate } from '@/lib/visit-guards';
+import { findVisitConflict } from '@/lib/visit-guards';
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles';
 import { sendPushToUser } from '@/lib/fcm-service';
 
@@ -179,10 +179,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (scheduledAtRaw && (!parsedScheduledAt || Number.isNaN(parsedScheduledAt.getTime()))) {
       return NextResponse.json({ success: false, error: 'scheduledAt must be a valid ISO date-time' }, { status: 400 });
     }
-    if (parsedScheduledAt && !isFutureDate(parsedScheduledAt)) {
-      return NextResponse.json({ success: false, error: 'scheduledAt must be in the future' }, { status: 400 });
-    }
-
     if (body.status !== undefined && !statusInput) {
       return NextResponse.json({ success: false, error: 'Invalid visit status' }, { status: 400 });
     }
