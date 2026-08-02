@@ -114,12 +114,15 @@ export async function calculateSrCrmPerformance(
     })
   }
 
+  if (rows.size === 0) return []
+
   const [activeVisits, phaseReviews, visualApprovals, meetingCompletions, conversions] = await Promise.all([
     prisma.visit.findMany({
       where: {
         lead: {
           assignments: { some: { department: LeadAssignmentDepartment.SR_CRM, userId: { in: [...rows.keys()] } } },
         },
+        scheduledAt: { gte: monthStart, lt: nextMonthStart },
         projectSqft: { not: null },
       },
       select: {
