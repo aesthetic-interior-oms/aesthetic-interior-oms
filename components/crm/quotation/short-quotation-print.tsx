@@ -6,6 +6,7 @@ import { buildShortQuotationSummary, formatShortQuotationDate } from '@/lib/shor
 import type { ShortQuotationContent } from '@/lib/short-quotation-types'
 
 const PRIMARY = '#0f5b53'
+const GOLD = '#a57c00'
 
 function formatAmount(value: number) {
   return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value)
@@ -23,45 +24,58 @@ function WatermarkBackground() {
   )
 }
 
-function getQuoteId(date: string) {
-  const timestamp = Date.parse(date)
-  const suffix = Number.isNaN(timestamp) ? '000000' : timestamp.toString().slice(-6)
-  return `QTN-${suffix}`
+function formatDownloadDateTime(value: string | undefined) {
+  if (!value) return 'Not downloaded yet'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
 }
 
-function PageHeader({ date }: { date: string }) {
-  const formattedDate = `${formatShortQuotationDate(date)} ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+function PageHeader({ content }: { content: ShortQuotationContent }) {
+  const formattedDate = formatShortQuotationDate(content.quotationDate)
   return (
     <div className="relative z-10 mb-6 flex flex-col">
-      <div className="flex items-end justify-between pb-3">
-        <div className="w-1/2">
-          <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[160px] object-contain object-left" />
-        </div>
-        <div className="flex w-1/2 flex-col items-end gap-1">
-          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Quote ID:</span> {getQuoteId(date)}</p>
-          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Date:</span> {formattedDate}</p>
+      <div className="border-t-2 pt-3" style={{ borderColor: PRIMARY }}>
+        <div className="flex items-center justify-between border-b border-[#e7d49a] pb-3">
+          <div className="w-1/2">
+            <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[150px] object-contain object-left" />
+          </div>
+          <div className="ml-auto rounded-xl border border-[#e7d49a] bg-[#fffdf7] px-4 py-2 text-right shadow-sm">
+            <p className="text-[7px] font-bold uppercase tracking-[0.16em]" style={{ color: GOLD }}>Quotation Date</p>
+            <p className="mt-0.5 text-[10px] font-bold" style={{ color: PRIMARY }}>{formattedDate}</p>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-function PageFooter() {
+function PageFooter({ content }: { content: ShortQuotationContent }) {
   return (
-    <div className="relative z-10 mt-12 flex justify-between border-t border-[#a57c00] pt-3 text-[9px] text-neutral-700">
-      <div className="w-[35%]">
-        <p className="mb-1 font-bold" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
-        <p>183, East Senpara, Begum Rokeya Soroni</p>
-        <p>3rd floor, Mirpur 10, Dhaka-1216</p>
+    <div className="relative z-10 mt-12 border-t border-[#a57c00] pt-3 text-[9px] text-neutral-700">
+      <div className="flex justify-between">
+        <div className="w-[35%]">
+          <p className="mb-1 font-bold" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
+          <p>183, East Senpara, Begum Rokeya Soroni</p>
+          <p>3rd floor, Mirpur 10, Dhaka-1216</p>
+        </div>
+        <div className="flex w-[30%] flex-col items-center">
+          <p>+88 0132969 4663</p>
+          <p>hello@aestheticinterior.com</p>
+          <p className="font-bold" style={{ color: PRIMARY }}>www.aestheticinteriorbd.com</p>
+        </div>
+        <div className="flex w-[35%] flex-col items-end justify-end">
+          <p className="text-neutral-500">© 2026 All rights reserved.</p>
+        </div>
       </div>
-      <div className="flex w-[30%] flex-col items-center">
-        <p>+88 0132969 4663</p>
-        <p>hello@aestheticinterior.com</p>
-        <p className="font-bold" style={{ color: PRIMARY }}>www.aestheticinteriorbd.com</p>
-      </div>
-      <div className="flex w-[35%] flex-col items-end justify-end">
-        <p className="text-neutral-500">© 2026 All rights reserved.</p>
-      </div>
+      <p className="mt-1 text-right text-[6px] text-neutral-400">Quotation Code: {content.quotationCode ?? 'Not generated yet'} • Generated: {formatDownloadDateTime(content.downloadedAt)}</p>
     </div>
   )
 }
@@ -84,7 +98,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
     <div className="short-quotation-print w-full bg-neutral-100">
       <section className="relative mx-auto mb-6 min-h-[297mm] w-[210mm] overflow-hidden bg-white px-10 pb-16 pt-8 shadow-md">
         <WatermarkBackground />
-        <PageHeader date={content.quotationDate} />
+        <PageHeader content={content} />
 
         <div className="pb-3">
           <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[#a57c00]">Prepared For</p>
@@ -100,7 +114,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
           <span className="w-[8%] text-center">SL</span><span className="w-[70%]">Description</span><span className="w-[22%] text-right">Amount</span>
         </div>
         {summary.floors.map((floorSummary, index) => (
-          <div key={floorSummary.floor.id} className="flex border-b py-2 text-[9px]" style={{ borderColor: '#eeeeee', backgroundColor: index % 2 === 1 ? '#fbfaf2' : '#ffffff' }}>
+          <div key={floorSummary.floor.id} className="flex border-b py-2 text-[9px]" style={{ borderColor: '#eeeeee', backgroundColor: index % 2 === 1 ? '#fefdf9' : '#ffffff' }}>
             <span className="w-[8%] text-center text-neutral-500">{String(index + 1).padStart(2, '0')}</span>
             <span className="w-[70%] font-bold">{floorSummary.floor.name}</span>
             <span className="w-[22%] text-right font-bold">{formatCurrency(floorSummary.total)}</span>
@@ -110,14 +124,14 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
           <span className="pr-4 text-[10px] font-bold" style={{ color: PRIMARY }}>Grand Total</span>
           <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>{formatCurrency(summary.grandTotal)}</span>
         </div>
-        <p className="mt-1 text-left text-[10px] italic text-neutral-500">In Words: <span className="font-bold not-italic">{amountInWordsTaka(summary.grandTotal)}</span></p>
-        <div className="absolute bottom-6 left-10 right-10"><PageFooter /></div>
+        <p className="mt-1 text-left text-[10px] font-bold text-neutral-900">In Words: <span>{amountInWordsTaka(summary.grandTotal)}</span></p>
+        <div className="absolute bottom-6 left-10 right-10"><PageFooter content={content} /></div>
       </section>
 
-      {summary.floors.map((floorSummary) => (
+      {summary.floors.map((floorSummary, floorIndex) => (
         <section key={floorSummary.floor.id} className="relative mx-auto mb-6 min-h-[297mm] w-[210mm] overflow-hidden bg-white px-10 pb-16 pt-8 shadow-md">
           <WatermarkBackground />
-          <PageHeader date={content.quotationDate} />
+          <PageHeader content={content} />
           <SectionTitle>{floorSummary.floor.name}</SectionTitle>
           <div className="flex border-b pb-1.5 pt-2 text-[8px] font-bold uppercase" style={{ color: PRIMARY, borderColor: PRIMARY }}>
             <span className="w-[8%] text-center">SL</span><span className="w-[42%]">Name</span><span className="w-[12%] text-center">Qty/Sft</span><span className="w-[18%] text-right">Unit Price</span><span className="w-[20%] text-right">Total</span>
@@ -126,10 +140,10 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
             <Fragment key={roomSummary.room.id}>
               <div className="mt-3 px-2 py-1 text-center text-[9px] font-bold uppercase" style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}>{roomSummary.room.name}</div>
               {roomSummary.lines.map((line, lineIndex) => (
-                <div key={line.id} className="flex items-start border-b py-2 text-[9px]" style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#fbfaf2' : '#ffffff' }}>
+                <div key={line.id} className="flex items-start border-b py-2 text-[9px]" style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#fefdf9' : '#ffffff' }}>
                   <span className="w-[8%] text-center text-neutral-500">{String(lineSerials.get(line.id) ?? lineIndex + 1).padStart(2, '0')}</span>
                   <span className="w-[42%] pr-1 font-bold leading-snug">{line.name}</span>
-                  <span className="w-[12%] text-center text-neutral-600">{line.isLumpSum ? <span className="inline-block rounded-full bg-[#0f5b53]/10 px-2 py-0.5 text-[7px] font-bold uppercase text-[#0f5b53]">Package</span> : formatAmount(line.quantitySqft ?? 0)}</span>
+                  <span className="w-[12%] text-center text-neutral-600">{line.isLumpSum ? <span className="inline-block rounded-full bg-[#fff8e6] px-2 py-0.5 text-[7px] font-bold uppercase text-[#a57c00]">Package</span> : formatAmount(line.quantitySqft ?? 0)}</span>
                   <span className="w-[18%] text-right text-neutral-600">{line.isLumpSum ? '--' : formatCurrency(line.unitPrice ?? 0)}</span>
                   <span className="w-[20%] text-right font-bold" style={{ color: PRIMARY }}>{formatCurrency(line.total)}</span>
                 </div>
@@ -138,22 +152,18 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
             </Fragment>
           ))}
           <div className="mt-3 flex justify-end border-t pt-2 text-[10px] font-bold" style={{ borderColor: PRIMARY, color: PRIMARY }}><span className="pr-4">Total for {floorSummary.floor.name}</span><span>{formatCurrency(floorSummary.total)}</span></div>
-          <p className="mt-1 text-left text-[10px] italic text-neutral-500">In Words: <span className="font-bold not-italic">{amountInWordsTaka(floorSummary.total)}</span></p>
-          <div className="absolute bottom-6 left-10 right-10"><PageFooter /></div>
+          <p className="mt-1 text-left text-[10px] font-bold text-neutral-900">In Words: <span>{amountInWordsTaka(floorSummary.total)}</span></p>
+          {floorIndex === summary.floors.length - 1 && content.footerNotes.length > 0 ? (
+            <div className="mt-5">
+              <SectionTitle>Notes</SectionTitle>
+              <div className="mt-3 space-y-2 text-[9px] text-neutral-600">
+                {content.footerNotes.map((note, index) => <p key={index}><span className="font-bold" style={{ color: PRIMARY }}>{index + 1}.</span> {note}</p>)}
+              </div>
+            </div>
+          ) : null}
+          <div className="absolute bottom-6 left-10 right-10"><PageFooter content={content} /></div>
         </section>
       ))}
-
-      {content.footerNotes.length > 0 ? (
-        <section className="relative mx-auto min-h-[297mm] w-[210mm] overflow-hidden bg-white px-10 pb-16 pt-8 shadow-md">
-          <WatermarkBackground />
-          <PageHeader date={content.quotationDate} />
-          <SectionTitle>Terms &amp; Notes</SectionTitle>
-          <div className="mt-3 space-y-2 text-[9px] text-neutral-600">
-            {content.footerNotes.map((note, index) => <p key={index}><span className="font-bold" style={{ color: PRIMARY }}>{index + 1}.</span> {note}</p>)}
-          </div>
-          <div className="absolute bottom-6 left-10 right-10"><PageFooter /></div>
-        </section>
-      ) : null}
     </div>
   )
 }

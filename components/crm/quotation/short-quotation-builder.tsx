@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Download, ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
+import { CopyCheck, Download, ExternalLink, GripVertical, Loader2, Plus, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -73,6 +73,63 @@ type DraftResponse = {
   canEdit: boolean
 }
 
+const SHORT_QUOTATION_PACKAGES: ShortQuotationPackage[] = ['PLATINUM', 'PREMIUM', 'LUXURY']
+
+function copyShortQuotationToPackage(
+  content: ShortQuotationContent,
+  packageTier: ShortQuotationPackage,
+): ShortQuotationContent {
+  return normalizeShortQuotationContent({
+    ...content,
+    packageTier,
+    floors: content.floors.map((floor) => ({ ...floor })),
+    rooms: content.rooms.map((room) => ({
+      ...room,
+      lines: room.lines.map((line) => ({ ...line })),
+    })),
+    footerNotes: [...content.footerNotes],
+  })
+}
+
+function generateShortQuotationCode(packageTier: ShortQuotationPackage) {
+  const now = new Date()
+  const datePart = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('')
+  const timePart = [
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0'),
+  ].join('')
+  const randomPart = Math.random().toString(36).slice(2, 7).toUpperCase()
+  return `SQ-${packageTier.slice(0, 3)}-${datePart}-${timePart}-${randomPart}`
+}
+
+function formatShortDownloadDateTime(value: string | undefined) {
+  if (!value) return 'Not downloaded yet'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
+}
+
+function findFirstShortQuotationIssue(content: ShortQuotationContent) {
+  return content.rooms
+    .flatMap((room) => room.lines.map((line) => ({ room, line })))
+    .find(({ line }) => {
+      if (line.isLumpSum) return line.total <= 0
+      return (line.quantitySqft ?? 0) <= 0 || (line.unitPrice ?? 0) <= 0
+    })
+}
+
 function scrollToQuotationIssue(elementId: string) {
   document.getElementById(elementId)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
@@ -89,6 +146,7 @@ export function ShortQuotationBuilder({
   const previewContextId = isPlayground ? 'playground' : leadId
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingAllPackages, setSavingAllPackages] = useState(false)
   const [startingWork, setStartingWork] = useState(false)
   const [canEdit, setCanEdit] = useState(false)
   const [content, setContent] = useState<ShortQuotationContent | null>(null)
@@ -212,13 +270,27 @@ export function ShortQuotationBuilder({
     setSuggestions(searchShortQuotationNames(nameQuery, 10))
   }, [nameQuery, showSuggestions])
 
-  const saveDraft = useCallback(async () => {
+  const persistShortQuotationContent = useCallback(async (contentToSave: ShortQuotationContent) => {
+    const response = await fetch(`/api/lead/${leadId}/quotation-draft`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        documentType: 'short',
+        quotationType: contentToSave.packageTier,
+        content: contentToSave,
+        status: 'DRAFT',
+      }),
+    })
+    const payload = await response.json()
+    if (!response.ok || !payload?.success) {
+      throw new Error(payload?.error ?? 'Failed to save quotation')
+    }
+  }, [leadId])
+
+  const saveDraft = useCallback(async (options?: { syncAllPackages?: boolean }) => {
     if (!content || !canEdit) return
     const normalized = normalizeShortQuotationContent(content)
-    const firstMissingLine = normalized.rooms.flatMap((room) => room.lines.map((line) => ({ room, line }))).find(({ line }) => {
-      if (line.isLumpSum) return line.total <= 0
-      return (line.quantitySqft ?? 0) <= 0 || (line.unitPrice ?? 0) <= 0
-    })
+    const firstMissingLine = findFirstShortQuotationIssue(normalized)
     if (firstMissingLine) {
       const issue = firstMissingLine.line.isLumpSum
         ? 'Package item total price is missing.'
@@ -229,49 +301,49 @@ export function ShortQuotationBuilder({
       scrollToQuotationIssue(`short-line-${firstMissingLine.line.id}`)
       return
     }
-    setSaving(true)
+
+    const syncAllPackages = Boolean(options?.syncAllPackages)
+    if (syncAllPackages) {
+      setSavingAllPackages(true)
+    } else {
+      setSaving(true)
+    }
+
     try {
       if (isPlayground) {
-        savePlaygroundShortDraft(normalized)
+        const packagesToSave = syncAllPackages ? SHORT_QUOTATION_PACKAGES : [normalized.packageTier]
+        packagesToSave.forEach((packageTier) => savePlaygroundShortDraft(copyShortQuotationToPackage(normalized, packageTier)))
         setContent(normalized)
-        toast.success('Saved to browser (playground only)')
+        toast.success(syncAllPackages ? 'Saved the same quotation to all packages' : 'Saved to browser (playground only)')
         return
       }
 
-      const response = await fetch(`/api/lead/${leadId}/quotation-draft`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          documentType: 'short',
-          quotationType: normalized.packageTier,
-          content: normalized,
-          status: 'DRAFT',
-        }),
-      })
-      const payload = await response.json()
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error ?? 'Failed to save quotation')
+      const packagesToSave = syncAllPackages ? SHORT_QUOTATION_PACKAGES : [normalized.packageTier]
+      for (const packageTier of packagesToSave) {
+        const contentForPackage = copyShortQuotationToPackage(normalized, packageTier)
+        await persistShortQuotationContent(contentForPackage)
       }
       setContent(normalized)
-      toast.success('Short quotation saved')
+      toast.success(syncAllPackages ? 'Same quotation saved for Platinum, Premium, and Luxury' : 'Short quotation saved')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save quotation')
     } finally {
       setSaving(false)
+      setSavingAllPackages(false)
     }
-  }, [canEdit, content, isPlayground, leadId])
+  }, [canEdit, content, isPlayground, persistShortQuotationContent])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault()
-        if (!saving) void saveDraft()
+        if (!saving && !savingAllPackages) void saveDraft()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [saving, saveDraft])
+  }, [saving, savingAllPackages, saveDraft])
 
   const startWork = async () => {
     setStartingWork(true)
@@ -438,17 +510,39 @@ export function ShortQuotationBuilder({
   }
 
   const handleDownloadPdf = async () => {
+    if (!content) return
     setGeneratingPdf(true)
     try {
-      const safeClientName = (content.clientName || 'Quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase()
+      const downloadedAt = new Date().toISOString()
+      const contentForDownload = normalizeShortQuotationContent({
+        ...content,
+        quotationCode: generateShortQuotationCode(content.packageTier),
+        downloadedAt,
+      })
+
+      if (isPlayground) {
+        savePlaygroundShortDraft(contentForDownload)
+      } else if (canEdit) {
+        await persistShortQuotationContent(contentForDownload)
+      }
+
+      setContent(contentForDownload)
+      publishShortPreview({
+        updatedAt: downloadedAt,
+        context: previewContext,
+        contextId: previewContextId,
+        content: contentForDownload,
+      })
+
+      const safeClientName = (contentForDownload.clientName || 'Quotation').replace(/[^a-z0-9]/gi, '_').toLowerCase()
       await downloadPdfFromDocument(
-        <ShortQuotationDocument content={content} />,
-        `Short_Quotation_${safeClientName}.pdf`,
+        <ShortQuotationDocument content={contentForDownload} />,
+        `Short_Quotation_${safeClientName}_${contentForDownload.quotationCode}.pdf`,
       )
-      toast.success('PDF downloaded successfully')
+      toast.success(`PDF downloaded with quotation code ${contentForDownload.quotationCode}`)
     } catch (error) {
       console.error('PDF generation error:', error)
-      toast.error('Failed to generate PDF')
+      toast.error(error instanceof Error ? error.message : 'Failed to generate PDF')
     } finally {
       setGeneratingPdf(false)
     }
@@ -551,6 +645,17 @@ export function ShortQuotationBuilder({
               <p className="pt-2 text-lg font-semibold">
                 {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(summary.grandTotal)}
               </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm md:grid-cols-2 dark:border-slate-800 dark:bg-slate-950/30">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Last Quotation Code</p>
+              <p className="font-semibold text-slate-900 dark:text-slate-100">{content.quotationCode ?? 'Not downloaded yet'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground">Last Download Time</p>
+              <p className="font-semibold text-slate-900 dark:text-slate-100">{formatShortDownloadDateTime(content.downloadedAt)}</p>
             </div>
           </div>
 
@@ -679,9 +784,19 @@ export function ShortQuotationBuilder({
               <Plus className="mr-2 h-4 w-4" />
               Add Floor
             </Button>
-            <Button type="button" disabled={!canEdit || saving} onClick={() => void saveDraft()}>
+            <Button type="button" disabled={!canEdit || saving || savingAllPackages} onClick={() => void saveDraft()}>
               <Save className="mr-2 h-4 w-4" />
-              {saving ? 'Saving...' : 'Save Quotation'}
+              {saving ? 'Saving...' : 'Save This Package'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canEdit || saving || savingAllPackages}
+              onClick={() => void saveDraft({ syncAllPackages: true })}
+              title="Copy the current quotation data into Platinum, Premium, and Luxury. Use normal save after editing one package differently."
+            >
+              <CopyCheck className="mr-2 h-4 w-4" />
+              {savingAllPackages ? 'Saving all...' : 'Save Same to All Packages'}
             </Button>
             <Button type="button" variant="secondary" onClick={openLivePreviewTab}>
               <ExternalLink className="mr-2 h-4 w-4" />
@@ -712,11 +827,15 @@ export function ShortQuotationBuilder({
             ) : null}
           </div>
 
-          {!canEdit ? (
+          {canEdit ? (
+            <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-100">
+              Use <span className="font-semibold">Save This Package</span> when Platinum, Premium, or Luxury needs separate row data. Use <span className="font-semibold">Save Same to All Packages</span> only when the current rows should be copied to every package.
+            </p>
+          ) : (
             <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
               Read-only. Start work on this lead from My Work to edit the short quotation.
             </p>
-          ) : null}
+          )}
         </CardContent>
       </Card>
 
@@ -864,7 +983,7 @@ export function ShortQuotationBuilder({
             <Plus className="mr-1.5 h-4 w-4" />
             Add Room
           </Button>
-          <Button type="button" size="sm" disabled={!canEdit || saving} onClick={() => void saveDraft()}>
+          <Button type="button" size="sm" disabled={!canEdit || saving || savingAllPackages} onClick={() => void saveDraft()}>
             <Save className="mr-1.5 h-4 w-4" />
             {saving ? 'Saving...' : 'Save'}
           </Button>
@@ -872,22 +991,35 @@ export function ShortQuotationBuilder({
             <ExternalLink className="mr-1.5 h-4 w-4" />
             Live Preview
           </Button>
-          <Button type="button" size="sm" variant="outline" onClick={openLivePreviewTab}>
-            <Printer className="mr-1.5 h-4 w-4" />
-            Print
+          <Button type="button" size="sm" variant="secondary" disabled={generatingPdf} onClick={() => void handleDownloadPdf()}>
+            {generatingPdf ? (
+              <>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                Generating PDF...
+              </>
+            ) : (
+              <>
+                <Download className="mr-1.5 h-4 w-4" />
+                Download PDF
+              </>
+            )}
           </Button>
           {!isPlayground ? (
             <Button type="button" size="sm" variant="outline" asChild>
               <Link href="/quotation-team/my-work">Back to My Work</Link>
             </Button>
           ) : null}
-          <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarRoomId} onClick={addTaskbarSavedItem}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            Add from Saved Item
-          </Button>
-          <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarRoomId} onClick={addTaskbarCustomItem}>
-            Custom Item
-          </Button>
+          {isPlayground ? (
+            <>
+              <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarRoomId} onClick={addTaskbarSavedItem}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Add from Saved Item
+              </Button>
+              <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarRoomId} onClick={addTaskbarCustomItem}>
+                Custom Item
+              </Button>
+            </>
+          ) : null}
           <span className="text-xs text-muted-foreground">Ctrl+S saves</span>
         </div>
       </div>

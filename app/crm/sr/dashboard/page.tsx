@@ -10,6 +10,7 @@ import {
 } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
 import { listVisitCompleteQueueItems } from '@/lib/visit-complete-queue'
+import { calculateSrCrmPerformance } from '@/lib/sr-crm-performance'
 import {
   CommandCenterDashboard,
   formatLabel,
@@ -255,6 +256,15 @@ export default async function SeniorCrmDashboardPage() {
       }),
     ])
 
+  const allSrCrmPerformance = await calculateSrCrmPerformance(prisma)
+  const currentPerformance = currentUser
+    ? allSrCrmPerformance.find((member) => member.userId === currentUser.id)
+    : null
+  const topPerformance = allSrCrmPerformance[0] ?? null
+  const srCrmPerformance = [currentPerformance, topPerformance]
+    .filter((member): member is NonNullable<typeof member> => Boolean(member))
+    .filter((member, index, members) => members.findIndex((item) => item.userId === member.userId) === index)
+
   const priorityActions: PriorityAction[] = [
     ...overdueCadTasks.map((task): PriorityAction => ({
       id: `cad-task-${task.id}`,
@@ -365,6 +375,7 @@ export default async function SeniorCrmDashboardPage() {
         reviewPendingCount: designReviewPendingCount,
         overdueReviewCount: overdueDesignReviews.length,
       }}
+      srCrmPerformance={srCrmPerformance}
       visitInsights={{
         statusData: [
           { name: 'Completed', value: visitStatusCounts.find((row) => row.status === VisitStatus.COMPLETED)?._count._all ?? 0, fill: 'var(--color-chart-2)' },

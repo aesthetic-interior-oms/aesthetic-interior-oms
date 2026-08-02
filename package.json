@@ -4,13 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma migrate deploy && next build",
+    "build": "prisma generate && node scripts/prisma/deploy-migrations.js && next build",
     "start": "next start",
     "lint": "eslint",
     "db:backup": "bash scripts/db/backup.sh",
     "db:restore": "bash scripts/db/restore.sh",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build"
+    "vercel-build": "prisma generate && node scripts/prisma/deploy-migrations.js && next build"
   },
   "dependencies": {
     "@clerk/clerk-sdk-node": "^4.13.23",

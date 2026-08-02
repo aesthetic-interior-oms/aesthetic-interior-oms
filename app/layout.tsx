@@ -8,6 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { SiteShell } from "@/components/website/ui/site-shell";
 import { siteName, siteUrl } from "@/lib/site";
 
+const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,6 +36,10 @@ export const metadata: Metadata = {
     "Aesthetic Interior Studio is a pioneer brand for modern contemporary interior design in Dhaka, Bangladesh, serving residential, commercial, and architectural spaces.",
   applicationName: siteName,
   authors: [{ name: siteName }],
+  verification: googleSiteVerification
+    ? { google: googleSiteVerification }
+    : undefined,
+  category: "Interior Design",
   creator: siteName,
   publisher: siteName,
   keywords: [
@@ -45,6 +50,8 @@ export const metadata: Metadata = {
     "modern contemporary interior design",
     "residential interior design Dhaka",
     "commercial interior design Bangladesh",
+    "interior designer in Mirpur Dhaka",
+    "best interior design company in Bangladesh",
   ],
   alternates: {
     canonical: "/",
