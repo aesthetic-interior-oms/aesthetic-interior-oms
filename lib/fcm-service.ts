@@ -114,19 +114,34 @@ export async function sendPushToUser(
       if (result.status === 'fulfilled') {
         console.log('[fcm-service] ✅ Message sent to token index', index, ':', result.value)
       } else {
-        console.error('[fcm-service] ❌ Failed for token index', index, ':', result.reason?.code, result.reason?.message)
+        console.error('[fcm-service] ❌ Failed for token index', index, ':', result.reason?.code, result.reason?.message, result.reason?.errorInfo)
       }
     })
 
     // Clean up invalid/expired tokens.
+    // Firebase Admin may return different error code strings across SDK versions:
+    // 'messaging/registration-token-not-registered', 'messaging/invalid-registration-token',
+    // 'messaging/unregistered', plain 'NOT_FOUND', or just 'NotRegistered'.
+    const staleErrorCodes = new Set([
+      'messaging/registration-token-not-registered',
+      'messaging/invalid-registration-token',
+      'messaging/unregistered',
+      'NOT_FOUND',
+      'notregistered',
+    ])
     const invalidTokenIds: string[] = []
     results.forEach((result, index) => {
       if (result.status === 'rejected') {
-        const err = result.reason as { code?: string }
+        const err = result.reason as { code?: string; errorInfo?: { code?: string } }
+        const code = (err?.code ?? err?.errorInfo?.code ?? '').toLowerCase().replace(/[/-]/g, '')
+        const normalizedCode = code.replace('messaging', '')
         if (
-          err?.code === 'messaging/invalid-registration-token' ||
-          err?.code === 'messaging/registration-token-not-registered'
+          staleErrorCodes.has(err?.code ?? '') ||
+          staleErrorCodes.has((err?.errorInfo?.code ?? '').toLowerCase()) ||
+          normalizedCode.includes('notregistered') ||
+          normalizedCode.includes('invalidregistration')
         ) {
+          console.log('[fcm-service] Marking stale token for deletion at index', index)
           invalidTokenIds.push(tokens[index].id)
         }
       }

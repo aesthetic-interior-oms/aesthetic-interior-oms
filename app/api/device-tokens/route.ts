@@ -19,12 +19,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Upsert: if the token already exists update its userId (device re-login),
-    // otherwise create it.
-    await prisma.deviceToken.upsert({
-      where: { token },
-      update: { userId, platform: platform ?? 'android', updatedAt: new Date() },
-      create: { userId, token, platform: platform ?? 'android' },
+    // Delete any old tokens for this user+platform so we always have the latest.
+    await prisma.deviceToken.deleteMany({ where: { userId, platform: platform ?? 'android' } })
+
+    // Insert the fresh token.
+    await prisma.deviceToken.create({
+      data: { userId, token, platform: platform ?? 'android' },
     })
 
     return NextResponse.json({ success: true })
