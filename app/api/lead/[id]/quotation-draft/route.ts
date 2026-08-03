@@ -269,6 +269,15 @@ function toDetailQuotationContent(value: unknown): QuotationDraftContent | null 
       typeof record.terms === 'string' && record.terms.trim()
         ? record.terms
         : getQuotationTemplate(templateKey).defaultTerms,
+    quotationDate: typeof record.quotationDate === 'string' ? record.quotationDate : undefined,
+    subject: typeof record.subject === 'string' ? record.subject : undefined,
+    introLetter: typeof record.introLetter === 'string' ? record.introLetter : undefined,
+    paymentTerms: typeof record.paymentTerms === 'string' ? record.paymentTerms : undefined,
+    durationNotes: typeof record.durationNotes === 'string' ? record.durationNotes : undefined,
+    drawingDesign: typeof record.drawingDesign === 'string' ? record.drawingDesign : undefined,
+    signatoryName: typeof record.signatoryName === 'string' ? record.signatoryName : undefined,
+    signatoryTitle: typeof record.signatoryTitle === 'string' ? record.signatoryTitle : undefined,
+    summarySubject: typeof record.summarySubject === 'string' ? record.summarySubject : undefined,
   }
 }
 
