@@ -77,24 +77,19 @@ function PageHeader({
   clientName: string
   clientAddress: string | null
 }) {
-  const formattedDate =
-    formatDateString(date) +
-    ' ' +
-    new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-  const quoteId = getQuoteId(date)
+  const formattedDate = formatDateString(date)
 
   return (
-    <div className="flex flex-col mb-6 relative z-10">
-      {/* Top section: Logo and Meta */}
-      <div className="flex justify-between items-end pb-3">
-        {/* Left: Logo */}
-        <div className="w-[50%]">
-          <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[160px] object-contain object-left" />
-        </div>
-        {/* Right: Quotation Details */}
-        <div className="w-[50%] flex flex-col items-end gap-1">
-          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Quote ID:</span> {quoteId}</p>
-          <p className="text-[10px] text-neutral-500"><span className="font-bold text-neutral-700">Date:</span> {formattedDate}</p>
+    <div className="relative z-10 mb-6 flex flex-col">
+      <div className="border-t-2 pt-3" style={{ borderColor: PRIMARY }}>
+        <div className="flex items-center justify-between border-b border-[#e7d49a] pb-3">
+          <div className="w-1/2">
+            <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[150px] object-contain object-left" />
+          </div>
+          <div className="ml-auto rounded-xl border border-[#e7d49a] bg-[#fffdf7] px-4 py-2 text-right shadow-sm">
+            <p className="text-[7px] font-bold uppercase tracking-[0.16em]" style={{ color: '#a57c00' }}>Quotation Date</p>
+            <p className="mt-0.5 text-[10px] font-bold" style={{ color: PRIMARY }}>{formattedDate}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -136,7 +131,7 @@ function PageFooter() {
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="text-[11px] font-bold uppercase tracking-wider px-2 py-1.5 mt-4 mb-0"
+      className="text-[11px] font-bold uppercase tracking-wider px-2 py-1.5 mt-4 mb-0 text-center"
       style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}
     >
       {children}
@@ -147,7 +142,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function TableHeader({ cols }: { cols: { label: string; className?: string }[] }) {
   return (
     <div
-      className="flex text-[8px] font-bold uppercase border-b pt-2 pb-1.5"
+      className="flex text-[8px] font-bold uppercase border-b pt-1 pb-1"
       style={{ color: PRIMARY, borderColor: PRIMARY }}
     >
       {cols.map((col) => (
@@ -165,19 +160,21 @@ function formatMaterialText(text: string | null | undefined) {
   return (
     <span className="block space-y-0.5">
       {lines.map((line, idx) => {
+        const isWithoutWiring = line.toLowerCase().includes('without supplying wiring') || line.toLowerCase().includes('without suppling wiring');
+        const weightClass = isWithoutWiring ? 'font-bold' : '';
         const match = line.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
         if (match) {
           const prefix = match[1]
           const rest = line.substring(prefix.length)
           return (
-            <span key={idx} className="block text-[8px] leading-snug">
+            <span key={idx} className={`block text-[8px] leading-snug ${weightClass}`}>
               <span className="font-bold">{prefix}</span>
               {rest}
             </span>
           )
         }
         return (
-          <span key={idx} className="block text-[8px] leading-snug">
+          <span key={idx} className={`block text-[8px] leading-snug ${weightClass}`}>
             {line}
           </span>
         )
@@ -235,12 +232,12 @@ export function DetailQuotationPreview({
             <div
               key={entry.floor.id}
               className="flex text-[9px] border-b py-2"
-              style={{ borderColor: '#eeeeee', backgroundColor: index % 2 === 1 ? '#fbfaf2' : '#ffffff' }}
+              style={{ borderColor: '#eeeeee', backgroundColor: index % 2 === 1 ? '#fefdf9' : '#ffffff' }}
             >
-              <span className="w-[8%] text-center text-neutral-500">
+              <span className="w-[8%] text-center font-bold">
                 {String(index + 1).padStart(2, '0')}
               </span>
-              <span className="w-[70%] font-bold">{entry.floor.name}</span>
+              <span className="w-[70%]">{entry.floor.name}</span>
               <span className="w-[22%] text-right font-bold">{formatDetailAmount(entry.total)}</span>
             </div>
           ))}
@@ -253,7 +250,7 @@ export function DetailQuotationPreview({
             {formatDetailAmount(totals.grandTotal)}
           </span>
         </div>
-        <p className="text-right text-[8px] italic text-neutral-500 mt-1">
+        <p className="text-right text-[10px] text-neutral-900 mt-1">
           In Words:{' '}
           <span className="font-bold not-italic">{amountInWordsTaka(totals.grandTotal)}</span>
         </p>
@@ -295,12 +292,12 @@ export function DetailQuotationPreview({
               <div
                 key={line.id}
                 className="flex text-[9px] border-b py-2 items-start"
-                style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#fbfaf2' : '#ffffff' }}
+                style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#fefdf9' : '#ffffff' }}
               >
-                <span className="w-[8%] text-center text-neutral-500 pt-0.5">
+                <span className="w-[8%] text-center font-bold pt-0.5">
                   {String(lineIndex + 1).padStart(2, '0')}
                 </span>
-                <span className="w-[22%] font-bold pr-1 leading-snug">{line.description}</span>
+                <span className="w-[22%] pr-1 leading-snug">{line.description}</span>
                 <span className="w-[36%] pr-1">{formatMaterialText(line.materials)}</span>
                 <span className="w-[10%] text-center text-neutral-600">
                   {isPackageLine(line) ? (
@@ -331,7 +328,7 @@ export function DetailQuotationPreview({
               {formatDetailAmount(entry.total)}
             </span>
           </div>
-          <p className="text-right text-[8px] italic text-neutral-500 mt-1">
+          <p className="text-right text-[10px] text-neutral-900 mt-1">
             In Words:{' '}
             <span className="font-bold not-italic">{amountInWordsTaka(entry.total)}</span>
           </p>

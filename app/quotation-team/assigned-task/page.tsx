@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, FileText, Loader2, MapPin, Phone, UserRound } from "lucide-react";
+import { Download, FileText, Loader2, MapPin, UserRound, Sparkles, ClipboardList, PenTool, CheckCircle, RotateCcw, CalendarClock } from "lucide-react";
 import { CrmPageHeader } from "@/components/crm/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,13 @@ type TaskLead = {
     title: string;
     notes: string | null;
     startsAt: string;
+  } | null;
+    startsAt: string;
+  } | null;
+  srCrmAssignee: {
+    id: string;
+    fullName: string;
+    email: string;
   } | null;
   canStart: boolean;
   canSubmit: boolean;
@@ -238,12 +245,68 @@ export default function QuotationAssignedTaskPage() {
       />
 
       <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline">Total: {summary.total}</Badge>
-          <Badge variant="secondary">Assigned: {summary.assigned}</Badge>
-          <Badge variant="secondary">Working: {summary.working}</Badge>
-          <Badge variant="secondary">Completed: {summary.completed}</Badge>
-          <Badge variant="secondary">Corrections: {summary.corrections}</Badge>
+        <div className="rounded-[1.35rem] border border-border/70 bg-gradient-to-br from-background via-muted/20 to-background p-3 shadow-sm mb-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+            <div>
+              <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Assigned Task Metrics
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Overview of your quotation tasks and their current phases.
+              </p>
+            </div>
+            <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+              Live tracking
+            </Badge>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {[
+              { key: 'total', label: 'Total Assigned', value: summary.total, Icon: ClipboardList, className: 'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950', iconClass: 'bg-white/15 text-white ring-white/25 dark:bg-slate-950/10 dark:text-slate-950 dark:ring-slate-950/15', accentClass: 'from-primary to-blue-400' },
+              { key: 'assigned', label: 'Assigned', value: summary.assigned, Icon: UserRound, className: 'border-blue-200/70 from-blue-50 via-white to-sky-50 text-blue-800 dark:border-blue-500/30 dark:from-blue-950/60 dark:via-slate-950 dark:to-sky-950/40 dark:text-blue-100', iconClass: 'bg-blue-100 text-blue-700 ring-blue-200 dark:bg-blue-500/15 dark:text-blue-200 dark:ring-blue-400/20', accentClass: 'from-blue-500 to-sky-500' },
+              { key: 'working', label: 'Working', value: summary.working, Icon: PenTool, className: 'border-amber-200/70 from-amber-50 via-white to-orange-50 text-amber-800 dark:border-amber-500/30 dark:from-amber-950/60 dark:via-slate-950 dark:to-orange-950/40 dark:text-amber-100', iconClass: 'bg-amber-100 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20', accentClass: 'from-amber-500 to-orange-500' },
+              { key: 'completed', label: 'Completed', value: summary.completed, Icon: CheckCircle, className: 'border-emerald-200/70 from-emerald-50 via-white to-teal-50 text-emerald-800 dark:border-emerald-500/30 dark:from-emerald-950/60 dark:via-slate-950 dark:to-teal-950/40 dark:text-emerald-100', iconClass: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20', accentClass: 'from-emerald-500 to-teal-500' },
+              { key: 'corrections', label: 'Corrections', value: summary.corrections, Icon: RotateCcw, className: 'border-rose-200/70 from-rose-50 via-white to-pink-50 text-rose-800 dark:border-rose-500/30 dark:from-rose-950/60 dark:via-slate-950 dark:to-pink-950/40 dark:text-rose-100', iconClass: 'bg-rose-100 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-rose-400/20', accentClass: 'from-rose-500 to-pink-500' },
+            ].map((stat) => {
+              const percentage = summary.total > 0 ? Math.round((stat.value / summary.total) * 100) : 0;
+              return (
+                <div
+                  key={stat.key}
+                  className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${stat.className}`}
+                >
+                  <span className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/30 blur-2xl transition group-hover:scale-125 dark:bg-white/10" />
+                  <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${stat.accentClass}`} />
+
+                  <div className="relative flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] opacity-75">
+                        {stat.label}
+                      </p>
+                      <div className="mt-3 flex items-end gap-2">
+                        <p className="text-3xl font-black leading-none tracking-tight">
+                          {stat.value}
+                        </p>
+                        <span className="mb-0.5 rounded-full bg-white/45 px-2 py-0.5 text-[10px] font-bold shadow-sm ring-1 ring-black/5 dark:bg-black/15 dark:ring-white/10">
+                          {percentage}%
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`rounded-2xl p-2.5 shadow-sm ring-1 ${stat.iconClass}`}>
+                      <stat.Icon className="h-5 w-5" />
+                    </span>
+                  </div>
+
+                  <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
+                    <span
+                      className={`block h-full rounded-full bg-gradient-to-r ${stat.accentClass} transition-all duration-500`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {loading ? (
@@ -261,7 +324,13 @@ export default function QuotationAssignedTaskPage() {
             {leads.map((lead) => (
               <Card
                 key={lead.id}
-                className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                className={`overflow-hidden shadow-sm transition hover:shadow-md border ${
+                  lead.subStatus === "QUOTATION_WORKING" || lead.subStatus === "QUOTATION_CORRECTION"
+                    ? "border-amber-300/80 bg-gradient-to-br from-amber-100/60 to-orange-50/40 dark:border-amber-700/50 dark:from-amber-900/40 dark:to-orange-900/20"
+                    : lead.subStatus === "QUOTATION_COMPLETED"
+                    ? "border-emerald-300/80 bg-gradient-to-br from-emerald-100/60 to-teal-50/40 dark:border-emerald-700/50 dark:from-emerald-900/40 dark:to-teal-900/20"
+                    : "border-border/70 hover:border-primary/40"
+                }`}
               >
                 <CardContent className="space-y-3 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -349,18 +418,22 @@ export default function QuotationAssignedTaskPage() {
                     )}
                   </div>
 
-                  <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-                    <p className="inline-flex items-center gap-1">
-                      <Phone className="h-3.5 w-3.5" />
-                      {lead.phone || "No phone"}
-                    </p>
-                    <p className="inline-flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {lead.location || "No location"}
-                    </p>
-                    <p className="inline-flex items-center gap-1 md:col-span-2">
-                      <UserRound className="h-3.5 w-3.5" />
-                      First Meeting:
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mt-4 border-t border-border/40 pt-4">
+                    {lead.location && (
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-4 w-4 text-primary/70" />
+                        {lead.location}
+                      </span>
+                    )}
+                    {lead.srCrmAssignee && (
+                      <span className="inline-flex items-center gap-1">
+                        <UserRound className="h-4 w-4 text-primary/70" />
+                        SR CRM: {lead.srCrmAssignee.fullName}
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarClock className="h-4 w-4 text-primary/70" />
+                      1st Meet:
                       <span className="font-medium text-foreground">
                         {lead.latestFirstMeeting?.startsAt
                           ? new Date(
@@ -368,7 +441,7 @@ export default function QuotationAssignedTaskPage() {
                             ).toLocaleString()
                           : "Not set"}
                       </span>
-                    </p>
+                    </span>
                   </div>
                 </CardContent>
               </Card>

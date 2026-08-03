@@ -26,6 +26,7 @@ import {
 import { amountInWordsTaka } from '@/lib/number-to-words'
 
 const PRIMARY = '#0f5b53';
+const GOLD = '#a57c00';
 
 const styles = StyleSheet.create({
   page: {
@@ -52,10 +53,12 @@ const styles = StyleSheet.create({
   },
   header: {
     position: 'absolute',
-    top: 40,
-    left: 40,
-    right: 40,
-    marginBottom: 20,
+    top: 20,
+    left: 0,
+    right: 0,
+    height: 58,
+    paddingHorizontal: 40,
+    overflow: 'hidden',
   },
   logo: {
     width: 150,
@@ -116,6 +119,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f8f7',
     padding: 8,
     marginTop: 15,
+    textAlign: 'center',
     textTransform: 'uppercase',
   },
   detailFixedHeader: {
@@ -131,8 +135,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: PRIMARY,
-    paddingBottom: 6,
-    paddingTop: 10,
+    paddingBottom: 4,
+    paddingTop: 6,
   },
   thCol: {
     fontSize: 8,
@@ -151,7 +155,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eeeeee',
   },
   tRowAlt: {
-    backgroundColor: '#fbfaf2',
+    backgroundColor: '#fefdf9',
   },
   tdCol: {
     fontSize: 9,
@@ -209,11 +213,19 @@ const styles = StyleSheet.create({
     color: PRIMARY,
   },
   inWords: {
-    fontSize: 8,
-    color: '#666666',
+    fontSize: 10,
+    color: '#000000',
     marginTop: 4,
     textAlign: 'right',
+    fontWeight: 'bold',
   },
+  datePanel: { minWidth: 112, alignItems: 'flex-end' },
+  metaLabel: { fontSize: 5.5, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
+  metaValue: { fontSize: 7, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
+  headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 58, opacity: 0.08 },
+  headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  headerRule: { height: 2.2, backgroundColor: PRIMARY },
+  headerTitle: { color: PRIMARY, fontSize: 13, fontFamily: 'Times-Italic', letterSpacing: 2.8, marginHorizontal: 12, textTransform: 'uppercase' },
   
   // Footer
   footerFixed: {
@@ -281,35 +293,25 @@ const WatermarkBackground = () => (
 
 
 const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
-  let qtnIdSuffix = Math.floor(Math.random() * 1000000).toString();
-  if (date) {
-    let timestamp = Date.parse(date);
-    if (isNaN(timestamp) && date.includes('-')) {
-      const parts = date.split('-');
-      if (parts.length === 3) {
-        timestamp = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`).getTime();
-      }
-    }
-    if (!isNaN(timestamp)) {
-      qtnIdSuffix = timestamp.toString().slice(-6);
-    }
-  }
-  const qtnId = "QTN-" + qtnIdSuffix;
-  
-  const formattedDate = formatDateString(date) + " " + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const formattedDate = formatDateString(date);
 
   return (
     <View style={styles.header} fixed>
-      {/* Top section: Logo and Meta */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: 10 }}>
-        {/* Left: Logo */}
-        <View style={{ flex: 1 }}>
-          <Image src={`${getBaseUrl()}/Logo/HeaderLogo.png`} style={{ width: 140 }} />
+      <Image src={`${getBaseUrl()}/backgrounddata.svg`} style={styles.headerPattern} />
+      <View style={{ paddingTop: 3 }}>
+        <View style={styles.headerRuleRow}>
+          <View style={[styles.headerRule, { flexGrow: 1.65 }]} />
+          <Text style={styles.headerTitle}>Quotation</Text>
+          <View style={[styles.headerRule, { flexGrow: 0.85 }]} />
         </View>
-        {/* Right: Meta Details */}
-        <View style={{ width: '50%', alignItems: 'flex-end' }}>
-          <Text style={{ fontSize: 9, color: '#555555', marginBottom: 3 }}><Text style={styles.bold}>Quote ID:</Text> {qtnId}</Text>
-          <Text style={{ fontSize: 9, color: '#555555' }}><Text style={styles.bold}>Date:</Text> {formattedDate}</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
+            <Image src={`${getBaseUrl()}/Logo/HeaderLogo.png`} style={{ width: 154 }} />
+          </View>
+          <View style={styles.datePanel}>
+            <Text style={[styles.metaLabel, { textAlign: 'right' }]}>Quotation Date</Text>
+            <Text style={styles.metaValue}>{formattedDate}</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -364,14 +366,18 @@ function MaterialTextPdf({ text }: { text: string | null | undefined }) {
     <View>
       {lines.map((line, index) => {
         const match = line.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
+        const isWithoutWiring = line.toLowerCase().includes('without supplying wiring') || line.toLowerCase().includes('without suppling wiring');
         if (!match) {
-          return <Text key={`${line}-${index}`} style={styles.matText}>{softWrapPdfText(line)}</Text>
+          return <Text key={`${line}-${index}`} style={styles.matText}>
+            <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(line)}</Text>
+          </Text>
         }
         const prefix = match[1]
         const rest = line.substring(prefix.length)
         return (
           <Text key={`${line}-${index}`} style={styles.matText}>
-            <Text style={styles.bold}>{softWrapPdfText(prefix)}</Text>{softWrapPdfText(rest)}
+            <Text style={styles.bold}>{softWrapPdfText(prefix)}</Text>
+            <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(rest)}</Text>
           </Text>
         )
       })}
@@ -425,8 +431,8 @@ export function DetailQuotationDocument({
         <View style={styles.tableWrapper}>
           {floorSummaries.map((entry, index) => (
             <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}>
-              <Text style={[styles.tdCol, styles.wSl]}>{String(index + 1).padStart(2, '0')}</Text>
-              <Text style={[styles.tdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text>
+              <Text style={[styles.tdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
+              <Text style={[styles.tdCol, styles.wSumName]}>{softWrapPdfText(entry.floor.name)}</Text>
               <Text style={[styles.tdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailAmount(entry.total)}</Text>
             </View>
           ))}
@@ -468,10 +474,10 @@ export function DetailQuotationDocument({
               const isPkg = isPackageLine(line)
               return (
                 <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]} wrap={false}>
-                  <Text style={[styles.tdCol, styles.wSl]}>
+                  <Text style={[styles.tdCol, styles.wSl, styles.bold]}>
                     {String(lineIndex + 1).padStart(2, '0')}
                   </Text>
-                  <Text style={[styles.tdCol, styles.wName, styles.bold]}>
+                  <Text style={[styles.tdCol, styles.wName]}>
                     {softWrapPdfText(line.description)}
                   </Text>
                   <View style={[styles.tdCol, styles.wMats]}>

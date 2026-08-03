@@ -52,13 +52,17 @@ export async function GET(request: Request) {
         updated_at: true,
         budget: true,
         assignments: {
-          where: { department: LeadAssignmentDepartment.QUOTATION },
+          where: {
+            department: {
+              in: [LeadAssignmentDepartment.QUOTATION, LeadAssignmentDepartment.SR_CRM]
+            }
+          },
           select: {
+            department: true,
             user: {
               select: { id: true, fullName: true, email: true },
             },
           },
-          take: 1,
         },
         attachments: {
           select: {
@@ -96,7 +100,8 @@ export async function GET(request: Request) {
         subStatus: lead.subStatus,
         updatedAt: lead.updated_at,
         budget: lead.budget,
-        quotationAssignee: lead.assignments[0]?.user ?? null,
+        quotationAssignee: lead.assignments.find((a) => a.department === 'QUOTATION')?.user ?? null,
+        srCrmAssignee: lead.assignments.find((a) => a.department === 'SR_CRM')?.user ?? null,
         latestFirstMeeting: lead.meetingEvents[0] ?? null,
         attachments: lead.attachments,
         canStart:
