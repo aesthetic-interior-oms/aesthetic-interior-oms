@@ -34,8 +34,6 @@ type TaskLead = {
     notes: string | null;
     startsAt: string;
   } | null;
-    startsAt: string;
-  } | null;
   srCrmAssignee: {
     id: string;
     fullName: string;
