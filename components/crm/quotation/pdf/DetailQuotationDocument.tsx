@@ -240,6 +240,11 @@ const styles = StyleSheet.create({
     color: '#666666',
     marginLeft: 4,
   },
+  footerMeta: {
+    fontSize: 6.5,
+    color: '#888888',
+    marginTop: 3,
+  },
   
   // Materials
   matText: {
