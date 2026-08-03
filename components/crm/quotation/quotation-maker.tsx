@@ -594,6 +594,19 @@ return (
               <p className="text-xs font-medium text-muted-foreground">Total</p>
               <p className="text-sm font-semibold">{totals ? formatCurrency(totals.grandTotal) : '—'}</p>
             </div>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Status</p>
+              <div className="text-sm">
+                <p className="font-semibold text-slate-900 dark:text-slate-100">
+                  {content?.quotationCode ?? 'Not downloaded yet'}
+                </p>
+                {content?.downloadedAt && (
+                  <p className="text-xs text-muted-foreground">
+                    Last download: {new Date(content.downloadedAt).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2 pt-1">

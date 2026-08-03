@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
+import { toast } from '@/components/ui/sonner'
 import { DetailQuotationPreview } from '@/components/crm/quotation/detail-quotation-preview'
 import { DetailQuotationDocument } from '@/components/crm/quotation/pdf/DetailQuotationDocument'
 import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
@@ -16,6 +17,23 @@ import { withDetailQuotationDefaults } from '@/lib/detail-quotation-format'
 import { calculateQuotationTotals } from '@/lib/quotation-calculations'
 import { buildDefaultFloorDetailContent } from '@/lib/floor-detail-quotation'
 import { loadPlaygroundDetailDraft } from '@/lib/quotation-playground-storage'
+
+function generateDetailQuotationCode(quotationType: string) {
+  const now = new Date()
+  const datePart = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, '0'),
+    String(now.getDate()).padStart(2, '0'),
+  ].join('')
+  const timePart = [
+    String(now.getHours()).padStart(2, '0'),
+    String(now.getMinutes()).padStart(2, '0'),
+    String(now.getSeconds()).padStart(2, '0'),
+  ].join('')
+  const randomPart = Math.random().toString(36).slice(2, 7).toUpperCase()
+  const typeStr = quotationType ? quotationType.slice(0, 3).toUpperCase() : 'DEF'
+  return `DQ-${typeStr}-${datePart}-${timePart}-${randomPart}`
+}
 
 type DetailQuotationLivePreviewProps = {
   context: DetailPreviewContext
@@ -103,19 +121,50 @@ export function DetailQuotationLivePreview({
     if (!payload) return
     setDownloading(true)
     try {
-      const safeClientName = payload.clientName.replace(/[^a-z0-9]/gi, '_').toLowerCase()
+      const downloadedAt = new Date().toISOString()
+      const quotationCode = generateDetailQuotationCode(payload.quotationType)
+      
+      const contentForDownload = {
+        ...payload.content,
+        quotationCode,
+        downloadedAt,
+      }
+      
+      const safeClientName = (payload.clientName || 'Client').replace(/[^a-z0-9]/gi, '_').toLowerCase()
       await downloadPdfFromDocument(
         <DetailQuotationDocument
           clientName={payload.clientName}
           clientAddress={payload.clientAddress}
-          content={payload.content}
+          content={contentForDownload}
           totals={payload.totals}
         />,
-        `Detail_Quotation_${safeClientName}.pdf`,
+        `Detail_Quotation_${safeClientName}_${quotationCode}.pdf`,
       )
+      
+      // Update local preview immediately to show the code
+      const nextPayload = {
+        ...payload,
+        content: contentForDownload
+      }
+      setPayload(nextPayload)
+      
+      // Attempt to persist the download metadata back to the DB
+      if (context === 'lead') {
+        fetch(`/api/lead/${contextId}/quotation-draft?documentType=detail`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            quotationType: payload.quotationType,
+            projectSqft: payload.projectSqft,
+            content: contentForDownload,
+          }),
+        }).catch(console.error)
+      }
+      
+      toast.success(`PDF downloaded with quotation code ${quotationCode}`)
     } catch (error) {
       console.error('Failed to generate PDF:', error)
-      alert('Failed to generate PDF')
+      toast.error('Failed to generate PDF')
     } finally {
       setDownloading(false)
     }
