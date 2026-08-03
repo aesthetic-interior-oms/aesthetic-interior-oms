@@ -108,21 +108,41 @@ function ClientInfoBlock({ clientName, clientAddress }: { clientName: string, cl
   )
 }
 
-function PageFooter() {
+function formatDownloadDateTime(value: string | null | undefined) {
+  if (!value) return 'Not generated yet'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
+}
+
+function PageFooter({ content }: { content: QuotationDraftContent }) {
   return (
-    <div className="border-t border-[#a57c00] pt-3 mt-12 relative z-10 flex justify-between text-[9px] text-neutral-700">
-      <div className="w-[35%]">
-        <p className="font-bold mb-1" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
-        <p>183, East Senpara, Begum Rokeya Soroni</p>
-        <p>3rd floor, Mirpur 10, Dhaka-1216</p>
+    <div className="mt-auto">
+      <div className="border-t border-[#a57c00] pt-3 mt-12 relative z-10 flex justify-between text-[9px] text-neutral-700">
+        <div className="w-[35%]">
+          <p className="font-bold mb-1" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
+          <p>183, East Senpara, Begum Rokeya Soroni</p>
+          <p>3rd floor, Mirpur 10, Dhaka-1216</p>
+        </div>
+        <div className="w-[30%] flex flex-col items-center">
+          <p>+88 0132969 4663</p>
+          <p>hello@aestheticinterior.com</p>
+          <p className="font-bold" style={{ color: PRIMARY }}>www.aestheticinteriorbd.com</p>
+        </div>
+        <div className="w-[35%] flex flex-col justify-end items-end">
+          <p className="text-neutral-500">© 2026 All rights reserved.</p>
+        </div>
       </div>
-      <div className="w-[30%] flex flex-col items-center">
-        <p>+88 0132969 4663</p>
-        <p>hello@aestheticinterior.com</p>
-        <p className="font-bold" style={{ color: PRIMARY }}>www.aestheticinteriorbd.com</p>
-      </div>
-      <div className="w-[35%] flex flex-col justify-end items-end">
-        <p className="text-neutral-500">© 2026 All rights reserved.</p>
+      <div className="flex justify-between mt-1 text-[8px] text-neutral-400">
+        <p>Quotation Code: {content?.quotationCode ?? 'Not generated yet'}</p>
+        <p>Generated: {formatDownloadDateTime(content?.downloadedAt)}</p>
       </div>
     </div>
   )
@@ -257,7 +277,7 @@ export function DetailQuotationPreview({
 
         {/* Footer pinned to bottom */}
         <div className="absolute bottom-6 left-10 right-10">
-          <PageFooter />
+          <PageFooter content={content} />
         </div>
       </section>
 
@@ -335,7 +355,7 @@ export function DetailQuotationPreview({
 
           {/* Footer */}
           <div className="absolute bottom-6 left-10 right-10">
-            <PageFooter />
+            <PageFooter content={content} />
           </div>
         </section>
       ))}
@@ -410,7 +430,7 @@ export function DetailQuotationPreview({
 
         {/* Footer */}
         <div className="absolute bottom-6 left-10 right-10">
-          <PageFooter />
+          <PageFooter content={content} />
         </div>
       </section>
     </div>
