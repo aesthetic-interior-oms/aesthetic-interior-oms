@@ -326,7 +326,21 @@ const ClientInfoBlock = ({ clientName, clientAddress }: { clientName: string, cl
   </View>
 );
 
-const FooterFixed = () => (
+function formatDownloadDateTime(value: string | null | undefined) {
+  if (!value) return 'Not generated yet'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
+}
+
+const FooterFixed = ({ content }: { content: QuotationDraftContent }) => (
   <View style={styles.footerFixed} fixed>
     <View style={{ borderTopWidth: 1, borderTopColor: '#a57c00', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
       <View style={{ width: '35%' }}>
@@ -342,6 +356,10 @@ const FooterFixed = () => (
       <View style={{ width: '35%', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
         <Text style={styles.footerText}>© 2026 All rights reserved.</Text>
       </View>
+    </View>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
+      <Text style={[styles.footerMeta, { marginTop: 0, textAlign: 'left' }]}>Quotation Code: {content.quotationCode ?? 'Not generated yet'}</Text>
+      <Text style={[styles.footerMeta, { marginTop: 0, textAlign: 'right' }]}>Generated: {formatDownloadDateTime(content.downloadedAt)}</Text>
     </View>
   </View>
 );
@@ -444,7 +462,7 @@ export function DetailQuotationDocument({
         </View>
         <Text style={styles.inWords}>In Words: <Text style={styles.bold}>{amountInWordsTaka(totals.grandTotal)}</Text></Text>
 
-        <FooterFixed />
+        <FooterFixed content={content} />
       </Page>
 
       {/* DETAIL PAGES */}
@@ -511,7 +529,7 @@ export function DetailQuotationDocument({
           </View>
           <Text style={styles.inWords} wrap={false}>In Words: <Text style={styles.bold}>{amountInWordsTaka(entry.total)}</Text></Text>
 
-          <FooterFixed />
+          <FooterFixed content={content} />
         </Page>
       ))}
 
@@ -582,7 +600,7 @@ export function DetailQuotationDocument({
           </View>
         </View>
 
-        <FooterFixed />
+        <FooterFixed content={content} />
       </Page>
     </Document>
   )
