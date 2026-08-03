@@ -42,6 +42,8 @@ export type QuotationDraftContent = {
   notes: string
   terms: string
   quotationDate?: string
+  quotationCode?: string
+  downloadedAt?: string
   subject?: string
   introLetter?: string
   paymentTerms?: string
