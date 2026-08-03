@@ -400,25 +400,17 @@ export function QuotationMaker({
   const saveDraft = useCallback(async () => {
     if (!content || !canEdit) return
     const normalized = normalizeQuotationContent(content)
-    const firstMissingLine = normalized.lineItems.find((line) => {
+
+    // Count issues but don't block — show a soft warning
+    const missingLines = normalized.lineItems.filter((line) => {
       if (!line.included) return false
       if (isPackageLine(line)) return line.amount <= 0
-      return lineNeedsManualPrice(line) || line.rate <= 0 || line.quantity <= 0
+      return line.rate <= 0 || line.quantity <= 0
     })
-    if (firstMissingLine) {
-      const issue = isPackageLine(firstMissingLine)
-        ? 'Package item total price is missing.'
-        : firstMissingLine.quantity <= 0
-          ? 'Qty/SFT is missing for this item.'
-          : 'Unit price is missing for this item.'
-      toast.error(issue)
-      scrollToQuotationIssue(`detail-line-${firstMissingLine.id}`)
-      return
-    }
-    const totalsPreview = calculateQuotationTotals(normalized)
-    if (totalsPreview.itemsMissingPrice > 0) {
-      toast.error(`${totalsPreview.itemsMissingPrice} item(s) still need a price.`)
-      return
+    if (missingLines.length > 0) {
+      toast.warning(`${missingLines.length} item(s) have missing prices — saving draft anyway`)
+      // Scroll to first issue so the user can see it
+      scrollToQuotationIssue(`detail-line-${missingLines[0].id}`)
     }
     setSaving(true)
     try {
@@ -634,9 +626,14 @@ return (
           </div>
 
           {!canEdit ? (
-            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
-              Read-only. Start work from My Work to edit.
-            </p>
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-100">
+              <p className="font-semibold">⚠ Read-only — your changes are NOT being saved.</p>
+              <p className="mt-1 text-xs">
+                {canStartWork
+                  ? 'Click "Start Work" above to enable editing and saving.'
+                  : 'Only an assigned quotation team member can edit this draft while it is in Working or Correction status.'}
+              </p>
+            </div>
           ) : null}
         </CardContent>
       </Card>

@@ -832,9 +832,14 @@ export function ShortQuotationBuilder({
               Use <span className="font-semibold">Save This Package</span> when Platinum, Premium, or Luxury needs separate row data. Use <span className="font-semibold">Save Same to All Packages</span> only when the current rows should be copied to every package.
             </p>
           ) : (
-            <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
-              Read-only. Start work on this lead from My Work to edit the short quotation.
-            </p>
+            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-900 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-100">
+              <p className="font-semibold">⚠ Read-only — your changes are NOT being saved.</p>
+              <p className="mt-1 text-xs">
+                {canStartWork
+                  ? 'Click "Start Work" above to enable editing and saving.'
+                  : 'Only an assigned quotation team member can edit this draft while it is in Working or Correction status.'}
+              </p>
+            </div>
           )}
         </CardContent>
       </Card>
