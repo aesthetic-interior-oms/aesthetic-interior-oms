@@ -124,12 +124,15 @@ export function applyQuotationTypeToFloorContent(
       const item = findCatalogItem(catalogKey, line.templateId)
       if (!item) return line
 
-      const rate = resolveTemplateRate(item, quotationType)
+      // Only apply the template rate if the user has NOT manually set a price yet.
+      // A non-zero rate means the user intentionally entered it — preserve it.
+      const templateRate = resolveTemplateRate(item, quotationType)
+      const rate = line.rate > 0 ? line.rate : templateRate
       const next: QuotationLineItem = {
         ...line,
         priceOnRequest: item.priceMode === 'on-request',
         rate,
-        amount: rate * line.quantity,
+        amount: line.unit === 'ls' ? line.amount : rate * line.quantity,
       }
       if (item.rateMin !== undefined) next.rateMin = item.rateMin
       else delete next.rateMin
