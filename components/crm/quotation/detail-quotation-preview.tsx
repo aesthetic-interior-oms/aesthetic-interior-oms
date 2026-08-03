@@ -80,7 +80,7 @@ function PageHeader({
   const formattedDate = formatDateString(date)
 
   return (
-    <div className="relative z-10 mb-6 flex flex-col">
+    <div className="relative z-10 mb-2 flex flex-col">
       <div className="border-t-2 pt-3" style={{ borderColor: PRIMARY }}>
         <div className="flex items-center justify-between border-b border-[#e7d49a] pb-3">
           <div className="w-1/2">

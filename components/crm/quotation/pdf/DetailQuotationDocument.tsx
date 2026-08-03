@@ -30,7 +30,7 @@ const GOLD = '#a57c00';
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 110,
+    paddingTop: 86,
     paddingBottom: 90,
     paddingLeft: 40,
     paddingRight: 40,
