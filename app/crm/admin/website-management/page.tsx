@@ -1,9 +1,10 @@
-import { Globe2, ImageIcon, Sparkles, UsersRound } from 'lucide-react'
+import { Globe2, ImageIcon, MessageSquareQuote, Sparkles, UsersRound } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { WebsiteProjectManager } from '@/components/settings/website-project-manager'
 import { WebsiteTeamManager } from '@/components/settings/website-team-manager'
+import { WebsiteTestimonialManager } from '@/components/settings/website-testimonial-manager'
 
 const workflowCards = [
   {
@@ -17,9 +18,9 @@ const workflowCards = [
     icon: ImageIcon,
   },
   {
-    title: 'Live website control',
-    description: 'Published changes feed the public website while drafts stay hidden from visitors.',
-    icon: Globe2,
+    title: 'Client testimonials',
+    description: 'Save, reorder, publish, and update home page testimonials from Vercel Blob storage.',
+    icon: MessageSquareQuote,
   },
 ]
 
@@ -38,7 +39,7 @@ export default function WebsiteManagementPage() {
                   Manage public website content with confidence
                 </h1>
                 <p className="text-base leading-7 text-slate-600 sm:text-lg">
-                  Update the About page team and portfolio showcase from one clean workspace. Upload images,
+                  Update the About page team, portfolio showcase, and home page testimonials from one clean workspace. Upload images,
                   review draft status, edit details, and publish only when the content is ready.
                 </p>
               </div>
@@ -56,7 +57,7 @@ export default function WebsiteManagementPage() {
                   </div>
                 </div>
                 <p className="text-sm leading-6 text-white/75">
-                  Keep team members and projects organized without touching code. Draft items remain private until the
+                  Keep team members, projects, and testimonials organized without touching code. Draft items remain private until the
                   publish switch is enabled.
                 </p>
               </CardContent>
@@ -84,12 +85,15 @@ export default function WebsiteManagementPage() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Tabs defaultValue="team" className="space-y-6">
           <div className="flex flex-col gap-4 rounded-3xl border border-[#eadfca] bg-white/80 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-            <TabsList className="grid h-auto w-full grid-cols-2 rounded-2xl bg-slate-100 p-1 sm:w-auto">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-2xl bg-slate-100 p-1 sm:w-auto">
               <TabsTrigger value="team" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#17382d]">
                 <UsersRound className="mr-2 h-4 w-4" /> Team members
               </TabsTrigger>
               <TabsTrigger value="projects" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#17382d]">
                 <ImageIcon className="mr-2 h-4 w-4" /> Projects
+              </TabsTrigger>
+              <TabsTrigger value="testimonials" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#17382d]">
+                <MessageSquareQuote className="mr-2 h-4 w-4" /> Testimonials
               </TabsTrigger>
             </TabsList>
             <p className="px-2 text-sm text-slate-500">
@@ -102,6 +106,9 @@ export default function WebsiteManagementPage() {
           </TabsContent>
           <TabsContent value="projects" className="mt-0">
             <WebsiteProjectManager />
+          </TabsContent>
+          <TabsContent value="testimonials" className="mt-0">
+            <WebsiteTestimonialManager />
           </TabsContent>
         </Tabs>
       </div>

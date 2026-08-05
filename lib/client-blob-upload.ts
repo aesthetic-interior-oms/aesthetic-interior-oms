@@ -5,7 +5,7 @@ import {
   formatBytesToMbLabel,
 } from '@/lib/upload-limits'
 
-export type ClientBlobUploadContext = 'cad-work' | 'quotation-work' | 'visualizer-work' | 'visit-result' | 'visit-support-result' | 'lead-attachment' | 'website-project' | 'website-team'
+export type ClientBlobUploadContext = 'cad-work' | 'quotation-work' | 'visualizer-work' | 'visit-result' | 'visit-support-result' | 'lead-attachment' | 'website-project' | 'website-team' | 'website-testimonial'
 
 export type UploadedBlobFileMeta = {
   url: string
@@ -51,6 +51,8 @@ function getPathPrefix(context: ClientBlobUploadContext): string {
       return 'website-projects'
     case 'website-team':
       return 'website-team'
+    case 'website-testimonial':
+      return 'website-testimonials'
   }
 }
 
