@@ -839,10 +839,6 @@ return (
             <ExternalLink className="mr-1.5 h-4 w-4" />
             Live Preview
           </Button>
-          <Button type="button" size="sm" variant="outline" onClick={handlePrint}>
-            <Printer className="mr-1.5 h-4 w-4" />
-            Print
-          </Button>
           {!isPlayground ? (
             <Button type="button" size="sm" variant="outline" asChild>
               <Link href="/quotation-team/my-work">Back to My Work</Link>
