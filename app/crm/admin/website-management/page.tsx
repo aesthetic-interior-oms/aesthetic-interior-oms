@@ -1,10 +1,11 @@
-import { Globe2, ImageIcon, Sparkles, UsersRound, Video } from 'lucide-react'
+import { Globe2, ImageIcon, MessageSquareQuote, Sparkles, UsersRound, Video } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { WebsiteProjectManager } from '@/components/settings/website-project-manager'
 import { WebsiteTeamManager } from '@/components/settings/website-team-manager'
 import { WebsiteVideoManager } from '@/components/settings/website-video-manager'
+import { WebsiteTestimonialManager } from '@/components/settings/website-testimonial-manager'
 
 const workflowCards = [
   {
@@ -44,7 +45,7 @@ export default function WebsiteManagementPage() {
                   Manage public website content with confidence
                 </h1>
                 <p className="text-base leading-7 text-slate-600 sm:text-lg">
-                  Update the About page team and portfolio showcase from one clean workspace. Upload images,
+                  Update the About page team, portfolio showcase, home videos, and testimonials from one clean workspace. Upload images,
                   review draft status, edit details, and publish only when the content is ready.
                 </p>
               </div>
@@ -90,12 +91,15 @@ export default function WebsiteManagementPage() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Tabs defaultValue="team" className="space-y-6">
           <div className="flex flex-col gap-4 rounded-3xl border border-[#eadfca] bg-white/80 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-            <TabsList className="grid h-auto w-full grid-cols-3 rounded-2xl bg-slate-100 p-1 sm:w-auto">
+            <TabsList className="grid h-auto w-full grid-cols-4 rounded-2xl bg-slate-100 p-1 sm:w-auto">
               <TabsTrigger value="team" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#17382d]">
                 <UsersRound className="mr-2 h-4 w-4" /> Team members
               </TabsTrigger>
               <TabsTrigger value="videos" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#17382d]">
                 <Video className="mr-2 h-4 w-4" /> Videos
+              </TabsTrigger>
+              <TabsTrigger value="testimonials" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#17382d]">
+                <MessageSquareQuote className="mr-2 h-4 w-4" /> Testimonials
               </TabsTrigger>
               <TabsTrigger value="projects" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#17382d]">
                 <ImageIcon className="mr-2 h-4 w-4" /> Projects
@@ -111,6 +115,9 @@ export default function WebsiteManagementPage() {
           </TabsContent>
           <TabsContent value="videos" className="mt-0">
             <WebsiteVideoManager />
+          </TabsContent>
+          <TabsContent value="testimonials" className="mt-0">
+            <WebsiteTestimonialManager />
           </TabsContent>
           <TabsContent value="projects" className="mt-0">
             <WebsiteProjectManager />
