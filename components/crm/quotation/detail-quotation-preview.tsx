@@ -81,7 +81,12 @@ function PageHeader({
 
   return (
     <div className="relative z-10 mb-2 flex flex-col">
-      <div className="border-t-2 pt-3" style={{ borderColor: PRIMARY }}>
+      <div className="pt-3">
+        <div className="mb-1 flex items-center">
+          <div className="h-[2px] flex-[1.65] bg-[#0f5b53]" />
+          <p className="mx-3 font-serif text-[10px] italic uppercase tracking-[0.2em] text-[#0f5b53]">Quotation</p>
+          <div className="h-[2px] flex-[0.85] bg-[#0f5b53]" />
+        </div>
         <div className="flex items-center justify-between border-b border-[#e7d49a] pb-3">
           <div className="w-1/2">
             <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[150px] object-contain object-left" />
@@ -270,7 +275,7 @@ export function DetailQuotationPreview({
             {formatDetailAmount(totals.grandTotal)}
           </span>
         </div>
-        <p className="text-right text-[10px] text-neutral-900 mt-1">
+        <p className="text-left text-[10px] text-neutral-900 mt-1">
           In Words:{' '}
           <span className="font-bold not-italic">{amountInWordsTaka(totals.grandTotal)}</span>
         </p>
@@ -321,7 +326,7 @@ export function DetailQuotationPreview({
                 <span className="w-[36%] pr-1">{formatMaterialText(line.materials)}</span>
                 <span className="w-[10%] text-center text-neutral-600">
                   {isPackageLine(line) ? (
-                    <span className="inline-block rounded-full bg-[#0f5b53]/10 px-2 py-0.5 text-[7px] font-bold uppercase text-[#0f5b53]">Package</span>
+                    <span className="inline-block whitespace-nowrap rounded-full bg-[#0f5b53]/10 px-1.5 py-0.5 text-[6px] font-bold uppercase leading-none text-[#0f5b53]">Package</span>
                   ) : (
                     formatDetailQtyCell(line)
                   )}
@@ -348,7 +353,7 @@ export function DetailQuotationPreview({
               {formatDetailAmount(entry.total)}
             </span>
           </div>
-          <p className="text-right text-[10px] text-neutral-900 mt-1">
+          <p className="text-left text-[10px] text-neutral-900 mt-1">
             In Words:{' '}
             <span className="font-bold not-italic">{amountInWordsTaka(entry.total)}</span>
           </p>

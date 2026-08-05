@@ -167,10 +167,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#edf5f4',
     color: PRIMARY,
-    fontSize: 7,
+    fontSize: 5.5,
     fontWeight: 'bold',
-    paddingVertical: 2,
-    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+    paddingHorizontal: 3,
     textTransform: 'uppercase',
   },
   tdColLast: {
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#000000',
     marginTop: 4,
-    textAlign: 'right',
+    textAlign: 'left',
     fontWeight: 'bold',
   },
   datePanel: { minWidth: 112, alignItems: 'flex-end' },
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
   headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 58, opacity: 0.08 },
   headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   headerRule: { height: 2.2, backgroundColor: PRIMARY },
-  headerTitle: { color: PRIMARY, fontSize: 13, fontFamily: 'Times-Italic', letterSpacing: 2.8, marginHorizontal: 12, textTransform: 'uppercase' },
+  headerTitle: { color: PRIMARY, fontSize: 10, fontFamily: 'Times-Italic', letterSpacing: 2, marginHorizontal: 12, textTransform: 'uppercase' },
   
   // Footer
   footerFixed: {
