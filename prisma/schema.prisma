@@ -985,6 +985,20 @@ model WebsiteVideo {
   @@index([isPublished, isFeatured, sortOrder])
 }
 
+model WebsiteTestimonial {
+  id          String   @id @default(cuid())
+  quote       String
+  author      String
+  project     String
+  image       String
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([isPublished, sortOrder])
+}
+
 model WebsiteTeamMember {
   id          String   @id @default(cuid())
   name        String
