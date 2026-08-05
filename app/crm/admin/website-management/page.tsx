@@ -1,9 +1,10 @@
-import { Globe2, ImageIcon, Sparkles, UsersRound } from 'lucide-react'
+import { Globe2, ImageIcon, Sparkles, UsersRound, Video } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { WebsiteProjectManager } from '@/components/settings/website-project-manager'
 import { WebsiteTeamManager } from '@/components/settings/website-team-manager'
+import { WebsiteVideoManager } from '@/components/settings/website-video-manager'
 
 const workflowCards = [
   {
@@ -15,6 +16,11 @@ const workflowCards = [
     title: 'Project showcase',
     description: 'Create portfolio projects with gallery images, thumbnails, categories, and page slugs.',
     icon: ImageIcon,
+  },
+  {
+    title: 'Visual stories',
+    description: 'Add YouTube Shorts, Facebook, and Instagram videos for the home page video gallery.',
+    icon: Video,
   },
   {
     title: 'Live website control',
@@ -63,7 +69,7 @@ export default function WebsiteManagementPage() {
             </Card>
           </div>
 
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
+          <div className="mt-8 grid gap-4 md:grid-cols-4">
             {workflowCards.map(({ title, description, icon: Icon }) => (
               <Card key={title} className="border-[#eadfca] bg-white/80 shadow-sm">
                 <CardContent className="flex gap-4 p-5">
@@ -84,9 +90,12 @@ export default function WebsiteManagementPage() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Tabs defaultValue="team" className="space-y-6">
           <div className="flex flex-col gap-4 rounded-3xl border border-[#eadfca] bg-white/80 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-            <TabsList className="grid h-auto w-full grid-cols-2 rounded-2xl bg-slate-100 p-1 sm:w-auto">
+            <TabsList className="grid h-auto w-full grid-cols-3 rounded-2xl bg-slate-100 p-1 sm:w-auto">
               <TabsTrigger value="team" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#17382d]">
                 <UsersRound className="mr-2 h-4 w-4" /> Team members
+              </TabsTrigger>
+              <TabsTrigger value="videos" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#17382d]">
+                <Video className="mr-2 h-4 w-4" /> Videos
               </TabsTrigger>
               <TabsTrigger value="projects" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#17382d]">
                 <ImageIcon className="mr-2 h-4 w-4" /> Projects
@@ -99,6 +108,9 @@ export default function WebsiteManagementPage() {
 
           <TabsContent value="team" className="mt-0">
             <WebsiteTeamManager />
+          </TabsContent>
+          <TabsContent value="videos" className="mt-0">
+            <WebsiteVideoManager />
           </TabsContent>
           <TabsContent value="projects" className="mt-0">
             <WebsiteProjectManager />
