@@ -1413,9 +1413,23 @@ export function CadPhaseQueueBoard({
                           <TableCell className="truncate" title={lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}>
                             {lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}
                           </TableCell>
-                          <TableCell>{srCrmVisitTeamBlock(lead)}</TableCell>
                           <TableCell>
-                            {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                            <button
+                              type="button"
+                              onClick={() => void openReassignSrCrm(lead)}
+                              className="max-w-full text-left transition hover:text-primary hover:underline"
+                            >
+                              {srCrmVisitTeamBlock(lead)}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            <button
+                              type="button"
+                              onClick={() => openProjectSizeDialog(lead)}
+                              className="text-left transition hover:text-primary hover:underline"
+                            >
+                              {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                            </button>
                           </TableCell>
                           <TableCell className="text-right">
                             {renderLeadActionMenu(lead)}
@@ -1591,13 +1605,34 @@ export function CadPhaseQueueBoard({
                         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                           SR CRM / Visit Team
                         </span>
-                        {srCrmVisitTeamBlock(lead)}
+                        {isCadQueue ? (
+                          <button
+                            type="button"
+                            onClick={() => void openReassignSrCrm(lead)}
+                            className="max-w-full text-left transition hover:text-primary hover:underline"
+                          >
+                            {srCrmVisitTeamBlock(lead)}
+                          </button>
+                        ) : (
+                          srCrmVisitTeamBlock(lead)
+                        )}
                       </div>
                     </div>
-                    <p className="inline-flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />
-                      Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
-                    </p>
+                    {isCadQueue ? (
+                      <button
+                        type="button"
+                        onClick={() => openProjectSizeDialog(lead)}
+                        className="inline-flex items-center gap-1 text-left transition hover:text-primary hover:underline"
+                      >
+                        <MapPin className="h-3.5 w-3.5" />
+                        Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                      </button>
+                    ) : (
+                      <p className="inline-flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5" />
+                        Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                      </p>
+                    )}
                     {isMeetingQueue || isBudgetQueue || isDesignQueue ? (
                       <p className="inline-flex items-center gap-1">
                         <UserRound className="h-3.5 w-3.5" />
@@ -1782,13 +1817,34 @@ export function CadPhaseQueueBoard({
                         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                           SR CRM / Visit Team
                         </span>
-                        {srCrmVisitTeamBlock(lead)}
+                        {isCadQueue ? (
+                          <button
+                            type="button"
+                            onClick={() => void openReassignSrCrm(lead)}
+                            className="max-w-full text-left transition hover:text-primary hover:underline"
+                          >
+                            {srCrmVisitTeamBlock(lead)}
+                          </button>
+                        ) : (
+                          srCrmVisitTeamBlock(lead)
+                        )}
                       </div>
                     </div>
-                    <p className="inline-flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />
-                      Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
-                    </p>
+                    {isCadQueue ? (
+                      <button
+                        type="button"
+                        onClick={() => openProjectSizeDialog(lead)}
+                        className="inline-flex items-center gap-1 text-left transition hover:text-primary hover:underline"
+                      >
+                        <MapPin className="h-3.5 w-3.5" />
+                        Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                      </button>
+                    ) : (
+                      <p className="inline-flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5" />
+                        Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                      </p>
+                    )}
                     {isMeetingQueue || isBudgetQueue || isDesignQueue ? (
                       <p className="inline-flex items-center gap-1">
                         <UserRound className="h-3.5 w-3.5" />
