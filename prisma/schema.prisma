@@ -967,6 +967,24 @@ model WebsiteProjectImage {
   @@index([projectId, sortOrder])
 }
 
+model WebsiteVideo {
+  id           String   @id @default(cuid())
+  title        String
+  url          String
+  provider     String   @default("youtube")
+  videoId      String?
+  embedUrl     String
+  thumbnailUrl String?
+  duration     String?
+  isFeatured   Boolean  @default(false)
+  isPublished  Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  @@index([isPublished, isFeatured, sortOrder])
+}
+
 model WebsiteTeamMember {
   id          String   @id @default(cuid())
   name        String

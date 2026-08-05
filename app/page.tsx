@@ -20,6 +20,7 @@ import { TrustFiguresSection } from "@/components/website/homePage/trust-figure-
 import { VideoGallerySection } from "@/components/website/homePage/video-gallery-section";
 import { interiorDesignFaqs } from "@/lib/seo-faqs";
 import { getWebsiteProjects } from "@/lib/website-projects";
+import { getWebsiteVideos } from "@/lib/website-videos";
 import { siteName } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +49,7 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const projects = await getWebsiteProjects()
+  const [projects, videos] = await Promise.all([getWebsiteProjects(), getWebsiteVideos()])
   return (
     <main className="min-h-screen bg-background pt-20">
       <WebsiteJsonLd />
@@ -62,7 +63,7 @@ export default async function HomePage() {
       <ProjectSection projects={projects} />
       <TrustFiguresSection />
       <PartnersSection />
-      <VideoGallerySection />
+      <VideoGallerySection videos={videos} />
       <AppointmentSection />
       <PremiumFaqSection items={interiorDesignFaqs} />
       <TestimonialsSection />
