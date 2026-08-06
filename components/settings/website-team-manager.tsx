@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { CheckCircle2, Loader2, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { CheckCircle2, Loader2, GripVertical, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -58,6 +58,8 @@ export function WebsiteTeamManager() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [sorting, setSorting] = useState(false)
   const editing = Boolean(form.id)
 
   async function loadTeamMembers() {
@@ -119,6 +121,55 @@ export function WebsiteTeamManager() {
     }
   }
 
+
+  async function persistSortOrder(items: WebsiteTeamMember[]) {
+    setSorting(true)
+    setMessage(null)
+    try {
+      const orderedItems = items.map((item, index) => ({ ...item, sortOrder: index + 1 }))
+      setTeamMembers(orderedItems)
+      const responses = await Promise.all(
+        orderedItems.map((item) =>
+          fetch(`/api/website/team/${item.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(toForm(item)),
+          }),
+        ),
+      )
+      const failedResponse = responses.find((response) => !response.ok)
+      if (failedResponse) {
+        const payload = await failedResponse.json().catch(() => ({}))
+        throw new Error(payload.error || 'Failed to save sort order')
+      }
+      setMessage('Sort order saved. The public website will use this order.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to save sort order')
+      loadTeamMembers().catch(() => undefined)
+    } finally {
+      setSorting(false)
+      setDraggedId(null)
+    }
+  }
+
+  function handleDragOver(targetId: string) {
+    if (!draggedId || draggedId === targetId) return
+    setTeamMembers((current) => {
+      const from = current.findIndex((item) => item.id === draggedId)
+      const to = current.findIndex((item) => item.id === targetId)
+      if (from < 0 || to < 0) return current
+      const next = [...current]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }
+
+  function handleDragEnd() {
+    if (!draggedId) return
+    persistSortOrder(teamMembers)
+  }
+
   async function deleteTeamMember(id: string) {
     if (!confirm('Delete this website team member?')) return
     const response = await fetch(`/api/website/team/${id}`, { method: 'DELETE' })
@@ -154,10 +205,6 @@ export function WebsiteTeamManager() {
             <div className="space-y-2">
               <Label>Department / specialty</Label>
               <Input value={form.specialty} onChange={(event) => updateField('specialty', event.target.value)} placeholder="Architect Department" />
-            </div>
-            <div className="space-y-2">
-              <Label>Sort order</Label>
-              <Input type="number" value={form.sortOrder} onChange={(event) => updateField('sortOrder', Number(event.target.value))} />
             </div>
           </div>
 
@@ -213,7 +260,7 @@ export function WebsiteTeamManager() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="text-xl text-[#17382d]">Website Team Members</CardTitle>
-              <CardDescription className="mt-2">Review, edit, publish, or remove public team profiles.</CardDescription>
+              <CardDescription className="mt-2">Drag cards to reorder. Edit, publish, or remove profiles.</CardDescription>
             </div>
             <Badge variant="outline" className="border-[#d7b55f] bg-[#fff8e5] text-[#8a6500]">{teamMembers.length} total</Badge>
           </div>
@@ -224,7 +271,8 @@ export function WebsiteTeamManager() {
           ) : (
             <div className="space-y-4">
               {teamMembers.map((member) => (
-                <div key={member.id} className="group flex gap-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-[#d7b55f] hover:shadow-md">
+                <div key={member.id} draggable={!sorting} onDragStart={() => setDraggedId(member.id)} onDragOver={(event) => { event.preventDefault(); handleDragOver(member.id) }} onDragEnd={handleDragEnd} className="group flex cursor-grab gap-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-[#d7b55f] active:cursor-grabbing">
+                  <div className="flex items-center text-slate-400"><GripVertical className="h-5 w-5" /></div>
                   <div className="relative h-24 w-20 overflow-hidden rounded-lg bg-muted">
                     <Image src={member.image} alt={member.name} fill className="object-cover" sizes="80px" />
                   </div>

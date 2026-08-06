@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CheckCircle2, Loader2, Pencil, Plus, Star, Trash2, Video } from 'lucide-react'
+import { CheckCircle2, Loader2, GripVertical, Pencil, Plus, Star, Trash2, Video } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,6 +20,8 @@ export function WebsiteVideoManager() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [sorting, setSorting] = useState(false)
   const editing = Boolean(form.id)
 
   async function loadVideos() {
@@ -44,6 +46,55 @@ export function WebsiteVideoManager() {
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Failed to save website video') } finally { setSaving(false) }
   }
 
+
+  async function persistSortOrder(items: WebsiteVideo[]) {
+    setSorting(true)
+    setMessage(null)
+    try {
+      const orderedItems = items.map((item, index) => ({ ...item, sortOrder: index + 1 }))
+      setVideos(orderedItems)
+      const responses = await Promise.all(
+        orderedItems.map((item) =>
+          fetch(`/api/website/videos/${item.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(toForm(item)),
+          }),
+        ),
+      )
+      const failedResponse = responses.find((response) => !response.ok)
+      if (failedResponse) {
+        const payload = await failedResponse.json().catch(() => ({}))
+        throw new Error(payload.error || 'Failed to save sort order')
+      }
+      setMessage('Sort order saved. The public website will use this order.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to save sort order')
+      loadVideos().catch(() => undefined)
+    } finally {
+      setSorting(false)
+      setDraggedId(null)
+    }
+  }
+
+  function handleDragOver(targetId: string) {
+    if (!draggedId || draggedId === targetId) return
+    setVideos((current) => {
+      const from = current.findIndex((item) => item.id === draggedId)
+      const to = current.findIndex((item) => item.id === targetId)
+      if (from < 0 || to < 0) return current
+      const next = [...current]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }
+
+  function handleDragEnd() {
+    if (!draggedId) return
+    persistSortOrder(videos)
+  }
+
   async function deleteVideo(id: string) {
     if (!confirm('Delete this website video?')) return
     const response = await fetch(`/api/website/videos/${id}`, { method: 'DELETE' })
@@ -65,7 +116,6 @@ export function WebsiteVideoManager() {
             <div className="space-y-2"><Label>Title</Label><Input value={form.title} onChange={(e) => updateField('title', e.target.value)} placeholder="Design tour" /></div>
             <div className="space-y-2"><Label>Video URL</Label><Input value={form.url} onChange={(e) => updateField('url', e.target.value)} placeholder="https://youtube.com/shorts/..." /></div>
             <div className="space-y-2"><Label>Duration label</Label><Input value={form.duration} onChange={(e) => updateField('duration', e.target.value)} placeholder="0:45" /></div>
-            <div className="space-y-2"><Label>Sort order</Label><Input type="number" value={form.sortOrder} onChange={(e) => updateField('sortOrder', Number(e.target.value))} /></div>
           </div>
           <div className="space-y-2"><Label>Custom thumbnail URL (optional for Facebook/Instagram)</Label><Input value={form.thumbnailUrl} onChange={(e) => updateField('thumbnailUrl', e.target.value)} placeholder="https://..." /></div>
           <div className="grid gap-3 md:grid-cols-2">
@@ -75,7 +125,7 @@ export function WebsiteVideoManager() {
           <div className="flex gap-3"><Button onClick={saveVideo} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}{editing ? 'Update Video' : 'Create Video'}</Button>{editing && <Button variant="outline" onClick={() => setForm(emptyForm)}>Cancel Edit</Button>}</div>
         </CardContent>
       </Card>
-      <Card className="overflow-hidden border-[#eadfca] bg-white/95 shadow-xl shadow-slate-200/70"><CardHeader><CardTitle className="text-xl text-[#17382d]">Home Page Videos</CardTitle><CardDescription>Review, edit, publish, feature, or remove visual stories.</CardDescription></CardHeader><CardContent className="p-6">{loading ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading videos...</div> : <div className="space-y-4">{videos.map((video) => <div key={video.id} className="flex gap-4 rounded-2xl border p-3"><div className="flex h-20 w-24 items-center justify-center rounded-lg bg-slate-100 text-[#17382d]"><Video className="h-6 w-6" /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{video.title}</h3><Badge variant={video.isPublished ? 'default' : 'outline'}>{video.isPublished ? 'Published' : 'Draft'}</Badge>{video.isFeatured && <Badge className="bg-[#a57c00] hover:bg-[#a57c00]"><Star className="mr-1 h-3 w-3" /> Featured</Badge>}</div><p className="truncate text-sm text-muted-foreground">{video.url}</p><p className="text-xs uppercase tracking-wide text-muted-foreground">{video.provider}{video.duration ? ` · ${video.duration}` : ''}</p></div><div className="flex flex-col gap-2"><Button size="sm" variant="outline" onClick={() => setForm(toForm(video))}><Pencil className="h-4 w-4" /></Button><Button size="sm" variant="destructive" onClick={() => deleteVideo(video.id)}><Trash2 className="h-4 w-4" /></Button></div></div>)}{videos.length === 0 && <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">No videos yet. Create one to populate the home page section.</div>}</div>}</CardContent></Card>
+      <Card className="overflow-hidden border-[#eadfca] bg-white/95 shadow-xl shadow-slate-200/70"><CardHeader><CardTitle className="text-xl text-[#17382d]">Home Page Videos</CardTitle><CardDescription>Drag cards to reorder. Edit, publish, feature, or remove videos.</CardDescription></CardHeader><CardContent className="p-6">{loading ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading videos...</div> : <div className="space-y-4">{videos.map((video) => <div key={video.id} draggable={!sorting} onDragStart={() => setDraggedId(video.id)} onDragOver={(event) => { event.preventDefault(); handleDragOver(video.id) }} onDragEnd={handleDragEnd} className="flex cursor-grab gap-4 rounded-2xl border p-3 active:cursor-grabbing"><div className="flex items-center text-slate-400"><GripVertical className="h-5 w-5" /></div><div className="flex h-20 w-24 items-center justify-center rounded-lg bg-slate-100 text-[#17382d]"><Video className="h-6 w-6" /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{video.title}</h3><Badge variant={video.isPublished ? 'default' : 'outline'}>{video.isPublished ? 'Published' : 'Draft'}</Badge>{video.isFeatured && <Badge className="bg-[#a57c00] hover:bg-[#a57c00]"><Star className="mr-1 h-3 w-3" /> Featured</Badge>}</div><p className="truncate text-sm text-muted-foreground">{video.url}</p><p className="text-xs uppercase tracking-wide text-muted-foreground">{video.provider}{video.duration ? ` · ${video.duration}` : ''}</p></div><div className="flex flex-col gap-2"><Button size="sm" variant="outline" onClick={() => setForm(toForm(video))}><Pencil className="h-4 w-4" /></Button><Button size="sm" variant="destructive" onClick={() => deleteVideo(video.id)}><Trash2 className="h-4 w-4" /></Button></div></div>)}{videos.length === 0 && <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">No videos yet. Create one to populate the home page section.</div>}</div>}</CardContent></Card>
     </div>
   )
 }
