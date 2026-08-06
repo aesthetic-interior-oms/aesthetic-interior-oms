@@ -54,7 +54,7 @@ export default async function JrArchitectureDashboardPage() {
     status: { in: activeCadStatuses },
   }
 
-  const [openCadTasks, reviewCadTasks, overdueCadTasks, completedCadTasks, recentTasks, teamMembers, unassignedCadTasks] = await Promise.all([
+  const [openCadTasks, reviewCadTasks, overdueCadTasks, completedCadTasks, recentTasks, teamMembers] = await Promise.all([
     prisma.leadPhaseTask.count({ where: { ...taskScope, phaseType: 'CAD', status: LeadPhaseTaskStatus.OPEN } }),
     prisma.leadPhaseTask.count({ where: { ...taskScope, phaseType: 'CAD', status: LeadPhaseTaskStatus.IN_REVIEW } }),
     prisma.leadPhaseTask.count({ where: { ...activeTaskScope, dueAt: { lt: now } } }),
@@ -93,6 +93,8 @@ export default async function JrArchitectureDashboardPage() {
       : Promise.resolve([{ count: 0 }]),
   ])
   const unassignedCadTaskCount = Number(unassignedCadTasks[0]?.count ?? 0)
+
+  const activeCadTaskCount = openCadTasks + reviewCadTasks
 
   const title = isLeader ? 'JR Architect Command Center' : 'Junior Architect Dashboard'
   const subtitle = isLeader
