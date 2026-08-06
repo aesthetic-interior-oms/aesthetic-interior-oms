@@ -24,9 +24,9 @@ const workflowCards = [
     icon: Video,
   },
   {
-    title: 'Live website control',
-    description: 'Published changes feed the public website while drafts stay hidden from visitors.',
-    icon: Globe2,
+    title: 'Testimonials',
+    description: 'Store client feedback in the database and manage add, edit, delete, order, and publish status.',
+    icon: MessageSquareQuote,
   },
 ]
 
@@ -63,7 +63,7 @@ export default function WebsiteManagementPage() {
                   </div>
                 </div>
                 <p className="text-sm leading-6 text-white/75">
-                  Keep team members and projects organized without touching code. Draft items remain private until the
+                  Keep team members, projects, videos, and testimonials organized without touching code. Draft items remain private until the
                   publish switch is enabled.
                 </p>
               </CardContent>
@@ -89,7 +89,7 @@ export default function WebsiteManagementPage() {
       </section>
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <Tabs defaultValue="team" className="space-y-6">
+        <Tabs defaultValue="testimonials" className="space-y-6">
           <div className="flex flex-col gap-4 rounded-3xl border border-[#eadfca] bg-white/80 p-3 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
             <TabsList className="grid h-auto w-full grid-cols-4 rounded-2xl bg-slate-100 p-1 sm:w-auto">
               <TabsTrigger value="team" className="rounded-xl px-5 py-2.5 data-[state=active]:bg-white data-[state=active]:text-[#17382d]">

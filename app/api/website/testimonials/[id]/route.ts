@@ -15,6 +15,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const input = normalizeTestimonialPayload((await request.json()) as TestimonialPayload)
     await prisma.$executeRaw`UPDATE "WebsiteTestimonial" SET "quote" = ${input.quote}, "author" = ${input.author}, "project" = ${input.project}, "image" = ${input.image}, "isPublished" = ${input.isPublished}, "sortOrder" = ${input.sortOrder}, "updatedAt" = NOW() WHERE "id" = ${id}`
     revalidatePath('/')
+    revalidatePath('/services')
     return NextResponse.json({ testimonials: await getWebsiteTestimonials({ includeDrafts: true }) })
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to update testimonial' }, { status: 400 })
@@ -27,5 +28,6 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   const { id } = await params
   await prisma.$executeRaw`DELETE FROM "WebsiteTestimonial" WHERE "id" = ${id}`
   revalidatePath('/')
+  revalidatePath('/services')
   return NextResponse.json({ testimonials: await getWebsiteTestimonials({ includeDrafts: true }) })
 }
