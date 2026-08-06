@@ -54,7 +54,7 @@ export default async function JrArchitectureDashboardPage() {
     status: { in: activeCadStatuses },
   }
 
-  const [openCadTasks, reviewCadTasks, overdueCadTasks, completedCadTasks, recentTasks, teamMembers, unassignedCadTasks] = await Promise.all([
+  const [openCadTasks, reviewCadTasks, overdueCadTasks, completedCadTasks, recentTasks, teamMembers] = await Promise.all([
     prisma.leadPhaseTask.count({ where: { ...taskScope, phaseType: 'CAD', status: LeadPhaseTaskStatus.OPEN } }),
     prisma.leadPhaseTask.count({ where: { ...taskScope, phaseType: 'CAD', status: LeadPhaseTaskStatus.IN_REVIEW } }),
     prisma.leadPhaseTask.count({ where: { ...activeTaskScope, dueAt: { lt: now } } }),
@@ -82,10 +82,9 @@ export default async function JrArchitectureDashboardPage() {
           orderBy: { fullName: 'asc' },
         })
       : Promise.resolve([]),
-    isLeader
-      ? prisma.leadPhaseTask.count({ where: { phaseType: 'CAD', assigneeUserId: null, status: { in: activeCadStatuses } } })
-      : Promise.resolve(0),
   ])
+
+  const activeCadTaskCount = openCadTasks + reviewCadTasks
 
   const title = isLeader ? 'JR Architect Command Center' : 'Junior Architect Dashboard'
   const subtitle = isLeader
@@ -148,7 +147,7 @@ export default async function JrArchitectureDashboardPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">{isLeader ? 'Leader Controls' : 'Quick Links'}</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              {isLeader ? <div className="rounded-lg border border-dashed p-3"><p className="text-sm font-semibold">Unassigned CAD tasks</p><p className="mt-1 text-2xl font-semibold">{unassignedCadTasks}</p><p className="mt-1 text-xs text-muted-foreground">Use CAD Phase Queue to assign ownership.</p></div> : null}
+              {isLeader ? <div className="rounded-lg border border-dashed p-3"><p className="text-sm font-semibold">Active CAD tasks</p><p className="mt-1 text-2xl font-semibold">{activeCadTaskCount}</p><p className="mt-1 text-xs text-muted-foreground">Use CAD Phase Queue to balance ownership.</p></div> : null}
               <Button asChild className="w-full" variant="outline"><Link href="/crm/jr-architecture/leads">Lead Workspace</Link></Button>
               <Button asChild className="w-full" variant="outline"><Link href="/crm/jr-architecture/visits">Visit Inputs</Link></Button>
               <Button asChild className="w-full" variant="outline"><Link href="/crm/jr-architecture/queue">Requests Queue</Link></Button>
