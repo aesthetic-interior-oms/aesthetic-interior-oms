@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
-import { CheckCircle2, Loader2, Pencil, Plus, Trash2, Upload } from 'lucide-react'
+import { CheckCircle2, Loader2, GripVertical, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -79,6 +79,8 @@ export function WebsiteProjectManager() {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const [draggedId, setDraggedId] = useState<string | null>(null)
+  const [sorting, setSorting] = useState(false)
   const editing = Boolean(form.id)
 
   const imageCount = useMemo(() => form.images.filter(Boolean).length, [form.images])
@@ -152,6 +154,55 @@ export function WebsiteProjectManager() {
     } finally {
       setSaving(false)
     }
+  }
+
+
+  async function persistSortOrder(items: WebsiteProject[]) {
+    setSorting(true)
+    setMessage(null)
+    try {
+      const orderedItems = items.map((item, index) => ({ ...item, sortOrder: index + 1 }))
+      setProjects(orderedItems)
+      const responses = await Promise.all(
+        orderedItems.map((item) =>
+          fetch(`/api/website/projects/${item.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(toForm(item)),
+          }),
+        ),
+      )
+      const failedResponse = responses.find((response) => !response.ok)
+      if (failedResponse) {
+        const payload = await failedResponse.json().catch(() => ({}))
+        throw new Error(payload.error || 'Failed to save sort order')
+      }
+      setMessage('Sort order saved. The public website will use this order.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Failed to save sort order')
+      loadProjects().catch(() => undefined)
+    } finally {
+      setSorting(false)
+      setDraggedId(null)
+    }
+  }
+
+  function handleDragOver(targetId: string) {
+    if (!draggedId || draggedId === targetId) return
+    setProjects((current) => {
+      const from = current.findIndex((item) => item.id === draggedId)
+      const to = current.findIndex((item) => item.id === targetId)
+      if (from < 0 || to < 0) return current
+      const next = [...current]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }
+
+  function handleDragEnd() {
+    if (!draggedId) return
+    persistSortOrder(projects)
   }
 
   async function deleteProject(id: string) {
@@ -273,7 +324,7 @@ export function WebsiteProjectManager() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="text-xl text-[#17382d]">Website Showcase Projects</CardTitle>
-              <CardDescription className="mt-2">Review portfolio cards and choose what appears publicly.</CardDescription>
+              <CardDescription className="mt-2">Drag cards to reorder. Edit, publish, or remove projects.</CardDescription>
             </div>
             <Badge variant="outline" className="border-[#d7b55f] bg-[#fff8e5] text-[#8a6500]">{projects.length} total</Badge>
           </div>
@@ -284,7 +335,8 @@ export function WebsiteProjectManager() {
           ) : (
             <div className="space-y-4">
               {projects.map((project) => (
-                <div key={project.id} className="group flex gap-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-[#d7b55f] hover:shadow-md">
+                <div key={project.id} draggable={!sorting} onDragStart={() => setDraggedId(project.id)} onDragOver={(event) => { event.preventDefault(); handleDragOver(project.id) }} onDragEnd={handleDragEnd} className="group flex cursor-grab gap-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition hover:border-[#d7b55f] active:cursor-grabbing">
+                  <div className="flex items-center text-slate-400"><GripVertical className="h-5 w-5" /></div>
                   <div className="relative h-24 w-24 overflow-hidden rounded-lg bg-muted">
                     <Image src={project.bannerImage} alt={project.title} fill className="object-cover" sizes="96px" />
                   </div>
