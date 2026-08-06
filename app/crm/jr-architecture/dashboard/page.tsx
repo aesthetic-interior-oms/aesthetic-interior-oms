@@ -54,7 +54,7 @@ export default async function JrArchitectureDashboardPage() {
     status: { in: activeCadStatuses },
   }
 
-  const [openCadTasks, reviewCadTasks, overdueCadTasks, completedCadTasks, recentTasks, teamMembers] = await Promise.all([
+  const [openCadTasks, reviewCadTasks, overdueCadTasks, completedCadTasks, recentTasks, teamMembers, unassignedCadTasks] = await Promise.all([
     prisma.leadPhaseTask.count({ where: { ...taskScope, phaseType: 'CAD', status: LeadPhaseTaskStatus.OPEN } }),
     prisma.leadPhaseTask.count({ where: { ...taskScope, phaseType: 'CAD', status: LeadPhaseTaskStatus.IN_REVIEW } }),
     prisma.leadPhaseTask.count({ where: { ...activeTaskScope, dueAt: { lt: now } } }),
