@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCircle2, Loader2, GripVertical, GripVertical, Pencil, Plus, Trash2, Quote } from 'lucide-react'
+import { CheckCircle2, Loader2, GripVertical, Pencil, Plus, Trash2, Quote } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
