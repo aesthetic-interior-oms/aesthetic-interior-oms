@@ -84,7 +84,7 @@ function PageHeader({
       <div className="pt-3">
         <div className="mb-1 flex items-center">
           <div className="h-[2px] flex-[1.65] bg-[#1f363d]" />
-          <p className="mx-3 font-serif text-[10px] italic uppercase tracking-[0.2em] text-[#1f363d]">Quotation</p>
+          <p className="mx-3 font-[var(--font-playfair-display)] text-[10px] italic uppercase tracking-[0.2em] text-[#1f363d]">Quotation</p>
           <div className="h-[2px] flex-[0.85] bg-[#1f363d]" />
         </div>
         <div className="flex items-center justify-between border-b border-[#e7d49a] pb-3">
@@ -287,9 +287,9 @@ export function DetailQuotationPreview({
             {formatDetailAmount(totals.grandTotal)}
           </span>
         </div>
-        <p className="text-left text-[10px] text-neutral-900 mt-1">
+        <p className="text-left text-[9px] italic text-neutral-900 mt-1" style={{ fontFamily: "var(--font-playfair-display), serif" }}>
           In Words:{' '}
-          <span className="font-bold not-italic">{amountInWordsTaka(totals.grandTotal)}</span>
+          <span className="font-bold">{amountInWordsTaka(totals.grandTotal)}</span>
         </p>
 
         {/* Footer pinned to bottom */}
@@ -328,7 +328,7 @@ export function DetailQuotationPreview({
             {entry.lines.map((line, lineIndex) => (
               <div
                 key={line.id}
-                className="flex text-[9px] border-b border-[#d7d7d7] items-start"
+                className="flex text-[9px] border-b border-[#d7d7d7] items-start break-inside-avoid"
                 style={{ backgroundColor: lineIndex % 2 === 1 ? '#fefdf9' : '#ffffff' }}
               >
                 <span className="w-[8%] text-center font-bold border-r border-[#d7d7d7] px-1.5 py-2">
@@ -365,9 +365,9 @@ export function DetailQuotationPreview({
               {formatDetailAmount(entry.total)}
             </span>
           </div>
-          <p className="text-left text-[10px] text-neutral-900 mt-1">
+          <p className="text-left text-[9px] italic text-neutral-900 mt-1" style={{ fontFamily: "var(--font-playfair-display), serif" }}>
             In Words:{' '}
-            <span className="font-bold not-italic">{amountInWordsTaka(entry.total)}</span>
+            <span className="font-bold">{amountInWordsTaka(entry.total)}</span>
           </p>
 
           {/* Footer */}

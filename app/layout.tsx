@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Noto_Serif_Bengali } from "next/font/google";
+import { Geist, Geist_Mono, Noto_Serif_Bengali, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -24,6 +24,12 @@ const notoSerifBengali = Noto_Serif_Bengali({
   subsets: ["bengali"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-noto-bengali",
+});
+
+const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  style: ["italic"],
+  variable: "--font-playfair-display",
 });
 
 export const metadata: Metadata = {
@@ -117,7 +123,7 @@ export default function RootLayout({
     >
       <html lang="en" suppressHydrationWarning>
         <body
-          className={`${geistSans.variable} ${geistMono.variable} ${notoSerifBengali.variable} antialiased`}
+          className={`${geistSans.variable} ${geistMono.variable} ${notoSerifBengali.variable} ${playfairDisplay.variable} antialiased`}
         >
           <ThemeProvider defaultTheme="light" storageKey="aesthetic-theme">
             <SiteShell>{children}</SiteShell>
