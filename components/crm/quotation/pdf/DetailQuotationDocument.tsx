@@ -27,7 +27,7 @@ import { amountInWordsTaka } from '@/lib/number-to-words'
 
 const PRIMARY = '#1f363d';
 const GOLD = '#a57c00';
-const PAGE_SIDE_PADDING = 7;
+const PAGE_SIDE_PADDING = 5;
 
 const styles = StyleSheet.create({
   page: {
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     borderColor: '#d7d7d7',
   },
   thCol: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
     color: PRIMARY,
     textTransform: 'uppercase',
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     color: '#000000',
     marginTop: 4,
     textAlign: 'left',
-    fontFamily: 'Times-Italic',
+    fontFamily: 'Helvetica',
     fontStyle: 'italic',
   },
   datePanel: { minWidth: 112, alignItems: 'flex-end' },
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 58, opacity: 0.08 },
   headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   headerRule: { height: 2.2, backgroundColor: PRIMARY },
-  headerTitle: { color: PRIMARY, fontSize: 10, fontFamily: 'Times-Italic', letterSpacing: 2, marginHorizontal: 12, textTransform: 'uppercase' },
+  headerTitle: { color: PRIMARY, fontSize: 10, fontFamily: 'Helvetica', fontStyle: 'italic', letterSpacing: 2, marginHorizontal: 12, textTransform: 'uppercase' },
   
   // Footer
   footerFixed: {
@@ -359,14 +359,18 @@ function formatDownloadDateTime(value: string | null | undefined) {
 }
 
 
+function getDetailFloorSqft(entry: ReturnType<typeof buildDetailFloorSummaries>[number]) {
+  return Math.round(
+    entry.lines.reduce((lineSum, line) => {
+      if (line.unit !== 'sqft' || isPackageLine(line) || line.quantity <= 0) return lineSum
+      return lineSum + line.quantity
+    }, 0),
+  )
+}
+
 function getDetailTotalSqft(floorSummaries: ReturnType<typeof buildDetailFloorSummaries>) {
   return Math.round(
-    floorSummaries.reduce((sum, entry) => {
-      return sum + entry.lines.reduce((lineSum, line) => {
-        if (line.unit !== 'sqft' || isPackageLine(line) || line.quantity <= 0) return lineSum
-        return lineSum + line.quantity
-      }, 0)
-    }, 0),
+    floorSummaries.reduce((sum, entry) => sum + getDetailFloorSqft(entry), 0),
   )
 }
 
@@ -488,7 +492,7 @@ export function DetailQuotationDocument({
 
         <View style={styles.grandTotalRow}>
           <Text style={styles.grandTotalLabel}>Grand Total ({formatDetailAmount(totalSqft)} SQFT)</Text>
-          <Text style={styles.grandTotalValue}>{formatDetailAmount(totals.grandTotal)}</Text>
+          <Text style={styles.grandTotalValue}>৳ {formatDetailAmount(totals.grandTotal)}</Text>
         </View>
         <Text style={styles.inWords}>In Words: {amountInWordsTaka(totals.grandTotal)}</Text>
 
@@ -521,7 +525,7 @@ export function DetailQuotationDocument({
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
               return (
-                <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]} wrap={false}>
+                <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]}>
                   <Text style={[styles.tdCol, styles.wSl, styles.bold]}>
                     {String(lineIndex + 1).padStart(2, '0')}
                   </Text>
@@ -554,10 +558,10 @@ export function DetailQuotationDocument({
           </View>
           
           <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>
-            <Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(entry.floor.name)}</Text>
-            <Text style={styles.grandTotalValue}>{formatDetailAmount(entry.total)}</Text>
+            <Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(entry.floor.name)} ({formatDetailAmount(getDetailFloorSqft(entry))} SQFT)</Text>
+            <Text style={styles.grandTotalValue}>৳ {formatDetailAmount(entry.total)}</Text>
           </View>
-          <Text style={styles.inWords} wrap={false}>In Words: {amountInWordsTaka(entry.total)}</Text>
+          <Text style={styles.inWords}>In Words: {amountInWordsTaka(entry.total)}</Text>
 
           <FooterFixed content={content} />
         </Page>
