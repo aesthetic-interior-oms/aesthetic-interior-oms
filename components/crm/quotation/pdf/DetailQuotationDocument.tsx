@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
     paddingLeft: 30,
     paddingRight: 30,
     fontFamily: 'Noto Sans Bengali',
-    fontSize: 9,
+    fontSize: 11,
     color: '#000000',
     backgroundColor: '#ffffff',
     lineHeight: 1.4,
@@ -133,34 +133,42 @@ const styles = StyleSheet.create({
   },
   tHead: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: PRIMARY,
-    paddingBottom: 4,
-    paddingTop: 6,
+    borderTopWidth: 0.5,
+    borderLeftWidth: 0.5,
+    borderRightWidth: 0.5,
+    borderBottomWidth: 0.5,
+    borderColor: '#d7d7d7',
   },
   thCol: {
-    fontSize: 8,
+    fontSize: 14,
     fontWeight: 'bold',
     color: PRIMARY,
     textTransform: 'uppercase',
+    paddingVertical: 4,
     paddingHorizontal: 4,
+    borderRightWidth: 0.5,
+    borderRightColor: '#d7d7d7',
   },
   thColLast: {
-    
+    borderRightWidth: 0,
   },
   tRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eeeeee',
+    borderLeftWidth: 0.5,
+    borderRightWidth: 0.5,
+    borderBottomWidth: 0.5,
+    borderColor: '#d7d7d7',
   },
   tRowAlt: {
     backgroundColor: '#fefdf9',
   },
   tdCol: {
-    fontSize: 9,
+    fontSize: 11,
     paddingVertical: 8,
     paddingHorizontal: 4,
+    borderRightWidth: 0.5,
+    borderRightColor: '#d7d7d7',
   },
   packageBadge: {
     alignSelf: 'center',
@@ -174,7 +182,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   tdColLast: {
-    
+    borderRightWidth: 0,
   },
   
   // Columns Detail
@@ -248,7 +256,7 @@ const styles = StyleSheet.create({
   
   // Materials
   matText: {
-    fontSize: 8,
+    fontSize: 11,
     color: '#444444',
     marginBottom: 2,
   },
@@ -349,13 +357,12 @@ const FooterFixed = ({ content }: { content: QuotationDraftContent }) => (
   <View style={styles.footerFixed} fixed>
     <View style={{ borderTopWidth: 1, borderTopColor: '#a57c00', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
       <View style={{ width: '35%' }}>
-        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', marginBottom: 3 }]}>Aesthetic Interior Studio</Text>
+        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', marginBottom: 3, fontSize: 9 }]}>Aesthetic Interior Studio</Text>
         <Text style={styles.footerText}>183, East Senpara, Begum Rokeya Soroni</Text>
         <Text style={styles.footerText}>3rd floor, Mirpur 10, Dhaka-1216</Text>
       </View>
       <View style={{ width: '30%', alignItems: 'center' }}>
         <Text style={styles.footerText}>+88 0132969 4663</Text>
-        <Text style={styles.footerText}>hello@aestheticinterior.com</Text>
         <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold' }]}>www.aestheticinteriorbd.com</Text>
       </View>
       <View style={{ width: '35%', alignItems: 'flex-end', justifyContent: 'flex-end' }}>

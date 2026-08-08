@@ -132,13 +132,12 @@ function PageFooter({ content }: { content: QuotationDraftContent }) {
     <div className="mt-auto">
       <div className="border-t border-[#a57c00] pt-3 mt-12 relative z-10 flex justify-between text-[9px] text-neutral-700">
         <div className="w-[35%]">
-          <p className="font-bold mb-1" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
+          <p className="font-bold mb-1 text-[11px]" style={{ color: PRIMARY }}>Aesthetic Interior Studio</p>
           <p>183, East Senpara, Begum Rokeya Soroni</p>
           <p>3rd floor, Mirpur 10, Dhaka-1216</p>
         </div>
         <div className="w-[30%] flex flex-col items-center">
           <p>+88 0132969 4663</p>
-          <p>hello@aestheticinterior.com</p>
           <p className="font-bold" style={{ color: PRIMARY }}>www.aestheticinteriorbd.com</p>
         </div>
         <div className="w-[35%] flex flex-col justify-end items-end">
@@ -167,11 +166,11 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function TableHeader({ cols }: { cols: { label: string; className?: string }[] }) {
   return (
     <div
-      className="flex text-[8px] font-bold uppercase border-b pt-1 pb-1"
-      style={{ color: PRIMARY, borderColor: PRIMARY }}
+      className="flex text-[14px] font-bold uppercase border border-[#d7d7d7]"
+      style={{ color: PRIMARY }}
     >
       {cols.map((col) => (
-        <span key={col.label} className={col.className}>
+        <span key={col.label} className={`${col.className ?? ''} border-r border-[#d7d7d7] px-1.5 py-1 last:border-r-0`}>
           {col.label}
         </span>
       ))}
@@ -192,14 +191,14 @@ function formatMaterialText(text: string | null | undefined) {
           const prefix = match[1]
           const rest = line.substring(prefix.length)
           return (
-            <span key={idx} className={`block text-[8px] leading-snug ${weightClass}`}>
+            <span key={idx} className={`block text-[11px] leading-snug ${weightClass}`}>
               <span className="font-bold">{prefix}</span>
               {rest}
             </span>
           )
         }
         return (
-          <span key={idx} className={`block text-[8px] leading-snug ${weightClass}`}>
+          <span key={idx} className={`block text-[11px] leading-snug ${weightClass}`}>
             {line}
           </span>
         )
@@ -256,14 +255,14 @@ export function DetailQuotationPreview({
           {floorSummaries.map((entry, index) => (
             <div
               key={entry.floor.id}
-              className="flex text-[9px] border-b py-2"
-              style={{ borderColor: '#eeeeee', backgroundColor: index % 2 === 1 ? '#fefdf9' : '#ffffff' }}
+              className="flex text-[11px] border-x border-b border-[#d7d7d7]"
+              style={{ backgroundColor: index % 2 === 1 ? '#fefdf9' : '#ffffff' }}
             >
-              <span className="w-[8%] text-center font-bold">
+              <span className="w-[8%] text-center font-bold border-r border-[#d7d7d7] px-1.5 py-2">
                 {String(index + 1).padStart(2, '0')}
               </span>
-              <span className="w-[70%]">{entry.floor.name}</span>
-              <span className="w-[22%] text-right font-bold">{formatDetailAmount(entry.total)}</span>
+              <span className="w-[70%] border-r border-[#d7d7d7] px-1.5 py-2">{entry.floor.name}</span>
+              <span className="w-[22%] text-right font-bold px-1.5 py-2">{formatDetailAmount(entry.total)}</span>
             </div>
           ))}
         </div>
@@ -316,25 +315,25 @@ export function DetailQuotationPreview({
             {entry.lines.map((line, lineIndex) => (
               <div
                 key={line.id}
-                className="flex text-[9px] border-b py-2 items-start"
-                style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#fefdf9' : '#ffffff' }}
+                className="flex text-[11px] border-x border-b border-[#d7d7d7] items-start"
+                style={{ backgroundColor: lineIndex % 2 === 1 ? '#fefdf9' : '#ffffff' }}
               >
-                <span className="w-[8%] text-center font-bold pt-0.5">
+                <span className="w-[8%] text-center font-bold border-r border-[#d7d7d7] px-1.5 py-2">
                   {String(lineIndex + 1).padStart(2, '0')}
                 </span>
-                <span className="w-[18%] pr-1 leading-snug">{line.description}</span>
-                <span className="w-[42%] pr-1">{formatMaterialText(line.materials)}</span>
-                <span className="w-[10%] text-center text-neutral-600">
+                <span className="w-[18%] border-r border-[#d7d7d7] px-1.5 py-2 leading-snug">{line.description}</span>
+                <span className="w-[42%] border-r border-[#d7d7d7] px-1.5 py-2">{formatMaterialText(line.materials)}</span>
+                <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
                   {isPackageLine(line) ? (
                     <span className="inline-block whitespace-nowrap rounded-full bg-[#1f363d]/10 px-1.5 py-0.5 text-[6px] font-bold uppercase leading-none text-[#1f363d]">Package</span>
                   ) : (
                     formatDetailQtyCell(line)
                   )}
                 </span>
-                <span className="w-[10%] text-right text-neutral-600">
+                <span className="w-[10%] text-right text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
                   {formatDetailUnitPriceCell(line)}
                 </span>
-                <span className="w-[12%] text-right font-bold" style={{ color: PRIMARY }}>
+                <span className="w-[12%] text-right font-bold px-1.5 py-2" style={{ color: PRIMARY }}>
                   {formatDetailTotalCell(line)}
                   {line.description.toLowerCase().includes('electric wiring') ? (
                     <span className="block text-[7px] font-normal text-neutral-500">(Approx)</span>
