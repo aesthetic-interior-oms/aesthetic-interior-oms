@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fffefc',
   },
   tdCol: {
-    fontSize: 9,
+    fontSize: 10,
     paddingVertical: 6,
     paddingHorizontal: 4,
     borderRightWidth: 0,
@@ -174,13 +174,15 @@ const styles = StyleSheet.create({
   },
   packageBadge: {
     alignSelf: 'center',
-    borderRadius: 8,
-    backgroundColor: '#edf5f4',
-    color: PRIMARY,
-    fontSize: 5.5,
+    borderRadius: 10,
+    backgroundColor: '#fff8e6',
+    color: GOLD,
+    borderWidth: 0.5,
+    borderColor: '#e2c46b',
+    fontSize: 7,
     fontWeight: 'bold',
-    paddingVertical: 1.5,
-    paddingHorizontal: 3,
+    paddingVertical: 2,
+    paddingHorizontal: 5,
     textTransform: 'uppercase',
   },
   tdColLast: {
@@ -188,11 +190,11 @@ const styles = StyleSheet.create({
   },
   
   // Columns Detail
-  wSl: { width: '8%', textAlign: 'center' },
-  wName: { width: '18%' },
-  wMats: { width: '42%' },
+  wSl: { width: '6%', textAlign: 'center' },
+  wName: { width: '16%' },
+  wMats: { width: '46%' },
   wQty: { width: '10%', textAlign: 'center' },
-  wPrice: { width: '10%', textAlign: 'right', fontSize: 9 },
+  wPrice: { width: '10%', textAlign: 'right' },
   wTotal: { width: '12%', textAlign: 'right' },
   
   // Columns Summary
@@ -223,11 +225,12 @@ const styles = StyleSheet.create({
     color: PRIMARY,
   },
   inWords: {
-    fontSize: 10,
+    fontSize: 12,
     color: '#000000',
     marginTop: 4,
     textAlign: 'left',
-    fontWeight: 'bold',
+    fontFamily: 'Times-Italic',
+    fontStyle: 'italic',
   },
   datePanel: { minWidth: 112, alignItems: 'flex-end' },
   metaLabel: { fontSize: 5.5, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -487,7 +490,7 @@ export function DetailQuotationDocument({
           <Text style={styles.grandTotalLabel}>Grand Total ({formatDetailAmount(totalSqft)} SQFT)</Text>
           <Text style={styles.grandTotalValue}>{formatDetailAmount(totals.grandTotal)}</Text>
         </View>
-        <Text style={styles.inWords}>In Words: <Text style={styles.bold}>{amountInWordsTaka(totals.grandTotal)}</Text></Text>
+        <Text style={styles.inWords}>In Words: {amountInWordsTaka(totals.grandTotal)}</Text>
 
         <FooterFixed content={content} />
       </Page>
@@ -554,7 +557,7 @@ export function DetailQuotationDocument({
             <Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(entry.floor.name)}</Text>
             <Text style={styles.grandTotalValue}>{formatDetailAmount(entry.total)}</Text>
           </View>
-          <Text style={styles.inWords} wrap={false}>In Words: <Text style={styles.bold}>{amountInWordsTaka(entry.total)}</Text></Text>
+          <Text style={styles.inWords} wrap={false}>In Words: {amountInWordsTaka(entry.total)}</Text>
 
           <FooterFixed content={content} />
         </Page>
