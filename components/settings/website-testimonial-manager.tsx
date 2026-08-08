@@ -1,6 +1,7 @@
 'use client'
 
-import { CheckCircle2, Loader2, GripVertical, Pencil, Plus, Trash2, Quote } from 'lucide-react'
+import Image from 'next/image'
+import { CheckCircle2, Loader2, GripVertical, Pencil, Plus, Trash2, Quote, Upload } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -9,17 +10,23 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { uploadDirectBlobFile } from '@/lib/client-blob-upload'
 import type { WebsiteTestimonial } from '@/lib/website-testimonials'
 
 type TestimonialForm = { id?: string; quote: string; author: string; project: string; image: string; isPublished: boolean; sortOrder: number }
 const emptyForm: TestimonialForm = { quote: '', author: '', project: '', image: '', isPublished: true, sortOrder: 0 }
 function toForm(t: WebsiteTestimonial): TestimonialForm { return { id: t.id, quote: t.quote, author: t.author, project: t.project, image: t.image, isPublished: t.isPublished, sortOrder: t.sortOrder } }
 
+function slugify(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
 export function WebsiteTestimonialManager() {
   const [testimonials, setTestimonials] = useState<WebsiteTestimonial[]>([])
   const [form, setForm] = useState<TestimonialForm>(emptyForm)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [sorting, setSorting] = useState(false)
@@ -36,6 +43,29 @@ export function WebsiteTestimonialManager() {
 
   useEffect(() => { loadTestimonials().catch((error) => { setMessage(error instanceof Error ? error.message : 'Failed to load testimonials'); setLoading(false) }) }, [])
   function updateField<K extends keyof TestimonialForm>(key: K, value: TestimonialForm[K]) { setForm((current) => ({ ...current, [key]: value })) }
+
+  async function uploadImage(file: File | null) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setMessage('Please upload an image file.')
+      return
+    }
+    setUploading(true)
+    setMessage(null)
+    try {
+      const blob = await uploadDirectBlobFile({
+        file,
+        context: 'website-testimonial',
+        ownerId: form.id || slugify(form.author) || 'new-testimonial',
+      })
+      updateField('image', blob.url)
+      setMessage('Image uploaded to Vercel Blob. Save the testimonial to keep this image.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Image upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   async function saveTestimonial() {
     setSaving(true); setMessage(null)
@@ -111,12 +141,35 @@ export function WebsiteTestimonialManager() {
         <CardContent className="space-y-5 p-6">
           {message && <p className="flex items-center gap-2 rounded-xl border border-[#eadfca] bg-[#fffaf0] px-3 py-2 text-sm text-[#7a5a00]"><CheckCircle2 className="h-4 w-4" /> {message}</p>}
           <div className="space-y-2"><Label>Quote</Label><Textarea value={form.quote} onChange={(e) => updateField('quote', e.target.value)} placeholder="Client feedback" rows={4} /></div>
-          <div className="grid gap-4 md:grid-cols-2"><div className="space-y-2"><Label>Client name</Label><Input value={form.author} onChange={(e) => updateField('author', e.target.value)} placeholder="Client name" /></div><div className="space-y-2"><Label>Project label</Label><Input value={form.project} onChange={(e) => updateField('project', e.target.value)} placeholder="Residential Project" /></div><div className="space-y-2"><Label>Image URL</Label><Input value={form.image} onChange={(e) => updateField('image', e.target.value)} placeholder="/client agreement/photo.jpg" /></div></div>
+          <div className="grid gap-4 md:grid-cols-2"><div className="space-y-2"><Label>Client name</Label><Input value={form.author} onChange={(e) => updateField('author', e.target.value)} placeholder="Client name" /></div><div className="space-y-2"><Label>Project label</Label><Input value={form.project} onChange={(e) => updateField('project', e.target.value)} placeholder="Residential Project" /></div></div>
+          <div className="rounded-2xl border border-dashed border-[#d8c28b] bg-[#fffaf0] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <Label>Client image</Label>
+                <p className="text-xs text-muted-foreground">Upload an image to Vercel Blob. The saved Blob URL will be used on the public website.</p>
+              </div>
+              <Button type="button" variant="outline" disabled={uploading} asChild>
+                <label className="cursor-pointer">
+                  {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+                  Upload Image
+                  <input type="file" accept="image/*" className="hidden" onChange={(event) => uploadImage(event.target.files?.[0] ?? null)} />
+                </label>
+              </Button>
+            </div>
+            {form.image && (
+              <div className="mt-4 flex items-center gap-3">
+                <div className="relative h-20 w-24 overflow-hidden rounded-lg bg-slate-100">
+                  <Image src={form.image} alt="Uploaded testimonial" fill className="object-cover" sizes="96px" />
+                </div>
+                <p className="min-w-0 flex-1 break-all text-xs text-muted-foreground">{form.image}</p>
+              </div>
+            )}
+          </div>
           <div className="flex items-center justify-between rounded-2xl border bg-slate-50 p-4"><div><Label>Publish</Label><p className="text-xs text-muted-foreground">Draft testimonials stay hidden.</p></div><Switch checked={form.isPublished} onCheckedChange={(v) => updateField('isPublished', v)} /></div>
-          <div className="flex gap-3"><Button onClick={saveTestimonial} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}{editing ? 'Update Testimonial' : 'Create Testimonial'}</Button>{editing && <Button variant="outline" onClick={() => setForm(emptyForm)}>Cancel Edit</Button>}</div>
+          <div className="flex gap-3"><Button onClick={saveTestimonial} disabled={saving || uploading}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}{editing ? 'Update Testimonial' : 'Create Testimonial'}</Button>{editing && <Button variant="outline" onClick={() => setForm(emptyForm)}>Cancel Edit</Button>}</div>
         </CardContent>
       </Card>
-      <Card className="overflow-hidden border-[#eadfca] bg-white/95 shadow-xl shadow-slate-200/70"><CardHeader><CardTitle className="text-xl text-[#17382d]">Home Page Testimonials</CardTitle><CardDescription>Drag cards to reorder. Edit, publish, or remove testimonials.</CardDescription></CardHeader><CardContent className="p-6">{loading ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading testimonials...</div> : <div className="space-y-4">{testimonials.map((testimonial) => <div key={testimonial.id} draggable={!sorting} onDragStart={() => setDraggedId(testimonial.id)} onDragOver={(event) => { event.preventDefault(); handleDragOver(testimonial.id) }} onDragEnd={handleDragEnd} className="flex cursor-grab gap-4 rounded-2xl border p-3 active:cursor-grabbing"><div className="flex items-center text-slate-400"><GripVertical className="h-5 w-5" /></div><div className="flex h-20 w-24 items-center justify-center rounded-lg bg-slate-100 text-[#17382d]"><Quote className="h-6 w-6" /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{testimonial.author}</h3><Badge variant={testimonial.isPublished ? 'default' : 'outline'}>{testimonial.isPublished ? 'Published' : 'Draft'}</Badge></div><p className="line-clamp-2 text-sm text-muted-foreground">{testimonial.quote}</p><p className="text-xs uppercase tracking-wide text-muted-foreground">{testimonial.project}</p></div><div className="flex flex-col gap-2"><Button size="sm" variant="outline" onClick={() => setForm(toForm(testimonial))}><Pencil className="h-4 w-4" /></Button><Button size="sm" variant="destructive" onClick={() => deleteTestimonial(testimonial.id)}><Trash2 className="h-4 w-4" /></Button></div></div>)}{testimonials.length === 0 && <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">No testimonials yet. Create one to populate the home page section.</div>}</div>}</CardContent></Card>
+      <Card className="overflow-hidden border-[#eadfca] bg-white/95 shadow-xl shadow-slate-200/70"><CardHeader><CardTitle className="text-xl text-[#17382d]">Home Page Testimonials</CardTitle><CardDescription>Drag cards to reorder. Edit, publish, or remove testimonials.</CardDescription></CardHeader><CardContent className="p-6">{loading ? <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading testimonials...</div> : <div className="space-y-4">{testimonials.map((testimonial) => <div key={testimonial.id} draggable={!sorting} onDragStart={() => setDraggedId(testimonial.id)} onDragOver={(event) => { event.preventDefault(); handleDragOver(testimonial.id) }} onDragEnd={handleDragEnd} className="flex cursor-grab gap-4 rounded-2xl border p-3 active:cursor-grabbing"><div className="flex items-center text-slate-400"><GripVertical className="h-5 w-5" /></div><div className="relative h-20 w-24 overflow-hidden rounded-lg bg-slate-100 text-[#17382d]">{testimonial.image ? <Image src={testimonial.image} alt={`${testimonial.author} testimonial`} fill className="object-cover" sizes="96px" /> : <div className="flex h-full w-full items-center justify-center"><Quote className="h-6 w-6" /></div>}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{testimonial.author}</h3><Badge variant={testimonial.isPublished ? 'default' : 'outline'}>{testimonial.isPublished ? 'Published' : 'Draft'}</Badge></div><p className="line-clamp-2 text-sm text-muted-foreground">{testimonial.quote}</p><p className="text-xs uppercase tracking-wide text-muted-foreground">{testimonial.project}</p></div><div className="flex flex-col gap-2"><Button size="sm" variant="outline" onClick={() => setForm(toForm(testimonial))}><Pencil className="h-4 w-4" /></Button><Button size="sm" variant="destructive" onClick={() => deleteTestimonial(testimonial.id)}><Trash2 className="h-4 w-4" /></Button></div></div>)}{testimonials.length === 0 && <div className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">No testimonials yet. Create one to populate the home page section.</div>}</div>}</CardContent></Card>
     </div>
   )
 }
