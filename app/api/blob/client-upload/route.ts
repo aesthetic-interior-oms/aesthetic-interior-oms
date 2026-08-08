@@ -329,6 +329,9 @@ export async function POST(request: NextRequest) {
         } else if (context === 'website-team') {
           if (!actorDepartments.has('ADMIN')) throw new Error('UPLOAD_CONTEXT_NOT_ALLOWED')
           assertPathnameScope(pathname, 'website-team', ownerId)
+        } else if (context === 'website-testimonial') {
+          if (!actorDepartments.has('ADMIN')) throw new Error('UPLOAD_CONTEXT_NOT_ALLOWED')
+          assertPathnameScope(pathname, 'website-testimonials', ownerId)
         } else {
           throw new Error('UPLOAD_CONTEXT_NOT_ALLOWED')
         }
