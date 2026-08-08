@@ -113,6 +113,18 @@ function ClientInfoBlock({ clientName, clientAddress }: { clientName: string, cl
   )
 }
 
+
+function getDetailTotalSqft(floorSummaries: ReturnType<typeof buildDetailFloorSummaries>) {
+  return Math.round(
+    floorSummaries.reduce((sum, entry) => {
+      return sum + entry.lines.reduce((lineSum, line) => {
+        if (line.unit !== 'sqft' || isPackageLine(line) || line.quantity <= 0) return lineSum
+        return lineSum + line.quantity
+      }, 0)
+    }, 0),
+  )
+}
+
 function formatDownloadDateTime(value: string | null | undefined) {
   if (!value) return 'Not generated yet'
   const date = new Date(value)
@@ -155,7 +167,7 @@ function PageFooter({ content }: { content: QuotationDraftContent }) {
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="text-[11px] font-bold uppercase tracking-wider px-2 py-1.5 mt-4 mb-0 text-center"
+      className="text-[12px] font-bold uppercase tracking-wider px-2 py-1.5 mt-4 mb-0 text-center"
       style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}
     >
       {children}
@@ -166,11 +178,11 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function TableHeader({ cols }: { cols: { label: string; className?: string }[] }) {
   return (
     <div
-      className="flex text-[14px] font-bold uppercase border border-[#d7d7d7]"
+      className="flex text-[11px] font-bold uppercase border-b border-[#d7d7d7]"
       style={{ color: PRIMARY }}
     >
       {cols.map((col) => (
-        <span key={col.label} className={`${col.className ?? ''} border-r border-[#d7d7d7] px-1.5 py-1 last:border-r-0`}>
+        <span key={col.label} className={`${col.className ?? ''} border-r-0 px-1.5 py-1 last:border-r-0`}>
           {col.label}
         </span>
       ))}
@@ -191,14 +203,14 @@ function formatMaterialText(text: string | null | undefined) {
           const prefix = match[1]
           const rest = line.substring(prefix.length)
           return (
-            <span key={idx} className={`block text-[11px] leading-snug ${weightClass}`}>
+            <span key={idx} className={`block text-[9px] leading-snug ${weightClass}`}>
               <span className="font-bold">{prefix}</span>
               {rest}
             </span>
           )
         }
         return (
-          <span key={idx} className={`block text-[11px] leading-snug ${weightClass}`}>
+          <span key={idx} className={`block text-[9px] leading-snug ${weightClass}`}>
             {line}
           </span>
         )
@@ -220,11 +232,12 @@ export function DetailQuotationPreview({
     .replace('Dear Sir,\n', '')
     .replace('Dear Sir,', '')
     .trim()
+  const totalSqft = getDetailTotalSqft(floorSummaries)
 
   return (
     <div className={`detail-quotation-preview w-full bg-neutral-100 ${className ?? ''}`}>
       {/* ── SUMMARY PAGE ─────────────────────────────── */}
-      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-8 pt-6 pb-14 box-border shadow-md mb-6 overflow-hidden">
+      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-[7px] pt-6 pb-14 box-border shadow-md mb-6 overflow-hidden">
         <WatermarkBackground />
         <PageHeader
           date={normalized.quotationDate ?? ''}
@@ -255,7 +268,7 @@ export function DetailQuotationPreview({
           {floorSummaries.map((entry, index) => (
             <div
               key={entry.floor.id}
-              className="flex text-[11px] border-x border-b border-[#d7d7d7]"
+              className="flex text-[9px] border-b border-[#d7d7d7]"
               style={{ backgroundColor: index % 2 === 1 ? '#fefdf9' : '#ffffff' }}
             >
               <span className="w-[8%] text-center font-bold border-r border-[#d7d7d7] px-1.5 py-2">
@@ -269,7 +282,7 @@ export function DetailQuotationPreview({
 
         {/* Grand Total */}
         <div className="flex justify-end items-center border-t pt-2 mt-2" style={{ borderColor: PRIMARY }}>
-          <span className="text-[10px] font-bold pr-4" style={{ color: PRIMARY }}>Grand Total</span>
+          <span className="text-[10px] font-bold pr-4" style={{ color: PRIMARY }}>Grand Total ({formatDetailAmount(totalSqft)} SQFT)</span>
           <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>
             {formatDetailAmount(totals.grandTotal)}
           </span>
@@ -280,7 +293,7 @@ export function DetailQuotationPreview({
         </p>
 
         {/* Footer pinned to bottom */}
-        <div className="absolute bottom-5 left-8 right-8">
+        <div className="absolute bottom-5 left-[7px] right-[7px]">
           <PageFooter content={content} />
         </div>
       </section>
@@ -289,7 +302,7 @@ export function DetailQuotationPreview({
       {floorSummaries.map((entry) => (
         <section
           key={entry.floor.id}
-          className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-8 pt-6 pb-14 box-border shadow-md mb-6 flex flex-col overflow-hidden"
+          className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-[7px] pt-6 pb-14 box-border shadow-md mb-6 flex flex-col overflow-hidden"
         >
           <WatermarkBackground />
           <PageHeader
@@ -315,7 +328,7 @@ export function DetailQuotationPreview({
             {entry.lines.map((line, lineIndex) => (
               <div
                 key={line.id}
-                className="flex text-[11px] border-x border-b border-[#d7d7d7] items-start"
+                className="flex text-[9px] border-b border-[#d7d7d7] items-start"
                 style={{ backgroundColor: lineIndex % 2 === 1 ? '#fefdf9' : '#ffffff' }}
               >
                 <span className="w-[8%] text-center font-bold border-r border-[#d7d7d7] px-1.5 py-2">
@@ -358,14 +371,14 @@ export function DetailQuotationPreview({
           </p>
 
           {/* Footer */}
-          <div className="absolute bottom-5 left-8 right-8">
+          <div className="absolute bottom-5 left-[7px] right-[7px]">
             <PageFooter content={content} />
           </div>
         </section>
       ))}
 
       {/* ── TERMS PAGE ───────────────────────────────── */}
-      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-8 pt-6 pb-14 box-border shadow-md flex flex-col overflow-hidden">
+      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-[7px] pt-6 pb-14 box-border shadow-md flex flex-col overflow-hidden">
         <WatermarkBackground />
         <PageHeader
           date={normalized.quotationDate ?? ''}
@@ -378,14 +391,14 @@ export function DetailQuotationPreview({
         <div className="mt-3 space-y-3 text-[9px]">
           {normalized.notes ? (
             <div>
-              <p className="font-bold uppercase text-[8px] mb-1" style={{ color: PRIMARY }}>Notes</p>
+              <p className="font-bold uppercase text-[11px] mb-1" style={{ color: PRIMARY }}>Notes</p>
               <p className="text-neutral-600 whitespace-pre-wrap leading-relaxed">{normalized.notes}</p>
             </div>
           ) : null}
 
           {normalized.terms ? (
             <div>
-              <p className="font-bold uppercase text-[8px] mb-1" style={{ color: PRIMARY }}>Terms &amp; Conditions</p>
+              <p className="font-bold uppercase text-[11px] mb-1" style={{ color: PRIMARY }}>Terms &amp; Conditions</p>
               <p className="text-neutral-600 whitespace-pre-wrap leading-relaxed">{normalized.terms}</p>
             </div>
           ) : null}
@@ -393,7 +406,7 @@ export function DetailQuotationPreview({
           <div className="flex gap-6">
             {normalized.paymentTerms ? (
               <div className="flex-1">
-                <p className="font-bold uppercase text-[8px] mb-1" style={{ color: PRIMARY }}>Mode of Payment</p>
+                <p className="font-bold uppercase text-[11px] mb-1" style={{ color: PRIMARY }}>Mode of Payment</p>
                 <p className="text-neutral-600 whitespace-pre-wrap leading-relaxed">
                   {normalized.paymentTerms.replace('Mode of Payment\n', '').replace('Mode of Payment', '')}
                 </p>
@@ -401,7 +414,7 @@ export function DetailQuotationPreview({
             ) : null}
             {normalized.durationNotes ? (
               <div className="flex-1">
-                <p className="font-bold uppercase text-[8px] mb-1" style={{ color: PRIMARY }}>Duration of Work</p>
+                <p className="font-bold uppercase text-[11px] mb-1" style={{ color: PRIMARY }}>Duration of Work</p>
                 <p className="text-neutral-600 whitespace-pre-wrap leading-relaxed">
                   {normalized.durationNotes.replace('Duration Of Work:\n', '').replace('Duration Of Work:', '')}
                 </p>
@@ -433,7 +446,7 @@ export function DetailQuotationPreview({
         </div>
 
         {/* Footer */}
-        <div className="absolute bottom-5 left-8 right-8">
+        <div className="absolute bottom-5 left-[7px] right-[7px]">
           <PageFooter content={content} />
         </div>
       </section>

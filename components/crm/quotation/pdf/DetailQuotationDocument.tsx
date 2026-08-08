@@ -27,7 +27,7 @@ import { amountInWordsTaka } from '@/lib/number-to-words'
 
 const PRIMARY = '#1f363d';
 const GOLD = '#a57c00';
-const PAGE_SIDE_PADDING = 3;
+const PAGE_SIDE_PADDING = 7;
 
 const styles = StyleSheet.create({
   page: {
@@ -117,6 +117,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: PRIMARY,
+    letterSpacing: 0.7,
     backgroundColor: '#f3f8f7',
     padding: 8,
     marginTop: 15,
@@ -137,11 +138,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     borderLeftWidth: 0,
     borderRightWidth: 0,
-    borderBottomWidth: 0,
+    borderBottomWidth: 0.75,
     borderColor: '#d7d7d7',
   },
   thCol: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
     color: PRIMARY,
     textTransform: 'uppercase',
@@ -158,7 +159,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     borderLeftWidth: 0,
     borderRightWidth: 0,
-    borderBottomWidth: 0,
+    borderBottomWidth: 0.5,
     borderColor: '#d7d7d7',
   },
   tRowAlt: {
@@ -264,7 +265,7 @@ const styles = StyleSheet.create({
   
   // Terms
   termTitle: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: 'bold',
     color: PRIMARY,
     marginBottom: 3,
@@ -272,7 +273,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   termContent: {
-    fontSize: 8,
+    fontSize: 9,
     color: '#555555',
     lineHeight: 1.5,
   },
@@ -354,6 +355,18 @@ function formatDownloadDateTime(value: string | null | undefined) {
   }).format(date)
 }
 
+
+function getDetailTotalSqft(floorSummaries: ReturnType<typeof buildDetailFloorSummaries>) {
+  return Math.round(
+    floorSummaries.reduce((sum, entry) => {
+      return sum + entry.lines.reduce((lineSum, line) => {
+        if (line.unit !== 'sqft' || isPackageLine(line) || line.quantity <= 0) return lineSum
+        return lineSum + line.quantity
+      }, 0)
+    }, 0),
+  )
+}
+
 const FooterFixed = ({ content }: { content: QuotationDraftContent }) => (
   <View style={styles.footerFixed} fixed>
     <View style={{ borderTopWidth: 1, borderTopColor: '#a57c00', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -429,6 +442,7 @@ export function DetailQuotationDocument({
 }) {
   const floorSummaries = buildDetailFloorSummaries(content)
   const cleanIntro = (content.introLetter || '').replace('Dear Sir,\n', '').replace('Dear Sir,', '').trim();
+  const totalSqft = getDetailTotalSqft(floorSummaries)
 
   return (
     <Document>
@@ -470,7 +484,7 @@ export function DetailQuotationDocument({
         </View>
 
         <View style={styles.grandTotalRow}>
-          <Text style={styles.grandTotalLabel}>Grand Total</Text>
+          <Text style={styles.grandTotalLabel}>Grand Total ({formatDetailAmount(totalSqft)} SQFT)</Text>
           <Text style={styles.grandTotalValue}>{formatDetailAmount(totals.grandTotal)}</Text>
         </View>
         <Text style={styles.inWords}>In Words: <Text style={styles.bold}>{amountInWordsTaka(totals.grandTotal)}</Text></Text>
