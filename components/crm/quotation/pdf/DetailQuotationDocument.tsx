@@ -27,15 +27,16 @@ import { amountInWordsTaka } from '@/lib/number-to-words'
 
 const PRIMARY = '#1f363d';
 const GOLD = '#a57c00';
+const PAGE_SIDE_PADDING = 3;
 
 const styles = StyleSheet.create({
   page: {
     paddingTop: 78,
     paddingBottom: 82,
-    paddingLeft: 30,
-    paddingRight: 30,
+    paddingLeft: PAGE_SIDE_PADDING,
+    paddingRight: PAGE_SIDE_PADDING,
     fontFamily: 'Noto Sans Bengali',
-    fontSize: 11,
+    fontSize: 9,
     color: '#000000',
     backgroundColor: '#ffffff',
     lineHeight: 1.4,
@@ -43,8 +44,8 @@ const styles = StyleSheet.create({
   detailPage: {
     paddingTop: 150,
     paddingBottom: 62,
-    paddingLeft: 30,
-    paddingRight: 30,
+    paddingLeft: PAGE_SIDE_PADDING,
+    paddingRight: PAGE_SIDE_PADDING,
     fontFamily: 'Helvetica',
     fontSize: 9,
     color: '#000000',
@@ -54,10 +55,10 @@ const styles = StyleSheet.create({
   header: {
     position: 'absolute',
     top: 20,
-    left: 0,
-    right: 0,
+    left: PAGE_SIDE_PADDING,
+    right: PAGE_SIDE_PADDING,
     height: 58,
-    paddingHorizontal: 30,
+    paddingHorizontal: 0,
     overflow: 'hidden',
   },
   logo: {
@@ -125,28 +126,28 @@ const styles = StyleSheet.create({
   detailFixedHeader: {
     position: 'absolute',
     top: 40,
-    left: 30,
-    right: 30,
+    left: PAGE_SIDE_PADDING,
+    right: PAGE_SIDE_PADDING,
   },
   tableWrapper: {
     // No wrapper needed
   },
   tHead: {
     flexDirection: 'row',
-    borderTopWidth: 0.5,
-    borderLeftWidth: 0.5,
-    borderRightWidth: 0.5,
-    borderBottomWidth: 0.5,
+    borderTopWidth: 0,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
     borderColor: '#d7d7d7',
   },
   thCol: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
     color: PRIMARY,
     textTransform: 'uppercase',
     paddingVertical: 4,
     paddingHorizontal: 4,
-    borderRightWidth: 0.5,
+    borderRightWidth: 0,
     borderRightColor: '#d7d7d7',
   },
   thColLast: {
@@ -155,19 +156,19 @@ const styles = StyleSheet.create({
   tRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    borderLeftWidth: 0.5,
-    borderRightWidth: 0.5,
-    borderBottomWidth: 0.5,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
     borderColor: '#d7d7d7',
   },
   tRowAlt: {
-    backgroundColor: '#fefdf9',
+    backgroundColor: '#fffefc',
   },
   tdCol: {
-    fontSize: 11,
-    paddingVertical: 8,
+    fontSize: 9,
+    paddingVertical: 6,
     paddingHorizontal: 4,
-    borderRightWidth: 0.5,
+    borderRightWidth: 0,
     borderRightColor: '#d7d7d7',
   },
   packageBadge: {
@@ -190,7 +191,7 @@ const styles = StyleSheet.create({
   wName: { width: '18%' },
   wMats: { width: '42%' },
   wQty: { width: '10%', textAlign: 'center' },
-  wPrice: { width: '10%', textAlign: 'right', fontSize: 7.2 },
+  wPrice: { width: '10%', textAlign: 'right', fontSize: 9 },
   wTotal: { width: '12%', textAlign: 'right' },
   
   // Columns Summary
@@ -239,8 +240,8 @@ const styles = StyleSheet.create({
   footerFixed: {
     position: 'absolute',
     bottom: 20,
-    left: 30,
-    right: 30,
+    left: PAGE_SIDE_PADDING,
+    right: PAGE_SIDE_PADDING,
     paddingTop: 8,
   },
   footerText: {
@@ -256,7 +257,7 @@ const styles = StyleSheet.create({
   
   // Materials
   matText: {
-    fontSize: 11,
+    fontSize: 9,
     color: '#444444',
     marginBottom: 2,
   },
@@ -495,7 +496,7 @@ export function DetailQuotationDocument({
             <Text style={[styles.thCol, styles.wName]}>Name</Text>
             <Text style={[styles.thCol, styles.wMats]}>Materials</Text>
             <Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text>
-            <Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text>
+            <Text style={[styles.thCol, styles.wPrice]}>U/P (৳)</Text>
             <Text style={[styles.thCol, styles.wTotal, styles.thColLast]}>Total</Text>
           </View>
 
