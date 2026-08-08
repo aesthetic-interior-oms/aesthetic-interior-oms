@@ -13,7 +13,7 @@ import {
 } from '@/lib/detail-quotation-format'
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 
-const PRIMARY = '#0f5b53'
+const PRIMARY = '#1f363d'
 
 type DetailQuotationPreviewProps = {
   content: QuotationDraftContent
@@ -83,9 +83,9 @@ function PageHeader({
     <div className="relative z-10 mb-2 flex flex-col">
       <div className="pt-3">
         <div className="mb-1 flex items-center">
-          <div className="h-[2px] flex-[1.65] bg-[#0f5b53]" />
-          <p className="mx-3 font-serif text-[10px] italic uppercase tracking-[0.2em] text-[#0f5b53]">Quotation</p>
-          <div className="h-[2px] flex-[0.85] bg-[#0f5b53]" />
+          <div className="h-[2px] flex-[1.65] bg-[#1f363d]" />
+          <p className="mx-3 font-serif text-[10px] italic uppercase tracking-[0.2em] text-[#1f363d]">Quotation</p>
+          <div className="h-[2px] flex-[0.85] bg-[#1f363d]" />
         </div>
         <div className="flex items-center justify-between border-b border-[#e7d49a] pb-3">
           <div className="w-1/2">
@@ -106,7 +106,7 @@ function ClientInfoBlock({ clientName, clientAddress }: { clientName: string, cl
     <div className="flex justify-between pb-6">
       <div className="w-[100%]">
         <p className="text-[9px] text-[#a57c00] uppercase tracking-wider mb-1 font-bold">Prepared For</p>
-        <p className="text-[14px] font-bold text-[#0f5b53] leading-snug mb-0.5">{clientName}</p>
+        <p className="text-[14px] font-bold text-[#1f363d] leading-snug mb-0.5">{clientName}</p>
         <p className="text-[10px] text-neutral-600 leading-snug max-w-[250px]">{clientAddress || '—'}</p>
       </div>
     </div>
@@ -225,7 +225,7 @@ export function DetailQuotationPreview({
   return (
     <div className={`detail-quotation-preview w-full bg-neutral-100 ${className ?? ''}`}>
       {/* ── SUMMARY PAGE ─────────────────────────────── */}
-      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-16 box-border shadow-md mb-6 overflow-hidden">
+      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-8 pt-6 pb-14 box-border shadow-md mb-6 overflow-hidden">
         <WatermarkBackground />
         <PageHeader
           date={normalized.quotationDate ?? ''}
@@ -281,7 +281,7 @@ export function DetailQuotationPreview({
         </p>
 
         {/* Footer pinned to bottom */}
-        <div className="absolute bottom-6 left-10 right-10">
+        <div className="absolute bottom-5 left-8 right-8">
           <PageFooter content={content} />
         </div>
       </section>
@@ -290,7 +290,7 @@ export function DetailQuotationPreview({
       {floorSummaries.map((entry) => (
         <section
           key={entry.floor.id}
-          className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-16 box-border shadow-md mb-6 flex flex-col overflow-hidden"
+          className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-8 pt-6 pb-14 box-border shadow-md mb-6 flex flex-col overflow-hidden"
         >
           <WatermarkBackground />
           <PageHeader
@@ -304,10 +304,10 @@ export function DetailQuotationPreview({
           <TableHeader
             cols={[
               { label: 'SL', className: 'w-[8%] text-center' },
-              { label: 'Name', className: 'w-[22%]' },
-              { label: 'Materials', className: 'w-[36%]' },
+              { label: 'Name', className: 'w-[18%]' },
+              { label: 'Materials', className: 'w-[42%]' },
               { label: 'Qty/Sft', className: 'w-[10%] text-center' },
-              { label: 'Unit Price', className: 'w-[12%] text-right' },
+              { label: 'Unit Price', className: 'w-[10%] text-right whitespace-nowrap' },
               { label: 'Total', className: 'w-[12%] text-right' },
             ]}
           />
@@ -322,16 +322,16 @@ export function DetailQuotationPreview({
                 <span className="w-[8%] text-center font-bold pt-0.5">
                   {String(lineIndex + 1).padStart(2, '0')}
                 </span>
-                <span className="w-[22%] pr-1 leading-snug">{line.description}</span>
-                <span className="w-[36%] pr-1">{formatMaterialText(line.materials)}</span>
+                <span className="w-[18%] pr-1 leading-snug">{line.description}</span>
+                <span className="w-[42%] pr-1">{formatMaterialText(line.materials)}</span>
                 <span className="w-[10%] text-center text-neutral-600">
                   {isPackageLine(line) ? (
-                    <span className="inline-block whitespace-nowrap rounded-full bg-[#0f5b53]/10 px-1.5 py-0.5 text-[6px] font-bold uppercase leading-none text-[#0f5b53]">Package</span>
+                    <span className="inline-block whitespace-nowrap rounded-full bg-[#1f363d]/10 px-1.5 py-0.5 text-[6px] font-bold uppercase leading-none text-[#1f363d]">Package</span>
                   ) : (
                     formatDetailQtyCell(line)
                   )}
                 </span>
-                <span className="w-[12%] text-right text-neutral-600">
+                <span className="w-[10%] text-right text-neutral-600">
                   {formatDetailUnitPriceCell(line)}
                 </span>
                 <span className="w-[12%] text-right font-bold" style={{ color: PRIMARY }}>
@@ -359,14 +359,14 @@ export function DetailQuotationPreview({
           </p>
 
           {/* Footer */}
-          <div className="absolute bottom-6 left-10 right-10">
+          <div className="absolute bottom-5 left-8 right-8">
             <PageFooter content={content} />
           </div>
         </section>
       ))}
 
       {/* ── TERMS PAGE ───────────────────────────────── */}
-      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-16 box-border shadow-md flex flex-col overflow-hidden">
+      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-8 pt-6 pb-14 box-border shadow-md flex flex-col overflow-hidden">
         <WatermarkBackground />
         <PageHeader
           date={normalized.quotationDate ?? ''}
@@ -434,7 +434,7 @@ export function DetailQuotationPreview({
         </div>
 
         {/* Footer */}
-        <div className="absolute bottom-6 left-10 right-10">
+        <div className="absolute bottom-5 left-8 right-8">
           <PageFooter content={content} />
         </div>
       </section>

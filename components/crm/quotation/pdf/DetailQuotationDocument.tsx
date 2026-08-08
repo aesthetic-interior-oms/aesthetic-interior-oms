@@ -25,15 +25,15 @@ import {
 } from '@/lib/detail-quotation-format'
 import { amountInWordsTaka } from '@/lib/number-to-words'
 
-const PRIMARY = '#0f5b53';
+const PRIMARY = '#1f363d';
 const GOLD = '#a57c00';
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 86,
-    paddingBottom: 90,
-    paddingLeft: 40,
-    paddingRight: 40,
+    paddingTop: 78,
+    paddingBottom: 82,
+    paddingLeft: 30,
+    paddingRight: 30,
     fontFamily: 'Noto Sans Bengali',
     fontSize: 9,
     color: '#000000',
@@ -41,10 +41,10 @@ const styles = StyleSheet.create({
     lineHeight: 1.4,
   },
   detailPage: {
-    paddingTop: 160,
-    paddingBottom: 70,
-    paddingLeft: 40,
-    paddingRight: 40,
+    paddingTop: 150,
+    paddingBottom: 62,
+    paddingLeft: 30,
+    paddingRight: 30,
     fontFamily: 'Helvetica',
     fontSize: 9,
     color: '#000000',
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 58,
-    paddingHorizontal: 40,
+    paddingHorizontal: 30,
     overflow: 'hidden',
   },
   logo: {
@@ -125,8 +125,8 @@ const styles = StyleSheet.create({
   detailFixedHeader: {
     position: 'absolute',
     top: 40,
-    left: 40,
-    right: 40,
+    left: 30,
+    right: 30,
   },
   tableWrapper: {
     // No wrapper needed
@@ -179,10 +179,10 @@ const styles = StyleSheet.create({
   
   // Columns Detail
   wSl: { width: '8%', textAlign: 'center' },
-  wName: { width: '24%' },
-  wMats: { width: '36%' },
+  wName: { width: '18%' },
+  wMats: { width: '42%' },
   wQty: { width: '10%', textAlign: 'center' },
-  wPrice: { width: '10%', textAlign: 'right' },
+  wPrice: { width: '10%', textAlign: 'right', fontSize: 7.2 },
   wTotal: { width: '12%', textAlign: 'right' },
   
   // Columns Summary
@@ -231,8 +231,8 @@ const styles = StyleSheet.create({
   footerFixed: {
     position: 'absolute',
     bottom: 20,
-    left: 40,
-    right: 40,
+    left: 30,
+    right: 30,
     paddingTop: 8,
   },
   footerText: {
@@ -488,7 +488,7 @@ export function DetailQuotationDocument({
             <Text style={[styles.thCol, styles.wName]}>Name</Text>
             <Text style={[styles.thCol, styles.wMats]}>Materials</Text>
             <Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text>
-            <Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text>
+            <Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text>
             <Text style={[styles.thCol, styles.wTotal, styles.thColLast]}>Total</Text>
           </View>
 
