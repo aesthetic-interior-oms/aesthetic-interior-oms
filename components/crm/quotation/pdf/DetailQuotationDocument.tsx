@@ -14,6 +14,7 @@ Font.register({
     { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold' }
   ]
 });
+
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 import {
   buildDetailFloorSummaries,
@@ -27,7 +28,7 @@ import { amountInWordsTaka } from '@/lib/number-to-words'
 
 const PRIMARY = '#1f363d';
 const GOLD = '#a57c00';
-const PAGE_SIDE_PADDING = 5;
+const PAGE_SIDE_PADDING = 7;
 
 const styles = StyleSheet.create({
   page: {
@@ -126,12 +127,13 @@ const styles = StyleSheet.create({
   },
   detailFixedHeader: {
     position: 'absolute',
-    top: 40,
+    top: 78,
     left: PAGE_SIDE_PADDING,
     right: PAGE_SIDE_PADDING,
+    backgroundColor: '#ffffff',
   },
   tableWrapper: {
-    // No wrapper needed
+    width: '100%',
   },
   tHead: {
     flexDirection: 'row',
@@ -225,11 +227,11 @@ const styles = StyleSheet.create({
     color: PRIMARY,
   },
   inWords: {
-    fontSize: 12,
+    fontSize: 9,
     color: '#000000',
     marginTop: 4,
     textAlign: 'left',
-    fontFamily: 'Helvetica',
+    fontFamily: 'Times-Roman',
     fontStyle: 'italic',
   },
   datePanel: { minWidth: 112, alignItems: 'flex-end' },
@@ -238,7 +240,7 @@ const styles = StyleSheet.create({
   headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 58, opacity: 0.08 },
   headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   headerRule: { height: 2.2, backgroundColor: PRIMARY },
-  headerTitle: { color: PRIMARY, fontSize: 10, fontFamily: 'Helvetica', fontStyle: 'italic', letterSpacing: 2, marginHorizontal: 12, textTransform: 'uppercase' },
+  headerTitle: { color: PRIMARY, fontSize: 10, fontFamily: 'Times-Roman', fontStyle: 'italic', letterSpacing: 2, marginHorizontal: 12, textTransform: 'uppercase' },
   
   // Footer
   footerFixed: {
@@ -501,7 +503,7 @@ export function DetailQuotationDocument({
 
       {/* DETAIL PAGES */}
       {floorSummaries.map((entry) => (
-        <Page key={entry.floor.id} size="A4" style={styles.page}>
+        <Page key={entry.floor.id} size="A4" style={styles.detailPage}>
           <WatermarkBackground />
           <GlobalHeader 
             date={content.quotationDate ?? ''} 
@@ -510,22 +512,23 @@ export function DetailQuotationDocument({
             clientAddress={clientAddress || ''} 
           />
 
-          <Text style={styles.sectionTitle}>{softWrapPdfText(entry.floor.name)}</Text>
-          
-          <View style={styles.tHead}>
-            <Text style={[styles.thCol, styles.wSl]}>SL</Text>
-            <Text style={[styles.thCol, styles.wName]}>Name</Text>
-            <Text style={[styles.thCol, styles.wMats]}>Materials</Text>
-            <Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text>
-            <Text style={[styles.thCol, styles.wPrice]}>U/P (৳)</Text>
-            <Text style={[styles.thCol, styles.wTotal, styles.thColLast]}>Total</Text>
+          <View style={styles.detailFixedHeader} fixed>
+            <Text style={styles.sectionTitle}>{softWrapPdfText(entry.floor.name)}</Text>
+            <View style={styles.tHead}>
+              <Text style={[styles.thCol, styles.wSl]}>SL</Text>
+              <Text style={[styles.thCol, styles.wName]}>Name</Text>
+              <Text style={[styles.thCol, styles.wMats]}>Materials</Text>
+              <Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text>
+              <Text style={[styles.thCol, styles.wPrice]}>U/P (৳)</Text>
+              <Text style={[styles.thCol, styles.wTotal, styles.thColLast]}>Total</Text>
+            </View>
           </View>
 
           <View style={styles.tableWrapper}>
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
               return (
-                <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]}>
+                <View key={line.id} wrap={false} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]}>
                   <Text style={[styles.tdCol, styles.wSl, styles.bold]}>
                     {String(lineIndex + 1).padStart(2, '0')}
                   </Text>
