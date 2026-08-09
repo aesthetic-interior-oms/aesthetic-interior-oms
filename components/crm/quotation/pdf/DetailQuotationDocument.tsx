@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     paddingBottom: 104,
     paddingLeft: PAGE_SIDE_PADDING,
     paddingRight: PAGE_SIDE_PADDING,
-    fontFamily: 'Helvetica',
+    fontFamily: 'Noto Sans Bengali',
     fontSize: 9,
     color: '#000000',
     backgroundColor: '#ffffff',
@@ -500,7 +500,7 @@ export function DetailQuotationDocument({
 
         <View style={styles.tableWrapper}>
           {floorSummaries.map((entry, index) => (
-            <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]} wrap={false}>
+            <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}>
               <Text style={[styles.tdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
               <Text style={[styles.tdCol, styles.wSumName]}>{softWrapPdfText(entry.floor.name)}</Text>
               <Text style={[styles.tdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailCurrency(entry.total)}</Text>
@@ -543,7 +543,7 @@ export function DetailQuotationDocument({
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
               return (
-                <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]} wrap={false}>
+                <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]}>
                   <Text style={[styles.tdCol, styles.wSl, styles.bold]}>
                     {String(lineIndex + 1).padStart(2, '0')}
                   </Text>
