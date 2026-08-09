@@ -1,6 +1,6 @@
 'use client'
 
-import { Document, Page, StyleSheet, Text, View, Image, Svg, Path, Font } from '@react-pdf/renderer'
+import { Document, Page, StyleSheet, Text, View, Image, Font } from '@react-pdf/renderer'
 
 const getBaseUrl = () => {
   if (typeof window !== 'undefined') return window.location.origin
@@ -23,17 +23,19 @@ import {
   formatDetailTotalCell,
   formatDetailUnitPriceCell,
   isPackageLine,
+  isRateOnlyLine,
 } from '@/lib/detail-quotation-format'
 import { amountInWordsTaka } from '@/lib/number-to-words'
 
 const PRIMARY = '#1f363d';
 const GOLD = '#a57c00';
 const PAGE_SIDE_PADDING = 7;
+const BDT_SYMBOL = '৳';
 
 const styles = StyleSheet.create({
   page: {
     paddingTop: 78,
-    paddingBottom: 82,
+    paddingBottom: 104,
     paddingLeft: PAGE_SIDE_PADDING,
     paddingRight: PAGE_SIDE_PADDING,
     fontFamily: 'Noto Sans Bengali',
@@ -44,7 +46,7 @@ const styles = StyleSheet.create({
   },
   detailPage: {
     paddingTop: 150,
-    paddingBottom: 62,
+    paddingBottom: 104,
     paddingLeft: PAGE_SIDE_PADDING,
     paddingRight: PAGE_SIDE_PADDING,
     fontFamily: 'Helvetica',
@@ -165,7 +167,7 @@ const styles = StyleSheet.create({
     borderColor: '#d7d7d7',
   },
   tRowAlt: {
-    backgroundColor: '#fffefc',
+    backgroundColor: '#fffdfa',
   },
   tdCol: {
     fontSize: 10,
@@ -245,10 +247,11 @@ const styles = StyleSheet.create({
   // Footer
   footerFixed: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 14,
     left: PAGE_SIDE_PADDING,
     right: PAGE_SIDE_PADDING,
-    paddingTop: 8,
+    paddingTop: 7,
+    backgroundColor: '#ffffff',
   },
   footerText: {
     fontSize: 7,
@@ -376,6 +379,19 @@ function getDetailTotalSqft(floorSummaries: ReturnType<typeof buildDetailFloorSu
   )
 }
 
+const formatDetailCurrency = (value: number) => `${BDT_SYMBOL} ${formatDetailAmount(value)}`
+
+function formatDetailUnitPriceCurrency(line: QuotationDraftContent['lineItems'][number]) {
+  if (isRateOnlyLine(line)) return `---- ${formatDetailCurrency(line.rate)} ----`
+  if (line.rate <= 0) return formatDetailUnitPriceCell(line)
+  return formatDetailCurrency(line.rate)
+}
+
+function formatDetailTotalCurrency(line: QuotationDraftContent['lineItems'][number]) {
+  if (isRateOnlyLine(line)) return formatDetailTotalCell(line)
+  return formatDetailCurrency(line.amount)
+}
+
 const FooterFixed = ({ content }: { content: QuotationDraftContent }) => (
   <View style={styles.footerFixed} fixed>
     <View style={{ borderTopWidth: 1, borderTopColor: '#a57c00', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -479,22 +495,22 @@ export function DetailQuotationDocument({
         <View style={styles.tHead} fixed>
           <Text style={[styles.thCol, styles.wSl]}>SL</Text>
           <Text style={[styles.thCol, styles.wSumName]}>Description</Text>
-          <Text style={[styles.thCol, styles.wSumTotal, styles.thColLast]}>Amount</Text>
+          <Text style={[styles.thCol, styles.wSumTotal, styles.thColLast]}>Amount ({BDT_SYMBOL})</Text>
         </View>
 
         <View style={styles.tableWrapper}>
           {floorSummaries.map((entry, index) => (
-            <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}>
+            <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]} wrap={false}>
               <Text style={[styles.tdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
               <Text style={[styles.tdCol, styles.wSumName]}>{softWrapPdfText(entry.floor.name)}</Text>
-              <Text style={[styles.tdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailAmount(entry.total)}</Text>
+              <Text style={[styles.tdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailCurrency(entry.total)}</Text>
             </View>
           ))}
         </View>
 
         <View style={styles.grandTotalRow}>
           <Text style={styles.grandTotalLabel}>Grand Total ({formatDetailAmount(totalSqft)} SQFT)</Text>
-          <Text style={styles.grandTotalValue}>৳ {formatDetailAmount(totals.grandTotal)}</Text>
+          <Text style={styles.grandTotalValue}>{formatDetailCurrency(totals.grandTotal)}</Text>
         </View>
         <Text style={styles.inWords}>In Words: {amountInWordsTaka(totals.grandTotal)}</Text>
 
@@ -519,15 +535,15 @@ export function DetailQuotationDocument({
             <Text style={[styles.thCol, styles.wName]}>Name</Text>
             <Text style={[styles.thCol, styles.wMats]}>Materials</Text>
             <Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text>
-            <Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text>
-            <Text style={[styles.thCol, styles.wTotal, styles.thColLast]}>Total</Text>
+            <Text style={[styles.thCol, styles.wPrice]}>U/P ({BDT_SYMBOL})</Text>
+            <Text style={[styles.thCol, styles.wTotal, styles.thColLast]}>Total ({BDT_SYMBOL})</Text>
           </View>
 
           <View style={styles.tableWrapper}>
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
               return (
-                <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]}>
+                <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]} wrap={false}>
                   <Text style={[styles.tdCol, styles.wSl, styles.bold]}>
                     {String(lineIndex + 1).padStart(2, '0')}
                   </Text>
@@ -546,12 +562,12 @@ export function DetailQuotationDocument({
                   ) : (
                     <>
                       <Text style={[styles.tdCol, styles.wQty]}>{formatDetailQtyCell(line)}</Text>
-                      <Text style={[styles.tdCol, styles.wPrice]}>{formatDetailUnitPriceCell(line)}</Text>
+                      <Text style={[styles.tdCol, styles.wPrice]}>{formatDetailUnitPriceCurrency(line)}</Text>
                     </>
                   )}
                   
                   <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>
-                    {formatDetailTotalCell(line)}
+                    {formatDetailTotalCurrency(line)}
                     {line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
                   </Text>
                 </View>
@@ -561,7 +577,7 @@ export function DetailQuotationDocument({
           
           <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>
             <Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(entry.floor.name)} ({formatDetailAmount(getDetailFloorSqft(entry))} SQFT)</Text>
-            <Text style={styles.grandTotalValue}>৳ {formatDetailAmount(entry.total)}</Text>
+            <Text style={styles.grandTotalValue}>{formatDetailCurrency(entry.total)}</Text>
           </View>
           <Text style={styles.inWords}>In Words: {amountInWordsTaka(entry.total)}</Text>
 
