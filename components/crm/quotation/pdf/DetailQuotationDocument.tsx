@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
     lineHeight: 1.4,
   },
   detailPage: {
-    paddingTop: 150,
+    paddingTop: 90,
     paddingBottom: 104,
     paddingLeft: PAGE_SIDE_PADDING,
     paddingRight: PAGE_SIDE_PADDING,
@@ -428,29 +428,22 @@ function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
     .join('')
 }
 
-function MaterialTextPdf({ text }: { text: string | null | undefined }) {
+function SingleMaterialLine({ text }: { text: string }) {
   if (!text) return <Text style={styles.matText}>—</Text>
-  const lines = text.split('\n')
+  const match = text.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
+  const isWithoutWiring = text.toLowerCase().includes('without supplying wiring') || text.toLowerCase().includes('without suppling wiring');
+  if (!match) {
+    return <Text style={styles.matText}>
+      <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(text)}</Text>
+    </Text>
+  }
+  const prefix = match[1]
+  const rest = text.substring(prefix.length)
   return (
-    <View>
-      {lines.map((line, index) => {
-        const match = line.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
-        const isWithoutWiring = line.toLowerCase().includes('without supplying wiring') || line.toLowerCase().includes('without suppling wiring');
-        if (!match) {
-          return <Text key={`${line}-${index}`} style={styles.matText}>
-            <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(line)}</Text>
-          </Text>
-        }
-        const prefix = match[1]
-        const rest = line.substring(prefix.length)
-        return (
-          <Text key={`${line}-${index}`} style={styles.matText}>
-            <Text style={styles.bold}>{softWrapPdfText(prefix)}</Text>
-            <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(rest)}</Text>
-          </Text>
-        )
-      })}
-    </View>
+    <Text style={styles.matText}>
+      <Text style={styles.bold}>{softWrapPdfText(prefix)}</Text>
+      <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(rest)}</Text>
+    </Text>
   )
 }
 
@@ -492,13 +485,12 @@ export function DetailQuotationDocument({
 
         <Text style={styles.sectionTitle}>Project Summary</Text>
         
-        <View style={styles.tHead} fixed>
-          <Text style={[styles.thCol, styles.wSl]}>SL</Text>
-          <Text style={[styles.thCol, styles.wSumName]}>Description</Text>
-          <Text style={[styles.thCol, styles.wSumTotal, styles.thColLast]}>Amount ({BDT_SYMBOL})</Text>
-        </View>
-
         <View style={styles.tableWrapper}>
+          <View style={styles.tHead} fixed>
+            <Text style={[styles.thCol, styles.wSl]}>SL</Text>
+            <Text style={[styles.thCol, styles.wSumName]}>Description</Text>
+            <Text style={[styles.thCol, styles.wSumTotal, styles.thColLast]}>Amount ({BDT_SYMBOL})</Text>
+          </View>
           {floorSummaries.map((entry, index) => (
             <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}>
               <Text style={[styles.tdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
@@ -530,48 +522,65 @@ export function DetailQuotationDocument({
 
           <Text style={styles.sectionTitle}>{softWrapPdfText(entry.floor.name)}</Text>
           
-          <View style={styles.tHead} fixed>
-            <Text style={[styles.thCol, styles.wSl]}>SL</Text>
-            <Text style={[styles.thCol, styles.wName]}>Name</Text>
-            <Text style={[styles.thCol, styles.wMats]}>Materials</Text>
-            <Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text>
-            <Text style={[styles.thCol, styles.wPrice]}>U/P ({BDT_SYMBOL})</Text>
-            <Text style={[styles.thCol, styles.wTotal, styles.thColLast]}>Total ({BDT_SYMBOL})</Text>
-          </View>
-
           <View style={styles.tableWrapper}>
+            <View style={styles.tHead} fixed>
+              <Text style={[styles.thCol, styles.wSl]}>SL</Text>
+              <Text style={[styles.thCol, styles.wName]}>Name</Text>
+              <Text style={[styles.thCol, styles.wMats]}>Materials</Text>
+              <Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text>
+              <Text style={[styles.thCol, styles.wPrice]}>U/P ({BDT_SYMBOL})</Text>
+              <Text style={[styles.thCol, styles.wTotal, styles.thColLast]}>Total ({BDT_SYMBOL})</Text>
+            </View>
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
-              return (
-                <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]}>
-                  <Text style={[styles.tdCol, styles.wSl, styles.bold]}>
-                    {String(lineIndex + 1).padStart(2, '0')}
-                  </Text>
-                  <Text style={[styles.tdCol, styles.wName]}>
-                    {softWrapPdfText(line.description)}
-                  </Text>
-                  <View style={[styles.tdCol, styles.wMats]}>
-                    <MaterialTextPdf text={line.materials} />
-                  </View>
+              const matLines = line.materials ? line.materials.split('\n') : ['']
 
-                  {isPkg ? (
-                    <>
-                      <View style={[styles.tdCol, styles.wQty]}><Text style={styles.packageBadge}>Package</Text></View>
-                      <Text style={[styles.tdCol, styles.wPrice]}>Per Design</Text>
-                    </>
-                  ) : (
-                    <>
-                      <Text style={[styles.tdCol, styles.wQty]}>{formatDetailQtyCell(line)}</Text>
-                      <Text style={[styles.tdCol, styles.wPrice]}>{formatDetailUnitPriceCurrency(line)}</Text>
-                    </>
-                  )}
-                  
-                  <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>
-                    {formatDetailTotalCurrency(line)}
-                    {line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
-                  </Text>
-                </View>
-              )
+              return matLines.map((matLine, matIndex) => {
+                const isFirst = matIndex === 0;
+                const isLast = matIndex === matLines.length - 1;
+
+                return (
+                  <View key={`${line.id}-${matIndex}`} style={[
+                    styles.tRow, 
+                    lineIndex % 2 === 1 ? styles.tRowAlt : {},
+                    !isLast ? { borderBottomWidth: 0 } : {}
+                  ]}>
+                    <Text style={[styles.tdCol, styles.wSl, styles.bold]}>
+                      {isFirst ? String(lineIndex + 1).padStart(2, '0') : ''}
+                    </Text>
+                    <Text style={[styles.tdCol, styles.wName]}>
+                      {isFirst ? softWrapPdfText(line.description) : ''}
+                    </Text>
+                    <View style={[styles.tdCol, styles.wMats]}>
+                      <SingleMaterialLine text={matLine} />
+                    </View>
+
+                    {isFirst ? (
+                      isPkg ? (
+                        <>
+                          <View style={[styles.tdCol, styles.wQty]}><Text style={styles.packageBadge}>Package</Text></View>
+                          <Text style={[styles.tdCol, styles.wPrice]}>Per Design</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Text style={[styles.tdCol, styles.wQty]}>{formatDetailQtyCell(line)}</Text>
+                          <Text style={[styles.tdCol, styles.wPrice]}>{formatDetailUnitPriceCurrency(line)}</Text>
+                        </>
+                      )
+                    ) : (
+                      <>
+                        <Text style={[styles.tdCol, styles.wQty]}></Text>
+                        <Text style={[styles.tdCol, styles.wPrice]}></Text>
+                      </>
+                    )}
+                    
+                    <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>
+                      {isFirst ? formatDetailTotalCurrency(line) : ''}
+                      {isFirst && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
+                    </Text>
+                  </View>
+                )
+              })
             })}
           </View>
           
