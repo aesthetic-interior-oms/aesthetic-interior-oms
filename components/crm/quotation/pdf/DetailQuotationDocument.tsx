@@ -171,7 +171,8 @@ const styles = StyleSheet.create({
   },
   tdCol: {
     fontSize: 10,
-    paddingVertical: 6,
+    paddingTop: 6,
+    paddingBottom: 6,
     paddingHorizontal: 4,
     borderRightWidth: 0,
     borderRightColor: '#d7d7d7',
@@ -540,7 +541,7 @@ export function DetailQuotationDocument({
                 const isLast = matIndex === matLines.length - 1;
 
                 const subRowPadding = !isFirst 
-                  ? { paddingVertical: 1 } 
+                  ? { paddingTop: 1, paddingBottom: 1 } 
                   : (!isLast ? { paddingTop: 6, paddingBottom: 1 } : {});
 
                 return (
