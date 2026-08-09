@@ -535,11 +535,26 @@ export function DetailQuotationDocument({
             </View>
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
-              const matLines = line.materials ? line.materials.split('\n') : ['']
+              let matLines = line.materials 
+                ? line.materials.split('\n').map(l => l.trim()).filter(Boolean)
+                : []
+              if (matLines.length === 0) {
+                matLines = ['']
+              }
 
-              return matLines.map((matLine, matIndex) => {
-                const isFirst = matIndex === 0;
-                const isLast = matIndex === matLines.length - 1;
+              // Estimate description lines in wName column to match height and prevent gaps
+              const descLines = Math.max(1, Math.ceil((line.description || '').length / 16))
+              const firstRowMats = matLines.slice(0, descLines)
+              const remainingMats = matLines.slice(descLines)
+
+              const rowsData = [
+                { isFirst: true, mats: firstRowMats },
+                ...remainingMats.map(m => ({ isFirst: false, mats: [m] }))
+              ]
+
+              return rowsData.map((rowData, matIndex) => {
+                const isFirst = rowData.isFirst;
+                const isLast = matIndex === rowsData.length - 1;
 
                 const subRowCellStyle = { paddingTop: 2, paddingBottom: 2 };
 
@@ -556,7 +571,9 @@ export function DetailQuotationDocument({
                       {isFirst ? softWrapPdfText(line.description) : ''}
                     </Text>
                     <View style={[styles.tdCol, styles.wMats, subRowCellStyle]}>
-                      <SingleMaterialLine text={matLine} />
+                      {rowData.mats.map((matText, idx) => (
+                        <SingleMaterialLine key={idx} text={matText} />
+                      ))}
                     </View>
 
                     {isFirst ? (
