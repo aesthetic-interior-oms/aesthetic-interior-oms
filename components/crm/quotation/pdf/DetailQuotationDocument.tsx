@@ -539,7 +539,9 @@ export function DetailQuotationDocument({
                 const isFirst = matIndex === 0;
                 const isLast = matIndex === matLines.length - 1;
 
-                const subRowPadding = !isFirst ? { paddingVertical: 1 } : {};
+                const subRowPadding = !isFirst 
+                  ? { paddingVertical: 1 } 
+                  : (!isLast ? { paddingTop: 6, paddingBottom: 1 } : {});
 
                 return (
                   <View key={`${line.id}-${matIndex}`} wrap={false} style={[
