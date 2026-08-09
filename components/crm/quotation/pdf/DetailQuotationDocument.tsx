@@ -540,9 +540,7 @@ export function DetailQuotationDocument({
                 const isFirst = matIndex === 0;
                 const isLast = matIndex === matLines.length - 1;
 
-                const subRowPadding = !isFirst 
-                  ? { paddingTop: 1, paddingBottom: 1 } 
-                  : (!isLast ? { paddingTop: 6, paddingBottom: 1 } : {});
+                const subRowCellStyle = { paddingTop: 2, paddingBottom: 2 };
 
                 return (
                   <View key={`${line.id}-${matIndex}`} wrap={false} style={[
@@ -550,36 +548,36 @@ export function DetailQuotationDocument({
                     lineIndex % 2 === 1 ? styles.tRowAlt : {},
                     !isLast ? { borderBottomWidth: 0 } : {}
                   ]}>
-                    <Text style={[styles.tdCol, styles.wSl, styles.bold, subRowPadding]}>
+                    <Text style={[styles.tdCol, styles.wSl, styles.bold, subRowCellStyle]}>
                       {isFirst ? String(lineIndex + 1).padStart(2, '0') : ''}
                     </Text>
-                    <Text style={[styles.tdCol, styles.wName, subRowPadding]}>
+                    <Text style={[styles.tdCol, styles.wName, subRowCellStyle]}>
                       {isFirst ? softWrapPdfText(line.description) : ''}
                     </Text>
-                    <View style={[styles.tdCol, styles.wMats, subRowPadding]}>
+                    <View style={[styles.tdCol, styles.wMats, subRowCellStyle]}>
                       <SingleMaterialLine text={matLine} />
                     </View>
 
                     {isFirst ? (
                       isPkg ? (
                         <>
-                          <View style={[styles.tdCol, styles.wQty]}><Text style={styles.packageBadge}>Package</Text></View>
-                          <Text style={[styles.tdCol, styles.wPrice]}>Per Design</Text>
+                          <View style={[styles.tdCol, styles.wQty, subRowCellStyle]}><Text style={styles.packageBadge}>Package</Text></View>
+                          <Text style={[styles.tdCol, styles.wPrice, subRowCellStyle]}>Per Design</Text>
                         </>
                       ) : (
                         <>
-                          <Text style={[styles.tdCol, styles.wQty]}>{formatDetailQtyCell(line)}</Text>
-                          <Text style={[styles.tdCol, styles.wPrice]}>{formatDetailUnitPriceCurrency(line)}</Text>
+                          <Text style={[styles.tdCol, styles.wQty, subRowCellStyle]}>{formatDetailQtyCell(line)}</Text>
+                          <Text style={[styles.tdCol, styles.wPrice, subRowCellStyle]}>{formatDetailUnitPriceCurrency(line)}</Text>
                         </>
                       )
                     ) : (
                       <>
-                        <Text style={[styles.tdCol, styles.wQty, subRowPadding]}></Text>
-                        <Text style={[styles.tdCol, styles.wPrice, subRowPadding]}></Text>
+                        <Text style={[styles.tdCol, styles.wQty, subRowCellStyle]}></Text>
+                        <Text style={[styles.tdCol, styles.wPrice, subRowCellStyle]}></Text>
                       </>
                     )}
                     
-                    <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }, subRowPadding]}>
+                    <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }, subRowCellStyle]}>
                       {isFirst ? formatDetailTotalCurrency(line) : ''}
                       {isFirst && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
                     </Text>
