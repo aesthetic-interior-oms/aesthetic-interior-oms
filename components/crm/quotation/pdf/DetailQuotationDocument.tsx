@@ -1,5 +1,6 @@
 'use client'
 
+// Detail Quotation Document component for PDF generation with Noto Sans Bengali font support
 import { Document, Page, StyleSheet, Text, View, Image, Font } from '@react-pdf/renderer'
 
 const getBaseUrl = () => {
