@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { Home, Building2, Wrench, Sofa, MessageSquare, ArrowRight } from "lucide-react"
+import { Home, Building2, Wrench, ArrowRight } from "lucide-react"
 import Image from "next/image"
 
 const services = [
@@ -9,19 +9,19 @@ const services = [
     icon: Home,
     title: "Residential Interiors",
     description: "Transform your home into a sanctuary that reflects your personality and lifestyle.",
-    image: "/luxury-modern-living-room.png",
+    image: "/modernDesign.avif",
   },
   {
     icon: Building2,
     title: "Commercial Interiors",
     description: "Create inspiring workspaces that boost productivity and impress clients.",
-    image: "/modern-corporate-office-interior-design.jpg",
+    image: "/Commercial/Commercial1.png",
   },
   {
     icon: Wrench,
     title: "Renovation Projects",
     description: "Breathe new life into existing spaces with our expert renovation services.",
-    image: "/home-renovation-before-after-interior.jpg",
+    image: "/Projects/Project2/05.jpg",
   },
   
 ]

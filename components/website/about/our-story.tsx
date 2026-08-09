@@ -26,7 +26,7 @@ const timelineSteps = [
     year: "2021",
     title: "Team Growth",
     description: "Grew to a team of 20+ experts in design and execution.",
-    image: "/about/TeamGrowth.png",
+    image: "/about/teamgrowth.png",
   },
   {
     year: "2024",

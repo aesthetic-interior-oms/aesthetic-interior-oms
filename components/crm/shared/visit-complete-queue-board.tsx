@@ -83,6 +83,12 @@ type JrArchitectUser = {
   email: string
 }
 
+type DepartmentUser = {
+  id: string
+  fullName: string
+  email: string
+}
+
 type QueueResponse = {
   success: boolean
   data?: QueueItem[]
@@ -135,6 +141,7 @@ export function VisitCompleteQueueBoard({
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState<QueueItem[]>([])
   const [jrArchitectUsers, setJrArchitectUsers] = useState<JrArchitectUser[]>([])
+  const [srCrmUsers, setSrCrmUsers] = useState<DepartmentUser[]>([])
   const [canAssign, setCanAssign] = useState(false)
   const [canRequest, setCanRequest] = useState(false)
   const [selectedByLead, setSelectedByLead] = useState<Record<string, string>>({})
@@ -142,6 +149,10 @@ export function VisitCompleteQueueBoard({
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameLeadId, setRenameLeadId] = useState('')
   const [renameValue, setRenameValue] = useState('')
+  const [srCrmOpen, setSrCrmOpen] = useState(false)
+  const [srCrmLeadId, setSrCrmLeadId] = useState('')
+  const [srCrmMemberId, setSrCrmMemberId] = useState('')
+  const [loadingSrCrmUsers, setLoadingSrCrmUsers] = useState(false)
   const [dropOpen, setDropOpen] = useState(false)
   const [dropLeadId, setDropLeadId] = useState('')
   const [dropLeadName, setDropLeadName] = useState('')
@@ -267,6 +278,55 @@ export function VisitCompleteQueueBoard({
 
 
 
+
+  const loadSrCrmUsers = async () => {
+    if (srCrmUsers.length > 0) return
+    setLoadingSrCrmUsers(true)
+    try {
+      const response = await fetch('/api/department/available/SR_CRM', { cache: 'no-store' })
+      const payload = (await response.json()) as DepartmentUsersResponse
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error ?? 'Failed to load SR CRM members')
+      }
+      setSrCrmUsers(Array.isArray(payload.users) ? payload.users : [])
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load SR CRM members')
+    } finally {
+      setLoadingSrCrmUsers(false)
+    }
+  }
+
+  const openSrCrmDialog = async (item: QueueItem) => {
+    setSrCrmLeadId(item.leadId)
+    setSrCrmMemberId(item.srCrmAssignee?.id ?? '')
+    setSrCrmOpen(true)
+    await loadSrCrmUsers()
+  }
+
+  const submitSrCrmChange = async () => {
+    if (!srCrmLeadId || !srCrmMemberId) return
+    setBusyLeadId(srCrmLeadId)
+    try {
+      const response = await fetch(`/api/lead/${srCrmLeadId}/assignments/SR_CRM`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: srCrmMemberId }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to update SR CRM')
+      }
+      toast.success('SR CRM updated')
+      setSrCrmOpen(false)
+      setSrCrmLeadId('')
+      await loadQueue()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update SR CRM')
+    } finally {
+      setBusyLeadId(null)
+    }
+  }
+
   const openRenameDialog = (leadId: string, currentName: string) => {
     setRenameLeadId(leadId)
     setRenameValue(currentName)
@@ -359,6 +419,7 @@ export function VisitCompleteQueueBoard({
                       <TableHead className="min-w-[210px] text-xs font-bold uppercase tracking-[0.18em] text-primary">Visit / Complete Date</TableHead>
                       <TableHead className="w-[260px] max-w-[260px] text-xs font-bold uppercase tracking-[0.18em] text-primary">Location</TableHead>
                       <TableHead className="min-w-[260px] text-xs font-bold uppercase tracking-[0.18em] text-primary">Visit Team</TableHead>
+                      <TableHead className="min-w-[180px] text-xs font-bold uppercase tracking-[0.18em] text-primary">SR CRM</TableHead>
                       <TableHead className="w-[80px] pr-6 text-right text-xs font-bold uppercase tracking-[0.18em] text-primary">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -403,6 +464,15 @@ export function VisitCompleteQueueBoard({
                               </p>
                             </div>
                           </TableCell>
+                          <TableCell className="py-4 align-top">
+                            <button
+                              type="button"
+                              onClick={() => void openSrCrmDialog(item)}
+                              className="text-left font-medium text-foreground transition hover:text-primary hover:underline"
+                            >
+                              {item.srCrmAssignee?.fullName ?? 'Unassigned'}
+                            </button>
+                          </TableCell>
                           <TableCell className="py-4 pr-6 text-right align-top">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -421,6 +491,9 @@ export function VisitCompleteQueueBoard({
                                 ) : null}
                                 <DropdownMenuItem onClick={() => openRenameDialog(item.leadId, item.leadName)}>
                                   Change Client Name
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => void openSrCrmDialog(item)}>
+                                  Change SR CRM
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="text-destructive focus:text-destructive"
@@ -526,6 +599,34 @@ export function VisitCompleteQueueBoard({
             <Button variant="destructive" onClick={submitDropProject} disabled={!dropSubStatus || busyLeadId === dropLeadId}>
               Confirm Drop
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={srCrmOpen} onOpenChange={setSrCrmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change SR CRM</DialogTitle>
+            <DialogDescription>Select the Senior CRM for this project.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>SR CRM Member</Label>
+            <Select value={srCrmMemberId} onValueChange={setSrCrmMemberId}>
+              <SelectTrigger>
+                <SelectValue placeholder={loadingSrCrmUsers ? 'Loading members...' : 'Select SR CRM member'} />
+              </SelectTrigger>
+              <SelectContent>
+                {srCrmUsers.map((user) => (
+                  <SelectItem key={user.id} value={user.id}>
+                    {user.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSrCrmOpen(false)}>Cancel</Button>
+            <Button onClick={submitSrCrmChange} disabled={loadingSrCrmUsers || !srCrmMemberId || busyLeadId === srCrmLeadId}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

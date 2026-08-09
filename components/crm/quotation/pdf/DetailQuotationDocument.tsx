@@ -14,6 +14,7 @@ Font.register({
     { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold' }
   ]
 });
+
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 import {
   buildDetailFloorSummaries,
@@ -25,15 +26,16 @@ import {
 } from '@/lib/detail-quotation-format'
 import { amountInWordsTaka } from '@/lib/number-to-words'
 
-const PRIMARY = '#0f5b53';
+const PRIMARY = '#1f363d';
 const GOLD = '#a57c00';
+const PAGE_SIDE_PADDING = 7;
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 86,
-    paddingBottom: 90,
-    paddingLeft: 40,
-    paddingRight: 40,
+    paddingTop: 78,
+    paddingBottom: 82,
+    paddingLeft: PAGE_SIDE_PADDING,
+    paddingRight: PAGE_SIDE_PADDING,
     fontFamily: 'Noto Sans Bengali',
     fontSize: 9,
     color: '#000000',
@@ -41,10 +43,10 @@ const styles = StyleSheet.create({
     lineHeight: 1.4,
   },
   detailPage: {
-    paddingTop: 160,
-    paddingBottom: 70,
-    paddingLeft: 40,
-    paddingRight: 40,
+    paddingTop: 150,
+    paddingBottom: 62,
+    paddingLeft: PAGE_SIDE_PADDING,
+    paddingRight: PAGE_SIDE_PADDING,
     fontFamily: 'Helvetica',
     fontSize: 9,
     color: '#000000',
@@ -54,10 +56,10 @@ const styles = StyleSheet.create({
   header: {
     position: 'absolute',
     top: 20,
-    left: 0,
-    right: 0,
+    left: PAGE_SIDE_PADDING,
+    right: PAGE_SIDE_PADDING,
     height: 58,
-    paddingHorizontal: 40,
+    paddingHorizontal: 0,
     overflow: 'hidden',
   },
   logo: {
@@ -116,6 +118,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: PRIMARY,
+    letterSpacing: 0.7,
     backgroundColor: '#f3f8f7',
     padding: 8,
     marginTop: 15,
@@ -124,49 +127,60 @@ const styles = StyleSheet.create({
   },
   detailFixedHeader: {
     position: 'absolute',
-    top: 40,
-    left: 40,
-    right: 40,
+    top: 78,
+    left: PAGE_SIDE_PADDING,
+    right: PAGE_SIDE_PADDING,
+    backgroundColor: '#ffffff',
   },
   tableWrapper: {
-    // No wrapper needed
+    width: '100%',
   },
   tHead: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: PRIMARY,
-    paddingBottom: 4,
-    paddingTop: 6,
+    borderTopWidth: 0,
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+    borderBottomWidth: 0.75,
+    borderColor: '#d7d7d7',
   },
   thCol: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: 'bold',
     color: PRIMARY,
     textTransform: 'uppercase',
+    paddingVertical: 4,
     paddingHorizontal: 4,
+    borderRightWidth: 0,
+    borderRightColor: '#d7d7d7',
   },
   thColLast: {
-    
+    borderRightWidth: 0,
   },
   tRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eeeeee',
+    borderLeftWidth: 0,
+    borderRightWidth: 0,
+    borderBottomWidth: 0.5,
+    borderColor: '#d7d7d7',
   },
   tRowAlt: {
-    backgroundColor: '#fefdf9',
+    backgroundColor: '#fffefc',
   },
   tdCol: {
-    fontSize: 9,
-    paddingVertical: 8,
+    fontSize: 10,
+    paddingVertical: 6,
     paddingHorizontal: 4,
+    borderRightWidth: 0,
+    borderRightColor: '#d7d7d7',
   },
   packageBadge: {
     alignSelf: 'center',
-    borderRadius: 8,
-    backgroundColor: '#edf5f4',
-    color: PRIMARY,
+    borderRadius: 10,
+    backgroundColor: '#fff8e6',
+    color: GOLD,
+    borderWidth: 0.5,
+    borderColor: '#e2c46b',
     fontSize: 7,
     fontWeight: 'bold',
     paddingVertical: 2,
@@ -174,13 +188,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   tdColLast: {
-    
+    borderRightWidth: 0,
   },
   
   // Columns Detail
-  wSl: { width: '8%', textAlign: 'center' },
-  wName: { width: '24%' },
-  wMats: { width: '36%' },
+  wSl: { width: '6%', textAlign: 'center' },
+  wName: { width: '16%' },
+  wMats: { width: '46%' },
   wQty: { width: '10%', textAlign: 'center' },
   wPrice: { width: '10%', textAlign: 'right' },
   wTotal: { width: '12%', textAlign: 'right' },
@@ -213,11 +227,12 @@ const styles = StyleSheet.create({
     color: PRIMARY,
   },
   inWords: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
     marginTop: 4,
-    textAlign: 'right',
-    fontWeight: 'bold',
+    textAlign: 'left',
+    fontFamily: 'Times-Roman',
+    fontStyle: 'italic',
   },
   datePanel: { minWidth: 112, alignItems: 'flex-end' },
   metaLabel: { fontSize: 5.5, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -225,14 +240,14 @@ const styles = StyleSheet.create({
   headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 58, opacity: 0.08 },
   headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   headerRule: { height: 2.2, backgroundColor: PRIMARY },
-  headerTitle: { color: PRIMARY, fontSize: 13, fontFamily: 'Times-Italic', letterSpacing: 2.8, marginHorizontal: 12, textTransform: 'uppercase' },
+  headerTitle: { color: PRIMARY, fontSize: 10, fontFamily: 'Times-Roman', fontStyle: 'italic', letterSpacing: 2, marginHorizontal: 12, textTransform: 'uppercase' },
   
   // Footer
   footerFixed: {
     position: 'absolute',
     bottom: 20,
-    left: 40,
-    right: 40,
+    left: PAGE_SIDE_PADDING,
+    right: PAGE_SIDE_PADDING,
     paddingTop: 8,
   },
   footerText: {
@@ -248,14 +263,14 @@ const styles = StyleSheet.create({
   
   // Materials
   matText: {
-    fontSize: 8,
+    fontSize: 9,
     color: '#444444',
     marginBottom: 2,
   },
   
   // Terms
   termTitle: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: 'bold',
     color: PRIMARY,
     marginBottom: 3,
@@ -263,7 +278,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   termContent: {
-    fontSize: 8,
+    fontSize: 9,
     color: '#555555',
     lineHeight: 1.5,
   },
@@ -345,17 +360,32 @@ function formatDownloadDateTime(value: string | null | undefined) {
   }).format(date)
 }
 
+
+function getDetailFloorSqft(entry: ReturnType<typeof buildDetailFloorSummaries>[number]) {
+  return Math.round(
+    entry.lines.reduce((lineSum, line) => {
+      if (line.unit !== 'sqft' || isPackageLine(line) || line.quantity <= 0) return lineSum
+      return lineSum + line.quantity
+    }, 0),
+  )
+}
+
+function getDetailTotalSqft(floorSummaries: ReturnType<typeof buildDetailFloorSummaries>) {
+  return Math.round(
+    floorSummaries.reduce((sum, entry) => sum + getDetailFloorSqft(entry), 0),
+  )
+}
+
 const FooterFixed = ({ content }: { content: QuotationDraftContent }) => (
   <View style={styles.footerFixed} fixed>
     <View style={{ borderTopWidth: 1, borderTopColor: '#a57c00', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
       <View style={{ width: '35%' }}>
-        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', marginBottom: 3 }]}>Aesthetic Interior Studio</Text>
+        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', marginBottom: 3, fontSize: 9 }]}>Aesthetic Interior Studio</Text>
         <Text style={styles.footerText}>183, East Senpara, Begum Rokeya Soroni</Text>
         <Text style={styles.footerText}>3rd floor, Mirpur 10, Dhaka-1216</Text>
       </View>
       <View style={{ width: '30%', alignItems: 'center' }}>
         <Text style={styles.footerText}>+88 0132969 4663</Text>
-        <Text style={styles.footerText}>hello@aestheticinterior.com</Text>
         <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold' }]}>www.aestheticinteriorbd.com</Text>
       </View>
       <View style={{ width: '35%', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
@@ -421,6 +451,7 @@ export function DetailQuotationDocument({
 }) {
   const floorSummaries = buildDetailFloorSummaries(content)
   const cleanIntro = (content.introLetter || '').replace('Dear Sir,\n', '').replace('Dear Sir,', '').trim();
+  const totalSqft = getDetailTotalSqft(floorSummaries)
 
   return (
     <Document>
@@ -462,17 +493,17 @@ export function DetailQuotationDocument({
         </View>
 
         <View style={styles.grandTotalRow}>
-          <Text style={styles.grandTotalLabel}>Grand Total</Text>
-          <Text style={styles.grandTotalValue}>{formatDetailAmount(totals.grandTotal)}</Text>
+          <Text style={styles.grandTotalLabel}>Grand Total ({formatDetailAmount(totalSqft)} SQFT)</Text>
+          <Text style={styles.grandTotalValue}>৳ {formatDetailAmount(totals.grandTotal)}</Text>
         </View>
-        <Text style={styles.inWords}>In Words: <Text style={styles.bold}>{amountInWordsTaka(totals.grandTotal)}</Text></Text>
+        <Text style={styles.inWords}>In Words: {amountInWordsTaka(totals.grandTotal)}</Text>
 
         <FooterFixed content={content} />
       </Page>
 
       {/* DETAIL PAGES */}
       {floorSummaries.map((entry) => (
-        <Page key={entry.floor.id} size="A4" style={styles.page}>
+        <Page key={entry.floor.id} size="A4" style={styles.detailPage}>
           <WatermarkBackground />
           <GlobalHeader 
             date={content.quotationDate ?? ''} 
@@ -529,10 +560,10 @@ export function DetailQuotationDocument({
           </View>
           
           <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>
-            <Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(entry.floor.name)}</Text>
-            <Text style={styles.grandTotalValue}>{formatDetailAmount(entry.total)}</Text>
+            <Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(entry.floor.name)} ({formatDetailAmount(getDetailFloorSqft(entry))} SQFT)</Text>
+            <Text style={styles.grandTotalValue}>৳ {formatDetailAmount(entry.total)}</Text>
           </View>
-          <Text style={styles.inWords} wrap={false}>In Words: <Text style={styles.bold}>{amountInWordsTaka(entry.total)}</Text></Text>
+          <Text style={styles.inWords}>In Words: {amountInWordsTaka(entry.total)}</Text>
 
           <FooterFixed content={content} />
         </Page>

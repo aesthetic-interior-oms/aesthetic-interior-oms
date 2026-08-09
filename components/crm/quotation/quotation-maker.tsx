@@ -221,6 +221,7 @@ export function QuotationMaker({
   }, [loadDraft])
 
   const totals = useMemo(() => (content ? calculateQuotationTotals(content) : null), [content])
+  const effectiveClientAddress = content?.clientAddress ?? leadLocation ?? ''
 
   const floors = useMemo(() => {
     if (!content) return []
@@ -235,7 +236,7 @@ export function QuotationMaker({
         context: previewContext,
         contextId: previewContextId,
         clientName: leadName,
-        clientAddress: leadLocation,
+        clientAddress: effectiveClientAddress,
         quotationType,
         projectSqft: projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null,
         content: withDetailQuotationDefaults(content),
@@ -243,7 +244,7 @@ export function QuotationMaker({
       })
     }, 250)
     return () => window.clearTimeout(timer)
-  }, [content, totals, quotationType, projectSqft, leadName, leadLocation, previewContext, previewContextId])
+  }, [content, totals, quotationType, projectSqft, leadName, effectiveClientAddress, previewContext, previewContextId])
 
   const updateLineItem = (lineId: string, patch: Partial<QuotationLineItem>) => {
     setContent((prev) => {
@@ -386,7 +387,7 @@ export function QuotationMaker({
         context: previewContext,
         contextId: previewContextId,
         clientName: leadName,
-        clientAddress: leadLocation,
+        clientAddress: effectiveClientAddress,
         quotationType,
         projectSqft: projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null,
         content: withDetailQuotationDefaults(content),
@@ -663,8 +664,16 @@ return (
             />
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-medium text-muted-foreground">Location</p>
-            <p className="text-sm text-muted-foreground">{leadLocation ?? 'N/A'}</p>
+            <p className="text-xs font-medium text-muted-foreground">PDF location</p>
+            <Input
+              value={displayContent.clientAddress ?? leadLocation ?? ''}
+              disabled={!canEdit}
+              onChange={(event) => updateContentField({ clientAddress: event.target.value })}
+              placeholder="Quotation PDF location"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Auto-filled from lead location; edit here for the quotation PDF.
+            </p>
           </div>
           <div className="space-y-1 md:col-span-2">
             <p className="text-xs font-medium text-muted-foreground">Summary subject (page 1)</p>
@@ -838,10 +847,6 @@ return (
           <Button type="button" size="sm" variant="outline" onClick={openLivePreviewTab}>
             <ExternalLink className="mr-1.5 h-4 w-4" />
             Live Preview
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={handlePrint}>
-            <Printer className="mr-1.5 h-4 w-4" />
-            Print
           </Button>
           {!isPlayground ? (
             <Button type="button" size="sm" variant="outline" asChild>

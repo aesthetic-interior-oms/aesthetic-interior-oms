@@ -19,6 +19,7 @@ import { buildDefaultShortQuotationContent } from '@/lib/short-quotation-default
 import {
   buildShortQuotationSummary,
   normalizeShortQuotationContent,
+  todayShortQuotationDate,
 } from '@/lib/short-quotation-calculations'
 import {
   isDetailQuotationContent,
@@ -270,6 +271,8 @@ function toDetailQuotationContent(value: unknown): QuotationDraftContent | null 
         ? record.terms
         : getQuotationTemplate(templateKey).defaultTerms,
     quotationDate: typeof record.quotationDate === 'string' ? record.quotationDate : undefined,
+    quotationCode: typeof record.quotationCode === 'string' ? record.quotationCode : undefined,
+    downloadedAt: typeof record.downloadedAt === 'string' ? record.downloadedAt : undefined,
     subject: typeof record.subject === 'string' ? record.subject : undefined,
     introLetter: typeof record.introLetter === 'string' ? record.introLetter : undefined,
     paymentTerms: typeof record.paymentTerms === 'string' ? record.paymentTerms : undefined,
@@ -568,11 +571,16 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       projectSqft && projectSqft > 0 ? projectSqft : lead.visits[0]?.projectSqft ?? null
 
     const isShort = isShortQuotationContent(contentInput)
-    const normalizedContent = isShort
+    const savedQuotationDate = todayShortQuotationDate()
+    const calculatedContent = isShort
       ? normalizeShortQuotationContent(contentInput)
       : normalizeQuotationContent(
           applyQuotationTypeToContent(contentInput, quotationType),
         )
+    const normalizedContent = {
+      ...calculatedContent,
+      quotationDate: savedQuotationDate,
+    }
     const grandTotal = isShort
       ? buildShortQuotationSummary(normalizedContent as ShortQuotationContent).grandTotal
       : calculateQuotationTotals(normalizedContent as QuotationDraftContent).grandTotal

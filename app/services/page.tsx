@@ -4,6 +4,7 @@ import { PremiumFaqSection } from "@/components/website/faq/premium-faq-section"
 import { FaqJsonLd } from "@/components/website/seo/json-ld"
 import { interiorDesignFaqs } from "@/lib/seo-faqs"
 import { getWebsiteProjects } from "@/lib/website-projects"
+import { getWebsiteTestimonials } from "@/lib/website-testimonials"
 
 import { BreadcrumbJsonLd } from "@/components/website/seo/json-ld";
 import { PartnersSection } from "@/components/website/homePage/partners-section";
@@ -42,7 +43,7 @@ export const metadata: Metadata = {
 
 
 export default async function ServicePage() {
-  const projects = await getWebsiteProjects()
+  const [projects, testimonials] = await Promise.all([getWebsiteProjects(), getWebsiteTestimonials()])
   return (
     <main className="bg-[#f9f7f4]">
       <FaqJsonLd items={interiorDesignFaqs} />
@@ -54,7 +55,7 @@ export default async function ServicePage() {
       <ProjectSection projects={projects}/>
       <PartnersSection/>
       <TrustFiguresSection/>
-      <TestimonialsSection/>
+      <TestimonialsSection testimonials={testimonials}/>
       <PremiumFaqSection
         eyebrow="Interior Cost FAQ"
         title="Interior Design Pricing & Company FAQ"
