@@ -542,7 +542,7 @@ export function DetailQuotationDocument({
                 const subRowPadding = !isFirst ? { paddingVertical: 1 } : {};
 
                 return (
-                  <View key={`${line.id}-${matIndex}`} style={[
+                  <View key={`${line.id}-${matIndex}`} wrap={false} style={[
                     styles.tRow, 
                     lineIndex % 2 === 1 ? styles.tRowAlt : {},
                     !isLast ? { borderBottomWidth: 0 } : {}
