@@ -539,19 +539,21 @@ export function DetailQuotationDocument({
                 const isFirst = matIndex === 0;
                 const isLast = matIndex === matLines.length - 1;
 
+                const subRowPadding = !isFirst ? { paddingVertical: 1 } : {};
+
                 return (
                   <View key={`${line.id}-${matIndex}`} style={[
                     styles.tRow, 
                     lineIndex % 2 === 1 ? styles.tRowAlt : {},
                     !isLast ? { borderBottomWidth: 0 } : {}
                   ]}>
-                    <Text style={[styles.tdCol, styles.wSl, styles.bold]}>
+                    <Text style={[styles.tdCol, styles.wSl, styles.bold, subRowPadding]}>
                       {isFirst ? String(lineIndex + 1).padStart(2, '0') : ''}
                     </Text>
-                    <Text style={[styles.tdCol, styles.wName]}>
+                    <Text style={[styles.tdCol, styles.wName, subRowPadding]}>
                       {isFirst ? softWrapPdfText(line.description) : ''}
                     </Text>
-                    <View style={[styles.tdCol, styles.wMats]}>
+                    <View style={[styles.tdCol, styles.wMats, subRowPadding]}>
                       <SingleMaterialLine text={matLine} />
                     </View>
 
@@ -569,12 +571,12 @@ export function DetailQuotationDocument({
                       )
                     ) : (
                       <>
-                        <Text style={[styles.tdCol, styles.wQty]}></Text>
-                        <Text style={[styles.tdCol, styles.wPrice]}></Text>
+                        <Text style={[styles.tdCol, styles.wQty, subRowPadding]}></Text>
+                        <Text style={[styles.tdCol, styles.wPrice, subRowPadding]}></Text>
                       </>
                     )}
                     
-                    <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>
+                    <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }, subRowPadding]}>
                       {isFirst ? formatDetailTotalCurrency(line) : ''}
                       {isFirst && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
                     </Text>
