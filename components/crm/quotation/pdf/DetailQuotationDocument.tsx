@@ -445,7 +445,7 @@ export function DetailQuotationDocument({
 
         <Text style={styles.sectionTitle}>Project Summary</Text>
         
-        <View style={styles.tHead}>
+        <View style={styles.tHead} fixed>
           <Text style={[styles.thCol, styles.wSl]}>SL</Text>
           <Text style={[styles.thCol, styles.wSumName]}>Description</Text>
           <Text style={[styles.thCol, styles.wSumTotal, styles.thColLast]}>Amount</Text>
@@ -483,7 +483,7 @@ export function DetailQuotationDocument({
 
           <Text style={styles.sectionTitle}>{softWrapPdfText(entry.floor.name)}</Text>
           
-          <View style={styles.tHead}>
+          <View style={styles.tHead} fixed>
             <Text style={[styles.thCol, styles.wSl]}>SL</Text>
             <Text style={[styles.thCol, styles.wName]}>Name</Text>
             <Text style={[styles.thCol, styles.wMats]}>Materials</Text>
@@ -496,7 +496,7 @@ export function DetailQuotationDocument({
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
               return (
-                <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]} wrap={false}>
+                <View key={line.id} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}]}>
                   <Text style={[styles.tdCol, styles.wSl, styles.bold]}>
                     {String(lineIndex + 1).padStart(2, '0')}
                   </Text>
