@@ -270,11 +270,11 @@ const styles = StyleSheet.create({
   matText: {
     fontSize: 9,
     color: '#444444',
-    lineHeight: 2,
+    lineHeight: 0,
     marginBottom: 0,
   },
   materialCell: {
-    lineHeight: 2,
+    lineHeight: 0,
   },
   
   // Terms
@@ -560,7 +560,7 @@ export function DetailQuotationDocument({
                 const isFirst = rowData.isFirst;
                 const isLast = matIndex === rowsData.length - 1;
 
-                const subRowCellStyle = { paddingTop: 2, paddingBottom: 2, lineHeight: 2 };
+                const subRowCellStyle = { paddingTop: 2, paddingBottom: 2, lineHeight: 0 };
 
                 return (
                   <View key={`${line.id}-${matIndex}`} wrap={false} style={[
