@@ -547,6 +547,8 @@ export function DetailQuotationDocument({
                 const isFirstMaterialRow = matIndex === 0
                 const isLastMaterialRow = matIndex === displayMatLines.length - 1
 
+                // Keep package/non-package cells out of the returned JSX body; Turbopack
+                // can be sensitive to nested fragment ternaries inside react-pdf table rows.
                 let quantityCell
                 let priceText = ''
 
