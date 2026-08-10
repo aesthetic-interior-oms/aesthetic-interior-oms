@@ -587,8 +587,25 @@ export function DetailQuotationDocument({
                       {isFirstMaterialRow && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
                     </Text>
                   </View>
-                )
-              })
+
+                  {isPkg ? (
+                    <>
+                      <View style={[styles.tdCol, styles.wQty, rowCellStyle]}><Text style={styles.packageBadge}>Package</Text></View>
+                      <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>Per Design</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>{formatDetailQtyCell(line)}</Text>
+                      <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>{formatDetailUnitPriceCurrency(line)}</Text>
+                    </>
+                  )}
+
+                  <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }, rowCellStyle]}>
+                    {formatDetailTotalCurrency(line)}
+                    {line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
+                  </Text>
+                </View>
+              )
             })}
           </View>
 
