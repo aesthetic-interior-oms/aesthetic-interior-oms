@@ -543,21 +543,49 @@ export function DetailQuotationDocument({
               const displayMatLines = matLines.length > 0 ? matLines : ['']
               const rowCellStyle = { paddingTop: 2, paddingBottom: 2 }
 
-              return (
-                <View key={line.id} style={[
-                  styles.tRow,
-                  lineIndex % 2 === 1 ? styles.tRowAlt : {},
-                ]}>
-                  <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>
-                    {String(lineIndex + 1).padStart(2, '0')}
-                  </Text>
-                  <Text style={[styles.tdCol, styles.wName, rowCellStyle]}>
-                    {softWrapPdfText(line.description)}
-                  </Text>
-                  <View style={[styles.tdCol, styles.wMats, rowCellStyle]}>
-                    {displayMatLines.map((matText, idx) => (
-                      <SingleMaterialLine key={idx} text={matText} />
-                    ))}
+              return displayMatLines.map((matText, matIndex) => {
+                const isFirstMaterialRow = matIndex === 0
+                const isLastMaterialRow = matIndex === displayMatLines.length - 1
+
+                return (
+                  <View key={`${line.id}-${matIndex}`} style={[
+                    styles.tRow,
+                    lineIndex % 2 === 1 ? styles.tRowAlt : {},
+                    !isLastMaterialRow ? { borderBottomWidth: 0 } : {},
+                  ]}>
+                    <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>
+                      {isFirstMaterialRow ? String(lineIndex + 1).padStart(2, '0') : ''}
+                    </Text>
+                    <Text style={[styles.tdCol, styles.wName, rowCellStyle]}>
+                      {isFirstMaterialRow ? softWrapPdfText(line.description) : ''}
+                    </Text>
+                    <View style={[styles.tdCol, styles.wMats, rowCellStyle]}>
+                      <SingleMaterialLine text={matText} />
+                    </View>
+
+                    {isFirstMaterialRow ? (
+                      isPkg ? (
+                        <>
+                          <View style={[styles.tdCol, styles.wQty, rowCellStyle]}><Text style={styles.packageBadge}>Package</Text></View>
+                          <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>Per Design</Text>
+                        </>
+                      ) : (
+                        <>
+                          <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>{formatDetailQtyCell(line)}</Text>
+                          <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>{formatDetailUnitPriceCurrency(line)}</Text>
+                        </>
+                      )
+                    ) : (
+                      <>
+                        <Text style={[styles.tdCol, styles.wQty, rowCellStyle]} />
+                        <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]} />
+                      </>
+                    )}
+
+                    <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }, rowCellStyle]}>
+                      {isFirstMaterialRow ? formatDetailTotalCurrency(line) : ''}
+                      {isFirstMaterialRow && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
+                    </Text>
                   </View>
 
                   {isPkg ? (
