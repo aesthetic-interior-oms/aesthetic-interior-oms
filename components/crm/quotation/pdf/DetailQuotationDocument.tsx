@@ -544,17 +544,17 @@ export function DetailQuotationDocument({
               const rowCellStyle = { paddingTop: 2, paddingBottom: 2 }
 
               return (
-                <View key={line.id} wrap={false} minPresenceAhead={72} style={[
+                <View key={line.id} style={[
                   styles.tRow,
                   lineIndex % 2 === 1 ? styles.tRowAlt : {},
                 ]}>
-                  <Text wrap={false} style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>
+                  <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>
                     {String(lineIndex + 1).padStart(2, '0')}
                   </Text>
-                  <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>
+                  <Text style={[styles.tdCol, styles.wName, rowCellStyle]}>
                     {softWrapPdfText(line.description)}
                   </Text>
-                  <View wrap={false} style={[styles.tdCol, styles.wMats, rowCellStyle]}>
+                  <View style={[styles.tdCol, styles.wMats, rowCellStyle]}>
                     {displayMatLines.map((matText, idx) => (
                       <SingleMaterialLine key={idx} text={matText} />
                     ))}
@@ -562,17 +562,17 @@ export function DetailQuotationDocument({
 
                   {isPkg ? (
                     <>
-                      <View wrap={false} style={[styles.tdCol, styles.wQty, rowCellStyle]}><Text wrap={false} style={styles.packageBadge}>Package</Text></View>
-                      <Text wrap={false} style={[styles.tdCol, styles.wPrice, rowCellStyle]}>Per Design</Text>
+                      <View style={[styles.tdCol, styles.wQty, rowCellStyle]}><Text style={styles.packageBadge}>Package</Text></View>
+                      <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>Per Design</Text>
                     </>
                   ) : (
                     <>
-                      <Text wrap={false} style={[styles.tdCol, styles.wQty, rowCellStyle]}>{formatDetailQtyCell(line)}</Text>
-                      <Text wrap={false} style={[styles.tdCol, styles.wPrice, rowCellStyle]}>{formatDetailUnitPriceCurrency(line)}</Text>
+                      <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>{formatDetailQtyCell(line)}</Text>
+                      <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>{formatDetailUnitPriceCurrency(line)}</Text>
                     </>
                   )}
 
-                  <Text wrap={false} style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }, rowCellStyle]}>
+                  <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }, rowCellStyle]}>
                     {formatDetailTotalCurrency(line)}
                     {line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
                   </Text>
