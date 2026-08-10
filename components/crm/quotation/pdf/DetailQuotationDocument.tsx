@@ -433,18 +433,18 @@ function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
 }
 
 function SingleMaterialLine({ text }: { text: string }) {
-  if (!text) return <Text style={styles.matText}>—</Text>
+  if (!text) return <Text wrap={false} style={styles.matText}>—</Text>
   const match = text.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
   const isWithoutWiring = text.toLowerCase().includes('without supplying wiring') || text.toLowerCase().includes('without suppling wiring');
   if (!match) {
-    return <Text style={styles.matText}>
+    return <Text wrap={false} style={styles.matText}>
       <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(text)}</Text>
     </Text>
   }
   const prefix = match[1]
   const rest = text.substring(prefix.length)
   return (
-    <Text style={styles.matText}>
+    <Text wrap={false} style={styles.matText}>
       <Text style={styles.bold}>{softWrapPdfText(prefix)}</Text>
       <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(rest)}</Text>
     </Text>
@@ -547,6 +547,21 @@ export function DetailQuotationDocument({
                 const isFirstMaterialRow = matIndex === 0
                 const isLastMaterialRow = matIndex === displayMatLines.length - 1
 
+                const quantityCell = isFirstMaterialRow && isPkg ? (
+                  <View style={[styles.tdCol, styles.wQty, rowCellStyle]}>
+                    <Text style={styles.packageBadge}>Package</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>
+                    {isFirstMaterialRow ? formatDetailQtyCell(line) : ''}
+                  </Text>
+                )
+                const priceCell = (
+                  <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>
+                    {isFirstMaterialRow ? (isPkg ? 'Per Design' : formatDetailUnitPriceCurrency(line)) : ''}
+                  </Text>
+                )
+
                 return (
                   <View key={`${line.id}-${matIndex}`} style={[
                     styles.tRow,
@@ -562,26 +577,8 @@ export function DetailQuotationDocument({
                     <View style={[styles.tdCol, styles.wMats, rowCellStyle]}>
                       <SingleMaterialLine text={matText} />
                     </View>
-
-                    {isFirstMaterialRow ? (
-                      isPkg ? (
-                        <>
-                          <View style={[styles.tdCol, styles.wQty, rowCellStyle]}><Text style={styles.packageBadge}>Package</Text></View>
-                          <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>Per Design</Text>
-                        </>
-                      ) : (
-                        <>
-                          <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>{formatDetailQtyCell(line)}</Text>
-                          <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>{formatDetailUnitPriceCurrency(line)}</Text>
-                        </>
-                      )
-                    ) : (
-                      <>
-                        <Text style={[styles.tdCol, styles.wQty, rowCellStyle]} />
-                        <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]} />
-                      </>
-                    )}
-
+                    {quantityCell}
+                    {priceCell}
                     <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }, rowCellStyle]}>
                       {isFirstMaterialRow ? formatDetailTotalCurrency(line) : ''}
                       {isFirstMaterialRow && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
