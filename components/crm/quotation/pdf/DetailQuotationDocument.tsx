@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000000',
   },
-  
+
   // Table
   sectionTitle: {
     fontSize: 12,
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   tdColLast: {
     borderRightWidth: 0,
   },
-  
+
   // Columns Detail
   wSl: { width: '6%', textAlign: 'center' },
   wName: { width: '16%' },
@@ -202,11 +202,11 @@ const styles = StyleSheet.create({
   wQty: { width: '10%', textAlign: 'center' },
   wPrice: { width: '10%', textAlign: 'right' },
   wTotal: { width: '12%', textAlign: 'right' },
-  
+
   // Columns Summary
   wSumName: { width: '70%', paddingLeft: 10 },
   wSumTotal: { width: '22%', textAlign: 'right' },
-  
+
   // Totals
   grandTotalRow: {
     flexDirection: 'row',
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     color: PRIMARY,
   },
   inWords: {
-    fontSize: 9,
+    fontSize: 11,
     color: '#000000',
     marginTop: 4,
     textAlign: 'left',
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
   headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   headerRule: { height: 2.2, backgroundColor: PRIMARY },
   headerTitle: { color: PRIMARY, fontSize: 10, fontFamily: 'Times-Roman', fontStyle: 'italic', letterSpacing: 2, marginHorizontal: 12, textTransform: 'uppercase' },
-  
+
   // Footer
   footerFixed: {
     position: 'absolute',
@@ -265,14 +265,15 @@ const styles = StyleSheet.create({
     color: '#888888',
     marginTop: 3,
   },
-  
+
   // Materials
   matText: {
     fontSize: 9,
     color: '#444444',
-    marginBottom: 2,
+    lineHeight: 1.2,
+    marginBottom: 0,
   },
-  
+
   // Terms
   termTitle: {
     fontSize: 11,
@@ -300,10 +301,10 @@ const formatDateString = (dateString: string) => {
   try {
     const timestamp = Date.parse(dateString)
     if (isNaN(timestamp)) return dateString
-    return new Date(timestamp).toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
+    return new Date(timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     })
   } catch {
     return dateString
@@ -382,16 +383,17 @@ function getDetailTotalSqft(floorSummaries: ReturnType<typeof buildDetailFloorSu
 }
 
 const formatDetailCurrency = (value: number) => `${BDT_SYMBOL} ${formatDetailAmount(value)}`
+const formatDetailTableAmount = (value: number) => formatDetailAmount(value)
 
 function formatDetailUnitPriceCurrency(line: QuotationDraftContent['lineItems'][number]) {
-  if (isRateOnlyLine(line)) return `---- ${formatDetailCurrency(line.rate)} ----`
+  if (isRateOnlyLine(line)) return `---- ${formatDetailTableAmount(line.rate)} ----`
   if (line.rate <= 0) return formatDetailUnitPriceCell(line)
-  return formatDetailCurrency(line.rate)
+  return formatDetailTableAmount(line.rate)
 }
 
 function formatDetailTotalCurrency(line: QuotationDraftContent['lineItems'][number]) {
   if (isRateOnlyLine(line)) return formatDetailTotalCell(line)
-  return formatDetailCurrency(line.amount)
+  return formatDetailTableAmount(line.amount)
 }
 
 const FooterFixed = ({ content }: { content: QuotationDraftContent }) => (
@@ -469,13 +471,13 @@ export function DetailQuotationDocument({
       {/* SUMMARY PAGE */}
       <Page size="A4" style={styles.page}>
         <WatermarkBackground />
-        <GlobalHeader 
-          date={content.quotationDate ?? ''} 
-          subject={content.subject ?? ''} 
-          clientName={clientName} 
-          clientAddress={clientAddress || ''} 
+        <GlobalHeader
+          date={content.quotationDate ?? ''}
+          subject={content.subject ?? ''}
+          clientName={clientName}
+          clientAddress={clientAddress || ''}
         />
-        
+
         <ClientInfoBlock clientName={clientName} clientAddress={clientAddress} />
 
         {cleanIntro ? (
@@ -486,7 +488,7 @@ export function DetailQuotationDocument({
         ) : null}
 
         <Text style={styles.sectionTitle}>Project Summary</Text>
-        
+
         <View style={styles.tableWrapper}>
           <View style={styles.tHead} fixed>
             <Text style={[styles.thCol, styles.wSl]}>SL</Text>
@@ -497,7 +499,7 @@ export function DetailQuotationDocument({
             <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}>
               <Text style={[styles.tdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
               <Text style={[styles.tdCol, styles.wSumName]}>{softWrapPdfText(entry.floor.name)}</Text>
-              <Text style={[styles.tdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailCurrency(entry.total)}</Text>
+              <Text style={[styles.tdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailTableAmount(entry.total)}</Text>
             </View>
           ))}
         </View>
@@ -515,15 +517,15 @@ export function DetailQuotationDocument({
       {floorSummaries.map((entry) => (
         <Page key={entry.floor.id} size="A4" style={styles.detailPage}>
           <WatermarkBackground />
-          <GlobalHeader 
-            date={content.quotationDate ?? ''} 
-            subject={content.subject ?? ''} 
-            clientName={clientName} 
-            clientAddress={clientAddress || ''} 
+          <GlobalHeader
+            date={content.quotationDate ?? ''}
+            subject={content.subject ?? ''}
+            clientName={clientName}
+            clientAddress={clientAddress || ''}
           />
 
           <Text style={styles.sectionTitle}>{softWrapPdfText(entry.floor.name)}</Text>
-          
+
           <View style={styles.tableWrapper}>
             <View style={styles.tHead} fixed>
               <Text style={[styles.thCol, styles.wSl]}>SL</Text>
@@ -535,76 +537,50 @@ export function DetailQuotationDocument({
             </View>
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
-              let matLines = line.materials 
+              const matLines = line.materials
                 ? line.materials.split('\n').map(l => l.trim()).filter(Boolean)
                 : []
-              if (matLines.length === 0) {
-                matLines = ['']
-              }
+              const displayMatLines = matLines.length > 0 ? matLines : ['']
+              const rowCellStyle = { paddingTop: 2, paddingBottom: 2 }
 
-              // Estimate description lines in wName column to match height and prevent gaps
-              const descLines = Math.max(1, Math.ceil((line.description || '').length / 16))
-              const firstRowMats = matLines.slice(0, descLines)
-              const remainingMats = matLines.slice(descLines)
-
-              const rowsData = [
-                { isFirst: true, mats: firstRowMats },
-                ...remainingMats.map(m => ({ isFirst: false, mats: [m] }))
-              ]
-
-              return rowsData.map((rowData, matIndex) => {
-                const isFirst = rowData.isFirst;
-                const isLast = matIndex === rowsData.length - 1;
-
-                const subRowCellStyle = { paddingTop: 2, paddingBottom: 2 };
-
-                return (
-                  <View key={`${line.id}-${matIndex}`} wrap={false} style={[
-                    styles.tRow, 
-                    lineIndex % 2 === 1 ? styles.tRowAlt : {},
-                    !isLast ? { borderBottomWidth: 0 } : {}
-                  ]}>
-                    <Text style={[styles.tdCol, styles.wSl, styles.bold, subRowCellStyle]}>
-                      {isFirst ? String(lineIndex + 1).padStart(2, '0') : ''}
-                    </Text>
-                    <Text style={[styles.tdCol, styles.wName, subRowCellStyle]}>
-                      {isFirst ? softWrapPdfText(line.description) : ''}
-                    </Text>
-                    <View style={[styles.tdCol, styles.wMats, subRowCellStyle]}>
-                      {rowData.mats.map((matText, idx) => (
-                        <SingleMaterialLine key={idx} text={matText} />
-                      ))}
-                    </View>
-
-                    {isFirst ? (
-                      isPkg ? (
-                        <>
-                          <View style={[styles.tdCol, styles.wQty, subRowCellStyle]}><Text style={styles.packageBadge}>Package</Text></View>
-                          <Text style={[styles.tdCol, styles.wPrice, subRowCellStyle]}>Per Design</Text>
-                        </>
-                      ) : (
-                        <>
-                          <Text style={[styles.tdCol, styles.wQty, subRowCellStyle]}>{formatDetailQtyCell(line)}</Text>
-                          <Text style={[styles.tdCol, styles.wPrice, subRowCellStyle]}>{formatDetailUnitPriceCurrency(line)}</Text>
-                        </>
-                      )
-                    ) : (
-                      <>
-                        <Text style={[styles.tdCol, styles.wQty, subRowCellStyle]}></Text>
-                        <Text style={[styles.tdCol, styles.wPrice, subRowCellStyle]}></Text>
-                      </>
-                    )}
-                    
-                    <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }, subRowCellStyle]}>
-                      {isFirst ? formatDetailTotalCurrency(line) : ''}
-                      {isFirst && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
-                    </Text>
+              return (
+                <View key={line.id} style={[
+                  styles.tRow,
+                  lineIndex % 2 === 1 ? styles.tRowAlt : {},
+                ]}>
+                  <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>
+                    {String(lineIndex + 1).padStart(2, '0')}
+                  </Text>
+                  <Text style={[styles.tdCol, styles.wName, rowCellStyle]}>
+                    {softWrapPdfText(line.description)}
+                  </Text>
+                  <View style={[styles.tdCol, styles.wMats, rowCellStyle]}>
+                    {displayMatLines.map((matText, idx) => (
+                      <SingleMaterialLine key={idx} text={matText} />
+                    ))}
                   </View>
-                )
-              })
+
+                  {isPkg ? (
+                    <>
+                      <View style={[styles.tdCol, styles.wQty, rowCellStyle]}><Text style={styles.packageBadge}>Package</Text></View>
+                      <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>Per Design</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>{formatDetailQtyCell(line)}</Text>
+                      <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>{formatDetailUnitPriceCurrency(line)}</Text>
+                    </>
+                  )}
+
+                  <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }, rowCellStyle]}>
+                    {formatDetailTotalCurrency(line)}
+                    {line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
+                  </Text>
+                </View>
+              )
             })}
           </View>
-          
+
           <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>
             <Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(entry.floor.name)} ({formatDetailAmount(getDetailFloorSqft(entry))} SQFT)</Text>
             <Text style={styles.grandTotalValue}>{formatDetailCurrency(entry.total)}</Text>
@@ -618,11 +594,11 @@ export function DetailQuotationDocument({
       {/* TERMS PAGE */}
       <Page size="A4" style={styles.page}>
         <WatermarkBackground />
-        <GlobalHeader 
-          date={content.quotationDate ?? ''} 
-          subject={content.subject ?? ''} 
-          clientName={clientName} 
-          clientAddress={clientAddress || ''} 
+        <GlobalHeader
+          date={content.quotationDate ?? ''}
+          subject={content.subject ?? ''}
+          clientName={clientName}
+          clientAddress={clientAddress || ''}
         />
 
         <Text style={styles.sectionTitle}>Terms &amp; Signatures</Text>
@@ -634,7 +610,7 @@ export function DetailQuotationDocument({
               <Text style={styles.termContent}>{content.notes}</Text>
             </View>
           ) : null}
-          
+
           {content.terms ? (
             <View>
               <Text style={styles.termTitle}>Terms &amp; Conditions</Text>
@@ -674,7 +650,7 @@ export function DetailQuotationDocument({
             <Text style={[styles.metaText, styles.bold, { marginTop: 4 }]}>Customer Approval</Text>
             <Text style={styles.metaText}>Sign &amp; Date</Text>
           </View>
-          
+
           <View>
             <View style={styles.sigLine} />
             <Text style={[styles.metaText, styles.bold, { marginTop: 4 }]}>{content.signatoryName || 'Authorized Signature'}</Text>
