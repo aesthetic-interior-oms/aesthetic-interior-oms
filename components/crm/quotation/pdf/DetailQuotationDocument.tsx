@@ -547,20 +547,26 @@ export function DetailQuotationDocument({
                 const isFirstMaterialRow = matIndex === 0
                 const isLastMaterialRow = matIndex === displayMatLines.length - 1
 
-                const quantityCell = isFirstMaterialRow && isPkg ? (
-                  <View style={[styles.tdCol, styles.wQty, rowCellStyle]}>
-                    <Text style={styles.packageBadge}>Package</Text>
-                  </View>
-                ) : (
-                  <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>
-                    {isFirstMaterialRow ? formatDetailQtyCell(line) : ''}
-                  </Text>
-                )
-                const priceCell = (
-                  <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>
-                    {isFirstMaterialRow ? (isPkg ? 'Per Design' : formatDetailUnitPriceCurrency(line)) : ''}
-                  </Text>
-                )
+                let quantityCell
+                let priceText = ''
+
+                if (isFirstMaterialRow && isPkg) {
+                  quantityCell = (
+                    <View style={[styles.tdCol, styles.wQty, rowCellStyle]}>
+                      <Text style={styles.packageBadge}>Package</Text>
+                    </View>
+                  )
+                  priceText = 'Per Design'
+                } else {
+                  quantityCell = (
+                    <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>
+                      {isFirstMaterialRow ? formatDetailQtyCell(line) : ''}
+                    </Text>
+                  )
+                  priceText = isFirstMaterialRow ? formatDetailUnitPriceCurrency(line) : ''
+                }
+
+                const priceCell = <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>{priceText}</Text>
 
                 return (
                   <View key={`${line.id}-${matIndex}`} style={[
