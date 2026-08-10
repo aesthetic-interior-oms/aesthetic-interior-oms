@@ -1,14 +1,26 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { ComponentType } from 'react'
 import Link from 'next/link'
 import {
   CalendarClock,
+  CheckCircle2,
+  ClipboardCheck,
+  FilePlus2,
+  DraftingCompass,
+  LayoutGrid,
+  ListFilter,
   Loader2,
   MapPin,
+  MoreHorizontal,
   Phone,
   Search,
+  Send,
+  Sparkles,
+  TableIcon,
   UserRound,
+  Wrench,
 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
@@ -23,6 +35,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -33,6 +51,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 type LeadRecord = {
   id: string
@@ -56,6 +82,9 @@ type LeadRecord = {
     user: { id: string; fullName: string; email: string }
   } | null
   latestCompletedVisit?: {
+    id: string
+    scheduledAt: string
+    projectSqft: number | null
     assignedVisitLead: { id: string; fullName: string } | null
     supportMembers: Array<{ id: string; fullName: string }>
   } | null
@@ -78,10 +107,80 @@ type QueueResponse = {
 }
 
 type DepartmentUser = { id: string; fullName: string; email: string }
+
+const ALL_MEMBER_FILTER = 'ALL_MEMBERS'
+const ALL_MONTH_FILTER = 'ALL_MONTHS'
 type DepartmentUsersResponse = {
   success: boolean
   users?: DepartmentUser[]
   error?: string
+}
+
+type StatCardConfig = {
+  key: string
+  label: string
+  count: number
+  Icon: ComponentType<{ className?: string }>
+  className: string
+  iconClassName: string
+  accentClassName: string
+}
+
+const CAD_PHASE_STAT_META: Record<
+  string,
+  { label: string; Icon: ComponentType<{ className?: string }>; className: string; iconClassName: string; accentClassName: string }
+> = {
+  ALL: {
+    label: 'Total CAD Phase',
+    Icon: DraftingCompass,
+    className: 'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950',
+    iconClassName: 'bg-white/15 text-white ring-white/25 dark:bg-slate-950/10 dark:text-slate-950 dark:ring-slate-950/15',
+    accentClassName: 'from-primary to-amber-400',
+  },
+  CAD_ASSIGNED: {
+    label: 'CAD Assigned',
+    Icon: Send,
+    className: 'border-sky-200/70 from-sky-50 via-white to-cyan-50 text-sky-800 dark:border-sky-500/30 dark:from-sky-950/60 dark:via-slate-950 dark:to-cyan-950/40 dark:text-sky-100',
+    iconClassName: 'bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-500/15 dark:text-sky-200 dark:ring-sky-400/20',
+    accentClassName: 'from-sky-500 to-cyan-500',
+  },
+  CAD_WORKING: {
+    label: 'CAD Working',
+    Icon: Wrench,
+    className: 'border-amber-200/70 from-amber-50 via-white to-orange-50 text-amber-800 dark:border-amber-500/30 dark:from-amber-950/60 dark:via-slate-950 dark:to-orange-950/40 dark:text-amber-100',
+    iconClassName: 'bg-amber-100 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20',
+    accentClassName: 'from-amber-500 to-orange-500',
+  },
+  CAD_COMPLETED: {
+    label: 'CAD Completed',
+    Icon: ClipboardCheck,
+    className: 'border-violet-200/70 from-violet-50 via-white to-fuchsia-50 text-violet-800 dark:border-violet-500/30 dark:from-violet-950/60 dark:via-slate-950 dark:to-fuchsia-950/40 dark:text-violet-100',
+    iconClassName: 'bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-500/15 dark:text-violet-200 dark:ring-violet-400/20',
+    accentClassName: 'from-violet-500 to-fuchsia-500',
+  },
+  CAD_APPROVED: {
+    label: 'CAD Approved',
+    Icon: CheckCircle2,
+    className: 'border-emerald-200/70 from-emerald-50 via-white to-teal-50 text-emerald-800 dark:border-emerald-500/30 dark:from-emerald-950/60 dark:via-slate-950 dark:to-teal-950/40 dark:text-emerald-100',
+    iconClassName: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20',
+    accentClassName: 'from-emerald-500 to-teal-500',
+  },
+}
+
+const TOTAL_QUEUE_STAT_META = {
+  Icon: ListFilter,
+  className:
+    'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950',
+  iconClassName: 'bg-white/15 text-white ring-white/25 dark:bg-slate-950/10 dark:text-slate-950 dark:ring-slate-950/15',
+  accentClassName: 'from-primary to-amber-400',
+}
+
+const DEFAULT_STAT_META = {
+  Icon: ListFilter,
+  className:
+    'border-indigo-200/70 from-indigo-50 via-white to-sky-50 text-indigo-800 dark:border-indigo-500/30 dark:from-indigo-950/60 dark:via-slate-950 dark:to-sky-950/40 dark:text-indigo-100',
+  iconClassName: 'bg-indigo-100 text-indigo-700 ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-200 dark:ring-indigo-400/20',
+  accentClassName: 'from-indigo-500 to-sky-500',
 }
 
 function formatLabel(value: string | null | undefined) {
@@ -92,6 +191,85 @@ function formatLabel(value: string | null | undefined) {
     .replace(/_/g, ' ')
     .toLowerCase()
     .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+function formatProjectSqft(value: number | null | undefined) {
+  if (value === null || value === undefined) return 'N/A'
+  return `${value.toLocaleString()} sqft`
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return 'N/A'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'N/A'
+  return date.toLocaleDateString(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+function formatMonth(value: string | null | undefined) {
+  if (!value) return 'No Visit Date'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'No Visit Date'
+  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+}
+
+function subStatusBadgeClass(value: string | null | undefined) {
+  switch (value) {
+    case 'CAD_ASSIGNED':
+      return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900/60 dark:bg-sky-950/40 dark:text-sky-200'
+    case 'CAD_WORKING':
+      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200'
+    case 'CAD_COMPLETED':
+      return 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-200'
+    case 'CAD_APPROVED':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200'
+    default:
+      return 'border-border bg-muted text-muted-foreground'
+  }
+}
+
+function stageSubStatusBlock(lead: LeadRecord) {
+  return (
+    <div className="space-y-1.5">
+      <div className="text-sm font-semibold text-foreground">
+        {formatLabel(lead.stage)}
+      </div>
+      <Badge
+        variant="outline"
+        className={`whitespace-nowrap px-2 py-0.5 text-[11px] font-medium ${subStatusBadgeClass(lead.subStatus)}`}
+      >
+        {formatLabel(lead.subStatus)}
+      </Badge>
+    </div>
+  )
+}
+
+function visitTeamLabel(visit: LeadRecord['latestCompletedVisit']) {
+  if (!visit) return 'N/A'
+  const names = [
+    visit.assignedVisitLead?.fullName,
+    ...(visit.supportMembers ?? []).map((member) => member.fullName),
+  ].filter(Boolean)
+  return names.length > 0 ? names.join(' + ') : 'N/A'
+}
+
+function srCrmVisitTeamBlock(lead: LeadRecord) {
+  const srCrmName = lead.srCrmAssignment?.user.fullName ?? 'Unassigned'
+  const visitTeamNames = visitTeamLabel(lead.latestCompletedVisit)
+
+  return (
+    <div className="min-w-0 space-y-1" title={`SR CRM: ${srCrmName} | Visit Team: ${visitTeamNames}`}>
+      <div className="truncate text-sm font-medium text-foreground">
+        {srCrmName}
+      </div>
+      <div className="truncate text-xs text-muted-foreground">
+        Visit: {visitTeamNames}
+      </div>
+    </div>
+  )
 }
 
 function toDateTimeLocalInput(date: Date): string {
@@ -112,6 +290,7 @@ export function CadPhaseQueueBoard({
   assigneeDepartment = 'JR_ARCHITECT',
   assigneeLabel = 'JR Architect',
   showAssigneeReassign = true,
+  showSrCrmFilter = false,
 }: {
   title: string
   subtitle: string
@@ -121,6 +300,7 @@ export function CadPhaseQueueBoard({
   assigneeDepartment?: string
   assigneeLabel?: string
   showAssigneeReassign?: boolean
+  showSrCrmFilter?: boolean
 }) {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -148,17 +328,27 @@ export function CadPhaseQueueBoard({
   const [visualizerMembers, setVisualizerMembers] = useState<DepartmentUser[]>(
     [],
   )
+  const [srCrmMembers, setSrCrmMembers] = useState<DepartmentUser[]>([])
   const [quotationMemberId, setQuotationMemberId] = useState('')
   const [visualizerMemberId, setVisualizerMemberId] = useState('')
+  const [srCrmMemberId, setSrCrmMemberId] = useState('')
   const [loadingQuotationMembers, setLoadingQuotationMembers] = useState(false)
   const [loadingVisualizerMembers, setLoadingVisualizerMembers] =
     useState(false)
+  const [loadingSrCrmMembers, setLoadingSrCrmMembers] = useState(false)
   const [reassignQuotationOpen, setReassignQuotationOpen] = useState(false)
+  const [reassignSrCrmOpen, setReassignSrCrmOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState<string>('ALL')
+  const [jrArchitectFilter, setJrArchitectFilter] = useState(ALL_MEMBER_FILTER)
+  const [srCrmFilter, setSrCrmFilter] = useState(ALL_MEMBER_FILTER)
+  const [visitMonthFilter, setVisitMonthFilter] = useState(ALL_MONTH_FILTER)
   const [dropOpen, setDropOpen] = useState(false)
   const [dropSubStatus, setDropSubStatus] = useState('')
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('table')
+  const [projectSizeOpen, setProjectSizeOpen] = useState(false)
+  const [projectSizeValue, setProjectSizeValue] = useState('')
 
   const closedSubStatusOptions = [
     'PROJECT_DROPPED',
@@ -173,6 +363,8 @@ export function CadPhaseQueueBoard({
   const isMeetingQueue = queueType === 'meeting'
   const isBudgetQueue = queueType === 'budget'
   const isDesignQueue = queueType === 'design'
+  const isCadQueue = !isMeetingQueue && !isBudgetQueue && !isDesignQueue
+  const canDropFromQueue = isCadQueue || isMeetingQueue || isBudgetQueue
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 400)
@@ -270,6 +462,61 @@ export function CadPhaseQueueBoard({
     }
   }
 
+  const loadSrCrmMembers = async () => {
+    if (srCrmMembers.length > 0) return
+    setLoadingSrCrmMembers(true)
+    try {
+      const response = await fetch('/api/department/available/SR_CRM', {
+        cache: 'no-store',
+      })
+      const payload = (await response.json()) as DepartmentUsersResponse
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error ?? 'Failed to load SR CRM members')
+      }
+      setSrCrmMembers(Array.isArray(payload.users) ? payload.users : [])
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to load SR CRM members',
+      )
+    } finally {
+      setLoadingSrCrmMembers(false)
+    }
+  }
+
+  const openReassignSrCrm = async (lead: LeadRecord) => {
+    setActiveLead(lead)
+    setSrCrmMemberId(lead.srCrmAssignment?.user.id ?? '')
+    setReassignSrCrmOpen(true)
+    await loadSrCrmMembers()
+  }
+
+  const submitReassignSrCrm = async () => {
+    if (!activeLead || !srCrmMemberId) return
+    setSaving(true)
+    try {
+      const response = await fetch(
+        `/api/lead/${activeLead.id}/assignments/SR_CRM`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: srCrmMemberId }),
+        },
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to reassign SR CRM')
+      }
+      toast.success('SR CRM reassigned successfully')
+      setReassignSrCrmOpen(false)
+      setActiveLead(null)
+      await loadLeads()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to reassign SR CRM')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const openReassign = async (lead: LeadRecord) => {
     if (lead.canReassignJrArchitect === false) {
       toast.error(
@@ -338,9 +585,42 @@ export function CadPhaseQueueBoard({
       return
     }
     setActiveLead(lead)
-    setQuotationMemberId(lead.quotationAssignment?.user.id ?? '')
+    setQuotationMemberId(
+      lead.subStatus === 'QUOTATION_APPROVED'
+        ? ''
+        : lead.quotationAssignment?.user.id ?? '',
+    )
     setReassignQuotationOpen(true)
     await loadQuotationMembers()
+  }
+
+  const submitNewQuotation = async () => {
+    if (!activeLead || !quotationMemberId) return
+    setSaving(true)
+    try {
+      const response = await fetch(
+        `/api/lead/${activeLead.id}/assignments/QUOTATION`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: quotationMemberId }),
+        },
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to assign new quotation')
+      }
+      toast.success('New quotation assigned successfully')
+      setReassignQuotationOpen(false)
+      setActiveLead(null)
+      await loadLeads()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to assign new quotation',
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
   const submitReassignQuotation = async () => {
@@ -487,6 +767,55 @@ export function CadPhaseQueueBoard({
     setDropSubStatus('')
     setDropOpen(true)
   }
+
+  const openProjectSizeDialog = (lead: LeadRecord) => {
+    if (!lead.latestCompletedVisit?.id) {
+      toast.error('No completed visit found for this lead to update project size')
+      return
+    }
+    setActiveLead(lead)
+    setProjectSizeValue(
+      lead.latestCompletedVisit.projectSqft
+        ? String(lead.latestCompletedVisit.projectSqft)
+        : '',
+    )
+    setProjectSizeOpen(true)
+  }
+
+  const submitProjectSize = async () => {
+    if (!activeLead?.latestCompletedVisit?.id) return
+    const parsedSqft = Number(projectSizeValue.trim().replace(/,/g, ''))
+    if (!Number.isFinite(parsedSqft) || parsedSqft <= 0) {
+      toast.error('Project size must be greater than 0')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const response = await fetch(
+        `/api/visit-schedule/${activeLead.latestCompletedVisit.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectSqft: parsedSqft }),
+        },
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to update project size')
+      }
+      toast.success('Project size updated')
+      setProjectSizeOpen(false)
+      setActiveLead(null)
+      await loadLeads()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to update project size',
+      )
+    } finally {
+      setSaving(false)
+    }
+  }
   const openRenameDialog = (lead: LeadRecord) => {
     setActiveLead(lead)
     setRenameValue(lead.name ?? '')
@@ -527,7 +856,7 @@ export function CadPhaseQueueBoard({
         body: JSON.stringify({
           stage: 'CLOSED',
           subStatus: dropSubStatus,
-          reason: 'Project dropped from CAD Queue.',
+          reason: `Project dropped from ${isMeetingQueue ? 'Meeting Queue' : isBudgetQueue ? 'Budget Queue' : 'CAD Queue'}.`,
         }),
       })
       const payload = await response.json()
@@ -648,16 +977,96 @@ export function CadPhaseQueueBoard({
     }
   }
 
+  const memberFilteredLeads = useMemo(() => {
+    let nextLeads = leads
+    if (isCadQueue && jrArchitectFilter !== ALL_MEMBER_FILTER) {
+      nextLeads = nextLeads.filter(
+        (lead) => lead.jrArchitectAssignment?.user.id === jrArchitectFilter,
+      )
+    }
+    if (showSrCrmFilter && srCrmFilter !== ALL_MEMBER_FILTER) {
+      nextLeads = nextLeads.filter(
+        (lead) => lead.srCrmAssignment?.user.id === srCrmFilter,
+      )
+    }
+    if (visitMonthFilter !== ALL_MONTH_FILTER) {
+      nextLeads = nextLeads.filter((lead) => {
+        const visitDate = lead.latestCompletedVisit?.scheduledAt
+        if (!visitDate) return visitMonthFilter === 'NO_VISIT_DATE'
+        const date = new Date(visitDate)
+        if (Number.isNaN(date.getTime())) return visitMonthFilter === 'NO_VISIT_DATE'
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}` === visitMonthFilter
+      })
+    }
+    return nextLeads
+  }, [isCadQueue, jrArchitectFilter, leads, showSrCrmFilter, srCrmFilter, visitMonthFilter])
+
+  const jrArchitectFilterOptions = useMemo(() => {
+    const options = new Map<string, DepartmentUser>()
+    for (const lead of leads) {
+      const user = lead.jrArchitectAssignment?.user
+      if (user) options.set(user.id, user)
+    }
+    return Array.from(options.values()).sort((a, b) =>
+      a.fullName.localeCompare(b.fullName),
+    )
+  }, [leads])
+
+  const srCrmFilterOptions = useMemo(() => {
+    const options = new Map<string, DepartmentUser>()
+    for (const lead of leads) {
+      const user = lead.srCrmAssignment?.user
+      if (user) options.set(user.id, user)
+    }
+    return Array.from(options.values()).sort((a, b) =>
+      a.fullName.localeCompare(b.fullName),
+    )
+  }, [leads])
+
+  const visitMonthFilterOptions = useMemo(() => {
+    const options = new Map<string, string>()
+    let hasNoVisitDate = false
+    for (const lead of leads) {
+      const visitDate = lead.latestCompletedVisit?.scheduledAt
+      if (!visitDate) {
+        hasNoVisitDate = true
+        continue
+      }
+      const date = new Date(visitDate)
+      if (Number.isNaN(date.getTime())) {
+        hasNoVisitDate = true
+        continue
+      }
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      options.set(value, formatMonth(visitDate))
+    }
+    const sorted = Array.from(options.entries()).sort(([a], [b]) => b.localeCompare(a))
+    if (hasNoVisitDate) sorted.push(['NO_VISIT_DATE', 'No Visit Date'])
+    return sorted
+  }, [leads])
+
   const statCards = useMemo(() => {
-    const cards: Array<{ key: string; label: string; count: number }> = [
-      { key: 'ALL', label: 'Total', count: leads.length },
+    const totalMeta = isCadQueue ? CAD_PHASE_STAT_META.ALL : TOTAL_QUEUE_STAT_META
+    const cards: StatCardConfig[] = [
+      {
+        key: 'ALL',
+        label: isCadQueue ? CAD_PHASE_STAT_META.ALL.label : 'Total',
+        count: memberFilteredLeads.length,
+        Icon: isBudgetQueue || isMeetingQueue ? FilePlus2 : totalMeta.Icon,
+        className: totalMeta.className,
+        iconClassName: totalMeta.iconClassName,
+        accentClassName: totalMeta.accentClassName,
+      },
     ]
     const config = isMeetingQueue
-      ? [
-          { key: 'CAD_APPROVED', label: 'CAD Approved' },
-          { key: 'FIRST_MEETING_SET', label: 'Meeting Set' },
-          { key: 'PROPOSAL_SENT', label: 'Proposal Sent' },
-        ]
+      ? Array.from(
+          new Map(
+            memberFilteredLeads
+              .flatMap((lead) => [lead.subStatus, lead.stage])
+              .filter((value): value is string => Boolean(value))
+              .map((value) => [value, { key: value, label: formatLabel(value) }]),
+          ).values(),
+        )
       : isBudgetQueue
         ? [
             { key: 'QUOTATION_ASSIGNED', label: 'Quotation Assigned' },
@@ -670,57 +1079,281 @@ export function CadPhaseQueueBoard({
               { key: 'VISUAL_ASSIGNED', label: 'Visual Assigned' },
               { key: 'VISUAL_WORKING', label: 'Visual Working' },
             ]
-          : [{ key: 'CAD_PHASE', label: 'CAD Phase' }]
+          : [
+              { key: 'CAD_ASSIGNED', label: 'CAD Assigned' },
+              { key: 'CAD_WORKING', label: 'CAD Working' },
+              { key: 'CAD_COMPLETED', label: 'CAD Completed' },
+              { key: 'CAD_APPROVED', label: 'CAD Approved' },
+            ]
 
     for (const item of config) {
+      const meta = isCadQueue ? CAD_PHASE_STAT_META[item.key] : undefined
       cards.push({
         key: item.key,
-        label: item.label,
-        count: leads.filter(
+        label: meta?.label ?? item.label,
+        count: memberFilteredLeads.filter(
           (lead) => lead.subStatus === item.key || lead.stage === item.key,
         ).length,
+        Icon: meta?.Icon ?? DEFAULT_STAT_META.Icon,
+        className: meta?.className ?? DEFAULT_STAT_META.className,
+        iconClassName: meta?.iconClassName ?? DEFAULT_STAT_META.iconClassName,
+        accentClassName: meta?.accentClassName ?? DEFAULT_STAT_META.accentClassName,
       })
     }
 
     return cards
-  }, [isBudgetQueue, isDesignQueue, isMeetingQueue, leads])
+  }, [
+    isBudgetQueue,
+    isDesignQueue,
+    isMeetingQueue,
+    isCadQueue,
+    memberFilteredLeads,
+  ])
 
   const filteredLeads = useMemo(() => {
-    if (activeFilter === 'ALL') return leads
-    return leads.filter(
+    if (activeFilter === 'ALL') return memberFilteredLeads
+    return memberFilteredLeads.filter(
       (lead) => lead.subStatus === activeFilter || lead.stage === activeFilter,
     )
-  }, [activeFilter, leads])
+  }, [activeFilter, memberFilteredLeads])
+
+  const groupedLeads = useMemo(() => {
+    const groups = new Map<string, LeadRecord[]>()
+    for (const lead of filteredLeads) {
+      const month = formatMonth(lead.latestCompletedVisit?.scheduledAt)
+      const groupLeads = groups.get(month) ?? []
+      groupLeads.push(lead)
+      groups.set(month, groupLeads)
+    }
+    return Array.from(groups.entries()).map(([month, monthLeads]) => ({
+      month,
+      leads: monthLeads,
+    }))
+  }, [filteredLeads])
+
+  const leadCardClassName = canDropFromQueue
+    ? 'relative overflow-hidden border-primary/15 bg-gradient-to-br from-card via-card to-primary/5 shadow-[0_18px_45px_-28px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-xl'
+    : 'overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md'
+
+  const renderLeadActionMenu = (lead: LeadRecord) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size="icon" variant="ghost" aria-label={`Actions for ${lead.name}`}>
+          <MoreHorizontal className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem asChild>
+          <Link href={`${leadBasePath}/${lead.id}`}>Open Lead</Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => openProjectSizeDialog(lead)}>
+          {lead.latestCompletedVisit?.projectSqft ? 'Change' : 'Add'} Project Size
+        </DropdownMenuItem>
+        {showAssigneeReassign &&
+        lead.canReassignJrArchitect !== false &&
+        lead.stage !== 'DISCOVERY' ? (
+          <DropdownMenuItem onClick={() => void openReassign(lead)}>
+            Reassign {assigneeLabel}
+          </DropdownMenuItem>
+        ) : null}
+        {isCadQueue ? (
+          <DropdownMenuItem onClick={() => void openReassignSrCrm(lead)}>
+            Reassign SR CRM
+          </DropdownMenuItem>
+        ) : null}
+        {canDropFromQueue ? (
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => openDropDialog(lead)}
+          >
+            Drop Project
+          </DropdownMenuItem>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 
   return (
     <div className="min-h-screen bg-background">
       <CrmPageHeader title={title} subtitle={subtitle} />
 
       <main className="mx-auto max-w-[1440px] px-4 py-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search by lead name, phone, or location..."
-              className="pl-10"
-            />
+        <Card className="mb-4 border-border/70">
+          <CardContent className="space-y-4 p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex min-w-[180px] items-center gap-2 text-sm font-semibold text-foreground">
+                <ListFilter className="h-4 w-4 text-primary" />
+                Filter CAD Queue
+              </div>
+              <div className="relative min-w-[260px] flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Search by lead name, phone, or location..."
+                  className="pl-10"
+                />
+              </div>
+              {isCadQueue ? (
+                <div className="w-full sm:w-56">
+                  <Select value={activeFilter} onValueChange={setActiveFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by CAD status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statCards.map((card) => (
+                        <SelectItem key={card.key} value={card.key}>
+                          {card.label} ({card.count})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+              {isCadQueue ? (
+                <div className="w-full sm:w-56">
+                  <Select
+                    value={jrArchitectFilter}
+                    onValueChange={setJrArchitectFilter}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by JR Architect" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_MEMBER_FILTER}>
+                        All JR Architects
+                      </SelectItem>
+                      {jrArchitectFilterOptions.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+              {showSrCrmFilter ? (
+                <div className="w-full sm:w-56">
+                  <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by SR CRM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_MEMBER_FILTER}>All SR CRMs</SelectItem>
+                      {srCrmFilterOptions.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+              <div className="w-full sm:w-56">
+                <Select value={visitMonthFilter} onValueChange={setVisitMonthFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by Visit Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_MONTH_FILTER}>All Visit Months</SelectItem>
+                    {visitMonthFilterOptions.map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="rounded-[1.35rem] border border-border/70 bg-gradient-to-br from-background via-muted/20 to-background p-3 shadow-sm">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+                <div>
+                  <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Queue Intelligence
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Premium snapshot of the active queue and workflow status.
+                  </p>
+                </div>
+                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+                  Live queue metrics
+                </Badge>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                {statCards.map((card) => {
+                  const Icon = card.Icon
+                  const percentage = memberFilteredLeads.length > 0 ? Math.round((card.count / memberFilteredLeads.length) * 100) : 0
+                  const isActive = activeFilter === card.key
+
+                  return (
+                    <button
+                      key={card.key}
+                      type="button"
+                      onClick={() => setActiveFilter(card.key)}
+                      className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${card.className} ${isActive ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                      aria-pressed={isActive}
+                    >
+                      <span className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/30 blur-2xl transition group-hover:scale-125 dark:bg-white/10" />
+                      <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${card.accentClassName}`} />
+
+                      <div className="relative flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] opacity-75">
+                            {card.label}
+                          </p>
+                          <div className="mt-3 flex items-end gap-2">
+                            <p className="text-3xl font-black leading-none tracking-tight">
+                              {card.count}
+                            </p>
+                            <span className="mb-0.5 rounded-full bg-white/45 px-2 py-0.5 text-[10px] font-bold shadow-sm ring-1 ring-black/5 dark:bg-black/15 dark:ring-white/10">
+                              {percentage}%
+                            </span>
+                          </div>
+                        </div>
+                        <span className={`rounded-2xl p-2.5 shadow-sm ring-1 ${card.iconClassName}`}>
+                          <Icon className="h-5 w-5" />
+                        </span>
+                      </div>
+
+                      <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
+                        <span
+                          className={`block h-full rounded-full bg-gradient-to-r ${card.accentClassName} transition-all duration-500`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <p className="relative mt-2 text-[11px] font-medium opacity-70">
+                        {card.key === 'ALL' ? 'All leads in view' : 'Share of current queue'}
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {isCadQueue ? (
+          <div className="mb-4 flex justify-end gap-2">
+            <Button
+              size="sm"
+              variant={viewMode === 'table' ? 'default' : 'outline'}
+              onClick={() => setViewMode('table')}
+            >
+              <TableIcon className="mr-1 h-4 w-4" />
+              Table View
+            </Button>
+            <Button
+              size="sm"
+              variant={viewMode === 'card' ? 'default' : 'outline'}
+              onClick={() => setViewMode('card')}
+            >
+              <LayoutGrid className="mr-1 h-4 w-4" />
+              Card View
+            </Button>
           </div>
-          <div className="flex gap-2">
-            {statCards.map((card) => (
-              <Button
-                key={card.key}
-                size="sm"
-                variant={activeFilter === card.key ? 'default' : 'outline'}
-                onClick={() => setActiveFilter(card.key)}
-                className="h-8"
-              >
-                {card.label}: {card.count}
-              </Button>
-            ))}
-          </div>
-        </div>
+        ) : null}
 
         {loading ? (
           <div className="flex items-center justify-center rounded-lg border border-border bg-card py-14">
@@ -732,13 +1365,99 @@ export function CadPhaseQueueBoard({
               No leads found.
             </CardContent>
           </Card>
-        ) : (
-          <div className="space-y-3">
-            {filteredLeads.map((lead) => (
+        ) : isCadQueue && viewMode === 'table' ? (
+          <div className="space-y-5">
+            {groupedLeads.map((group) => (
+              <Card key={group.month}>
+                <CardContent className="p-0">
+                  <div className="flex items-center justify-between border-b px-4 py-3">
+                    <h3 className="text-sm font-semibold">{group.month}</h3>
+                    <Badge variant="secondary">{group.leads.length} leads</Badge>
+                  </div>
+                  <Table className="table-fixed text-sm">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[15%]">Lead Name</TableHead>
+                        <TableHead className="w-[15%]">Stage</TableHead>
+                        <TableHead className="w-[18%]">Address</TableHead>
+                        <TableHead className="w-[11%]">Visit Date</TableHead>
+                        <TableHead className="w-[13%]">JR Architect</TableHead>
+                        <TableHead className="w-[11%]">SR CRM / Visit</TableHead>
+                        <TableHead className="w-[10%]">Project Size</TableHead>
+                        <TableHead className="w-[7%] text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {group.leads.map((lead) => (
+                        <TableRow key={lead.id}>
+                          <TableCell className="font-medium">
+                            <button
+                              type="button"
+                              onClick={() => openRenameDialog(lead)}
+                              className="max-w-full truncate text-left hover:text-primary hover:underline"
+                              title={lead.name}
+                            >
+                              {lead.name}
+                            </button>
+                          </TableCell>
+                          <TableCell>{stageSubStatusBlock(lead)}</TableCell>
+                          <TableCell>
+                            <span
+                              className="block max-w-[220px] truncate text-muted-foreground"
+                              title={lead.location || 'N/A'}
+                            >
+                              {lead.location || 'N/A'}
+                            </span>
+                          </TableCell>
+                          <TableCell>{formatDate(lead.latestCompletedVisit?.scheduledAt)}</TableCell>
+                          <TableCell className="truncate" title={lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}>
+                            {lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}
+                          </TableCell>
+                          <TableCell>
+                            <button
+                              type="button"
+                              onClick={() => void openReassignSrCrm(lead)}
+                              className="max-w-full text-left transition hover:text-primary hover:underline"
+                            >
+                              {srCrmVisitTeamBlock(lead)}
+                            </button>
+                          </TableCell>
+                          <TableCell>
+                            <button
+                              type="button"
+                              onClick={() => openProjectSizeDialog(lead)}
+                              className="text-left transition hover:text-primary hover:underline"
+                            >
+                              {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                            </button>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {renderLeadActionMenu(lead)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : isCadQueue ? (
+          <div className="space-y-5">
+            {groupedLeads.map((group) => (
+              <section key={group.month} className="space-y-3">
+                <div className="flex items-center justify-between rounded-lg border bg-card px-4 py-3">
+                  <h3 className="text-sm font-semibold">{group.month}</h3>
+                  <Badge variant="secondary">{group.leads.length} leads</Badge>
+                </div>
+                {group.leads.map((lead) => (
               <Card
                 key={lead.id}
-                className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                className={leadCardClassName}
               >
+                {canDropFromQueue ? (
+                  <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/80 via-rose-400/70 to-amber-400/80" />
+                ) : null}
                 <CardContent className="space-y-3 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
@@ -750,12 +1469,7 @@ export function CadPhaseQueueBoard({
                         {lead.name}
                       </button>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="secondary">
-                          {formatLabel(lead.stage)}
-                        </Badge>
-                        <Badge variant="outline">
-                          {formatLabel(lead.subStatus)}
-                        </Badge>
+                        {stageSubStatusBlock(lead)}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -763,6 +1477,13 @@ export function CadPhaseQueueBoard({
                         <Link href={`${leadBasePath}/${lead.id}`}>
                           Open Lead
                         </Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openProjectSizeDialog(lead)}
+                      >
+                        {lead.latestCompletedVisit?.projectSqft ? 'Change' : 'Add'} Project Size
                       </Button>
                       {showAssigneeReassign &&
                       lead.canReassignJrArchitect !== false &&
@@ -773,6 +1494,15 @@ export function CadPhaseQueueBoard({
                           onClick={() => openReassign(lead)}
                         >
                           Reassign {assigneeLabel}
+                        </Button>
+                      ) : null}
+                      {isCadQueue ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void openReassignSrCrm(lead)}
+                        >
+                          Reassign SR CRM
                         </Button>
                       ) : null}
                       {isMeetingQueue ? (
@@ -810,7 +1540,7 @@ export function CadPhaseQueueBoard({
                               variant="outline"
                               onClick={() => void openReassignQuotation(lead)}
                             >
-                              Reassign Quotation
+                              {lead.subStatus === 'QUOTATION_APPROVED' ? 'New Quotation' : 'Reassign Quotation'}
                             </Button>
                           ) : null}
                           {lead.stage === 'QUOTATION_PHASE' &&
@@ -836,8 +1566,7 @@ export function CadPhaseQueueBoard({
                           ) : null}
                         </>
                       ) : null}
-                      {isDesignQueue ? null : !isMeetingQueue &&
-                        !isBudgetQueue ? (
+                      {canDropFromQueue ? (
                         <Button
                           size="sm"
                           variant="destructive"
@@ -855,8 +1584,14 @@ export function CadPhaseQueueBoard({
                       {lead.phone || 'No phone'}
                     </p>
                     <p className="inline-flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {lead.location || 'No location'}
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Visit Date: {formatDate(lead.latestCompletedVisit?.scheduledAt)}
+                    </p>
+                    <p className="inline-flex min-w-0 items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate" title={lead.location || 'No location'}>
+                        {lead.location || 'No location'}
+                      </span>
                     </p>
                     <p className="inline-flex items-center gap-1">
                       <UserRound className="h-3.5 w-3.5" />
@@ -864,20 +1599,252 @@ export function CadPhaseQueueBoard({
                       {lead.jrArchitectAssignment?.user.fullName ??
                         'Unassigned'}
                     </p>
+                    <div className="flex min-w-0 items-start gap-1">
+                      <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          SR CRM / Visit Team
+                        </span>
+                        {isCadQueue ? (
+                          <button
+                            type="button"
+                            onClick={() => void openReassignSrCrm(lead)}
+                            className="max-w-full text-left transition hover:text-primary hover:underline"
+                          >
+                            {srCrmVisitTeamBlock(lead)}
+                          </button>
+                        ) : (
+                          srCrmVisitTeamBlock(lead)
+                        )}
+                      </div>
+                    </div>
+                    {isCadQueue ? (
+                      <button
+                        type="button"
+                        onClick={() => openProjectSizeDialog(lead)}
+                        className="inline-flex items-center gap-1 text-left transition hover:text-primary hover:underline"
+                      >
+                        <MapPin className="h-3.5 w-3.5" />
+                        Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                      </button>
+                    ) : (
+                      <p className="inline-flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5" />
+                        Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                      </p>
+                    )}
+                    {isMeetingQueue || isBudgetQueue || isDesignQueue ? (
+                      <p className="inline-flex items-center gap-1">
+                        <UserRound className="h-3.5 w-3.5" />
+                        {isDesignQueue ? '3D Visualizer' : 'Quotation'}:{' '}
+                        {isDesignQueue
+                          ? (lead.jrArchitectAssignment?.user.fullName ??
+                            'Unassigned')
+                          : (lead.quotationAssignment?.user.fullName ??
+                            'Unassigned')}
+                      </p>
+                    ) : null}
+                    {isMeetingQueue && lead.latestFirstMeeting ? (
+                      <p className="inline-flex items-center gap-1 md:col-span-2">
+                        <CalendarClock className="h-3.5 w-3.5" />
+                        Latest First Meeting:{' '}
+                        {new Date(
+                          lead.latestFirstMeeting.startsAt,
+                        ).toLocaleString()}
+                      </p>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
+                ))}
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredLeads.map((lead) => (
+              <Card
+                key={lead.id}
+                className={leadCardClassName}
+              >
+                {canDropFromQueue ? (
+                  <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/80 via-rose-400/70 to-amber-400/80" />
+                ) : null}
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => openRenameDialog(lead)}
+                        className="text-left text-base font-semibold hover:text-primary hover:underline"
+                      >
+                        {lead.name}
+                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {stageSubStatusBlock(lead)}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`${leadBasePath}/${lead.id}`}>
+                          Open Lead
+                        </Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openProjectSizeDialog(lead)}
+                      >
+                        {lead.latestCompletedVisit?.projectSqft ? 'Change' : 'Add'} Project Size
+                      </Button>
+                      {showAssigneeReassign &&
+                      lead.canReassignJrArchitect !== false &&
+                      lead.stage !== 'DISCOVERY' ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openReassign(lead)}
+                        >
+                          Reassign {assigneeLabel}
+                        </Button>
+                      ) : null}
+                      {isCadQueue ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void openReassignSrCrm(lead)}
+                        >
+                          Reassign SR CRM
+                        </Button>
+                      ) : null}
+                      {isMeetingQueue ? (
+                        lead.canSetMeeting ? (
+                          <Button
+                            size="sm"
+                            onClick={() => openFirstMeetingDialog(lead)}
+                          >
+                            <CalendarClock className="mr-1 h-4 w-4" />
+                            Set Meeting
+                          </Button>
+                        ) : lead.canSubmitMeetingData ? (
+                          <Button
+                            size="sm"
+                            onClick={() => void openCompleteMeetingDialog(lead)}
+                          >
+                            <CalendarClock className="mr-1 h-4 w-4" />
+                            Complete Meeting
+                          </Button>
+                        ) : lead.canReassignQuotation ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void openReassignQuotation(lead)}
+                          >
+                            Reassign Quotation
+                          </Button>
+                        ) : null
+                      ) : isBudgetQueue ? (
+                        <>
+                          {lead.stage === 'QUOTATION_PHASE' &&
+                          lead.canReassignQuotation ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void openReassignQuotation(lead)}
+                            >
+                              {lead.subStatus === 'QUOTATION_APPROVED' ? 'New Quotation' : 'Reassign Quotation'}
+                            </Button>
+                          ) : null}
+                          {lead.stage === 'QUOTATION_PHASE' &&
+                          lead.subStatus === 'QUOTATION_APPROVED' ? (
+                            <Button
+                              size="sm"
+                              onClick={() => openBudgetMeetingDialog(lead)}
+                            >
+                              <CalendarClock className="mr-1 h-4 w-4" />
+                              Set Budget Meeting
+                            </Button>
+                          ) : lead.stage === 'BUDGET_PHASE' &&
+                            lead.subStatus === 'BUDGET_MEETING_SET' ? (
+                            <Button
+                              size="sm"
+                              onClick={() =>
+                                void openCompleteMeetingDialog(lead)
+                              }
+                            >
+                              <CalendarClock className="mr-1 h-4 w-4" />
+                              Complete Meeting
+                            </Button>
+                          ) : null}
+                        </>
+                      ) : null}
+                      {canDropFromQueue ? (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => openDropDialog(lead)}
+                        >
+                          Drop Project
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+                    <p className="inline-flex items-center gap-1">
+                      <Phone className="h-3.5 w-3.5" />
+                      {lead.phone || 'No phone'}
+                    </p>
+                    <p className="inline-flex items-center gap-1">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Visit Date: {formatDate(lead.latestCompletedVisit?.scheduledAt)}
+                    </p>
+                    <p className="inline-flex min-w-0 items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate" title={lead.location || 'No location'}>
+                        {lead.location || 'No location'}
+                      </span>
+                    </p>
                     <p className="inline-flex items-center gap-1">
                       <UserRound className="h-3.5 w-3.5" />
-                      SR CRM:{' '}
-                      {lead.srCrmAssignment?.user.fullName ?? 'Unassigned'}
+                      JR Architect:{' '}
+                      {lead.jrArchitectAssignment?.user.fullName ??
+                        'Unassigned'}
                     </p>
-                    <p className="inline-flex items-center gap-1 md:col-span-2">
-                      <UserRound className="h-3.5 w-3.5" />
-                      Visit Team:{' '}
-                      {lead.latestCompletedVisit?.assignedVisitLead?.fullName ??
-                        'N/A'}
-                      {lead.latestCompletedVisit?.supportMembers?.length
-                        ? ` + ${lead.latestCompletedVisit.supportMembers.map((member) => member.fullName).join(', ')}`
-                        : ''}
-                    </p>
+                    <div className="flex min-w-0 items-start gap-1">
+                      <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <div className="min-w-0">
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          SR CRM / Visit Team
+                        </span>
+                        {isCadQueue ? (
+                          <button
+                            type="button"
+                            onClick={() => void openReassignSrCrm(lead)}
+                            className="max-w-full text-left transition hover:text-primary hover:underline"
+                          >
+                            {srCrmVisitTeamBlock(lead)}
+                          </button>
+                        ) : (
+                          srCrmVisitTeamBlock(lead)
+                        )}
+                      </div>
+                    </div>
+                    {isCadQueue ? (
+                      <button
+                        type="button"
+                        onClick={() => openProjectSizeDialog(lead)}
+                        className="inline-flex items-center gap-1 text-left transition hover:text-primary hover:underline"
+                      >
+                        <MapPin className="h-3.5 w-3.5" />
+                        Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                      </button>
+                    ) : (
+                      <p className="inline-flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5" />
+                        Project Size: {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                      </p>
+                    )}
                     {isMeetingQueue || isBudgetQueue || isDesignQueue ? (
                       <p className="inline-flex items-center gap-1">
                         <UserRound className="h-3.5 w-3.5" />
@@ -905,6 +1872,44 @@ export function CadPhaseQueueBoard({
           </div>
         )}
       </main>
+
+      <Dialog open={projectSizeOpen} onOpenChange={setProjectSizeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {activeLead?.latestCompletedVisit?.projectSqft
+                ? 'Change Project Size'
+                : 'Add Project Size'}
+            </DialogTitle>
+            <DialogDescription>
+              Update the project size in sqft for this lead&apos;s latest completed
+              visit.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Project Size (sqft)</Label>
+            <Input
+              type="number"
+              min="1"
+              inputMode="decimal"
+              value={projectSizeValue}
+              onChange={(event) => setProjectSizeValue(event.target.value)}
+              placeholder="Enter project size"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setProjectSizeOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button disabled={saving || !projectSizeValue} onClick={submitProjectSize}>
+              Save Project Size
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={reassignOpen} onOpenChange={setReassignOpen}>
         <DialogContent>
@@ -1075,15 +2080,59 @@ export function CadPhaseQueueBoard({
         </DialogContent>
       </Dialog>
 
+      <Dialog open={reassignSrCrmOpen} onOpenChange={setReassignSrCrmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reassign SR CRM</DialogTitle>
+            <DialogDescription>
+              Select the Senior CRM who should own this CAD phase lead.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>SR CRM Member</Label>
+            <Select value={srCrmMemberId} onValueChange={setSrCrmMemberId}>
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={
+                    loadingSrCrmMembers
+                      ? 'Loading members...'
+                      : srCrmMembers.length === 0
+                        ? 'No SR CRM members available'
+                        : 'Select SR CRM member'
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {srCrmMembers.map((member) => (
+                  <SelectItem key={member.id} value={member.id}>
+                    {member.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button
+              disabled={saving || loadingSrCrmMembers || !srCrmMemberId}
+              onClick={submitReassignSrCrm}
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog
         open={reassignQuotationOpen}
         onOpenChange={setReassignQuotationOpen}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reassign Quotation</DialogTitle>
+            <DialogTitle>{activeLead?.subStatus === 'QUOTATION_APPROVED' ? 'Assign New Quotation' : 'Reassign Quotation'}</DialogTitle>
             <DialogDescription>
-              Select a quotation member for this lead.
+              {activeLead?.subStatus === 'QUOTATION_APPROVED'
+                ? 'Create a fresh quotation assignment while keeping previous quotation creators and files intact.'
+                : 'Select a quotation member for this lead.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -1115,9 +2164,13 @@ export function CadPhaseQueueBoard({
           <DialogFooter>
             <Button
               disabled={saving || !quotationMemberId}
-              onClick={submitReassignQuotation}
+              onClick={
+                activeLead?.subStatus === 'QUOTATION_APPROVED'
+                  ? submitNewQuotation
+                  : submitReassignQuotation
+              }
             >
-              Save
+              {activeLead?.subStatus === 'QUOTATION_APPROVED' ? 'Assign New Quotation' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>

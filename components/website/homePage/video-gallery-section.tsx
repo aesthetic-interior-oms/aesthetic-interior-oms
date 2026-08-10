@@ -4,93 +4,22 @@ import { useState, useEffect, useRef } from "react"
 import { Play, ChevronRight, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-const videos = [
-	{
-		id: 1,
-		youtubeId: "kxzxIEPv7QY",
-		title: "Interior Design Tour",
-		duration: "3:45",
-	},
-	{
-		id: 2,
-		youtubeId: "bFnOafhlsm8",
-		title: "Client Project Walkthrough",
-		duration: "5:20",
-	},
-	{
-		id: 3,
-		youtubeId: "m23oIOdAkQE",
-		title: "Living Room Design Ideas",
-		duration: "4:15",
-	},
-	{
-		id: 4,
-		youtubeId: "FZn7HVQtl5c",
-		title: "Kitchen Renovation Project",
-		duration: "6:30",
-	},
-	{
-		id: 5,
-		youtubeId: "DODn4TqAHaE",
-		title: "Bedroom Makeover",
-		duration: "3:10",
-	},
-	{
-		id: 6,
-		youtubeId: "EY2WkvPZdtk",
-		title: "Office Space Design",
-		duration: "4:55",
-	},
-	{
-		id: 7,
-		youtubeId: "SKYpjlBHkPM",
-		title: "Bathroom Renovation",
-		duration: "3:30",
-	},
-	{
-		id: 8,
-		youtubeId: "FZn7HVQtl5c",
-		title: "Dining Room Transformation",
-		duration: "4:00",
-	},
-	{
-		id: 9,
-		youtubeId: "kxzxIEPv7QY",
-		title: "Balcony Garden Design",
-		duration: "2:45",
-	},
-	{
-		id: 10,
-		youtubeId: "EY2WkvPZdtk",
-		title: "Walk-in Closet Ideas",
-		duration: "5:00",
-	},
-	{
-		id: 11,
-		youtubeId: "kXDUVDV6zus",
-		title: "Walk-in Closet Ideas",
-		duration: "5:00",
-	},
-]
+import type { WebsiteVideo } from '@/lib/website-videos'
 
-function getYoutubeThumbnail(youtubeId: string): string {
-	// Try max resolution first, fallbacks handled in onError
-	return `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`
+function getVideoThumbnail(video: WebsiteVideo): string {
+	return video.thumbnailUrl || '/placeholder.svg'
 }
 
-export function VideoGallerySection() {
-	const [hoveredVideo, setHoveredVideo] = useState<number | null>(null)
-	const [playingVideo, setPlayingVideo] = useState<string | null>(null)
+export function VideoGallerySection({ videos }: { videos: WebsiteVideo[] }) {
+	const [hoveredVideo, setHoveredVideo] = useState<string | null>(null)
+	const [playingVideo, setPlayingVideo] = useState<WebsiteVideo | null>(null)
 	const [titles, setTitles] = useState<Record<string, string>>({})
 	const [bannerInView, setBannerInView] = useState(false)
 	const [bannerHovered, setBannerHovered] = useState(false)
 	const bannerRef = useRef<HTMLDivElement | null>(null)
 	const bannerIframeRef = useRef<HTMLIFrameElement | null>(null)
-	const bannerVideo = {
-		youtubeId: "D-Py5LNmAJA",
-		title: "Featured Design Story",
-	}
-	const otherVideos = videos.filter((v) => v.youtubeId !== bannerVideo.youtubeId)
+	const bannerVideo = videos.find((video) => video.isFeatured) || videos[0]
+	const otherVideos = videos.filter((video) => video.id !== bannerVideo?.id)
 
 	useEffect(() => {
 		const target = bannerRef.current
@@ -127,25 +56,25 @@ export function VideoGallerySection() {
 		;(async () => {
 			const map: Record<string, string> = {}
 			await Promise.all(
-				videos.map(async (video) => {
+				videos.filter((video) => video.provider === "youtube" && video.videoId).map(async (video) => {
 					// try sessionStorage cache first
-					const cacheKey = `yt-title-${video.youtubeId}`
+					const cacheKey = `yt-title-${video.videoId}`
 					const cached =
 						typeof sessionStorage !== "undefined" &&
 						sessionStorage.getItem(cacheKey)
 					if (cached) {
-						map[video.youtubeId] = cached
+						map[video.id] = cached
 						return
 					}
 
 					try {
 						const res = await fetch(
-							`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${video.youtubeId}&format=json`
+							`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${video.videoId}&format=json`
 						)
 						if (!res.ok) throw new Error("oEmbed fetch failed")
 						const json = await res.json()
 						const t = (json.title as string) || video.title
-						map[video.youtubeId] = t
+						map[video.id] = t
 						try {
 							sessionStorage.setItem(cacheKey, t)
 						} catch {
@@ -153,7 +82,7 @@ export function VideoGallerySection() {
 						}
 					} catch {
 						// fallback to local title
-						map[video.youtubeId] = video.title
+						map[video.id] = video.title
 					}
 				})
 			)
@@ -163,7 +92,9 @@ export function VideoGallerySection() {
 		return () => {
 			mounted = false
 		}
-	}, [])
+	}, [videos])
+
+	if (!bannerVideo) return null
 
 	return (
 		<section className="py-20 lg:py-32 relative overflow-hidden bg-background">
@@ -203,10 +134,10 @@ export function VideoGallerySection() {
 							ref={bannerIframeRef}
 							width="100%"
 							height="100%"
-							src={`https://www.youtube-nocookie.com/embed/${bannerVideo.youtubeId}?autoplay=${
+							src={`${bannerVideo.embedUrl}${bannerVideo.embedUrl.includes("?") ? "&" : "?"}autoplay=${
 								0
 							}&mute=1&playsinline=1&rel=0&vq=hd720&modestbranding=1&iv_load_policy=3&controls=1&disablekb=0&fs=1&enablejsapi=1`}
-							title={bannerVideo.title}
+							title={bannerVideo?.title || "Featured video"}
 							frameBorder="0"
 							allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
 							allowFullScreen
@@ -232,7 +163,7 @@ export function VideoGallerySection() {
 							className="relative group cursor-pointer overflow-hidden rounded-xl transition-all duration-300 hover:shadow-xl"
 							onMouseEnter={() => setHoveredVideo(video.id)}
 							onMouseLeave={() => setHoveredVideo(null)}
-							onClick={() => setPlayingVideo(video.youtubeId)}
+							onClick={() => setPlayingVideo(video)}
 							style={{
 								animationDelay: `${index * 50}ms`,
 							}}
@@ -240,7 +171,7 @@ export function VideoGallerySection() {
 							{/* Thumbnail */}
 							<div className="aspect-[4/3] overflow-hidden bg-muted rounded-lg">
 								<img
-									src={getYoutubeThumbnail(video.youtubeId)}
+									src={getVideoThumbnail(video)}
 									alt={`${video.title} video thumbnail`}
 									loading="lazy"
 									width={640}
@@ -248,8 +179,8 @@ export function VideoGallerySection() {
 									decoding="async"
 									onError={(e) => {
 										const img = e.currentTarget as HTMLImageElement
-										if (img.src.includes("maxresdefault")) {
-											img.src = `https://img.youtube.com/vi/${video.youtubeId}/hqdefault.jpg`
+										if (video.provider === "youtube" && video.videoId && img.src.includes("maxresdefault")) {
+											img.src = `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`
 										} else {
 											img.src = "/placeholder.svg"
 										}
@@ -273,13 +204,13 @@ export function VideoGallerySection() {
 
 							{/* Duration Badge */}
 							<div className="absolute top-3 right-3 px-3 py-1 bg-[#0d3d3d]/95 backdrop-blur-sm rounded-full text-white text-xs font-semibold tracking-wide">
-								{video.duration}
+								{video.duration || video.provider}
 							</div>
 
 							{/* Title */}
 							<div className="mt-4 px-1">
 								<h3 className="text-sm font-medium text-foreground line-clamp-2 group-hover:text-[#a57c00] transition-colors duration-300">
-									{titles[video.youtubeId] ?? video.title}
+									{titles[video.id] ?? video.title}
 								</h3>
 							</div>
 						</div>
@@ -323,7 +254,7 @@ export function VideoGallerySection() {
 						<iframe
 							width="100%"
 							height="100%"
-							src={`https://www.youtube-nocookie.com/embed/${playingVideo}?autoplay=1&rel=0&modestbranding=1&iv_load_policy=3`}
+							src={`${playingVideo.embedUrl}${playingVideo.embedUrl.includes("?") ? "&" : "?"}autoplay=1&rel=0&modestbranding=1&iv_load_policy=3`}
 							title="YouTube video player"
 							frameBorder="0"
 							allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

@@ -11,10 +11,11 @@ import {
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { logLeadSubStatusChanged } from '@/lib/activity-log-service'
+import { sendPushToUser } from '@/lib/fcm-service'
 
 type RouteContext = { params: { submissionId: string } | Promise<{ submissionId: string }> }
 
-type ReviewDecision = 'APPROVE' | 'CORRECTION'
+type ReviewDecision = 'APPROVE' | 'CORRECTION' | 'DROP'
 
 function toOptionalString(value: unknown): string | null {
   if (typeof value !== 'string') return null
@@ -33,7 +34,7 @@ async function resolveSubmissionId(context: RouteContext): Promise<string | null
 function toDecision(value: unknown): ReviewDecision | null {
   if (typeof value !== 'string') return null
   const normalized = value.trim().toUpperCase()
-  if (normalized === 'APPROVE' || normalized === 'CORRECTION') return normalized
+  if (normalized === 'APPROVE' || normalized === 'CORRECTION' || normalized === 'DROP') return normalized
   return null
 }
 
@@ -64,9 +65,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!decision) {
       return NextResponse.json({ success: false, error: 'Valid decision is required' }, { status: 400 })
     }
-    if (decision === 'CORRECTION' && !summary) {
+    if ((decision === 'CORRECTION' || decision === 'DROP') && !summary) {
       return NextResponse.json(
-        { success: false, error: 'Correction summary is required' },
+        { success: false, error: 'Correction/drop summary is required' },
         { status: 400 },
       )
     }
@@ -142,27 +143,33 @@ export async function POST(request: NextRequest, context: RouteContext) {
         : isVisualizerReview
           ? '3D Visualization'
           : 'CAD'
-      const nextStage = isQuotationReview
-        ? LeadStage.QUOTATION_PHASE
-        : isVisualizerReview
-          ? LeadStage.VISUALIZATION_PHASE
-          : LeadStage.CAD_PHASE
-      const nextSubStatus = isQuotationReview
-        ? decision === 'APPROVE'
-          ? LeadSubStatus.QUOTATION_APPROVED
-          : LeadSubStatus.QUOTATION_CORRECTION
-        : isVisualizerReview
+      const nextStage = decision === 'DROP'
+        ? LeadStage.CLOSED
+        : isQuotationReview
+          ? LeadStage.QUOTATION_PHASE
+          : isVisualizerReview
+            ? LeadStage.VISUALIZATION_PHASE
+            : LeadStage.CAD_PHASE
+      const nextSubStatus = decision === 'DROP'
+        ? LeadSubStatus.PROJECT_DROPPED
+        : isQuotationReview
           ? decision === 'APPROVE'
-            ? LeadSubStatus.CLIENT_APPROVED
-            : LeadSubStatus.VISUAL_CORRECTION
-          : decision === 'APPROVE'
-            ? LeadSubStatus.CAD_APPROVED
-            : LeadSubStatus.CAD_ASSIGNED
+            ? LeadSubStatus.QUOTATION_APPROVED
+            : LeadSubStatus.QUOTATION_CORRECTION
+          : isVisualizerReview
+            ? decision === 'APPROVE'
+              ? LeadSubStatus.CLIENT_APPROVED
+              : LeadSubStatus.VISUAL_CORRECTION
+            : decision === 'APPROVE'
+              ? LeadSubStatus.CAD_APPROVED
+              : LeadSubStatus.CAD_WORKING
       const phaseType = isQuotationReview ? LeadPhaseType.QUOTATION : LeadPhaseType.CAD
       const reason =
         decision === 'APPROVE'
           ? summary ?? `Senior CRM approved ${reviewLabel.toLowerCase()} submission from Review Center.`
-          : summary ?? `Senior CRM sent ${reviewLabel.toLowerCase()} work back for correction.`
+          : decision === 'DROP'
+            ? summary ?? `Senior CRM dropped project from Review Center.`
+            : summary ?? `Senior CRM sent ${reviewLabel.toLowerCase()} work back for correction.`
 
       const now = new Date()
       await tx.lead.update({
@@ -201,8 +208,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
         await tx.leadPhaseTask.update({
           where: { id: phaseTask.id },
           data: {
-            status: decision === 'APPROVE' ? LeadPhaseTaskStatus.COMPLETED : LeadPhaseTaskStatus.OPEN,
-            completedAt: decision === 'APPROVE' ? now : null,
+            status: decision === 'APPROVE' || decision === 'DROP' ? LeadPhaseTaskStatus.COMPLETED : LeadPhaseTaskStatus.OPEN,
+            completedAt: decision === 'APPROVE' || decision === 'DROP' ? now : null,
             lastSrActionAt: now,
             currentReviewRound: nextRound,
           },
@@ -214,7 +221,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
             roundNo: nextRound,
             reviewedById: authResult.actorUserId,
             decision:
-              decision === 'APPROVE'
+              decision === 'APPROVE' || decision === 'DROP'
                 ? LeadPhaseReviewDecision.APPROVED
                 : LeadPhaseReviewDecision.REWORK,
             comment: summary,
@@ -230,14 +237,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
           description:
             decision === 'APPROVE'
               ? `${reviewLabel} submission approved in Review Center.${summary ? ` Note: ${summary}` : ''}`
-              : `${reviewLabel} correction requested in Review Center. Summary: ${summary}`,
+              : decision === 'DROP'
+                ? `${reviewLabel} project dropped in Review Center. Summary: ${summary}`
+                : `${reviewLabel} correction requested in Review Center. Summary: ${summary}`,
         },
       })
 
       const notificationTargets = Array.from(
         new Set(
           submission.lead.assignments
-            .filter((assignment) => assignment.userId !== authResult.actorUserId)
             .map((assignment) => assignment.userId),
         ),
       )
@@ -248,14 +256,27 @@ export async function POST(request: NextRequest, context: RouteContext) {
             userId,
             leadId: submission.leadId,
             type: NotificationType.LEAD_ASSIGNED_TO_YOU,
-            title: decision === 'APPROVE' ? `${reviewLabel} submission approved` : `${reviewLabel} correction required`,
+            title: decision === 'APPROVE' ? `${reviewLabel} submission approved` : decision === 'DROP' ? 'Project dropped' : `${reviewLabel} correction required`,
             message:
               decision === 'APPROVE'
                 ? `${submission.lead.name} ${reviewLabel.toLowerCase()} submission was approved by Senior CRM.`
-                : `${submission.lead.name} needs ${reviewLabel.toLowerCase()} correction. Summary: ${summary}`,
+                : decision === 'DROP'
+                  ? `${submission.lead.name} was dropped from Review Center. Summary: ${summary}`
+                  : `${submission.lead.name} needs ${reviewLabel.toLowerCase()} correction. Summary: ${summary}`,
             scheduledFor: now,
           })),
         })
+
+        // Also send FCM push
+        for (const userId of notificationTargets) {
+          const pushTitle = decision === 'APPROVE' ? `${reviewLabel} Approved ✅` : decision === 'DROP' ? 'Project Dropped ❌' : `${reviewLabel} Correction Required 🔄`
+          const pushBody = decision === 'APPROVE'
+            ? `${submission.lead.name} ${reviewLabel.toLowerCase()} was approved.`
+            : decision === 'DROP'
+              ? `${submission.lead.name} was dropped. Reason: ${summary}`
+              : `${submission.lead.name} requires correction. Note: ${summary}`
+          sendPushToUser(userId, pushTitle, pushBody, { type: 'decision', leadId: submission.leadId }).catch(() => {})
+        }
       }
 
       return {
@@ -272,7 +293,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       message:
         decision === 'APPROVE'
           ? 'Submission approved successfully'
-          : 'Correction sent back successfully',
+          : decision === 'DROP'
+            ? 'Project dropped successfully'
+            : 'Correction sent back successfully',
     })
   } catch (error) {
     if (error instanceof Error && error.message === 'SUBMISSION_NOT_FOUND') {

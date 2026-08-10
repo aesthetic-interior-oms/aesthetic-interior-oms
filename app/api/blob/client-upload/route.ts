@@ -33,7 +33,7 @@ function parseClientPayload(value: string | null): ClientUploadPayload {
 
 
 
-const QUOTATION_FILE_TYPES = new Set(['PREMIUM', 'STANDARD', 'BASIC', 'MIXED', 'ALL'])
+const QUOTATION_FILE_TYPES = new Set(['PREMIUM', 'STANDARD', 'BASIC', 'MIXED', 'DETAIL'])
 
 function getQuotationFileType(payload: ClientUploadPayload): string {
   const value = typeof payload.quotationFileType === 'string' ? payload.quotationFileType.trim().toUpperCase() : ''
@@ -70,6 +70,13 @@ const ALLOWED_QUOTATION_UPLOAD_EXTENSIONS = new Set([
   'txt',
   'csv',
 ])
+
+
+function isAllowedQuotationContent(pathname: string, fileType: string | undefined): boolean {
+  const normalizedType = (fileType || '').trim().toLowerCase()
+  if (normalizedType && normalizedType !== 'application/pdf') return false
+  return getCadFileExtension(pathname) === 'pdf'
+}
 
 function isAllowedCadContent(pathname: string, fileType: string | undefined, cadFileType: string): boolean {
   const normalizedType = (fileType || '').trim().toLowerCase()
@@ -178,6 +185,7 @@ async function authorizeQuotationUpload(input: {
 }) {
   assertPathnameScope(input.pathname, 'quotation-work-submissions', input.ownerId)
   getQuotationFileType(input.payload)
+  if (!isAllowedQuotationContent(input.pathname, input.payload.fileType)) throw new Error('QUOTATION_FILE_TYPE_NOT_ALLOWED')
 
   const isAdmin = input.actorDepartments.has('ADMIN')
   const isSeniorCrm = input.actorDepartments.has('SR_CRM')
@@ -315,6 +323,15 @@ export async function POST(request: NextRequest) {
           })
         } else if (context === 'lead-attachment') {
           await authorizeLeadAttachmentUpload({ ownerId, pathname })
+        } else if (context === 'website-project') {
+          if (!actorDepartments.has('ADMIN')) throw new Error('UPLOAD_CONTEXT_NOT_ALLOWED')
+          assertPathnameScope(pathname, 'website-projects', ownerId)
+        } else if (context === 'website-team') {
+          if (!actorDepartments.has('ADMIN')) throw new Error('UPLOAD_CONTEXT_NOT_ALLOWED')
+          assertPathnameScope(pathname, 'website-team', ownerId)
+        } else if (context === 'website-testimonial') {
+          if (!actorDepartments.has('ADMIN')) throw new Error('UPLOAD_CONTEXT_NOT_ALLOWED')
+          assertPathnameScope(pathname, 'website-testimonials', ownerId)
         } else {
           throw new Error('UPLOAD_CONTEXT_NOT_ALLOWED')
         }

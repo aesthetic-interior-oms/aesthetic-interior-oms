@@ -4,8 +4,9 @@ import { ActivityType, LeadAssignmentDepartment, LeadStage, LeadSubStatus, Notif
 import { requireDatabaseRoles } from '@/lib/authz';
 import { logActivity, logLeadStageChanged } from '@/lib/activity-log-service';
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
-import { findVisitConflict, isFutureDate } from '@/lib/visit-guards';
+import { findVisitConflict } from '@/lib/visit-guards';
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles';
+import { sendPushToUser } from '@/lib/fcm-service';
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
@@ -178,10 +179,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (scheduledAtRaw && (!parsedScheduledAt || Number.isNaN(parsedScheduledAt.getTime()))) {
       return NextResponse.json({ success: false, error: 'scheduledAt must be a valid ISO date-time' }, { status: 400 });
     }
-    if (parsedScheduledAt && !isFutureDate(parsedScheduledAt)) {
-      return NextResponse.json({ success: false, error: 'scheduledAt must be in the future' }, { status: 400 });
-    }
-
     if (body.status !== undefined && !statusInput) {
       return NextResponse.json({ success: false, error: 'Invalid visit status' }, { status: 400 });
     }
@@ -217,6 +214,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
     }
 
+    let reassignedUserId: string | null = null;
+    let leadName = '';
+
     const updated = await prisma.$transaction(async (tx) => {
       const actor = await tx.user.findUnique({
         where: { id: actorUserId },
@@ -232,8 +232,24 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       const isAdmin = departmentNames.has('ADMIN');
       const isJuniorCrm = departmentNames.has('JR_CRM');
       const isVisitTeam = departmentNames.has('VISIT_TEAM');
+      const isSeniorCrm = departmentNames.has('SR_CRM');
+      const isJrArchitect = departmentNames.has('JR_ARCHITECT');
+      const isProjectSqftOnlyUpdate =
+        body.projectSqft !== undefined &&
+        body.visitTeamUserId === undefined &&
+        body.scheduledAt === undefined &&
+        body.location === undefined &&
+        body.notes === undefined &&
+        body.status === undefined &&
+        body.projectStatus === undefined &&
+        body.visitFee === undefined;
       const isVisitTeamLeader = hasVisitTeamLeadershipRole(authResult.actorRoles);
-      if (!isAdmin && !isJuniorCrm && !isVisitTeam) {
+      if (
+        !isAdmin &&
+        !isJuniorCrm &&
+        !isVisitTeam &&
+        !((isSeniorCrm || isJrArchitect) && isProjectSqftOnlyUpdate)
+      ) {
         throw new Error('FORBIDDEN');
       }
 
@@ -304,6 +320,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
 
       if (visitTeamUserId && visitTeamUserId !== existing.assignedToId) {
+        reassignedUserId = visitTeamUserId;
+        leadName = existing.lead.name;
         await tx.notification.createMany({
           data: [
             {
@@ -401,6 +419,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
       return visit;
     });
+
+    if (reassignedUserId) {
+      try {
+        await sendPushToUser(
+          reassignedUserId,
+          'Visit reassigned to you',
+          `Visit for ${leadName} has been assigned to you.`,
+          { type: 'VISIT_ASSIGNED', leadId: updated.leadId },
+        );
+      } catch (pushErr) {
+        console.error('[visit-schedule/:id][PATCH] Failed to send push notification:', pushErr);
+      }
+    }
 
     return NextResponse.json({ success: true, data: updated, message: 'Visit schedule updated successfully' });
   } catch (error) {

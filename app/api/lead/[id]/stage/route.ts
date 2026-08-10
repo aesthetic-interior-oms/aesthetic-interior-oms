@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma';
-import { LeadStage, LeadSubStatus } from '@/generated/prisma/client';
+import { LeadStage, LeadSubStatus, LeadAssignmentDepartment } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
+import { sendPushToUser } from '@/lib/fcm-service';
 import { isSubStatusAllowedForStage } from '@/lib/lead-stage';
 import { logLeadStageChanged, logLeadSubStatusChanged } from '@/lib/activity-log-service';
 import { requireDatabaseRoles } from '@/lib/authz';
@@ -16,11 +17,13 @@ import { buildScopedLeadWhere } from '@/lib/lead-access';
 import { canManagePrimaryLeadFlow } from '@/lib/lead-workflow-auth';
 import { ensurePhaseTaskForSubStatus } from '@/lib/lead-phase-task';
 import { createSrCadReviewTodosForCadStart } from '@/lib/sr-cad-todo';
+import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles';
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
 const debugLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') {
+    void args;
     // console.log(...args);
   }
 };
@@ -87,6 +90,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
     const userId = authResult.actorUserId;
     const actorDepartments = authResult.actor.userDepartments ?? [];
+    const isJrArchitectLeader =
+      actorDepartments.includes('JR_ARCHITECT') &&
+      hasJrArchitectureLeaderRole(authResult.actorRoles);
+    const canDropVisitQueueLead =
+      actorDepartments.includes('ADMIN') ||
+      actorDepartments.includes('SR_CRM') ||
+      isJrArchitectLeader;
     debugLog('🔐 [lead/:id/stage][PATCH] - Auth verified for user:', userId);
     
     const leadId = await resolveLeadId(context);
@@ -107,6 +117,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ success: false, error: 'Valid stage is required' }, { status: 400 });
     }
 
+    const closedDropSubStatuses = new Set<LeadSubStatus>([
+      LeadSubStatus.PROJECT_DROPPED,
+      LeadSubStatus.REJECTED_OFFER,
+      LeadSubStatus.SMALL_BUDGET,
+      LeadSubStatus.INVALID,
+      LeadSubStatus.NOT_INTERESTED,
+      LeadSubStatus.LOST,
+      LeadSubStatus.DEAD_LEAD,
+    ]);
+    const isVisitQueueDropRequest =
+      canDropVisitQueueLead &&
+      nextStage === LeadStage.CLOSED &&
+      requestedSubStatus !== undefined &&
+      requestedSubStatus !== null &&
+      closedDropSubStatuses.has(requestedSubStatus);
     const isBudgetMeetingCompletionRequest =
       actorDepartments.some((department) =>
         ['ADMIN', 'SR_CRM', 'JR_ARCHITECT'].includes(department),
@@ -115,7 +140,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         requestedSubStatus === LeadSubStatus.VISUAL_ASSIGNED) ||
         (nextStage === LeadStage.BUDGET_PHASE &&
           requestedSubStatus === LeadSubStatus.REJECTED_OFFER));
-    const leadWhere = isBudgetMeetingCompletionRequest
+    const leadWhere = isBudgetMeetingCompletionRequest || isVisitQueueDropRequest
       ? { id: leadId }
       : buildScopedLeadWhere({
           leadId,
@@ -265,9 +290,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       existingLead.stage === LeadStage.BUDGET_PHASE &&
       existingLead.subStatus === LeadSubStatus.BUDGET_MEETING_SET &&
       isBudgetMeetingCompletionRequest;
+    const isAuthorizedVisitQueueDrop = isVisitQueueDropRequest;
 
     if (
       !isBudgetMeetingCompletion &&
+      !isAuthorizedVisitQueueDrop &&
       !canManagePrimaryLeadFlow({
         actorUserId: userId,
         actorDepartments,
@@ -275,10 +302,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       })
     ) {
       return NextResponse.json(
-        { success: false, error: 'Only primary owner, Senior CRM, Admin, or JR Architect budget meeting completion can change lead flow' },
+        { success: false, error: 'Only primary owner, Senior CRM, Admin, JR Architect leader drop, or JR Architect budget meeting completion can change lead flow' },
         { status: 403 },
       );
     }
+
+    let notifyVisitMemberOfCadId: string | null = null;
 
     const updatedLead = await prisma.$transaction(async (tx) => {
       const updated = await tx.lead.update({
@@ -375,8 +404,34 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         action: 'stage update',
       });
 
+      if (nextStage === LeadStage.CAD_PHASE && nextSubStatus === LeadSubStatus.CAD_ASSIGNED) {
+        const visitAssignment = await tx.leadAssignment.findFirst({
+          where: {
+            leadId,
+            department: LeadAssignmentDepartment.VISIT_TEAM,
+          },
+          select: { userId: true },
+        });
+        if (visitAssignment) {
+          notifyVisitMemberOfCadId = visitAssignment.userId;
+        }
+      }
+
       return updated;
     });
+
+    if (notifyVisitMemberOfCadId) {
+      try {
+        await sendPushToUser(
+          notifyVisitMemberOfCadId,
+          'CAD Assigned',
+          `CAD stage has been assigned for lead "${updatedLead.name}".`,
+          { type: 'CAD_ASSIGNED', leadId: updatedLead.id }
+        );
+      } catch (pushErr) {
+        console.error('[lead/:id/stage] Failed to send CAD assignment push to visit member:', pushErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,

@@ -5,7 +5,7 @@ import {
   formatBytesToMbLabel,
 } from '@/lib/upload-limits'
 
-export type ClientBlobUploadContext = 'cad-work' | 'quotation-work' | 'visualizer-work' | 'visit-result' | 'visit-support-result' | 'lead-attachment'
+export type ClientBlobUploadContext = 'cad-work' | 'quotation-work' | 'visualizer-work' | 'visit-result' | 'visit-support-result' | 'lead-attachment' | 'website-project' | 'website-team' | 'website-testimonial'
 
 export type UploadedBlobFileMeta = {
   url: string
@@ -19,7 +19,7 @@ type UploadDirectBlobInput = {
   context: ClientBlobUploadContext
   ownerId: string
   cadFileType?: string
-  quotationFileType?: 'PREMIUM' | 'STANDARD' | 'BASIC' | 'MIXED' | 'ALL'
+  quotationFileType?: 'PREMIUM' | 'STANDARD' | 'BASIC' | 'MIXED' | 'DETAIL'
   onProgress?: (percentage: number) => void
 }
 
@@ -47,6 +47,12 @@ function getPathPrefix(context: ClientBlobUploadContext): string {
       return 'visit-support-results'
     case 'lead-attachment':
       return 'leads'
+    case 'website-project':
+      return 'website-projects'
+    case 'website-team':
+      return 'website-team'
+    case 'website-testimonial':
+      return 'website-testimonials'
   }
 }
 

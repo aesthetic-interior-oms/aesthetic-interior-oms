@@ -17,6 +17,7 @@ import { requireDatabaseRoles } from '@/lib/authz';
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 import { findVisitConflict } from '@/lib/visit-guards';
 import { getWeeklySeniorCrmAssignment } from '@/lib/sr-crm-rotation';
+import { sendPushToUser } from '@/lib/fcm-service';
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
@@ -502,6 +503,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
         visit,
       };
     });
+
+    // Send FCM push notification to the assigned visit team member's device
+    // immediately — this works even if their app is completely closed.
+    await sendPushToUser(
+      visitTeamUserId,
+      'New visit assigned',
+      `You have been assigned a new visit for ${lead.name}.`,
+      { type: 'VISIT_ASSIGNED', leadId },
+    );
 
     return NextResponse.json({
       success: true,

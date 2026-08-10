@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { ComponentType } from 'react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -15,17 +16,30 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import {
   CheckCircle2,
+  CircleAlert,
+  Ban,
   CalendarClock,
+  ClipboardCheck,
   Download,
   FileText,
+  ListFilter,
+  Sparkles,
   ImageIcon,
   Loader2,
   MapPin,
   Phone,
   RotateCcw,
+  Send,
   Search,
   UserRound,
 } from 'lucide-react'
@@ -41,6 +55,12 @@ type ReviewFile = {
   sizeBytes: number | null
 }
 
+const ALL_MEMBER_FILTER = 'ALL_MEMBERS'
+const ALL_MONTH_FILTER = 'ALL_MONTHS'
+const ALL_STAGE_FILTER = 'ALL_STAGES'
+
+type DepartmentUser = { id: string; fullName: string; email: string }
+
 type ReviewSubmission = {
   id: string
   note: string | null
@@ -52,6 +72,14 @@ type ReviewSubmission = {
     location: string | null
     stage: string
     subStatus: string | null
+    srCrmAssignment: {
+      id: string
+      user: DepartmentUser
+    } | null
+    latestCompletedVisit: {
+      id: string
+      scheduledAt: string
+    } | null
   }
   submittedBy: {
     id: string
@@ -67,13 +95,66 @@ type ReviewApiResponse = {
   error?: string
 }
 
-type ReviewDecision = 'APPROVE' | 'CORRECTION'
+type ReviewDecision = 'APPROVE' | 'CORRECTION' | 'DROP'
+
+type ReviewStatCard = {
+  key: string
+  label: string
+  count: number
+  Icon: ComponentType<{ className?: string }>
+  className: string
+  iconClassName: string
+  accentClassName: string
+}
+
+const REVIEW_STATUS_STATS: Array<{
+  key: string
+  label: string
+  Icon: ComponentType<{ className?: string }>
+  className: string
+  iconClassName: string
+  accentClassName: string
+}> = [
+  {
+    key: 'CAD',
+    label: 'Cad',
+    Icon: ClipboardCheck,
+    className: 'border-violet-200/70 from-violet-50 via-white to-fuchsia-50 text-violet-800 dark:border-violet-500/30 dark:from-violet-950/60 dark:via-slate-950 dark:to-fuchsia-950/40 dark:text-violet-100',
+    iconClassName: 'bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-500/15 dark:text-violet-200 dark:ring-violet-400/20',
+    accentClassName: 'from-violet-500 to-fuchsia-500',
+  },
+  {
+    key: 'QUOTATION',
+    label: 'Quotation',
+    Icon: Send,
+    className: 'border-amber-200/70 from-amber-50 via-white to-orange-50 text-amber-800 dark:border-amber-500/30 dark:from-amber-950/60 dark:via-slate-950 dark:to-orange-950/40 dark:text-amber-100',
+    iconClassName: 'bg-amber-100 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20',
+    accentClassName: 'from-amber-500 to-orange-500',
+  },
+  {
+    key: 'VISUALIZATION',
+    label: '3D Visuals',
+    Icon: ImageIcon,
+    className: 'border-emerald-200/70 from-emerald-50 via-white to-teal-50 text-emerald-800 dark:border-emerald-500/30 dark:from-emerald-950/60 dark:via-slate-950 dark:to-teal-950/40 dark:text-emerald-100',
+    iconClassName: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20',
+    accentClassName: 'from-emerald-500 to-teal-500',
+  },
+]
+
+const TOTAL_REVIEW_STAT = {
+  label: 'Total Review',
+  Icon: ListFilter,
+  className: 'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950',
+  iconClassName: 'bg-white/15 text-white ring-white/25 dark:bg-slate-950/10 dark:text-slate-950 dark:ring-slate-950/15',
+  accentClassName: 'from-primary to-amber-400',
+}
 
 type ReviewCenterViewProps = {
   title?: string
   subtitle?: string
   myLeadsOnly?: boolean
   leadBasePath?: string
+  showSrCrmFilter?: boolean
 }
 
 function formatLabel(value: string | null | undefined): string {
@@ -92,6 +173,53 @@ function getSubmissionKind(submission: ReviewSubmission): 'quotation' | 'visuali
   return 'cad'
 }
 
+function isSubmissionPendingReview(submission: ReviewSubmission): boolean {
+  return (
+    (submission.lead.stage === 'CAD_PHASE' && submission.lead.subStatus === 'CAD_COMPLETED') ||
+    (submission.lead.stage === 'QUOTATION_PHASE' && submission.lead.subStatus === 'QUOTATION_COMPLETED') ||
+    (submission.lead.stage === 'VISUALIZATION_PHASE' && submission.lead.subStatus === 'VISUAL_COMPLETED')
+  )
+}
+
+function getCardThemeClasses(submission: ReviewSubmission) {
+  const kind = getSubmissionKind(submission)
+  const isPending = isSubmissionPendingReview(submission)
+  
+  if (kind === 'quotation') {
+    return isPending 
+      ? 'border-amber-300/80 bg-gradient-to-br from-amber-100/60 to-orange-50/40 dark:border-amber-700/50 dark:from-amber-900/40 dark:to-orange-900/20'
+      : 'border-amber-200/50 bg-gradient-to-br from-amber-50/40 to-orange-50/20 dark:border-amber-900/30 dark:from-amber-950/20 dark:to-orange-950/10 opacity-85'
+  }
+  if (kind === 'visualizer') {
+    return isPending
+      ? 'border-emerald-300/80 bg-gradient-to-br from-emerald-100/60 to-teal-50/40 dark:border-emerald-700/50 dark:from-emerald-900/40 dark:to-teal-900/20'
+      : 'border-emerald-200/50 bg-gradient-to-br from-emerald-50/40 to-teal-50/20 dark:border-emerald-900/30 dark:from-emerald-950/20 dark:to-teal-950/10 opacity-85'
+  }
+  
+  // cad
+  return isPending
+    ? 'border-violet-300/80 bg-gradient-to-br from-violet-100/60 to-fuchsia-50/40 dark:border-violet-700/50 dark:from-violet-900/40 dark:to-fuchsia-900/20'
+    : 'border-violet-200/50 bg-gradient-to-br from-violet-50/40 to-fuchsia-50/20 dark:border-violet-900/30 dark:from-violet-950/20 dark:to-fuchsia-950/10 opacity-85'
+}
+
+
+function getReviewActionUnavailableMessage(submission: ReviewSubmission): string | null {
+  if (isSubmissionPendingReview(submission)) return null
+  if (submission.lead.subStatus === 'CAD_APPROVED') {
+    return 'CAD has already been approved. Approval and correction actions are only available while CAD is completed and pending review.'
+  }
+  if (submission.lead.subStatus === 'FIRST_MEETING_SET') {
+    return 'This lead already moved to First Meeting Set after review. Review actions are no longer available.'
+  }
+  if (submission.lead.subStatus === 'PROPOSAL_SENT') {
+    return 'This lead already moved to Quotation Sent after review. Review actions are no longer available.'
+  }
+  if (submission.lead.subStatus?.includes('APPROVED')) {
+    return 'This submission has already been approved. Review actions are only available for pending submissions.'
+  }
+  return 'Review actions are only available for submissions currently pending Senior CRM/Admin review.'
+}
+
 function getSubmissionKindLabel(submission: ReviewSubmission): string {
   const kind = getSubmissionKind(submission)
   if (kind === 'quotation') return 'Quotation'
@@ -105,6 +233,20 @@ function isImageFile(file: ReviewFile): boolean {
 
 function getDownloadUrl(url: string): string {
   return url.includes('?') ? `${url}&download=1` : `${url}?download=1`
+}
+
+function formatMonth(value: string | null | undefined): string {
+  if (!value) return 'No Visit Date'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'No Visit Date'
+  return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+}
+
+function toVisitMonthValue(value: string | null | undefined): string {
+  if (!value) return 'NO_VISIT_DATE'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'NO_VISIT_DATE'
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
 function formatSubmittedAt(value: string): string {
@@ -196,6 +338,7 @@ export function ReviewCenterView({
   subtitle = 'Review completed CAD, quotation, and 3D visualization submissions with quick preview and handoff notes.',
   myLeadsOnly = true,
   leadBasePath = '/crm/sr/leads',
+  showSrCrmFilter = false,
 }: ReviewCenterViewProps) {
   const [submissions, setSubmissions] = useState<ReviewSubmission[]>([])
   const [loading, setLoading] = useState(true)
@@ -206,6 +349,9 @@ export function ReviewCenterView({
   const [decisionType, setDecisionType] = useState<ReviewDecision>('APPROVE')
   const [decisionSummary, setDecisionSummary] = useState('')
   const [decisionBusy, setDecisionBusy] = useState(false)
+  const [srCrmFilter, setSrCrmFilter] = useState(ALL_MEMBER_FILTER)
+  const [visitMonthFilter, setVisitMonthFilter] = useState(ALL_MONTH_FILTER)
+  const [stageFilter, setStageFilter] = useState(ALL_STAGE_FILTER)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 400)
@@ -220,6 +366,12 @@ export function ReviewCenterView({
         myLeadsOnly: myLeadsOnly ? '1' : '0',
       })
       if (search) params.set('search', search)
+      if (showSrCrmFilter && srCrmFilter !== ALL_MEMBER_FILTER) {
+        params.set('srCrmId', srCrmFilter)
+      }
+      if (visitMonthFilter !== ALL_MONTH_FILTER) {
+        params.set('visitMonth', visitMonthFilter)
+      }
 
       const response = await fetch(`/api/cad-work/review-center?${params.toString()}`, {
         cache: 'no-store',
@@ -237,7 +389,7 @@ export function ReviewCenterView({
     } finally {
       setLoading(false)
     }
-  }, [myLeadsOnly, search])
+  }, [myLeadsOnly, search, showSrCrmFilter, srCrmFilter, visitMonthFilter])
 
   useEffect(() => {
     void fetchSubmissions()
@@ -252,8 +404,8 @@ export function ReviewCenterView({
 
   const handleConfirmDecision = useCallback(async () => {
     if (!decisionTarget) return
-    if (decisionType === 'CORRECTION' && decisionSummary.trim().length === 0) {
-      toast.error('Correction summary is required')
+    if ((decisionType === 'CORRECTION' || decisionType === 'DROP') && decisionSummary.trim().length === 0) {
+      toast.error(decisionType === 'DROP' ? 'Drop reason is required' : 'Correction summary is required')
       return
     }
 
@@ -286,9 +438,76 @@ export function ReviewCenterView({
     }
   }, [decisionSummary, decisionTarget, decisionType, fetchSubmissions])
 
-  const totalFiles = useMemo(
-    () => submissions.reduce((count, submission) => count + submission.files.length, 0),
-    [submissions],
+
+  const srCrmFilterOptions = useMemo(() => {
+    const options = new Map<string, DepartmentUser>()
+    for (const submission of submissions) {
+      const user = submission.lead.srCrmAssignment?.user
+      if (user) options.set(user.id, user)
+    }
+    return Array.from(options.values()).sort((a, b) => a.fullName.localeCompare(b.fullName))
+  }, [submissions])
+
+  const visitMonthFilterOptions = useMemo(() => {
+    const options = new Map<string, string>()
+    let hasNoVisitDate = false
+    for (const submission of submissions) {
+      const visitDate = submission.lead.latestCompletedVisit?.scheduledAt
+      const value = toVisitMonthValue(visitDate)
+      if (value === 'NO_VISIT_DATE') {
+        hasNoVisitDate = true
+        continue
+      }
+      options.set(value, formatMonth(visitDate))
+    }
+    const sorted = Array.from(options.entries()).sort(([a], [b]) => b.localeCompare(a))
+    if (hasNoVisitDate) sorted.push(['NO_VISIT_DATE', 'No Visit Date'])
+    return sorted
+  }, [submissions])
+
+  const statCards = useMemo(() => {
+    const cards: ReviewStatCard[] = [
+      {
+        key: ALL_STAGE_FILTER,
+        label: TOTAL_REVIEW_STAT.label,
+        count: submissions.length,
+        Icon: TOTAL_REVIEW_STAT.Icon,
+        className: TOTAL_REVIEW_STAT.className,
+        iconClassName: TOTAL_REVIEW_STAT.iconClassName,
+        accentClassName: TOTAL_REVIEW_STAT.accentClassName,
+      },
+    ]
+
+    for (const item of REVIEW_STATUS_STATS) {
+      cards.push({
+        ...item,
+        count: submissions.filter((submission) => {
+          const kind = getSubmissionKind(submission)
+          if (item.key === 'CAD') return kind === 'cad'
+          if (item.key === 'QUOTATION') return kind === 'quotation'
+          if (item.key === 'VISUALIZATION') return kind === 'visualizer'
+          return false
+        }).length,
+      })
+    }
+
+    return cards
+  }, [submissions])
+
+  const filteredSubmissions = useMemo(() => {
+    if (stageFilter === ALL_STAGE_FILTER) return submissions
+    return submissions.filter((submission) => {
+      const kind = getSubmissionKind(submission)
+      if (stageFilter === 'CAD') return kind === 'cad'
+      if (stageFilter === 'QUOTATION') return kind === 'quotation'
+      if (stageFilter === 'VISUALIZATION') return kind === 'visualizer'
+      return false
+    })
+  }, [stageFilter, submissions])
+
+  const filteredTotalFiles = useMemo(
+    () => filteredSubmissions.reduce((count, submission) => count + submission.files.length, 0),
+    [filteredSubmissions],
   )
 
   return (
@@ -299,21 +518,142 @@ export function ReviewCenterView({
       />
 
       <main className="mx-auto max-w-[1440px] px-4 py-6">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={searchInput}
-              onChange={(event) => setSearchInput(event.target.value)}
-              placeholder="Search by lead name, phone, or file..."
-              className="pl-10"
-            />
-          </div>
-          <Badge variant="outline" className="h-8 px-3">
-            {submissions.length} submission{submissions.length === 1 ? '' : 's'} • {totalFiles} file
-            {totalFiles === 1 ? '' : 's'}
-          </Badge>
-        </div>
+        <Card className="mb-4 border-border/70">
+          <CardContent className="space-y-4 p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex min-w-[180px] items-center gap-2 text-sm font-semibold text-foreground">
+                <ListFilter className="h-4 w-4 text-primary" />
+                Filter Review Center
+              </div>
+              <div className="relative min-w-[260px] flex-1">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Search by lead name, phone, or file..."
+                  className="pl-10"
+                />
+              </div>
+              <div className="w-full sm:w-56">
+                <Select value={stageFilter} onValueChange={setStageFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statCards.map((card) => (
+                      <SelectItem key={card.key} value={card.key}>
+                        {card.label} ({card.count})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {showSrCrmFilter ? (
+                <div className="w-full sm:w-56">
+                  <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Filter by SR CRM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ALL_MEMBER_FILTER}>All SR CRMs</SelectItem>
+                      {srCrmFilterOptions.map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
+              <div className="w-full sm:w-56">
+                <Select value={visitMonthFilter} onValueChange={setVisitMonthFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filter by Visit Month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ALL_MONTH_FILTER}>All Visit Months</SelectItem>
+                    {visitMonthFilterOptions.map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Badge variant="outline" className="h-9 px-3">
+                {filteredSubmissions.length} submission{filteredSubmissions.length === 1 ? '' : 's'} • {filteredTotalFiles} file
+                {filteredTotalFiles === 1 ? '' : 's'}
+              </Badge>
+            </div>
+
+            <div className="rounded-[1.35rem] border border-border/70 bg-gradient-to-br from-background via-muted/20 to-background p-3 shadow-sm">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+                <div>
+                  <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Review Intelligence
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Premium snapshot of the active review queue and approval flow.
+                  </p>
+                </div>
+                <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+                  Live queue metrics
+                </Badge>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                {statCards.map((card) => {
+                  const Icon = card.Icon
+                  const percentage = submissions.length > 0 ? Math.round((card.count / submissions.length) * 100) : 0
+                  const isActive = stageFilter === card.key
+
+                  return (
+                    <button
+                      key={card.key}
+                      type="button"
+                      onClick={() => setStageFilter(card.key)}
+                      className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${card.className} ${isActive ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''}`}
+                      aria-pressed={isActive}
+                    >
+                      <span className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/30 blur-2xl transition group-hover:scale-125 dark:bg-white/10" />
+                      <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${card.accentClassName}`} />
+
+                      <div className="relative flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] opacity-75">
+                            {card.label}
+                          </p>
+                          <div className="mt-3 flex items-end gap-2">
+                            <p className="text-3xl font-black leading-none tracking-tight">
+                              {card.count}
+                            </p>
+                            <span className="mb-0.5 rounded-full bg-white/45 px-2 py-0.5 text-[10px] font-bold shadow-sm ring-1 ring-black/5 dark:bg-black/15 dark:ring-white/10">
+                              {percentage}%
+                            </span>
+                          </div>
+                        </div>
+                        <span className={`rounded-2xl p-2.5 shadow-sm ring-1 ${card.iconClassName}`}>
+                          <Icon className="h-5 w-5" />
+                        </span>
+                      </div>
+
+                      <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
+                        <span
+                          className={`block h-full rounded-full bg-gradient-to-r ${card.accentClassName} transition-all duration-500`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                      <p className="relative mt-2 text-[11px] font-medium opacity-70">
+                        {card.key === ALL_STAGE_FILTER ? 'All submissions in view' : 'Share of total review queue'}
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {loading ? (
           <div className="space-y-3">
@@ -321,7 +661,7 @@ export function ReviewCenterView({
               <div key={index} className="h-28 animate-pulse rounded-xl bg-muted" />
             ))}
           </div>
-        ) : submissions.length === 0 ? (
+        ) : filteredSubmissions.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
               No submissions found for review.
@@ -329,10 +669,10 @@ export function ReviewCenterView({
           </Card>
         ) : (
           <div className="space-y-4">
-            {submissions.map((submission) => (
+            {filteredSubmissions.map((submission) => (
               <Card
                 key={submission.id}
-                className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                className={`overflow-hidden shadow-sm transition hover:shadow-md border ${getCardThemeClasses(submission)}`}
               >
                 <CardContent className="space-y-4 p-4 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -352,22 +692,61 @@ export function ReviewCenterView({
                       </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => openDecisionDialog(submission, 'APPROVE')}
-                      >
-                        <CheckCircle2 className="mr-1 h-4 w-4" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openDecisionDialog(submission, 'CORRECTION')}
-                      >
-                        <RotateCcw className="mr-1 h-4 w-4" />
-                        Correction
-                      </Button>
+                      {(() => {
+                        const unavailableMessage = getReviewActionUnavailableMessage(submission)
+
+                        if (!unavailableMessage) {
+                          return (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => openDecisionDialog(submission, 'APPROVE')}
+                              >
+                                <CheckCircle2 className="mr-1 h-4 w-4" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openDecisionDialog(submission, 'CORRECTION')}
+                              >
+                                <RotateCcw className="mr-1 h-4 w-4" />
+                                Correction
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => openDecisionDialog(submission, 'DROP')}
+                              >
+                                <Ban className="mr-1 h-4 w-4" />
+                                Drop Project
+                              </Button>
+                            </>
+                          )
+                        }
+
+                        return (
+                          <div className="flex flex-wrap items-center gap-2" title={unavailableMessage}>
+                            <Badge variant="outline" className="h-8 gap-1.5 border-amber-200 bg-amber-50 px-2.5 text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                              <CircleAlert className="h-3.5 w-3.5" />
+                              Already moved
+                            </Badge>
+                            <Button size="sm" variant="secondary" disabled>
+                              <CheckCircle2 className="mr-1 h-4 w-4" />
+                              Approve
+                            </Button>
+                            <Button size="sm" variant="outline" disabled>
+                              <RotateCcw className="mr-1 h-4 w-4" />
+                              Correction
+                            </Button>
+                            <Button size="sm" variant="destructive" disabled>
+                              <Ban className="mr-1 h-4 w-4" />
+                              Drop Project
+                            </Button>
+                          </div>
+                        )
+                      })()}
                       <Button asChild size="sm" variant="outline">
                         <Link href={`${leadBasePath}/${submission.lead.id}`}>Open Lead</Link>
                       </Button>
@@ -390,6 +769,10 @@ export function ReviewCenterView({
                     <span className="inline-flex items-center gap-1">
                       <CalendarClock className="h-3.5 w-3.5" />
                       {formatSubmittedAt(submission.submittedAt)}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Visit: {formatMonth(submission.lead.latestCompletedVisit?.scheduledAt)}
                     </span>
                   </div>
 
@@ -438,34 +821,38 @@ export function ReviewCenterView({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{decisionType === 'APPROVE' ? 'Approve Submission' : 'Send for Correction'}</DialogTitle>
+            <DialogTitle>{decisionType === 'APPROVE' ? 'Approve Submission' : decisionType === 'DROP' ? 'Drop Project' : 'Send for Correction'}</DialogTitle>
             <DialogDescription>
               {decisionTarget
                 ? decisionType === 'APPROVE'
                   ? getSubmissionKind(decisionTarget) === 'quotation'
-                    ? `Confirm quotation approval for ${decisionTarget.lead.name}. Lead will move to Quotation Phase / Quotation Approved and return to Budget Queue.`
+                    ? `Confirm quotation approval for ${decisionTarget.lead.name}. Lead will move to Quotation Phase / Quotation Approved and leave this review queue.`
                     : getSubmissionKind(decisionTarget) === 'visualizer'
-                      ? `Confirm 3D visualization approval for ${decisionTarget.lead.name}. Lead will move to Visualization Phase / Client Approved.`
-                      : `Confirm CAD approval for ${decisionTarget.lead.name}. Lead will stay in CAD Phase and move to CAD Approved.`
-                  : getSubmissionKind(decisionTarget) === 'quotation'
-                    ? `Send ${decisionTarget.lead.name} back to the assigned quotation team for correction.`
-                    : getSubmissionKind(decisionTarget) === 'visualizer'
-                      ? `Send ${decisionTarget.lead.name} back to the assigned 3D Visualizer for correction.`
-                      : `Send ${decisionTarget.lead.name} back to Junior Architect for correction. Lead will move to CAD Assigned.`
+                      ? `Confirm 3D visualization approval for ${decisionTarget.lead.name}. Lead will move to Visualization Phase / Client Approved and leave this review queue.`
+                      : `Confirm CAD approval for ${decisionTarget.lead.name}. Lead will move to CAD Approved and leave this review queue.`
+                  : decisionType === 'DROP'
+                    ? `Drop ${decisionTarget.lead.name}. Lead will move to Closed / Project Dropped and leave this review queue.`
+                    : getSubmissionKind(decisionTarget) === 'quotation'
+                      ? `Send ${decisionTarget.lead.name} back to the assigned quotation team for correction. It will leave this review queue.`
+                      : getSubmissionKind(decisionTarget) === 'visualizer'
+                        ? `Send ${decisionTarget.lead.name} back to the assigned 3D Visualizer for correction. It will leave this review queue.`
+                        : `Send ${decisionTarget.lead.name} back to the assigned Junior Architect for correction. Lead will move to CAD Working so they can upload new files again, and it will leave this review queue.`
                 : 'Confirm your review decision.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {decisionType === 'APPROVE' ? 'Optional Note' : 'Correction Summary'}
+              {decisionType === 'APPROVE' ? 'Optional Note' : decisionType === 'DROP' ? 'Drop Reason' : 'Correction Summary'}
             </p>
             <Textarea
               rows={4}
               placeholder={
                 decisionType === 'APPROVE'
                   ? 'Optional approval note for history...'
-                  : 'Required: explain what should be corrected...'
+                  : decisionType === 'DROP'
+                    ? 'Required: explain why this project is being dropped...'
+                    : 'Required: explain what should be corrected...'
               }
               value={decisionSummary}
               onChange={(event) => setDecisionSummary(event.target.value)}
@@ -494,6 +881,8 @@ export function ReviewCenterView({
                 </>
               ) : decisionType === 'APPROVE' ? (
                 'Confirm Approve'
+              ) : decisionType === 'DROP' ? (
+                'Drop Project'
               ) : (
                 'Send Correction'
               )}

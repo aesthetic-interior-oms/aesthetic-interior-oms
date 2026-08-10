@@ -17,6 +17,7 @@ import {
   ClipboardList,
   Settings,
   ChevronDown,
+  FlaskConical,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -74,6 +75,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Dashboard',
           href: '/crm/admin/dashboard',
         },
+        {
+          icon: ClipboardList,
+          label: 'Finance',
+          href: '/crm/admin/finance',
+        },
       ],
     },
     {
@@ -127,6 +133,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
       defaultOpen: false,
       items: [
         { icon: Settings, label: 'Settings', href: '/crm/admin/settings' },
+        { icon: Home, label: 'Website Management', href: '/crm/admin/website-management' },
         {
           icon: Settings,
           label: 'WhatsApp Monitor',
@@ -267,6 +274,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/jr-architecture/cad-phase-queue',
         },
         {
+          icon: Calendar,
+          label: 'Visits',
+          href: '/crm/jr-architecture/visits',
+        },
+        {
           icon: Users,
           label: 'Assigned Work',
           href: '/crm/jr-architecture/leads',
@@ -335,6 +347,49 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/quotation-team/assigned-task',
         },
         { icon: ListTodo, label: 'My Work', href: '/quotation-team/my-work' },
+        {
+          icon: FlaskConical,
+          label: 'Playground',
+          href: '/quotation-team/playground',
+        },
+      ],
+    },
+  ],
+  Finance: [
+    {
+      id: 'finance-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/admin/dashboard',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Finance',
+          href: '/crm/admin/finance',
+        },
+      ],
+    },
+  ],
+  Accounts: [
+    {
+      id: 'accounts-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/admin/dashboard',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Finance',
+          href: '/crm/admin/finance',
+        },
       ],
     },
   ],
@@ -384,7 +439,10 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
             items: group.items.filter(
               (item) =>
                 canViewJrArchitectCadQueue ||
-                item.href !== '/crm/jr-architecture/cad-phase-queue',
+                ![
+                  '/crm/jr-architecture/cad-phase-queue',
+                  '/crm/jr-architecture/visits',
+                ].includes(item.href),
             ),
           }
         }

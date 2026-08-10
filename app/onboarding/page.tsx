@@ -32,7 +32,9 @@ const DEPARTMENT_ROUTES: Record<string, string> = {
   QUOTATION: "/quotation-team/dashboard",
   QUOTATION_TEAM: "/quotation-team/dashboard",
   SR_CRM: "/crm/sr/dashboard",
-  VISIT_TEAM: "/visit-team/visit-today",
+  VISIT_TEAM: "/visit-team/visit-dashboard",
+  FINANCE: "/crm/admin/finance",
+  ACCOUNTS: "/crm/admin/finance",
 };
 
 type Department = {

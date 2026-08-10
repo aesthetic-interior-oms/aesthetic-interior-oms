@@ -4,14 +4,27 @@ import { InteractiveProcess } from "@/components/website/how-we-work/interactive
 import { TeamSection } from "@/components/website/how-we-work/team-section"
 import { CtaSection } from "@/components/website/how-we-work/cta-section"
 import { HowWeWorkHero } from "@/components/website/how-we-work/hero-section"
-import { BreadcrumbJsonLd } from "@/components/seo/json-ld"
+import { BreadcrumbJsonLd } from "@/components/website/seo/json-ld"
 
 export const metadata: Metadata = {
-  title: "How We Work | Aesthetic Interior",
+  title: "Interior Design Process in Dhaka | How We Work",
   description:
-    "Discover our 5-stage design process - from initial consultation to project handover. Experience a smooth journey from idea to installation.",
+    "Discover Aesthetic Interior Studio's 5-stage interior design process in Dhaka, Bangladesh, from consultation and 3D design to production, installation, and handover.",
+  keywords: [
+    "interior design process Dhaka",
+    "interior project workflow Bangladesh",
+    "3D interior design Dhaka",
+    "Aesthetic Interior Studio process",
+  ],
   alternates: {
     canonical: "/how-we-work",
+  },
+  openGraph: {
+    title: "Interior Design Process in Dhaka | Aesthetic Interior Studio",
+    description:
+      "See how our Dhaka interior design team turns ideas into finished residential, commercial, and architectural spaces.",
+    url: "/how-we-work",
+    type: "website",
   },
 }
 

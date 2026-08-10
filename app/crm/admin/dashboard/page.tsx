@@ -9,6 +9,8 @@ import {
 } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
 import { listVisitCompleteQueueItems } from '@/lib/visit-complete-queue'
+import { calculateVisitTeamPerformance } from '@/lib/visit-performance'
+import { calculateSrCrmPerformance } from '@/lib/sr-crm-performance'
 import {
   AdminCommandCenterDashboard,
   formatLabel,
@@ -64,7 +66,10 @@ export default async function AdminDashboardPage() {
     ],
   }
 
-  const [cadCount, reviewCount, meetingCount, budgetCount, visitItems, upcomingMeetings, overdueCadTasks, overdueQuotationTasks, reviewSubmissions, budgetLeads, overdueQuotationReviews, designQueueCount, overdueDesignQueueCount, designReviewPendingCount, overdueDesignReviews, visitStatusCounts, pendingOverdueVisitCount, overduePendingVisits] =
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+
+  const [cadCount, reviewCount, meetingCount, budgetCount, visitItems, upcomingMeetings, overdueCadTasks, overdueQuotationTasks, reviewSubmissions, budgetLeads, overdueQuotationReviews, designQueueCount, overdueDesignQueueCount, designReviewPendingCount, overdueDesignReviews, visitStatusCounts, pendingOverdueVisitCount, overduePendingVisits, monthlyVisitPerformanceData] =
     await Promise.all([
       prisma.lead.count({ where: cadScope }),
       prisma.lead.count({ where: reviewScope }),
@@ -220,7 +225,32 @@ export default async function AdminDashboardPage() {
           lead: { select: { id: true, name: true, location: true } },
         },
       }),
+      prisma.visit.findMany({
+        where: { scheduledAt: { gte: monthStart, lt: nextMonthStart } },
+        select: {
+          status: true,
+          assignedTo: { select: { id: true, fullName: true } },
+          lead: { select: { stage: true, subStatus: true } },
+          result: { select: { id: true } },
+          supportAssignments: {
+            select: {
+              supportUserId: true,
+              supportUser: { select: { id: true, fullName: true } },
+              result: { select: { id: true } },
+            },
+          },
+          supportResults: {
+            select: {
+              supportUserId: true,
+            },
+          },
+        },
+      }),
     ])
+
+  // Unified performance calculation — same formula as visit-team dashboard
+  const visitTeamPerformance = calculateVisitTeamPerformance(monthlyVisitPerformanceData)
+  const srCrmPerformance = await calculateSrCrmPerformance(prisma)
 
   const priorityActions: PriorityAction[] = [
     ...overdueCadTasks.map((task): PriorityAction => ({
@@ -340,6 +370,8 @@ export default async function AdminDashboardPage() {
         ],
         pendingOverdueCount: pendingOverdueVisitCount,
       }}
+      visitTeamPerformance={visitTeamPerformance}
+      srCrmPerformance={srCrmPerformance}
       overduePendingVisits={overduePendingVisits.map((visit) => ({
         id: visit.id,
         leadId: visit.lead.id,

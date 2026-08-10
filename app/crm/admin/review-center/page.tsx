@@ -9,6 +9,7 @@ export default function AdminReviewCenterPage() {
       subtitle="Review all Senior CRM CAD submissions across the organization."
       myLeadsOnly={false}
       leadBasePath="/crm/admin/leads"
+      showSrCrmFilter
     />
   )
 }

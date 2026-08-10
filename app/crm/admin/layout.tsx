@@ -46,6 +46,14 @@ export default async function AdminLayout({
     return <MainLayout role="Admin">{children}</MainLayout>;
   }
 
+  if (departmentNames.has("FINANCE")) {
+    return <MainLayout role="Finance">{children}</MainLayout>;
+  }
+
+  if (departmentNames.has("ACCOUNTS")) {
+    return <MainLayout role="Accounts">{children}</MainLayout>;
+  }
+
   if (departmentNames.has("JR_CRM")) {
     redirect(CRM_DASHBOARD);
   }

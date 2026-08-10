@@ -6,10 +6,12 @@ import {
   DraftingCompass,
   FileCheck2,
   Handshake,
+  Medal,
   IndianRupee,
   Layers3,
   MapPinned,
   TimerReset,
+  UserCheck,
   UsersRound,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -52,6 +54,8 @@ type CommandCenterDashboardProps = {
   designWatch: DesignWatch
   visitInsights: VisitInsights
   overduePendingVisits: OverduePendingVisitItem[]
+  visitTeamPerformance: VisitTeamPerformanceItem[]
+  srCrmPerformance: SrCrmPerformanceItem[]
 }
 
 type UpcomingMeetingItem = {
@@ -100,6 +104,29 @@ type DesignWatch = {
 type VisitInsights = {
   statusData: Array<{ name: string; value: number; fill: string }>
   pendingOverdueCount: number
+}
+
+
+type SrCrmPerformanceItem = {
+  userId: string
+  name: string
+  activeProjectSqft: number
+  review: { score: number; count: number; best: number; better: number; good: number }
+  meeting: { score: number; count: number; best: number; better: number; good: number }
+  conversion: { score: number; count: number }
+  totalPerformance: number
+}
+
+type VisitTeamPerformanceItem = {
+  id: string
+  name: string
+  totalVisits: number
+  completed: number
+  reportCompleteness: number
+  deepData: number
+  performance: number
+  leadVisits: number
+  supportVisits: number
 }
 
 type OverduePendingVisitItem = {
@@ -401,6 +428,106 @@ function DesignFlowCard({ designWatch }: { designWatch: DesignWatch }) {
   )
 }
 
+
+
+function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] }) {
+  const averagePerformance = members.length
+    ? Math.round(members.reduce((sum, member) => sum + member.totalPerformance, 0) / members.length)
+    : 0
+
+  return (
+    <Card className="border-border/70 shadow-sm">
+      <CardHeader className="space-y-2">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Medal className="size-4 text-primary" />
+              SR CRM Performance
+            </CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Monthly leaderboard for active sqft, review approvals, meeting completion, and serial conversions.
+            </p>
+          </div>
+          <Badge variant="outline">Team avg {averagePerformance}/100</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3 lg:grid-cols-2">
+        {members.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">No SR CRM performance activity found for the current month.</p>
+        ) : (
+          members.map((member, index) => (
+            <div key={member.userId} className="rounded-xl border border-border/70 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-semibold text-foreground">#{index + 1} {member.name}</p>
+                    {index === 0 ? <Badge variant="secondary">Top</Badge> : null}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{member.activeProjectSqft.toLocaleString()} active sqft</p>
+                </div>
+                <Badge variant="outline" className={member.totalPerformance >= 80 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : member.totalPerformance >= 55 ? 'border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300'}>
+                  {member.totalPerformance}/100
+                </Badge>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${member.totalPerformance}%` }} />
+              </div>
+              <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                <span>Review {member.review.score} · {member.review.count} approvals</span>
+                <span>Meeting {member.meeting.score} · {member.meeting.count} completions</span>
+                <span>Conversion {member.conversion.score} · {member.conversion.count} moves</span>
+              </div>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+function VisitTeamPerformanceSection({ members }: { members: VisitTeamPerformanceItem[] }) {
+  const averagePerformance = members.length
+    ? Math.round(members.reduce((sum, member) => sum + member.performance, 0) / members.length)
+    : 0
+
+  return (
+    <Card className="border-border/70 shadow-sm">
+      <CardHeader className="space-y-2">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <UserCheck className="size-4 text-primary" />
+              Visit Team Performance
+            </CardTitle>
+          </div>
+          <Badge variant="outline">Team avg {averagePerformance}/100</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3 lg:grid-cols-2">
+        {members.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">No visit-team activity found for the current month.</p>
+        ) : (
+          members.map((member) => (
+            <div key={member.id} className="rounded-xl border border-border/70 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{member.name}</p>
+                </div>
+                <Badge variant="outline" className={member.performance >= 80 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : member.performance >= 55 ? 'border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300'}>
+                  {member.performance}/100
+                </Badge>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${member.performance}%` }} />
+              </div>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 function VisitInsightsSection({ visitInsights }: { visitInsights: VisitInsights }) {
   return (
     <section className="grid gap-6">
@@ -511,6 +638,8 @@ export function AdminCommandCenterDashboard({
   designWatch,
   visitInsights,
   overduePendingVisits,
+  visitTeamPerformance,
+  srCrmPerformance,
 }: CommandCenterDashboardProps) {
   return (
     <div className="min-h-full bg-gradient-to-b from-background via-background to-muted/20">
@@ -522,6 +651,8 @@ export function AdminCommandCenterDashboard({
       <main className="mx-auto w-full max-w-[1440px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
         <QueueStatusGrid counts={queueCounts} />
         <VisitPendingRedAlertSection items={overduePendingVisits} totalCount={visitInsights.pendingOverdueCount} />
+        <SrCrmPerformanceSection members={srCrmPerformance} />
+        <VisitTeamPerformanceSection members={visitTeamPerformance} />
 
         <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
           <PriorityActionCard priorityActions={priorityActions} />

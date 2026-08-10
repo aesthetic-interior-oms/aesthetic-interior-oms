@@ -168,6 +168,7 @@ export default function JrArchLeadsPage() {
   const [submitWorkLead, setSubmitWorkLead] = useState<LeadSummary | null>(null)
   const [submittingWork, setSubmittingWork] = useState(false)
   const [submissionNote, setSubmissionNote] = useState('')
+  const [submissionProjectSqft, setSubmissionProjectSqft] = useState('')
   const [submissionRows, setSubmissionRows] = useState<CadSubmissionRow[]>([createCadSubmissionRow()])
   const getLeadHref = useCallback(
     (leadId: string) => {
@@ -285,6 +286,7 @@ export default function JrArchLeadsPage() {
     setSubmitWorkLead(lead)
     setSubmissionRows([createCadSubmissionRow()])
     setSubmissionNote('')
+    setSubmissionProjectSqft('')
     setSubmitWorkOpen(true)
   }, [])
 
@@ -313,6 +315,12 @@ export default function JrArchLeadsPage() {
 
   const handleSubmitWork = useCallback(async () => {
     if (!submitWorkLead) return
+
+    const parsedProjectSqft = Number(submissionProjectSqft.replace(/,/g, '').trim())
+    if (!Number.isFinite(parsedProjectSqft) || parsedProjectSqft <= 0) {
+      toast.error('Please enter a valid project sqft before submitting work')
+      return
+    }
 
     const rowsWithFiles = submissionRows.filter((row) => row.file)
     if (rowsWithFiles.length === 0) {
@@ -351,6 +359,7 @@ export default function JrArchLeadsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           note: submissionNote.trim() || null,
+          projectSqft: parsedProjectSqft,
           files: uploadedFiles,
         }),
       })
@@ -379,6 +388,7 @@ export default function JrArchLeadsPage() {
       setSubmitWorkLead(null)
       setSubmissionRows([createCadSubmissionRow()])
       setSubmissionNote('')
+      setSubmissionProjectSqft('')
       await fetchLeads(0, true)
     } catch (error) {
       console.error(error)
@@ -386,7 +396,7 @@ export default function JrArchLeadsPage() {
     } finally {
       setSubmittingWork(false)
     }
-  }, [fetchLeads, submissionNote, submissionRows, submitWorkLead])
+  }, [fetchLeads, submissionNote, submissionProjectSqft, submissionRows, submitWorkLead])
 
   return (
     <div className="min-h-screen bg-background">
@@ -644,6 +654,7 @@ export default function JrArchLeadsPage() {
             setSubmitWorkLead(null)
             setSubmissionRows([createCadSubmissionRow()])
             setSubmissionNote('')
+            setSubmissionProjectSqft('')
           }
         }}
       >
@@ -658,6 +669,23 @@ export default function JrArchLeadsPage() {
           </DialogHeader>
 
           <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Project Sqft
+              </p>
+              <Input
+                type="number"
+                min="1"
+                inputMode="decimal"
+                value={submissionProjectSqft}
+                onChange={(event) => setSubmissionProjectSqft(event.target.value)}
+                placeholder="Enter project sqft"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                This value will update the lead&apos;s project sqft when CAD work is submitted.
+              </p>
+            </div>
+
             <div className="space-y-2 rounded-md border border-border/70 bg-muted/30 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Files & Types
@@ -763,11 +791,12 @@ export default function JrArchLeadsPage() {
                 setSubmitWorkLead(null)
                 setSubmissionRows([createCadSubmissionRow()])
                 setSubmissionNote('')
+                setSubmissionProjectSqft('')
               }}
             >
               Cancel
             </Button>
-            <Button type="button" onClick={handleSubmitWork} disabled={submittingWork || !submitWorkLead}>
+            <Button type="button" onClick={handleSubmitWork} disabled={submittingWork || !submitWorkLead || !submissionProjectSqft.trim()}>
               {submittingWork ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

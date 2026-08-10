@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, FileText, Loader2, MapPin, Phone, UserRound } from "lucide-react";
+import { Download, FileText, Loader2, MapPin, UserRound, Sparkles, ClipboardList, PenTool, CheckCircle, RotateCcw, CalendarClock } from "lucide-react";
 import { CrmPageHeader } from "@/components/crm/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,11 @@ type TaskLead = {
     notes: string | null;
     startsAt: string;
   } | null;
+  srCrmAssignee: {
+    id: string;
+    fullName: string;
+    email: string;
+  } | null;
   canStart: boolean;
   canSubmit: boolean;
   attachments?: Array<{
@@ -55,17 +60,27 @@ function formatLabel(value: string | null | undefined) {
 }
 
 export default function QuotationAssignedTaskPage() {
-  type QuotationFileType = "PREMIUM" | "STANDARD" | "BASIC" | "MIXED";
-  type AttachmentInput = { id: string; file: File | null; quotationType: QuotationFileType; budget: string };
+  type QuotationPackageType = "PREMIUM" | "STANDARD" | "BASIC" | "MIXED";
+  type AttachmentDocumentType = "SHORT" | "DETAIL";
+  type AttachmentInput = {
+    id: string;
+    file: File | null;
+    documentType: AttachmentDocumentType;
+    packageType: QuotationPackageType;
+  };
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [leads, setLeads] = useState<TaskLead[]>([]);
   const [submitLead, setSubmitLead] = useState<TaskLead | null>(null);
   const [submitNote, setSubmitNote] = useState("");
   const [submitAttachments, setSubmitAttachments] = useState<AttachmentInput[]>([
-    { id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" },
+    { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" },
   ]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+
+  function createEmptyAttachment(): AttachmentInput {
+    return { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" };
+  }
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
@@ -143,7 +158,7 @@ export default function QuotationAssignedTaskPage() {
   const openSubmitDialog = (lead: TaskLead) => {
     setSubmitLead(lead);
     setSubmitNote("");
-    setSubmitAttachments([{ id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" }]);
+    setSubmitAttachments([{ id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }]);
   };
 
   const submitQuotationWork = async () => {
@@ -153,9 +168,9 @@ export default function QuotationAssignedTaskPage() {
       toast.error("Please add at least one attachment");
       return;
     }
-    const parsedBudgets = validAttachments.map((item) => Number(item.budget.trim().replace(/,/g, "")));
-    if (parsedBudgets.some((value) => !Number.isFinite(value) || value <= 0)) {
-      toast.error("Please enter a valid budget amount for each attachment");
+    const invalidFiles = validAttachments.filter((item) => item.file?.type && item.file.type !== "application/pdf");
+    if (invalidFiles.length > 0) {
+      toast.error("Please upload PDF files only for quotation submissions");
       return;
     }
     setBusyId(submitLead.id);
@@ -165,18 +180,27 @@ export default function QuotationAssignedTaskPage() {
       for (const attachment of validAttachments) {
         const file = attachment.file;
         if (!file) continue;
+        const quotationFileType = attachment.documentType === "SHORT" ? attachment.packageType : "DETAIL";
         const uploaded = await uploadDirectBlobFile({
           file,
           context: "quotation-work",
           ownerId: submitLead.id,
-          quotationFileType: attachment.quotationType,
+          quotationFileType,
         });
-        uploadedFiles.push(uploaded);
+        uploadedFiles.push({
+          ...uploaded,
+          fileName:
+            attachment.documentType === "SHORT"
+              ? `[Short - ${attachment.packageType}] ${uploaded.fileName}`
+              : `[Detail] ${uploaded.fileName}`,
+        });
       }
-      const distinctTypes = [...new Set(validAttachments.map((item) => item.quotationType))];
-      const finalQuotationType: QuotationFileType =
-        distinctTypes.length > 1 ? "MIXED" : distinctTypes[0];
-      const totalBudget = parsedBudgets.reduce((sum, value) => sum + value, 0);
+      const shortPackages = validAttachments
+        .filter((item) => item.documentType === "SHORT")
+        .map((item) => item.packageType);
+      const distinctPackages = [...new Set(shortPackages)];
+      const finalQuotationType: QuotationPackageType | undefined =
+        distinctPackages.length === 0 ? undefined : distinctPackages.length > 1 ? "MIXED" : distinctPackages[0];
       setUploadingFiles(false);
       const response = await fetch(
         `/api/lead/${submitLead.id}/quotation-work/submit`,
@@ -185,7 +209,6 @@ export default function QuotationAssignedTaskPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             note: submitNote.trim() || undefined,
-            budget: totalBudget,
             quotationType: finalQuotationType,
             files: uploadedFiles.length > 0 ? uploadedFiles : undefined,
           }),
@@ -198,7 +221,7 @@ export default function QuotationAssignedTaskPage() {
       toast.success("Quotation submitted to Senior CRM Review Center");
       setSubmitLead(null);
       setSubmitNote("");
-      setSubmitAttachments([{ id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" }]);
+      setSubmitAttachments([{ id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }]);
       await loadTasks();
     } catch (error) {
       toast.error(
@@ -220,12 +243,68 @@ export default function QuotationAssignedTaskPage() {
       />
 
       <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline">Total: {summary.total}</Badge>
-          <Badge variant="secondary">Assigned: {summary.assigned}</Badge>
-          <Badge variant="secondary">Working: {summary.working}</Badge>
-          <Badge variant="secondary">Completed: {summary.completed}</Badge>
-          <Badge variant="secondary">Corrections: {summary.corrections}</Badge>
+        <div className="rounded-[1.35rem] border border-border/70 bg-gradient-to-br from-background via-muted/20 to-background p-3 shadow-sm mb-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+            <div>
+              <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Assigned Task Metrics
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Overview of your quotation tasks and their current phases.
+              </p>
+            </div>
+            <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+              Live tracking
+            </Badge>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {[
+              { key: 'total', label: 'Total Assigned', value: summary.total, Icon: ClipboardList, className: 'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950', iconClass: 'bg-white/15 text-white ring-white/25 dark:bg-slate-950/10 dark:text-slate-950 dark:ring-slate-950/15', accentClass: 'from-primary to-blue-400' },
+              { key: 'assigned', label: 'Assigned', value: summary.assigned, Icon: UserRound, className: 'border-blue-200/70 from-blue-50 via-white to-sky-50 text-blue-800 dark:border-blue-500/30 dark:from-blue-950/60 dark:via-slate-950 dark:to-sky-950/40 dark:text-blue-100', iconClass: 'bg-blue-100 text-blue-700 ring-blue-200 dark:bg-blue-500/15 dark:text-blue-200 dark:ring-blue-400/20', accentClass: 'from-blue-500 to-sky-500' },
+              { key: 'working', label: 'Working', value: summary.working, Icon: PenTool, className: 'border-amber-200/70 from-amber-50 via-white to-orange-50 text-amber-800 dark:border-amber-500/30 dark:from-amber-950/60 dark:via-slate-950 dark:to-orange-950/40 dark:text-amber-100', iconClass: 'bg-amber-100 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20', accentClass: 'from-amber-500 to-orange-500' },
+              { key: 'completed', label: 'Completed', value: summary.completed, Icon: CheckCircle, className: 'border-emerald-200/70 from-emerald-50 via-white to-teal-50 text-emerald-800 dark:border-emerald-500/30 dark:from-emerald-950/60 dark:via-slate-950 dark:to-teal-950/40 dark:text-emerald-100', iconClass: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20', accentClass: 'from-emerald-500 to-teal-500' },
+              { key: 'corrections', label: 'Corrections', value: summary.corrections, Icon: RotateCcw, className: 'border-rose-200/70 from-rose-50 via-white to-pink-50 text-rose-800 dark:border-rose-500/30 dark:from-rose-950/60 dark:via-slate-950 dark:to-pink-950/40 dark:text-rose-100', iconClass: 'bg-rose-100 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-rose-400/20', accentClass: 'from-rose-500 to-pink-500' },
+            ].map((stat) => {
+              const percentage = summary.total > 0 ? Math.round((stat.value / summary.total) * 100) : 0;
+              return (
+                <div
+                  key={stat.key}
+                  className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${stat.className}`}
+                >
+                  <span className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/30 blur-2xl transition group-hover:scale-125 dark:bg-white/10" />
+                  <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${stat.accentClass}`} />
+
+                  <div className="relative flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] opacity-75">
+                        {stat.label}
+                      </p>
+                      <div className="mt-3 flex items-end gap-2">
+                        <p className="text-3xl font-black leading-none tracking-tight">
+                          {stat.value}
+                        </p>
+                        <span className="mb-0.5 rounded-full bg-white/45 px-2 py-0.5 text-[10px] font-bold shadow-sm ring-1 ring-black/5 dark:bg-black/15 dark:ring-white/10">
+                          {percentage}%
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`rounded-2xl p-2.5 shadow-sm ring-1 ${stat.iconClass}`}>
+                      <stat.Icon className="h-5 w-5" />
+                    </span>
+                  </div>
+
+                  <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
+                    <span
+                      className={`block h-full rounded-full bg-gradient-to-r ${stat.accentClass} transition-all duration-500`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {loading ? (
@@ -243,7 +322,13 @@ export default function QuotationAssignedTaskPage() {
             {leads.map((lead) => (
               <Card
                 key={lead.id}
-                className="overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                className={`overflow-hidden shadow-sm transition hover:shadow-md border ${
+                  lead.subStatus === "QUOTATION_WORKING" || lead.subStatus === "QUOTATION_CORRECTION"
+                    ? "border-amber-300/80 bg-gradient-to-br from-amber-100/60 to-orange-50/40 dark:border-amber-700/50 dark:from-amber-900/40 dark:to-orange-900/20"
+                    : lead.subStatus === "QUOTATION_COMPLETED"
+                    ? "border-emerald-300/80 bg-gradient-to-br from-emerald-100/60 to-teal-50/40 dark:border-emerald-700/50 dark:from-emerald-900/40 dark:to-teal-900/20"
+                    : "border-border/70 hover:border-primary/40"
+                }`}
               >
                 <CardContent className="space-y-3 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -265,16 +350,16 @@ export default function QuotationAssignedTaskPage() {
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {lead.subStatus === "QUOTATION_WORKING" ||
-                      lead.subStatus === "QUOTATION_COMPLETED" ? (
+                      lead.subStatus === "QUOTATION_CORRECTION" ? (
                         <Button asChild size="sm">
                           <Link href={`/quotation-team/leads/${lead.id}`}>
-                            Workspace
+                            Create Quotation
                           </Link>
                         </Button>
                       ) : (
                         <Button asChild size="sm" variant="outline">
                           <Link href={`/quotation-team/leads/${lead.id}`}>
-                            Open Lead
+                            Open Workspace
                           </Link>
                         </Button>
                       )}
@@ -331,18 +416,22 @@ export default function QuotationAssignedTaskPage() {
                     )}
                   </div>
 
-                  <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
-                    <p className="inline-flex items-center gap-1">
-                      <Phone className="h-3.5 w-3.5" />
-                      {lead.phone || "No phone"}
-                    </p>
-                    <p className="inline-flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {lead.location || "No location"}
-                    </p>
-                    <p className="inline-flex items-center gap-1 md:col-span-2">
-                      <UserRound className="h-3.5 w-3.5" />
-                      First Meeting:
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mt-4 border-t border-border/40 pt-4">
+                    {lead.location && (
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-4 w-4 text-primary/70" />
+                        {lead.location}
+                      </span>
+                    )}
+                    {lead.srCrmAssignee && (
+                      <span className="inline-flex items-center gap-1">
+                        <UserRound className="h-4 w-4 text-primary/70" />
+                        SR CRM: {lead.srCrmAssignee.fullName}
+                      </span>
+                    )}
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarClock className="h-4 w-4 text-primary/70" />
+                      1st Meet:
                       <span className="font-medium text-foreground">
                         {lead.latestFirstMeeting?.startsAt
                           ? new Date(
@@ -350,7 +439,7 @@ export default function QuotationAssignedTaskPage() {
                             ).toLocaleString()
                           : "Not set"}
                       </span>
-                    </p>
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -390,36 +479,45 @@ export default function QuotationAssignedTaskPage() {
             />
           </div>
           <div className="space-y-2">
-            <p className="text-sm font-medium">Attachments (optional)</p>
+            <p className="text-sm font-medium">Quotation files</p>
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Choose quotation file type and budget for each attachment</p>
+              <p className="text-xs text-muted-foreground">Choose Short or Detail for each PDF. Short quotations also need a package type.</p>
               {submitAttachments.map((attachment, index) => (
                 <div key={attachment.id} className="space-y-2 rounded-md border p-3">
                   <p className="text-xs font-medium text-muted-foreground">Attachment {index + 1}</p>
                   <select
                     className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={attachment.quotationType}
-                    onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, quotationType: event.target.value as QuotationFileType } : item))}
+                    value={attachment.documentType}
+                    onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, documentType: event.target.value as AttachmentDocumentType } : item))}
                   >
-                    <option value="PREMIUM">Premium</option>
-                    <option value="STANDARD">Standard</option>
-                    <option value="BASIC">Basic</option>
-                    <option value="MIXED">Mixed</option>
+                    <option value="SHORT">Short</option>
+                    <option value="DETAIL">Detail</option>
                   </select>
-                  <Input type="text" inputMode="decimal" placeholder="e.g. 300000" value={attachment.budget} onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, budget: event.target.value } : item))} />
-                  <Input type="file" onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, file: event.target.files?.[0] ?? null } : item))} />
+                  {attachment.documentType === "SHORT" ? (
+                    <select
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={attachment.packageType}
+                      onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, packageType: event.target.value as QuotationPackageType } : item))}
+                    >
+                      <option value="PREMIUM">Premium</option>
+                      <option value="STANDARD">Standard</option>
+                      <option value="BASIC">Basic</option>
+                      <option value="MIXED">Mix</option>
+                    </select>
+                  ) : null}
+                  <Input type="file" accept="application/pdf,.pdf" onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, file: event.target.files?.[0] ?? null } : item))} />
                   {submitAttachments.length > 1 ? <Button type="button" variant="outline" size="sm" onClick={() => setSubmitAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}>Remove</Button> : null}
                 </div>
               ))}
-              <Button type="button" variant="secondary" onClick={() => setSubmitAttachments((prev) => [...prev, { id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" }])}>Add Attachment</Button>
+              <Button type="button" variant="secondary" onClick={() => setSubmitAttachments((prev) => [...prev, { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }])}>Add Attachment</Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Supported for quotation submit: PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, and CAD files when needed.
+              Supported for quotation submit: PDF files only. Quotation files are only exposed through authorized CRM review/download APIs.
             </p>
             {submitAttachments.some((item) => item.file) ? (
               <ul className="space-y-1 text-xs text-muted-foreground">
                 {submitAttachments.filter((item) => item.file).map((item) => (
-                  <li key={item.id}>{item.file?.name} <span className="font-medium">({item.quotationType})</span></li>
+                  <li key={item.id}>{item.file?.name} <span className="font-medium">({item.documentType}{item.documentType === "SHORT" ? ` / ${item.packageType}` : ""})</span></li>
                 ))}
               </ul>
             ) : null}
@@ -432,7 +530,7 @@ export default function QuotationAssignedTaskPage() {
               onClick={() => {
                 setSubmitLead(null);
                 setSubmitNote("");
-                setSubmitAttachments([{ id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" }]);
+                setSubmitAttachments([{ id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }]);
               }}
             >
               Cancel

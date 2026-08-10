@@ -1,0 +1,171 @@
+'use client'
+
+import { Document, Page, StyleSheet, Text, View, Image, Font } from '@react-pdf/renderer'
+
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') return window.location.origin
+  return 'https://www.aestheticinteriorbd.com'
+}
+
+Font.register({
+  family: 'Noto Sans Bengali',
+  fonts: [
+    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Regular.ttf` },
+    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold' },
+  ],
+})
+
+import { amountInWordsTaka } from '@/lib/number-to-words'
+import { buildShortQuotationSummary, formatShortQuotationDate } from '@/lib/short-quotation-calculations'
+import type { ShortQuotationContent } from '@/lib/short-quotation-types'
+
+const PRIMARY = '#0f5b53'
+const GOLD = '#a57c00'
+
+const styles = StyleSheet.create({
+  page: { paddingTop: 94, paddingBottom: 92, paddingLeft: 40, paddingRight: 40, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
+  header: { position: 'absolute', top: 20, left: 0, right: 0, height: 58, paddingHorizontal: 40, overflow: 'hidden' },
+  bold: { fontWeight: 'bold', color: '#000' },
+  sectionTitle: { fontSize: 12, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, textAlign: 'center', textTransform: 'uppercase' },
+  tHead: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: PRIMARY, paddingBottom: 6, paddingTop: 10 },
+  thCol: { fontSize: 8, fontWeight: 'bold', color: PRIMARY, textTransform: 'uppercase', paddingHorizontal: 4 },
+  tRow: { flexDirection: 'row', alignItems: 'flex-start', borderBottomWidth: 1, borderBottomColor: '#eeeeee' },
+  tRowAlt: { backgroundColor: '#fefdf9' },
+  tdCol: { fontSize: 9, paddingVertical: 8, paddingHorizontal: 4 },
+  packageBadge: { alignSelf: 'center', borderRadius: 8, backgroundColor: '#fff8e6', color: GOLD, fontSize: 7, fontWeight: 'bold', paddingVertical: 2, paddingHorizontal: 5, textTransform: 'uppercase' },
+  wSl: { width: '8%', textAlign: 'center' },
+  wSumName: { width: '70%', paddingLeft: 10 },
+  wSumTotal: { width: '22%', textAlign: 'right' },
+  wName: { width: '42%' },
+  wQty: { width: '12%', textAlign: 'center' },
+  wPrice: { width: '18%', textAlign: 'right' },
+  wTotal: { width: '20%', textAlign: 'right' },
+  grandTotalRow: { flexDirection: 'row', paddingTop: 8, marginTop: 5, borderTopWidth: 1, borderTopColor: PRIMARY },
+  grandTotalLabel: { width: '78%', textAlign: 'right', paddingRight: 10, fontWeight: 'bold', fontSize: 10, color: PRIMARY },
+  grandTotalValue: { width: '22%', textAlign: 'right', fontWeight: 'bold', fontSize: 10, color: PRIMARY },
+  inWords: { fontSize: 10, color: '#000', marginTop: 4, textAlign: 'left', fontWeight: 'bold' },
+  datePanel: { minWidth: 112, alignItems: 'flex-end' },
+  metaLabel: { fontSize: 5.5, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
+  metaValue: { fontSize: 7, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
+  headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 58, opacity: 0.08 },
+  headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  headerRule: { height: 2.2, backgroundColor: PRIMARY },
+  headerTitle: { color: PRIMARY, fontSize: 13, fontFamily: 'Times-Italic', letterSpacing: 2.8, marginHorizontal: 12, textTransform: 'uppercase' },
+  footerFixed: { position: 'absolute', bottom: 20, left: 40, right: 40, paddingTop: 8 },
+  footerText: { fontSize: 7, color: '#666', marginLeft: 4 },
+  footerMeta: { fontSize: 5.5, color: '#8a8a8a', marginTop: 5, textAlign: 'right' },
+})
+
+function formatAmount(value: number) {
+  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value)
+}
+function formatCurrency(value: number) {
+  return `৳ ${formatAmount(value)}`
+}
+
+function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
+  if (!value) return ''
+  return value
+    .split(/(\s+)/)
+    .map((part) => {
+      if (/^\s+$/.test(part) || part.length <= chunkSize) return part
+      const chunks = part.match(new RegExp(`.{1,${chunkSize}}`, 'g')) ?? [part]
+      return chunks.join('\u200B')
+    })
+    .join('')
+}
+
+function formatDownloadDateTime(value: string | undefined) {
+  if (!value) return 'Not downloaded yet'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).format(date)
+}
+
+const WatermarkBackground = () => (
+  <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center', zIndex: -1, opacity: 0.05 }} fixed>
+    <Image src={`${getBaseUrl()}/android-chrome-512x512.png`} style={{ width: 400, height: 400 }} />
+  </View>
+)
+
+const GlobalHeader = ({ content }: { content: ShortQuotationContent }) => (
+  <View style={styles.header} fixed>
+    <Image src={`${getBaseUrl()}/backgrounddata.svg`} style={styles.headerPattern} />
+    <View style={{ paddingTop: 3 }}>
+      <View style={styles.headerRuleRow}>
+        <View style={[styles.headerRule, { flexGrow: 1.65 }]} />
+        <Text style={styles.headerTitle}>Quotation</Text>
+        <View style={[styles.headerRule, { flexGrow: 0.85 }]} />
+      </View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ flex: 1 }}><Image src={`${getBaseUrl()}/Logo/HeaderLogo.png`} style={{ width: 154 }} /></View>
+        <View style={styles.datePanel}>
+          <Text style={[styles.metaLabel, { textAlign: 'right' }]}>Quotation Date</Text>
+          <Text style={styles.metaValue}>{formatShortQuotationDate(content.quotationDate)}</Text>
+        </View>
+      </View>
+    </View>
+  </View>
+)
+
+const FooterFixed = ({ content }: { content: ShortQuotationContent }) => (
+  <View style={styles.footerFixed} fixed>
+    <View style={{ borderTopWidth: 1, borderTopColor: '#a57c00', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
+      <View style={{ width: '35%' }}>
+        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', marginBottom: 3 }]}>Aesthetic Interior Studio</Text>
+        <Text style={styles.footerText}>183, East Senpara, Begum Rokeya Soroni</Text>
+        <Text style={styles.footerText}>3rd floor, Mirpur 10, Dhaka-1216</Text>
+      </View>
+      <View style={{ width: '30%', alignItems: 'center' }}>
+        <Text style={styles.footerText}>+88 0132969 4663</Text>
+        <Text style={styles.footerText}>hello@aestheticinterior.com</Text>
+        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold' }]}>www.aestheticinteriorbd.com</Text>
+      </View>
+      <View style={{ width: '35%', alignItems: 'flex-end', justifyContent: 'flex-end' }}><Text style={styles.footerText}>© 2026 All rights reserved.</Text></View>
+    </View>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
+      <Text style={[styles.footerMeta, { marginTop: 0, textAlign: 'left' }]}>Quotation Code: {content.quotationCode ?? 'Not generated yet'}</Text>
+      <Text style={[styles.footerMeta, { marginTop: 0, textAlign: 'right' }]}>Generated: {formatDownloadDateTime(content.downloadedAt)}</Text>
+    </View>
+  </View>
+)
+
+export function ShortQuotationDocument({ content }: { content: ShortQuotationContent }) {
+  const summary = buildShortQuotationSummary(content)
+  const cleanIntro = (content.introLetter || '').replace('Dear Sir,\n', '').replace('Dear Sir,', '').trim()
+  const lineSerials = new Map<string, number>()
+  summary.floors.forEach((floor) => {
+    floor.rooms.forEach((room) => {
+      room.lines.forEach((line) => lineSerials.set(line.id, lineSerials.size + 1))
+    })
+  })
+
+  return (
+    <Document>
+      <Page size="A4" style={styles.page}>
+        <WatermarkBackground /><GlobalHeader content={content} />
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
+          <Text style={[styles.bold, { fontSize: 13, color: PRIMARY, marginBottom: 2 }]}>{content.clientName}</Text>
+          <Text style={{ fontSize: 10, color: '#555' }}>{content.clientAddress}</Text>
+        </View>
+        {content.subject ? <Text style={{ fontSize: 9, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
+        {cleanIntro ? <View style={{ marginBottom: 20 }}><Text style={[styles.bold, { fontSize: 9, marginBottom: 3 }]}>Dear Sir,</Text><Text style={{ fontSize: 9, textAlign: 'justify' }}>{cleanIntro}</Text></View> : null}
+        <Text style={styles.sectionTitle}>{content.packageTier} Short Quotation Summary</Text>
+        <View style={styles.tHead}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wSumName]}>Description</Text><Text style={[styles.thCol, styles.wSumTotal]}>Amount</Text></View>
+        {summary.floors.map((entry, index) => <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}><Text style={[styles.tdCol, styles.wSl]}>{String(index + 1).padStart(2, '0')}</Text><Text style={[styles.tdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text><Text style={[styles.tdCol, styles.wSumTotal, styles.bold]}>{formatCurrency(entry.total)}</Text></View>)}
+        <View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>Grand Total</Text><Text style={styles.grandTotalValue}>{formatCurrency(summary.grandTotal)}</Text></View>
+        <Text style={styles.inWords}>In Words: {amountInWordsTaka(summary.grandTotal)}</Text>
+        <FooterFixed content={content} />
+      </Page>
+        {summary.floors.map((floor, floorIndex) => <Page key={floor.floor.id} size="A4" style={styles.page}><WatermarkBackground /><GlobalHeader content={content} /><Text style={styles.sectionTitle}>{softWrapPdfText(floor.floor.name)}</Text><View style={styles.tHead}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wName]}>Name</Text><Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text><Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text><Text style={[styles.thCol, styles.wTotal]}>Total</Text></View>{floor.rooms.map((room) => <View key={room.room.id}><Text style={[styles.sectionTitle, { fontSize: 9, marginTop: 10 }]}>{softWrapPdfText(room.room.name)}</Text>{room.lines.map((line, index) => <View key={line.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}><Text style={[styles.tdCol, styles.wSl]}>{String(lineSerials.get(line.id) ?? index + 1).padStart(2, '0')}</Text><Text style={[styles.tdCol, styles.wName, styles.bold]}>{softWrapPdfText(line.name)}</Text><View style={[styles.tdCol, styles.wQty]}>{line.isLumpSum ? <Text style={styles.packageBadge}>Package</Text> : <Text>{formatAmount(line.quantitySqft ?? 0)}</Text>}</View><Text style={[styles.tdCol, styles.wPrice]}>{line.isLumpSum ? '--' : formatCurrency(line.unitPrice ?? 0)}</Text><Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>{formatCurrency(line.total)}</Text></View>)}<View style={{ marginTop: 4, flexDirection: 'row', justifyContent: 'flex-end' }}><Text style={{ fontSize: 9, fontWeight: 'bold', color: PRIMARY, paddingRight: 10 }}>Total for {softWrapPdfText(room.room.name)}</Text><Text style={{ fontSize: 9, fontWeight: 'bold', color: PRIMARY }}>{formatAmount(room.total)}</Text></View></View>)}<View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(floor.floor.name)}</Text><Text style={styles.grandTotalValue}>{formatCurrency(floor.total)}</Text></View><Text style={styles.inWords}>In Words: {amountInWordsTaka(floor.total)}</Text>{floorIndex === summary.floors.length - 1 && content.footerNotes.length > 0 ? <View style={{ marginTop: 18 }}><Text style={styles.sectionTitle}>Notes</Text>{content.footerNotes.map((note, index) => <Text key={index} style={{ fontSize: 9, marginTop: 8 }}><Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>{softWrapPdfText(note)}</Text>)}</View> : null}<FooterFixed content={content} /></Page>)}
+    </Document>
+  )
+}

@@ -16,6 +16,7 @@ import {
   logLeadSubStatusChanged,
 } from "@/lib/activity-log-service";
 import { ensureSeniorCrmAssignment } from "@/lib/lead-handoff";
+import { sendPushToUser } from "@/lib/fcm-service";
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
@@ -261,6 +262,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
             scheduledFor: now,
           })),
         });
+
+        for (const userId of targetUserIds) {
+          sendPushToUser(
+            userId,
+            "Quotation Ready for Review 📋",
+            `${lead.name} quotation work is ready in the Review Center.`,
+            { type: "review", leadId: lead.id }
+          ).catch(() => {});
+        }
       }
 
       return { lead: updatedLead, submissionId: submission.id };

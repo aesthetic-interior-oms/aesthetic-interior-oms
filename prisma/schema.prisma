@@ -41,10 +41,12 @@ model Lead {
   visits        Visit[]
   attachments   LeadAttachment[]
   cadWorkSubmissions CadWorkSubmission[]
+  quotationDrafts QuotationDraft[]
   notifications Notification[]
   phaseTasks    LeadPhaseTask[]
   jrArchitectRequests LeadJrArchitectRequest[]
   meetingEvents LeadMeetingEvent[]
+  transactions  Transaction[]
 
   @@index([assignedTo])
   @@index([primaryOwnerUserId])
@@ -162,8 +164,23 @@ model User {
   phaseReviews              LeadPhaseReview[]
   meetingEventsCreated      LeadMeetingEvent[]
   cadWorkSubmissions        CadWorkSubmission[] @relation("CadWorkSubmittedBy")
+  quotationDraftsCreated    QuotationDraft[]    @relation("QuotationDraftCreatedBy")
+  quotationDraftsUpdated    QuotationDraft[]    @relation("QuotationDraftUpdatedBy")
   notifications Notification[]
   signupNotifications Notification[] @relation("NotificationSubjectUser")
+  transactionsRecorded Transaction[] @relation("TransactionRecorder")
+  deviceTokens DeviceToken[]
+}
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String   // "android" | "ios"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model LeadPhaseTask {
@@ -273,6 +290,29 @@ model CadWorkSubmission {
   @@index([leadId])
   @@index([submittedById])
   @@index([submittedAt])
+}
+
+model QuotationDraft {
+  id            String               @id @default(cuid())
+  leadId        String
+  draftKey      String               @default("detail")
+  createdById   String
+  updatedById   String?
+  quotationType String               @default("STANDARD")
+  projectSqft   Float?
+  content       Json
+  grandTotal    Float                @default(0)
+  status        QuotationDraftStatus @default(DRAFT)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy User  @relation("QuotationDraftCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  updatedBy User? @relation("QuotationDraftUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([leadId, draftKey])
+  @@index([createdById])
+  @@index([status])
 }
 
 model CadWorkSubmissionFile {
@@ -734,6 +774,11 @@ enum LeadMeetingEventType {
   REVIEW_CHECKPOINT
 }
 
+enum QuotationDraftStatus {
+  DRAFT
+  FINALIZED
+}
+
 enum CadSubmissionFileType {
   FLOOR_PLAN
   FURNITURE_LAYOUT
@@ -796,4 +841,175 @@ enum NotificationType {
   LEAD_ASSIGNED_TO_YOU
   FACEBOOK_LEAD_SYNC_SUMMARY
   VISIT_SCHEDULED_ADMIN
+  VISIT_DUE_36H
+  VISIT_DUE_48H
+  VISIT_DUE_72H
+}
+
+enum TransactionType {
+  INFLOW
+  OUTFLOW
+}
+
+enum ExpenseCategory {
+  // Office Overhead
+  OFFICE_RENT
+  SALARY
+  SALARY_ADVANCE
+  BONUS
+  ELECTRICITY_BILL
+  WATER_BILL
+  INTERNET_BILL
+  FOOD_ALLOWANCE
+  CLIENT_ENTERTAINMENT
+  PROMOTION
+  MOBILE_RECHARGE
+  OCTANE_FUEL
+  DONATION
+  
+  // Project/Site specific
+  BOARD_MATERIAL
+  PASTING_BILL
+  FARING
+  HPL
+  LINER
+  LUBER
+  ACRYLIC
+  HARDWARE
+  ELECTRIC_ITEM
+  LIGHTING
+  GLASS
+  TRANSPORT_COST
+  SITE_EXPENSE
+  FACTORY_PAYMENT
+  CARPENTER_PAYMENT
+  PAINT_MATERIALS
+  PAINT_PAYMENT
+  CEILING_PAYMENT
+  DOOR
+  PLUMBER_PAYMENT
+  TILES_PURCHASE
+  FOLDING_DOOR
+  GLASS_PROFILE
+  CIVIL_WORK
+  
+  OTHERS
+}
+
+enum PaymentAccount {
+  CASH
+  BANK_EBL
+  BANK_OTHER
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  date        DateTime        @default(now())
+  type        TransactionType
+  category    ExpenseCategory
+  particular  String          // Description
+  amount      Float
+  account     PaymentAccount  // CASH or BANK
+  recordedById String
+  leadId      String?         // Reference to Lead (if site-specific)
+  
+  lead        Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  recordedBy  User            @relation("TransactionRecorder", fields: [recordedById], references: [id])
+
+  @@index([leadId])
+  @@index([recordedById])
+  @@index([date])
+}
+
+model CashFlowDaily {
+  id           String   @id @default(cuid())
+  date         DateTime @unique @default(now())
+  openingCash  Float    @default(0)
+  openingBank  Float    @default(0)
+  closingCash  Float    @default(0)
+  closingBank  Float    @default(0)
+  isClosed     Boolean  @default(false)
+}
+
+model WebsiteProject {
+  id          String                @id @default(cuid())
+  slug        String                @unique
+  title       String
+  ownerName   String?
+  type        String?
+  sqft        String?
+  duration    String?
+  category    String                @default("residential")
+  location    String?
+  thumbnailUrl String
+  description String
+  details     String?
+  isPublished Boolean               @default(true)
+  sortOrder   Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  images      WebsiteProjectImage[]
+
+  @@index([isPublished, sortOrder])
+  @@index([category])
+}
+
+model WebsiteProjectImage {
+  id        String         @id @default(cuid())
+  projectId String
+  url       String
+  alt       String?
+  sortOrder Int            @default(0)
+  createdAt DateTime       @default(now())
+
+  project WebsiteProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+}
+
+model WebsiteVideo {
+  id           String   @id @default(cuid())
+  title        String
+  url          String
+  provider     String   @default("youtube")
+  videoId      String?
+  embedUrl     String
+  thumbnailUrl String?
+  duration     String?
+  isFeatured   Boolean  @default(false)
+  isPublished  Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  @@index([isPublished, isFeatured, sortOrder])
+}
+
+model WebsiteTestimonial {
+  id          String   @id @default(cuid())
+  quote       String
+  author      String
+  project     String
+  image       String
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([isPublished, sortOrder])
+}
+
+model WebsiteTeamMember {
+  id          String   @id @default(cuid())
+  name        String
+  role        String
+  image       String
+  specialty   String?
+  quote       String?
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([isPublished, sortOrder])
 }

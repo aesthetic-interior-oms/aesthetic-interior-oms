@@ -1,129 +1,121 @@
+import prisma from "@/lib/prisma"
+
 export type ProjectCategory = "residential" | "commercial" | "renovation" | "furniture"
 
 export type WebsiteProject = {
-  id: number
+  id: string
   slug: string
   title: string
-  ownerName: string
-  type: string
-  sqft: string
-  duration: string
+  ownerName: string | null
+  type: string | null
+  sqft: string | null
+  duration: string | null
   category: ProjectCategory
-  location: string
+  location: string | null
   bannerImage: string
   images: string[]
   description: string
+  details: string | null
+  isPublished: boolean
+  sortOrder: number
 }
 
-export const websiteProjects: WebsiteProject[] = [
-  {
-    id: 1,
-    slug: "Chhayanaut",
-    title: "ছায়ানট",
-    ownerName: "Md Ahnab",
-    type: "Duplex",
-    sqft: "2000",
-    duration: "2 months",
-    category: "residential",
-    location: "Dhaka, Bangladesh",
-    bannerImage: "/Projects/Project1/Drawing Space_cam_01.jpg",
-    images: [
-      "/Projects/Project1/Drawing Space_cam_01.jpg",
-      "/Projects/Project1/Drawing Space_cam_05.jpg",
-      "/Projects/Project1/M bed 01_cam_05.jpg",
-      "/Projects/Project1/M bed 01_cam_06.jpg",
-      "/Projects/Project1/Upper corrdoor_cam_01.jpg",
-    ],
-    description:
-      "Chhayanaut is a duplex home interior project focused on elegant, practical family living with warm tones and refined finishes.",
-  },
-  {
-    id: 2,
-    slug: "nirupama",
-    title: "Nirupama (নিরুপমা)",
-    ownerName: "Shahida Khanom",
-    type: "Duplex",
-    sqft: "2000",
-    duration: "3 months",
-    category: "residential",
-    location: "Dhaka, Bangladesh",
-    bannerImage: "/Projects/Project2/LIVING VIEW 03.jpg",
-    images: [
-      "/Projects/Project2/LIVING VIEW 03.jpg",
-      "/Projects/Project2/DINING VIEW 01.jpg",
-      "/Projects/Project2/g.bed view 02.jpg",
-      "/Projects/Project2/c.bed toilet view 01.jpg",
-      "/Projects/Project2/c.bed view 03.jpg",
-      "/Projects/Project2/p.bed view 02.jpg",
-      "/Projects/Project2/05.jpg",
-    ],
-    description:
-      "Nirupama is a duplex interior project with a balanced modern layout, warm material palette, and comfortable family-focused spatial planning.",
-  },
-  {
-    id: 3,
-    slug: "gangchil",
-    title: "Gangchil (গাঙ্গচিল)",
-    ownerName: "Justice Tariqul Hakim",
-    type: "Duplex",
-    sqft: "2760",
-    duration: "4 months",
-    category: "residential",
-    location: "Gazipur, Dhaka, Bangladesh",
-    bannerImage: "/Projects/Project3/01.jpg",
-    images: [
-      "/Projects/Project3/01.jpg",
-      "/Projects/Project3/04.jpg",
-      "/Projects/Project3/06.jpg",
-      "/Projects/Project3/11.jpg",
-      "/Projects/Project3/kitchen view 01 (3).jpg",
-    ],
-    description:
-      "Gangchil is a spacious duplex interior featuring thoughtful design elements and premium finishes that create a sophisticated living environment.",
-  },
-  {
-    id: 4,
-    slug: "ovijan",
-    title: "Ovijan (ওভিজান)",
-    ownerName: "Shekh Mohammad Iqbal",
-    type: "Duplex",
-    sqft: "2310",
-    duration: "2 months",
-    category: "residential",
-    location: "Tongi, Dhaka, Bangladesh",
-    bannerImage: "/Projects/Project4/Child Bed Female 01.jpg",
-    images: [
-      "/Projects/Project4/Child Bed Female 01.jpg",
-      "/Projects/Project4/Child Bath Female 01.jpg",
-    ],
-    description:
-      "Ovijan is a modern duplex project that combines contemporary design with functional living spaces, optimized for comfort and aesthetics.",
-  },
-  {
-    id: 5,
-    slug: "aguntak",
-    title: "Aguntak (আগুনতক)",
-    ownerName: "Mrs Rumana Sonia",
-    type: "Apartment",
-    sqft: "2220",
-    duration: "4 months",
-    category: "residential",
-    location: "Sylhet, Bangladesh",
-    bannerImage: "/Projects/Project5/Living room_cam_01.jpg",
-    images: [
-      "/Projects/Project5/Living room_cam_01.jpg",
-      "/Projects/Project5/F living_cam_02.jpg",
-      "/Projects/Project5/Dining_cam_03..jpg",
-      "/Projects/Project5/Kitchen_cam_01 - Copy.jpg",
-      "/Projects/Project5/CHILD ROOM_CAM_02.jpg",
-      "/Projects/Project5/Entry_cam_01.jpg",
-      "/Projects/Project5/M Toilet_cam_01.jpg",
-    ],
-    description:
-      "Aguntak is a beautifully designed apartment that showcases modern living spaces with warm aesthetics and premium interior finishes.",
-  },
-]
+type WebsiteProjectRow = {
+  id: string
+  slug: string
+  title: string
+  ownerName: string | null
+  type: string | null
+  sqft: string | null
+  duration: string | null
+  category: string
+  location: string | null
+  thumbnailUrl: string
+  description: string
+  details: string | null
+  isPublished: boolean
+  sortOrder: number
+  images: string[] | null
+}
 
-export function getProjectBySlug(slug: string) {
-  return websiteProjects.find((project) => project.slug === slug)
+function normalizeProject(row: WebsiteProjectRow): WebsiteProject {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    ownerName: row.ownerName,
+    type: row.type,
+    sqft: row.sqft,
+    duration: row.duration,
+    category: row.category as ProjectCategory,
+    location: row.location,
+    bannerImage: row.thumbnailUrl,
+    images: row.images?.length ? row.images : [row.thumbnailUrl],
+    description: row.description,
+    details: row.details,
+    isPublished: row.isPublished,
+    sortOrder: row.sortOrder,
+  }
+}
+
+export async function getWebsiteProjects({ includeDrafts = false } = {}) {
+  const rows = await prisma.$queryRaw<WebsiteProjectRow[]>`
+    SELECT
+      p."id",
+      p."slug",
+      p."title",
+      p."ownerName",
+      p."type",
+      p."sqft",
+      p."duration",
+      p."category",
+      p."location",
+      p."thumbnailUrl",
+      p."description",
+      p."details",
+      p."isPublished",
+      p."sortOrder",
+      COALESCE(
+        array_agg(i."url" ORDER BY i."sortOrder", i."createdAt") FILTER (WHERE i."url" IS NOT NULL),
+        ARRAY[]::TEXT[]
+      ) AS "images"
+    FROM "WebsiteProject" p
+    LEFT JOIN "WebsiteProjectImage" i ON i."projectId" = p."id"
+    WHERE (${includeDrafts}::BOOLEAN = true OR p."isPublished" = true)
+    GROUP BY p."id"
+    ORDER BY p."sortOrder" ASC, p."createdAt" DESC
+  `
+
+  return rows.map(normalizeProject)
+}
+
+export async function getProjectBySlug(slug: string, { includeDrafts = false } = {}) {
+  const rows = await prisma.$queryRaw<WebsiteProjectRow[]>`
+    SELECT
+      p."id",
+      p."slug",
+      p."title",
+      p."ownerName",
+      p."type",
+      p."sqft",
+      p."duration",
+      p."category",
+      p."location",
+      p."thumbnailUrl",
+      p."description",
+      p."details",
+      p."isPublished",
+      p."sortOrder",
+      COALESCE(
+        array_agg(i."url" ORDER BY i."sortOrder", i."createdAt") FILTER (WHERE i."url" IS NOT NULL),
+        ARRAY[]::TEXT[]
+      ) AS "images"
+    FROM "WebsiteProject" p
+    LEFT JOIN "WebsiteProjectImage" i ON i."projectId" = p."id"
+    WHERE p."slug" = ${slug} AND (${includeDrafts}::BOOLEAN = true OR p."isPublished" = true)
+    GROUP BY p."id"
+    LIMIT 1
+  `
+
+  return rows[0] ? normalizeProject(rows[0]) : null
 }

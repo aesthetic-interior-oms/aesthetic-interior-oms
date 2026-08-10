@@ -162,6 +162,98 @@ function toOptionalString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null
 }
 
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string; department: string }> },
+) {
+  try {
+    const authResult = await requireDatabaseRoles([])
+    if (!authResult.ok) return authResult.response
+
+    const resolvedParams = await params
+    const leadId = resolvedParams?.id
+    const department = resolvedParams?.department?.toUpperCase()
+    const body = (await request.json().catch(() => ({}))) as { userId?: unknown }
+    const userId = typeof body.userId === 'string' ? body.userId.trim() : ''
+
+    if (!leadId || department !== 'QUOTATION' || !userId) {
+      return NextResponse.json(
+        { success: false, error: 'New quotation assignment requires lead id, QUOTATION department, and userId' },
+        { status: 400 },
+      )
+    }
+
+    const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+    if (!actorDepartments.has('ADMIN') && !actorDepartments.has('SR_CRM')) {
+      return NextResponse.json(
+        { success: false, error: 'Only Admin or Senior CRM can assign a new quotation member' },
+        { status: 403 },
+      )
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, fullName: true, email: true },
+    })
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const lead = await tx.lead.findUnique({
+        where: { id: leadId },
+        select: { id: true, name: true, stage: true, subStatus: true },
+      })
+      if (!lead) throw new Error('Lead not found')
+      if (lead.stage !== LeadStage.QUOTATION_PHASE || lead.subStatus !== LeadSubStatus.QUOTATION_APPROVED) {
+        throw new Error('New quotation can only be assigned after quotation approval')
+      }
+
+      const assignment = await tx.leadAssignment.upsert({
+        where: {
+          leadId_department_userId: {
+            leadId,
+            department: LeadAssignmentDepartment.QUOTATION,
+            userId,
+          },
+        },
+        create: {
+          leadId,
+          userId,
+          department: LeadAssignmentDepartment.QUOTATION,
+        },
+        update: {},
+        include: { user: { select: { id: true, fullName: true, email: true } } },
+      })
+
+      await tx.lead.update({
+        where: { id: leadId },
+        data: { stage: LeadStage.QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_ASSIGNED },
+      })
+
+      await logUserAssigned(tx, {
+        leadId,
+        userId,
+        leadName: `New quotation assignment: ${user.fullName} assigned while preserving previous quotation owners`,
+      })
+
+      await autoCompletePendingFollowups(tx, {
+        leadId,
+        userId: authResult.actorUserId,
+        action: 'new quotation assignment',
+      })
+
+      return assignment
+    })
+
+    return NextResponse.json({ success: true, data: result, message: 'New quotation assignment created successfully' })
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Failed to create new quotation assignment'
+    return NextResponse.json({ success: false, error: errorMsg }, { status: errorMsg.includes('not found') ? 404 : 500 })
+  }
+}
+
 // PUT - Update assignment for a specific department
 // Changes the user assigned to a department for a lead
 export async function PUT(
@@ -246,21 +338,25 @@ export async function PUT(
       )
     }
 
-    if (department === 'JR_ARCHITECT') {
+    if (department === 'JR_ARCHITECT' || department === 'SR_CRM') {
       const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
       const actorRoles = authResult.actorRoles ?? []
-      const canUpdateJrArchitectAssignment =
+      const isJrArchitectLeader =
+        actorDepartments.has('JR_ARCHITECT') &&
+        hasJrArchitectureLeaderRole(actorRoles)
+      const canUpdateAssignment =
         actorDepartments.has('ADMIN') ||
         actorDepartments.has('SR_CRM') ||
-        (actorDepartments.has('JR_ARCHITECT') &&
-          hasJrArchitectureLeaderRole(actorRoles))
+        isJrArchitectLeader
 
-      if (!canUpdateJrArchitectAssignment) {
+      if (!canUpdateAssignment) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'Only Admin, Senior CRM, or JR Architect leaders can reassign JR Architect',
+              department === 'JR_ARCHITECT'
+                ? 'Only Admin, Senior CRM, or JR Architect leaders can reassign JR Architect'
+                : 'Only Admin, Senior CRM, or JR Architect leaders can reassign SR CRM',
           },
           { status: 403 },
         )

@@ -3,17 +3,26 @@ import {
   LeadAssignmentDepartment,
   LeadPhaseType,
   LeadPrimaryOwnerDepartment,
+  LeadSubStatus,
   LeadStage,
+  ActivityType,
+  NotificationType,
+  ProjectStatus,
   Prisma,
 } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { logLeadCreated } from '@/lib/activity-log-service';
+import { logActivity, logLeadStageChanged, logUserAssigned } from '@/lib/activity-log-service';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { formatServerTiming, timeAsync } from '@/lib/server-timing';
+import { findVisitConflict } from '@/lib/visit-guards';
+import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
+import { getWeeklySeniorCrmAssignment } from '@/lib/sr-crm-rotation';
 import { isFacebookConfigured } from '@/lib/facebook';
 import { maybeRunFacebookFallbackSync, runFacebookSyncWithControl } from '@/lib/facebook-sync-control';
 import { maybeRunInstagramFallbackSync } from '@/lib/instagram-sync-control';
 import { formatPhoneForStorage } from '@/lib/phone-normalize';
+import { sendPushToUser } from '@/lib/fcm-service';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'sin1';
@@ -138,7 +147,25 @@ type CreateLeadBody = {
   location?: unknown;
   budget?: unknown;
   assignedToId?: unknown;
+  scheduleVisit?: unknown;
+  visit?: unknown;
 };
+
+type CreateLeadVisitBody = {
+  visitTeamUserId?: unknown;
+  seniorCrmUserId?: unknown;
+  notes?: unknown;
+  reason?: unknown;
+  projectSqft?: unknown;
+  visitFee?: unknown;
+  projectStatus?: unknown;
+  scheduledAt?: unknown;
+  location?: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
 
 // Utility function to safely convert unknown values to optional strings
 // Returns null if value is not a string or is empty after trimming
@@ -186,6 +213,18 @@ function toLeadStageParam(value: string | null): LeadStage | null {
   return Object.values(LeadStage).includes(upper as LeadStage) ? (upper as LeadStage) : null;
 }
 
+function toOptionalNumber(value: unknown): number | null {
+  if (value === undefined || value === null || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toProjectStatus(value: unknown): ProjectStatus | null {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toUpperCase();
+  return Object.values(ProjectStatus).includes(normalized as ProjectStatus) ? (normalized as ProjectStatus) : null;
+}
+
 function toPositiveInt(value: string | null, fallback: number): number {
   if (!value) return fallback;
   const parsed = Number.parseInt(value, 10);
@@ -212,6 +251,59 @@ function parseDateAtEndOfDayUtc(value: string | null): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return null;
   const date = new Date(`${normalized}T23:59:59.999Z`);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getCreateLeadErrorResponse(error: unknown) {
+  const message = error instanceof Error ? error.message : null;
+  switch (message) {
+    case 'INVALID_VISIT_PARAMS':
+      return NextResponse.json(
+        { success: false, error: 'Visit team member and a valid visit date/time are required to schedule a visit.' },
+        { status: 400 },
+      );
+    case 'LOCATION_REQUIRED':
+      return NextResponse.json(
+        { success: false, error: 'Lead location is required when scheduling a visit.' },
+        { status: 400 },
+      );
+    case 'INVALID_PROJECT_SQFT':
+      return NextResponse.json(
+        { success: false, error: 'Project square feet must be greater than 0.' },
+        { status: 400 },
+      );
+    case 'INVALID_VISIT_FEE':
+      return NextResponse.json(
+        { success: false, error: 'Visit fee cannot be negative.' },
+        { status: 400 },
+      );
+    case 'INVALID_PROJECT_STATUS':
+      return NextResponse.json(
+        { success: false, error: 'Selected project status is not valid.' },
+        { status: 400 },
+      );
+    case 'VISIT_ASSIGNEE_NOT_FOUND':
+      return NextResponse.json(
+        { success: false, error: 'Selected visit team member was not found.' },
+        { status: 400 },
+      );
+    case 'VISIT_ASSIGNEE_INVALID_DEPT':
+      return NextResponse.json(
+        { success: false, error: 'Selected user is not mapped to the visit team.' },
+        { status: 400 },
+      );
+    case 'LATEST_VISIT_BLOCKS_SCHEDULING':
+      return NextResponse.json(
+        { success: false, error: 'This lead already has an active visit. Complete or cancel it before scheduling another visit.' },
+        { status: 409 },
+      );
+    case 'VISIT_CONFLICT':
+      return NextResponse.json(
+        { success: false, error: 'Selected visit team member already has a nearby scheduled visit.' },
+        { status: 409 },
+      );
+    default:
+      return null;
+  }
 }
 
 // GET endpoint - Retrieve leads from the database (paginated)
@@ -642,16 +734,184 @@ export async function POST(request: NextRequest) {
       }
 
       // Log the lead creation activity with the authenticated user
-      // console.log('📋 [POST /api/lead] - Logging lead creation activity');
       await logLeadCreated(tx, {
         leadId: newLead.id,
         userId: authResult.actorUserId,
         leadName: name,
       });
 
+      // Optionally schedule a visit as part of lead creation
+      const shouldSchedule = Boolean(body.scheduleVisit);
+      if (shouldSchedule) {
+        try {
+          const visitBody: CreateLeadVisitBody = isRecord(body.visit) ? body.visit : {};
+          const visitTeamUserId = toOptionalString(visitBody.visitTeamUserId);
+          const seniorCrmUserId = toOptionalString(visitBody.seniorCrmUserId);
+          const notes = toOptionalString(visitBody.notes);
+          const reason = toOptionalString(visitBody.reason) ?? 'Visit has been scheduled.';
+          const projectSqft = toOptionalNumber(visitBody.projectSqft);
+          const visitFee = toOptionalNumber(visitBody.visitFee);
+          const projectStatus = toProjectStatus(visitBody.projectStatus);
+          const scheduledAtRaw = toOptionalString(visitBody.scheduledAt);
+          const parsedScheduledAt = scheduledAtRaw ? new Date(scheduledAtRaw) : null;
+          const explicitLocation = toOptionalString(visitBody.location) ?? toOptionalString(body.location) ?? null;
+
+          if (!visitTeamUserId || !scheduledAtRaw || !parsedScheduledAt || Number.isNaN(parsedScheduledAt.getTime())) {
+            throw new Error('INVALID_VISIT_PARAMS');
+          }
+
+          if (projectSqft !== null && projectSqft <= 0) {
+            throw new Error('INVALID_PROJECT_SQFT');
+          }
+
+          if (visitFee !== null && visitFee < 0) {
+            throw new Error('INVALID_VISIT_FEE');
+          }
+
+          if (projectStatus === null && visitBody.projectStatus) {
+            throw new Error('INVALID_PROJECT_STATUS');
+          }
+
+          const weekly = await getWeeklySeniorCrmAssignment();
+
+          const [visitAssignee, latestVisit] = await Promise.all([
+            tx.user.findUnique({
+              where: { id: visitTeamUserId },
+              select: {
+                id: true,
+                fullName: true,
+                userDepartments: { select: { department: { select: { name: true } } } },
+              },
+            }),
+            tx.visit.findFirst({
+              where: { leadId: newLead.id },
+              orderBy: { createdAt: 'desc' },
+              select: { id: true, status: true, result: { select: { id: true } } },
+            }),
+          ]);
+
+          if (!visitAssignee) throw new Error('VISIT_ASSIGNEE_NOT_FOUND');
+          const isAllowed = (visitAssignee.userDepartments ?? []).some((d) => d.department.name === 'VISIT_TEAM' || d.department.name === 'SR_CRM');
+          if (!isAllowed) throw new Error('VISIT_ASSIGNEE_INVALID_DEPT');
+
+          const latestVisitHasResult = Boolean(latestVisit?.result?.id);
+          const latestVisitBlocksScheduling = Boolean(
+            latestVisit &&
+              (latestVisit.status === 'SCHEDULED' ||
+                latestVisit.status === 'RESCHEDULED' ||
+                (latestVisit.status === 'COMPLETED' && !latestVisitHasResult)),
+          );
+          if (latestVisitBlocksScheduling) throw new Error('LATEST_VISIT_BLOCKS_SCHEDULING');
+
+          const locationToUse = explicitLocation ?? newLead.location;
+          if (!locationToUse) throw new Error('LOCATION_REQUIRED');
+
+          const conflict = await findVisitConflict(tx, { assignedToId: visitTeamUserId, scheduledAt: parsedScheduledAt });
+          if (conflict) throw new Error('VISIT_CONFLICT');
+
+          // update lead stage
+          await tx.lead.update({ where: { id: newLead.id }, data: { stage: LeadStage.VISIT_PHASE, subStatus: LeadSubStatus.VISIT_SCHEDULED, location: locationToUse } });
+
+          const visit = await tx.visit.create({
+            data: {
+              leadId: newLead.id,
+              assignedToId: visitTeamUserId,
+              createdById: authResult.actorUserId,
+              scheduledAt: parsedScheduledAt,
+              visitFee: visitFee ?? 0,
+              projectSqft,
+              projectStatus,
+              location: locationToUse,
+              notes,
+            },
+          });
+
+          await tx.notification.createMany({
+            data: [
+              {
+                userId: visitTeamUserId,
+                leadId: newLead.id,
+                visitId: visit.id,
+                type: NotificationType.VISIT_ASSIGNED,
+                title: 'New visit assigned',
+                message: `You have been assigned a new visit for ${newLead.name}.`,
+                scheduledFor: parsedScheduledAt,
+              },
+            ],
+            skipDuplicates: true,
+          });
+
+          const adminUsers = await tx.user.findMany({ where: { isActive: true, userDepartments: { some: { department: { name: 'ADMIN' } } } }, select: { id: true } });
+          if (adminUsers.length > 0) {
+            await tx.notification.createMany({
+              data: adminUsers.map((admin) => ({
+                userId: admin.id,
+                leadId: newLead.id,
+                visitId: visit.id,
+                type: NotificationType.VISIT_SCHEDULED_ADMIN,
+                title: 'Visit scheduled',
+                message: `Lead: ${newLead.name} visit scheduled at ${parsedScheduledAt.toISOString()} and assigned to ${visitAssignee.fullName}.`,
+                scheduledFor: parsedScheduledAt,
+              })),
+            });
+          }
+
+          const existingVisitTeamAssignment = await tx.leadAssignment.findFirst({ where: { leadId: newLead.id, department: LeadAssignmentDepartment.VISIT_TEAM } });
+          const targetSeniorCrmUserId = seniorCrmUserId ?? (weekly.automationEnabled ? weekly.current?.id : null) ?? null;
+          if (targetSeniorCrmUserId) {
+            const existingSrAssignment = await tx.leadAssignment.findFirst({ where: { leadId: newLead.id, department: LeadAssignmentDepartment.SR_CRM } });
+            if (existingSrAssignment) {
+              await tx.leadAssignment.update({ where: { id: existingSrAssignment.id }, data: { userId: targetSeniorCrmUserId } });
+            } else {
+              await tx.leadAssignment.create({ data: { leadId: newLead.id, userId: targetSeniorCrmUserId, department: LeadAssignmentDepartment.SR_CRM } });
+            }
+          }
+
+          if (existingVisitTeamAssignment) {
+            await tx.leadAssignment.update({ where: { id: existingVisitTeamAssignment.id }, data: { userId: visitTeamUserId } });
+          } else {
+            await tx.leadAssignment.create({ data: { leadId: newLead.id, userId: visitTeamUserId, department: LeadAssignmentDepartment.VISIT_TEAM } });
+          }
+
+          if (notes) {
+            await tx.note.create({ data: { leadId: newLead.id, userId: authResult.actorUserId, content: notes } });
+          }
+
+          await logLeadStageChanged(tx, { leadId: newLead.id, userId: authResult.actorUserId, from: newLead.stage, to: LeadStage.VISIT_PHASE, reason });
+          await logActivity(tx, { leadId: newLead.id, userId: authResult.actorUserId, type: ActivityType.VISIT_SCHEDULED, description: `Visit ${visit.id} scheduled at ${parsedScheduledAt.toISOString()} and assigned to ${visitAssignee.fullName}. Reason: ${reason}` });
+          await logUserAssigned(tx, { leadId: newLead.id, userId: authResult.actorUserId, leadName: `${visitAssignee.fullName} assigned as visit lead` });
+          await autoCompletePendingFollowups(tx, { leadId: newLead.id, userId: authResult.actorUserId, action: 'visit scheduled' });
+        } catch (err) {
+          // Bubble up known errors to abort transaction
+          throw err;
+        }
+      }
+
       return newLead;
     });
     // console.log('✨ [POST /api/lead] - Lead and activity log created successfully');
+
+    // Send FCM push notification to the assigned visit team member's device
+    // if a visit was scheduled during lead creation.
+    const shouldSchedule = Boolean(body.scheduleVisit);
+    if (shouldSchedule) {
+      try {
+        const visitBody: CreateLeadVisitBody = isRecord(body.visit) ? body.visit : {};
+        const visitTeamUserId = toOptionalString(visitBody.visitTeamUserId);
+        const scheduledAtRaw = toOptionalString(visitBody.scheduledAt);
+        const parsedScheduledAt = scheduledAtRaw ? new Date(scheduledAtRaw) : null;
+        if (visitTeamUserId && parsedScheduledAt && !Number.isNaN(parsedScheduledAt.getTime())) {
+          await sendPushToUser(
+            visitTeamUserId,
+            'New visit assigned',
+            `You have been assigned a new visit for ${lead.name}.`,
+            { type: 'VISIT_ASSIGNED', leadId: lead.id }
+          );
+        }
+      } catch (pushErr) {
+        console.error('[POST /api/lead] Failed to send push notification:', pushErr);
+      }
+    }
 
     // Return 201 Created with the new lead data
     return NextResponse.json(
@@ -667,6 +927,11 @@ export async function POST(request: NextRequest) {
         { success: false, error: 'A lead with this phone number already exists' },
         { status: 409 }
       );
+    }
+
+    const knownErrorResponse = getCreateLeadErrorResponse(error);
+    if (knownErrorResponse) {
+      return knownErrorResponse;
     }
 
     // Return generic 500 error for other unexpected errors
