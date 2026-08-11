@@ -32,6 +32,8 @@ const PRIMARY = '#1f363d';
 const GOLD = '#a57c00';
 const PAGE_SIDE_PADDING = 7;
 const BDT_SYMBOL = '৳';
+const DETAIL_ROW_LINE_HEIGHT = 1.15;
+const DETAIL_ROW_VERTICAL_PADDING = 3;
 
 const styles = StyleSheet.create({
   page: {
@@ -172,6 +174,7 @@ const styles = StyleSheet.create({
   },
   tdCol: {
     fontSize: 10,
+    lineHeight: DETAIL_ROW_LINE_HEIGHT,
     paddingTop: 6,
     paddingBottom: 6,
     paddingHorizontal: 4,
@@ -270,8 +273,11 @@ const styles = StyleSheet.create({
   matText: {
     fontSize: 9,
     color: '#444444',
-    lineHeight: 1.2,
+    lineHeight: DETAIL_ROW_LINE_HEIGHT,
     marginBottom: 0,
+  },
+  matCell: {
+    lineHeight: DETAIL_ROW_LINE_HEIGHT,
   },
 
   // Terms
@@ -541,7 +547,10 @@ export function DetailQuotationDocument({
                 ? line.materials.split('\n').map(l => l.trim()).filter(Boolean)
                 : []
               const displayMatLines = matLines.length > 0 ? matLines : ['']
-              const rowCellStyle = { paddingTop: 2, paddingBottom: 2 }
+              const rowCellStyle = {
+                paddingTop: DETAIL_ROW_VERTICAL_PADDING,
+                paddingBottom: DETAIL_ROW_VERTICAL_PADDING,
+              }
 
               return displayMatLines.map((matText, matIndex) => {
                 const isFirstMaterialRow = matIndex === 0
@@ -571,7 +580,7 @@ export function DetailQuotationDocument({
                 const priceCell = <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>{priceText}</Text>
 
                 return (
-                  <View key={`${line.id}-${matIndex}`} style={[
+                  <View key={`${line.id}-${matIndex}`} wrap={false} style={[
                     styles.tRow,
                     lineIndex % 2 === 1 ? styles.tRowAlt : {},
                     !isLastMaterialRow ? { borderBottomWidth: 0 } : {},
@@ -582,7 +591,7 @@ export function DetailQuotationDocument({
                     <Text style={[styles.tdCol, styles.wName, rowCellStyle]}>
                       {isFirstMaterialRow ? softWrapPdfText(line.description) : ''}
                     </Text>
-                    <View style={[styles.tdCol, styles.wMats, rowCellStyle]}>
+                    <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>
                       <SingleMaterialLine text={matText} />
                     </View>
                     {quantityCell}
