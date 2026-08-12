@@ -529,7 +529,12 @@ export function QuotationMaker({
 
   const displayContent = withDetailQuotationDefaults(content)
   const taskbarFloorId = displayContent.sections.at(-1)?.id ?? null
-  const taskbarAreaId = taskbarFloorId ? [...(displayContent.areas ?? [])].filter((area) => area.floorId === taskbarFloorId).sort((a, b) => a.sortOrder - b.sortOrder).at(-1)?.id : null
+  const taskbarAreaId = taskbarFloorId
+    ? ([...(displayContent.areas ?? [])]
+      .filter((area) => area.floorId === taskbarFloorId)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .at(-1)?.id ?? null)
+    : null
   const openTaskbarSavedItem = () => {
     if (!taskbarFloorId) {
       toast.error('Add a floor first')
