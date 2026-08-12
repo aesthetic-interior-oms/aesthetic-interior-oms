@@ -19,19 +19,21 @@ import { amountInWordsTaka } from '@/lib/number-to-words'
 import { buildShortQuotationSummary, formatShortQuotationDate } from '@/lib/short-quotation-calculations'
 import type { ShortQuotationContent } from '@/lib/short-quotation-types'
 
-const PRIMARY = '#0f5b53'
+const PRIMARY = '#1f363d'
 const GOLD = '#a57c00'
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 94, paddingBottom: 92, paddingLeft: 40, paddingRight: 40, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
-  header: { position: 'absolute', top: 20, left: 0, right: 0, height: 58, paddingHorizontal: 40, overflow: 'hidden' },
+  page: { paddingTop: 90, paddingBottom: 104, paddingLeft: 18, paddingRight: 18, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
+  header: { position: 'absolute', top: 20, left: 0, right: 0, height: 58, paddingHorizontal: 18, overflow: 'hidden' },
   bold: { fontWeight: 'bold', color: '#000' },
-  sectionTitle: { fontSize: 12, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, textAlign: 'center', textTransform: 'uppercase' },
-  tHead: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: PRIMARY, paddingBottom: 6, paddingTop: 10 },
-  thCol: { fontSize: 8, fontWeight: 'bold', color: PRIMARY, textTransform: 'uppercase', paddingHorizontal: 4 },
+  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, textAlign: 'center', textTransform: 'uppercase' },
+  tHead: { flexDirection: 'row', borderTopWidth: 0.75, borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.75, borderColor: '#d7d7d7' },
+  thCol: { fontSize: 10, fontWeight: 'bold', color: PRIMARY, textTransform: 'uppercase', paddingHorizontal: 4 },
   tRow: { flexDirection: 'row', alignItems: 'flex-start', borderBottomWidth: 1, borderBottomColor: '#eeeeee' },
   tRowAlt: { backgroundColor: '#fefdf9' },
-  tdCol: { fontSize: 9, paddingVertical: 8, paddingHorizontal: 4 },
+  tdCol: { fontSize: 9, paddingVertical: 6, paddingHorizontal: 4, borderRightWidth: 0.5, borderRightColor: '#d7d7d7' },
+  roomTitleRow: { backgroundColor: '#f3f8f7', borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.5, borderColor: '#d7d7d7', paddingVertical: 5, paddingHorizontal: 8 },
+  roomTitleText: { fontSize: 10, fontWeight: 'bold', color: PRIMARY },
   packageBadge: { alignSelf: 'center', borderRadius: 8, backgroundColor: '#fff8e6', color: GOLD, fontSize: 7, fontWeight: 'bold', paddingVertical: 2, paddingHorizontal: 5, textTransform: 'uppercase' },
   wSl: { width: '8%', textAlign: 'center' },
   wSumName: { width: '70%', paddingLeft: 10 },
@@ -51,7 +53,7 @@ const styles = StyleSheet.create({
   headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   headerRule: { height: 2.2, backgroundColor: PRIMARY },
   headerTitle: { color: PRIMARY, fontSize: 13, fontFamily: 'Times-Italic', letterSpacing: 2.8, marginHorizontal: 12, textTransform: 'uppercase' },
-  footerFixed: { position: 'absolute', bottom: 20, left: 40, right: 40, paddingTop: 8 },
+  footerFixed: { position: 'absolute', bottom: 14, left: 18, right: 18, paddingTop: 8 },
   footerText: { fontSize: 7, color: '#666', marginLeft: 4 },
   footerMeta: { fontSize: 5.5, color: '#8a8a8a', marginTop: 5, textAlign: 'right' },
 })
@@ -165,7 +167,7 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
         <Text style={styles.inWords}>In Words: {amountInWordsTaka(summary.grandTotal)}</Text>
         <FooterFixed content={content} />
       </Page>
-        {summary.floors.map((floor, floorIndex) => <Page key={floor.floor.id} size="A4" style={styles.page}><WatermarkBackground /><GlobalHeader content={content} /><Text style={styles.sectionTitle}>{softWrapPdfText(floor.floor.name)}</Text><View style={styles.tHead}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wName]}>Name</Text><Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text><Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text><Text style={[styles.thCol, styles.wTotal]}>Total</Text></View>{floor.rooms.map((room) => <View key={room.room.id}><Text style={[styles.sectionTitle, { fontSize: 9, marginTop: 10 }]}>{softWrapPdfText(room.room.name)}</Text>{room.lines.map((line, index) => <View key={line.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}><Text style={[styles.tdCol, styles.wSl]}>{String(lineSerials.get(line.id) ?? index + 1).padStart(2, '0')}</Text><Text style={[styles.tdCol, styles.wName, styles.bold]}>{softWrapPdfText(line.name)}</Text><View style={[styles.tdCol, styles.wQty]}>{line.isLumpSum ? <Text style={styles.packageBadge}>Package</Text> : <Text>{formatAmount(line.quantitySqft ?? 0)}</Text>}</View><Text style={[styles.tdCol, styles.wPrice]}>{line.isLumpSum ? '--' : formatCurrency(line.unitPrice ?? 0)}</Text><Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>{formatCurrency(line.total)}</Text></View>)}<View style={{ marginTop: 4, flexDirection: 'row', justifyContent: 'flex-end' }}><Text style={{ fontSize: 9, fontWeight: 'bold', color: PRIMARY, paddingRight: 10 }}>Total for {softWrapPdfText(room.room.name)}</Text><Text style={{ fontSize: 9, fontWeight: 'bold', color: PRIMARY }}>{formatAmount(room.total)}</Text></View></View>)}<View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(floor.floor.name)}</Text><Text style={styles.grandTotalValue}>{formatCurrency(floor.total)}</Text></View><Text style={styles.inWords}>In Words: {amountInWordsTaka(floor.total)}</Text>{floorIndex === summary.floors.length - 1 && content.footerNotes.length > 0 ? <View style={{ marginTop: 18 }}><Text style={styles.sectionTitle}>Notes</Text>{content.footerNotes.map((note, index) => <Text key={index} style={{ fontSize: 9, marginTop: 8 }}><Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>{softWrapPdfText(note)}</Text>)}</View> : null}<FooterFixed content={content} /></Page>)}
+        {summary.floors.map((floor, floorIndex) => <Page key={floor.floor.id} size="A4" style={styles.page}><WatermarkBackground /><GlobalHeader content={content} /><Text style={styles.sectionTitle}>{softWrapPdfText(floor.floor.name)}</Text><View style={styles.tHead}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wName]}>Name</Text><Text style={[styles.thCol, styles.wQty]}>Qty/Sft</Text><Text style={[styles.thCol, styles.wPrice]}>Unit Price</Text><Text style={[styles.thCol, styles.wTotal]}>Total</Text></View>{floor.rooms.map((room) => <View key={room.room.id}><View style={styles.roomTitleRow}><Text style={styles.roomTitleText}>{softWrapPdfText(room.room.name)}</Text></View>{room.lines.map((line, index) => <View key={line.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}><Text style={[styles.tdCol, styles.wSl]}>{String(lineSerials.get(line.id) ?? index + 1).padStart(2, '0')}</Text><Text style={[styles.tdCol, styles.wName, styles.bold]}>{softWrapPdfText(line.name)}</Text><View style={[styles.tdCol, styles.wQty]}>{line.isLumpSum ? <Text style={styles.packageBadge}>Package</Text> : <Text>{formatAmount(line.quantitySqft ?? 0)}</Text>}</View><Text style={[styles.tdCol, styles.wPrice]}>{line.isLumpSum ? '--' : formatCurrency(line.unitPrice ?? 0)}</Text><Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>{formatCurrency(line.total)}</Text></View>)}<View style={{ marginTop: 4, flexDirection: 'row', justifyContent: 'flex-end' }}><Text style={{ fontSize: 9, fontWeight: 'bold', color: PRIMARY, paddingRight: 10 }}>Total for {softWrapPdfText(room.room.name)}</Text><Text style={{ fontSize: 9, fontWeight: 'bold', color: PRIMARY }}>{formatAmount(room.total)}</Text></View></View>)}<View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(floor.floor.name)}</Text><Text style={styles.grandTotalValue}>{formatCurrency(floor.total)}</Text></View><Text style={styles.inWords}>In Words: {amountInWordsTaka(floor.total)}</Text>{floorIndex === summary.floors.length - 1 && content.footerNotes.length > 0 ? <View style={{ marginTop: 18 }}><Text style={styles.sectionTitle}>Notes</Text>{content.footerNotes.map((note, index) => <Text key={index} style={{ fontSize: 9, marginTop: 8 }}><Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>{softWrapPdfText(note)}</Text>)}</View> : null}<FooterFixed content={content} /></Page>)}
     </Document>
   )
 }

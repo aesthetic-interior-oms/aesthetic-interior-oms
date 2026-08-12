@@ -7,6 +7,7 @@ import { getQuotationTemplate, QUOTATION_TEMPLATES } from '@/lib/quotation-templ
 import type {
   QuotationDraftContent,
   QuotationFileType,
+  QuotationArea,
   QuotationLineItem,
   QuotationSection,
   QuotationTemplateItem,
@@ -23,6 +24,7 @@ export function buildDefaultFloorDetailContent(input?: {
     documentType: 'detail',
     templateKey: FLOOR_DETAIL_TEMPLATE_KEY,
     sections: [],
+    areas: [],
     lineItems: [],
     discountPercent: 0,
     discountAmount: 0,
@@ -42,6 +44,7 @@ export function addFloorToContent(content: QuotationDraftContent, name = ''): Qu
   return {
     ...content,
     sections: [...content.sections, floor],
+    areas: [...(content.areas ?? []), { id: crypto.randomUUID(), floorId: floor.id, name: 'General Area', sortOrder: 1 }],
   }
 }
 
@@ -63,7 +66,34 @@ export function removeFloorFromContent(
   return {
     ...content,
     sections: content.sections.filter((floor) => floor.id !== floorId),
+    areas: (content.areas ?? []).filter((area) => area.floorId !== floorId),
     lineItems: content.lineItems.filter((line) => line.sectionId !== floorId),
+  }
+}
+
+export function addAreaToFloor(content: QuotationDraftContent, floorId: string, name = ''): QuotationDraftContent {
+  const floorAreas = (content.areas ?? []).filter((area) => area.floorId === floorId)
+  const area: QuotationArea = {
+    id: crypto.randomUUID(),
+    floorId,
+    name,
+    sortOrder: floorAreas.length + 1,
+  }
+  return { ...content, areas: [...(content.areas ?? []), area] }
+}
+
+export function updateAreaName(content: QuotationDraftContent, areaId: string, name: string): QuotationDraftContent {
+  return {
+    ...content,
+    areas: (content.areas ?? []).map((area) => (area.id === areaId ? { ...area, name } : area)),
+  }
+}
+
+export function removeAreaFromContent(content: QuotationDraftContent, areaId: string): QuotationDraftContent {
+  return {
+    ...content,
+    areas: (content.areas ?? []).filter((area) => area.id !== areaId),
+    lineItems: content.lineItems.filter((line) => line.areaId !== areaId),
   }
 }
 
@@ -92,6 +122,7 @@ export function addCatalogItemToFloor(
   templateItemId: string,
   quotationType: QuotationFileType,
   projectSqft: number | null,
+  areaId?: string,
 ): QuotationDraftContent | null {
   const item = findCatalogItem(catalogTemplateKey, templateItemId)
   if (!item) return null
@@ -103,6 +134,7 @@ export function addCatalogItemToFloor(
     projectSqft,
   )
   line.sectionId = floorId
+  if (areaId) line.areaId = areaId
   line.catalogTemplateKey = catalogTemplateKey
 
   return {

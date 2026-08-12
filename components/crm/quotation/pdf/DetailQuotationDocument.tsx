@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
 
   // Table
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: 'bold',
     color: PRIMARY,
     letterSpacing: 0.7,
@@ -257,6 +257,9 @@ const styles = StyleSheet.create({
   },
 
   // Materials
+  areaTitleRow: { backgroundColor: '#f3f8f7', borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.5, borderColor: '#d7d7d7', paddingVertical: 5, paddingHorizontal: 8 },
+  areaTitleText: { fontSize: 10, fontWeight: 'bold', color: PRIMARY },
+
   matText: {
     fontSize: 9,
     color: '#444444',
@@ -495,6 +498,23 @@ export function DetailQuotationDocument({
   const floorSummaries = buildDetailFloorSummaries(content)
   const cleanIntro = (content.introLetter || '').replace('Dear Sir,\n', '').replace('Dear Sir,', '').trim();
   const totalSqft = getDetailTotalSqft(floorSummaries)
+  const getAreaGroups = (entry: ReturnType<typeof buildDetailFloorSummaries>[number]) => {
+    const floorAreas = [...(content.areas ?? [])]
+      .filter((area) => area.floorId === entry.floor.id)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+
+    const unassignedLines = entry.lines.filter((line) => !line.areaId)
+    if (floorAreas.length === 0) return [{ id: `general-${entry.floor.id}`, name: 'General Area', lines: entry.lines }]
+
+    return [
+      { id: `general-${entry.floor.id}`, name: 'General Area', lines: unassignedLines },
+      ...floorAreas.map((area) => ({
+        id: area.id,
+        name: area.name || 'Area',
+        lines: entry.lines.filter((line) => line.areaId === area.id),
+      })),
+    ].filter((area) => area.lines.length > 0)
+  }
 
   return (
     <Document>
@@ -565,7 +585,12 @@ export function DetailQuotationDocument({
               <Text style={[styles.thCol, styles.wPrice]}>U/P ({BDT_SYMBOL})</Text>
               <Text style={[styles.thCol, styles.wTotal, styles.thColLast]}>Total ({BDT_SYMBOL})</Text>
             </View>
-            {entry.lines.map((line, lineIndex) => {
+            {getAreaGroups(entry).map((area) => (
+              <View key={area.id}>
+                <View style={styles.areaTitleRow} wrap={false}>
+                  <Text style={styles.areaTitleText}>{softWrapPdfText(area.name)}</Text>
+                </View>
+                {area.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
               const nameLines = splitPdfTableLines(line.description, 14)
               const materialLines = splitPdfTableLines(line.materials, 76)
@@ -580,54 +605,33 @@ export function DetailQuotationDocument({
                 const isLastSubRow = rowIndex === tableLineCount - 1
                 const nameText = nameLines[rowIndex] ?? ''
                 const matText = materialLines[rowIndex] ?? ''
-                // Keep package/non-package cells out of the returned JSX body; Turbopack
-                // can be sensitive to nested fragment ternaries inside react-pdf table rows.
                 let quantityCell
                 let priceText = ''
 
                 if (isFirstMaterialRow && isPkg) {
-                  quantityCell = (
-                    <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>
-                      Package
-                    </Text>
-                  )
+                  quantityCell = <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>Package</Text>
                   priceText = 'Per Design'
                 } else {
-                  quantityCell = (
-                    <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>
-                      {isFirstMaterialRow ? formatDetailQtyCell(line) : ''}
-                    </Text>
-                  )
+                  quantityCell = <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>{isFirstMaterialRow ? formatDetailQtyCell(line) : ''}</Text>
                   priceText = isFirstMaterialRow ? formatDetailUnitPriceCurrency(line) : ''
                 }
 
                 const priceCell = <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>{priceText}</Text>
 
                 return (
-                  <View key={`${line.id}-${rowIndex}`} wrap={false} style={[
-                    styles.tRow,
-                    lineIndex % 2 === 1 ? styles.tRowAlt : {},
-                    !isLastSubRow ? { borderBottomWidth: 0 } : {},
-                  ]}>
-                    <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>
-                      {isFirstMaterialRow ? String(lineIndex + 1).padStart(2, '0') : ''}
-                    </Text>
-                    <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>
-                      {nameText ? softWrapPdfText(nameText) : ''}
-                    </Text>
-                    <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>
-                      {matText || isFirstMaterialRow ? <SingleMaterialLine text={matText} /> : <Text wrap={false} style={styles.matText}></Text>}
-                    </View>
+                  <View key={`${line.id}-${rowIndex}`} wrap={false} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}, !isLastSubRow ? { borderBottomWidth: 0 } : {}]}>
+                    <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>{isFirstMaterialRow ? String(lineIndex + 1).padStart(2, '0') : ''}</Text>
+                    <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>{nameText ? softWrapPdfText(nameText) : ''}</Text>
+                    <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>{matText || isFirstMaterialRow ? <SingleMaterialLine text={matText} /> : <Text wrap={false} style={styles.matText}></Text>}</View>
                     {quantityCell}
                     {priceCell}
-                    <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>
-                      {isFirstMaterialRow ? formatDetailTotalCurrency(line) : ''}
-                      {isFirstMaterialRow && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
-                    </Text>
+                    <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>{isFirstMaterialRow ? formatDetailTotalCurrency(line) : ''}{isFirstMaterialRow && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}</Text>
                   </View>
                 )
               })
             })}
+              </View>
+            ))}
           </View>
 
           <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>

@@ -10,9 +10,17 @@ export type QuotationSection = {
   sortOrder: number
 }
 
+export type QuotationArea = {
+  id: string
+  floorId: string
+  name: string
+  sortOrder: number
+}
+
 export type QuotationLineItem = {
   id: string
   sectionId: string
+  areaId?: string
   catalogTemplateKey?: string
   templateId?: string
   serialNo?: number
@@ -35,6 +43,7 @@ export type QuotationDraftContent = {
   documentType?: 'detail'
   templateKey: string
   sections: QuotationSection[]
+  areas?: QuotationArea[]
   lineItems: QuotationLineItem[]
   discountPercent: number
   discountAmount: number

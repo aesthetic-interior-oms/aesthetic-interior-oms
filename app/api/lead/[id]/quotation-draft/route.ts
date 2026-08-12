@@ -38,6 +38,7 @@ import type {
   QuotationDraftContent,
   QuotationDraftPayload,
   QuotationFileType,
+  QuotationArea,
   QuotationLineItem,
   QuotationSection,
 } from '@/lib/quotation-types'
@@ -202,6 +203,22 @@ function toDetailQuotationContent(value: unknown): QuotationDraftContent | null 
     })
     .filter((item): item is QuotationSection => Boolean(item))
 
+  const areas = Array.isArray(record.areas)
+    ? record.areas
+        .map((item) => {
+          if (typeof item !== 'object' || item === null) return null
+          const area = item as Record<string, unknown>
+          if (typeof area.id !== 'string' || typeof area.floorId !== 'string' || typeof area.name !== 'string') return null
+          return {
+            id: area.id,
+            floorId: area.floorId,
+            name: area.name,
+            sortOrder: typeof area.sortOrder === 'number' ? area.sortOrder : 0,
+          } satisfies QuotationArea
+        })
+        .filter((item): item is QuotationArea => Boolean(item))
+    : []
+
   const lineItems = record.lineItems
     .map((item) => {
       if (typeof item !== 'object' || item === null) return null
@@ -216,6 +233,7 @@ function toDetailQuotationContent(value: unknown): QuotationDraftContent | null 
       const parsed: QuotationLineItem = {
         id: line.id,
         sectionId: line.sectionId,
+        ...(typeof line.areaId === 'string' && line.areaId.trim() ? { areaId: line.areaId.trim() } : {}),
         description: line.description,
         unit:
           line.unit === 'sqft' ||
@@ -261,6 +279,7 @@ function toDetailQuotationContent(value: unknown): QuotationDraftContent | null 
     documentType: 'detail',
     templateKey,
     sections,
+    areas,
     lineItems,
     discountPercent: toOptionalNumber(record.discountPercent) ?? 0,
     discountAmount: toOptionalNumber(record.discountAmount) ?? 0,
