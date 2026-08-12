@@ -142,9 +142,9 @@ const styles = StyleSheet.create({
   },
   tHead: {
     flexDirection: 'row',
-    borderTopWidth: 0,
-    borderLeftWidth: 0,
-    borderRightWidth: 0,
+    borderTopWidth: 0.75,
+    borderLeftWidth: 0.75,
+    borderRightWidth: 0.75,
     borderBottomWidth: 0.75,
     borderColor: '#d7d7d7',
   },
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     paddingVertical: 4,
     paddingHorizontal: 4,
-    borderRightWidth: 0,
+    borderRightWidth: 0.5,
     borderRightColor: '#d7d7d7',
   },
   thColLast: {
@@ -163,9 +163,9 @@ const styles = StyleSheet.create({
   },
   tRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    borderLeftWidth: 0,
-    borderRightWidth: 0,
+    alignItems: 'stretch',
+    borderLeftWidth: 0.75,
+    borderRightWidth: 0.75,
     borderBottomWidth: 0.5,
     borderColor: '#d7d7d7',
   },
@@ -178,21 +178,8 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 6,
     paddingHorizontal: 4,
-    borderRightWidth: 0,
+    borderRightWidth: 0.5,
     borderRightColor: '#d7d7d7',
-  },
-  packageBadge: {
-    alignSelf: 'center',
-    borderRadius: 10,
-    backgroundColor: '#fff8e6',
-    color: GOLD,
-    borderWidth: 0.5,
-    borderColor: '#e2c46b',
-    fontSize: 7,
-    fontWeight: 'bold',
-    paddingVertical: 2,
-    paddingHorizontal: 5,
-    textTransform: 'uppercase',
   },
   tdColLast: {
     borderRightWidth: 0,
@@ -438,6 +425,43 @@ function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
     .join('')
 }
 
+function splitPdfTableLines(value: string | null | undefined, lineLength: number) {
+  const text = (value ?? '').trim()
+  if (!text) return ['']
+
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      const words = line.split(/\s+/)
+      const output: string[] = []
+      let current = ''
+
+      words.forEach((word) => {
+        const wordParts = word.match(new RegExp(`.{1,${lineLength}}`, 'g')) ?? [word]
+
+        wordParts.forEach((part) => {
+          if (!current) {
+            current = part
+            return
+          }
+
+          if (`${current} ${part}`.length > lineLength) {
+            output.push(current)
+            current = part
+            return
+          }
+
+          current = `${current} ${part}`
+        })
+      })
+
+      if (current) output.push(current)
+      return output.length > 0 ? output : ['']
+    })
+}
+
 function SingleMaterialLine({ text }: { text: string }) {
   if (!text) return <Text wrap={false} style={styles.matText}>—</Text>
   const match = text.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
@@ -543,19 +567,19 @@ export function DetailQuotationDocument({
             </View>
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
-              const matLines = line.materials
-                ? line.materials.split('\n').map(l => l.trim()).filter(Boolean)
-                : []
-              const displayMatLines = matLines.length > 0 ? matLines : ['']
+              const nameLines = splitPdfTableLines(line.description, 14)
+              const materialLines = splitPdfTableLines(line.materials, 76)
+              const tableLineCount = Math.max(nameLines.length, materialLines.length)
               const rowCellStyle = {
                 paddingTop: DETAIL_ROW_VERTICAL_PADDING,
                 paddingBottom: DETAIL_ROW_VERTICAL_PADDING,
               }
 
-              return displayMatLines.map((matText, matIndex) => {
-                const isFirstMaterialRow = matIndex === 0
-                const isLastMaterialRow = matIndex === displayMatLines.length - 1
-
+              return Array.from({ length: tableLineCount }, (_, rowIndex) => {
+                const isFirstMaterialRow = rowIndex === 0
+                const isLastSubRow = rowIndex === tableLineCount - 1
+                const nameText = nameLines[rowIndex] ?? ''
+                const matText = materialLines[rowIndex] ?? ''
                 // Keep package/non-package cells out of the returned JSX body; Turbopack
                 // can be sensitive to nested fragment ternaries inside react-pdf table rows.
                 let quantityCell
@@ -563,9 +587,9 @@ export function DetailQuotationDocument({
 
                 if (isFirstMaterialRow && isPkg) {
                   quantityCell = (
-                    <View style={[styles.tdCol, styles.wQty, rowCellStyle]}>
-                      <Text style={styles.packageBadge}>Package</Text>
-                    </View>
+                    <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>
+                      Package
+                    </Text>
                   )
                   priceText = 'Per Design'
                 } else {
@@ -580,23 +604,23 @@ export function DetailQuotationDocument({
                 const priceCell = <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>{priceText}</Text>
 
                 return (
-                  <View key={`${line.id}-${matIndex}`} wrap={false} style={[
+                  <View key={`${line.id}-${rowIndex}`} wrap={false} style={[
                     styles.tRow,
                     lineIndex % 2 === 1 ? styles.tRowAlt : {},
-                    !isLastMaterialRow ? { borderBottomWidth: 0 } : {},
+                    !isLastSubRow ? { borderBottomWidth: 0 } : {},
                   ]}>
                     <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>
                       {isFirstMaterialRow ? String(lineIndex + 1).padStart(2, '0') : ''}
                     </Text>
-                    <Text style={[styles.tdCol, styles.wName, rowCellStyle]}>
-                      {isFirstMaterialRow ? softWrapPdfText(line.description) : ''}
+                    <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>
+                      {nameText ? softWrapPdfText(nameText) : ''}
                     </Text>
                     <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>
-                      <SingleMaterialLine text={matText} />
+                      {matText || isFirstMaterialRow ? <SingleMaterialLine text={matText} /> : <Text wrap={false} style={styles.matText}></Text>}
                     </View>
                     {quantityCell}
                     {priceCell}
-                    <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }, rowCellStyle]}>
+                    <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>
                       {isFirstMaterialRow ? formatDetailTotalCurrency(line) : ''}
                       {isFirstMaterialRow && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
                     </Text>
