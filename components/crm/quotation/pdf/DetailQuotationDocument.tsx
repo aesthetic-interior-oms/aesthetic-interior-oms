@@ -181,19 +181,6 @@ const styles = StyleSheet.create({
     borderRightWidth: 0.5,
     borderRightColor: '#d7d7d7',
   },
-  packageBadge: {
-    alignSelf: 'center',
-    borderRadius: 10,
-    backgroundColor: '#fff8e6',
-    color: GOLD,
-    borderWidth: 0.5,
-    borderColor: '#e2c46b',
-    fontSize: 7,
-    fontWeight: 'bold',
-    paddingVertical: 2,
-    paddingHorizontal: 5,
-    textTransform: 'uppercase',
-  },
   tdColLast: {
     borderRightWidth: 0,
   },
@@ -452,18 +439,22 @@ function splitPdfTableLines(value: string | null | undefined, lineLength: number
       let current = ''
 
       words.forEach((word) => {
-        if (!current) {
-          current = word
-          return
-        }
+        const wordParts = word.match(new RegExp(`.{1,${lineLength}}`, 'g')) ?? [word]
 
-        if (`${current} ${word}`.length > lineLength) {
-          output.push(current)
-          current = word
-          return
-        }
+        wordParts.forEach((part) => {
+          if (!current) {
+            current = part
+            return
+          }
 
-        current = `${current} ${word}`
+          if (`${current} ${part}`.length > lineLength) {
+            output.push(current)
+            current = part
+            return
+          }
+
+          current = `${current} ${part}`
+        })
       })
 
       if (current) output.push(current)
@@ -576,7 +567,7 @@ export function DetailQuotationDocument({
             </View>
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
-              const nameLines = splitPdfTableLines(line.description, 18)
+              const nameLines = splitPdfTableLines(line.description, 14)
               const materialLines = splitPdfTableLines(line.materials, 76)
               const tableLineCount = Math.max(nameLines.length, materialLines.length)
               const rowCellStyle = {
@@ -586,6 +577,7 @@ export function DetailQuotationDocument({
 
               return Array.from({ length: tableLineCount }, (_, rowIndex) => {
                 const isFirstMaterialRow = rowIndex === 0
+                const isLastSubRow = rowIndex === tableLineCount - 1
                 const nameText = nameLines[rowIndex] ?? ''
                 const matText = materialLines[rowIndex] ?? ''
                 // Keep package/non-package cells out of the returned JSX body; Turbopack
@@ -595,9 +587,9 @@ export function DetailQuotationDocument({
 
                 if (isFirstMaterialRow && isPkg) {
                   quantityCell = (
-                    <View style={[styles.tdCol, styles.wQty, rowCellStyle]}>
-                      <Text style={styles.packageBadge}>Package</Text>
-                    </View>
+                    <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>
+                      Package
+                    </Text>
                   )
                   priceText = 'Per Design'
                 } else {
@@ -615,11 +607,12 @@ export function DetailQuotationDocument({
                   <View key={`${line.id}-${rowIndex}`} wrap={false} style={[
                     styles.tRow,
                     lineIndex % 2 === 1 ? styles.tRowAlt : {},
+                    !isLastSubRow ? { borderBottomWidth: 0 } : {},
                   ]}>
                     <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>
                       {isFirstMaterialRow ? String(lineIndex + 1).padStart(2, '0') : ''}
                     </Text>
-                    <Text style={[styles.tdCol, styles.wName, rowCellStyle]}>
+                    <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>
                       {nameText ? softWrapPdfText(nameText) : ''}
                     </Text>
                     <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>
