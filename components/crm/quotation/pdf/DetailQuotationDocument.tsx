@@ -142,9 +142,9 @@ const styles = StyleSheet.create({
   },
   tHead: {
     flexDirection: 'row',
-    borderTopWidth: 0,
-    borderLeftWidth: 0,
-    borderRightWidth: 0,
+    borderTopWidth: 0.75,
+    borderLeftWidth: 0.75,
+    borderRightWidth: 0.75,
     borderBottomWidth: 0.75,
     borderColor: '#d7d7d7',
   },
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     paddingVertical: 4,
     paddingHorizontal: 4,
-    borderRightWidth: 0,
+    borderRightWidth: 0.5,
     borderRightColor: '#d7d7d7',
   },
   thColLast: {
@@ -163,9 +163,9 @@ const styles = StyleSheet.create({
   },
   tRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    borderLeftWidth: 0,
-    borderRightWidth: 0,
+    alignItems: 'stretch',
+    borderLeftWidth: 0.75,
+    borderRightWidth: 0.75,
     borderBottomWidth: 0.5,
     borderColor: '#d7d7d7',
   },
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 6,
     paddingHorizontal: 4,
-    borderRightWidth: 0,
+    borderRightWidth: 0.5,
     borderRightColor: '#d7d7d7',
   },
   packageBadge: {
@@ -554,8 +554,6 @@ export function DetailQuotationDocument({
 
               return displayMatLines.map((matText, matIndex) => {
                 const isFirstMaterialRow = matIndex === 0
-                const isLastMaterialRow = matIndex === displayMatLines.length - 1
-
                 // Keep package/non-package cells out of the returned JSX body; Turbopack
                 // can be sensitive to nested fragment ternaries inside react-pdf table rows.
                 let quantityCell
@@ -583,7 +581,6 @@ export function DetailQuotationDocument({
                   <View key={`${line.id}-${matIndex}`} wrap={false} style={[
                     styles.tRow,
                     lineIndex % 2 === 1 ? styles.tRowAlt : {},
-                    !isLastMaterialRow ? { borderBottomWidth: 0 } : {},
                   ]}>
                     <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>
                       {isFirstMaterialRow ? String(lineIndex + 1).padStart(2, '0') : ''}
@@ -596,7 +593,7 @@ export function DetailQuotationDocument({
                     </View>
                     {quantityCell}
                     {priceCell}
-                    <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }, rowCellStyle]}>
+                    <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>
                       {isFirstMaterialRow ? formatDetailTotalCurrency(line) : ''}
                       {isFirstMaterialRow && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
                     </Text>
