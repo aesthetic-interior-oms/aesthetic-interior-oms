@@ -15,6 +15,16 @@ Font.register({
   ],
 })
 
+Font.register({
+  family: 'Playfair Display',
+  fonts: [
+    {
+      src: 'https://fonts.gstatic.com/s/playfairdisplay/v10/9MkijrV-dEJ0-_NWV7E6N218GKU_F_kIyfK-gGC-Yzs.ttf',
+      fontStyle: 'italic',
+    },
+  ],
+})
+
 import { amountInWordsTaka } from '@/lib/number-to-words'
 import { buildShortQuotationSummary, formatShortQuotationDate } from '@/lib/short-quotation-calculations'
 import type { ShortQuotationContent } from '@/lib/short-quotation-types'
@@ -34,7 +44,7 @@ const styles = StyleSheet.create({
   tdCol: { fontSize: 9, paddingVertical: 6, paddingHorizontal: 4, borderRightWidth: 0.5, borderRightColor: '#d7d7d7' },
   roomTitleRow: { backgroundColor: '#f3f8f7', borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.5, borderColor: '#d7d7d7', paddingVertical: 5, paddingHorizontal: 8 },
   roomTitleText: { fontSize: 10, fontWeight: 'bold', color: PRIMARY, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 2 },
-  packageBadge: { alignSelf: 'center', borderRadius: 8, backgroundColor: '#fff8e6', color: GOLD, fontSize: 7, fontWeight: 'bold', paddingVertical: 2, paddingHorizontal: 5, textTransform: 'uppercase' },
+  packageBadge: { alignSelf: 'center', borderRadius: 8, backgroundColor: '#fff8e6', color: GOLD, fontSize: 9, fontWeight: 'bold', paddingVertical: 2, paddingHorizontal: 5, textTransform: 'uppercase' },
   wSl: { width: '8%', textAlign: 'center' },
   wSumName: { width: '52%', paddingLeft: 10 },
   wSumSqft: { width: '18%', textAlign: 'right' },
@@ -48,15 +58,15 @@ const styles = StyleSheet.create({
   grandTotalRow: { flexDirection: 'row', paddingTop: 8, marginTop: 5, borderTopWidth: 1, borderTopColor: PRIMARY },
   grandTotalLabel: { width: '78%', textAlign: 'right', paddingRight: 10, fontWeight: 'bold', fontSize: 10, color: PRIMARY },
   grandTotalValue: { width: '22%', textAlign: 'right', fontWeight: 'bold', fontSize: 10, color: PRIMARY },
-  inWords: { fontSize: 10, color: '#000', marginTop: 4, textAlign: 'left', fontWeight: 'bold' },
+  inWords: { fontSize: 12, color: '#000', marginTop: 6, textAlign: 'left', fontFamily: 'Playfair Display', fontStyle: 'italic' },
   datePanel: { minWidth: 112, alignItems: 'flex-end' },
   metaLabel: { fontSize: 5.5, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   metaValue: { fontSize: 7, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
   headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 58, opacity: 0.08 },
   headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   headerRule: { height: 2.2, backgroundColor: PRIMARY },
-  headerTitle: { color: PRIMARY, fontSize: 13, fontFamily: 'Times-Italic', letterSpacing: 2.8, marginHorizontal: 12, textTransform: 'uppercase' },
-  footerFixed: { position: 'absolute', bottom: 14, left: 18, right: 18, paddingTop: 8 },
+  headerTitle: { color: PRIMARY, fontSize: 10, fontFamily: 'Times-Italic', letterSpacing: 2.4, marginHorizontal: 12, textTransform: 'uppercase' },
+  footerFixed: { position: 'absolute', bottom: 14, left: 18, right: 18, paddingTop: 8, borderBottomWidth: 1, borderBottomColor: '#a57c00', paddingBottom: 6 },
   footerText: { fontSize: 7, color: '#666', marginLeft: 4 },
   footerMeta: { fontSize: 5.5, color: '#8a8a8a', marginTop: 5, textAlign: 'right' },
 })
@@ -136,17 +146,16 @@ const GlobalHeader = ({ content }: { content: ShortQuotationContent }) => (
 const FooterFixed = ({ content }: { content: ShortQuotationContent }) => (
   <View style={styles.footerFixed} fixed>
     <View style={{ borderTopWidth: 1, borderTopColor: '#a57c00', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
-      <View style={{ width: '35%' }}>
+      <View style={{ width: '48%' }}>
         <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', marginBottom: 3 }]}>Aesthetic Interior Studio</Text>
         <Text style={styles.footerText}>183, East Senpara, Begum Rokeya Soroni</Text>
         <Text style={styles.footerText}>3rd floor, Mirpur 10, Dhaka-1216</Text>
       </View>
-      <View style={{ width: '30%', alignItems: 'center' }}>
+      <View style={{ width: '48%', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
         <Text style={styles.footerText}>+88 0132969 4663</Text>
-        <Text style={styles.footerText}>hello@aestheticinterior.com</Text>
         <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold' }]}>www.aestheticinteriorbd.com</Text>
+        <Text style={styles.footerText}>© 2026 All rights reserved.</Text>
       </View>
-      <View style={{ width: '35%', alignItems: 'flex-end', justifyContent: 'flex-end' }}><Text style={styles.footerText}>© 2026 All rights reserved.</Text></View>
     </View>
     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5 }}>
       <Text style={[styles.footerMeta, { marginTop: 0, textAlign: 'left' }]}>Quotation Code: {content.quotationCode ?? 'Not generated yet'}</Text>
