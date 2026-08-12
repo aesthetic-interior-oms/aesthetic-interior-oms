@@ -438,6 +438,39 @@ function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
     .join('')
 }
 
+function splitPdfTableLines(value: string | null | undefined, lineLength: number) {
+  const text = (value ?? '').trim()
+  if (!text) return ['']
+
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      const words = line.split(/\s+/)
+      const output: string[] = []
+      let current = ''
+
+      words.forEach((word) => {
+        if (!current) {
+          current = word
+          return
+        }
+
+        if (`${current} ${word}`.length > lineLength) {
+          output.push(current)
+          current = word
+          return
+        }
+
+        current = `${current} ${word}`
+      })
+
+      if (current) output.push(current)
+      return output.length > 0 ? output : ['']
+    })
+}
+
 function SingleMaterialLine({ text }: { text: string }) {
   if (!text) return <Text wrap={false} style={styles.matText}>—</Text>
   const match = text.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
@@ -543,17 +576,18 @@ export function DetailQuotationDocument({
             </View>
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
-              const matLines = line.materials
-                ? line.materials.split('\n').map(l => l.trim()).filter(Boolean)
-                : []
-              const displayMatLines = matLines.length > 0 ? matLines : ['']
+              const nameLines = splitPdfTableLines(line.description, 18)
+              const materialLines = splitPdfTableLines(line.materials, 76)
+              const tableLineCount = Math.max(nameLines.length, materialLines.length)
               const rowCellStyle = {
                 paddingTop: DETAIL_ROW_VERTICAL_PADDING,
                 paddingBottom: DETAIL_ROW_VERTICAL_PADDING,
               }
 
-              return displayMatLines.map((matText, matIndex) => {
-                const isFirstMaterialRow = matIndex === 0
+              return Array.from({ length: tableLineCount }, (_, rowIndex) => {
+                const isFirstMaterialRow = rowIndex === 0
+                const nameText = nameLines[rowIndex] ?? ''
+                const matText = materialLines[rowIndex] ?? ''
                 // Keep package/non-package cells out of the returned JSX body; Turbopack
                 // can be sensitive to nested fragment ternaries inside react-pdf table rows.
                 let quantityCell
@@ -578,7 +612,7 @@ export function DetailQuotationDocument({
                 const priceCell = <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>{priceText}</Text>
 
                 return (
-                  <View key={`${line.id}-${matIndex}`} wrap={false} style={[
+                  <View key={`${line.id}-${rowIndex}`} wrap={false} style={[
                     styles.tRow,
                     lineIndex % 2 === 1 ? styles.tRowAlt : {},
                   ]}>
@@ -586,10 +620,10 @@ export function DetailQuotationDocument({
                       {isFirstMaterialRow ? String(lineIndex + 1).padStart(2, '0') : ''}
                     </Text>
                     <Text style={[styles.tdCol, styles.wName, rowCellStyle]}>
-                      {isFirstMaterialRow ? softWrapPdfText(line.description) : ''}
+                      {nameText ? softWrapPdfText(nameText) : ''}
                     </Text>
                     <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>
-                      <SingleMaterialLine text={matText} />
+                      {matText || isFirstMaterialRow ? <SingleMaterialLine text={matText} /> : <Text wrap={false} style={styles.matText}></Text>}
                     </View>
                     {quantityCell}
                     {priceCell}
