@@ -26,18 +26,21 @@ const styles = StyleSheet.create({
   page: { paddingTop: 90, paddingBottom: 104, paddingLeft: 18, paddingRight: 18, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
   header: { position: 'absolute', top: 20, left: 0, right: 0, height: 58, paddingHorizontal: 18, overflow: 'hidden' },
   bold: { fontWeight: 'bold', color: '#000' },
-  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, textAlign: 'center', textTransform: 'uppercase' },
+  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1.5 },
   tHead: { flexDirection: 'row', borderTopWidth: 0.75, borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.75, borderColor: '#d7d7d7' },
   thCol: { fontSize: 10, fontWeight: 'bold', color: PRIMARY, textTransform: 'uppercase', paddingHorizontal: 4 },
   tRow: { flexDirection: 'row', alignItems: 'flex-start', borderBottomWidth: 1, borderBottomColor: '#eeeeee' },
   tRowAlt: { backgroundColor: '#fefdf9' },
   tdCol: { fontSize: 9, paddingVertical: 6, paddingHorizontal: 4, borderRightWidth: 0.5, borderRightColor: '#d7d7d7' },
   roomTitleRow: { backgroundColor: '#f3f8f7', borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.5, borderColor: '#d7d7d7', paddingVertical: 5, paddingHorizontal: 8 },
-  roomTitleText: { fontSize: 10, fontWeight: 'bold', color: PRIMARY },
+  roomTitleText: { fontSize: 10, fontWeight: 'bold', color: PRIMARY, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 2 },
   packageBadge: { alignSelf: 'center', borderRadius: 8, backgroundColor: '#fff8e6', color: GOLD, fontSize: 7, fontWeight: 'bold', paddingVertical: 2, paddingHorizontal: 5, textTransform: 'uppercase' },
   wSl: { width: '8%', textAlign: 'center' },
-  wSumName: { width: '70%', paddingLeft: 10 },
+  wSumName: { width: '52%', paddingLeft: 10 },
+  wSumSqft: { width: '18%', textAlign: 'right' },
   wSumTotal: { width: '22%', textAlign: 'right' },
+  summaryFloorRow: { backgroundColor: '#f3f8f7' },
+  summaryRoomName: { paddingLeft: 18, color: '#555' },
   wName: { width: '42%' },
   wQty: { width: '12%', textAlign: 'center' },
   wPrice: { width: '18%', textAlign: 'right' },
@@ -63,6 +66,19 @@ function formatAmount(value: number) {
 }
 function formatCurrency(value: number) {
   return `৳ ${formatAmount(value)}`
+}
+
+function getRoomSqft(room: ReturnType<typeof buildShortQuotationSummary>['floors'][number]['rooms'][number]) {
+  return Math.round(
+    room.lines.reduce((sum, line) => {
+      if (line.isLumpSum || !line.quantitySqft || line.quantitySqft <= 0) return sum
+      return sum + line.quantitySqft
+    }, 0),
+  )
+}
+
+function getFloorSqft(floor: ReturnType<typeof buildShortQuotationSummary>['floors'][number]) {
+  return Math.round(floor.rooms.reduce((sum, room) => sum + getRoomSqft(room), 0))
 }
 
 function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
@@ -161,8 +177,25 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
         {content.subject ? <Text style={{ fontSize: 9, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
         {cleanIntro ? <View style={{ marginBottom: 20 }}><Text style={[styles.bold, { fontSize: 9, marginBottom: 3 }]}>Dear Sir,</Text><Text style={{ fontSize: 9, textAlign: 'justify' }}>{cleanIntro}</Text></View> : null}
         <Text style={styles.sectionTitle}>{content.packageTier} Short Quotation Summary</Text>
-        <View style={styles.tHead}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wSumName]}>Description</Text><Text style={[styles.thCol, styles.wSumTotal]}>Amount</Text></View>
-        {summary.floors.map((entry, index) => <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}><Text style={[styles.tdCol, styles.wSl]}>{String(index + 1).padStart(2, '0')}</Text><Text style={[styles.tdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text><Text style={[styles.tdCol, styles.wSumTotal, styles.bold]}>{formatCurrency(entry.total)}</Text></View>)}
+        <View style={styles.tHead}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wSumName]}>Description</Text><Text style={[styles.thCol, styles.wSumSqft]}>Sqft</Text><Text style={[styles.thCol, styles.wSumTotal]}>Amount</Text></View>
+        {summary.floors.map((entry, index) => (
+          <View key={entry.floor.id}>
+            <View style={[styles.tRow, styles.summaryFloorRow]}>
+              <Text style={[styles.tdCol, styles.wSl]}>{String(index + 1).padStart(2, '0')}</Text>
+              <Text style={[styles.tdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text>
+              <Text style={[styles.tdCol, styles.wSumSqft, styles.bold]}>{formatAmount(getFloorSqft(entry))}</Text>
+              <Text style={[styles.tdCol, styles.wSumTotal, styles.bold]}>{formatCurrency(entry.total)}</Text>
+            </View>
+            {entry.rooms.map((room) => (
+              <View key={`${entry.floor.id}-${room.room.id}`} style={styles.tRow}>
+                <Text style={[styles.tdCol, styles.wSl]} />
+                <Text style={[styles.tdCol, styles.wSumName, styles.summaryRoomName]}>{softWrapPdfText(room.room.name)}</Text>
+                <Text style={[styles.tdCol, styles.wSumSqft]}>{formatAmount(getRoomSqft(room))}</Text>
+                <Text style={[styles.tdCol, styles.wSumTotal]}>{formatCurrency(room.total)}</Text>
+              </View>
+            ))}
+          </View>
+        ))}
         <View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>Grand Total</Text><Text style={styles.grandTotalValue}>{formatCurrency(summary.grandTotal)}</Text></View>
         <Text style={styles.inWords}>In Words: {amountInWordsTaka(summary.grandTotal)}</Text>
         <FooterFixed content={content} />
