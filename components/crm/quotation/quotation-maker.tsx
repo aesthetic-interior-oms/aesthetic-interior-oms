@@ -543,7 +543,7 @@ export function QuotationMaker({
       return
     }
     setCustomTypeFloorId(taskbarFloorId)
-    setCustomTypeAreaId(taskbarAreaId ?? undefined)
+    setCustomTypeAreaId(taskbarAreaId)
   }
 
 return (
@@ -788,7 +788,7 @@ return (
                           <Button type="button" size="sm" variant="outline" onClick={() => openItemPicker(floor.id, area.id.startsWith('general-') ? undefined : area.id)}>
                             <Plus className="mr-1 h-3.5 w-3.5" /> Add from saved list
                           </Button>
-                          <Button type="button" size="sm" variant="ghost" onClick={() => { setCustomTypeFloorId(floor.id); setCustomTypeAreaId(area.id.startsWith('general-') ? undefined : area.id) }}>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => { setCustomTypeFloorId(floor.id); setCustomTypeAreaId(area.id.startsWith('general-') ? null : area.id) }}>
                             Custom item
                           </Button>
                           {!area.id.startsWith('general-') ? <Button type="button" size="icon" variant="ghost" onClick={() => setContent((prev) => (prev ? removeAreaFromContent(prev, area.id) : prev))}><Trash2 className="h-4 w-4" /></Button> : null}
