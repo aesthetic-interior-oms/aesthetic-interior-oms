@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { auth } from "@clerk/nextjs/server"
-import { TransactionType, ExpenseCategory, PaymentAccount } from "@/generated/prisma/client"
+import { TransactionType, PaymentAccount } from "@/generated/prisma/client"
 
 export const runtime = "nodejs"
 export const preferredRegion = "sin1"
@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const leadId = searchParams.get("leadId") || undefined
     const type = searchParams.get("type") as TransactionType | null
-    const category = searchParams.get("category") as ExpenseCategory | null
+    const category = searchParams.get("category")
     const account = searchParams.get("account") as PaymentAccount | null
     const startDateStr = searchParams.get("startDate")
     const endDateStr = searchParams.get("endDate")
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     const transaction = await prisma.transaction.create({
       data: {
         type: type as TransactionType,
-        category: category as ExpenseCategory,
+        category,
         particular,
         amount,
         account: account as PaymentAccount,

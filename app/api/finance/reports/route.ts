@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { auth } from "@clerk/nextjs/server"
-import { TransactionType, ExpenseCategory } from "@/generated/prisma/client"
+import { TransactionType } from "@/generated/prisma/client"
 
 export const runtime = "nodejs"
 export const preferredRegion = "sin1"

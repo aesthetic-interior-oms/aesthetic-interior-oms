@@ -906,7 +906,7 @@ model Transaction {
   id          String          @id @default(cuid())
   date        DateTime        @default(now())
   type        TransactionType
-  category    ExpenseCategory
+  category    String
   particular  String          // Description
   amount      Float
   account     PaymentAccount  // CASH or BANK
