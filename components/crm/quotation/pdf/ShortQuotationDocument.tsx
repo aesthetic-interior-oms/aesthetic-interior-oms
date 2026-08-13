@@ -31,9 +31,11 @@ import type { ShortQuotationContent } from '@/lib/short-quotation-types'
 
 const PRIMARY = '#1f363d'
 const GOLD = '#a57c00'
+const HEADER_RESERVED_SPACE = 96
+const FOOTER_RESERVED_SPACE = 122
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 86, paddingBottom: 104, paddingLeft: 5, paddingRight: 5, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
+  page: { paddingTop: HEADER_RESERVED_SPACE, paddingBottom: FOOTER_RESERVED_SPACE, paddingLeft: 5, paddingRight: 5, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
   header: { position: 'absolute', top: 20, left: 5, right: 5, height: 58, paddingHorizontal: 0, overflow: 'hidden' },
   bold: { fontWeight: 'bold', color: '#000' },
   sectionTitle: { fontSize: 14, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, marginBottom: 8, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1.5, borderBottomWidth: 1, borderBottomColor: PRIMARY },
@@ -68,6 +70,7 @@ const styles = StyleSheet.create({
   headerRule: { height: 2.2, backgroundColor: PRIMARY },
   headerTitle: { color: PRIMARY, fontSize: 12, fontFamily: 'Times-Italic', letterSpacing: 2.4, marginHorizontal: 12, textTransform: 'uppercase' },
   footerFixed: { position: 'absolute', bottom: 14, left: 5, right: 5, paddingTop: 8, paddingBottom: 6 },
+  footerDivider: { height: 1.4, backgroundColor: GOLD, marginBottom: 8 },
   footerText: { fontSize: 7, color: '#666', marginLeft: 4 },
   footerMeta: { fontSize: 5.5, color: '#8a8a8a', marginTop: 5, textAlign: 'right' },
 })
@@ -150,7 +153,8 @@ const GlobalHeader = ({ content }: { content: ShortQuotationContent }) => (
 
 const FooterFixed = ({ content }: { content: ShortQuotationContent }) => (
   <View style={styles.footerFixed} fixed>
-    <View style={{ paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
+    <View style={styles.footerDivider} />
+    <View style={{ paddingTop: 2, flexDirection: 'row', justifyContent: 'space-between' }}>
       <View style={{ width: '48%' }}>
         <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', marginBottom: 3 }]}>Aesthetic Interior Studio</Text>
         <Text style={styles.footerText}>183, East Senpara, Begum Rokeya Soroni</Text>
