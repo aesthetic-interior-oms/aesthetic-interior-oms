@@ -40,49 +40,85 @@ import {
   Briefcase,
   Search,
   Filter,
+  Tag,
+  Receipt,
+  Wallet,
+  Landmark,
+  HandCoins,
+  Package,
+  Wrench,
+  Sparkles,
 } from "lucide-react"
 
 // Category display mapping
-const CATEGORY_LABELS: Record<string, string> = {
-  OFFICE_RENT: "Office Rent",
-  SALARY: "Staff Salary",
-  SALARY_ADVANCE: "Salary Advance",
-  BONUS: "Bonus",
-  ELECTRICITY_BILL: "Electricity Bill",
-  WATER_BILL: "Water Bill",
-  INTERNET_BILL: "Internet Bill",
-  FOOD_ALLOWANCE: "Food Allowance",
-  CLIENT_ENTERTAINMENT: "Client Food & Entertainment",
-  PROMOTION: "Marketing & Promotion",
-  MOBILE_RECHARGE: "Mobile Recharge",
-  OCTANE_FUEL: "Octane & Fuel",
-  DONATION: "Donation",
-  BOARD_MATERIAL: "Board Material (Site/Factory)",
-  PASTING_BILL: "Pasting Bill",
-  FARING: "Faring",
-  HPL: "HPL",
-  LINER: "Liner",
-  LUBER: "Luber",
-  ACRYLIC: "Acrylic",
-  HARDWARE: "Hardware",
-  ELECTRIC_ITEM: "Electric Items",
-  LIGHTING: "Lighting",
-  GLASS: "Glass",
-  TRANSPORT_COST: "Transport & Labor Cost",
-  SITE_EXPENSE: "Site Expense",
-  FACTORY_PAYMENT: "Factory Payment",
-  CARPENTER_PAYMENT: "Carpenter Payment",
-  PAINT_MATERIALS: "Paint Materials",
-  PAINT_PAYMENT: "Paint Payment",
-  CEILING_PAYMENT: "Ceiling Payment",
-  DOOR: "Door Purchase",
-  PLUMBER_PAYMENT: "Plumber Payment",
-  TILES_PURCHASE: "Tiles Purchase",
-  FOLDING_DOOR: "Folding Door",
-  GLASS_PROFILE: "Glass Profile",
-  CIVIL_WORK: "Civil Work",
-  OTHERS: "Other Expenses",
+const EXPENSE_CATEGORIES = [
+  { key: "OFFICE_RENT", label: "Office Rent", icon: Building },
+  { key: "SALARY", label: "Staff Salary", icon: HandCoins },
+  { key: "SALARY_ADVANCE", label: "Salary Advance", icon: HandCoins },
+  { key: "BONUS", label: "Bonus", icon: Sparkles },
+  { key: "ELECTRICITY_BILL", label: "Electricity Bill", icon: Receipt },
+  { key: "WATER_BILL", label: "Water Bill", icon: Receipt },
+  { key: "INTERNET_BILL", label: "Internet Bill", icon: Receipt },
+  { key: "FOOD_ALLOWANCE", label: "Food Allowance", icon: Receipt },
+  { key: "CLIENT_ENTERTAINMENT", label: "Client Food & Entertainment", icon: Receipt },
+  { key: "PROMOTION", label: "Marketing & Promotion", icon: TrendingUp },
+  { key: "MOBILE_RECHARGE", label: "Mobile Recharge", icon: Receipt },
+  { key: "OCTANE_FUEL", label: "Octane & Fuel", icon: Receipt },
+  { key: "DONATION", label: "Donation", icon: HandCoins },
+  { key: "BOARD_MATERIAL", label: "Board Material (Site/Factory)", icon: Package },
+  { key: "PASTING_BILL", label: "Pasting Bill", icon: Wrench },
+  { key: "FARING", label: "Faring", icon: Wrench },
+  { key: "HPL", label: "HPL", icon: Package },
+  { key: "LINER", label: "Liner", icon: Package },
+  { key: "LUBER", label: "Luber", icon: Package },
+  { key: "ACRYLIC", label: "Acrylic", icon: Package },
+  { key: "HARDWARE", label: "Hardware", icon: Wrench },
+  { key: "ELECTRIC_ITEM", label: "Electric Items", icon: Receipt },
+  { key: "LIGHTING", label: "Lighting", icon: Sparkles },
+  { key: "GLASS", label: "Glass", icon: Package },
+  { key: "TRANSPORT_COST", label: "Transport & Labor Cost", icon: Receipt },
+  { key: "SITE_EXPENSE", label: "Site Expense", icon: Receipt },
+  { key: "FACTORY_PAYMENT", label: "Factory Payment", icon: Building },
+  { key: "CARPENTER_PAYMENT", label: "Carpenter Payment", icon: Wrench },
+  { key: "PAINT_MATERIALS", label: "Paint Materials", icon: Package },
+  { key: "PAINT_PAYMENT", label: "Paint Payment", icon: Wrench },
+  { key: "CEILING_PAYMENT", label: "Ceiling Payment", icon: Wrench },
+  { key: "DOOR", label: "Door Purchase", icon: Package },
+  { key: "PLUMBER_PAYMENT", label: "Plumber Payment", icon: Wrench },
+  { key: "TILES_PURCHASE", label: "Tiles Purchase", icon: Package },
+  { key: "FOLDING_DOOR", label: "Folding Door", icon: Package },
+  { key: "GLASS_PROFILE", label: "Glass Profile", icon: Package },
+  { key: "CIVIL_WORK", label: "Civil Work", icon: Wrench },
+  { key: "OTHERS", label: "Other Expenses", icon: Tag },
+]
+
+const INCOME_CATEGORIES = [
+  { key: "CLIENT_PAYMENT", label: "Client Payment", icon: Wallet },
+  { key: "PROJECT_ADVANCE", label: "Project Advance", icon: HandCoins },
+  { key: "DESIGN_FEE", label: "Design Fee", icon: FileText },
+  { key: "CONSULTANCY_FEE", label: "Consultancy Fee", icon: Briefcase },
+  { key: "BANK_INTEREST", label: "Bank Interest", icon: Landmark },
+  { key: "OTHER_INCOME", label: "Other Income", icon: TrendingUp },
+]
+
+type TransactionCategoryType = "OUTFLOW" | "INFLOW"
+
+type TransactionCategory = {
+  key: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  isCustom?: boolean
 }
+
+const CATEGORY_LABELS: Record<string, string> = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].reduce(
+  (labels, item) => ({ ...labels, [item.key]: item.label }),
+  {} as Record<string, string>
+)
+
+const CUSTOM_CATEGORY_STORAGE_KEY = "finance-custom-transaction-categories"
+
+const formatCustomCategoryKey = (name: string, type: TransactionCategoryType) =>
+  `CUSTOM_${type}_${name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "")}`
 
 export default function FinanceDashboard() {
   const [transactions, setTransactions] = useState<any[]>([])
@@ -99,8 +135,15 @@ export default function FinanceDashboard() {
 
   // Transaction Log Form States
   const [isLogOpen, setIsLogOpen] = useState(false)
-  const [type, setType] = useState<string>("OUTFLOW")
+  const [type, setType] = useState<TransactionCategoryType>("OUTFLOW")
   const [category, setCategory] = useState<string>("OFFICE_RENT")
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false)
+  const [categorySearch, setCategorySearch] = useState("")
+  const [newCategoryName, setNewCategoryName] = useState("")
+  const [customCategories, setCustomCategories] = useState<Record<TransactionCategoryType, TransactionCategory[]>>({
+    OUTFLOW: [],
+    INFLOW: [],
+  })
   const [particular, setParticular] = useState("")
   const [amount, setAmount] = useState("")
   const [account, setAccount] = useState<string>("CASH")
@@ -164,6 +207,19 @@ export default function FinanceDashboard() {
   useEffect(() => {
     loadData()
     loadMonthlyReport(selectedMonth)
+
+    const storedCategories = window.localStorage.getItem(CUSTOM_CATEGORY_STORAGE_KEY)
+    if (storedCategories) {
+      try {
+        const parsedCategories = JSON.parse(storedCategories) as Record<string, Omit<TransactionCategory, "icon">[]>
+        setCustomCategories({
+          OUTFLOW: (parsedCategories.OUTFLOW || []).map((item) => ({ ...item, icon: Tag, isCustom: true })),
+          INFLOW: (parsedCategories.INFLOW || []).map((item) => ({ ...item, icon: Tag, isCustom: true })),
+        })
+      } catch (error) {
+        console.error("Failed to load custom finance categories", error)
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -175,6 +231,68 @@ export default function FinanceDashboard() {
       loadProjectReport(selectedProject)
     }
   }, [selectedProject])
+
+  const activeCategories = type === "OUTFLOW"
+    ? [...customCategories.OUTFLOW, ...EXPENSE_CATEGORIES]
+    : [...customCategories.INFLOW, ...INCOME_CATEGORIES]
+
+  const selectedCategory = activeCategories.find((item) => item.key === category)
+
+  const filteredCategories = activeCategories.filter((item) =>
+    item.label.toLowerCase().includes(categorySearch.toLowerCase())
+  )
+
+  const persistCustomCategories = (nextCategories: Record<TransactionCategoryType, TransactionCategory[]>) => {
+    const serializableCategories = {
+      OUTFLOW: nextCategories.OUTFLOW.map(({ key, label, isCustom }) => ({ key, label, isCustom })),
+      INFLOW: nextCategories.INFLOW.map(({ key, label, isCustom }) => ({ key, label, isCustom })),
+    }
+    window.localStorage.setItem(CUSTOM_CATEGORY_STORAGE_KEY, JSON.stringify(serializableCategories))
+  }
+
+  const handleTypeChange = (nextType: TransactionCategoryType) => {
+    setType(nextType)
+    setCategory(nextType === "OUTFLOW" ? EXPENSE_CATEGORIES[0].key : INCOME_CATEGORIES[0].key)
+    setCategorySearch("")
+  }
+
+  const handleSelectCategory = (nextCategory: string) => {
+    setCategory(nextCategory)
+    setIsCategoryOpen(false)
+    setCategorySearch("")
+  }
+
+  const handleAddCategory = () => {
+    const trimmedName = newCategoryName.trim()
+    if (!trimmedName) {
+      toast.error("Please enter a category name")
+      return
+    }
+
+    const newCategory = {
+      key: formatCustomCategoryKey(trimmedName, type),
+      label: trimmedName,
+      icon: Tag,
+      isCustom: true,
+    }
+
+    if (activeCategories.some((item) => item.key === newCategory.key || item.label.toLowerCase() === trimmedName.toLowerCase())) {
+      toast.error("This category already exists")
+      return
+    }
+
+    const nextCategories = {
+      ...customCategories,
+      [type]: [newCategory, ...customCategories[type]],
+    }
+
+    setCustomCategories(nextCategories)
+    persistCustomCategories(nextCategories)
+    setCategory(newCategory.key)
+    setNewCategoryName("")
+    setIsCategoryOpen(false)
+    toast.success("Category added")
+  }
 
   const handleCreateTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -249,7 +367,7 @@ export default function FinanceDashboard() {
                 <Button
                   type="button"
                   variant={type === "OUTFLOW" ? "default" : "outline"}
-                  onClick={() => setType("OUTFLOW")}
+                  onClick={() => handleTypeChange("OUTFLOW")}
                   className="w-full"
                 >
                   <TrendingDown className="w-4 h-4 mr-2" /> Outflow (Expense)
@@ -257,7 +375,7 @@ export default function FinanceDashboard() {
                 <Button
                   type="button"
                   variant={type === "INFLOW" ? "default" : "outline"}
-                  onClick={() => setType("INFLOW")}
+                  onClick={() => handleTypeChange("INFLOW")}
                   className="w-full"
                 >
                   <TrendingUp className="w-4 h-4 mr-2" /> Inflow (Income)
@@ -279,19 +397,70 @@ export default function FinanceDashboard() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold">Expense/Income Category</label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-60 overflow-y-auto">
-                    {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-xs font-semibold">{type === "OUTFLOW" ? "Expense Category" : "Income Category"}</label>
+                <Dialog open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
+                  <DialogTrigger asChild>
+                    <Button type="button" variant="outline" className="w-full justify-between h-auto min-h-10 px-3 py-2">
+                      <span className="flex items-center gap-2 text-left">
+                        {selectedCategory ? (
+                          <>
+                            {React.createElement(selectedCategory.icon, { className: "w-4 h-4 text-muted-foreground" })}
+                            <span>{selectedCategory.label}</span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">Select category</span>
+                        )}
+                      </span>
+                      <Search className="w-4 h-4 text-muted-foreground" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl bg-card border border-border">
+                    <DialogHeader>
+                      <DialogTitle>{type === "OUTFLOW" ? "Choose Expense Category" : "Choose Income Category"}</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4 pt-2">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 w-4 h-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          className="pl-9"
+                          placeholder="Search category..."
+                          value={categorySearch}
+                          onChange={(event) => setCategorySearch(event.target.value)}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-72 overflow-y-auto pr-1">
+                        <div className="col-span-2 md:col-span-3 rounded-lg border border-dashed border-primary/50 bg-primary/5 p-3">
+                          <div className="flex flex-col gap-2 sm:flex-row">
+                            <Input
+                              placeholder={`Add new ${type === "OUTFLOW" ? "expense" : "income"} category`}
+                              value={newCategoryName}
+                              onChange={(event) => setNewCategoryName(event.target.value)}
+                            />
+                            <Button type="button" onClick={handleAddCategory} className="shrink-0 gap-2">
+                              <PlusCircle className="w-4 h-4" /> Add New Category
+                            </Button>
+                          </div>
+                        </div>
+
+                        {filteredCategories.map((item) => (
+                          <Button
+                            key={item.key}
+                            type="button"
+                            variant={category === item.key ? "default" : "outline"}
+                            onClick={() => handleSelectCategory(item.key)}
+                            className="h-24 flex-col items-start justify-between gap-2 whitespace-normal p-3 text-left"
+                          >
+                            {React.createElement(item.icon, { className: "w-5 h-5" })}
+                            <span className="text-sm font-medium leading-tight">{item.label}</span>
+                            {item.isCustom && <Badge variant="secondary" className="text-[10px]">New item</Badge>}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
 
               <div className="space-y-1">
