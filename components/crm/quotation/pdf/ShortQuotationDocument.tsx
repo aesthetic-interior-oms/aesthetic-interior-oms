@@ -36,12 +36,12 @@ const styles = StyleSheet.create({
   page: { paddingTop: 90, paddingBottom: 104, paddingLeft: 18, paddingRight: 18, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
   header: { position: 'absolute', top: 20, left: 0, right: 0, height: 58, paddingHorizontal: 18, overflow: 'hidden' },
   bold: { fontWeight: 'bold', color: '#000' },
-  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1.5 },
+  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, marginBottom: 8, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1.5 },
   tHead: { flexDirection: 'row', borderTopWidth: 0.75, borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.75, borderColor: '#d7d7d7' },
-  thCol: { fontSize: 10, fontWeight: 'bold', color: PRIMARY, textTransform: 'uppercase', paddingHorizontal: 4 },
+  thCol: { fontSize: 11, fontWeight: 'bold', color: PRIMARY, textTransform: 'uppercase', paddingHorizontal: 4 },
   tRow: { flexDirection: 'row', alignItems: 'flex-start', borderBottomWidth: 1, borderBottomColor: '#eeeeee' },
   tRowAlt: { backgroundColor: '#fefdf9' },
-  tdCol: { fontSize: 9, paddingVertical: 6, paddingHorizontal: 4, borderRightWidth: 0.5, borderRightColor: '#d7d7d7' },
+  tdCol: { fontSize: 10, paddingVertical: 6, paddingHorizontal: 4, borderRightWidth: 0.5, borderRightColor: '#d7d7d7' },
   roomTitleRow: { backgroundColor: '#f3f8f7', borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.5, borderColor: '#d7d7d7', paddingVertical: 5, paddingHorizontal: 8 },
   roomTitleText: { fontSize: 10, fontWeight: 'bold', color: PRIMARY, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 2 },
   packageBadge: { alignSelf: 'center', borderRadius: 8, backgroundColor: '#fff8e6', color: GOLD, fontSize: 9, fontWeight: 'bold', paddingVertical: 2, paddingHorizontal: 5, textTransform: 'uppercase' },
@@ -59,14 +59,14 @@ const styles = StyleSheet.create({
   grandTotalRow: { flexDirection: 'row', paddingTop: 8, marginTop: 5, borderTopWidth: 1, borderTopColor: PRIMARY },
   grandTotalLabel: { width: '78%', textAlign: 'right', paddingRight: 10, fontWeight: 'bold', fontSize: 10, color: PRIMARY },
   grandTotalValue: { width: '22%', textAlign: 'right', fontWeight: 'bold', fontSize: 10, color: PRIMARY },
-  inWords: { fontSize: 11, color: '#000', marginTop: 6, textAlign: 'left', fontFamily: 'Playfair Display', fontStyle: 'italic' },
+  inWords: { fontSize: 8, color: '#000', marginTop: 6, textAlign: 'left', fontFamily: 'Playfair Display', fontStyle: 'italic' },
   datePanel: { minWidth: 112, alignItems: 'flex-end' },
   metaLabel: { fontSize: 5.5, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   metaValue: { fontSize: 7, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
   headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 58, opacity: 0.08 },
   headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   headerRule: { height: 2.2, backgroundColor: PRIMARY },
-  headerTitle: { color: PRIMARY, fontSize: 12, fontFamily: 'Times-Italic', letterSpacing: 2.4, marginHorizontal: 12, textTransform: 'uppercase' },
+  headerTitle: { color: PRIMARY, fontSize: 16, fontFamily: 'Times-Italic', letterSpacing: 2.4, marginHorizontal: 12, textTransform: 'uppercase' },
   footerFixed: { position: 'absolute', bottom: 14, left: 18, right: 18, paddingTop: 8, paddingBottom: 6 },
   footerText: { fontSize: 7, color: '#666', marginLeft: 4 },
   footerMeta: { fontSize: 5.5, color: '#8a8a8a', marginTop: 5, textAlign: 'right' },
@@ -90,6 +90,10 @@ function getRoomSqft(room: ReturnType<typeof buildShortQuotationSummary>['floors
 
 function getFloorSqft(floor: ReturnType<typeof buildShortQuotationSummary>['floors'][number]) {
   return Math.round(floor.rooms.reduce((sum, room) => sum + getRoomSqft(room), 0))
+}
+
+function getTotalSqft(summary: ReturnType<typeof buildShortQuotationSummary>) {
+  return Math.round(summary.floors.reduce((sum, floor) => sum + getFloorSqft(floor), 0))
 }
 
 function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
@@ -206,7 +210,8 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
             ))}
           </View>
         ))}
-        <View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>Grand Total</Text><Text style={styles.grandTotalValue}>{formatCurrency(summary.grandTotal)}</Text></View>
+        <View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>Total Sqft</Text><Text style={styles.grandTotalValue}>{formatAmount(getTotalSqft(summary))}</Text></View>
+        <View style={[styles.grandTotalRow, { marginTop: 0, borderTopWidth: 0 }]}><Text style={styles.grandTotalLabel}>Grand Total</Text><Text style={styles.grandTotalValue}>{formatCurrency(summary.grandTotal)}</Text></View>
         <Text style={styles.inWords}>In Words: {amountInWordsTaka(summary.grandTotal)}</Text>
         <FooterFixed content={content} />
       </Page>
