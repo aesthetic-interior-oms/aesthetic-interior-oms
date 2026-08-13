@@ -59,14 +59,14 @@ const styles = StyleSheet.create({
   grandTotalRow: { flexDirection: 'row', paddingTop: 8, marginTop: 5, borderTopWidth: 1, borderTopColor: PRIMARY },
   grandTotalLabel: { width: '78%', textAlign: 'right', paddingRight: 10, fontWeight: 'bold', fontSize: 10, color: PRIMARY },
   grandTotalValue: { width: '22%', textAlign: 'right', fontWeight: 'bold', fontSize: 10, color: PRIMARY },
-  inWords: { fontSize: 10, color: '#000', marginTop: 6, textAlign: 'left', fontFamily: 'Playfair Display', fontStyle: 'italic' },
+  inWords: { fontSize: 12, color: '#000', marginTop: 6, textAlign: 'left', fontFamily: 'Playfair Display', fontStyle: 'italic' },
   datePanel: { minWidth: 112, alignItems: 'flex-end' },
   metaLabel: { fontSize: 5.5, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   metaValue: { fontSize: 7, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
   headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 58, opacity: 0.08 },
   headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   headerRule: { height: 2.2, backgroundColor: PRIMARY },
-  headerTitle: { color: PRIMARY, fontSize: 16, fontFamily: 'Times-Italic', letterSpacing: 2.4, marginHorizontal: 12, textTransform: 'uppercase' },
+  headerTitle: { color: PRIMARY, fontSize: 12, fontFamily: 'Times-Italic', letterSpacing: 2.4, marginHorizontal: 12, textTransform: 'uppercase' },
   footerFixed: { position: 'absolute', bottom: 14, left: 5, right: 5, paddingTop: 8, paddingBottom: 6 },
   footerText: { fontSize: 7, color: '#666', marginLeft: 4 },
   footerMeta: { fontSize: 5.5, color: '#8a8a8a', marginTop: 5, textAlign: 'right' },
@@ -76,7 +76,7 @@ function formatAmount(value: number) {
   return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(value)
 }
 function formatCurrency(value: number) {
-  return `৳ ${formatAmount(value)}`
+  return formatAmount(value)
 }
 
 function getRoomSqft(room: ReturnType<typeof buildShortQuotationSummary>['floors'][number]['rooms'][number]) {
@@ -186,10 +186,10 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
         <View style={{ marginBottom: 12 }}>
           <Text style={{ fontSize: 8, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
           <Text style={[styles.bold, { fontSize: 15, color: PRIMARY, marginBottom: 2 }]}>{content.clientName}</Text>
-          <Text style={{ fontSize: 11, color: '#555' }}>{content.clientAddress}</Text>
+          <Text style={{ fontSize: 9, color: '#555' }}>{content.clientAddress}</Text>
         </View>
-        {content.subject ? <Text style={{ fontSize: 9, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
-        {cleanIntro ? <View style={{ marginBottom: 20 }}><Text style={[styles.bold, { fontSize: 9, marginBottom: 3 }]}>Dear Sir,</Text><Text style={{ fontSize: 9, textAlign: 'justify' }}>{cleanIntro}</Text></View> : null}
+        {content.subject ? <Text style={{ fontSize: 10, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
+        {cleanIntro ? <View style={{ marginBottom: 20 }}><Text style={[styles.bold, { fontSize: 10, marginBottom: 3 }]}>Dear Sir,</Text><Text style={{ fontSize: 10, textAlign: 'justify' }}>{cleanIntro}</Text></View> : null}
         <Text style={styles.sectionTitle}>{content.packageTier} Short Quotation Summary</Text>
         <View style={[styles.tHead, { borderWidth: 0 }]}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wSumName]}>Description</Text><Text style={[styles.thCol, styles.wSumSqft]}>Sqft</Text><Text style={[styles.thCol, styles.wSumTotal]}>Amount</Text></View>
         {summary.floors.map((entry, index) => (
