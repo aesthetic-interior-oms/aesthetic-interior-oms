@@ -1249,6 +1249,9 @@ export function VisitsPageView({
     const isVisible = canViewVisit(visit)
     const leadHref = `${leadHrefPrefix}/${visit.lead.id}`
     const visitRole = getVisitRole(visit)
+    const teamMembers = getVisitTeamMembers(visit)
+    const seniorCrmName = getSeniorCrmAssignment(visit)?.user?.fullName || 'Unassigned'
+    const supportAssignments = visit.supportAssignments ?? []
     const supportAlreadySubmitted = visitRole === 'SUPPORT' && hasSupportDataSubmitted(visit)
     const canSubmitSupportForVisit = visitRole === 'SUPPORT' && canSubmitSupportData(visit)
     const supportSubmitDisabledReason =
@@ -1276,183 +1279,78 @@ export function VisitsPageView({
     return (
       <Card
         className={cn(
-          'relative mb-3 overflow-hidden',
-          canNavigateFromCard ? 'cursor-pointer transition hover:border-primary/40' : '',
+          'group relative mb-3 overflow-hidden border-border/80 bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg',
+          canNavigateFromCard ? 'cursor-pointer' : '',
         )}
       >
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-sky-500 to-emerald-500" />
         {!isVisible ? (
-          <div className="absolute inset-0 z-10 flex items-center justify-center text-sm font-semibold text-muted-foreground bg-background/70">
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/75 px-4 text-center text-sm font-semibold text-muted-foreground backdrop-blur-[1px]">
             {restrictedMessage}
           </div>
         ) : null}
         <CardContent
-          className={`pt-5 sm:pt-6 ${!isVisible ? 'blur-xs pointer-events-none select-none' : ''}`}
+          className={cn('space-y-4 p-4 pt-5 sm:p-5 sm:pt-6', !isVisible ? 'blur-xs pointer-events-none select-none' : '')}
           onClick={handleCardNavigation}
         >
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-            <span
-              className={`self-start px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${statusColors[visit.status]}`}
-            >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <h3 className="truncate text-lg font-semibold text-foreground">{visit.lead?.name || 'Unknown Lead'}</h3>
+              <p className="text-xs text-muted-foreground">{visit.lead?.phone || 'No phone available'}</p>
+            </div>
+            <span className={cn('inline-flex shrink-0 items-center rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wide shadow-sm', statusColors[visit.status] ?? 'bg-muted text-foreground')}>
               {formatVisitStatus(visit.status)}
             </span>
-            <div className="flex-1">
-              <div className="flex flex-col gap-1">
-                <h3 className="font-semibold text-foreground">{visit.lead?.name || 'Unknown'}</h3>
-              </div>
-              <div className="mt-3 flex flex-col gap-2 text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="w-4 h-4 flex-shrink-0" />
-                  <span>
-                    {new Date(visit.scheduledAt).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                    })}{' '}
-                    at{' '}
-                    {new Date(visit.scheduledAt).toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                </div>
-                <div className="flex items-start gap-2 text-muted-foreground">
-                  <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>{getVisitAddress(visit)}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">SR CRM: {getSeniorCrmAssignment(visit)?.user?.fullName || 'Unassigned'}</p>
-                <p className="text-sm text-muted-foreground">Visit Fee: Tk {visit.visitFee ?? 0}</p>
-                {visit.projectSqft ? (
-                  <p className="text-sm text-muted-foreground">Sqft: {visit.projectSqft}</p>
-                ) : null}
-                {visit.projectStatus ? (
-                  <p className="text-sm text-muted-foreground">
-                    Project Status: {visit.projectStatus.replace(/_/g, ' ')}
-                  </p>
-                ) : null}
-                {visit.notes && <p className="text-sm text-muted-foreground italic mt-2">{visit.notes}</p>}
-                <div className="text-sm text-muted-foreground">
-                  <span>Visit Team: </span>
-                  {getVisitTeamMembers(visit).length > 0 ? (
-                    getVisitTeamMembers(visit).map((member, index) => (
-                      <span key={`${member.role}-${member.id}`}>
-                        {index > 0 ? ', ' : ''}
-                        <span className={member.role === 'LEAD' ? 'font-bold text-foreground' : ''}>
-                          {member.name}
-                        </span>
-                      </span>
-                    ))
-                  ) : (
-                    <span>Unassigned</span>
-                  )}
-                </div>
-                <div className="rounded-md border border-border bg-muted/40 p-2 text-sm">
-                  <p className="font-semibold text-foreground">Support Members</p>
-                  {(visit.supportAssignments ?? []).length > 0 ? (
-                    <div className="mt-1 space-y-1">
-                      {(visit.supportAssignments ?? []).map((item) => (
-                        <div key={item.id} className="flex items-center justify-between gap-2">
-                          <span className="text-muted-foreground">{item.supportUser.fullName}</span>
-                          {canManageSupportForVisit(visit) ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-xs"
-                              onClick={() => void removeSupportMember(visit.id, item.supportUserId)}
-                            >
-                              Remove
-                            </Button>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-amber-800">
-                      <p className="font-semibold">Warning: no support members assigned.</p>
-                    </div>
-                  )}
-                  {canManageSupportForVisit(visit) ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="mt-2 h-8 px-3 text-xs"
-                      onClick={() => void openSupportDialog(visit)}
-                    >
-                      Manage Support Members
-                    </Button>
-                  ) : null}
-                </div>
-                <div className="pt-1">
-                  <div className="flex flex-wrap gap-2">
-                    {!cardNavigatesToLead ? (
-                      <Button size="sm" variant="outline" className="w-full sm:w-auto" asChild>
-                        <Link href={leadHref}>Open Lead Details</Link>
-                      </Button>
-                    ) : null}
-                    {allowManageAssignment || isAdminActor ? (
-                      <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={() => openAssignDialog(visit)}>
-                        {visit.assignedTo ? 'Reassign' : 'Assign'}
-                      </Button>
-                    ) : null}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full sm:w-auto"
-                      onClick={() => openRequestDialog(visit, 'RESCHEDULE')}
-                      disabled={!canRequestUpdate}
-                      title={!canRequestUpdate ? updateDisabledReason : undefined}
-                    >
-                      Reschedule
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full sm:w-auto text-destructive hover:text-destructive"
-                      onClick={() => openRequestDialog(visit, 'CANCEL')}
-                      disabled={!canRequestUpdate}
-                      title={!canRequestUpdate ? updateDisabledReason : undefined}
-                    >
-                      Cancel
-                    </Button>
-                    {allowCompleteVisit && visitRole !== 'NONE' ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full sm:w-auto"
-                        onClick={() => openCompleteDialog(visit)}
-                        disabled={
-                          visitRole === 'SUPPORT'
-                            ? isSupportReadOnly || supportAlreadySubmitted || !canSubmitSupportForVisit
-                            : visit.status === 'COMPLETED'
-                        }
-                        title={supportSubmitDisabledReason}
-                      >
-                        {visitRole === 'SUPPORT'
-                          ? supportAlreadySubmitted
-                            ? 'Support Data Submitted'
-                            : 'Submit Support Data'
-                          : 'Complete Visit'}
-                      </Button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
-          {visitRole !== 'NONE' ? (
-            <div className="pt-2">
-              <span
-                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${
-                  visitRole === 'LEAD'
-                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200'
-                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200'
-                }`}
-              >
-                {visitRole === 'LEAD' ? 'Leading' : 'Supporting'}
+
+          <div className="grid gap-2 rounded-xl border border-border/70 bg-muted/25 p-3 text-sm">
+            <div className="flex items-center gap-2 text-foreground">
+              <Clock className="size-4 shrink-0 text-primary" />
+              <span className="font-medium">
+                {new Date(visit.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} at {new Date(visit.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
-          ) : null}
+            <div className="flex items-start gap-2 text-muted-foreground">
+              <MapPin className="mt-0.5 size-4 shrink-0 text-primary" />
+              <span className="line-clamp-2">{getVisitAddress(visit)}</span>
+            </div>
+          </div>
+
+          <div className="grid gap-2 text-sm sm:grid-cols-2">
+            <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">SR CRM</p>
+              <p className="mt-1 font-medium text-foreground">{seniorCrmName}</p>
+            </div>
+            <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Visit Fee</p>
+              <p className="mt-1 font-medium text-foreground">Tk {visit.visitFee ?? 0}</p>
+            </div>
+            {visit.projectSqft ? <div className="rounded-lg border border-border/60 bg-background/60 p-3"><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Sqft</p><p className="mt-1 font-medium text-foreground">{visit.projectSqft}</p></div> : null}
+            {visit.projectStatus ? <div className="rounded-lg border border-border/60 bg-background/60 p-3"><p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Project Status</p><p className="mt-1 font-medium text-foreground">{visit.projectStatus.replace(/_/g, ' ')}</p></div> : null}
+          </div>
+
+          {visit.notes ? <p className="rounded-lg border border-dashed border-border bg-muted/20 p-3 text-sm italic text-muted-foreground">{visit.notes}</p> : null}
+
+          <div className="space-y-2 rounded-xl border border-border/70 bg-background/70 p-3">
+            <div className="flex items-center justify-between gap-2"><p className="text-sm font-semibold text-foreground">Visit Team</p>{visitRole !== 'NONE' ? <span className={cn('rounded-full px-2.5 py-1 text-[11px] font-bold', visitRole === 'LEAD' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200')}>{visitRole === 'LEAD' ? 'Leading' : 'Supporting'}</span> : null}</div>
+            <div className="flex flex-wrap gap-2">
+              {teamMembers.length > 0 ? teamMembers.map((member) => <span key={`${member.role}-${member.id}`} className={cn('rounded-full border px-2.5 py-1 text-xs', member.role === 'LEAD' ? 'border-blue-200 bg-blue-50 font-semibold text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200' : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200')}>{member.role === 'LEAD' ? 'Lead: ' : 'Support: '}{member.name}</span>) : <span className="text-sm text-muted-foreground">Unassigned</span>}
+            </div>
+          </div>
+
+          <div className="space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3">
+            <div className="flex items-center justify-between gap-2"><p className="text-sm font-semibold text-foreground">Support Members</p>{canManageSupportForVisit(visit) ? <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => void openSupportDialog(visit)}>Manage</Button> : null}</div>
+            {supportAssignments.length > 0 ? <div className="space-y-1.5">{supportAssignments.map((item) => <div key={item.id} className="flex items-center justify-between gap-2 rounded-lg bg-background/70 px-2.5 py-2 text-sm"><span className="truncate text-muted-foreground">{item.supportUser.fullName}</span>{canManageSupportForVisit(visit) ? <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs text-destructive hover:text-destructive" onClick={() => void removeSupportMember(visit.id, item.supportUserId)}>Remove</Button> : null}</div>)}</div> : <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200"><p className="font-semibold">Warning: no support members assigned.</p></div>}
+          </div>
+
+          <div className="flex flex-wrap gap-2 border-t border-border/70 pt-3">
+            {!cardNavigatesToLead ? <Button size="sm" variant="outline" className="flex-1 sm:flex-none" asChild><Link href={leadHref}>Open Lead Details</Link></Button> : null}
+            {isAdminActor ? <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => openEditDialog(visit)}>Edit Visit</Button> : null}
+            {allowManageAssignment || isAdminActor ? <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => openAssignDialog(visit)}>{visit.assignedTo ? 'Reassign' : 'Assign'}</Button> : null}
+            <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => openRequestDialog(visit, 'RESCHEDULE')} disabled={!canRequestUpdate} title={!canRequestUpdate ? updateDisabledReason : undefined}>Reschedule</Button>
+            <Button size="sm" variant="outline" className="flex-1 text-destructive hover:text-destructive sm:flex-none" onClick={() => openRequestDialog(visit, 'CANCEL')} disabled={!canRequestUpdate} title={!canRequestUpdate ? updateDisabledReason : undefined}>Cancel</Button>
+            {allowCompleteVisit && visitRole !== 'NONE' ? <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => openCompleteDialog(visit)} disabled={visitRole === 'SUPPORT' ? isSupportReadOnly || supportAlreadySubmitted || !canSubmitSupportForVisit : visit.status === 'COMPLETED'} title={supportSubmitDisabledReason}>{visitRole === 'SUPPORT' ? supportAlreadySubmitted ? 'Support Data Submitted' : 'Submit Support Data' : 'Complete Visit'}</Button> : null}
+          </div>
         </CardContent>
       </Card>
     )

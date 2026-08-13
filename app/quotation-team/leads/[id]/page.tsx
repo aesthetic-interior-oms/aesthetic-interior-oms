@@ -1,12 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { QuotationWorkspace } from '@/components/crm/quotation/quotation-workspace'
-import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
 
 type LeadDetail = {
   id: string
@@ -80,23 +78,6 @@ export default function QuotationLeadWorkspacePage() {
           </Card>
         ) : lead ? (
           <>
-            <Card>
-              <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-medium">Detail quotation PDF</p>
-                  <p className="text-xs text-muted-foreground">Open the PDF preview, then click Download PDF to save this lead's detail quotation.</p>
-                </div>
-                <Link
-                  href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id })}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex w-fit items-center justify-center rounded-md border bg-white px-4 py-2 text-sm font-medium hover:bg-muted"
-                >
-                  Download detail PDF
-                </Link>
-              </CardContent>
-            </Card>
-
             <QuotationWorkspace
               leadId={lead.id}
               leadName={lead.name}
