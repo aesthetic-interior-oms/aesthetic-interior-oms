@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     maxWidth: 130,
   },
   metaText: {
-    fontSize: 9,
+    fontSize: 12,
     color: '#555555',
     marginBottom: 3,
   },
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
     color: PRIMARY,
   },
   inWords: {
-    fontSize: 11,
+    fontSize: 9,
     color: '#000000',
     marginTop: 4,
     textAlign: 'left',
@@ -349,7 +349,7 @@ const ClientInfoBlock = ({ clientName, clientAddress }: { clientName: string, cl
   <View style={{ marginBottom: 20 }}>
     <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
     <Text style={[styles.bold, { fontSize: 13, color: PRIMARY, marginBottom: 2 }]}>{clientName}</Text>
-    <Text style={{ fontSize: 10, color: '#555555' }}>{clientAddress}</Text>
+    <Text style={{ fontSize: 12, color: '#555555' }}>{clientAddress}</Text>
   </View>
 );
 
@@ -563,7 +563,7 @@ export function DetailQuotationDocument({
         <Text style={styles.sectionTitle}>Project Summary</Text>
 
         <View style={styles.tableWrapper}>
-          <View style={styles.tHead} fixed>
+          <View style={[styles.tHead, { marginBottom: 3 }]} fixed>
             <Text style={[styles.thCol, styles.wSl]}>SL</Text>
             <Text style={[styles.thCol, styles.wSumName]}>Description</Text>
             <Text style={[styles.thCol, styles.wSumSqft]}>Sqft</Text>
