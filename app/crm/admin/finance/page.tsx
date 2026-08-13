@@ -51,7 +51,16 @@ import {
 } from "lucide-react"
 
 // Category display mapping
-const EXPENSE_CATEGORIES = [
+type TransactionCategoryType = "OUTFLOW" | "INFLOW"
+
+type TransactionCategory = {
+  key: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  isCustom?: boolean
+}
+
+const EXPENSE_CATEGORIES: TransactionCategory[] = [
   { key: "OFFICE_RENT", label: "Office Rent", icon: Building },
   { key: "SALARY", label: "Staff Salary", icon: HandCoins },
   { key: "SALARY_ADVANCE", label: "Salary Advance", icon: HandCoins },
@@ -92,7 +101,7 @@ const EXPENSE_CATEGORIES = [
   { key: "OTHERS", label: "Other Expenses", icon: Tag },
 ]
 
-const INCOME_CATEGORIES = [
+const INCOME_CATEGORIES: TransactionCategory[] = [
   { key: "CLIENT_PAYMENT", label: "Client Payment", icon: Wallet },
   { key: "PROJECT_ADVANCE", label: "Project Advance", icon: HandCoins },
   { key: "DESIGN_FEE", label: "Design Fee", icon: FileText },
@@ -100,15 +109,6 @@ const INCOME_CATEGORIES = [
   { key: "BANK_INTEREST", label: "Bank Interest", icon: Landmark },
   { key: "OTHER_INCOME", label: "Other Income", icon: TrendingUp },
 ]
-
-type TransactionCategoryType = "OUTFLOW" | "INFLOW"
-
-type TransactionCategory = {
-  key: string
-  label: string
-  icon: React.ComponentType<{ className?: string }>
-  isCustom?: boolean
-}
 
 const CATEGORY_LABELS: Record<string, string> = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].reduce(
   (labels, item) => ({ ...labels, [item.key]: item.label }),
