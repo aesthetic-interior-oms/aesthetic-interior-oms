@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
@@ -151,6 +151,8 @@ export function QuotationMaker({
   const [pickerCatalogKey, setPickerCatalogKey] = useState('ceiling-curtain')
   const [customTypeFloorId, setCustomTypeFloorId] = useState<string | null>(null)
   const [customTypeAreaId, setCustomTypeAreaId] = useState<string | null>(null)
+  const [activeFloorId, setActiveFloorId] = useState<string | null>(null)
+  const visibleFloorRatios = useRef(new Map<string, number>())
 
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -234,6 +236,49 @@ export function QuotationMaker({
   }, [content])
 
   useEffect(() => {
+    if (floors.length === 0) {
+      setActiveFloorId(null)
+      return
+    }
+
+    setActiveFloorId((current) => {
+      if (current && floors.some((floor) => floor.id === current)) return current
+      return floors[0]?.id ?? null
+    })
+  }, [floors])
+
+  useEffect(() => {
+    if (floors.length === 0) return
+
+    visibleFloorRatios.current.clear()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const floorId = entry.target.getAttribute('data-floor-id')
+          if (!floorId) return
+          if (entry.isIntersecting) {
+            visibleFloorRatios.current.set(floorId, entry.intersectionRatio)
+          } else {
+            visibleFloorRatios.current.delete(floorId)
+          }
+        })
+
+        const mostVisibleFloor = [...visibleFloorRatios.current.entries()]
+          .sort((a, b) => b[1] - a[1])[0]?.[0]
+        if (mostVisibleFloor) setActiveFloorId(mostVisibleFloor)
+      },
+      { root: null, rootMargin: '-18% 0px -55% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] },
+    )
+
+    floors.forEach((floor) => {
+      const element = document.getElementById(`quotation-floor-${floor.id}`)
+      if (element) observer.observe(element)
+    })
+
+    return () => observer.disconnect()
+  }, [floors])
+
+  useEffect(() => {
     if (!content || !totals) return
     const timer = window.setTimeout(() => {
       publishDetailPreview({
@@ -302,6 +347,16 @@ export function QuotationMaker({
 
   const addFloor = () => {
     setContent((prev) => (prev ? addFloorToContent(prev) : prev))
+  }
+
+  const addArea = (floorId: string | null = activeFloorId) => {
+    if (!floorId) {
+      toast.error('Add a floor first')
+      return
+    }
+
+    setContent((prev) => (prev ? addAreaToFloor(prev, floorId, 'New Area') : prev))
+    setActiveFloorId(floorId)
   }
 
   const removeFloor = (floorId: string) => {
@@ -529,7 +584,12 @@ export function QuotationMaker({
 
   const displayContent = withDetailQuotationDefaults(content)
   const taskbarFloorId = displayContent.sections.at(-1)?.id ?? null
-  const taskbarAreaId = taskbarFloorId ? [...(displayContent.areas ?? [])].filter((area) => area.floorId === taskbarFloorId).sort((a, b) => a.sortOrder - b.sortOrder).at(-1)?.id : null
+  const taskbarAreaId = taskbarFloorId
+    ? ([...(displayContent.areas ?? [])]
+      .filter((area) => area.floorId === taskbarFloorId)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .at(-1)?.id ?? null)
+    : null
   const openTaskbarSavedItem = () => {
     if (!taskbarFloorId) {
       toast.error('Add a floor first')
@@ -543,7 +603,7 @@ export function QuotationMaker({
       return
     }
     setCustomTypeFloorId(taskbarFloorId)
-    setCustomTypeAreaId(taskbarAreaId ?? undefined)
+    setCustomTypeAreaId(taskbarAreaId)
   }
 
 return (
@@ -743,7 +803,12 @@ return (
           const floorLineCount = areaGroups.reduce((sum, group) => sum + group.lines.length, 0)
 
           return (
-            <Card key={floor.id} className="overflow-hidden border-muted/60 shadow-sm print:hidden">
+            <Card
+              key={floor.id}
+              id={`quotation-floor-${floor.id}`}
+              data-floor-id={floor.id}
+              className="scroll-mt-24 overflow-hidden border-muted/60 shadow-sm print:hidden"
+            >
               <CardHeader className="py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -762,7 +827,7 @@ return (
                   </div>
                   {canEdit ? (
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" size="sm" variant="outline" onClick={() => setContent((prev) => (prev ? addAreaToFloor(prev, floor.id, 'New Area') : prev))}>
+                      <Button type="button" size="sm" variant="outline" onClick={() => addArea(floor.id)}>
                         <Plus className="mr-1 h-3.5 w-3.5" /> Add Area
                       </Button>
                       <Button type="button" size="icon" variant="ghost" onClick={() => removeFloor(floor.id)}>
@@ -788,7 +853,7 @@ return (
                           <Button type="button" size="sm" variant="outline" onClick={() => openItemPicker(floor.id, area.id.startsWith('general-') ? undefined : area.id)}>
                             <Plus className="mr-1 h-3.5 w-3.5" /> Add from saved list
                           </Button>
-                          <Button type="button" size="sm" variant="ghost" onClick={() => { setCustomTypeFloorId(floor.id); setCustomTypeAreaId(area.id.startsWith('general-') ? undefined : area.id) }}>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => { setCustomTypeFloorId(floor.id); setCustomTypeAreaId(area.id.startsWith('general-') ? null : area.id) }}>
                             Custom item
                           </Button>
                           {!area.id.startsWith('general-') ? <Button type="button" size="icon" variant="ghost" onClick={() => setContent((prev) => (prev ? removeAreaFromContent(prev, area.id) : prev))}><Trash2 className="h-4 w-4" /></Button> : null}
@@ -836,6 +901,10 @@ return (
           <Button type="button" size="sm" variant="outline" disabled={!canEdit} onClick={addFloor}>
             <Plus className="mr-1.5 h-4 w-4" />
             Add Floor
+          </Button>
+          <Button type="button" size="sm" variant="outline" disabled={!canEdit || !activeFloorId} onClick={() => addArea()}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            Add Area
           </Button>
           <Button type="button" size="sm" disabled={!canEdit || saving} onClick={() => void saveDraft()}>
             <Save className="mr-1.5 h-4 w-4" />

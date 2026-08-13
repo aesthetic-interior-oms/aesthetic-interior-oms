@@ -194,8 +194,13 @@ const styles = StyleSheet.create({
   wTotal: { width: '12%', textAlign: 'right' },
 
   // Columns Summary
-  wSumName: { width: '70%', paddingLeft: 10 },
+  wSumName: { width: '54%', paddingLeft: 10 },
+  wSumSqft: { width: '18%', textAlign: 'right' },
   wSumTotal: { width: '22%', textAlign: 'right' },
+  summaryFloorRow: { backgroundColor: '#f3f8f7' },
+  summaryAreaName: { paddingLeft: 18, color: '#555555' },
+  areaTotalRow: { backgroundColor: '#fff8e6' },
+  areaTotalLabel: { textAlign: 'right', color: PRIMARY },
 
   // Totals
   grandTotalRow: {
@@ -258,7 +263,7 @@ const styles = StyleSheet.create({
 
   // Materials
   areaTitleRow: { backgroundColor: '#f3f8f7', borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.5, borderColor: '#d7d7d7', paddingVertical: 5, paddingHorizontal: 8 },
-  areaTitleText: { fontSize: 10, fontWeight: 'bold', color: PRIMARY },
+  areaTitleText: { fontSize: 10, fontWeight: 'bold', color: PRIMARY, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 2 },
 
   matText: {
     fontSize: 9,
@@ -368,6 +373,24 @@ function getDetailFloorSqft(entry: ReturnType<typeof buildDetailFloorSummaries>[
     entry.lines.reduce((lineSum, line) => {
       if (line.unit !== 'sqft' || isPackageLine(line) || line.quantity <= 0) return lineSum
       return lineSum + line.quantity
+    }, 0),
+  )
+}
+
+function getDetailAreaSqft(lines: QuotationDraftContent['lineItems']) {
+  return Math.round(
+    lines.reduce((lineSum, line) => {
+      if (line.unit !== 'sqft' || isPackageLine(line) || line.quantity <= 0) return lineSum
+      return lineSum + line.quantity
+    }, 0),
+  )
+}
+
+function getDetailAreaTotal(lines: QuotationDraftContent['lineItems']) {
+  return Math.round(
+    lines.reduce((sum, line) => {
+      if (isRateOnlyLine(line)) return sum
+      return sum + line.amount
     }, 0),
   )
 }
@@ -543,13 +566,25 @@ export function DetailQuotationDocument({
           <View style={styles.tHead} fixed>
             <Text style={[styles.thCol, styles.wSl]}>SL</Text>
             <Text style={[styles.thCol, styles.wSumName]}>Description</Text>
+            <Text style={[styles.thCol, styles.wSumSqft]}>Sqft</Text>
             <Text style={[styles.thCol, styles.wSumTotal, styles.thColLast]}>Amount ({BDT_SYMBOL})</Text>
           </View>
           {floorSummaries.map((entry, index) => (
-            <View key={entry.floor.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}>
-              <Text style={[styles.tdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
-              <Text style={[styles.tdCol, styles.wSumName]}>{softWrapPdfText(entry.floor.name)}</Text>
-              <Text style={[styles.tdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailTableAmount(entry.total)}</Text>
+            <View key={entry.floor.id}>
+              <View style={[styles.tRow, styles.summaryFloorRow]}>
+                <Text style={[styles.tdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
+                <Text style={[styles.tdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text>
+                <Text style={[styles.tdCol, styles.wSumSqft, styles.bold]}>{formatDetailAmount(getDetailFloorSqft(entry))}</Text>
+                <Text style={[styles.tdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailTableAmount(entry.total)}</Text>
+              </View>
+              {getAreaGroups(entry).map((area) => (
+                <View key={`${entry.floor.id}-${area.id}`} style={styles.tRow}>
+                  <Text style={[styles.tdCol, styles.wSl]} />
+                  <Text style={[styles.tdCol, styles.wSumName, styles.summaryAreaName]}>{softWrapPdfText(area.name)}</Text>
+                  <Text style={[styles.tdCol, styles.wSumSqft]}>{formatDetailAmount(getDetailAreaSqft(area.lines))}</Text>
+                  <Text style={[styles.tdCol, styles.wSumTotal, styles.tdColLast]}>{formatDetailTableAmount(getDetailAreaTotal(area.lines))}</Text>
+                </View>
+              ))}
             </View>
           ))}
         </View>
@@ -630,6 +665,14 @@ export function DetailQuotationDocument({
                 )
               })
             })}
+                <View style={[styles.tRow, styles.areaTotalRow]} wrap={false}>
+                  <Text style={[styles.tdCol, styles.wSl]} />
+                  <Text style={[styles.tdCol, styles.wName]} />
+                  <Text style={[styles.tdCol, styles.wMats, styles.bold, styles.areaTotalLabel]}>Total for {softWrapPdfText(area.name)}</Text>
+                  <Text style={[styles.tdCol, styles.wQty, styles.bold]}>{formatDetailAmount(getDetailAreaSqft(area.lines))}</Text>
+                  <Text style={[styles.tdCol, styles.wPrice]} />
+                  <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }]}>{formatDetailCurrency(getDetailAreaTotal(area.lines))}</Text>
+                </View>
               </View>
             ))}
           </View>
