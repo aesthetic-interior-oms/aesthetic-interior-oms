@@ -98,7 +98,7 @@ function PageFooter({ content }: { content: ShortQuotationContent }) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="mb-2 mt-4 px-2 py-1.5 text-center text-[13px] font-bold uppercase tracking-wider" style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}>{children}</div>
+  return <div className="mb-2 mt-4 border-b px-2 py-1.5 text-center text-[13px] font-bold uppercase tracking-wider" style={{ color: PRIMARY, backgroundColor: '#f3f8f7', borderColor: PRIMARY }}>{children}</div>
 }
 
 export function ShortQuotationPrint({ content }: { content: ShortQuotationContent }) {
@@ -120,7 +120,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
         <div className="pb-2">
           <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[#a57c00]">Prepared For</p>
           <p className="mb-0.5 text-[14px] font-bold leading-snug text-[#0f5b53]">{content.clientName}</p>
-          <p className="max-w-[360px] text-[10px] leading-snug text-neutral-600">{content.clientAddress || '—'}</p>
+          <p className="max-w-[360px] text-[9px] leading-snug text-neutral-600">{content.clientAddress || '—'}</p>
         </div>
 
         {content.subject ? <p className="mb-2 text-[9px] text-neutral-700"><span className="font-bold">Subject:</span> {content.subject}</p> : null}
