@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     maxWidth: 130,
   },
   metaText: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#555555',
     marginBottom: 3,
   },
@@ -161,6 +161,9 @@ const styles = StyleSheet.create({
   thColLast: {
     borderRightWidth: 0,
   },
+  summaryThCol: {
+    borderRightWidth: 0,
+  },
   tRow: {
     flexDirection: 'row',
     alignItems: 'stretch',
@@ -199,6 +202,7 @@ const styles = StyleSheet.create({
   wSumTotal: { width: '22%', textAlign: 'right' },
   summaryFloorRow: { backgroundColor: '#f3f8f7' },
   summaryAreaName: { paddingLeft: 18, color: '#555555' },
+  summaryTdCol: { borderRightWidth: 0 },
   areaTotalRow: { backgroundColor: '#fff8e6' },
   areaTotalLabel: { textAlign: 'right', color: PRIMARY },
 
@@ -285,7 +289,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   termContent: {
-    fontSize: 9,
+    fontSize: 10,
     color: '#555555',
     lineHeight: 1.5,
   },
@@ -348,8 +352,8 @@ const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
 const ClientInfoBlock = ({ clientName, clientAddress }: { clientName: string, clientAddress: string | null }) => (
   <View style={{ marginBottom: 20 }}>
     <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
-    <Text style={[styles.bold, { fontSize: 13, color: PRIMARY, marginBottom: 2 }]}>{clientName}</Text>
-    <Text style={{ fontSize: 12, color: '#555555' }}>{clientAddress}</Text>
+    <Text style={[styles.bold, { fontSize: 12, color: PRIMARY, marginBottom: 4, lineHeight: 1.25 }]}>{clientName}</Text>
+    <Text style={{ fontSize: 10, color: '#555555', lineHeight: 1.4 }}>{clientAddress}</Text>
   </View>
 );
 
@@ -553,6 +557,8 @@ export function DetailQuotationDocument({
 
         <ClientInfoBlock clientName={clientName} clientAddress={clientAddress} />
 
+        {content.summarySubject ? <Text style={{ fontSize: 10, marginBottom: 12 }}><Text style={styles.bold}>Subject: </Text>{content.summarySubject}</Text> : null}
+
         {cleanIntro ? (
           <View style={{ marginBottom: 20 }}>
             <Text style={[styles.metaText, styles.bold]}>Dear Sir,</Text>
@@ -564,25 +570,25 @@ export function DetailQuotationDocument({
 
         <View style={styles.tableWrapper}>
           <View style={[styles.tHead, { marginBottom: 3 }]} fixed>
-            <Text style={[styles.thCol, styles.wSl]}>SL</Text>
-            <Text style={[styles.thCol, styles.wSumName]}>Description</Text>
-            <Text style={[styles.thCol, styles.wSumSqft]}>Sqft</Text>
-            <Text style={[styles.thCol, styles.wSumTotal, styles.thColLast]}>Amount ({BDT_SYMBOL})</Text>
+            <Text style={[styles.thCol, styles.summaryThCol, styles.wSl]}>SL</Text>
+            <Text style={[styles.thCol, styles.summaryThCol, styles.wSumName]}>Description</Text>
+            <Text style={[styles.thCol, styles.summaryThCol, styles.wSumSqft]}>Sqft</Text>
+            <Text style={[styles.thCol, styles.summaryThCol, styles.wSumTotal, styles.thColLast]}>Amount ({BDT_SYMBOL})</Text>
           </View>
           {floorSummaries.map((entry, index) => (
             <View key={entry.floor.id}>
               <View style={[styles.tRow, styles.summaryFloorRow]}>
-                <Text style={[styles.tdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
-                <Text style={[styles.tdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text>
-                <Text style={[styles.tdCol, styles.wSumSqft, styles.bold]}>{formatDetailAmount(getDetailFloorSqft(entry))}</Text>
-                <Text style={[styles.tdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailTableAmount(entry.total)}</Text>
+                <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
+                <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text>
+                <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumSqft, styles.bold]}>{formatDetailAmount(getDetailFloorSqft(entry))}</Text>
+                <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailTableAmount(entry.total)}</Text>
               </View>
               {getAreaGroups(entry).map((area) => (
                 <View key={`${entry.floor.id}-${area.id}`} style={styles.tRow}>
-                  <Text style={[styles.tdCol, styles.wSl]} />
-                  <Text style={[styles.tdCol, styles.wSumName, styles.summaryAreaName]}>{softWrapPdfText(area.name)}</Text>
-                  <Text style={[styles.tdCol, styles.wSumSqft]}>{formatDetailAmount(getDetailAreaSqft(area.lines))}</Text>
-                  <Text style={[styles.tdCol, styles.wSumTotal, styles.tdColLast]}>{formatDetailTableAmount(getDetailAreaTotal(area.lines))}</Text>
+                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl]} />
+                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.summaryAreaName]}>{softWrapPdfText(area.name)}</Text>
+                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumSqft]}>{formatDetailAmount(getDetailAreaSqft(area.lines))}</Text>
+                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>{formatDetailTableAmount(getDetailAreaTotal(area.lines))}</Text>
                 </View>
               ))}
             </View>
@@ -610,6 +616,7 @@ export function DetailQuotationDocument({
           />
 
           <Text style={styles.sectionTitle}>{softWrapPdfText(entry.floor.name)}</Text>
+          {content.subject ? <Text style={{ fontSize: 10, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
 
           <View style={styles.tableWrapper}>
             <View style={styles.tHead} fixed>

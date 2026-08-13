@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   bold: { fontWeight: 'bold', color: '#000' },
   sectionTitle: { fontSize: 14, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, marginBottom: 8, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1.5, borderBottomWidth: 1, borderBottomColor: PRIMARY },
   tHead: { flexDirection: 'row', borderTopWidth: 0.75, borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.75, borderColor: '#d7d7d7' },
-  thCol: { fontSize: 11, fontWeight: 'bold', color: PRIMARY, textTransform: 'uppercase', paddingHorizontal: 4 },
+  thCol: { fontSize: 11, fontWeight: 'bold', color: PRIMARY, textTransform: 'uppercase', paddingVertical: 1, paddingHorizontal: 4 },
   tRow: { flexDirection: 'row', alignItems: 'flex-start', borderBottomWidth: 1, borderBottomColor: '#eeeeee' },
   tRowAlt: { backgroundColor: '#fefdf9' },
   tdCol: { fontSize: 10, paddingVertical: 6, paddingHorizontal: 4, borderRightWidth: 0.5, borderRightColor: '#d7d7d7' },
@@ -189,11 +189,11 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
         <WatermarkBackground /><GlobalHeader content={content} />
         <View style={{ marginBottom: 8 }}>
           <Text style={{ fontSize: 8, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
-          <Text style={[styles.bold, { fontSize: 15, color: PRIMARY, marginBottom: 2 }]}>{content.clientName}</Text>
-          <Text style={{ fontSize: 9, color: '#555' }}>{content.clientAddress}</Text>
+          <Text style={[styles.bold, { fontSize: 12, color: PRIMARY, marginBottom: 4, lineHeight: 1.25 }]}>{content.clientName}</Text>
+          <Text style={{ fontSize: 10, color: '#555', lineHeight: 1.4 }}>{content.clientAddress}</Text>
         </View>
-        {content.subject ? <Text style={{ fontSize: 9, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
-        {cleanIntro ? <View style={{ marginBottom: 8 }}><Text style={[styles.bold, { fontSize: 9, marginBottom: 8 }]}>Dear Sir,</Text><Text style={{ fontSize: 9, textAlign: 'justify' }}>{cleanIntro}</Text></View> : null}
+        {content.subject ? <Text style={{ fontSize: 10, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
+        {cleanIntro ? <View style={{ marginBottom: 8 }}><Text style={[styles.bold, { fontSize: 10, marginBottom: 8 }]}>Dear Sir,</Text><Text style={{ fontSize: 10, textAlign: 'justify', lineHeight: 1.5 }}>{cleanIntro}</Text></View> : null}
         <Text style={styles.sectionTitle}>{content.packageTier} Short Quotation Summary</Text>
         <View style={[styles.tHead, { borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wSumName]}>Description</Text><Text style={[styles.thCol, styles.wSumSqft]}>Sqft</Text><Text style={[styles.thCol, styles.wSumTotal]}>Amount</Text></View>
         {summary.floors.map((entry, index) => (
