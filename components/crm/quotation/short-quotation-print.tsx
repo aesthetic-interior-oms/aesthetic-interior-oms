@@ -58,8 +58,8 @@ function formatDownloadDateTime(value: string | undefined) {
 function PageHeader({ content }: { content: ShortQuotationContent }) {
   const formattedDate = formatShortQuotationDate(content.quotationDate)
   return (
-    <div className="relative z-10 mb-6 flex flex-col">
-      <div className="border-t-2 pt-3" style={{ borderColor: PRIMARY }}>
+    <div className="relative z-10 mb-2 flex flex-col">
+      <div className="border-t-2 pt-2" style={{ borderColor: PRIMARY }}>
         <div className="flex items-center justify-between border-b border-[#e7d49a] pb-3">
           <div className="w-1/2">
             <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[150px] object-contain object-left" />
@@ -98,7 +98,7 @@ function PageFooter({ content }: { content: ShortQuotationContent }) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div className="mb-2 mt-4 px-2 py-1.5 text-center text-[13px] font-bold uppercase tracking-wider" style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}>{children}</div>
+  return <div className="mb-2 mt-4 border-b px-2 py-1.5 text-center text-[13px] font-bold uppercase tracking-wider" style={{ color: PRIMARY, backgroundColor: '#f3f8f7', borderColor: PRIMARY }}>{children}</div>
 }
 
 export function ShortQuotationPrint({ content }: { content: ShortQuotationContent }) {
@@ -117,14 +117,14 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
         <WatermarkBackground />
         <PageHeader content={content} />
 
-        <div className="pb-3">
+        <div className="pb-2">
           <p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-[#a57c00]">Prepared For</p>
           <p className="mb-0.5 text-[14px] font-bold leading-snug text-[#0f5b53]">{content.clientName}</p>
-          <p className="max-w-[360px] text-[10px] leading-snug text-neutral-600">{content.clientAddress || '—'}</p>
+          <p className="max-w-[360px] text-[9px] leading-snug text-neutral-600">{content.clientAddress || '—'}</p>
         </div>
 
-        {content.subject ? <p className="mb-3 text-[9px] text-neutral-700"><span className="font-bold">Subject:</span> {content.subject}</p> : null}
-        {cleanIntro ? <div className="mb-4 text-[9px] leading-relaxed text-neutral-700"><p className="mb-1 font-bold">Dear Sir,</p><p className="whitespace-pre-wrap text-justify">{cleanIntro}</p></div> : null}
+        {content.subject ? <p className="mb-2 text-[9px] text-neutral-700"><span className="font-bold">Subject:</span> {content.subject}</p> : null}
+        {cleanIntro ? <div className="mb-2 text-[9px] leading-relaxed text-neutral-700"><p className="mb-2 font-bold">Dear Sir,</p><p className="whitespace-pre-wrap text-justify">{cleanIntro}</p></div> : null}
 
         <SectionTitle>{content.packageTier} Short Quotation Summary</SectionTitle>
         <div className="flex border-b pb-1.5 pt-2 text-[9px] font-bold uppercase" style={{ color: PRIMARY, borderColor: PRIMARY }}>
@@ -146,7 +146,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
           <span className="pr-4 text-[10px] font-bold" style={{ color: PRIMARY }}>Grand Total</span>
           <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>{formatCurrency(summary.grandTotal)}</span>
         </div>
-        <p className="mt-1 text-left text-[8px] font-bold text-neutral-900">In Words: <span>{amountInWordsTaka(summary.grandTotal)}</span></p>
+        <p className="mt-2 text-left text-[8px] font-bold text-neutral-900">In Words: <span>{amountInWordsTaka(summary.grandTotal)}</span></p>
         <div className="absolute bottom-6 left-10 right-10"><PageFooter content={content} /></div>
       </section>
 
@@ -174,7 +174,7 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
             </Fragment>
           ))}
           <div className="mt-3 flex justify-end border-t pt-2 text-[10px] font-bold" style={{ borderColor: PRIMARY, color: PRIMARY }}><span className="pr-4">Total for {floorSummary.floor.name}</span><span>{formatCurrency(floorSummary.total)}</span></div>
-          <p className="mt-1 text-left text-[8px] font-bold text-neutral-900">In Words: <span>{amountInWordsTaka(floorSummary.total)}</span></p>
+          <p className="mt-2 text-left text-[8px] font-bold text-neutral-900">In Words: <span>{amountInWordsTaka(floorSummary.total)}</span></p>
           {floorIndex === summary.floors.length - 1 && content.footerNotes.length > 0 ? (
             <div className="mt-5">
               <SectionTitle>Notes</SectionTitle>

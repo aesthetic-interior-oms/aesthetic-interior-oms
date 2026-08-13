@@ -33,10 +33,10 @@ const PRIMARY = '#1f363d'
 const GOLD = '#a57c00'
 
 const styles = StyleSheet.create({
-  page: { paddingTop: 90, paddingBottom: 104, paddingLeft: 5, paddingRight: 5, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
-  header: { position: 'absolute', top: 20, left: 0, right: 0, height: 58, paddingHorizontal: 18, overflow: 'hidden' },
+  page: { paddingTop: 86, paddingBottom: 104, paddingLeft: 5, paddingRight: 5, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
+  header: { position: 'absolute', top: 20, left: 5, right: 5, height: 58, paddingHorizontal: 0, overflow: 'hidden' },
   bold: { fontWeight: 'bold', color: '#000' },
-  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, marginBottom: 8, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1.5 },
+  sectionTitle: { fontSize: 14, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, marginBottom: 8, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1.5, borderBottomWidth: 1, borderBottomColor: PRIMARY },
   tHead: { flexDirection: 'row', borderTopWidth: 0.75, borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.75, borderColor: '#d7d7d7' },
   thCol: { fontSize: 11, fontWeight: 'bold', color: PRIMARY, textTransform: 'uppercase', paddingHorizontal: 4 },
   tRow: { flexDirection: 'row', alignItems: 'flex-start', borderBottomWidth: 1, borderBottomColor: '#eeeeee' },
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   grandTotalRow: { flexDirection: 'row', paddingTop: 8, marginTop: 5, borderTopWidth: 1, borderTopColor: PRIMARY },
   grandTotalLabel: { width: '78%', textAlign: 'right', paddingRight: 10, fontWeight: 'bold', fontSize: 10, color: PRIMARY },
   grandTotalValue: { width: '22%', textAlign: 'right', fontWeight: 'bold', fontSize: 10, color: PRIMARY },
-  inWords: { fontSize: 9, color: '#000', marginTop: 6, textAlign: 'left', fontFamily: 'Playfair Display', fontStyle: 'italic' },
+  inWords: { fontSize: 9, color: '#000', marginTop: 8, textAlign: 'left', fontFamily: 'Playfair Display', fontStyle: 'italic' },
   datePanel: { minWidth: 112, alignItems: 'flex-end' },
   metaLabel: { fontSize: 5.5, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   metaValue: { fontSize: 7, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
@@ -131,7 +131,7 @@ const WatermarkBackground = () => (
 const GlobalHeader = ({ content }: { content: ShortQuotationContent }) => (
   <View style={styles.header} fixed>
     <Image src={`${getBaseUrl()}/backgrounddata.svg`} style={styles.headerPattern} />
-    <View style={{ paddingTop: 3 }}>
+    <View style={{ paddingTop: 8 }}>
       <View style={styles.headerRuleRow}>
         <View style={[styles.headerRule, { flexGrow: 1.65 }]} />
         <Text style={styles.headerTitle}>Quotation</Text>
@@ -183,25 +183,25 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
     <Document>
       <Page size="A4" style={styles.page}>
         <WatermarkBackground /><GlobalHeader content={content} />
-        <View style={{ marginBottom: 12 }}>
+        <View style={{ marginBottom: 8 }}>
           <Text style={{ fontSize: 8, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
           <Text style={[styles.bold, { fontSize: 15, color: PRIMARY, marginBottom: 2 }]}>{content.clientName}</Text>
-          <Text style={{ fontSize: 12, color: '#555' }}>{content.clientAddress}</Text>
+          <Text style={{ fontSize: 9, color: '#555' }}>{content.clientAddress}</Text>
         </View>
-        {content.subject ? <Text style={{ fontSize: 12, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
-        {cleanIntro ? <View style={{ marginBottom: 20 }}><Text style={[styles.bold, { fontSize: 12, marginBottom: 3 }]}>Dear Sir,</Text><Text style={{ fontSize: 12, textAlign: 'justify' }}>{cleanIntro}</Text></View> : null}
+        {content.subject ? <Text style={{ fontSize: 9, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
+        {cleanIntro ? <View style={{ marginBottom: 8 }}><Text style={[styles.bold, { fontSize: 9, marginBottom: 8 }]}>Dear Sir,</Text><Text style={{ fontSize: 9, textAlign: 'justify' }}>{cleanIntro}</Text></View> : null}
         <Text style={styles.sectionTitle}>{content.packageTier} Short Quotation Summary</Text>
-        <View style={[styles.tHead, { borderWidth: 0 }]}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wSumName]}>Description</Text><Text style={[styles.thCol, styles.wSumSqft]}>Sqft</Text><Text style={[styles.thCol, styles.wSumTotal]}>Amount</Text></View>
+        <View style={[styles.tHead, { borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}><Text style={[styles.thCol, styles.wSl]}>SL</Text><Text style={[styles.thCol, styles.wSumName]}>Description</Text><Text style={[styles.thCol, styles.wSumSqft]}>Sqft</Text><Text style={[styles.thCol, styles.wSumTotal]}>Amount</Text></View>
         {summary.floors.map((entry, index) => (
           <View key={entry.floor.id}>
-            <View style={[styles.tRow, styles.summaryFloorRow, { borderBottomWidth: 0 }]}>
+            <View style={[styles.tRow, styles.summaryFloorRow]}>
               <Text style={[styles.tdCol, styles.wSl, { borderRightWidth: 0 }]}>{String(index + 1).padStart(2, '0')}</Text>
               <Text style={[styles.tdCol, styles.wSumName, styles.bold, { borderRightWidth: 0 }]}>{softWrapPdfText(entry.floor.name)}</Text>
               <Text style={[styles.tdCol, styles.wSumSqft, styles.bold, { borderRightWidth: 0 }]}>{formatAmount(getFloorSqft(entry))}</Text>
               <Text style={[styles.tdCol, styles.wSumTotal, styles.bold, { borderRightWidth: 0 }]}>{formatCurrency(entry.total)}</Text>
             </View>
             {entry.rooms.map((room) => (
-              <View key={`${entry.floor.id}-${room.room.id}`} style={[styles.tRow, styles.summaryRoomRow, { borderBottomWidth: 0 }]}>
+              <View key={`${entry.floor.id}-${room.room.id}`} style={[styles.tRow, styles.summaryRoomRow]}>
                 <Text style={[styles.tdCol, styles.wSl, { borderRightWidth: 0 }]} />
                 <Text style={[styles.tdCol, styles.wSumName, styles.summaryRoomName, { borderRightWidth: 0 }]}>• {softWrapPdfText(room.room.name)}</Text>
                 <Text style={[styles.tdCol, styles.wSumSqft, { borderRightWidth: 0 }]}>{formatAmount(getRoomSqft(room))}</Text>
