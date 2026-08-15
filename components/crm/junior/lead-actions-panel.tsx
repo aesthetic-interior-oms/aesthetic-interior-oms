@@ -158,6 +158,9 @@ interface LeadActionsPanelProps {
   canManageVisitRequests?: boolean
   canSelectSeniorCrm?: boolean
   restrictStagesForJrCrm?: boolean
+  /** When true, the CONVERSION stage and its substatuses (CLIENT_CONFIRMED, CLIENT_PARTIALLY_PAID, CLIENT_FULL_PAID)
+   *  are hidden from the stage/substatus selectors. Set false only for Accounts/Admin users. */
+  restrictConversionStage?: boolean
   stage: string
   originalStage: string
   subStatus: string | null
@@ -216,6 +219,7 @@ export function LeadActionsPanel({
   canManageVisitRequests = false,
   canSelectSeniorCrm = false,
   restrictStagesForJrCrm = false,
+  restrictConversionStage = true,
   stage,
   originalStage,
   subStatus,
@@ -335,7 +339,7 @@ export function LeadActionsPanel({
         'PROPOSAL_SENT',
         'REJECTED_OFFER',
       ],
-      CONVERSION: ['CLIENT_CONFIRMED', 'CLIENT_PARTIALLY_PAID', 'CLIENT_FULL_PAID'],
+      CONVERSION: restrictConversionStage ? [] : ['CLIENT_CONFIRMED', 'CLIENT_PARTIALLY_PAID', 'CLIENT_FULL_PAID'],
       VISUALIZATION_PHASE: [
         'VISUAL_ASSIGNED',
         'VISUAL_WORKING',
@@ -1816,7 +1820,9 @@ export function LeadActionsPanel({
               <SelectItem value="DISCOVERY" disabled={restrictStagesForJrCrm}>Consulting Phase</SelectItem>
               <SelectItem value="QUOTATION_PHASE" disabled={restrictStagesForJrCrm}>Quotation Phase</SelectItem>
               <SelectItem value="BUDGET_PHASE" disabled={restrictStagesForJrCrm}>Budget Phase</SelectItem>
-              <SelectItem value="CONVERSION" disabled={restrictStagesForJrCrm}>Conversion</SelectItem>
+              {!restrictConversionStage && (
+                <SelectItem value="CONVERSION" disabled={restrictStagesForJrCrm}>Conversion</SelectItem>
+              )}
               <SelectItem value="VISUALIZATION_PHASE" disabled={restrictStagesForJrCrm}>Visualization Phase</SelectItem>
               <SelectItem value="CLOSED" disabled={restrictStagesForJrCrm}>
                 Closed

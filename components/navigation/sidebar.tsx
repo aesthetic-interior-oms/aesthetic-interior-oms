@@ -133,6 +133,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
       defaultOpen: false,
       items: [
         { icon: Settings, label: 'Settings', href: '/crm/admin/settings' },
+        { icon: Settings, label: 'Finance Settings', href: '/crm/admin/finance/settings' },
         { icon: Home, label: 'Website Management', href: '/crm/admin/website-management' },
         {
           icon: Settings,
@@ -371,6 +372,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Finance',
           href: '/crm/admin/finance',
         },
+        {
+          icon: Settings,
+          label: 'Finance Settings',
+          href: '/crm/admin/finance/settings',
+        },
       ],
     },
   ],
@@ -389,6 +395,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: ClipboardList,
           label: 'Finance',
           href: '/crm/admin/finance',
+        },
+        {
+          icon: Settings,
+          label: 'Finance Settings',
+          href: '/crm/admin/finance/settings',
         },
       ],
     },

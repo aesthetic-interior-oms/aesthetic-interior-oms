@@ -226,8 +226,42 @@ function subStatusBadgeClass(value: string | null | undefined) {
       return 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-200'
     case 'CAD_APPROVED':
       return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200'
+}
+
+function getCardBgColor(subStatus: string | null | undefined, stage: string) {
+  switch (subStatus) {
+    // CAD/Design Phases
+    case 'CAD_ASSIGNED':
+    case 'VISUAL_ASSIGNED':
+      return 'bg-sky-50/50 border-sky-200/80 dark:bg-sky-950/10 dark:border-sky-900/50'
+    case 'CAD_WORKING':
+    case 'VISUAL_WORKING':
+      return 'bg-amber-50/50 border-amber-200/80 dark:bg-amber-950/10 dark:border-amber-900/50'
+    case 'CAD_COMPLETED':
+    case 'VISUAL_COMPLETED':
+      return 'bg-violet-50/50 border-violet-200/80 dark:bg-violet-950/10 dark:border-violet-900/50'
+    case 'CAD_APPROVED':
+    case 'CLIENT_APPROVED':
+      return 'bg-emerald-50/50 border-emerald-200/80 dark:bg-emerald-950/10 dark:border-emerald-900/50'
+      
+    // Quotation / Budget Phases
+    case 'QUOTATION_ASSIGNED':
+      return 'bg-blue-50/50 border-blue-200/80 dark:bg-blue-950/10 dark:border-blue-900/50'
+    case 'QUOTATION_WORKING':
+      return 'bg-orange-50/50 border-orange-200/80 dark:bg-orange-950/10 dark:border-orange-900/50'
+    case 'QUOTATION_COMPLETED':
+      return 'bg-indigo-50/50 border-indigo-200/80 dark:bg-indigo-950/10 dark:border-indigo-900/50'
+    case 'QUOTATION_APPROVED':
+      return 'bg-teal-50/50 border-teal-200/80 dark:bg-teal-950/10 dark:border-teal-900/50'
+    case 'BUDGET_MEETING_SET':
+      return 'bg-purple-50/50 border-purple-200/80 dark:bg-purple-950/10 dark:border-purple-900/50'
+    
+    // Default fallback
     default:
-      return 'border-border bg-muted text-muted-foreground'
+      if (stage === 'DISCOVERY') {
+        return 'bg-slate-50/50 border-slate-200/80 dark:bg-slate-900/50 dark:border-slate-800'
+      }
+      return 'bg-card border-border/70'
   }
 }
 
@@ -1131,9 +1165,13 @@ export function CadPhaseQueueBoard({
     }))
   }, [filteredLeads])
 
-  const leadCardClassName = canDropFromQueue
-    ? 'relative overflow-hidden border-primary/15 bg-gradient-to-br from-card via-card to-primary/5 shadow-[0_18px_45px_-28px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-xl'
-    : 'overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md'
+  const getLeadCardClassName = (lead: LeadRecord) => {
+    const bgBorderColors = getCardBgColor(lead.subStatus, lead.stage)
+    const base = canDropFromQueue
+      ? 'relative overflow-hidden shadow-[0_18px_45px_-28px_rgba(15,23,42,0.55)] transition hover:-translate-y-0.5 hover:shadow-xl'
+      : 'overflow-hidden shadow-sm transition hover:shadow-md'
+    return `${base} ${bgBorderColors} hover:border-primary/45`
+  }
 
   const renderLeadActionMenu = (lead: LeadRecord) => (
     <DropdownMenu>
@@ -1334,26 +1372,24 @@ export function CadPhaseQueueBoard({
           </CardContent>
         </Card>
 
-        {isCadQueue ? (
-          <div className="mb-4 flex justify-end gap-2">
-            <Button
-              size="sm"
-              variant={viewMode === 'table' ? 'default' : 'outline'}
-              onClick={() => setViewMode('table')}
-            >
-              <TableIcon className="mr-1 h-4 w-4" />
-              Table View
-            </Button>
-            <Button
-              size="sm"
-              variant={viewMode === 'card' ? 'default' : 'outline'}
-              onClick={() => setViewMode('card')}
-            >
-              <LayoutGrid className="mr-1 h-4 w-4" />
-              Card View
-            </Button>
-          </div>
-        ) : null}
+        <div className="mb-4 flex justify-end gap-2">
+          <Button
+            size="sm"
+            variant={viewMode === 'table' ? 'default' : 'outline'}
+            onClick={() => setViewMode('table')}
+          >
+            <TableIcon className="mr-1 h-4 w-4" />
+            Table View
+          </Button>
+          <Button
+            size="sm"
+            variant={viewMode === 'card' ? 'default' : 'outline'}
+            onClick={() => setViewMode('card')}
+          >
+            <LayoutGrid className="mr-1 h-4 w-4" />
+            Card View
+          </Button>
+        </div>
 
         {loading ? (
           <div className="flex items-center justify-center rounded-lg border border-border bg-card py-14">
@@ -1365,7 +1401,7 @@ export function CadPhaseQueueBoard({
               No leads found.
             </CardContent>
           </Card>
-        ) : isCadQueue && viewMode === 'table' ? (
+        ) : viewMode === 'table' ? (
           <div className="space-y-5">
             {groupedLeads.map((group) => (
               <Card key={group.month}>
@@ -1374,14 +1410,16 @@ export function CadPhaseQueueBoard({
                     <h3 className="text-sm font-semibold">{group.month}</h3>
                     <Badge variant="secondary">{group.leads.length} leads</Badge>
                   </div>
-                  <Table className="table-fixed text-sm">
+                  <Table className="table-fixed text-sm w-full">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[15%]">Lead Name</TableHead>
                         <TableHead className="w-[15%]">Stage</TableHead>
                         <TableHead className="w-[18%]">Address</TableHead>
                         <TableHead className="w-[11%]">Visit Date</TableHead>
-                        <TableHead className="w-[13%]">JR Architect</TableHead>
+                        <TableHead className="w-[13%]">
+                          {isCadQueue ? 'JR Architect' : isDesignQueue ? '3D Visualizer' : 'Quotation'}
+                        </TableHead>
                         <TableHead className="w-[11%]">SR CRM / Visit</TableHead>
                         <TableHead className="w-[10%]">Project Size</TableHead>
                         <TableHead className="w-[7%] text-right">Action</TableHead>
@@ -1394,24 +1432,27 @@ export function CadPhaseQueueBoard({
                             <button
                               type="button"
                               onClick={() => openRenameDialog(lead)}
-                              className="max-w-full truncate text-left hover:text-primary hover:underline"
+                              className="max-w-full truncate text-left hover:text-primary hover:underline font-semibold"
                               title={lead.name}
                             >
                               {lead.name}
                             </button>
                           </TableCell>
                           <TableCell>{stageSubStatusBlock(lead)}</TableCell>
-                          <TableCell>
-                            <span
-                              className="block max-w-[220px] truncate text-muted-foreground"
-                              title={lead.location || 'N/A'}
-                            >
+                          <TableCell className="max-w-[200px] overflow-hidden truncate" title={lead.location || 'N/A'}>
+                            <span className="text-muted-foreground">
                               {lead.location || 'N/A'}
                             </span>
                           </TableCell>
                           <TableCell>{formatDate(lead.latestCompletedVisit?.scheduledAt)}</TableCell>
-                          <TableCell className="truncate" title={lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}>
-                            {lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned'}
+                          <TableCell className="truncate" title={
+                            isCadQueue || isDesignQueue
+                              ? (lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned')
+                              : (lead.quotationAssignment?.user.fullName ?? 'Unassigned')
+                          }>
+                            {isCadQueue || isDesignQueue
+                              ? (lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned')
+                              : (lead.quotationAssignment?.user.fullName ?? 'Unassigned')}
                           </TableCell>
                           <TableCell>
                             <button
@@ -1453,7 +1494,7 @@ export function CadPhaseQueueBoard({
                 {group.leads.map((lead) => (
               <Card
                 key={lead.id}
-                className={leadCardClassName}
+                className={getLeadCardClassName(lead)}
               >
                 {canDropFromQueue ? (
                   <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/80 via-rose-400/70 to-amber-400/80" />
@@ -1665,7 +1706,7 @@ export function CadPhaseQueueBoard({
             {filteredLeads.map((lead) => (
               <Card
                 key={lead.id}
-                className={leadCardClassName}
+                className={getLeadCardClassName(lead)}
               >
                 {canDropFromQueue ? (
                   <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/80 via-rose-400/70 to-amber-400/80" />

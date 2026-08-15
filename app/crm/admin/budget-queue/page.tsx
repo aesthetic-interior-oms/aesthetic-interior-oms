@@ -9,6 +9,7 @@ export default function AdminBudgetQueuePage() {
       subtitle="Track all quotation and budget-phase leads across the organization."
       leadBasePath="/crm/admin/leads"
       queueType="budget"
+      showSrCrmFilter={true}
     />
   )
 }

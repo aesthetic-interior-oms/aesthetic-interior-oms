@@ -771,6 +771,7 @@ export default function LeadDetailPage() {
             canSubmitVisitResult={canManageAssignments}
             canOverrideVisitLeadRole={canManageAssignments}
             currentUserId={currentUserId}
+            restrictConversionStage={false}
             stage={stage}
             originalStage={lead.stage}
             subStatus={subStatus}

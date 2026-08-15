@@ -12,6 +12,7 @@ export default function AdminDesignQueuePage() {
       queueEndpoint="/api/cad-work/visualizer-queue"
       assigneeDepartment="VISUALIZER_3D"
       assigneeLabel="3D Visualizer"
+      showSrCrmFilter={true}
     />
   )
 }

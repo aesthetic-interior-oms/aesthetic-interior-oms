@@ -48,6 +48,9 @@ import {
   Package,
   Wrench,
   Sparkles,
+  MapPin,
+  Phone,
+  User,
 } from "lucide-react"
 
 // Category display mapping
@@ -150,6 +153,14 @@ export default function FinanceDashboard() {
   const [leadId, setLeadId] = useState<string>("none")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
 
+  // Project Picker Dialog States
+  const [isProjectPickerOpen, setIsProjectPickerOpen] = useState(false)
+  const [financeLeads, setFinanceLeads] = useState<any[]>([])
+  const [srCrmOptions, setSrCrmOptions] = useState<{ id: string; name: string }[]>([])
+  const [pickerSearch, setPickerSearch] = useState("")
+  const [pickerSrCrmFilter, setPickerSrCrmFilter] = useState("all")
+  const [financeLeadsLoading, setFinanceLeadsLoading] = useState(false)
+
   // Filter States
   const [filterLeadId, setFilterLeadId] = useState<string>("all")
   const [filterType, setFilterType] = useState<string>("all")
@@ -176,6 +187,25 @@ export default function FinanceDashboard() {
       toast.error("Failed to load transactions: " + e.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadFinanceLeads = async (search = "", srCrmId = "all") => {
+    setFinanceLeadsLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (search) params.set("search", search)
+      if (srCrmId && srCrmId !== "all") params.set("srCrmId", srCrmId)
+      const res = await fetch(`/api/finance/leads?${params.toString()}`)
+      const data = await res.json()
+      if (data.success) {
+        setFinanceLeads(data.data || [])
+        if (data.srCrms?.length) setSrCrmOptions(data.srCrms)
+      }
+    } catch (e: any) {
+      toast.error("Failed to load projects: " + e.message)
+    } finally {
+      setFinanceLeadsLoading(false)
     }
   }
 
@@ -352,7 +382,14 @@ export default function FinanceDashboard() {
         </div>
 
         {/* LOG TRANSACTION TRIGGER */}
-        <Dialog open={isLogOpen} onOpenChange={setIsLogOpen}>
+        <Dialog open={isLogOpen} onOpenChange={(open) => {
+          setIsLogOpen(open)
+          if (!open) {
+            setLeadId("none")
+            setPickerSearch("")
+            setPickerSrCrmFilter("all")
+          }
+        }}>
           <DialogTrigger asChild>
             <Button size="lg" className="gap-2">
               <PlusCircle className="w-5 h-5" /> Log Transaction
@@ -398,86 +435,233 @@ export default function FinanceDashboard() {
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold">{type === "OUTFLOW" ? "Expense Category" : "Income Category"}</label>
-                <Dialog open={isCategoryOpen} onOpenChange={setIsCategoryOpen}>
-                  <DialogTrigger asChild>
-                    <Button type="button" variant="outline" className="w-full justify-between h-auto min-h-10 px-3 py-2">
-                      <span className="flex items-center gap-2 text-left">
-                        {selectedCategory ? (
-                          <>
-                            {React.createElement(selectedCategory.icon, { className: "w-4 h-4 text-muted-foreground" })}
-                            <span>{selectedCategory.label}</span>
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground">Select category</span>
-                        )}
-                      </span>
-                      <Search className="w-4 h-4 text-muted-foreground" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl bg-card border border-border">
-                    <DialogHeader>
-                      <DialogTitle>{type === "OUTFLOW" ? "Choose Expense Category" : "Choose Income Category"}</DialogTitle>
-                    </DialogHeader>
+                  <Dialog open={isCategoryOpen} onOpenChange={(open) => {
+                    setIsCategoryOpen(open)
+                    if (open) {
+                      const storedCategories = window.localStorage.getItem(CUSTOM_CATEGORY_STORAGE_KEY)
+                      if (storedCategories) {
+                        try {
+                          const parsedCategories = JSON.parse(storedCategories) as Record<string, Omit<TransactionCategory, "icon">[]>
+                          setCustomCategories({
+                            OUTFLOW: (parsedCategories.OUTFLOW || []).map((item) => ({ ...item, icon: Tag, isCustom: true })),
+                            INFLOW: (parsedCategories.INFLOW || []).map((item) => ({ ...item, icon: Tag, isCustom: true })),
+                          })
+                        } catch (error) {
+                          console.error("Failed to sync custom categories", error)
+                        }
+                      }
+                    }
+                  }}>
+                    <DialogTrigger asChild>
+                      <Button type="button" variant="outline" className="w-full justify-between h-auto min-h-10 px-3 py-2">
+                        <span className="flex items-center gap-2 text-left">
+                          {selectedCategory ? (
+                            <>
+                              {React.createElement(selectedCategory.icon, { className: "w-4 h-4 text-muted-foreground" })}
+                              <span>{selectedCategory.label}</span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">Select category</span>
+                          )}
+                        </span>
+                        <Search className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-[95vw] md:max-w-4xl lg:max-w-5xl bg-card border border-border h-[80vh] md:h-auto flex flex-col">
+                      <DialogHeader className="shrink-0">
+                        <DialogTitle>{type === "OUTFLOW" ? "Choose Expense Category" : "Choose Income Category"}</DialogTitle>
+                      </DialogHeader>
 
-                    <div className="space-y-4 pt-2">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 w-4 h-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                          className="pl-9"
-                          placeholder="Search category..."
-                          value={categorySearch}
-                          onChange={(event) => setCategorySearch(event.target.value)}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-72 overflow-y-auto pr-1">
-                        <div className="col-span-2 md:col-span-3 rounded-lg border border-dashed border-primary/50 bg-primary/5 p-3">
-                          <div className="flex flex-col gap-2 sm:flex-row">
-                            <Input
-                              placeholder={`Add new ${type === "OUTFLOW" ? "expense" : "income"} category`}
-                              value={newCategoryName}
-                              onChange={(event) => setNewCategoryName(event.target.value)}
-                            />
-                            <Button type="button" onClick={handleAddCategory} className="shrink-0 gap-2">
-                              <PlusCircle className="w-4 h-4" /> Add New Category
-                            </Button>
-                          </div>
+                      <div className="space-y-4 pt-2 flex-1 flex flex-col min-h-0">
+                        <div className="relative shrink-0">
+                          <Search className="absolute left-3 top-1/2 w-4 h-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            className="pl-9"
+                            placeholder="Search category..."
+                            value={categorySearch}
+                            onChange={(event) => setCategorySearch(event.target.value)}
+                          />
                         </div>
 
-                        {filteredCategories.map((item) => (
-                          <Button
-                            key={item.key}
-                            type="button"
-                            variant={category === item.key ? "default" : "outline"}
-                            onClick={() => handleSelectCategory(item.key)}
-                            className="h-24 flex-col items-start justify-between gap-2 whitespace-normal p-3 text-left"
-                          >
-                            {React.createElement(item.icon, { className: "w-5 h-5" })}
-                            <span className="text-sm font-medium leading-tight">{item.label}</span>
-                            {item.isCustom && <Badge variant="secondary" className="text-[10px]">New item</Badge>}
-                          </Button>
-                        ))}
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 overflow-y-auto pr-1 flex-1 min-h-0 max-h-[55vh] pb-4">
+                          {filteredCategories.map((item) => (
+                            <Button
+                              key={item.key}
+                              type="button"
+                              variant={category === item.key ? "default" : "outline"}
+                              onClick={() => handleSelectCategory(item.key)}
+                              className="h-24 flex-col items-start justify-between gap-2 whitespace-normal p-3 text-left w-full transition duration-200"
+                            >
+                              {React.createElement(item.icon, { className: "w-5 h-5" })}
+                              <span className="text-sm font-medium leading-tight">{item.label}</span>
+                              {item.isCustom && <Badge variant="secondary" className="text-[10px]">Custom</Badge>}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                    </DialogContent>
+                  </Dialog>
               </div>
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold">Project/Client Allocation (Optional)</label>
-                <Select value={leadId} onValueChange={setLeadId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select project allocation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Office (Overhead / General)</SelectItem>
-                    {leads.map((lead) => (
-                      <SelectItem key={lead.id} value={lead.id}>
-                        {lead.name} ({lead.stage})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Project Picker Trigger Button */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between h-auto min-h-10 px-3 py-2"
+                  onClick={() => {
+                    setIsProjectPickerOpen(true)
+                    loadFinanceLeads(pickerSearch, pickerSrCrmFilter)
+                  }}
+                >
+                  <span className="flex items-center gap-2 text-left">
+                    {leadId === "none" ? (
+                      <span className="text-muted-foreground">Office (Overhead / General)</span>
+                    ) : (
+                      <span>{financeLeads.find((l) => l.id === leadId)?.name ?? leads.find((l: any) => l.id === leadId)?.name ?? leadId}</span>
+                    )}
+                  </span>
+                  <Search className="w-4 h-4 text-muted-foreground" />
+                </Button>
+
+                {/* Project Picker Dialog */}
+                <Dialog open={isProjectPickerOpen} onOpenChange={setIsProjectPickerOpen}>
+                  <DialogContent className="max-w-[95vw] md:max-w-4xl lg:max-w-5xl bg-card border border-border flex flex-col h-[85vh] md:h-[75vh]">
+                    <DialogHeader className="shrink-0">
+                      <DialogTitle>Select Project / Client Allocation</DialogTitle>
+                    </DialogHeader>
+
+                    {/* Search + Filter bar */}
+                    <div className="flex flex-col gap-2 sm:flex-row shrink-0 pt-1">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          className="pl-9"
+                          placeholder="Search by name, location, phone..."
+                          value={pickerSearch}
+                          onChange={(e) => {
+                            setPickerSearch(e.target.value)
+                            loadFinanceLeads(e.target.value, pickerSrCrmFilter)
+                          }}
+                        />
+                      </div>
+                      {srCrmOptions.length > 0 && (
+                        <Select
+                          value={pickerSrCrmFilter}
+                          onValueChange={(val) => {
+                            setPickerSrCrmFilter(val)
+                            loadFinanceLeads(pickerSearch, val)
+                          }}
+                        >
+                          <SelectTrigger className="w-full sm:w-52">
+                            <SelectValue placeholder="Filter by Sr. CRM" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Sr. CRM</SelectItem>
+                            {srCrmOptions.map((sr) => (
+                              <SelectItem key={sr.id} value={sr.id}>{sr.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+
+                    {/* Cards grid */}
+                    <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+                      {financeLeadsLoading ? (
+                        <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Loading projects...</div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
+                          {/* Office / General overhead card */}
+                          <button
+                            type="button"
+                            onClick={() => { setLeadId("none"); setIsProjectPickerOpen(false) }}
+                            className={`group text-left rounded-xl border-2 p-4 transition-all duration-200 hover:shadow-md ${
+                              leadId === "none"
+                                ? "border-primary bg-primary/5"
+                                : "border-border bg-card hover:border-primary/50"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="p-2 rounded-lg bg-muted">
+                                <Building className="w-5 h-5 text-muted-foreground" />
+                              </div>
+                              {leadId === "none" && (
+                                <Badge className="text-[10px] bg-primary text-primary-foreground">Selected</Badge>
+                              )}
+                            </div>
+                            <p className="font-semibold text-sm text-foreground">Office / General Overhead</p>
+                            <p className="text-xs text-muted-foreground mt-1">Not project-specific</p>
+                          </button>
+
+                          {financeLeads.map((lead) => (
+                            <button
+                              key={lead.id}
+                              type="button"
+                              onClick={() => { setLeadId(lead.id); setIsProjectPickerOpen(false) }}
+                              className={`group text-left rounded-xl border-2 p-4 transition-all duration-200 hover:shadow-md ${
+                                leadId === lead.id
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border bg-card hover:border-primary/50"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <Badge
+                                  variant="secondary"
+                                  className={`text-[10px] font-semibold ${
+                                    lead.stage === "CONVERSION" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200" :
+                                    lead.stage === "QUOTATION_PHASE" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200" :
+                                    lead.stage === "BUDGET_PHASE" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200" :
+                                    lead.stage === "VISUALIZATION_PHASE" ? "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200" :
+                                    lead.stage === "CLOSED" ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" :
+                                    ""
+                                  }`}
+                                >
+                                  {lead.stage === "QUOTATION_PHASE" ? "Quotation" :
+                                   lead.stage === "BUDGET_PHASE" ? "Budget" :
+                                   lead.stage === "VISUALIZATION_PHASE" ? "Visualization" :
+                                   lead.stage === "CONVERSION" ? "Conversion" :
+                                   lead.stage === "CLOSED" ? "Closed" : lead.stage}
+                                </Badge>
+                                {leadId === lead.id && (
+                                  <Badge className="text-[10px] bg-primary text-primary-foreground">Selected</Badge>
+                                )}
+                              </div>
+                              <p className="font-semibold text-sm text-foreground leading-snug mb-2">{lead.name}</p>
+                              <div className="space-y-1">
+                                {lead.location && (
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <MapPin className="w-3 h-3 shrink-0" />
+                                    <span className="truncate">{lead.location}</span>
+                                  </p>
+                                )}
+                                {lead.phone && (
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <Phone className="w-3 h-3 shrink-0" />
+                                    {lead.phone}
+                                  </p>
+                                )}
+                                {lead.srCrm && (
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <User className="w-3 h-3 shrink-0" />
+                                    {lead.srCrm}
+                                  </p>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+
+                          {!financeLeadsLoading && financeLeads.length === 0 && (
+                            <div className="col-span-full text-center py-10 text-sm text-muted-foreground">
+                              No projects found matching your search.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
