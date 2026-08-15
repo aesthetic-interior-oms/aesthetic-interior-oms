@@ -3,7 +3,7 @@ export const siteName = "Aesthetic Interior Studio"
 export const siteUrl = (
   process.env.NEXT_PUBLIC_SITE_URL ??
   process.env.NEXT_PUBLIC_APP_URL ??
-  "https://aestheticinterior.com"
+  "https://www.aestheticinteriorbd.com"
 ).replace(/\/$/, "")
 
 export function absoluteUrl(path: string) {
