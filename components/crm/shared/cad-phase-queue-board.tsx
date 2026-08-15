@@ -226,6 +226,9 @@ function subStatusBadgeClass(value: string | null | undefined) {
       return 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/40 dark:text-violet-200'
     case 'CAD_APPROVED':
       return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200'
+    default:
+      return ''
+  }
 }
 
 function getCardBgColor(subStatus: string | null | undefined, stage: string) {
