@@ -397,6 +397,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/admin/finance',
         },
         {
+          icon: ClipboardList,
+          label: 'Projects',
+          href: '/crm/accounts/projects',
+        },
+        {
           icon: Settings,
           label: 'Finance Settings',
           href: '/crm/admin/finance/settings',

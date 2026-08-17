@@ -34,6 +34,8 @@ type UpdateLeadStageBody = {
   reason?: unknown;
   jrArchitectUserId?: unknown;
   quotationUserId?: unknown;
+  agreementType?: unknown;
+  agreementValue?: unknown;
 };
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
@@ -111,6 +113,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const reason = toOptionalString(body.reason);
     const requestedJrArchitectUserId = toOptionalString(body.jrArchitectUserId);
     const requestedQuotationUserId = toOptionalString(body.quotationUserId);
+    const agreementType = toOptionalString(body.agreementType);
+    const agreementValueRaw = body.agreementValue;
+    const agreementValue = typeof agreementValueRaw === 'number' ? agreementValueRaw : typeof agreementValueRaw === 'string' ? parseFloat(agreementValueRaw) : null;
     debugLog('📋 [lead/:id/stage][PATCH] - Extracted fields. Stage:', nextStage, 'SubStatus:', requestedSubStatus);
 
     if (!nextStage) {
@@ -315,6 +320,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         data: {
           stage: nextStage,
           subStatus: nextSubStatus,
+          ...(agreementType !== null ? { agreementType } : {}),
+          ...(agreementValue !== null && !isNaN(agreementValue) ? { agreementValue } : {}),
         },
       });
 

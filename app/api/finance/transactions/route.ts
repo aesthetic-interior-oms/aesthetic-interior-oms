@@ -5,6 +5,7 @@ import { TransactionType, PaymentAccount } from "@/generated/prisma/client"
 
 export const runtime = "nodejs"
 export const preferredRegion = "sin1"
+export const dynamic = "force-dynamic"
 
 // Helper to get local DB user from Clerk auth
 async function getDbUser() {
@@ -31,67 +32,75 @@ export async function GET(request: NextRequest) {
     const startDateStr = searchParams.get("startDate")
     const endDateStr = searchParams.get("endDate")
 
-    const where: any = {}
+    // Build the where clause for filtering transactions
+    const where: Record<string, unknown> = {}
     if (leadId) where.leadId = leadId
     if (type) where.type = type
     if (category) where.category = category
     if (account) where.account = account
 
     if (startDateStr || endDateStr) {
-      where.date = {}
-      if (startDateStr) where.date.gte = new Date(startDateStr)
-      if (endDateStr) where.date.lte = new Date(endDateStr)
+      const dateFilter: Record<string, Date> = {}
+      if (startDateStr) dateFilter.gte = new Date(startDateStr)
+      if (endDateStr) {
+        // Set to end of day
+        const end = new Date(endDateStr)
+        end.setHours(23, 59, 59, 999)
+        dateFilter.lte = end
+      }
+      where.date = dateFilter
     }
 
-    // Fetch transactions
-    const transactions = await prisma.transaction.findMany({
-      where,
-      include: {
-        lead: {
-          select: {
-            id: true,
-            name: true,
-            stage: true,
+    // Run both queries in parallel: filtered transactions + aggregate totals (all-time for balance)
+    const [transactions, aggregates] = await Promise.all([
+      prisma.transaction.findMany({
+        where,
+        include: {
+          lead: {
+            select: {
+              id: true,
+              name: true,
+              stage: true,
+            },
+          },
+          recordedBy: {
+            select: {
+              id: true,
+              fullName: true,
+            },
           },
         },
-        recordedBy: {
-          select: {
-            id: true,
-            fullName: true,
-          },
+        orderBy: {
+          date: "desc",
         },
-      },
-      orderBy: {
-        date: "desc",
-      },
-    })
+        // Cap at 500 rows for performance; pagination can be added later
+        take: 500,
+      }),
+      // Single aggregation query for all-time balance (no filters applied here)
+      prisma.transaction.groupBy({
+        by: ["type", "account"],
+        _sum: {
+          amount: true,
+        },
+      }),
+    ])
 
-    // Compute Daily Opening & Closing balance calculations for Cash/Bank
-    // (This acts as the calculation logic from Daily Expanses.pdf)
-    const allInflows = await prisma.transaction.findMany({
-      where: { type: TransactionType.INFLOW },
-      select: { amount: true, account: true },
-    })
-
-    const allOutflows = await prisma.transaction.findMany({
-      where: { type: TransactionType.OUTFLOW },
-      select: { amount: true, account: true },
-    })
-
+    // Compute balances from aggregate
     let totalCashIn = 0
     let totalBankIn = 0
     let totalCashOut = 0
     let totalBankOut = 0
 
-    allInflows.forEach((tx) => {
-      if (tx.account === PaymentAccount.CASH) totalCashIn += tx.amount
-      else totalBankIn += tx.amount
-    })
-
-    allOutflows.forEach((tx) => {
-      if (tx.account === PaymentAccount.CASH) totalCashOut += tx.amount
-      else totalBankOut += tx.amount
-    })
+    for (const group of aggregates) {
+      const sum = group._sum.amount ?? 0
+      if (group.type === TransactionType.INFLOW) {
+        if (group.account === PaymentAccount.CASH) totalCashIn += sum
+        else totalBankIn += sum
+      } else {
+        if (group.account === PaymentAccount.CASH) totalCashOut += sum
+        else totalBankOut += sum
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -102,9 +111,10 @@ export async function GET(request: NextRequest) {
         total: (totalCashIn - totalCashOut) + (totalBankIn - totalBankOut),
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[GET /api/finance/transactions] failed", error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    const message = error instanceof Error ? error.message : "Unknown error"
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
 
@@ -115,7 +125,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
     }
 
-    const body = await request.json()
+    const body = await request.json() as {
+      type: string
+      category: string
+      particular: string
+      amount: number
+      account: string
+      leadId?: string
+      date?: string
+    }
     const { type, category, particular, amount, account, leadId, date } = body
 
     if (!type || !category || !particular || typeof amount !== "number" || !account) {
@@ -147,8 +165,9 @@ export async function POST(request: NextRequest) {
     })
 
     return NextResponse.json({ success: true, data: transaction }, { status: 201 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[POST /api/finance/transactions] failed", error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    const message = error instanceof Error ? error.message : "Unknown error"
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

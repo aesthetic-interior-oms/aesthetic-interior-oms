@@ -23,6 +23,8 @@ model Lead {
   subStatus  LeadSubStatus?
   budget     Float?
   quotationType String?
+  agreementType String?
+  agreementValue Float?
   location   String?
   remarks    String?
   assignedTo String?

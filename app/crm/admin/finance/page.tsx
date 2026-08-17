@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react"
 import {
   Card,
   CardContent,
@@ -123,11 +123,51 @@ const CUSTOM_CATEGORY_STORAGE_KEY = "finance-custom-transaction-categories"
 const formatCustomCategoryKey = (name: string, type: TransactionCategoryType) =>
   `CUSTOM_${type}_${name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "")}`
 
+// ── Date preset helpers ──────────────────────────────────────────────────────
+type DatePreset = "today" | "yesterday" | "this_week" | "this_month" | "custom"
+
+function getTodayStr() {
+  return new Date().toISOString().split("T")[0]
+}
+
+function getDateRange(preset: DatePreset, customStart: string, customEnd: string): { start: string; end: string } {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, "0")
+  const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+
+  if (preset === "today") {
+    const t = fmt(now)
+    return { start: t, end: t }
+  }
+  if (preset === "yesterday") {
+    const y = new Date(now)
+    y.setDate(y.getDate() - 1)
+    const s = fmt(y)
+    return { start: s, end: s }
+  }
+  if (preset === "this_week") {
+    const day = now.getDay() // 0=Sun
+    const monday = new Date(now)
+    monday.setDate(now.getDate() - ((day + 6) % 7))
+    return { start: fmt(monday), end: fmt(now) }
+  }
+  if (preset === "this_month") {
+    return { start: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, end: fmt(now) }
+  }
+  // custom
+  return { start: customStart, end: customEnd }
+}
+
 export default function FinanceDashboard() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [leads, setLeads] = useState<any[]>([])
   const [balances, setBalances] = useState({ cash: 0, bank: 0, total: 0 })
   const [loading, setLoading] = useState(true)
+
+  // Journal date filter states
+  const [datePreset, setDatePreset] = useState<DatePreset>("today")
+  const [customStart, setCustomStart] = useState(getTodayStr())
+  const [customEnd, setCustomEnd] = useState(getTodayStr())
 
   // Report States
   const [selectedMonth, setSelectedMonth] = useState("2026-06")
@@ -166,29 +206,35 @@ export default function FinanceDashboard() {
   const [filterType, setFilterType] = useState<string>("all")
   const [searchTerm, setSearchTerm] = useState("")
 
-  const loadData = async () => {
+  const loadJournalData = useCallback(async (preset: DatePreset, cStart: string, cEnd: string) => {
     setLoading(true)
     try {
-      // Load active leads/projects for drop downs
-      const leadsRes = await fetch("/api/lead")
-      const leadsData = await leadsRes.json()
-      if (leadsData.success) {
-        setLeads(leadsData.data || [])
-      }
+      const { start, end } = getDateRange(preset, cStart, cEnd)
+      const params = new URLSearchParams({ startDate: start, endDate: end })
+      if (filterType !== "all") params.set("type", filterType)
+      if (filterLeadId !== "all") params.set("leadId", filterLeadId)
 
-      // Load all transactions
-      const txRes = await fetch("/api/finance/transactions")
-      const txData = await txRes.json()
+      // Load leads for dropdowns (only once needed, but keep for balance)
+      const [leadsRes, txRes] = await Promise.all([
+        fetch("/api/lead"),
+        fetch(`/api/finance/transactions?${params.toString()}`),
+      ])
+      const [leadsData, txData] = await Promise.all([leadsRes.json(), txRes.json()])
+
+      if (leadsData.success) setLeads(leadsData.data || [])
       if (txData.success) {
         setTransactions(txData.data)
         setBalances(txData.balances)
       }
-    } catch (e: any) {
-      toast.error("Failed to load transactions: " + e.message)
+    } catch (e: unknown) {
+      toast.error("Failed to load journal: " + (e instanceof Error ? e.message : "Unknown error"))
     } finally {
       setLoading(false)
     }
-  }
+  }, [filterType, filterLeadId])
+
+  // Keep old name as alias for places that still call loadData (e.g. after posting)
+  const loadData = useCallback(() => loadJournalData(datePreset, customStart, customEnd), [loadJournalData, datePreset, customStart, customEnd])
 
   const loadFinanceLeads = async (search = "", srCrmId = "all") => {
     setFinanceLeadsLoading(true)
@@ -235,7 +281,7 @@ export default function FinanceDashboard() {
   }
 
   useEffect(() => {
-    loadData()
+    void loadJournalData(datePreset, customStart, customEnd)
     loadMonthlyReport(selectedMonth)
 
     const storedCategories = window.localStorage.getItem(CUSTOM_CATEGORY_STORAGE_KEY)
@@ -363,15 +409,24 @@ export default function FinanceDashboard() {
     }
   }
 
-  // Filter transactions
+  // Client-side search filter only (type/date filters go to the API)
   const filteredTransactions = transactions.filter((tx) => {
-    const matchesLead = filterLeadId === "all" || tx.leadId === filterLeadId
-    const matchesType = filterType === "all" || tx.type === filterType
-    const matchesSearch =
+    if (!searchTerm) return true
+    return (
       tx.particular.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (tx.lead?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesLead && matchesType && matchesSearch
+    )
   })
+
+  const handlePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset)
+    void loadJournalData(preset, customStart, customEnd)
+  }
+
+  const handleCustomDateApply = () => {
+    setDatePreset("custom")
+    void loadJournalData("custom", customStart, customEnd)
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -751,7 +806,7 @@ export default function FinanceDashboard() {
       <Tabs defaultValue="ledger" className="space-y-6">
         <TabsList className="bg-muted p-1 border border-border">
           <TabsTrigger value="ledger" className="gap-2">
-            <FileText className="w-4 h-4" /> Daily Ledger Logs
+            <FileText className="w-4 h-4" /> Daily Journal
           </TabsTrigger>
           <TabsTrigger value="projects" className="gap-2">
             <Briefcase className="w-4 h-4" /> Project Budgets & Matrix
@@ -761,28 +816,84 @@ export default function FinanceDashboard() {
           </TabsTrigger>
         </TabsList>
 
-        {/* TAB 1: DAILY LEDGER LOGS */}
+        {/* TAB 1: DAILY JOURNAL */}
         <TabsContent value="ledger" className="space-y-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-4">
-              <div>
-                <CardTitle>Cash Flow ledger</CardTitle>
-                <CardDescription>Real-time transaction tracker covering all inflows and outflows.</CardDescription>
-              </div>
-
-              {/* FILTERING CONTROLS */}
-              <div className="flex gap-2">
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-3 text-muted-foreground" />
+            <CardHeader className="flex flex-col gap-4 pb-4">
+              <div className="flex flex-row items-start justify-between gap-4">
+                <div>
+                  <CardTitle>Daily Journal</CardTitle>
+                  <CardDescription>Real-time transaction tracker covering all inflows and outflows.</CardDescription>
+                </div>
+                {/* Search */}
+                <div className="relative shrink-0">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    placeholder="Search ledger..."
-                    className="pl-9 w-60"
+                    placeholder="Search journal..."
+                    className="pl-9 w-56"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="w-36">
+              </div>
+
+              {/* DATE FILTER TAGS */}
+              <div className="flex flex-wrap items-center gap-2">
+                {([
+                  { key: "today", label: "Today" },
+                  { key: "yesterday", label: "Yesterday" },
+                  { key: "this_week", label: "This Week" },
+                  { key: "this_month", label: "This Month" },
+                ] as { key: DatePreset; label: string }[]).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => handlePresetChange(key)}
+                    className={`rounded-full px-4 py-1.5 text-xs font-semibold border transition-all ${
+                      datePreset === key
+                        ? "bg-foreground text-background border-foreground shadow-sm"
+                        : "bg-muted text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+
+                {/* Custom Date Picker */}
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="date"
+                    className={`h-8 w-36 text-xs ${
+                      datePreset === "custom" ? "border-foreground ring-1 ring-foreground" : ""
+                    }`}
+                    value={customStart}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                  />
+                  <span className="text-xs text-muted-foreground">→</span>
+                  <Input
+                    type="date"
+                    className={`h-8 w-36 text-xs ${
+                      datePreset === "custom" ? "border-foreground ring-1 ring-foreground" : ""
+                    }`}
+                    value={customEnd}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                  />
+                  <button
+                    onClick={handleCustomDateApply}
+                    className="rounded-full px-3 py-1.5 text-xs font-semibold border border-border bg-muted hover:bg-accent hover:text-accent-foreground transition-all"
+                  >
+                    Apply
+                  </button>
+                </div>
+
+                {/* Type filter */}
+                <Select
+                  value={filterType}
+                  onValueChange={(v) => {
+                    setFilterType(v)
+                    void loadJournalData(datePreset, customStart, customEnd)
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-32 text-xs">
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -791,26 +902,47 @@ export default function FinanceDashboard() {
                     <SelectItem value="OUTFLOW">Outflow Only</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={filterLeadId} onValueChange={setFilterLeadId}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Allocated To" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Allocations</SelectItem>
-                    {leads.map((l) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        {l.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </CardHeader>
+
             <CardContent>
               {loading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading transactions...</div>
+                // ── Skeleton ────────────────────────────────────────────────
+                <div className="overflow-x-auto border border-border rounded-lg">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-muted/50 border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        <th className="p-3">Date</th>
+                        <th className="p-3">Particulars</th>
+                        <th className="p-3">Allocated Project</th>
+                        <th className="p-3">Category</th>
+                        <th className="p-3">Account</th>
+                        <th className="p-3">Recorder</th>
+                        <th className="p-3 text-right">Inflow (BDT)</th>
+                        <th className="p-3 text-right">Outflow (BDT)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {Array.from({ length: 7 }).map((_, i) => (
+                        <tr key={i} className="animate-pulse">
+                          <td className="p-3"><div className="h-3 w-20 rounded bg-muted" /></td>
+                          <td className="p-3"><div className="h-3 w-40 rounded bg-muted" /></td>
+                          <td className="p-3"><div className="h-3 w-24 rounded bg-muted" /></td>
+                          <td className="p-3"><div className="h-3 w-28 rounded bg-muted" /></td>
+                          <td className="p-3"><div className="h-5 w-16 rounded-full bg-muted" /></td>
+                          <td className="p-3"><div className="h-3 w-20 rounded bg-muted" /></td>
+                          <td className="p-3"><div className="h-3 w-16 rounded bg-muted ml-auto" /></td>
+                          <td className="p-3"><div className="h-3 w-16 rounded bg-muted ml-auto" /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : filteredTransactions.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">No transactions found. Log one to get started!</div>
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
+                  <Calendar className="w-10 h-10 opacity-30" />
+                  <p className="text-sm">No transactions found for this period.</p>
+                </div>
               ) : (
                 <div className="overflow-x-auto border border-border rounded-lg">
                   <table className="w-full text-left border-collapse">

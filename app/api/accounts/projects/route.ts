@@ -1,0 +1,69 @@
+import prisma from '@/lib/prisma'
+import { NextResponse } from 'next/server'
+import { requireDatabaseRoles } from '@/lib/authz'
+
+export const dynamic = 'force-dynamic'
+
+export async function GET() {
+  try {
+    const authResult = await requireDatabaseRoles(['ACCOUNTS', 'ADMIN'])
+    if (!authResult.ok) {
+      return authResult.response
+    }
+
+    const projects = await prisma.lead.findMany({
+      where: {
+        agreementType: {
+          not: null,
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        location: true,
+        agreementType: true,
+        agreementValue: true,
+        transactions: {
+          where: {
+            type: 'INFLOW',
+          },
+          select: {
+            amount: true,
+          },
+        },
+        primaryOwner: {
+          select: {
+            fullName: true,
+          },
+        },
+      },
+      orderBy: {
+        updated_at: 'desc',
+      },
+    })
+
+    const data = projects.map((p) => {
+      const paid = p.transactions.reduce((sum: number, t: { amount: number }) => sum + t.amount, 0)
+      const agreementValue = p.agreementValue ?? 0
+      const due = agreementValue - paid
+      return {
+        id: p.id,
+        name: p.name,
+        location: p.location,
+        agreementType: p.agreementType,
+        agreementValue,
+        paid,
+        due,
+        srCrmName: p.primaryOwner?.fullName ?? 'Unassigned',
+      }
+    })
+
+    return NextResponse.json({ success: true, data })
+  } catch (error) {
+    console.error('[accounts/projects][GET] Error:', error)
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch projects' },
+      { status: 500 },
+    )
+  }
+}

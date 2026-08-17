@@ -361,6 +361,8 @@ export function CadPhaseQueueBoard({
   const [clientApproval, setClientApproval] = useState<
     'DESIGN_AGREEMENT' | 'FITOUT_AGREEMENT' | 'NO_APPROVAL'
   >('NO_APPROVAL')
+  const [agreementValue, setAgreementValue] = useState<number | ''>('')
+  const [isDirectAgreementConfirm, setIsDirectAgreementConfirm] = useState(false)
   const [quotationMembers, setQuotationMembers] = useState<DepartmentUser[]>([])
   const [visualizerMembers, setVisualizerMembers] = useState<DepartmentUser[]>(
     [],
@@ -780,7 +782,7 @@ export function CadPhaseQueueBoard({
     }
   }
 
-  const openCompleteMeetingDialog = async (lead: LeadRecord) => {
+  const openCompleteMeetingDialog = async (lead: LeadRecord, directAgreement: boolean = false) => {
     const isBudgetMeeting =
       lead.stage === 'BUDGET_PHASE' &&
       lead.subStatus === 'BUDGET_MEETING_SET'
@@ -789,12 +791,14 @@ export function CadPhaseQueueBoard({
     setCompleteMeetingNote('')
     setQuotationMemberId('')
     setVisualizerMemberId('')
-    setClientApproval(isBudgetMeeting ? 'DESIGN_AGREEMENT' : 'NO_APPROVAL')
+    setIsDirectAgreementConfirm(directAgreement)
+    setAgreementValue('')
+    setClientApproval((isBudgetMeeting || directAgreement) ? 'DESIGN_AGREEMENT' : 'NO_APPROVAL')
     setCompleteMeetingOpen(true)
     if (lead.stage === 'DISCOVERY' && lead.subStatus === 'FIRST_MEETING_SET') {
       await loadQuotationMembers()
     }
-    if (isBudgetMeeting) {
+    if (isBudgetMeeting || directAgreement) {
       await loadVisualizerMembers()
     }
   }
@@ -984,7 +988,9 @@ export function CadPhaseQueueBoard({
               reason:
                 clientApproval === 'NO_APPROVAL'
                   ? `Budget meeting completed: no approval. ${completeMeetingNote.trim()}`
-                  : `Budget meeting completed with ${clientApproval.replace('_', ' ').toLowerCase()} and assigned to 3D Visualizer. ${completeMeetingNote.trim()}`,
+                  : `${isDirectAgreementConfirm ? 'Direct agreement confirmed' : 'Budget meeting completed'} with ${clientApproval.replace('_', ' ').toLowerCase()} and assigned to 3D Visualizer. ${completeMeetingNote.trim()}`,
+              agreementType: clientApproval !== 'NO_APPROVAL' ? clientApproval : undefined,
+              agreementValue: clientApproval !== 'NO_APPROVAL' && agreementValue !== '' ? agreementValue : undefined,
             }),
           },
         )
@@ -1589,13 +1595,23 @@ export function CadPhaseQueueBoard({
                           ) : null}
                           {lead.stage === 'QUOTATION_PHASE' &&
                           lead.subStatus === 'QUOTATION_APPROVED' ? (
-                            <Button
-                              size="sm"
-                              onClick={() => openBudgetMeetingDialog(lead)}
-                            >
-                              <CalendarClock className="mr-1 h-4 w-4" />
-                              Set Budget Meeting
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => openBudgetMeetingDialog(lead)}
+                              >
+                                <CalendarClock className="mr-1 h-4 w-4" />
+                                Set Budget Meeting
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => void openCompleteMeetingDialog(lead, true)}
+                              >
+                                <CheckCircle2 className="mr-1 h-4 w-4" />
+                                Agreement Confirm
+                              </Button>
+                            </>
                           ) : lead.stage === 'BUDGET_PHASE' &&
                             lead.subStatus === 'BUDGET_MEETING_SET' ? (
                             <Button
@@ -1801,13 +1817,23 @@ export function CadPhaseQueueBoard({
                           ) : null}
                           {lead.stage === 'QUOTATION_PHASE' &&
                           lead.subStatus === 'QUOTATION_APPROVED' ? (
-                            <Button
-                              size="sm"
-                              onClick={() => openBudgetMeetingDialog(lead)}
-                            >
-                              <CalendarClock className="mr-1 h-4 w-4" />
-                              Set Budget Meeting
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => openBudgetMeetingDialog(lead)}
+                              >
+                                <CalendarClock className="mr-1 h-4 w-4" />
+                                Set Budget Meeting
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => void openCompleteMeetingDialog(lead, true)}
+                              >
+                                <CheckCircle2 className="mr-1 h-4 w-4" />
+                                Agreement Confirm
+                              </Button>
+                            </>
                           ) : lead.stage === 'BUDGET_PHASE' &&
                             lead.subStatus === 'BUDGET_MEETING_SET' ? (
                             <Button
@@ -2226,16 +2252,20 @@ export function CadPhaseQueueBoard({
             <DialogTitle>
               {completeMeetingLead?.stage === 'BUDGET_PHASE'
                 ? 'Complete Budget Meeting'
-                : 'Complete First Meeting'}
+                : isDirectAgreementConfirm
+                  ? 'Agreement Confirm'
+                  : 'Complete First Meeting'}
             </DialogTitle>
             <DialogDescription>
               {completeMeetingLead?.stage === 'BUDGET_PHASE'
                 ? 'Complete budget meeting, select client approval, and assign a 3D Visualizer.'
-                : 'Complete first meeting and assign quotation member.'}
+                : isDirectAgreementConfirm
+                  ? 'Confirm agreement details and assign a 3D Visualizer.'
+                  : 'Complete first meeting and assign quotation member.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {completeMeetingLead?.stage === 'BUDGET_PHASE' ? (
+            {completeMeetingLead?.stage === 'BUDGET_PHASE' || isDirectAgreementConfirm ? (
               <>
                 <div className="space-y-1">
                   <Label>Client Approval</Label>
@@ -2264,6 +2294,17 @@ export function CadPhaseQueueBoard({
                     </SelectContent>
                   </Select>
                 </div>
+                {clientApproval !== 'NO_APPROVAL' ? (
+                  <div className="space-y-1">
+                    <Label>Agreement Value (BDT)</Label>
+                    <Input
+                      type="number"
+                      placeholder="e.g. 500000"
+                      value={agreementValue}
+                      onChange={(e) => setAgreementValue(e.target.value === '' ? '' : Number(e.target.value))}
+                    />
+                  </div>
+                ) : null}
                 {clientApproval !== 'NO_APPROVAL' ? (
                   <div className="space-y-1">
                     <Label>Assign 3D Visualizer</Label>
