@@ -519,7 +519,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         formatServerTiming('total', totalDurationMs, 'request total'),
       ].join(', '),
     );
-    response.headers.set('Cache-Control', 'private, max-age=15, stale-while-revalidate=45');
+    response.headers.set('Cache-Control', 'no-store, max-age=0');
     return response;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021') {
@@ -546,7 +546,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             formatServerTiming('total', totalDurationMs, 'request total'),
           ].join(', '),
         );
-        response.headers.set('Cache-Control', 'private, max-age=15, stale-while-revalidate=45');
+        response.headers.set('Cache-Control', 'no-store, max-age=0');
         return response;
       } catch (fallbackError) {
         console.error('[DEBUG][lead/:id][GET] Fallback error:', fallbackError);

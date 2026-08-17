@@ -219,7 +219,7 @@ type LeadsCacheEntry = {
   stageCounts: Record<string, number>
 }
 
-const LEADS_CACHE_TTL_MS = 60_000
+const LEADS_CACHE_TTL_MS = 0
 let leadsCache: LeadsCacheEntry | null = null
 const leadsRequestMap = new Map<string, Promise<LeadsResponse>>()
 const DEFAULT_LIFETIME_START_DATE = '2026-03-25'

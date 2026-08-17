@@ -8,6 +8,7 @@ import {
 
 export const runtime = 'nodejs'
 export const preferredRegion = 'sin1'
+export const dynamic = 'force-dynamic'
 
 type UpdateBody = {
   supportDataEnabled?: unknown

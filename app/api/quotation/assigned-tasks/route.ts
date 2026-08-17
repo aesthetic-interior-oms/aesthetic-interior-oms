@@ -54,7 +54,7 @@ export async function GET(request: Request) {
         assignments: {
           where: {
             department: {
-              in: [LeadAssignmentDepartment.QUOTATION, LeadAssignmentDepartment.SR_CRM]
+              in: [LeadAssignmentDepartment.QUOTATION, LeadAssignmentDepartment.SR_CRM, LeadAssignmentDepartment.JR_ARCHITECT]
             }
           },
           select: {
@@ -85,6 +85,11 @@ export async function GET(request: Request) {
           orderBy: { startsAt: 'desc' },
           take: 1,
         },
+        visits: {
+          select: { projectSqft: true },
+          orderBy: { scheduledAt: 'desc' },
+          take: 1,
+        },
       },
       orderBy: { updated_at: 'desc' },
     })
@@ -102,7 +107,9 @@ export async function GET(request: Request) {
         budget: lead.budget,
         quotationAssignee: lead.assignments.find((a) => a.department === 'QUOTATION')?.user ?? null,
         srCrmAssignee: lead.assignments.find((a) => a.department === 'SR_CRM')?.user ?? null,
+        jrArchitectAssignee: lead.assignments.find((a) => a.department === 'JR_ARCHITECT')?.user ?? null,
         latestFirstMeeting: lead.meetingEvents[0] ?? null,
+        projectSqft: lead.visits[0]?.projectSqft ?? null,
         attachments: lead.attachments,
         canStart:
           lead.stage === LeadStage.QUOTATION_PHASE &&

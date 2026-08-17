@@ -39,6 +39,12 @@ type TaskLead = {
     fullName: string;
     email: string;
   } | null;
+  jrArchitectAssignee: {
+    id: string;
+    fullName: string;
+    email: string;
+  } | null;
+  projectSqft: number | null;
   canStart: boolean;
   canSubmit: boolean;
   attachments?: Array<{
@@ -77,6 +83,7 @@ export default function QuotationAssignedTaskPage() {
     { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" },
   ]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [viewMode, setViewMode] = useState<"card" | "table">("card");
 
   function createEmptyAttachment(): AttachmentInput {
     return { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" };
@@ -318,6 +325,100 @@ export default function QuotationAssignedTaskPage() {
             </CardContent>
           </Card>
         ) : (
+          <>
+            <div className="mb-4 flex items-center justify-end border-b border-border/40 pb-4">
+              <div className="flex items-center gap-2 rounded-md border p-1 bg-muted/20">
+                <Button
+                  variant={viewMode === "card" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  onClick={() => setViewMode("card")}
+                >
+                  Card View
+                </Button>
+                <Button
+                  variant={viewMode === "table" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  onClick={() => setViewMode("table")}
+                >
+                  Table View
+                </Button>
+              </div>
+            </div>
+
+            {viewMode === "table" ? (
+              <div className="rounded-md border bg-card">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="border-b bg-muted/50 text-left text-xs text-muted-foreground">
+                      <tr>
+                        <th className="px-4 py-3 font-medium">Lead Name</th>
+                        <th className="px-4 py-3 font-medium">Stage / Status</th>
+                        <th className="px-4 py-3 font-medium">Location & Sqft</th>
+                        <th className="px-4 py-3 font-medium">Visit Date</th>
+                        <th className="px-4 py-3 font-medium">Assignees</th>
+                        <th className="px-4 py-3 text-right font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/50">
+                      {leads.map((lead) => (
+                        <tr key={lead.id} className="hover:bg-muted/30">
+                          <td className="px-4 py-3">
+                            <Link href={`/quotation-team/leads/${lead.id}`} className="font-semibold hover:text-primary hover:underline">{lead.name}</Link>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-col gap-1 items-start">
+                              <Badge variant="secondary" className="text-[10px]">{formatLabel(lead.stage)}</Badge>
+                              <Badge variant="outline" className="text-[10px]">{formatLabel(lead.subStatus)}</Badge>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="max-w-[150px] truncate" title={lead.location ?? ""}>{lead.location ?? "—"}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">{lead.projectSqft ? `${lead.projectSqft.toLocaleString()} sqft` : ""}</div>
+                          </td>
+                          <td className="px-4 py-3 text-xs">
+                            {lead.latestFirstMeeting?.startsAt ? new Date(lead.latestFirstMeeting.startsAt).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' }) : "Not set"}
+                          </td>
+                          <td className="px-4 py-3 text-xs">
+                            <div className="flex flex-col gap-1">
+                              {lead.srCrmAssignee ? <span>SR: {lead.srCrmAssignee.fullName}</span> : <span className="text-muted-foreground">SR: Unassigned</span>}
+                              {lead.jrArchitectAssignee ? <span>JR: {lead.jrArchitectAssignee.fullName}</span> : <span className="text-muted-foreground">JR: Unassigned</span>}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              {lead.subStatus === "QUOTATION_WORKING" || lead.subStatus === "QUOTATION_CORRECTION" ? (
+                                <Button asChild size="sm" variant="ghost" className="h-8 px-2 text-xs">
+                                  <Link href={`/quotation-team/leads/${lead.id}`}>Work</Link>
+                                </Button>
+                              ) : null}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-2 text-xs"
+                                disabled={busyId === lead.id || !lead.canStart}
+                                onClick={() => startQuotationWork(lead.id)}
+                              >
+                                Start
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="h-8 px-2 text-xs"
+                                disabled={busyId === lead.id || !lead.canSubmit}
+                                onClick={() => openSubmitDialog(lead)}
+                              >
+                                Submit
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
           <div className="space-y-3">
             {leads.map((lead) => (
               <Card
@@ -419,24 +520,36 @@ export default function QuotationAssignedTaskPage() {
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground mt-4 border-t border-border/40 pt-4">
                     {lead.location && (
                       <span className="inline-flex items-center gap-1">
-                        <MapPin className="h-4 w-4 text-primary/70" />
-                        {lead.location}
+                        <MapPin className="h-4 w-4 shrink-0 text-primary/70" />
+                        <span className="max-w-[200px] truncate" title={lead.location}>{lead.location}</span>
                       </span>
                     )}
+                    {lead.projectSqft ? (
+                      <span className="inline-flex items-center gap-1">
+                        <Sparkles className="h-4 w-4 shrink-0 text-primary/70" />
+                        {lead.projectSqft.toLocaleString()} sqft
+                      </span>
+                    ) : null}
                     {lead.srCrmAssignee && (
                       <span className="inline-flex items-center gap-1">
-                        <UserRound className="h-4 w-4 text-primary/70" />
-                        SR CRM: {lead.srCrmAssignee.fullName}
+                        <UserRound className="h-4 w-4 shrink-0 text-primary/70" />
+                        <span className="max-w-[150px] truncate" title={`SR CRM: ${lead.srCrmAssignee.fullName}`}>SR CRM: {lead.srCrmAssignee.fullName}</span>
+                      </span>
+                    )}
+                    {lead.jrArchitectAssignee && (
+                      <span className="inline-flex items-center gap-1">
+                        <PenTool className="h-4 w-4 shrink-0 text-primary/70" />
+                        <span className="max-w-[150px] truncate" title={`Jr Arch: ${lead.jrArchitectAssignee.fullName}`}>Jr Arch: {lead.jrArchitectAssignee.fullName}</span>
                       </span>
                     )}
                     <span className="inline-flex items-center gap-1">
-                      <CalendarClock className="h-4 w-4 text-primary/70" />
-                      1st Meet:
+                      <CalendarClock className="h-4 w-4 shrink-0 text-primary/70" />
+                      Visit Date:
                       <span className="font-medium text-foreground">
                         {lead.latestFirstMeeting?.startsAt
                           ? new Date(
                               lead.latestFirstMeeting.startsAt,
-                            ).toLocaleString()
+                            ).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })
                           : "Not set"}
                       </span>
                     </span>
@@ -445,6 +558,8 @@ export default function QuotationAssignedTaskPage() {
               </Card>
             ))}
           </div>
+          )}
+        </>
         )}
       </main>
 
@@ -458,69 +573,67 @@ export default function QuotationAssignedTaskPage() {
           }
         }}
       >
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Submit Quotation Work</DialogTitle>
             <DialogDescription>
-              Send the completed quotation details to the assigned Senior CRM
-              Review Center. The lead will move to Quotation Completed and leave
-              the Budget Queue until approval.
+              Send the completed quotation details to the assigned Senior CRM Review Center.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">
-              Work details for {submitLead?.name} (optional)
-            </p>
-            <Textarea
-              rows={5}
-              value={submitNote}
-              onChange={(event) => setSubmitNote(event.target.value)}
-              placeholder="Add optional notes for Senior CRM review..."
-            />
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Quotation files</p>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Choose Short or Detail for each PDF. Short quotations also need a package type.</p>
-              {submitAttachments.map((attachment, index) => (
-                <div key={attachment.id} className="space-y-2 rounded-md border p-3">
-                  <p className="text-xs font-medium text-muted-foreground">Attachment {index + 1}</p>
-                  <select
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={attachment.documentType}
-                    onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, documentType: event.target.value as AttachmentDocumentType } : item))}
-                  >
-                    <option value="SHORT">Short</option>
-                    <option value="DETAIL">Detail</option>
-                  </select>
-                  {attachment.documentType === "SHORT" ? (
+          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">
+                Work details for {submitLead?.name} (optional)
+              </p>
+              <Textarea
+                rows={5}
+                value={submitNote}
+                onChange={(event) => setSubmitNote(event.target.value)}
+                placeholder="Add optional notes for Senior CRM review..."
+              />
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Quotation files</p>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Choose Short or Detail for each PDF. Short quotations also need a package type.</p>
+                {submitAttachments.map((attachment, index) => (
+                  <div key={attachment.id} className="space-y-2 rounded-md border p-3">
+                    <p className="text-xs font-medium text-muted-foreground">Attachment {index + 1}</p>
                     <select
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={attachment.packageType}
-                      onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, packageType: event.target.value as QuotationPackageType } : item))}
+                      value={attachment.documentType}
+                      onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, documentType: event.target.value as AttachmentDocumentType } : item))}
                     >
-                      <option value="PREMIUM">Premium</option>
-                      <option value="STANDARD">Standard</option>
-                      <option value="BASIC">Basic</option>
-                      <option value="MIXED">Mix</option>
+                      <option value="SHORT">Short</option>
+                      <option value="DETAIL">Detail</option>
                     </select>
-                  ) : null}
-                  <Input type="file" accept="application/pdf,.pdf" onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, file: event.target.files?.[0] ?? null } : item))} />
-                  {submitAttachments.length > 1 ? <Button type="button" variant="outline" size="sm" onClick={() => setSubmitAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}>Remove</Button> : null}
-                </div>
-              ))}
-              <Button type="button" variant="secondary" onClick={() => setSubmitAttachments((prev) => [...prev, { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }])}>Add Attachment</Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Supported for quotation submit: PDF files only. Quotation files are only exposed through authorized CRM review/download APIs.
-            </p>
-            {submitAttachments.some((item) => item.file) ? (
-              <ul className="space-y-1 text-xs text-muted-foreground">
-                {submitAttachments.filter((item) => item.file).map((item) => (
-                  <li key={item.id}>{item.file?.name} <span className="font-medium">({item.documentType}{item.documentType === "SHORT" ? ` / ${item.packageType}` : ""})</span></li>
+                    {attachment.documentType === "SHORT" ? (
+                      <select
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={attachment.packageType}
+                        onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, packageType: event.target.value as QuotationPackageType } : item))}
+                      >
+                        <option value="PREMIUM">Premium</option>
+                        <option value="STANDARD">Standard</option>
+                        <option value="BASIC">Basic</option>
+                        <option value="MIXED">Mix</option>
+                      </select>
+                    ) : null}
+                    <Input type="file" accept="application/pdf,.pdf" onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, file: event.target.files?.[0] ?? null } : item))} />
+                    {submitAttachments.length > 1 ? <Button type="button" variant="outline" size="sm" onClick={() => setSubmitAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}>Remove</Button> : null}
+                  </div>
                 ))}
-              </ul>
-            ) : null}
+                <Button type="button" variant="secondary" onClick={() => setSubmitAttachments((prev) => [...prev, { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }])}>Add Attachment</Button>
+              </div>
+              <p className="text-xs text-muted-foreground"><span className="font-bold">PDF files only</span></p>
+              {submitAttachments.some((item) => item.file) ? (
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  {submitAttachments.filter((item) => item.file).map((item) => (
+                    <li key={item.id}>{item.file?.name} <span className="font-medium">({item.documentType}{item.documentType === "SHORT" ? ` / ${item.packageType}` : ""})</span></li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
           </div>
           <DialogFooter>
             <Button
