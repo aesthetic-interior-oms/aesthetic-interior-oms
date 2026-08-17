@@ -16,6 +16,16 @@ Font.register({
   ]
 });
 
+Font.register({
+  family: 'Playfair Display',
+  fonts: [
+    {
+      src: 'https://fonts.gstatic.com/s/playfairdisplay/v10/9MkijrV-dEJ0-_NWV7E6N218GKU_F_kIyfK-gGC-Yzs.ttf',
+      fontStyle: 'italic',
+    },
+  ],
+});
+
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 import {
   buildDetailFloorSummaries,
@@ -120,10 +130,10 @@ const styles = StyleSheet.create({
 
   // Table
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 'bold',
     color: PRIMARY,
-    letterSpacing: 0.7,
+    letterSpacing: 2,
     backgroundColor: '#f3f8f7',
     padding: 8,
     marginTop: 15,
@@ -230,15 +240,15 @@ const styles = StyleSheet.create({
     color: PRIMARY,
   },
   inWords: {
-    fontSize: 9,
+    fontSize: 10,
     color: '#000000',
     marginTop: 4,
     textAlign: 'left',
-    fontFamily: 'Times-Roman',
+    fontFamily: 'Playfair Display',
     fontStyle: 'italic',
   },
   datePanel: { minWidth: 112, alignItems: 'flex-end' },
-  metaLabel: { fontSize: 5.5, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
+  metaLabel: { fontSize: 6, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   metaValue: { fontSize: 7, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
   headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 58, opacity: 0.08 },
   headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
@@ -616,7 +626,7 @@ export function DetailQuotationDocument({
           />
 
           <Text style={styles.sectionTitle}>{softWrapPdfText(entry.floor.name)}</Text>
-          {content.subject ? <Text style={{ fontSize: 10, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
+
 
           <View style={styles.tableWrapper}>
             <View style={styles.tHead} fixed>
