@@ -390,6 +390,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     leadId: id,
     actorUserId: authResult.actorUserId,
     actorDepartments,
+    actorRoles: authResult.actorRoles,
   });
 
   const fetchLead = (options: {
@@ -629,6 +630,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       leadId: id,
       actorUserId: authResult.actorUserId,
       actorDepartments,
+      actorRoles: authResult.actorRoles,
     });
 
     const body = (await request.json()) as UpdateLeadBody;
@@ -676,6 +678,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       !canManagePrimaryLeadFlow({
         actorUserId: authResult.actorUserId,
         actorDepartments,
+        actorRoles: authResult.actorRoles,
         lead: { primaryOwnerUserId: existingLead.primaryOwnerUserId },
       })
     ) {
@@ -768,21 +771,26 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           actorUserId: userId,
         });
       }
-      await ensurePhaseTaskForSubStatus({
-        tx,
-        leadId: id,
-        subStatus,
-        actorUserId: userId,
-      });
-      await createSrCadReviewTodosForCadStart({
-        tx,
-        leadId: id,
-        fromStage: existingLead.stage,
-        fromSubStatus: existingLead.subStatus,
-        toStage: stage ?? existingLead.stage,
-        toSubStatus: subStatus,
-        triggeredByUserId: userId,
-      });
+      try {
+        await ensurePhaseTaskForSubStatus({
+          tx,
+          leadId: id,
+          subStatus,
+          actorUserId: userId,
+        });
+        await createSrCadReviewTodosForCadStart({
+          tx,
+          leadId: id,
+          fromStage: existingLead.stage,
+          fromSubStatus: existingLead.subStatus,
+          toStage: stage ?? existingLead.stage,
+          toSubStatus: subStatus,
+          triggeredByUserId: userId,
+        });
+      } catch (error) {
+        if (!isMissingOptionalRelationError(error)) throw error;
+        console.warn('[DEBUG][lead/:id][PUT] Optional workflow relation unavailable, continuing lead update');
+      }
 
       await autoCompletePendingFollowups(tx, {
         leadId: id,
@@ -848,6 +856,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             leadId: id,
             actorUserId: authResult.actorUserId,
             actorDepartments,
+            actorRoles: authResult.actorRoles,
           });
 
     const existingLead = await prisma.lead.findFirst({ where: leadWhere });
@@ -887,6 +896,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       !canManagePrimaryLeadFlow({
         actorUserId: authResult.actorUserId,
         actorDepartments,
+        actorRoles: authResult.actorRoles,
         lead: { primaryOwnerUserId: existingLead.primaryOwnerUserId },
       })
     ) {
@@ -965,21 +975,26 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           actorUserId: userId,
         });
       }
-      await ensurePhaseTaskForSubStatus({
-        tx,
-        leadId: id,
-        subStatus: nextSubStatus,
-        actorUserId: userId,
-      });
-      await createSrCadReviewTodosForCadStart({
-        tx,
-        leadId: id,
-        fromStage: existingLead.stage,
-        fromSubStatus: existingLead.subStatus,
-        toStage: nextStage,
-        toSubStatus: nextSubStatus,
-        triggeredByUserId: userId,
-      });
+      try {
+        await ensurePhaseTaskForSubStatus({
+          tx,
+          leadId: id,
+          subStatus: nextSubStatus,
+          actorUserId: userId,
+        });
+        await createSrCadReviewTodosForCadStart({
+          tx,
+          leadId: id,
+          fromStage: existingLead.stage,
+          fromSubStatus: existingLead.subStatus,
+          toStage: nextStage,
+          toSubStatus: nextSubStatus,
+          triggeredByUserId: userId,
+        });
+      } catch (error) {
+        if (!isMissingOptionalRelationError(error)) throw error;
+        console.warn('[DEBUG][lead/:id][PATCH] Optional workflow relation unavailable, continuing lead update');
+      }
 
       await autoCompletePendingFollowups(tx, {
         leadId: id,

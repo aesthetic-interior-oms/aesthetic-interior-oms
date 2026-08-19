@@ -1,4 +1,5 @@
-import { LeadAssignmentDepartment, Prisma } from '@/generated/prisma/client'
+import { LeadAssignmentDepartment, LeadStage, Prisma } from '@/generated/prisma/client'
+import { hasJrArchitectureLeadershipRole } from '@/lib/jr-architecture-roles'
 
 const SCOPED_DEPARTMENTS: LeadAssignmentDepartment[] = [
   LeadAssignmentDepartment.JR_CRM,
@@ -25,10 +26,14 @@ export function buildScopedLeadWhere(input: {
   leadId?: string
   actorUserId: string
   actorDepartments: string[]
+  actorRoles?: string[]
 }): Prisma.LeadWhereInput {
   const scopedDepartments = scopedAssignmentDepartments(input.actorDepartments)
   const isAdmin = input.actorDepartments.includes('ADMIN')
   const isVisitTeam = input.actorDepartments.includes('VISIT_TEAM')
+  const isJrArchitectLeader =
+    input.actorDepartments.includes('JR_ARCHITECT') &&
+    hasJrArchitectureLeadershipRole(input.actorRoles)
 
   const idClause = input.leadId ? { id: input.leadId } : {}
 
@@ -36,7 +41,7 @@ export function buildScopedLeadWhere(input: {
     return idClause
   }
 
-  if (scopedDepartments.length === 0 && !isVisitTeam) {
+  if (scopedDepartments.length === 0 && !isVisitTeam && !isJrArchitectLeader) {
     return {
       ...idClause,
       id: '__no_access__',
@@ -53,6 +58,12 @@ export function buildScopedLeadWhere(input: {
           department: { in: scopedDepartments },
         },
       },
+    })
+  }
+
+  if (isJrArchitectLeader) {
+    accessClauses.push({
+      stage: { in: [LeadStage.CAD_PHASE, LeadStage.DISCOVERY, LeadStage.QUOTATION_PHASE, LeadStage.BUDGET_PHASE] },
     })
   }
 

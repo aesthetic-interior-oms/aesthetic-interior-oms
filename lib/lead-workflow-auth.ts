@@ -1,4 +1,5 @@
 import { Lead, LeadPrimaryOwnerDepartment } from '@/generated/prisma/client'
+import { hasJrArchitectureLeadershipRole } from '@/lib/jr-architecture-roles'
 
 export function isAdminDepartment(actorDepartments: string[]): boolean {
   return actorDepartments.includes('ADMIN')
@@ -11,9 +12,16 @@ export function isSrOrAdmin(actorDepartments: string[]): boolean {
 export function canManagePrimaryLeadFlow(input: {
   actorUserId: string
   actorDepartments: string[]
+  actorRoles?: string[]
   lead: Pick<Lead, 'primaryOwnerUserId'>
 }): boolean {
   if (isSrOrAdmin(input.actorDepartments)) return true
+  if (
+    input.actorDepartments.includes('JR_ARCHITECT') &&
+    hasJrArchitectureLeadershipRole(input.actorRoles)
+  ) {
+    return true
+  }
   if (!input.lead.primaryOwnerUserId) return true
   return input.lead.primaryOwnerUserId === input.actorUserId
 }
