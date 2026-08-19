@@ -4,6 +4,7 @@ import {
   LeadAssignmentDepartment,
   LeadStage,
   LeadSubStatus,
+  Prisma,
 } from '@/generated/prisma/client'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { logLeadStageChanged, logLeadSubStatusChanged } from '@/lib/activity-log-service'
@@ -17,6 +18,13 @@ async function resolveLeadId(context: RouteContext): Promise<string | null> {
   if (typeof id !== 'string') return null
   const trimmed = id.trim()
   return trimmed.length > 0 ? trimmed : null
+}
+
+
+function isMissingOptionalRelationError(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false
+  const code = (error as { code?: unknown }).code
+  return code === 'P2021' || code === 'P2022'
 }
 
 function toOptionalString(value: unknown): string | null {
@@ -116,12 +124,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
         })
       }
 
-      await ensurePhaseTaskForSubStatus({
-        tx,
-        leadId: lead.id,
-        subStatus: LeadSubStatus.CAD_WORKING,
-        actorUserId: authResult.actorUserId,
-      })
+      try {
+        await ensurePhaseTaskForSubStatus({
+          tx,
+          leadId: lead.id,
+          subStatus: LeadSubStatus.CAD_WORKING,
+          actorUserId: authResult.actorUserId,
+        })
+      } catch (error) {
+        if (
+          isMissingOptionalRelationError(error)
+        ) {
+          console.warn('[lead/:id/cad-work/start][POST] Phase task table unavailable, continuing without task creation')
+        } else {
+          throw error
+        }
+      }
 
       return updated
     })
