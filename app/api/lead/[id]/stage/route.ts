@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma';
-import { LeadStage, LeadSubStatus, LeadAssignmentDepartment } from '@/generated/prisma/client';
+import { LeadStage, LeadSubStatus, LeadAssignmentDepartment, Prisma } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 import { sendPushToUser } from '@/lib/fcm-service';
 import { isSubStatusAllowedForStage } from '@/lib/lead-stage';
@@ -52,6 +52,13 @@ function toOptionalString(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+
+function isMissingOptionalRelationError(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  const code = (error as { code?: unknown }).code;
+  return code === 'P2021' || code === 'P2022';
 }
 
 function toLeadStage(value: unknown): LeadStage | null {
@@ -151,6 +158,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           leadId,
           actorUserId: userId,
           actorDepartments,
+          actorRoles: authResult.actorRoles,
         });
 
     const existingLead = await prisma.lead.findFirst({
@@ -303,6 +311,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       !canManagePrimaryLeadFlow({
         actorUserId: userId,
         actorDepartments,
+        actorRoles: authResult.actorRoles,
         lead: { primaryOwnerUserId: existingLead.primaryOwnerUserId },
       })
     ) {
@@ -389,21 +398,26 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           })
         }
       }
-      await ensurePhaseTaskForSubStatus({
-        tx,
-        leadId,
-        subStatus: nextSubStatus,
-        actorUserId: userId,
-      });
-      await createSrCadReviewTodosForCadStart({
-        tx,
-        leadId,
-        fromStage: existingLead.stage,
-        fromSubStatus: existingLead.subStatus,
-        toStage: nextStage,
-        toSubStatus: nextSubStatus,
-        triggeredByUserId: userId,
-      });
+      try {
+        await ensurePhaseTaskForSubStatus({
+          tx,
+          leadId,
+          subStatus: nextSubStatus,
+          actorUserId: userId,
+        });
+        await createSrCadReviewTodosForCadStart({
+          tx,
+          leadId,
+          fromStage: existingLead.stage,
+          fromSubStatus: existingLead.subStatus,
+          toStage: nextStage,
+          toSubStatus: nextSubStatus,
+          triggeredByUserId: userId,
+        });
+      } catch (error) {
+        if (!isMissingOptionalRelationError(error)) throw error;
+        console.warn('[lead/:id/stage][PATCH] Optional workflow relation unavailable, continuing stage update');
+      }
 
       await autoCompletePendingFollowups(tx, {
         leadId,

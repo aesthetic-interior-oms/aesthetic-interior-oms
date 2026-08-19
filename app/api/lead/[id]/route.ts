@@ -318,6 +318,13 @@ function toPhoneForStorage(value: unknown): string | null {
   return normalized;
 }
 
+
+function isMissingOptionalRelationError(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false
+  const code = (error as { code?: unknown }).code
+  return code === 'P2021' || code === 'P2022'
+}
+
 function parseIncludeFlag(value: string | null, defaultValue = true): boolean {
   if (value === null) return defaultValue;
   const normalized = value.trim().toLowerCase();
@@ -383,10 +390,17 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     leadId: id,
     actorUserId: authResult.actorUserId,
     actorDepartments,
+    actorRoles: authResult.actorRoles,
   });
 
-  const fetchLead = (loadAttachments: boolean, loadWorkflowRelations = true) =>
-    prisma.lead.findFirst({
+  const fetchLead = (options: {
+    loadAttachments: boolean
+    loadWorkflowRelations?: boolean
+    loadVisits?: boolean
+  }) => {
+    const { loadAttachments, loadWorkflowRelations = true, loadVisits = true } = options
+
+    return prisma.lead.findFirst({
       where: scopedWhere,
       include: {
         assignee: {
@@ -439,7 +453,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
               },
             }
           : {}),
-        ...(includeVisits
+        ...(loadVisits && includeVisits
           ? {
               visits: {
                 include: {
@@ -489,9 +503,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           : {}),
       },
     });
+  };
 
   try {
-    const timedDb = await timeAsync(async () => fetchLead(true));
+    const timedDb = await timeAsync(async () => fetchLead({ loadAttachments: true }));
     const lead = timedDb.value;
 
     if (!lead) {
@@ -526,10 +541,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     response.headers.set('Cache-Control', 'no-store, max-age=0');
     return response;
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021') {
-      console.warn('[DEBUG][lead/:id][GET] Attachments table missing, retrying without attachments');
+    if (isMissingOptionalRelationError(error)) {
+      console.warn('[DEBUG][lead/:id][GET] Optional lead relation missing, retrying without attachments');
       try {
-        const timedFallbackDb = await timeAsync(async () => fetchLead(false));
+        const timedFallbackDb = await timeAsync(async () => fetchLead({ loadAttachments: false, loadWorkflowRelations: false, loadVisits: false }));
         const lead = timedFallbackDb.value;
         if (!lead) {
           return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
@@ -540,6 +555,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           data: {
             ...lead,
             attachments: [],
+            visits: [],
+            phaseTasks: [],
+            meetingEvents: [],
           },
         });
         const totalDurationMs = performance.now() - requestStart;
@@ -560,7 +578,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
     console.error('[DEBUG][lead/:id][GET] Error:', error);
     try {
-      const timedFallbackDb = await timeAsync(async () => fetchLead(false, false));
+      const timedFallbackDb = await timeAsync(async () => fetchLead({ loadAttachments: false, loadWorkflowRelations: false, loadVisits: false }));
       const lead = timedFallbackDb.value;
       if (!lead) {
         return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
@@ -612,6 +630,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       leadId: id,
       actorUserId: authResult.actorUserId,
       actorDepartments,
+      actorRoles: authResult.actorRoles,
     });
 
     const body = (await request.json()) as UpdateLeadBody;
@@ -659,6 +678,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       !canManagePrimaryLeadFlow({
         actorUserId: authResult.actorUserId,
         actorDepartments,
+        actorRoles: authResult.actorRoles,
         lead: { primaryOwnerUserId: existingLead.primaryOwnerUserId },
       })
     ) {
@@ -751,21 +771,26 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           actorUserId: userId,
         });
       }
-      await ensurePhaseTaskForSubStatus({
-        tx,
-        leadId: id,
-        subStatus,
-        actorUserId: userId,
-      });
-      await createSrCadReviewTodosForCadStart({
-        tx,
-        leadId: id,
-        fromStage: existingLead.stage,
-        fromSubStatus: existingLead.subStatus,
-        toStage: stage ?? existingLead.stage,
-        toSubStatus: subStatus,
-        triggeredByUserId: userId,
-      });
+      try {
+        await ensurePhaseTaskForSubStatus({
+          tx,
+          leadId: id,
+          subStatus,
+          actorUserId: userId,
+        });
+        await createSrCadReviewTodosForCadStart({
+          tx,
+          leadId: id,
+          fromStage: existingLead.stage,
+          fromSubStatus: existingLead.subStatus,
+          toStage: stage ?? existingLead.stage,
+          toSubStatus: subStatus,
+          triggeredByUserId: userId,
+        });
+      } catch (error) {
+        if (!isMissingOptionalRelationError(error)) throw error;
+        console.warn('[DEBUG][lead/:id][PUT] Optional workflow relation unavailable, continuing lead update');
+      }
 
       await autoCompletePendingFollowups(tx, {
         leadId: id,
@@ -831,6 +856,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             leadId: id,
             actorUserId: authResult.actorUserId,
             actorDepartments,
+            actorRoles: authResult.actorRoles,
           });
 
     const existingLead = await prisma.lead.findFirst({ where: leadWhere });
@@ -870,6 +896,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       !canManagePrimaryLeadFlow({
         actorUserId: authResult.actorUserId,
         actorDepartments,
+        actorRoles: authResult.actorRoles,
         lead: { primaryOwnerUserId: existingLead.primaryOwnerUserId },
       })
     ) {
@@ -948,21 +975,26 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           actorUserId: userId,
         });
       }
-      await ensurePhaseTaskForSubStatus({
-        tx,
-        leadId: id,
-        subStatus: nextSubStatus,
-        actorUserId: userId,
-      });
-      await createSrCadReviewTodosForCadStart({
-        tx,
-        leadId: id,
-        fromStage: existingLead.stage,
-        fromSubStatus: existingLead.subStatus,
-        toStage: nextStage,
-        toSubStatus: nextSubStatus,
-        triggeredByUserId: userId,
-      });
+      try {
+        await ensurePhaseTaskForSubStatus({
+          tx,
+          leadId: id,
+          subStatus: nextSubStatus,
+          actorUserId: userId,
+        });
+        await createSrCadReviewTodosForCadStart({
+          tx,
+          leadId: id,
+          fromStage: existingLead.stage,
+          fromSubStatus: existingLead.subStatus,
+          toStage: nextStage,
+          toSubStatus: nextSubStatus,
+          triggeredByUserId: userId,
+        });
+      } catch (error) {
+        if (!isMissingOptionalRelationError(error)) throw error;
+        console.warn('[DEBUG][lead/:id][PATCH] Optional workflow relation unavailable, continuing lead update');
+      }
 
       await autoCompletePendingFollowups(tx, {
         leadId: id,
