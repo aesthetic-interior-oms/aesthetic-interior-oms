@@ -532,7 +532,7 @@ export async function PUT(
     const errorMsg =
       error instanceof Error ? error.message : 'Failed to update assignment'
     return NextResponse.json(
-      { success: false, error: errorMsg },
+      { success: false, error: errorMsg, details: String(error) },
       {
         status:
           error instanceof Error && error.message.includes('not found')

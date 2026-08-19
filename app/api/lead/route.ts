@@ -1001,7 +1001,11 @@ export async function POST(request: NextRequest) {
 
     // Return generic 500 error for other unexpected errors
     return NextResponse.json(
-      { success: false, error: 'Failed to create lead' },
+      { 
+        success: false, 
+        error: 'Failed to create lead',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

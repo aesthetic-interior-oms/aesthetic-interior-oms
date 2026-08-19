@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 
     console.error('[visit-complete-queue/assign][POST] Error:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to assign JR Architect' },
+      { success: false, error: 'Failed to assign JR Architect', details: String(error) },
       { status: 500 },
     )
   }
