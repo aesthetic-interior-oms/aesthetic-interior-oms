@@ -30,6 +30,21 @@ function toBooleanParam(value: string | null, fallback = false): boolean {
 }
 
 type QueueLead = Awaited<ReturnType<typeof fetchQueueLeads>>[number]
+type QueueLeadOptionalRelations = QueueLead & {
+  visits?: Array<{
+    id: string
+    scheduledAt: Date
+    projectSqft: number | null
+    assignedTo: { id: string; fullName: string } | null
+    supportAssignments?: Array<{ supportUser: { id: string; fullName: string } }>
+  }>
+  meetingEvents?: Array<{
+    id: string
+    title: string
+    startsAt: Date
+    notes: string | null
+  }>
+}
 
 async function fetchQueueLeads(where: Prisma.LeadWhereInput, includeOptionalRelations: boolean) {
   return prisma.lead.findMany({
@@ -235,8 +250,9 @@ export async function GET(request: NextRequest) {
           leadAssignments.find((item) => item.department === LeadAssignmentDepartment.SR_CRM) ?? null
         const quotationAssignment =
           leadAssignments.find((item) => item.department === LeadAssignmentDepartment.QUOTATION) ?? null
-        const latestCompletedVisit = 'visits' in lead ? lead.visits[0] : null
-        const latestFirstMeeting = 'meetingEvents' in lead ? lead.meetingEvents[0] : null
+        const relationLead = lead as QueueLeadOptionalRelations
+        const latestCompletedVisit = relationLead.visits?.[0] ?? null
+        const latestFirstMeeting = relationLead.meetingEvents?.[0] ?? null
 
         return {
           id: lead.id,
