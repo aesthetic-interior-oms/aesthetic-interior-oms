@@ -19,10 +19,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Delete any old tokens for this user+platform so we always have the latest.
+    // 1. Delete this token if it already exists (e.g. from a previous user logging out without unregistering).
+    // This prevents the Prisma Unique Constraint (P2002) failure on the 'token' field.
+    await prisma.deviceToken.deleteMany({ where: { token } })
+
+    // 2. Delete any old tokens for this user+platform so we only keep the latest per platform.
     await prisma.deviceToken.deleteMany({ where: { userId, platform: platform ?? 'android' } })
 
-    // Insert the fresh token.
+    // 3. Insert the fresh token for the current user.
     await prisma.deviceToken.create({
       data: { userId, token, platform: platform ?? 'android' },
     })
