@@ -318,6 +318,13 @@ function toPhoneForStorage(value: unknown): string | null {
   return normalized;
 }
 
+
+function isMissingOptionalRelationError(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false
+  const code = (error as { code?: unknown }).code
+  return code === 'P2021' || code === 'P2022'
+}
+
 function parseIncludeFlag(value: string | null, defaultValue = true): boolean {
   if (value === null) return defaultValue;
   const normalized = value.trim().toLowerCase();
@@ -385,8 +392,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     actorDepartments,
   });
 
-  const fetchLead = (loadAttachments: boolean, loadWorkflowRelations = true) =>
-    prisma.lead.findFirst({
+  const fetchLead = (options: {
+    loadAttachments: boolean
+    loadWorkflowRelations?: boolean
+    loadVisits?: boolean
+  }) => {
+    const { loadAttachments, loadWorkflowRelations = true, loadVisits = true } = options
+
+    return prisma.lead.findFirst({
       where: scopedWhere,
       include: {
         assignee: {
@@ -439,7 +452,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
               },
             }
           : {}),
-        ...(includeVisits
+        ...(loadVisits && includeVisits
           ? {
               visits: {
                 include: {
@@ -489,9 +502,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           : {}),
       },
     });
+  };
 
   try {
-    const timedDb = await timeAsync(async () => fetchLead(true));
+    const timedDb = await timeAsync(async () => fetchLead({ loadAttachments: true }));
     const lead = timedDb.value;
 
     if (!lead) {
@@ -526,10 +540,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     response.headers.set('Cache-Control', 'no-store, max-age=0');
     return response;
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021') {
-      console.warn('[DEBUG][lead/:id][GET] Attachments table missing, retrying without attachments');
+    if (isMissingOptionalRelationError(error)) {
+      console.warn('[DEBUG][lead/:id][GET] Optional lead relation missing, retrying without attachments');
       try {
-        const timedFallbackDb = await timeAsync(async () => fetchLead(false));
+        const timedFallbackDb = await timeAsync(async () => fetchLead({ loadAttachments: false, loadWorkflowRelations: false, loadVisits: false }));
         const lead = timedFallbackDb.value;
         if (!lead) {
           return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
@@ -540,6 +554,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           data: {
             ...lead,
             attachments: [],
+            visits: [],
+            phaseTasks: [],
+            meetingEvents: [],
           },
         });
         const totalDurationMs = performance.now() - requestStart;
@@ -560,7 +577,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
     console.error('[DEBUG][lead/:id][GET] Error:', error);
     try {
-      const timedFallbackDb = await timeAsync(async () => fetchLead(false, false));
+      const timedFallbackDb = await timeAsync(async () => fetchLead({ loadAttachments: false, loadWorkflowRelations: false, loadVisits: false }));
       const lead = timedFallbackDb.value;
       if (!lead) {
         return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
