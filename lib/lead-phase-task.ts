@@ -58,11 +58,40 @@ export async function ensurePhaseTaskForSubStatus(input: {
       ? LeadAssignmentDepartment.JR_ARCHITECT
       : LeadAssignmentDepartment.QUOTATION
 
-  const assignee = await input.tx.leadAssignment.findFirst({
-    where: { leadId: input.leadId, department: targetDepartment },
+  const assignment = await input.tx.leadAssignment.findFirst({
+    where: {
+      leadId: input.leadId,
+      department: targetDepartment,
+      user: { isActive: true },
+    },
     orderBy: { createdAt: 'desc' },
     select: { userId: true },
   })
+
+  const actor = await input.tx.user.findFirst({
+    where: { id: input.actorUserId, isActive: true },
+    select: { id: true },
+  })
+
+  const fallbackUser = assignment || actor
+    ? null
+    : await input.tx.user.findFirst({
+        where: {
+          isActive: true,
+          userDepartments: {
+            some: {
+              department: {
+                name: targetDepartment,
+              },
+            },
+          },
+        },
+        orderBy: [{ fullName: 'asc' }, { created_at: 'asc' }],
+        select: { id: true },
+      })
+
+  const assigneeUserId = assignment?.userId ?? actor?.id ?? fallbackUser?.id
+  if (!assigneeUserId) return
 
   const dueAt = new Date()
   dueAt.setDate(dueAt.getDate() + 3)
@@ -72,7 +101,7 @@ export async function ensurePhaseTaskForSubStatus(input: {
       leadId: input.leadId,
       phaseType,
       workDetails: phaseType === LeadPhaseType.CAD ? DEFAULT_CAD_WORK_DETAILS : null,
-      assigneeUserId: assignee?.userId ?? input.actorUserId,
+      assigneeUserId,
       startedAt: new Date(),
       dueAt,
       createdById: input.actorUserId,

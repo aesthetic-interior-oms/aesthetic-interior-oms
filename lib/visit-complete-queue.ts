@@ -474,20 +474,29 @@ export async function assignJrArchitectFromVisitComplete(input: AssignJrArchitec
       (row) => row.department === LeadAssignmentDepartment.JR_ARCHITECT,
     )
 
-    if (existingJrAssignment) {
-      await tx.leadAssignment.update({
-        where: { id: existingJrAssignment.id },
-        data: { userId: jrArchitect.id },
-      })
-    } else {
-      await tx.leadAssignment.create({
-        data: {
-          leadId: input.leadId,
-          userId: jrArchitect.id,
-          department: LeadAssignmentDepartment.JR_ARCHITECT,
-        },
-      })
-    }
+    const jrAssignmentId = existingJrAssignment
+      ? existingJrAssignment.id
+      : (await tx.leadAssignment.create({
+          data: {
+            leadId: input.leadId,
+            userId: jrArchitect.id,
+            department: LeadAssignmentDepartment.JR_ARCHITECT,
+          },
+          select: { id: true },
+        })).id
+
+    await tx.leadAssignment.deleteMany({
+      where: {
+        leadId: input.leadId,
+        department: LeadAssignmentDepartment.JR_ARCHITECT,
+        id: { not: jrAssignmentId },
+      },
+    })
+
+    await tx.leadAssignment.update({
+      where: { id: jrAssignmentId },
+      data: { userId: jrArchitect.id },
+    })
 
     const preferActorAsSr = flags.isSeniorCrm || flags.isAdmin ? input.actorUserId : null
     await ensureSeniorCrmAssignment({
