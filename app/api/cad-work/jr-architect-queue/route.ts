@@ -124,26 +124,6 @@ export async function GET(request: NextRequest) {
       where,
       orderBy: { updated_at: 'desc' },
       include: {
-        assignments: {
-          where: {
-            department: {
-              in: [
-                LeadAssignmentDepartment.JR_ARCHITECT,
-                LeadAssignmentDepartment.SR_CRM,
-                LeadAssignmentDepartment.QUOTATION,
-              ],
-            },
-          },
-          include: {
-            user: {
-        select: {
-                id: true,
-                fullName: true,
-                email: true,
-              },
-            },
-          },
-        },
         meetingEvents: {
           where: { type: LeadMeetingEventType.FIRST_MEETING },
           select: {
@@ -185,15 +165,49 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    const assignments = leads.length > 0
+      ? await prisma.leadAssignment.findMany({
+          where: {
+            leadId: { in: leads.map((lead) => lead.id) },
+            department: {
+              in: [
+                LeadAssignmentDepartment.JR_ARCHITECT,
+                LeadAssignmentDepartment.SR_CRM,
+                LeadAssignmentDepartment.QUOTATION,
+              ],
+            },
+            user: { isActive: true },
+          },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                email: true,
+              },
+            },
+          },
+        })
+      : []
+
+    const assignmentsByLeadId = new Map<string, typeof assignments>()
+    for (const assignment of assignments) {
+      const leadAssignments = assignmentsByLeadId.get(assignment.leadId) ?? []
+      leadAssignments.push(assignment)
+      assignmentsByLeadId.set(assignment.leadId, leadAssignments)
+    }
+
     return NextResponse.json({
       success: true,
       data: leads.map((lead) => {
+        const leadAssignments = assignmentsByLeadId.get(lead.id) ?? []
         const jrArchitectAssignment =
-          lead.assignments.find((item) => item.department === LeadAssignmentDepartment.JR_ARCHITECT) ?? null
+          leadAssignments.find((item) => item.department === LeadAssignmentDepartment.JR_ARCHITECT) ?? null
         const srCrmAssignment =
-          lead.assignments.find((item) => item.department === LeadAssignmentDepartment.SR_CRM) ?? null
+          leadAssignments.find((item) => item.department === LeadAssignmentDepartment.SR_CRM) ?? null
         const quotationAssignment =
-          lead.assignments.find((item) => item.department === LeadAssignmentDepartment.QUOTATION) ?? null
+          leadAssignments.find((item) => item.department === LeadAssignmentDepartment.QUOTATION) ?? null
 
         return {
           id: lead.id,

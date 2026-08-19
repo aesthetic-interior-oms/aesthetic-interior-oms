@@ -444,27 +444,44 @@ export async function PUT(
         existingAssignment,
       )
 
-      if (!existingAssignment) {
-        if (department === 'QUOTATION' || department === 'VISUALIZER_3D') {
-          const created = await tx.leadAssignment.create({
-            data: {
-              leadId,
-              userId,
-              department: department as LeadAssignmentDepartment,
-            },
-            include: {
-              user: {
-                select: { id: true, fullName: true, email: true },
-              },
-            },
-          })
-          return created
+      let assignmentId = existingAssignment?.id ?? null
+
+      if (!assignmentId) {
+        const canCreateMissingAssignment =
+          department === 'QUOTATION' ||
+          department === 'VISUALIZER_3D' ||
+          department === 'JR_ARCHITECT' ||
+          department === 'SR_CRM'
+
+        if (!canCreateMissingAssignment) {
+          throw new Error('Assignment not found for this lead and department')
         }
-        throw new Error('Assignment not found for this lead and department')
+
+        const created = await tx.leadAssignment.create({
+          data: {
+            leadId,
+            userId,
+            department: department as LeadAssignmentDepartment,
+          },
+          include: {
+            user: {
+              select: { id: true, fullName: true, email: true },
+            },
+          },
+        })
+        assignmentId = created.id
       }
 
+      await tx.leadAssignment.deleteMany({
+        where: {
+          leadId,
+          department: department as LeadAssignmentDepartment,
+          id: { not: assignmentId },
+        },
+      })
+
       const updated = await tx.leadAssignment.update({
-        where: { id: existingAssignment.id },
+        where: { id: assignmentId },
         data: { userId },
         include: {
           user: {

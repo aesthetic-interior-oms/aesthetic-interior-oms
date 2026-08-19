@@ -385,7 +385,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     actorDepartments,
   });
 
-  const fetchLead = (loadAttachments: boolean) =>
+  const fetchLead = (loadAttachments: boolean, loadWorkflowRelations = true) =>
     prisma.lead.findFirst({
       where: scopedWhere,
       include: {
@@ -462,27 +462,31 @@ export async function GET(_request: NextRequest, context: RouteContext) {
               },
             }
           : {}),
-        phaseTasks: {
-          include: {
-            assignee: { select: { id: true, fullName: true, email: true } },
-            createdBy: { select: { id: true, fullName: true, email: true } },
-            reviews: {
-              include: {
-                reviewedBy: {
-                  select: { id: true, fullName: true, email: true },
+        ...(loadWorkflowRelations
+          ? {
+              phaseTasks: {
+                include: {
+                  assignee: { select: { id: true, fullName: true, email: true } },
+                  createdBy: { select: { id: true, fullName: true, email: true } },
+                  reviews: {
+                    include: {
+                      reviewedBy: {
+                        select: { id: true, fullName: true, email: true },
+                      },
+                    },
+                    orderBy: { roundNo: 'desc' },
+                  },
                 },
+                orderBy: { createdAt: 'desc' },
               },
-              orderBy: { roundNo: 'desc' },
-            },
-          },
-          orderBy: { createdAt: 'desc' },
-        },
-        meetingEvents: {
-          include: {
-            createdBy: { select: { id: true, fullName: true, email: true } },
-          },
-          orderBy: { startsAt: 'desc' },
-        },
+              meetingEvents: {
+                include: {
+                  createdBy: { select: { id: true, fullName: true, email: true } },
+                },
+                orderBy: { startsAt: 'desc' },
+              },
+            }
+          : {}),
       },
     });
 
@@ -555,7 +559,36 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     }
 
     console.error('[DEBUG][lead/:id][GET] Error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch lead' }, { status: 500 });
+    try {
+      const timedFallbackDb = await timeAsync(async () => fetchLead(false, false));
+      const lead = timedFallbackDb.value;
+      if (!lead) {
+        return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
+      }
+
+      const response = NextResponse.json({
+        success: true,
+        data: {
+          ...lead,
+          attachments: [],
+          phaseTasks: [],
+          meetingEvents: [],
+        },
+      });
+      const totalDurationMs = performance.now() - requestStart;
+      response.headers.set(
+        'Server-Timing',
+        [
+          formatServerTiming('db', timedFallbackDb.durationMs, 'safe fallback detail query'),
+          formatServerTiming('total', totalDurationMs, 'request total'),
+        ].join(', '),
+      );
+      response.headers.set('Cache-Control', 'no-store, max-age=0');
+      return response;
+    } catch (fallbackError) {
+      console.error('[DEBUG][lead/:id][GET] Safe fallback error:', fallbackError);
+      return NextResponse.json({ success: false, error: 'Failed to fetch lead' }, { status: 500 });
+    }
   }
 }
 
