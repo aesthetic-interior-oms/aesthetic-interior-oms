@@ -477,7 +477,19 @@ export async function GET(request: NextRequest) {
     }
 
     const timedDb = await timeAsync(async () => {
-      const leadInclude: Prisma.LeadInclude = {
+      const leadSelect: Prisma.LeadSelect = {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        source: true,
+        stage: true,
+        subStatus: true,
+        budget: true,
+        location: true,
+        assignedTo: true,
+        created_at: true,
+        updated_at: true,
         assignments: {
           where: { department: LeadAssignmentDepartment.JR_CRM },
           orderBy: { createdAt: 'desc' },
@@ -486,67 +498,120 @@ export async function GET(request: NextRequest) {
             user: { select: { id: true, fullName: true, email: true } },
           },
         },
-        ...(includeAttachmentPreview
-          ? {
-              attachments: {
-                orderBy: { createdAt: 'desc' },
-                take: 6,
-                select: {
-                  id: true,
-                  url: true,
-                  fileName: true,
-                  fileType: true,
-                  category: true,
-                  sizeBytes: true,
-                  createdAt: true,
-                },
-              },
-            }
-          : {}),
-        ...(includeCadCorrectionFlag
-          ? {
-              phaseTasks: {
-                where: { phaseType: LeadPhaseType.CAD },
-                orderBy: [{ createdAt: 'desc' }],
-                take: 1,
-                select: {
-                  id: true,
-                  status: true,
-                  currentReviewRound: true,
-                },
-              },
-            }
-          : {}),
       };
-      const [total, leads, groupedStageCounts] = await Promise.all([
+      const stageCountWhere: Prisma.LeadWhereInput = {
+        ...baseWhere,
+        ...(sourceParam ? { source: { equals: sourceParam, mode: 'insensitive' } } : {}),
+        ...(unassignedOnly
+          ? {
+              assignments: {
+                none: {
+                  department: LeadAssignmentDepartment.JR_CRM,
+                },
+              },
+            }
+          : {}),
+        ...(createdAtWhere ? { created_at: createdAtWhere } : {}),
+      };
+      const [total, leads] = await Promise.all([
         prisma.lead.count({ where }),
         prisma.lead.findMany({
           where,
           orderBy: { created_at: 'desc' },
-          include: leadInclude,
+          select: leadSelect,
           skip: offset,
           take: limit,
         }),
+      ]);
+      const leadIds = leads.map((lead) => lead.id);
+      const [attachmentResult, phaseTaskResult, groupedStageCountsResult] = await Promise.allSettled([
+        includeAttachmentPreview && leadIds.length > 0
+          ? prisma.leadAttachment.findMany({
+              where: { leadId: { in: leadIds } },
+              orderBy: { createdAt: 'desc' },
+              select: {
+                id: true,
+                leadId: true,
+                url: true,
+                fileName: true,
+                fileType: true,
+                category: true,
+                sizeBytes: true,
+                createdAt: true,
+              },
+            })
+          : Promise.resolve([]),
+        includeCadCorrectionFlag && leadIds.length > 0
+          ? prisma.leadPhaseTask.findMany({
+              where: { leadId: { in: leadIds }, phaseType: LeadPhaseType.CAD },
+              orderBy: { createdAt: 'desc' },
+              select: {
+                id: true,
+                leadId: true,
+                status: true,
+                currentReviewRound: true,
+              },
+            })
+          : Promise.resolve([]),
         prisma.lead.groupBy({
           by: ['stage'],
-          where: {
-            ...baseWhere,
-            ...(sourceParam ? { source: { equals: sourceParam, mode: 'insensitive' } } : {}),
-            ...(unassignedOnly
-              ? {
-                  assignments: {
-                    none: {
-                      department: LeadAssignmentDepartment.JR_CRM,
-                    },
-                  },
-                }
-              : {}),
-            ...(createdAtWhere ? { created_at: createdAtWhere } : {}),
-          },
+          where: stageCountWhere,
           _count: { stage: true },
         }),
       ]);
-      return { total, leads, groupedStageCounts };
+
+      if (attachmentResult.status === 'rejected') {
+        console.error('[GET /api/lead] Attachment preview enrichment failed:', attachmentResult.reason);
+      }
+      if (phaseTaskResult.status === 'rejected') {
+        console.error('[GET /api/lead] CAD correction enrichment failed:', phaseTaskResult.reason);
+      }
+      if (groupedStageCountsResult.status === 'rejected') {
+        console.error('[GET /api/lead] Stage count enrichment failed:', groupedStageCountsResult.reason);
+      }
+
+      type AttachmentPreviewRow = {
+        id: string;
+        leadId: string;
+        url: string;
+        fileName: string;
+        fileType: string;
+        category: string;
+        sizeBytes: number | null;
+        createdAt: Date;
+      };
+      type PhaseTaskPreviewRow = {
+        id: string;
+        leadId: string;
+        status: string;
+        currentReviewRound: number;
+      };
+
+      const attachmentsByLeadId = new Map<string, Array<Omit<AttachmentPreviewRow, 'leadId'>>>();
+      if (attachmentResult.status === 'fulfilled') {
+        for (const attachment of attachmentResult.value as AttachmentPreviewRow[]) {
+          const { leadId, ...preview } = attachment;
+          const attachments = attachmentsByLeadId.get(leadId) ?? [];
+          if (attachments.length < 6) attachments.push(preview);
+          attachmentsByLeadId.set(leadId, attachments);
+        }
+      }
+
+      const phaseTasksByLeadId = new Map<string, Array<Omit<PhaseTaskPreviewRow, 'leadId'>>>();
+      if (phaseTaskResult.status === 'fulfilled') {
+        for (const phaseTask of phaseTaskResult.value as PhaseTaskPreviewRow[]) {
+          const { leadId, ...task } = phaseTask;
+          if (!phaseTasksByLeadId.has(leadId)) phaseTasksByLeadId.set(leadId, [task]);
+        }
+      }
+
+      const enrichedLeads = leads.map((lead) => ({
+        ...lead,
+        ...(includeAttachmentPreview ? { attachments: attachmentsByLeadId.get(lead.id) ?? [] } : {}),
+        ...(includeCadCorrectionFlag ? { phaseTasks: phaseTasksByLeadId.get(lead.id) ?? [] } : {}),
+      }));
+      const groupedStageCounts = groupedStageCountsResult.status === 'fulfilled' ? groupedStageCountsResult.value : [];
+      return { total, leads: enrichedLeads, groupedStageCounts };
     });
 
     const { total, leads, groupedStageCounts } = timedDb.value;

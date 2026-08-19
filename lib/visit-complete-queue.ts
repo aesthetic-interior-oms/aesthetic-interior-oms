@@ -77,7 +77,7 @@ export function getQueuePermissionFlags(
 }
 
 export function canViewVisitCompleteQueue(flags: QueuePermissionFlags): boolean {
-  return flags.isAdmin || flags.isSeniorCrm || flags.isJrArchitect
+  return flags.isAdmin || flags.isSeniorCrm || flags.isJrArchitectureLeader
 }
 
 export function canAssignJrArchitect(flags: QueuePermissionFlags): boolean {
