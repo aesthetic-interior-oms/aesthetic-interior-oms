@@ -6,9 +6,14 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const authResult = await requireDatabaseRoles(['ACCOUNTS', 'ADMIN'])
+    const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) {
       return authResult.response
+    }
+
+    const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+    if (!actorDepartments.has('ACCOUNTS') && !actorDepartments.has('ADMIN')) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
     }
 
     const projects = await prisma.lead.findMany({
