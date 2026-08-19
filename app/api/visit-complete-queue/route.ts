@@ -18,7 +18,7 @@ export async function GET() {
       authResult.actor.userDepartments ?? [],
       authResult.actorRoles ?? [],
     )
-    if (!canViewVisitCompleteQueue(flags) && !flags.isVisitTeam) {
+    if (!canViewVisitCompleteQueue(flags)) {
       return NextResponse.json(
         { success: false, error: 'Not authorized to view visit complete queue' },
         { status: 403 },

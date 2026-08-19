@@ -419,7 +419,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
   const [isLargeScreen, setIsLargeScreen] = useState(false)
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({})
   const [canViewVisitTeamQueue, setCanViewVisitTeamQueue] = useState(false)
-  const [canViewJrArchitectCadQueue, setCanViewJrArchitectCadQueue] =
+  const [canViewJrArchitectLeaderPages, setCanViewJrArchitectLeaderPages] =
     useState(false)
 
   useEffect(() => {
@@ -450,12 +450,14 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
       if (role !== 'Jr Architect') return baseGroups
       return baseGroups.map((group) => {
         if (group.id === 'jr-arch-workflow') {
+          // Visit Queue and other shared JR Architecture queues are leader-only in the sidebar.
           return {
             ...group,
             items: group.items.filter(
               (item) =>
-                canViewJrArchitectCadQueue ||
+                canViewJrArchitectLeaderPages ||
                 ![
+                  '/crm/jr-architecture/queue',
                   '/crm/jr-architecture/cad-phase-queue',
                   '/crm/jr-architecture/visits',
                 ].includes(item.href),
@@ -475,7 +477,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
           return {
             ...group,
             items:
-              canViewJrArchitectCadQueue && !hasCalendarItem
+              canViewJrArchitectLeaderPages && !hasCalendarItem
                 ? [...group.items, calendarItem]
                 : group.items,
           }
@@ -503,7 +505,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
             : group.items,
       }
     })
-  }, [canViewJrArchitectCadQueue, canViewVisitTeamQueue, isVisits, role])
+  }, [canViewJrArchitectLeaderPages, canViewVisitTeamQueue, isVisits, role])
 
   useEffect(() => {
     if (!isVisits && role !== 'Jr Architect') return
@@ -524,7 +526,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
           setCanViewVisitTeamQueue(hasVisitTeamLeadershipRole(roleNames))
         }
         if (role === 'Jr Architect') {
-          setCanViewJrArchitectCadQueue(hasJrArchitectureLeaderRole(roleNames))
+          setCanViewJrArchitectLeaderPages(hasJrArchitectureLeaderRole(roleNames))
         }
         return null
       })
@@ -534,7 +536,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
           setCanViewVisitTeamQueue(false)
         }
         if (role === 'Jr Architect') {
-          setCanViewJrArchitectCadQueue(false)
+          setCanViewJrArchitectLeaderPages(false)
         }
       })
 
