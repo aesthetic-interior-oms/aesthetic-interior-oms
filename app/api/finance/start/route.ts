@@ -81,7 +81,7 @@ export async function POST(req: Request) {
           category: 'CLIENT_DEPOSIT',
           particular: 'First Payment / Advance',
           amount: Number(firstPaymentAmount),
-          account: 'BANK', // Assuming default to BANK
+          account: 'BANK_OTHER', // Defaulting to BANK_OTHER as per schema
           recordedById: actor.id,
           leadId: leadId,
         }
