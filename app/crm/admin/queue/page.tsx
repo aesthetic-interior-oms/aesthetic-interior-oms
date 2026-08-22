@@ -1,11 +1,12 @@
-import { VisitCompleteQueueBoard } from '@/components/crm/shared/visit-complete-queue-board'
+import { VisitQueueCalendar } from '@/components/crm/shared/visit-queue-calendar'
 
 export default function AdminVisitCompleteQueuePage() {
   return (
-    <VisitCompleteQueueBoard
-      title="Visit Complete Queue (Admin)"
-      subtitle="View all visit-completed leads, approve JR requests, and assign the CAD owner."
+    <VisitQueueCalendar
+      title="Visit Queue Calendar (Admin)"
+      subtitle="Calendar view of scheduled visits (observe) and completed visits awaiting JR Architect assignment."
       leadHrefPrefix="/crm/admin/leads"
+      visitScope="all"
     />
   )
 }

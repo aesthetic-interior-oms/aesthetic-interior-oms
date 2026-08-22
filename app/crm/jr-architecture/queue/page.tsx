@@ -1,6 +1,6 @@
 import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
-import { VisitCompleteQueueBoard } from '@/components/crm/shared/visit-complete-queue-board'
+import { VisitQueueCalendar } from '@/components/crm/shared/visit-queue-calendar'
 import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles'
 import prisma from '@/lib/prisma'
 
@@ -43,10 +43,11 @@ export default async function JrArchitectureQueuePage() {
   }
 
   return (
-    <VisitCompleteQueueBoard
-      title="Visit Complete Queue"
-      subtitle="Admin, Senior CRM, and JR Architect leaders can assign JR Architects, approve requests, or self-assign."
+    <VisitQueueCalendar
+      title="Visit Queue Calendar"
+      subtitle="Calendar view of scheduled visits (observe only) and completed visits awaiting JR Architect assignment."
       leadHrefPrefix={null}
+      visitScope="all"
     />
   )
 }
