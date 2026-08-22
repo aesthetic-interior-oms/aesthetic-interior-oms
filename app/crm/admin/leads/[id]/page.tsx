@@ -13,9 +13,10 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, MessageSquare, History, Calendar, FileText, ImageIcon, Video, Trash2 } from 'lucide-react'
+import { ArrowLeft, MessageSquare, History, Calendar, FileText, ImageIcon, Video, Trash2, Loader2, DollarSign } from 'lucide-react'
 import { LeadInfoCard } from '@/components/crm/junior/lead-info-card'
 import { LeadNotesTab } from '@/components/crm/junior/lead-notes-tab'
 import { LeadActivityTab } from '@/components/crm/junior/lead-activity-tab'
@@ -189,6 +190,23 @@ export default function LeadDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  const [startFinanceOpen, setStartFinanceOpen] = useState(false)
+  const [financeForm, setFinanceForm] = useState({
+    srCrmId: '',
+    visualizer3dId: '',
+    agreementType: '',
+    agreementValue: '',
+    firstPaymentAmount: ''
+  })
+  const [startingFinance, setStartingFinance] = useState(false)
+  const [startFinanceError, setStartFinanceError] = useState<string | null>(null)
+  
+  const [srCrmUsers, setSrCrmUsers] = useState<any[]>([])
+  const [visualizerUsers, setVisualizerUsers] = useState<any[]>([])
+
+  const [projectReport, setProjectReport] = useState<any>(null)
+  const [reportLoading, setReportLoading] = useState(false)
+
   // Fetch current user
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -207,6 +225,94 @@ export default function LeadDetailPage() {
       })
       .catch((error) => console.error('Error fetching user:', error))
   }, [])
+
+  const loadFinanceUsers = async () => {
+    try {
+      const [srCrmRes, visualizerRes] = await Promise.all([
+        fetch('/api/users?department=SR_CRM'),
+        fetch('/api/users?department=VISUALIZER_3D')
+      ])
+      const [srCrmData, visualizerData] = await Promise.all([
+        srCrmRes.json(),
+        visualizerRes.json()
+      ])
+      if (srCrmData.success) setSrCrmUsers(srCrmData.data)
+      if (visualizerData.success) setVisualizerUsers(visualizerData.data)
+    } catch (e) {
+      console.error('Error loading users:', e)
+    }
+  }
+
+  useEffect(() => {
+    if (startFinanceOpen) {
+      loadFinanceUsers()
+    }
+  }, [startFinanceOpen])
+
+  const submitStartFinance = async () => {
+    setStartingFinance(true)
+    setStartFinanceError(null)
+    try {
+      const res = await fetch('/api/finance/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId,
+          ...financeForm
+        })
+      })
+      const data = await res.json()
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to start finance')
+      }
+      setStartFinanceOpen(false)
+      refreshLeadDetails()
+      if (activeTab === 'finance') {
+        loadProjectReport()
+      } else {
+        setActiveTab('finance' as LeadTabValue)
+      }
+    } catch (e: any) {
+      setStartFinanceError(e.message)
+    } finally {
+      setStartingFinance(false)
+    }
+  }
+
+  const loadProjectReport = async () => {
+    if (!leadId) return
+    setReportLoading(true)
+    try {
+      const res = await fetch(`/api/finance/reports?mode=project&leadId=${leadId}`)
+      const data = await res.json()
+      if (data.success) {
+        setProjectReport(data)
+      }
+    } catch (e) {
+      console.error('Failed to load project report:', e)
+    } finally {
+      setReportLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'finance' as LeadTabValue) {
+      loadProjectReport()
+    }
+  }, [activeTab, leadId])
+
+  const formatCategory = (cat: string) => {
+    const CATEGORY_LABELS: Record<string, string> = {
+      CLIENT_DEPOSIT: "Client Deposit",
+      MATERIAL_COST: "Material Cost",
+      LABOR_COST: "Labor Cost",
+      CONVEYANCE: "Conveyance",
+      OFFICE_EXPENSE: "Office Expense",
+      MISC: "Miscellaneous",
+      FEE_COLLECTION: "Fee Collection",
+    }
+    return CATEGORY_LABELS[cat] || cat
+  }
 
   const refreshLeadDetails = useCallback(() => {
     setLoading(true)
@@ -666,7 +772,7 @@ export default function LeadDetailPage() {
           {/* Tabs Section */}
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as LeadTabValue)} className="w-full">
             {/* Tab List - Fixed Row Layout */}
-            <TabsList className="grid h-auto w-full grid-cols-4 rounded-lg bg-muted p-1 text-muted-foreground lg:mx-auto lg:w-max lg:inline-flex lg:h-12 lg:items-center lg:justify-center">
+            <TabsList className={`grid h-auto w-full ${(lead.accountStatus || lead.agreementType) ? 'grid-cols-5' : 'grid-cols-4'} rounded-lg bg-muted p-1 text-muted-foreground lg:mx-auto lg:w-max lg:inline-flex lg:h-12 lg:items-center lg:justify-center`}>
               <TabsTrigger value="notes" className="flex items-center justify-center gap-2">
                 <MessageSquare className="w-4 h-4" />
                 <span className="hidden sm:inline">Notes</span>
@@ -683,6 +789,12 @@ export default function LeadDetailPage() {
                 <FileText className="w-4 h-4" />
                 <span className="hidden sm:inline">Attachments</span>
               </TabsTrigger>
+              {(lead.accountStatus || lead.agreementType) && (
+                <TabsTrigger value="finance" className="flex items-center justify-center gap-2">
+                  <DollarSign className="w-4 h-4" />
+                  <span className="hidden sm:inline">Finance</span>
+                </TabsTrigger>
+              )}
             </TabsList>
 
             {/* Tab Content */}
@@ -792,6 +904,103 @@ export default function LeadDetailPage() {
               </div>
               )}
             </TabsContent>
+
+            {(lead.accountStatus || lead.agreementType) && (
+              <TabsContent value="finance" className="mt-4 sm:mt-6">
+                <div className="space-y-6 rounded-xl border border-border bg-card p-3 sm:p-4">
+                  <div className="flex items-center justify-between border-b pb-4">
+                    <div>
+                      <h3 className="text-lg font-semibold">Project Expenses Ledger Allocation</h3>
+                      <p className="text-sm text-muted-foreground">Breakdown of construction and material expenses.</p>
+                    </div>
+                  </div>
+                  {reportLoading ? (
+                    <div className="flex h-48 flex-col items-center justify-center space-y-2 text-muted-foreground">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                      <p>Loading ledger details...</p>
+                    </div>
+                  ) : projectReport ? (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-4 rounded-lg bg-muted border border-border">
+                          <div className="text-xs text-muted-foreground">Total Budget</div>
+                          <div className="text-xl font-bold mt-1">
+                            {projectReport.project?.budget ? `${projectReport.project.budget.toLocaleString()} BDT` : "Not Defined"}
+                          </div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-muted border border-border">
+                          <div className="text-xs text-muted-foreground">Total Site Expense Logged</div>
+                          <div className="text-xl font-bold mt-1 text-rose-500">
+                            {((Object.values(projectReport.categoryTotals || {}) as number[]) || []).reduce((a: number, b: number) => a + b, 0).toLocaleString()} BDT
+                          </div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-muted border border-border">
+                          <div className="text-xs text-muted-foreground">Profit margin estimation</div>
+                          <div className="text-xl font-bold mt-1 text-emerald-500">
+                            {projectReport.project?.budget
+                              ? `${(projectReport.project.budget - ((Object.values(projectReport.categoryTotals || {}) as number[]) || []).reduce((a: number, b: number) => a + b, 0)).toLocaleString()} BDT`
+                              : "N/A"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h3 className="text-md font-bold">Category-wise Spending Breakdown</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                          {Object.entries(projectReport.categoryTotals || {}).map(([cat, val]: any) => (
+                            <div key={cat} className="p-3 border border-border rounded-lg bg-card flex flex-col justify-between">
+                              <span className="text-xs text-muted-foreground font-medium">{formatCategory(cat)}</span>
+                              <span className="text-md font-bold mt-1">{val.toLocaleString()} BDT</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <h3 className="text-md font-bold">Raw Logs for this Site</h3>
+                        <div className="border border-border rounded-lg overflow-x-auto">
+                          <table className="w-full text-left text-sm">
+                            <thead className="bg-muted text-xs uppercase tracking-wider text-muted-foreground font-bold">
+                              <tr>
+                                <th className="p-3">Date</th>
+                                <th className="p-3">Category</th>
+                                <th className="p-3">Particulars</th>
+                                <th className="p-3 text-right">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {projectReport.transactions?.map((tx: any) => (
+                                <tr key={tx.id} className="hover:bg-muted/10">
+                                  <td className="p-3 text-xs">
+                                    {new Date(tx.date).toLocaleDateString()}
+                                  </td>
+                                  <td className="p-3 text-xs">{formatCategory(tx.category)}</td>
+                                  <td className="p-3">{tx.particular}</td>
+                                  <td className="p-3 text-right font-bold text-rose-500">
+                                    {tx.amount.toLocaleString()} BDT
+                                  </td>
+                                </tr>
+                              ))}
+                              {(!projectReport.transactions || projectReport.transactions.length === 0) && (
+                                <tr>
+                                  <td colSpan={4} className="p-6 text-center text-muted-foreground">
+                                    No logs found for this project.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-muted-foreground">
+                      Failed to load ledger data.
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            )}
           </Tabs>
         </div>
 
@@ -821,18 +1030,33 @@ export default function LeadDetailPage() {
             onSubStatusChange={setSubStatus}
             onUpdateStage={handleUpdateStage}
             onCreateFollowupForStage={async ({ followupDate: requiredFollowupDate, notes }) => {
-              await createFollowup({
-                followupDate: requiredFollowupDate,
-                notes,
+              // The original logic
+              const res = await fetch(`/api/followup/${leadId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ followupDate: toIsoFromLocalDateTime(requiredFollowupDate), notes }),
               })
-              refreshFollowups()
+              if (res.ok) refreshFollowups()
             }}
             onAssignmentsRefresh={refreshAssignments}
             onFollowupRefresh={refreshFollowups}
             onAttachmentRefresh={refreshAttachments}
-            onAddFollowup={handleAddFollowup}
-            onAddLeadDetails={handleAddLeadDetails}
+            onAddFollowup={() => setAddFollowupOpen(true)}
+            onAddLeadDetails={() => {
+              setLeadDetailsName(lead.name)
+              setLeadDetailsEmail(lead.email || '')
+              setLeadDetailsPhone(lead.phone || '')
+              setLeadDetailsLocation(lead.location || '')
+              setLeadDetailsSource(lead.source || '')
+              setLeadDetailsBudget(lead.budget ? lead.budget.toString() : '')
+              setLeadDetailsRemarks(lead.remarks || '')
+              setAddLeadDetailsOpen(true)
+            }}
             onAddAttachment={() => setAddAttachmentOpen(true)}
+            onLeadRefresh={refreshLeadDetails}
+            canStartFinance={canManageAssignments && !lead.agreementType && !lead.accountStatus}
+            onStartFinance={() => setStartFinanceOpen(true)}
+            openScheduleOnMount={searchParams.get('openSchedule') === 'true'}
           />
         </div>
       </div>
@@ -1001,6 +1225,95 @@ export default function LeadDetailPage() {
               disabled={isDeleting || deleteLeadName.trim() !== lead.name}
             >
               {isDeleting ? 'Deleting...' : 'Delete Lead'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Start Finance Modal */}
+      <Dialog open={startFinanceOpen} onOpenChange={setStartFinanceOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Start Finance & Connect Accounts</DialogTitle>
+            <DialogDescription>
+              Assign the project team and set the agreement details.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>SR CRM (Assigned)</Label>
+              <Select
+                value={financeForm.srCrmId}
+                onValueChange={(val) => setFinanceForm(prev => ({ ...prev, srCrmId: val }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select SR CRM" />
+                </SelectTrigger>
+                <SelectContent>
+                  {srCrmUsers.map(user => (
+                    <SelectItem key={user.id} value={user.id}>{user.fullName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>3D Visualizer</Label>
+              <Select
+                value={financeForm.visualizer3dId}
+                onValueChange={(val) => setFinanceForm(prev => ({ ...prev, visualizer3dId: val }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select 3D Visualizer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {visualizerUsers.map(user => (
+                    <SelectItem key={user.id} value={user.id}>{user.fullName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Agreement Type</Label>
+              <Select
+                value={financeForm.agreementType}
+                onValueChange={(val) => setFinanceForm(prev => ({ ...prev, agreementType: val }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Agreement Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DESIGN_ONLY">Design Only</SelectItem>
+                  <SelectItem value="DESIGN_AND_EXECUTION">Design & Execution</SelectItem>
+                  <SelectItem value="CONSULTANCY">Consultancy</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Agreement Value (BDT)</Label>
+              <Input
+                type="number"
+                placeholder="Total Agreement Value"
+                value={financeForm.agreementValue}
+                onChange={(e) => setFinanceForm(prev => ({ ...prev, agreementValue: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>First Payment / Advance (BDT)</Label>
+              <Input
+                type="number"
+                placeholder="Initial Payment Amount"
+                value={financeForm.firstPaymentAmount}
+                onChange={(e) => setFinanceForm(prev => ({ ...prev, firstPaymentAmount: e.target.value }))}
+              />
+            </div>
+            {startFinanceError && (
+              <p className="text-sm text-destructive">{startFinanceError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setStartFinanceOpen(false)} disabled={startingFinance}>Cancel</Button>
+            <Button onClick={submitStartFinance} disabled={startingFinance || !financeForm.agreementType || !financeForm.agreementValue}>
+              {startingFinance ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
+              Start Finance
             </Button>
           </DialogFooter>
         </DialogContent>

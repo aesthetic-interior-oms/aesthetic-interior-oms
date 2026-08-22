@@ -18,6 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import { toast } from '@/components/ui/sonner'
 import { LayoutGrid, Loader2, TableIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -40,6 +47,43 @@ export default function AccountsProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table')
+
+  const [ledgerProject, setLedgerProject] = useState<ProjectData | null>(null)
+  const [projectReport, setProjectReport] = useState<any>(null)
+  const [reportLoading, setReportLoading] = useState(false)
+
+  const openLedger = async (project: ProjectData) => {
+    setLedgerProject(project)
+    setReportLoading(true)
+    setProjectReport(null)
+    try {
+      const res = await fetch(`/api/finance/reports?mode=project&leadId=${project.id}`)
+      const data = await res.json()
+      if (data.success) {
+        setProjectReport(data)
+      } else {
+        toast.error('Failed to load ledger data')
+      }
+    } catch (e: any) {
+      toast.error('Error fetching ledger data')
+      console.error(e)
+    } finally {
+      setReportLoading(false)
+    }
+  }
+
+  const formatCategory = (cat: string) => {
+    const CATEGORY_LABELS: Record<string, string> = {
+      CLIENT_DEPOSIT: "Client Deposit",
+      MATERIAL_COST: "Material Cost",
+      LABOR_COST: "Labor Cost",
+      CONVEYANCE: "Conveyance",
+      OFFICE_EXPENSE: "Office Expense",
+      MISC: "Miscellaneous",
+      FEE_COLLECTION: "Fee Collection",
+    }
+    return CATEGORY_LABELS[cat] || cat
+  }
 
   const fetchProjects = async () => {
     try {
@@ -91,31 +135,29 @@ export default function AccountsProjectsPage() {
 
   return (
     <div className="flex h-[calc(100vh-theme(spacing.16))] flex-col gap-4 p-4 md:gap-8 md:p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <CrmPageHeader
-          title="Projects"
-          subtitle="Overview of all confirmed projects and their financial status."
-        />
-        <div className="flex items-center space-x-2 rounded-md border p-1 shrink-0">
-          <Button
-            variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('table')}
-            className="h-8"
-          >
-            <TableIcon className="mr-2 h-4 w-4" />
-            Table
-          </Button>
-          <Button
-            variant={viewMode === 'card' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('card')}
-            className="h-8"
-          >
-            <LayoutGrid className="mr-2 h-4 w-4" />
-            Grid
-          </Button>
-        </div>
+      <CrmPageHeader
+        title="Projects"
+        subtitle="Overview of all confirmed projects and their financial status."
+      />
+      <div className="flex items-center space-x-2 rounded-md border p-1 w-fit">
+        <Button
+          variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => setViewMode('table')}
+          className="h-8"
+        >
+          <TableIcon className="mr-2 h-4 w-4" />
+          Table
+        </Button>
+        <Button
+          variant={viewMode === 'card' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => setViewMode('card')}
+          className="h-8"
+        >
+          <LayoutGrid className="mr-2 h-4 w-4" />
+          Grid
+        </Button>
       </div>
 
       {viewMode === 'table' ? (
@@ -154,7 +196,14 @@ export default function AccountsProjectsPage() {
                   ) : (
                     projects.map((project) => (
                       <TableRow key={project.id}>
-                        <TableCell className="font-medium">{project.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <button
+                            onClick={() => openLedger(project)}
+                            className="text-primary hover:underline font-semibold text-left"
+                          >
+                            {project.name}
+                          </button>
+                        </TableCell>
                         <TableCell>{project.location || 'N/A'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="font-normal">
@@ -214,7 +263,14 @@ export default function AccountsProjectsPage() {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div>
-                        <CardTitle className="text-base">{project.name}</CardTitle>
+                        <CardTitle className="text-base">
+                          <button
+                            onClick={() => openLedger(project)}
+                            className="text-primary hover:underline font-semibold text-left"
+                          >
+                            {project.name}
+                          </button>
+                        </CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">
                           {project.location || 'No location'}
                         </p>
@@ -271,6 +327,103 @@ export default function AccountsProjectsPage() {
           )}
         </div>
       )}
+
+      {/* Ledger Modal */}
+      <Dialog open={!!ledgerProject} onOpenChange={(open) => !open && setLedgerProject(null)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Project Expenses Ledger Allocation</DialogTitle>
+            <DialogDescription>
+              Ledger details for <span className="font-semibold text-foreground">{ledgerProject?.name}</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          {reportLoading ? (
+            <div className="flex h-48 flex-col items-center justify-center space-y-2 text-muted-foreground">
+              <Loader2 className="h-6 w-6 animate-spin" />
+              <p>Loading ledger details...</p>
+            </div>
+          ) : projectReport ? (
+            <div className="space-y-6 pt-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-lg bg-muted border border-border">
+                  <div className="text-xs text-muted-foreground">Total Budget</div>
+                  <div className="text-xl font-bold mt-1">
+                    {projectReport.project?.budget ? `${projectReport.project.budget.toLocaleString()} BDT` : "Not Defined"}
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg bg-muted border border-border">
+                  <div className="text-xs text-muted-foreground">Total Site Expense Logged</div>
+                  <div className="text-xl font-bold mt-1 text-rose-500">
+                    {((Object.values(projectReport.categoryTotals || {}) as number[]) || []).reduce((a: number, b: number) => a + b, 0).toLocaleString()} BDT
+                  </div>
+                </div>
+                <div className="p-4 rounded-lg bg-muted border border-border">
+                  <div className="text-xs text-muted-foreground">Profit margin estimation</div>
+                  <div className="text-xl font-bold mt-1 text-emerald-500">
+                    {projectReport.project?.budget
+                      ? `${(projectReport.project.budget - ((Object.values(projectReport.categoryTotals || {}) as number[]) || []).reduce((a: number, b: number) => a + b, 0)).toLocaleString()} BDT`
+                      : "N/A"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-md font-bold">Category-wise Spending Breakdown</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {Object.entries(projectReport.categoryTotals || {}).map(([cat, val]: any) => (
+                    <div key={cat} className="p-3 border border-border rounded-lg bg-card flex flex-col justify-between">
+                      <span className="text-xs text-muted-foreground font-medium">{formatCategory(cat)}</span>
+                      <span className="text-md font-bold mt-1">{val.toLocaleString()} BDT</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-md font-bold">Raw Logs for this Site</h3>
+                <div className="border border-border rounded-lg overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-muted text-xs uppercase tracking-wider text-muted-foreground font-bold">
+                      <tr>
+                        <th className="p-3">Date</th>
+                        <th className="p-3">Category</th>
+                        <th className="p-3">Particulars</th>
+                        <th className="p-3 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {projectReport.transactions?.map((tx: any) => (
+                        <tr key={tx.id} className="hover:bg-muted/10">
+                          <td className="p-3 text-xs">
+                            {new Date(tx.date).toLocaleDateString()}
+                          </td>
+                          <td className="p-3 text-xs">{formatCategory(tx.category)}</td>
+                          <td className="p-3">{tx.particular}</td>
+                          <td className="p-3 text-right font-bold text-rose-500">
+                            {tx.amount.toLocaleString()} BDT
+                          </td>
+                        </tr>
+                      ))}
+                      {(!projectReport.transactions || projectReport.transactions.length === 0) && (
+                        <tr>
+                          <td colSpan={4} className="p-6 text-center text-muted-foreground">
+                            No logs found for this project.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              Failed to load ledger data.
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
