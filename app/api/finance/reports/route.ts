@@ -95,31 +95,38 @@ export async function GET(request: NextRequest) {
 
     if (mode === "project") {
       if (leadId) {
-        // Detailed category-wise expenses for a single project (Replaces One Project expenses.pdf)
+        // Detailed category-wise expenses and payments for a single project
         const transactions = await prisma.transaction.findMany({
           where: {
             leadId,
-            type: TransactionType.OUTFLOW,
           },
           orderBy: { date: "asc" },
         })
 
-        // Group by category to see total per category
         const categoryTotals: Record<string, number> = {}
+        let totalPaid = 0
+        const outflowTransactions: any[] = []
+
         transactions.forEach((tx) => {
-          categoryTotals[tx.category] = (categoryTotals[tx.category] || 0) + tx.amount
+          if (tx.type === TransactionType.OUTFLOW) {
+            categoryTotals[tx.category] = (categoryTotals[tx.category] || 0) + tx.amount
+            outflowTransactions.push(tx)
+          } else if (tx.type === TransactionType.INFLOW) {
+            totalPaid += tx.amount
+          }
         })
 
         const lead = await prisma.lead.findUnique({
           where: { id: leadId },
-          select: { id: true, name: true, budget: true },
+          select: { id: true, name: true, budget: true, agreementValue: true },
         })
 
         return NextResponse.json({
           success: true,
           project: lead,
-          transactions,
+          transactions: outflowTransactions,
           categoryTotals,
+          totalPaid,
         })
       } else {
         // Project-basis Daily Expenses breakdown (Replaces Project Basis daily expenses.pdf)

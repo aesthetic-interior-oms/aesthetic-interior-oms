@@ -29,6 +29,8 @@ export async function POST(req: Request) {
         agreementType,
         agreementValue: Number(agreementValue),
         accountStatus: 'PENDING',
+        stage: 'VISUALIZATION_PHASE',
+        subStatus: 'VISUAL_ASSIGNED',
         ...(srCrmId ? { primaryOwnerUserId: srCrmId, assignedTo: srCrmId } : {}),
       },
     })
@@ -94,7 +96,7 @@ export async function POST(req: Request) {
         leadId,
         userId: actor.id,
         type: 'NOTE',
-        description: `Finance started: Agreement Type ${agreementType}, Value ${agreementValue}. First Payment: ${firstPaymentAmount || 0}`,
+        description: `Finance started: Agreement Type ${agreementType}, Value ${agreementValue}. Moved to Visualization Phase. First Payment: ${firstPaymentAmount || 0}`,
       }
     })
 

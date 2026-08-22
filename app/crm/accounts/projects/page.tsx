@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,6 +38,7 @@ type ProjectData = {
 }
 
 export default function AccountsProjectsPage() {
+  const router = useRouter()
   const [projects, setProjects] = useState<ProjectData[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
@@ -151,6 +153,7 @@ export default function AccountsProjectsPage() {
                       <TableRow
                         key={project.id}
                         className="cursor-pointer hover:bg-muted/40 transition-colors"
+                        onClick={() => router.push(`/crm/accounts/projects/${project.id}`)}
                       >
                         <TableCell className="font-medium">
                           <Link
@@ -218,7 +221,11 @@ export default function AccountsProjectsPage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pb-8">
               {projects.map((project) => (
-                <Card key={project.id} className="flex flex-col hover:shadow-md transition-shadow">
+                <Card
+                  key={project.id}
+                  className="flex flex-col hover:shadow-md transition-shadow cursor-pointer hover:bg-muted/40"
+                  onClick={() => router.push(`/crm/accounts/projects/${project.id}`)}
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div>
@@ -247,21 +254,23 @@ export default function AccountsProjectsPage() {
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground">Status</span>
-                        <Select
-                          disabled={updatingId === project.id}
-                          value={project.accountStatus || 'PENDING'}
-                          onValueChange={(value) => handleStatusChange(project.id, value)}
-                        >
-                          <SelectTrigger className="h-7 w-[120px] text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PENDING">Pending</SelectItem>
-                            <SelectItem value="PROCESSING">Processing</SelectItem>
-                            <SelectItem value="PARTIAL_PAID">Partial Paid</SelectItem>
-                            <SelectItem value="FULL_PAID">Full Paid</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Select
+                            disabled={updatingId === project.id}
+                            value={project.accountStatus || 'PENDING'}
+                            onValueChange={(value) => handleStatusChange(project.id, value)}
+                          >
+                            <SelectTrigger className="h-7 w-[120px] text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PENDING">Pending</SelectItem>
+                              <SelectItem value="PROCESSING">Processing</SelectItem>
+                              <SelectItem value="PARTIAL_PAID">Partial Paid</SelectItem>
+                              <SelectItem value="FULL_PAID">Full Paid</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
 

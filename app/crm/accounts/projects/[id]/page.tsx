@@ -83,8 +83,10 @@ export default function ProjectDetailPage() {
     ? ((Object.values(report.categoryTotals || {}) as number[]).reduce((a, b) => a + b, 0))
     : 0
 
-  const budget = report?.project?.budget ?? null
-  const profit = budget !== null ? budget - totalExpense : null
+  const agreementValue = report?.project?.agreementValue ?? report?.project?.budget ?? null
+  const totalPaid = report?.totalPaid ?? 0
+  const due = agreementValue !== null ? agreementValue - totalPaid : null
+  const profit = agreementValue !== null ? agreementValue - totalExpense : null
 
   return (
     <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-8">
@@ -111,27 +113,43 @@ export default function ProjectDetailPage() {
           />
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card>
               <CardContent className="pt-6">
-                <div className="text-xs text-muted-foreground mb-1">Total Budget</div>
-                <div className="text-2xl font-bold">
-                  {budget !== null ? `${budget.toLocaleString()} BDT` : 'Not Defined'}
+                <div className="text-xs text-muted-foreground mb-1">Agreement Value / Budget</div>
+                <div className="text-xl font-bold">
+                  {agreementValue !== null ? `${agreementValue.toLocaleString()} BDT` : 'Not Defined'}
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
-                <div className="text-xs text-muted-foreground mb-1">Total Site Expense Logged</div>
-                <div className="text-2xl font-bold text-rose-500">
+                <div className="text-xs text-muted-foreground mb-1">Total Paid (Deposits)</div>
+                <div className="text-xl font-bold text-emerald-500">
+                  {totalPaid.toLocaleString()} BDT
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-xs text-muted-foreground mb-1">Payment Due</div>
+                <div className={`text-xl font-bold ${due !== null && due > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                  {due !== null ? `${due.toLocaleString()} BDT` : 'N/A'}
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="text-xs text-muted-foreground mb-1">Site Expense Logged</div>
+                <div className="text-xl font-bold text-rose-500">
                   {totalExpense.toLocaleString()} BDT
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="bg-muted">
               <CardContent className="pt-6">
-                <div className="text-xs text-muted-foreground mb-1">Profit Margin Estimation</div>
-                <div className={`text-2xl font-bold ${profit !== null && profit >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                <div className="text-xs text-muted-foreground mb-1">Profit Margin Estimate</div>
+                <div className={`text-xl font-bold ${profit !== null && profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                   {profit !== null ? `${profit.toLocaleString()} BDT` : 'N/A'}
                 </div>
               </CardContent>

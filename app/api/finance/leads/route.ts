@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
 
     const where: Prisma.LeadWhereInput = {
       stage: { in: POST_QUOTATION_STAGES },
+      agreementType: { not: null },
       ...(search
         ? {
             OR: [
