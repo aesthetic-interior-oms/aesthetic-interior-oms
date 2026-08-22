@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
-import { ArrowLeft, MessageSquare, History, Calendar, FileText, ImageIcon, Video } from 'lucide-react'
+import { ArrowLeft, MessageSquare, History, Calendar, FileText, ImageIcon, Video, Trash2 } from 'lucide-react'
 import { LeadInfoCard } from '@/components/crm/junior/lead-info-card'
 import { LeadNotesTab } from '@/components/crm/junior/lead-notes-tab'
 import { LeadActivityTab } from '@/components/crm/junior/lead-activity-tab'
@@ -183,6 +183,11 @@ export default function LeadDetailPage() {
   const [savingLeadDetails, setSavingLeadDetails] = useState(false)
   const [canManageAssignments, setCanManageAssignments] = useState(false)
   const [canManageVisitRequests, setCanManageVisitRequests] = useState(false)
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteLeadName, setDeleteLeadName] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // Fetch current user
   useEffect(() => {
@@ -568,6 +573,32 @@ export default function LeadDetailPage() {
     }
   }
 
+  const handleDeleteLead = async () => {
+    if (deleteLeadName.trim() !== lead?.name) {
+      setDeleteError("Lead name does not match.")
+      return
+    }
+    
+    setIsDeleting(true)
+    setDeleteError(null)
+    
+    try {
+      const response = await fetch(`/api/lead/${leadId}`, {
+        method: 'DELETE',
+      })
+      
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to delete lead')
+      }
+      
+      router.push(backHref)
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'An error occurred while deleting the lead')
+      setIsDeleting(false)
+    }
+  }
+
   const mediaAttachments = attachments.filter((item) => item.category === 'MEDIA')
   const fileAttachments = attachments.filter((item) => item.category !== 'MEDIA')
   const formatSize = (sizeBytes: number | null) => {
@@ -613,7 +644,17 @@ export default function LeadDetailPage() {
           <ArrowLeft className="w-4 h-4" />
           Back
         </Button>
-        <FacebookMessagesDialog leadId={leadId} source={lead.source} />
+        <div className="flex items-center gap-2">
+          <Button onClick={() => {
+            setDeleteLeadName('')
+            setDeleteError(null)
+            setDeleteDialogOpen(true)
+          }} variant="destructive" size="sm" className="gap-2">
+            <Trash2 className="w-4 h-4" />
+            Delete
+          </Button>
+          <FacebookMessagesDialog leadId={leadId} source={lead.source} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
@@ -925,6 +966,41 @@ export default function LeadDetailPage() {
           <DialogFooter>
             <Button onClick={handleCreateAttachment} disabled={addingAttachment}>
               {addingAttachment ? 'Uploading...' : 'Upload attachment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Lead</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete the lead and all associated data.
+              <br /><br />
+              Please type <strong>{lead.name}</strong> to confirm.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              value={deleteLeadName}
+              onChange={(e) => setDeleteLeadName(e.target.value)}
+              placeholder="Lead name"
+            />
+            {deleteError && (
+              <p className="text-sm text-destructive">{deleteError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteLead}
+              disabled={isDeleting || deleteLeadName.trim() !== lead.name}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Lead'}
             </Button>
           </DialogFooter>
         </DialogContent>
