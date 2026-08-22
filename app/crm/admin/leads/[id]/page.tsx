@@ -39,6 +39,9 @@ type LeadDetails = {
   location: string | null
   remarks: string | null
   assignedTo: string | null
+  agreementType: string | null
+  agreementValue: number | null
+  accountStatus: string | null
   created_at: string
   updated_at: string
   assignee?: {
@@ -128,7 +131,7 @@ function toIsoFromLocalDateTime(value: string): string {
   return parsed.toISOString()
 }
 
-type LeadTabValue = 'notes' | 'activity' | 'followups' | 'attachments'
+type LeadTabValue = 'notes' | 'activity' | 'followups' | 'attachments' | 'finance'
 
 export default function LeadDetailPage() {
   const params = useParams()
@@ -270,7 +273,7 @@ export default function LeadDetailPage() {
       if (activeTab === 'finance') {
         loadProjectReport()
       } else {
-        setActiveTab('finance' as LeadTabValue)
+        setActiveTab('finance')
       }
     } catch (e: any) {
       setStartFinanceError(e.message)
