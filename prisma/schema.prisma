@@ -30,6 +30,7 @@ model Lead {
   assignedTo String?
   primaryOwnerDepartment LeadPrimaryOwnerDepartment?
   primaryOwnerUserId String?
+  accountStatus AccountStatus?
   created_at DateTime       @default(now())
   updated_at DateTime       @updatedAt
 
@@ -1014,4 +1015,11 @@ model WebsiteTeamMember {
   updatedAt   DateTime @default(now()) @updatedAt
 
   @@index([isPublished, sortOrder])
+}
+
+enum AccountStatus {
+  PENDING
+  PROCESSING
+  PARTIAL_PAID
+  FULL_PAID
 }

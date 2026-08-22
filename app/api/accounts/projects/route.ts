@@ -28,6 +28,7 @@ export async function GET() {
         location: true,
         agreementType: true,
         agreementValue: true,
+        accountStatus: true,
         transactions: {
           where: {
             type: 'INFLOW',
@@ -57,6 +58,7 @@ export async function GET() {
         location: p.location,
         agreementType: p.agreementType,
         agreementValue,
+        accountStatus: p.accountStatus,
         paid,
         due,
         srCrmName: p.primaryOwner?.fullName ?? 'Unassigned',

@@ -743,15 +743,15 @@ export function VisitQueueCalendar({
             </div>
           </CardHeader>
 
-          <CardContent className="p-0">
+          <CardContent className="p-4 sm:p-6 bg-muted/20">
             {loading ? (
-              <div className="space-y-1 p-4">
+              <div className="space-y-4">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="h-12 animate-pulse rounded-lg bg-muted" />
+                  <div key={i} className="h-24 animate-pulse rounded-xl bg-card border" />
                 ))}
               </div>
             ) : (
-              <div className="divide-y divide-border">
+              <div className="space-y-4">
                 {allDayRows.map(day => {
                   const isToday = day.dateKey === todayKey
                   const hasData = day.scheduledVisits.length > 0 || day.queueItems.length > 0
@@ -759,81 +759,107 @@ export function VisitQueueCalendar({
                   const pendingQueue = day.queueItems.filter(q => !q.jrArchitectAssignee).length
                   const assignedQueue = day.queueItems.filter(q => !!q.jrArchitectAssignee).length
 
+                  const [y, m, d] = day.dateKey.split('-').map(Number)
+                  const dateObj = new Date(y, m - 1, d)
+                  const formattedDate = dateObj.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })
+                  const formattedDay = dateObj.toLocaleDateString('en-US', { weekday: 'short' })
+
                   return (
-                    <div key={day.dateKey}>
-                      {/* Day row */}
+                    <div 
+                      key={day.dateKey}
+                      className={`rounded-xl border bg-card transition-all overflow-hidden ${
+                        isToday ? 'border-primary shadow-sm' : 'border-border/60 hover:border-border'
+                      }`}
+                    >
+                      {/* Day row (Clickable Header) */}
                       <button
                         type="button"
                         onClick={() => hasData && toggleDate(day.dateKey)}
-                        className={[
-                          'w-full flex items-center justify-between gap-4 px-4 py-3 text-left transition-colors focus-visible:outline-none',
-                          hasData ? 'hover:bg-muted/50 cursor-pointer' : 'cursor-default opacity-60',
-                          isToday ? 'bg-primary/5' : '',
-                        ].join(' ')}
+                        className={`w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:px-6 sm:py-5 text-left focus-visible:outline-none transition-colors ${
+                          hasData ? 'hover:bg-muted/40 cursor-pointer' : 'cursor-default opacity-80'
+                        }`}
                         aria-expanded={isExpanded}
                         disabled={!hasData}
                       >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <span className={`text-sm font-semibold ${isToday ? 'text-primary' : hasData ? 'text-foreground' : 'text-muted-foreground'}`}>
-                            {formatDayLabel(day.dateKey)}
-                          </span>
-                          {isToday && (
-                            <span className="text-xs font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
-                              Today
+                        {/* Left side: Date stack */}
+                        <div className="flex flex-col gap-1 min-w-[120px]">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-base font-bold tracking-tight ${isToday ? 'text-primary' : 'text-foreground'}`}>
+                              {formattedDate}
                             </span>
-                          )}
+                            {isToday && (
+                              <Badge variant="default" className="text-[10px] px-1.5 py-0 h-5">TODAY</Badge>
+                            )}
+                          </div>
+                          <span className="text-sm font-medium uppercase tracking-widest text-muted-foreground">
+                            {formattedDay}
+                          </span>
+                          
+                          {/* "No visits" exactly as requested */}
                           {!hasData && (
-                            <span className="text-xs text-muted-foreground">No visits</span>
+                            <span className="text-sm text-muted-foreground/70 mt-0.5">
+                              No visits
+                            </span>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {day.scheduledVisits.length > 0 && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
-                              <Eye className="h-3 w-3" />
-                              {day.scheduledVisits.length} scheduled
-                            </span>
-                          )}
-                          {pendingQueue > 0 && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
-                              <Clock className="h-3 w-3" />
-                              {pendingQueue} needs JR
-                            </span>
-                          )}
-                          {assignedQueue > 0 && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-                              <CheckCircle2 className="h-3 w-3" />
-                              {assignedQueue} assigned
-                            </span>
-                          )}
+                        {/* Right side: Status badges & chevron */}
+                        <div className="flex items-center gap-3 self-start sm:self-center">
                           {hasData && (
-                            isExpanded
-                              ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                              : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            <div className="flex flex-wrap items-center gap-2">
+                              {day.scheduledVisits.length > 0 && (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100/80 px-3 py-1 text-xs font-semibold text-blue-800">
+                                  <Eye className="h-3.5 w-3.5" />
+                                  {day.scheduledVisits.length} scheduled
+                                </span>
+                              )}
+                              {pendingQueue > 0 && (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100/80 px-3 py-1 text-xs font-semibold text-amber-800">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  {pendingQueue} needs JR
+                                </span>
+                              )}
+                              {assignedQueue > 0 && (
+                                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100/80 px-3 py-1 text-xs font-semibold text-emerald-800">
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                  {assignedQueue} assigned
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          
+                          {hasData && (
+                            <div className="ml-2 bg-background p-1.5 rounded-full border shadow-sm group-hover:bg-muted transition-colors">
+                              {isExpanded ? <ChevronUp className="h-4 w-4 text-foreground" /> : <ChevronDown className="h-4 w-4 text-foreground" />}
+                            </div>
                           )}
                         </div>
                       </button>
 
                       {/* Expanded detail */}
                       {isExpanded && hasData && (
-                        <div className="border-t border-border bg-muted/10 px-4 py-3 space-y-4">
+                        <div className="border-t border-border/60 bg-muted/10 p-5 sm:p-6 space-y-5">
                           {/* Scheduled visits section */}
                           {day.scheduledVisits.length > 0 && (
-                            <div className="space-y-2">
-                              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
-                                Scheduled Visits — Observe Only ({day.scheduledVisits.length})
-                              </p>
-                              {day.scheduledVisits.map(v => renderScheduledVisitCard(v))}
+                            <div className="space-y-3">
+                              <h4 className="text-xs font-bold uppercase tracking-widest text-blue-700/80">
+                                Scheduled Visits (Observe Only) — {day.scheduledVisits.length}
+                              </h4>
+                              <div className="grid gap-3">
+                                {day.scheduledVisits.map(v => renderScheduledVisitCard(v))}
+                              </div>
                             </div>
                           )}
 
                           {/* Queue items section */}
                           {day.queueItems.length > 0 && (
-                            <div className="space-y-2">
-                              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
-                                Visit Completed — Action Required ({day.queueItems.length})
-                              </p>
-                              {day.queueItems.map(q => renderQueueItemCard(q))}
+                            <div className="space-y-3">
+                              <h4 className="text-xs font-bold uppercase tracking-widest text-emerald-700/80">
+                                Visit Completed (Action Required) — {day.queueItems.length}
+                              </h4>
+                              <div className="grid gap-3">
+                                {day.queueItems.map(q => renderQueueItemCard(q))}
+                              </div>
                             </div>
                           )}
                         </div>

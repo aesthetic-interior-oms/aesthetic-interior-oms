@@ -331,6 +331,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           subStatus: nextSubStatus,
           ...(agreementType !== null ? { agreementType } : {}),
           ...(agreementValue !== null && !isNaN(agreementValue) ? { agreementValue } : {}),
+          ...(agreementType !== null ? { accountStatus: 'PENDING' } : {}),
         },
       });
 
