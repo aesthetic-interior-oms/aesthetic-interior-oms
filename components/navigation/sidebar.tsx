@@ -83,12 +83,12 @@ const navigationGroups: Record<string, NavGroup[]> = {
         {
           icon: ClipboardList,
           label: 'Projects',
-          href: '/crm/accounts/projects',
+          href: '/crm/admin/projects',
         },
         {
           icon: ClipboardList,
           label: 'Overheads',
-          href: '/crm/accounts/overheads',
+          href: '/crm/admin/overheads',
         },
       ],
     },

@@ -232,15 +232,15 @@ export default function LeadDetailPage() {
   const loadFinanceUsers = async () => {
     try {
       const [srCrmRes, visualizerRes] = await Promise.all([
-        fetch('/api/users?department=SR_CRM'),
-        fetch('/api/users?department=VISUALIZER_3D')
+        fetch('/api/department/available/SR_CRM'),
+        fetch('/api/department/available/VISUALIZER_3D')
       ])
       const [srCrmData, visualizerData] = await Promise.all([
         srCrmRes.json(),
         visualizerRes.json()
       ])
-      if (srCrmData.success) setSrCrmUsers(srCrmData.data)
-      if (visualizerData.success) setVisualizerUsers(visualizerData.data)
+      if (srCrmData.success) setSrCrmUsers(srCrmData.users)
+      if (visualizerData.success) setVisualizerUsers(visualizerData.users)
     } catch (e) {
       console.error('Error loading users:', e)
     }
