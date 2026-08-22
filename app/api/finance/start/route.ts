@@ -1,10 +1,10 @@
 import prisma from '@/lib/prisma'
 import { NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/authz'
+import { requireDatabaseRoles } from '@/lib/authz'
 
 export async function POST(req: Request) {
   try {
-    const authResult = await getAuthUser()
+    const authResult = await requireDatabaseRoles(['ADMIN'])
     if (!authResult.ok) {
       return authResult.response
     }
