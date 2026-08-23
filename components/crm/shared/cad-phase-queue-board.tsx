@@ -986,6 +986,48 @@ export function CadPhaseQueueBoard({
         }
         toast.success(payload?.message ?? 'First meeting completed')
       } else if (
+        isDirectAgreementConfirm &&
+        completeMeetingLead.stage === 'QUOTATION_PHASE' &&
+        completeMeetingLead.subStatus === 'QUOTATION_APPROVED'
+      ) {
+        // Direct agreement from Budget Queue (Quotation Approved stage — skip budget meeting)
+        if (clientApproval === 'NO_APPROVAL') {
+          toast.error('Please select an agreement type (Design or Fitout) to confirm')
+          return
+        }
+        if (!visualizerMemberId) {
+          toast.error('Select a 3D Visualizer to confirm agreement')
+          return
+        }
+        const assignmentRes = await fetch(
+          `/api/lead/${completeMeetingLead.id}/assignments/VISUALIZER_3D`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: visualizerMemberId }),
+          },
+        )
+        const assignmentPayload = await assignmentRes.json()
+        if (!assignmentRes.ok || !assignmentPayload?.success) {
+          throw new Error(assignmentPayload?.error ?? 'Failed to assign 3D Visualizer')
+        }
+        const response = await fetch(`/api/lead/${completeMeetingLead.id}/stage`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stage: 'VISUALIZATION_PHASE',
+            subStatus: 'VISUAL_ASSIGNED',
+            reason: `Direct agreement confirmed (Quotation Approved → Visualization) with ${clientApproval.replace('_', ' ').toLowerCase()}. ${completeMeetingNote.trim()}`,
+            agreementType: clientApproval,
+            agreementValue: agreementValue !== '' ? agreementValue : undefined,
+          }),
+        })
+        const payload = await response.json()
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.error ?? 'Failed to move lead to Visualization phase')
+        }
+        toast.success('Agreement confirmed — Lead sent to Design Queue')
+      } else if (
         (completeMeetingLead.stage === 'BUDGET_PHASE' &&
         completeMeetingLead.subStatus === 'BUDGET_MEETING_SET') || isDirectAgreementConfirm
       ) {
@@ -1266,7 +1308,7 @@ export function CadPhaseQueueBoard({
                 Reassign Quotation
               </DropdownMenuItem>
             ) : null}
-            {lead.stage === 'DISCOVERY' ? (
+            {lead.stage === 'DISCOVERY' || lead.subStatus === 'CAD_APPROVED' ? (
               <>
                 <DropdownMenuItem onClick={() => void openDirectAssignQuotation(lead)}>
                   Assign Quotation
@@ -1676,7 +1718,7 @@ export function CadPhaseQueueBoard({
                               Reassign Quotation
                             </Button>
                           ) : null}
-                          {lead.stage === 'DISCOVERY' ? (
+                          {lead.stage === 'DISCOVERY' || lead.subStatus === 'CAD_APPROVED' ? (
                             <>
                               <Button
                                 size="sm"
@@ -1893,31 +1935,52 @@ export function CadPhaseQueueBoard({
                         </Button>
                       ) : null}
                       {isMeetingQueue ? (
-                        lead.canSetMeeting ? (
-                          <Button
-                            size="sm"
-                            onClick={() => openFirstMeetingDialog(lead)}
-                          >
-                            <CalendarClock className="mr-1 h-4 w-4" />
-                            Set Meeting
-                          </Button>
-                        ) : lead.canSubmitMeetingData ? (
-                          <Button
-                            size="sm"
-                            onClick={() => void openCompleteMeetingDialog(lead)}
-                          >
-                            <CalendarClock className="mr-1 h-4 w-4" />
-                            Complete Meeting
-                          </Button>
-                        ) : lead.canReassignQuotation ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => void openReassignQuotation(lead)}
-                          >
-                            Reassign Quotation
-                          </Button>
-                        ) : null
+                        <>
+                          {lead.canSetMeeting ? (
+                            <Button
+                              size="sm"
+                              onClick={() => openFirstMeetingDialog(lead)}
+                            >
+                              <CalendarClock className="mr-1 h-4 w-4" />
+                              Set Meeting
+                            </Button>
+                          ) : lead.canSubmitMeetingData ? (
+                            <Button
+                              size="sm"
+                              onClick={() => void openCompleteMeetingDialog(lead)}
+                            >
+                              <CalendarClock className="mr-1 h-4 w-4" />
+                              Complete Meeting
+                            </Button>
+                          ) : lead.canReassignQuotation ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void openReassignQuotation(lead)}
+                            >
+                              Reassign Quotation
+                            </Button>
+                          ) : null}
+                          {lead.stage === 'DISCOVERY' || lead.subStatus === 'CAD_APPROVED' ? (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => void openDirectAssignQuotation(lead)}
+                              >
+                                Assign Quotation
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => void openCompleteMeetingDialog(lead, true)}
+                              >
+                                <CheckCircle2 className="mr-1 h-4 w-4" />
+                                Agreement
+                              </Button>
+                            </>
+                          ) : null}
+                        </>
                       ) : isBudgetQueue ? (
                         <>
                           {lead.stage === 'QUOTATION_PHASE' &&
