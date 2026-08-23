@@ -356,8 +356,6 @@ export default function FinanceDashboard() {
         setParticular("")
         setAmount("")
         loadData()
-        loadMonthlyReport(selectedMonth)
-        if (selectedProject) loadProjectReport(selectedProject)
       } else {
         toast.error(data.error || "Failed to log transaction")
       }
