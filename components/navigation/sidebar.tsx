@@ -76,20 +76,53 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/admin/dashboard',
         },
         {
-          icon: ClipboardList,
-          label: 'Finance',
-          href: '/crm/admin/finance',
+          icon: Users,
+          label: 'Leads',
+          href: '/crm/admin/leads',
         },
       ],
     },
     {
-      id: 'admin-workflow',
-      label: 'Workflow',
+      id: 'admin-accounts',
+      label: 'Accounts',
       defaultOpen: true,
       items: [
-        { icon: Users, label: 'Leads', href: '/crm/admin/leads' },
+        {
+          icon: ClipboardList,
+          label: 'Finance',
+          href: '/crm/admin/finance',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Projects',
+          href: '/crm/accounts/projects',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Overheads',
+          href: '/crm/admin/overheads',
+        },
+      ],
+    },
+    {
+      id: 'admin-front-team',
+      label: 'Front team',
+      defaultOpen: true,
+      items: [
         { icon: Calendar, label: 'Visits', href: '/crm/admin/visits' },
         { icon: ClipboardList, label: 'Visit Queue', href: '/crm/admin/queue' },
+        {
+          icon: ClipboardList,
+          label: 'CAD Queue',
+          href: '/crm/admin/cad-phase-queue',
+        },
+      ],
+    },
+    {
+      id: 'admin-senior-crm',
+      label: 'Senior CRM',
+      defaultOpen: true,
+      items: [
         {
           icon: CalendarClock,
           label: 'Meeting Queue',
@@ -109,16 +142,6 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: ClipboardList,
           label: 'Review Center',
           href: '/crm/admin/review-center',
-        },
-        {
-          icon: ListTodo,
-          label: 'Senior Tasks',
-          href: '/crm/admin/today-tasks',
-        },
-        {
-          icon: ClipboardList,
-          label: 'CAD Queue',
-          href: '/crm/admin/cad-phase-queue',
         },
         {
           icon: CalendarClock,

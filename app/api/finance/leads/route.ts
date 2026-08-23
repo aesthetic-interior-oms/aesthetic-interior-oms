@@ -23,27 +23,38 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')?.trim() || '';
     const srCrmUserId = searchParams.get('srCrmId')?.trim() || '';
 
+    const conditions: Prisma.LeadWhereInput[] = [
+      {
+        OR: [
+          { stage: { in: POST_QUOTATION_STAGES } },
+          { agreementType: { not: null } }
+        ]
+      }
+    ];
+
+    if (search) {
+      conditions.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { phone: { contains: search, mode: 'insensitive' } },
+          { location: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    if (srCrmUserId) {
+      conditions.push({
+        assignments: {
+          some: {
+            department: LeadAssignmentDepartment.SR_CRM,
+            userId: srCrmUserId,
+          },
+        },
+      });
+    }
+
     const where: Prisma.LeadWhereInput = {
-      stage: { in: POST_QUOTATION_STAGES },
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: 'insensitive' } },
-              { phone: { contains: search, mode: 'insensitive' } },
-              { location: { contains: search, mode: 'insensitive' } },
-            ],
-          }
-        : {}),
-      ...(srCrmUserId
-        ? {
-            assignments: {
-              some: {
-                department: LeadAssignmentDepartment.SR_CRM,
-                userId: srCrmUserId,
-              },
-            },
-          }
-        : {}),
+      AND: conditions,
     };
 
     const leads = await prisma.lead.findMany({
