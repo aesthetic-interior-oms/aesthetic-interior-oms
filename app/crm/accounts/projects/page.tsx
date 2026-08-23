@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -36,6 +38,7 @@ type ProjectData = {
 }
 
 export default function AccountsProjectsPage() {
+  const router = useRouter()
   const [projects, setProjects] = useState<ProjectData[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
@@ -43,16 +46,14 @@ export default function AccountsProjectsPage() {
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch('/api/accounts/projects', {
-        cache: 'no-store',
-      })
+      const response = await fetch('/api/accounts/projects', { cache: 'no-store' })
       const data = await response.json()
       if (data.success) {
         setProjects(data.data)
       } else {
         toast.error(data.error || 'Failed to fetch projects')
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to load projects data')
     } finally {
       setLoading(false)
@@ -75,14 +76,12 @@ export default function AccountsProjectsPage() {
       if (data.success) {
         toast.success('Account status updated')
         setProjects((prev) =>
-          prev.map((p) =>
-            p.id === projectId ? { ...p, accountStatus: newStatus } : p
-          )
+          prev.map((p) => (p.id === projectId ? { ...p, accountStatus: newStatus } : p))
         )
       } else {
         toast.error(data.error || 'Failed to update status')
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to update status')
     } finally {
       setUpdatingId(null)
@@ -91,31 +90,29 @@ export default function AccountsProjectsPage() {
 
   return (
     <div className="flex h-[calc(100vh-theme(spacing.16))] flex-col gap-4 p-4 md:gap-8 md:p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <CrmPageHeader
-          title="Projects"
-          subtitle="Overview of all confirmed projects and their financial status."
-        />
-        <div className="flex items-center space-x-2 rounded-md border p-1 shrink-0">
-          <Button
-            variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('table')}
-            className="h-8"
-          >
-            <TableIcon className="mr-2 h-4 w-4" />
-            Table
-          </Button>
-          <Button
-            variant={viewMode === 'card' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('card')}
-            className="h-8"
-          >
-            <LayoutGrid className="mr-2 h-4 w-4" />
-            Grid
-          </Button>
-        </div>
+      <CrmPageHeader
+        title="Projects"
+        subtitle="Overview of all confirmed projects and their financial status."
+      />
+      <div className="flex items-center space-x-2 rounded-md border p-1 w-fit">
+        <Button
+          variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => setViewMode('table')}
+          className="h-8"
+        >
+          <TableIcon className="mr-2 h-4 w-4" />
+          Table
+        </Button>
+        <Button
+          variant={viewMode === 'card' ? 'secondary' : 'ghost'}
+          size="sm"
+          onClick={() => setViewMode('card')}
+          className="h-8"
+        >
+          <LayoutGrid className="mr-2 h-4 w-4" />
+          Grid
+        </Button>
       </div>
 
       {viewMode === 'table' ? (
@@ -153,31 +150,45 @@ export default function AccountsProjectsPage() {
                     </TableRow>
                   ) : (
                     projects.map((project) => (
-                      <TableRow key={project.id}>
-                        <TableCell className="font-medium">{project.name}</TableCell>
+                      <TableRow
+                        key={project.id}
+                        className="cursor-pointer hover:bg-muted/40 transition-colors"
+                        onClick={() => router.push(`/crm/accounts/projects/${project.id}`)}
+                      >
+                        <TableCell className="font-medium">
+                          <Link
+                            href={`/crm/accounts/projects/${project.id}`}
+                            className="text-primary hover:underline font-semibold"
+                          >
+                            {project.name}
+                          </Link>
+                        </TableCell>
                         <TableCell>{project.location || 'N/A'}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className="font-normal">
-                            {project.agreementType.replace('_', ' ')}
+                            {project.agreementType.replace(/_/g, ' ')}
                           </Badge>
                         </TableCell>
                         <TableCell>{project.srCrmName}</TableCell>
                         <TableCell>
-                          <Select
-                            disabled={updatingId === project.id}
-                            value={project.accountStatus || 'PENDING'}
-                            onValueChange={(value) => handleStatusChange(project.id, value)}
-                          >
-                            <SelectTrigger className="h-8 w-[130px]">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="PENDING">Pending</SelectItem>
-                              <SelectItem value="PROCESSING">Processing</SelectItem>
-                              <SelectItem value="PARTIAL_PAID">Partial Paid</SelectItem>
-                              <SelectItem value="FULL_PAID">Full Paid</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          {/* Stop row click propagation so status dropdown works independently */}
+                          <div onClick={(e) => e.stopPropagation()}>
+                            <Select
+                              disabled={updatingId === project.id}
+                              value={project.accountStatus || 'PENDING'}
+                              onValueChange={(value) => handleStatusChange(project.id, value)}
+                            >
+                              <SelectTrigger className="h-8 w-[130px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="PENDING">Pending</SelectItem>
+                                <SelectItem value="PROCESSING">Processing</SelectItem>
+                                <SelectItem value="PARTIAL_PAID">Partial Paid</SelectItem>
+                                <SelectItem value="FULL_PAID">Full Paid</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </TableCell>
                         <TableCell className="text-right tabular-nums">
                           ৳{project.agreementValue.toLocaleString()}
@@ -210,17 +221,28 @@ export default function AccountsProjectsPage() {
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pb-8">
               {projects.map((project) => (
-                <Card key={project.id} className="flex flex-col">
+                <Card
+                  key={project.id}
+                  className="flex flex-col hover:shadow-md transition-shadow cursor-pointer hover:bg-muted/40"
+                  onClick={() => router.push(`/crm/accounts/projects/${project.id}`)}
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div>
-                        <CardTitle className="text-base">{project.name}</CardTitle>
+                        <CardTitle className="text-base">
+                          <Link
+                            href={`/crm/accounts/projects/${project.id}`}
+                            className="text-primary hover:underline font-semibold"
+                          >
+                            {project.name}
+                          </Link>
+                        </CardTitle>
                         <p className="text-sm text-muted-foreground mt-1">
                           {project.location || 'No location'}
                         </p>
                       </div>
                       <Badge variant="outline" className="font-normal text-xs whitespace-nowrap">
-                        {project.agreementType.replace('_', ' ')}
+                        {project.agreementType.replace(/_/g, ' ')}
                       </Badge>
                     </div>
                   </CardHeader>
@@ -232,24 +254,26 @@ export default function AccountsProjectsPage() {
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground">Status</span>
-                        <Select
-                          disabled={updatingId === project.id}
-                          value={project.accountStatus || 'PENDING'}
-                          onValueChange={(value) => handleStatusChange(project.id, value)}
-                        >
-                          <SelectTrigger className="h-7 w-[120px] text-xs">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PENDING">Pending</SelectItem>
-                            <SelectItem value="PROCESSING">Processing</SelectItem>
-                            <SelectItem value="PARTIAL_PAID">Partial Paid</SelectItem>
-                            <SelectItem value="FULL_PAID">Full Paid</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Select
+                            disabled={updatingId === project.id}
+                            value={project.accountStatus || 'PENDING'}
+                            onValueChange={(value) => handleStatusChange(project.id, value)}
+                          >
+                            <SelectTrigger className="h-7 w-[120px] text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PENDING">Pending</SelectItem>
+                              <SelectItem value="PROCESSING">Processing</SelectItem>
+                              <SelectItem value="PARTIAL_PAID">Partial Paid</SelectItem>
+                              <SelectItem value="FULL_PAID">Full Paid</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
-                    
+
                     <div className="mt-auto space-y-2 rounded-md bg-muted/50 p-3 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Value</span>
@@ -264,6 +288,13 @@ export default function AccountsProjectsPage() {
                         <span className="font-bold text-rose-600 dark:text-rose-400 tabular-nums">৳{project.due.toLocaleString()}</span>
                       </div>
                     </div>
+
+                    <Link
+                      href={`/crm/accounts/projects/${project.id}`}
+                      className="w-full text-center text-xs text-primary hover:underline py-1"
+                    >
+                      View Ledger →
+                    </Link>
                   </CardContent>
                 </Card>
               ))}

@@ -176,6 +176,8 @@ interface LeadActionsPanelProps {
   onAddAttachment?: () => void
   onAddLeadDetails?: () => void
   onLeadRefresh?: () => void
+  canStartFinance?: boolean
+  onStartFinance?: () => void
   openScheduleOnMount?: boolean
 }
 
@@ -235,6 +237,8 @@ export function LeadActionsPanel({
   onAddAttachment,
   onAddLeadDetails,
   onLeadRefresh,
+  canStartFinance = false,
+  onStartFinance,
   openScheduleOnMount,
 }: LeadActionsPanelProps) {
   const [assignOpen, setAssignOpen] = useState(false)
@@ -2496,6 +2500,16 @@ export function LeadActionsPanel({
             <Mail className="w-4 h-4" />
             Send Email
           </Button>
+          {canStartFinance && onStartFinance ? (
+            <Button
+              className="w-full justify-start gap-2 text-primary border-primary"
+              variant="outline"
+              onClick={onStartFinance}
+            >
+              <Plus className="w-4 h-4" />
+              Start Finance
+            </Button>
+          ) : null}
         </CardContent>
       </Card>
 

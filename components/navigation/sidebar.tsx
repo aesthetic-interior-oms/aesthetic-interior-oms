@@ -80,6 +80,16 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Leads',
           href: '/crm/admin/leads',
         },
+        {
+          icon: ClipboardList,
+          label: 'Projects',
+          href: '/crm/admin/projects',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Overheads',
+          href: '/crm/admin/overheads',
+        },
       ],
     },
     {
@@ -423,6 +433,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: ClipboardList,
           label: 'Projects',
           href: '/crm/accounts/projects',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Overheads',
+          href: '/crm/accounts/overheads',
         },
         {
           icon: Settings,

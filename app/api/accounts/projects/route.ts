@@ -37,10 +37,18 @@ export async function GET() {
             amount: true,
           },
         },
-        primaryOwner: {
-          select: {
-            fullName: true,
+        assignments: {
+          where: {
+            department: 'SR_CRM',
           },
+          select: {
+            user: {
+              select: {
+                fullName: true,
+              },
+            },
+          },
+          take: 1,
         },
       },
       orderBy: {
@@ -61,7 +69,7 @@ export async function GET() {
         accountStatus: p.accountStatus,
         paid,
         due,
-        srCrmName: p.primaryOwner?.fullName ?? 'Unassigned',
+        srCrmName: p.assignments[0]?.user?.fullName ?? 'Unassigned',
       }
     })
 
