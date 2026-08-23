@@ -198,8 +198,7 @@ export default function LeadDetailPage() {
     srCrmId: '',
     visualizer3dId: '',
     agreementType: '',
-    agreementValue: '',
-    firstPaymentAmount: ''
+    agreementValue: ''
   })
   const [startingFinance, setStartingFinance] = useState(false)
   const [startFinanceError, setStartFinanceError] = useState<string | null>(null)
@@ -1314,15 +1313,6 @@ export default function LeadDetailPage() {
                 placeholder="Total Agreement Value"
                 value={financeForm.agreementValue}
                 onChange={(e) => setFinanceForm(prev => ({ ...prev, agreementValue: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>First Payment / Advance (BDT)</Label>
-              <Input
-                type="number"
-                placeholder="Initial Payment Amount"
-                value={financeForm.firstPaymentAmount}
-                onChange={(e) => setFinanceForm(prev => ({ ...prev, firstPaymentAmount: e.target.value }))}
               />
             </div>
             {startFinanceError && (

@@ -185,7 +185,7 @@ export default function ProjectDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Raw Logs for this Site</CardTitle>
-              <CardDescription>All expense transactions recorded for this project.</CardDescription>
+              <CardDescription>All transactions recorded for this project.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto rounded-b-xl">
@@ -195,14 +195,17 @@ export default function ProjectDetailPage() {
                       <th className="p-3">Date</th>
                       <th className="p-3">Category</th>
                       <th className="p-3">Particulars</th>
-                      <th className="p-3 text-right">Amount</th>
+                      <th className="p-3">Account</th>
+                      <th className="p-3">Recorder</th>
+                      <th className="p-3 text-right text-emerald-600 dark:text-emerald-400">Inflow</th>
+                      <th className="p-3 text-right text-rose-600 dark:text-rose-400">Outflow</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {report.transactions?.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="p-8 text-center text-muted-foreground">
-                          No expense logs found for this project.
+                        <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                          No transaction logs found for this project.
                         </td>
                       </tr>
                     ) : (
@@ -221,8 +224,13 @@ export default function ProjectDetailPage() {
                             </Badge>
                           </td>
                           <td className="p-3 text-sm">{tx.particular}</td>
+                          <td className="p-3 text-xs">{tx.account?.replace(/_/g, ' ')}</td>
+                          <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{tx.recordedBy?.fullName || 'Unknown'}</td>
+                          <td className="p-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                            {tx.type === 'INFLOW' ? `${tx.amount.toLocaleString()} BDT` : '-'}
+                          </td>
                           <td className="p-3 text-right font-bold tabular-nums text-rose-500">
-                            {tx.amount.toLocaleString()} BDT
+                            {tx.type === 'OUTFLOW' ? `${tx.amount.toLocaleString()} BDT` : '-'}
                           </td>
                         </tr>
                       ))

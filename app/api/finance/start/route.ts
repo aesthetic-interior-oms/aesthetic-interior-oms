@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     const actor = authResult.actor
 
     const body = await req.json()
-    const { leadId, srCrmId, visualizer3dId, agreementType, agreementValue, firstPaymentAmount } = body
+    const { leadId, srCrmId, visualizer3dId, agreementType, agreementValue } = body
 
     if (!leadId || !agreementType || agreementValue === undefined) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
@@ -74,29 +74,13 @@ export async function POST(req: Request) {
       })
     }
 
-    // 3. Create First Payment Transaction if provided
-    if (firstPaymentAmount && Number(firstPaymentAmount) > 0) {
-      await prisma.transaction.create({
-        data: {
-          date: new Date(),
-          type: 'INFLOW',
-          category: 'CLIENT_DEPOSIT',
-          particular: 'First Payment / Advance',
-          amount: Number(firstPaymentAmount),
-          account: 'BANK_OTHER', // Defaulting to BANK_OTHER as per schema
-          recordedById: actor.id,
-          leadId: leadId,
-        }
-      })
-    }
-
-    // 4. Log Activity
+    // 3. Log Activity
     await prisma.activityLog.create({
       data: {
         leadId,
         userId: actor.id,
         type: 'NOTE',
-        description: `Finance started: Agreement Type ${agreementType}, Value ${agreementValue}. Moved to Visualization Phase. First Payment: ${firstPaymentAmount || 0}`,
+        description: `Finance started: Agreement Type ${agreementType}, Value ${agreementValue}. Moved to Visualization Phase.`,
       }
     })
 
