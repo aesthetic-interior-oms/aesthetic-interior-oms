@@ -19,6 +19,7 @@ import { SrCrmRotationSettings } from '@/components/settings/sr-crm-rotation-set
 import { IntegrationSettings } from '@/components/settings/integration-settings'
 import { VisitWorkflowSettings } from '@/components/settings/visit-workflow-settings'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import QuotationSettingsPage from '@/app/quotation-team/settings/page'
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('users')
@@ -67,6 +68,10 @@ export default function SettingsPage() {
               <BarChart3 className="w-4 h-4" />
               <span className="hidden sm:inline">Performance</span>
             </TabsTrigger>
+            <TabsTrigger value="quotation" className="flex items-center gap-2">
+              <SlidersHorizontal className="w-4 h-4" />
+              <span className="hidden sm:inline">Quotation</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* User Management Tab */}
@@ -101,6 +106,10 @@ export default function SettingsPage() {
 
           <TabsContent value="performance" className="space-y-6">
             <PerformanceDescriptionSettings />
+          </TabsContent>
+
+          <TabsContent value="quotation" className="space-y-6">
+            <QuotationSettingsPage />
           </TabsContent>
         </Tabs>
       </div>

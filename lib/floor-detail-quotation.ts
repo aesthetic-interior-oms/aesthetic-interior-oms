@@ -3,7 +3,7 @@ import {
   createLineItemFromTemplate,
   resolveTemplateRate,
 } from '@/lib/quotation-templates/helpers'
-import { getQuotationTemplate, QUOTATION_TEMPLATES } from '@/lib/quotation-templates'
+import { getQuotationTemplate, listQuotationTemplates, QUOTATION_TEMPLATES } from '@/lib/quotation-templates'
 import type {
   QuotationDraftContent,
   QuotationFileType,
@@ -97,20 +97,16 @@ export function removeAreaFromContent(content: QuotationDraftContent, areaId: st
   }
 }
 
-export function findCatalogItem(
-  catalogTemplateKey: string,
-  templateItemId: string,
-): QuotationTemplateItem | null {
-  const template = getQuotationTemplate(catalogTemplateKey)
-  return template.items.find((item) => item.id === templateItemId) ?? null
+export function findCatalogItem(catalogTemplateKey: string, itemId: string, fullTemplates?: any[]) {
+  const template = fullTemplates?.find(t => t.key === catalogTemplateKey) || getQuotationTemplate(catalogTemplateKey)
+  return template.items.find((item: any) => item.id === itemId) ?? null
 }
 
-export function findCatalogItemAcrossTemplates(templateItemId: string) {
-  for (const template of QUOTATION_TEMPLATES) {
-    const item = template.items.find((entry) => entry.id === templateItemId)
-    if (item) {
-      return { template, item }
-    }
+export function findCatalogItemAcrossTemplates(itemId: string, fullTemplates?: any[]) {
+  const templates = fullTemplates?.length ? fullTemplates : listQuotationTemplates().map((t: any) => getQuotationTemplate(t.key))
+  for (const template of templates) {
+    const item = template.items.find((item: any) => item.id === itemId)
+    if (item) return { template, item }
   }
   return null
 }
@@ -123,8 +119,9 @@ export function addCatalogItemToFloor(
   quotationType: QuotationFileType,
   projectSqft: number | null,
   areaId?: string,
+  fullTemplates?: any[],
 ): QuotationDraftContent | null {
-  const item = findCatalogItem(catalogTemplateKey, templateItemId)
+  const item = findCatalogItem(catalogTemplateKey, templateItemId, fullTemplates)
   if (!item) return null
 
   const line = createLineItemFromTemplate(

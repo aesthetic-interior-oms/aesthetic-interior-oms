@@ -35,8 +35,8 @@ const HEADER_RESERVED_SPACE = 96
 const FOOTER_RESERVED_SPACE = 122
 
 const styles = StyleSheet.create({
-  page: { paddingTop: HEADER_RESERVED_SPACE, paddingBottom: FOOTER_RESERVED_SPACE, paddingLeft: 5, paddingRight: 5, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
-  header: { position: 'absolute', top: 20, left: 5, right: 5, height: 58, paddingHorizontal: 0, overflow: 'hidden' },
+  page: { paddingTop: HEADER_RESERVED_SPACE, paddingBottom: FOOTER_RESERVED_SPACE, paddingLeft: 28, paddingRight: 28, fontSize: 9, fontFamily: 'Noto Sans Bengali', color: '#000', backgroundColor: '#fff', lineHeight: 1.4 },
+  header: { position: 'absolute', top: 20, left: 28, right: 28, height: 58, paddingHorizontal: 0, overflow: 'hidden' },
   bold: { fontWeight: 'bold', color: '#000' },
   sectionTitle: { fontSize: 12, fontWeight: 'bold', color: PRIMARY, backgroundColor: '#f3f8f7', padding: 8, marginTop: 15, marginBottom: 8, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 1.5, borderBottomWidth: 1, borderBottomColor: PRIMARY },
   tHead: { flexDirection: 'row', borderTopWidth: 0.75, borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.75, borderColor: '#d7d7d7' },
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   headerRule: { height: 2.2, backgroundColor: PRIMARY },
   headerTitle: { color: PRIMARY, fontSize: 10, fontFamily: 'Times-Italic', letterSpacing: 2.4, marginHorizontal: 12, textTransform: 'uppercase' },
-  footerFixed: { position: 'absolute', bottom: 14, left: 5, right: 5, paddingTop: 8, paddingBottom: 6 },
+  footerFixed: { position: 'absolute', bottom: 14, left: 28, right: 28, paddingTop: 8, paddingBottom: 6 },
   footerDivider: { height: 1.4, backgroundColor: GOLD, marginBottom: 8 },
   footerText: { fontSize: 7, color: '#666', marginLeft: 4 },
   footerMeta: { fontSize: 5.5, color: '#8a8a8a', marginTop: 5, textAlign: 'right' },

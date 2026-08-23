@@ -145,6 +145,7 @@ export function QuotationMaker({
   const [projectSqft, setProjectSqft] = useState('')
   const [content, setContent] = useState<QuotationDraftContent | null>(null)
   const [templates, setTemplates] = useState<TemplateOption[]>([])
+  const [fullTemplates, setFullTemplates] = useState<any[]>([])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerFloorId, setPickerFloorId] = useState<string | null>(null)
   const [pickerAreaId, setPickerAreaId] = useState<string | null>(null)
@@ -203,9 +204,10 @@ export function QuotationMaker({
         throw new Error(payload?.error ?? 'Failed to load quotation')
       }
 
-      const data = payload.data as DraftResponse
+      const data = payload.data as any
       setCanEdit(Boolean(data.canEdit))
       if (Array.isArray(data.templates)) setTemplates(data.templates)
+      if (Array.isArray(data.fullTemplates)) setFullTemplates(data.fullTemplates)
 
       const source = data.draft ?? data.defaultDetailDraft
       if (!source) throw new Error('Quotation data unavailable')
@@ -433,12 +435,13 @@ export function QuotationMaker({
         quotationType,
         Number.isFinite(sqft) && sqft > 0 ? sqft : null,
         pickerAreaId ?? undefined,
+        fullTemplates,
       )
       if (!next) {
         toast.error('Item not found in saved list')
         return prev
       }
-      const match = findCatalogItemAcrossTemplates(templateItemId)
+      const match = findCatalogItemAcrossTemplates(templateItemId, fullTemplates)
       toast.success(match ? `Added: ${match.item.description}` : 'Item added')
       return normalizeQuotationContent(next)
     })
@@ -933,7 +936,8 @@ return (
       <QuotationItemPicker
         open={pickerOpen}
         onOpenChange={setPickerOpen}
-        catalogs={catalogOptions}
+        catalogs={templates}
+        fullTemplates={fullTemplates}
         catalogTemplateKey={pickerCatalogKey}
         onCatalogTemplateKeyChange={setPickerCatalogKey}
         onSelectItem={addTemplateItemFromCatalog}

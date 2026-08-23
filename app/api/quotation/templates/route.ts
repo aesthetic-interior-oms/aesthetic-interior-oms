@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { canAccessQuotationDraft } from '@/lib/quotation-auth'
-import { getQuotationTemplatesResponse } from '@/lib/quotation-template'
+import { getMergedQuotationTemplates } from '@/lib/quotation-overrides'
+import type { QuotationFileType } from '@/lib/quotation-types'
 
 export async function GET() {
   try {
@@ -16,9 +17,28 @@ export async function GET() {
       )
     }
 
+    const mergedTemplates = await getMergedQuotationTemplates()
+
     return NextResponse.json({
       success: true,
-      data: getQuotationTemplatesResponse(),
+      data: {
+        templates: mergedTemplates.map(t => ({
+          key: t.key,
+          name: t.name,
+          sourceDocument: t.sourceDocument,
+          sectionCount: t.sections.length,
+          itemCount: t.items.length
+        })),
+        fullTemplates: mergedTemplates, // Provide full templates so client doesn't need to guess
+        quotationTypes: ['PREMIUM', 'STANDARD', 'BASIC', 'MIXED'] as QuotationFileType[],
+        quotationTypeLabels: {
+          PREMIUM: 'High (max rate from PDF)',
+          STANDARD: 'Mid (average rate)',
+          BASIC: 'Low (min rate from PDF)',
+          MIXED: 'Mixed (manual per item)',
+        },
+        units: ['sqft', 'nos', 'ls', 'rmt', 'rft'] as const,
+      },
     })
   } catch (error) {
     console.error('[quotation/templates][GET] Error:', error)

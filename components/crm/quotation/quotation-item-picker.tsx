@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select'
 import { getQuotationTemplate } from '@/lib/quotation-templates'
 import { formatTemplatePriceHint } from '@/lib/quotation-templates/helpers'
+import { QuotationTemplateItem } from '@/lib/quotation-types'
 
 type CatalogOption = {
   key: string
@@ -31,6 +32,7 @@ type QuotationItemPickerProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   catalogs: CatalogOption[]
+  fullTemplates?: any[]
   catalogTemplateKey: string
   onCatalogTemplateKeyChange: (key: string) => void
   onSelectItem: (templateItemId: string, catalogTemplateKey: string) => void
@@ -40,12 +42,18 @@ export function QuotationItemPicker({
   open,
   onOpenChange,
   catalogs,
+  fullTemplates = [],
   catalogTemplateKey,
   onCatalogTemplateKeyChange,
   onSelectItem,
 }: QuotationItemPickerProps) {
   const [query, setQuery] = useState('')
-  const template = useMemo(() => getQuotationTemplate(catalogTemplateKey), [catalogTemplateKey])
+  const template = useMemo(() => {
+    if (fullTemplates?.length) {
+      return fullTemplates.find(t => t.key === catalogTemplateKey) || getQuotationTemplate(catalogTemplateKey)
+    }
+    return getQuotationTemplate(catalogTemplateKey)
+  }, [catalogTemplateKey, fullTemplates])
 
   const sections = useMemo(
     () => [...template.sections].sort((a, b) => a.sortOrder - b.sortOrder),
@@ -54,7 +62,7 @@ export function QuotationItemPicker({
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
-    return template.items.filter((item) => {
+    return template.items.filter((item: QuotationTemplateItem) => {
       if (!normalizedQuery) return true
       return (
         item.description.toLowerCase().includes(normalizedQuery) ||
@@ -64,7 +72,7 @@ export function QuotationItemPicker({
   }, [query, template.items])
 
   const sectionNameById = useMemo(
-    () => new Map(template.sections.map((section) => [section.id, section.name])),
+    () => new Map(template.sections.map((section: any) => [section.id, section.name])),
     [template.sections],
   )
 
@@ -112,8 +120,8 @@ export function QuotationItemPicker({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto py-3">
-          {sections.map((section) => {
-            const sectionItems = filteredItems.filter((item) => item.sectionId === section.id)
+          {sections.map((section: any) => {
+            const sectionItems = filteredItems.filter((item: QuotationTemplateItem) => item.sectionId === section.id)
             if (sectionItems.length === 0) return null
 
             return (
@@ -122,7 +130,7 @@ export function QuotationItemPicker({
                   {section.name}
                 </p>
                 <div className="space-y-2">
-                  {sectionItems.map((item) => (
+                  {sectionItems.map((item: QuotationTemplateItem) => (
                     <div
                       key={item.id}
                       className="flex items-start justify-between gap-3 rounded-lg border p-3"
@@ -131,7 +139,7 @@ export function QuotationItemPicker({
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="text-sm font-medium">{item.description}</p>
                           <Badge variant="outline" className="text-[10px]">
-                            {sectionNameById.get(item.sectionId) ?? item.sectionId}
+                            {String(sectionNameById.get(item.sectionId) ?? item.sectionId)}
                           </Badge>
                         </div>
                         <p className="line-clamp-2 text-xs text-muted-foreground">{item.materials}</p>

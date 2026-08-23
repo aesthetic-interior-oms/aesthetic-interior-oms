@@ -15,6 +15,7 @@ import {
   getQuotationTemplate,
   listQuotationTemplates,
 } from '@/lib/quotation-templates'
+import { getMergedQuotationTemplates } from '@/lib/quotation-overrides'
 import { buildDefaultShortQuotationContent } from '@/lib/short-quotation-default'
 import {
   buildShortQuotationSummary,
@@ -446,6 +447,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       })
       const detailTotals = calculateQuotationTotals(detailContent)
 
+      const mergedTemplates = await getMergedQuotationTemplates()
+
       return NextResponse.json({
         success: true,
         data: {
@@ -466,6 +469,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
             status: 'DRAFT' as const,
           },
           templates: listQuotationTemplates(),
+          fullTemplates: mergedTemplates,
           lead: {
             id: lead.id,
             name: lead.name,
@@ -480,6 +484,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     const savedContent = selectedDraft.content
     const documentType = resolveQuotationDocumentType(savedContent)
+    const mergedTemplates = await getMergedQuotationTemplates()
 
     return NextResponse.json({
       success: true,
@@ -488,6 +493,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         documentType,
         defaultDraft: null,
         templates: listQuotationTemplates(),
+        fullTemplates: mergedTemplates,
         activeTemplate:
           documentType === 'detail' && isDetailQuotationContent(savedContent)
             ? getQuotationTemplate(savedContent.templateKey).key

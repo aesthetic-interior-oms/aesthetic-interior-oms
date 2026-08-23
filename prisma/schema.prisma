@@ -1023,3 +1023,25 @@ enum AccountStatus {
   PARTIAL_PAID
   FULL_PAID
 }
+model QuotationTemplateOverride {
+  id            String   @id @default(cuid())
+  templateKey   String
+  itemId        String
+  sectionId     String?
+  description   String?
+  materials     String?
+  unit          String?
+  priceMode     String?
+  basicRate     Float?
+  standardRate  Float?
+  premiumRate   Float?
+  rateMin       Float?
+  rateMax       Float?
+  isNewItem     Boolean  @default(false)
+  isDeleted     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([templateKey, itemId])
+  @@index([templateKey])
+}

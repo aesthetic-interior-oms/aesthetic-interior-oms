@@ -386,6 +386,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Playground',
           href: '/quotation-team/playground',
         },
+        {
+          icon: Settings,
+          label: 'Quotation Settings',
+          href: '/quotation-team/settings',
+        },
       ],
     },
   ],
