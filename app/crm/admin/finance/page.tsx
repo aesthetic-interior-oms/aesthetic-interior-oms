@@ -169,13 +169,6 @@ export default function FinanceDashboard() {
   const [customStart, setCustomStart] = useState(getTodayStr())
   const [customEnd, setCustomEnd] = useState(getTodayStr())
 
-  // Report States
-  const [selectedMonth, setSelectedMonth] = useState("2026-06")
-  const [monthlyReport, setMonthlyReport] = useState<any>(null)
-  
-  const [selectedProject, setSelectedProject] = useState<string>("")
-  const [projectReport, setProjectReport] = useState<any>(null)
-
   // Transaction Log Form States
   const [isLogOpen, setIsLogOpen] = useState(false)
   const [type, setType] = useState<TransactionCategoryType>("OUTFLOW")
@@ -255,34 +248,8 @@ export default function FinanceDashboard() {
     }
   }
 
-  const loadMonthlyReport = async (month: string) => {
-    try {
-      const res = await fetch(`/api/finance/reports?mode=monthly&month=${month}`)
-      const data = await res.json()
-      if (data.success) {
-        setMonthlyReport(data)
-      }
-    } catch (e: any) {
-      console.error(e)
-    }
-  }
-
-  const loadProjectReport = async (projId: string) => {
-    if (!projId) return
-    try {
-      const res = await fetch(`/api/finance/reports?mode=project&leadId=${projId}`)
-      const data = await res.json()
-      if (data.success) {
-        setProjectReport(data)
-      }
-    } catch (e: any) {
-      console.error(e)
-    }
-  }
-
   useEffect(() => {
     void loadJournalData(datePreset, customStart, customEnd)
-    loadMonthlyReport(selectedMonth)
 
     const storedCategories = window.localStorage.getItem(CUSTOM_CATEGORY_STORAGE_KEY)
     if (storedCategories) {
@@ -297,16 +264,6 @@ export default function FinanceDashboard() {
       }
     }
   }, [])
-
-  useEffect(() => {
-    loadMonthlyReport(selectedMonth)
-  }, [selectedMonth])
-
-  useEffect(() => {
-    if (selectedProject) {
-      loadProjectReport(selectedProject)
-    }
-  }, [selectedProject])
 
   const activeCategories = type === "OUTFLOW"
     ? [...customCategories.OUTFLOW, ...EXPENSE_CATEGORIES]
@@ -808,12 +765,6 @@ export default function FinanceDashboard() {
           <TabsTrigger value="ledger" className="gap-2">
             <FileText className="w-4 h-4" /> Daily Journal
           </TabsTrigger>
-          <TabsTrigger value="projects" className="gap-2">
-            <Briefcase className="w-4 h-4" /> Project Budgets & Matrix
-          </TabsTrigger>
-          <TabsTrigger value="overhead" className="gap-2">
-            <PieChart className="w-4 h-4" /> Monthly Overhead & Salary
-          </TabsTrigger>
         </TabsList>
 
         {/* TAB 1: DAILY JOURNAL */}
@@ -996,236 +947,6 @@ export default function FinanceDashboard() {
                     </tbody>
                   </table>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* TAB 2: PROJECT BUDGETS & MATRIX */}
-        <TabsContent value="projects" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Project Expenses Ledger Allocation</CardTitle>
-              <CardDescription>Breakdown of construction and material expenses per site.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex gap-4 items-center">
-                <span className="text-sm font-semibold">Select Project Site:</span>
-                <Select value={selectedProject} onValueChange={setSelectedProject}>
-                  <SelectTrigger className="w-72">
-                    <SelectValue placeholder="Choose project..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leads.map((l) => (
-                      <SelectItem key={l.id} value={l.id}>
-                        {l.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedProject && projectReport ? (
-                <div className="space-y-6 pt-4 border-t border-border">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 rounded-lg bg-muted border border-border">
-                      <div className="text-xs text-muted-foreground">Total Budget</div>
-                      <div className="text-xl font-bold mt-1">
-                        {projectReport.project?.budget ? `${projectReport.project.budget.toLocaleString()} BDT` : "Not Defined"}
-                      </div>
-                    </div>
-                    <div className="p-4 rounded-lg bg-muted border border-border">
-                      <div className="text-xs text-muted-foreground">Total Site Expense Logged</div>
-                      <div className="text-xl font-bold mt-1 text-rose-500">
-                        {((Object.values(projectReport.categoryTotals || {}) as number[]) || []).reduce((a: number, b: number) => a + b, 0).toLocaleString()} BDT
-                      </div>
-                    </div>
-                    <div className="p-4 rounded-lg bg-muted border border-border">
-                      <div className="text-xs text-muted-foreground">Profit margin estimation</div>
-                      <div className="text-xl font-bold mt-1 text-emerald-500">
-                        {projectReport.project?.budget
-                          ? `${(projectReport.project.budget - ((Object.values(projectReport.categoryTotals || {}) as number[]) || []).reduce((a: number, b: number) => a + b, 0)).toLocaleString()} BDT`
-                          : "N/A"}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h3 className="text-md font-bold">Category-wise Spending Breakdown</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {Object.entries(projectReport.categoryTotals || {}).map(([cat, val]: any) => (
-                        <div key={cat} className="p-3 border border-border rounded-lg bg-card flex flex-col justify-between">
-                          <span className="text-xs text-muted-foreground font-medium">{CATEGORY_LABELS[cat] || cat}</span>
-                          <span className="text-md font-bold mt-1">{val.toLocaleString()} BDT</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <h3 className="text-md font-bold">Raw Logs for this Site</h3>
-                    <div className="border border-border rounded-lg overflow-x-auto">
-                      <table className="w-full text-left text-sm">
-                        <thead className="bg-muted text-xs uppercase tracking-wider text-muted-foreground font-bold">
-                          <tr>
-                            <th className="p-3">Date</th>
-                            <th className="p-3">Category</th>
-                            <th className="p-3">Particulars</th>
-                            <th className="p-3">Account</th>
-                            <th className="p-3">Recorder</th>
-                            <th className="p-3 text-right">Inflow (BDT)</th>
-                            <th className="p-3 text-right">Outflow (BDT)</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {projectReport.transactions?.map((tx: any) => (
-                            <tr key={tx.id} className="hover:bg-muted/10">
-                              <td className="p-3 text-xs whitespace-nowrap">
-                                {new Date(tx.date).toLocaleDateString()}
-                              </td>
-                              <td className="p-3 text-xs">{CATEGORY_LABELS[tx.category] || tx.category}</td>
-                              <td className="p-3">{tx.particular}</td>
-                              <td className="p-3 text-xs">
-                                <Badge variant="outline">{(tx.account || "").replace(/_/g, " ")}</Badge>
-                              </td>
-                              <td className="p-3 text-xs text-muted-foreground">{tx.recordedBy?.fullName ?? "—"}</td>
-                              <td className="p-3 text-right font-bold text-emerald-500">
-                                {tx.type === "INFLOW" ? `${tx.amount.toLocaleString()} BDT` : "—"}
-                              </td>
-                              <td className="p-3 text-right font-bold text-rose-500">
-                                {tx.type === "OUTFLOW" ? `${tx.amount.toLocaleString()} BDT` : "—"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                        {/* Totals footer */}
-                        {projectReport.transactions?.length > 0 && (() => {
-                          const totalIn = projectReport.totalInflow ?? 0
-                          const totalOut = projectReport.totalOutflow ?? 0
-                          const margin = totalIn - totalOut
-                          return (
-                            <tfoot className="border-t-2 border-border bg-muted/40 text-sm font-bold">
-                              <tr>
-                                <td colSpan={5} className="p-3 text-right text-muted-foreground uppercase text-xs tracking-wider">
-                                  Totals
-                                </td>
-                                <td className="p-3 text-right text-emerald-500">{totalIn.toLocaleString()} BDT</td>
-                                <td className="p-3 text-right text-rose-500">{totalOut.toLocaleString()} BDT</td>
-                              </tr>
-                              <tr className="border-t border-border">
-                                <td colSpan={5} className="p-3 text-right text-muted-foreground uppercase text-xs tracking-wider">
-                                  Net Profit Margin
-                                </td>
-                                <td colSpan={2} className={`p-3 text-right text-base ${margin >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                                  {margin.toLocaleString()} BDT
-                                  {totalIn > 0 && (
-                                    <span className="ml-2 text-xs font-normal text-muted-foreground">
-                                      ({((margin / totalIn) * 100).toFixed(1)}%)
-                                    </span>
-                                  )}
-                                </td>
-                              </tr>
-                            </tfoot>
-                          )
-                        })()}
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">Select a project above to inspect its material cost sheets.</div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* TAB 3: MONTHLY OVERHEAD & SALARY */}
-        <TabsContent value="overhead" className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row justify-between items-center">
-              <div>
-                <CardTitle>Monthly Office Overheads & Site Summaries</CardTitle>
-                <CardDescription>Rent, salary payments, electricity bills and total cost metrics.</CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold">Select Month:</span>
-                <input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="bg-card text-foreground border border-border p-2 rounded-md"
-                />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {monthlyReport ? (
-                <div className="space-y-8">
-                  {/* Totals Summary */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div className="p-4 border border-border rounded-lg">
-                      <div className="text-xs text-muted-foreground">Total Income this Month</div>
-                      <div className="text-2xl font-bold mt-1 text-emerald-500">
-                        {monthlyReport.totals.inflow.toLocaleString()} BDT
-                      </div>
-                    </div>
-                    <div className="p-4 border border-border rounded-lg">
-                      <div className="text-xs text-muted-foreground">Total Office Overhead Expenses</div>
-                      <div className="text-2xl font-bold mt-1 text-rose-500">
-                        {monthlyReport.totals.overhead.toLocaleString()} BDT
-                      </div>
-                    </div>
-                    <div className="p-4 border border-border rounded-lg">
-                      <div className="text-xs text-muted-foreground">Total Site Construction Expenses</div>
-                      <div className="text-2xl font-bold mt-1 text-orange-500">
-                        {monthlyReport.totals.projectExpenses.toLocaleString()} BDT
-                      </div>
-                    </div>
-                    <div className="p-4 border border-border rounded-lg bg-muted">
-                      <div className="text-xs text-muted-foreground">Net Monthly Balance</div>
-                      <div className={`text-2xl font-bold mt-1 ${monthlyReport.totals.net >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
-                        {monthlyReport.totals.net.toLocaleString()} BDT
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Office Expenses Detail */}
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-bold">Office Overheads Detail</h3>
-                      <div className="border border-border rounded-lg divide-y divide-border">
-                        {Object.entries(monthlyReport.overheadBreakdown || {}).length === 0 ? (
-                          <div className="p-4 text-center text-muted-foreground text-sm">No overheads logged this month.</div>
-                        ) : (
-                          Object.entries(monthlyReport.overheadBreakdown || {}).map(([cat, amount]: any) => (
-                            <div key={cat} className="p-3 flex justify-between items-center text-sm">
-                              <span className="font-medium">{CATEGORY_LABELS[cat] || cat}</span>
-                              <span className="font-bold">{amount.toLocaleString()} BDT</span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Site Expenses Detail */}
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-bold">Active Sites Construction Spending</h3>
-                      <div className="border border-border rounded-lg divide-y divide-border">
-                        {monthlyReport.siteExpensesBreakdown?.length === 0 ? (
-                          <div className="p-4 text-center text-muted-foreground text-sm">No project expenditures logged this month.</div>
-                        ) : (
-                          monthlyReport.siteExpensesBreakdown?.map((site: any) => (
-                            <div key={site.name} className="p-3 flex justify-between items-center text-sm">
-                              <span className="font-medium">{site.name}</span>
-                              <span className="font-bold text-rose-500">{site.amount.toLocaleString()} BDT</span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">Processing report...</div>
               )}
             </CardContent>
           </Card>

@@ -299,6 +299,35 @@ export default function AccountsProjectsPage() {
                       </div>
                     </div>
 
+                    {/* Payment progress bar */}
+                    {(() => {
+                      const pct = project.agreementValue > 0
+                        ? Math.min(100, Math.round((project.paid / project.agreementValue) * 100))
+                        : 0
+                      return (
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-muted-foreground">Payment Progress</span>
+                            <span className={`font-bold ${pct === 100 ? 'text-emerald-500' : pct >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>
+                              {pct}%
+                            </span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                pct === 100
+                                  ? 'bg-emerald-500'
+                                  : pct >= 50
+                                  ? 'bg-amber-400'
+                                  : 'bg-rose-500'
+                              }`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })()}
+
                     <Link
                       href={`/crm/accounts/projects/${project.id}`}
                       className="w-full text-center text-xs text-primary hover:underline py-1"
