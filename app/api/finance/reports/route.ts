@@ -100,19 +100,22 @@ export async function GET(request: NextRequest) {
           where: {
             leadId,
           },
+          include: {
+            recordedBy: { select: { fullName: true } },
+          },
           orderBy: { date: "asc" },
         })
 
         const categoryTotals: Record<string, number> = {}
-        let totalPaid = 0
-        const outflowTransactions: any[] = []
+        let totalInflow = 0
+        let totalOutflow = 0
 
         transactions.forEach((tx) => {
           if (tx.type === TransactionType.OUTFLOW) {
             categoryTotals[tx.category] = (categoryTotals[tx.category] || 0) + tx.amount
-            outflowTransactions.push(tx)
+            totalOutflow += tx.amount
           } else if (tx.type === TransactionType.INFLOW) {
-            totalPaid += tx.amount
+            totalInflow += tx.amount
           }
         })
 
@@ -124,9 +127,11 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           success: true,
           project: lead,
-          transactions: outflowTransactions,
+          transactions: transactions,
           categoryTotals,
-          totalPaid,
+          totalPaid: totalInflow,
+          totalInflow,
+          totalOutflow,
         })
       } else {
         // Project-basis Daily Expenses breakdown (Replaces Project Basis daily expenses.pdf)

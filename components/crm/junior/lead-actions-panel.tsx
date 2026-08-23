@@ -454,7 +454,6 @@ export function LeadActionsPanel({
     'VISIT_TEAM',
     'JR_ARCHITECT',
     'VISUALIZER_3D',
-    'ACCOUNTS',
   ]
 
   const formatLabel = (value: string) => {

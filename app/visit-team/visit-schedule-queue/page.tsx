@@ -78,6 +78,7 @@ export default function VisitScheduleQueuePage() {
   const [cancelReason, setCancelReason] = useState('')
   const [saving, setSaving] = useState(false)
   const [loadingMembers, setLoadingMembers] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const queueListRef = useRef<HTMLDivElement | null>(null)
 
   const loadVisits = async () => {
@@ -99,6 +100,7 @@ export default function VisitScheduleQueuePage() {
   }
 
   useEffect(() => {
+    setMounted(true)
     void loadVisits()
   }, [])
 
@@ -220,6 +222,22 @@ export default function VisitScheduleQueuePage() {
     }
   }
 
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-background">
+        <CrmPageHeader
+          title="Visit Schedule Queue"
+          subtitle="Leader view for all visit schedules with quick assignment controls."
+        />
+        <main className="mx-auto max-w-[1440px] space-y-4 px-3 py-4 sm:space-y-6 sm:px-6 sm:py-6">
+          <div className="flex items-center justify-center rounded-lg border border-border bg-card py-14">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <CrmPageHeader
@@ -297,7 +315,7 @@ export default function VisitScheduleQueuePage() {
             <Card className="xl:col-span-5" ref={queueListRef}>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base sm:text-lg">
-                  Queue for {new Date(selectedDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  Queue for {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3 sm:max-h-[70vh] sm:overflow-y-auto">

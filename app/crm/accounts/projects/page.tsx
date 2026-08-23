@@ -163,7 +163,14 @@ export default function AccountsProjectsPage() {
                             {project.name}
                           </Link>
                         </TableCell>
-                        <TableCell>{project.location || 'N/A'}</TableCell>
+                        <TableCell>
+                          <div
+                            className="max-w-[150px] truncate"
+                            title={project.location || 'N/A'}
+                          >
+                            {project.location || 'N/A'}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="font-normal">
                             {project.agreementType.replace(/_/g, ' ')}
@@ -237,7 +244,10 @@ export default function AccountsProjectsPage() {
                             {project.name}
                           </Link>
                         </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p
+                          className="text-sm text-muted-foreground mt-1 truncate max-w-[200px]"
+                          title={project.location || 'No location'}
+                        >
                           {project.location || 'No location'}
                         </p>
                       </div>

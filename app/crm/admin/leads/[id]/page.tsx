@@ -924,25 +924,32 @@ export default function LeadDetailPage() {
                     </div>
                   ) : projectReport ? (
                     <div className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Summary cards */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="p-4 rounded-lg bg-muted border border-border">
-                          <div className="text-xs text-muted-foreground">Total Budget</div>
+                          <div className="text-xs text-muted-foreground">Agreement Value</div>
                           <div className="text-xl font-bold mt-1">
-                            {projectReport.project?.budget ? `${projectReport.project.budget.toLocaleString()} BDT` : "Not Defined"}
+                            {projectReport.project?.agreementValue
+                              ? `${projectReport.project.agreementValue.toLocaleString()} BDT`
+                              : 'Not Defined'}
+                          </div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+                          <div className="text-xs text-emerald-700 dark:text-emerald-400">Total Inflow (Received)</div>
+                          <div className="text-xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">
+                            {(projectReport.totalInflow || 0).toLocaleString()} BDT
+                          </div>
+                        </div>
+                        <div className="p-4 rounded-lg bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800">
+                          <div className="text-xs text-rose-700 dark:text-rose-400">Total Outflow (Expenses)</div>
+                          <div className="text-xl font-bold mt-1 text-rose-600 dark:text-rose-400">
+                            {(projectReport.totalOutflow || 0).toLocaleString()} BDT
                           </div>
                         </div>
                         <div className="p-4 rounded-lg bg-muted border border-border">
-                          <div className="text-xs text-muted-foreground">Total Site Expense Logged</div>
-                          <div className="text-xl font-bold mt-1 text-rose-500">
-                            {((Object.values(projectReport.categoryTotals || {}) as number[]) || []).reduce((a: number, b: number) => a + b, 0).toLocaleString()} BDT
-                          </div>
-                        </div>
-                        <div className="p-4 rounded-lg bg-muted border border-border">
-                          <div className="text-xs text-muted-foreground">Profit margin estimation</div>
-                          <div className="text-xl font-bold mt-1 text-emerald-500">
-                            {projectReport.project?.budget
-                              ? `${(projectReport.project.budget - ((Object.values(projectReport.categoryTotals || {}) as number[]) || []).reduce((a: number, b: number) => a + b, 0)).toLocaleString()} BDT`
-                              : "N/A"}
+                          <div className="text-xs text-muted-foreground">Profit Margin</div>
+                          <div className={`text-xl font-bold mt-1 ${((projectReport.totalInflow || 0) - (projectReport.totalOutflow || 0)) >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            {((projectReport.totalInflow || 0) - (projectReport.totalOutflow || 0)).toLocaleString()} BDT
                           </div>
                         </div>
                       </div>
@@ -966,27 +973,37 @@ export default function LeadDetailPage() {
                             <thead className="bg-muted text-xs uppercase tracking-wider text-muted-foreground font-bold">
                               <tr>
                                 <th className="p-3">Date</th>
+                                <th className="p-3">Type</th>
                                 <th className="p-3">Category</th>
                                 <th className="p-3">Particulars</th>
+                                <th className="p-3">Account</th>
+                                <th className="p-3">Recorded By</th>
                                 <th className="p-3 text-right">Amount</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
                               {projectReport.transactions?.map((tx: any) => (
-                                <tr key={tx.id} className="hover:bg-muted/10">
-                                  <td className="p-3 text-xs">
+                                <tr key={tx.id} className={`hover:bg-muted/10 ${tx.type === 'INFLOW' ? 'bg-emerald-50/40 dark:bg-emerald-900/10' : ''}`}>
+                                  <td className="p-3 text-xs whitespace-nowrap">
                                     {new Date(tx.date).toLocaleDateString()}
+                                  </td>
+                                  <td className="p-3 text-xs">
+                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tx.type === 'INFLOW' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400'}`}>
+                                      {tx.type === 'INFLOW' ? '↑ Inflow' : '↓ Outflow'}
+                                    </span>
                                   </td>
                                   <td className="p-3 text-xs">{formatCategory(tx.category)}</td>
                                   <td className="p-3">{tx.particular}</td>
-                                  <td className="p-3 text-right font-bold text-rose-500">
-                                    {tx.amount.toLocaleString()} BDT
+                                  <td className="p-3 text-xs capitalize">{tx.account?.replace(/_/g, ' ')}</td>
+                                  <td className="p-3 text-xs">{tx.recordedBy?.fullName || '—'}</td>
+                                  <td className={`p-3 text-right font-bold ${tx.type === 'INFLOW' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
+                                    {tx.type === 'INFLOW' ? '+' : '-'}{tx.amount.toLocaleString()} BDT
                                   </td>
                                 </tr>
                               ))}
                               {(!projectReport.transactions || projectReport.transactions.length === 0) && (
                                 <tr>
-                                  <td colSpan={4} className="p-6 text-center text-muted-foreground">
+                                  <td colSpan={7} className="p-6 text-center text-muted-foreground">
                                     No logs found for this project.
                                   </td>
                                 </tr>
