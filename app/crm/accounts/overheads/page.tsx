@@ -59,11 +59,12 @@ export default function OverheadsPage() {
   }, [selectedMonth])
 
   return (
-    <div className="flex flex-col gap-4 p-4 md:gap-8 md:p-8">
+    <div className="flex flex-col min-h-screen">
       <CrmPageHeader
         title="Monthly Overheads & Site Summaries"
         subtitle="Rent, salary payments, electricity bills and total cost metrics."
       />
+      <div className="flex flex-col gap-4 p-4 md:gap-8 md:p-8 w-full max-w-7xl mx-auto">
 
       <div className="flex items-center gap-2">
         <span className="text-sm font-semibold">Select Month:</span>
@@ -171,6 +172,7 @@ export default function OverheadsPage() {
       ) : (
         <div className="text-center py-8 text-muted-foreground">Processing report...</div>
       )}
+      </div>
     </div>
   )
 }

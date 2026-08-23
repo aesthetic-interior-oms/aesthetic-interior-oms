@@ -2,11 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, MapPin, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { CrmPageHeader } from '@/components/crm/shared/page-header'
 
 const CATEGORY_LABELS: Record<string, string> = {
   CLIENT_DEPOSIT: 'Client Deposit',
@@ -88,16 +87,41 @@ export default function ProjectDetailPage() {
   const due = agreementValue !== null ? agreementValue - totalPaid : null
   const profit = agreementValue !== null ? agreementValue - totalExpense : null
 
-  const projectTitle = report?.project 
-    ? `${report.project.name}${report.project.phone ? ` • ${report.project.phone}` : ''}${report.project.location ? ` • ${report.project.location}` : ''}`
-    : 'Project Ledger'
+  const project = report?.project ?? null
 
   return (
     <div className="flex flex-col min-h-screen">
-      <CrmPageHeader
-        title={projectTitle}
-        subtitle="Project Expenses Ledger Allocation — Breakdown of construction and material expenses per site."
-      />
+      {/* Custom Project Header */}
+      <header className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+              {project?.name ?? 'Project Ledger'}
+            </h1>
+            {project && (
+              <div className="mt-1 flex flex-col gap-0.5">
+                {project.phone && (
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Phone className="w-3 h-3 shrink-0" />
+                    {project.phone}
+                  </span>
+                )}
+                {project.location && (
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <MapPin className="w-3 h-3 shrink-0" />
+                    {project.location}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-sm text-muted-foreground sm:inline">
+              {new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}
+            </span>
+          </div>
+        </div>
+      </header>
       <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-8 flex-1 w-full max-w-7xl mx-auto">
         {/* Back button */}
         <div>

@@ -34,6 +34,8 @@ type ProjectData = {
   accountStatus: string | null
   paid: number
   due: number
+  totalOutflow: number
+  profitMargin: number
   srCrmName: string
 }
 
@@ -89,31 +91,32 @@ export default function AccountsProjectsPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-theme(spacing.16))] flex-col gap-4 p-4 md:gap-8 md:p-8">
+    <div className="flex flex-col min-h-screen">
       <CrmPageHeader
         title="Projects"
         subtitle="Overview of all confirmed projects and their financial status."
       />
-      <div className="flex items-center space-x-2 rounded-md border p-1 w-fit">
-        <Button
-          variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => setViewMode('table')}
-          className="h-8"
-        >
-          <TableIcon className="mr-2 h-4 w-4" />
-          Table
-        </Button>
-        <Button
-          variant={viewMode === 'card' ? 'secondary' : 'ghost'}
-          size="sm"
-          onClick={() => setViewMode('card')}
-          className="h-8"
-        >
-          <LayoutGrid className="mr-2 h-4 w-4" />
-          Grid
-        </Button>
-      </div>
+      <div className="flex flex-col gap-4 p-4 md:gap-8 md:p-8 w-full max-w-7xl mx-auto flex-1">
+        <div className="flex items-center space-x-2 rounded-md border p-1 w-fit">
+          <Button
+            variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('table')}
+            className="h-8"
+          >
+            <TableIcon className="mr-2 h-4 w-4" />
+            Table
+          </Button>
+          <Button
+            variant={viewMode === 'card' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setViewMode('card')}
+            className="h-8"
+          >
+            <LayoutGrid className="mr-2 h-4 w-4" />
+            Grid
+          </Button>
+        </div>
 
       {viewMode === 'table' ? (
         <Card className="flex-1 overflow-hidden border-0 bg-transparent shadow-none sm:border sm:bg-card sm:shadow-sm">
@@ -130,12 +133,14 @@ export default function AccountsProjectsPage() {
                     <TableHead className="text-right">Agreement Value</TableHead>
                     <TableHead className="text-right">Paid</TableHead>
                     <TableHead className="text-right">Due</TableHead>
+                    <TableHead className="text-right">Total Outflow</TableHead>
+                    <TableHead className="text-right">Profit Margin</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-48 text-center">
+                      <TableCell colSpan={10} className="h-48 text-center">
                         <div className="flex flex-col items-center justify-center space-y-2 text-muted-foreground">
                           <Loader2 className="h-6 w-6 animate-spin" />
                           <p>Loading projects...</p>
@@ -144,7 +149,7 @@ export default function AccountsProjectsPage() {
                     </TableRow>
                   ) : projects.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-48 text-center text-muted-foreground">
+                      <TableCell colSpan={10} className="h-48 text-center text-muted-foreground">
                         No projects found.
                       </TableCell>
                     </TableRow>
@@ -178,7 +183,6 @@ export default function AccountsProjectsPage() {
                         </TableCell>
                         <TableCell>{project.srCrmName}</TableCell>
                         <TableCell>
-                          {/* Stop row click propagation so status dropdown works independently */}
                           <div onClick={(e) => e.stopPropagation()}>
                             <Select
                               disabled={updatingId === project.id}
@@ -205,6 +209,12 @@ export default function AccountsProjectsPage() {
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-rose-600 dark:text-rose-400">
                           ৳{project.due.toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums text-rose-500">
+                          ৳{project.totalOutflow.toLocaleString()}
+                        </TableCell>
+                        <TableCell className={`text-right tabular-nums font-semibold ${project.profitMargin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                          ৳{project.profitMargin.toLocaleString()}
                         </TableCell>
                       </TableRow>
                     ))
@@ -293,9 +303,19 @@ export default function AccountsProjectsPage() {
                         <span className="text-muted-foreground">Paid</span>
                         <span className="font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">৳{project.paid.toLocaleString()}</span>
                       </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Due</span>
+                        <span className="font-medium text-rose-600 dark:text-rose-400 tabular-nums">৳{project.due.toLocaleString()}</span>
+                      </div>
                       <div className="flex justify-between border-t pt-2 mt-2">
-                        <span className="font-medium">Due</span>
-                        <span className="font-bold text-rose-600 dark:text-rose-400 tabular-nums">৳{project.due.toLocaleString()}</span>
+                        <span className="text-muted-foreground">Total Outflow</span>
+                        <span className="font-medium text-rose-500 tabular-nums">৳{project.totalOutflow.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2 mt-2">
+                        <span className="font-medium">{project.profitMargin >= 0 ? 'Profit' : 'Loss'}</span>
+                        <span className={`font-bold tabular-nums ${project.profitMargin >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                          ৳{project.profitMargin.toLocaleString()}
+                        </span>
                       </div>
                     </div>
 
@@ -340,7 +360,7 @@ export default function AccountsProjectsPage() {
             </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

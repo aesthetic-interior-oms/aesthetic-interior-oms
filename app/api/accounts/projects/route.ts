@@ -30,11 +30,9 @@ export async function GET() {
         agreementValue: true,
         accountStatus: true,
         transactions: {
-          where: {
-            type: 'INFLOW',
-          },
           select: {
             amount: true,
+            type: true,
           },
         },
         assignments: {
@@ -57,9 +55,11 @@ export async function GET() {
     })
 
     const data = projects.map((p) => {
-      const paid = p.transactions.reduce((sum: number, t: { amount: number }) => sum + t.amount, 0)
+      const paid = p.transactions.filter((t) => t.type === 'INFLOW').reduce((sum, t) => sum + t.amount, 0)
+      const totalOutflow = p.transactions.filter((t) => t.type === 'OUTFLOW').reduce((sum, t) => sum + t.amount, 0)
       const agreementValue = p.agreementValue ?? 0
       const due = agreementValue - paid
+      const profitMargin = agreementValue - totalOutflow
       return {
         id: p.id,
         name: p.name,
@@ -69,6 +69,8 @@ export async function GET() {
         accountStatus: p.accountStatus,
         paid,
         due,
+        totalOutflow,
+        profitMargin,
         srCrmName: p.assignments[0]?.user?.fullName ?? 'Unassigned',
       }
     })
