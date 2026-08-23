@@ -173,6 +173,25 @@ export function ShortQuotationBuilder({
     }))
   }
 
+  const reorderRooms = (floorId: string, event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    updateContent((prev) => {
+      const floorRooms = prev.rooms
+        .filter((room) => room.floorId === floorId)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+      const oldIndex = floorRooms.findIndex((room) => room.id === active.id)
+      const newIndex = floorRooms.findIndex((room) => room.id === over.id)
+      if (oldIndex < 0 || newIndex < 0) return prev
+      const reordered = arrayMove(floorRooms, oldIndex, newIndex).map((room, i) => ({
+        ...room,
+        sortOrder: i + 1,
+      }))
+      const otherRooms = prev.rooms.filter((room) => room.floorId !== floorId)
+      return { ...prev, rooms: [...otherRooms, ...reordered] }
+    })
+  }
+
   const loadDraft = useCallback(async () => {
     setLoading(true)
     try {
@@ -886,96 +905,45 @@ export function ShortQuotationBuilder({
                 {floorRooms.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No rooms in this floor yet.</p>
                 ) : (
-                  floorRooms.map((room) => {
-                    const roomSummary = floorSummary?.rooms.find((item) => item.room.id === room.id)
-                    return (
-                      <div key={room.id} className="rounded-lg border p-4 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <Input
-                            className="max-w-sm font-medium"
-                            value={room.name}
-                            disabled={!canEdit}
-                            onChange={(event) =>
-                              updateContent((prev) => ({
-                                ...prev,
-                                rooms: prev.rooms.map((item) =>
-                                  item.id === room.id ? { ...item, name: event.target.value } : item,
-                                ),
-                              }))
-                            }
-                          />
-                          <span className="text-sm font-medium">
-                            Room Total: {formatAmount(roomSummary?.total ?? 0)}
-                          </span>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                          <table className="w-full min-w-[760px] text-sm">
-                            <thead className="bg-muted/40 text-left">
-                              <tr>
-                                {canEdit && <th className="w-6 px-1 py-2" />}
-                                <th className="px-2 py-2">Name</th>
-                                <th className="px-2 py-2">Qty Sft</th>
-                                <th className="px-2 py-2">Unit Price</th>
-                                <th className="px-2 py-2">Total</th>
-                                <th className="px-2 py-2" />
-                              </tr>
-                            </thead>
-                            <tbody>
-                              <DndContext
-                                sensors={dndSensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={(event) => reorderRoomLines(room.id, event)}
-                              >
-                                <SortableContext
-                                  items={room.lines.map((line) => line.id)}
-                                  strategy={verticalListSortingStrategy}
-                                >
-                                  {room.lines.map((line) => (
-                                    <SortableShortRow
-                                      key={line.id}
-                                      line={line}
-                                      roomId={room.id}
-                                      canEdit={canEdit}
-                                      updateLine={updateLine}
-                                      removeLine={removeLine}
-                                    />
-                                  ))}
-                                </SortableContext>
-                              </DndContext>
-                            </tbody>
-                          </table>
-                        </div>
-
-                        {canEdit ? (
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => addSqftLine(room.id)}
-                            >
-                              Add Item (Qty × Unit Price)
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => addLumpSumLine(room.id)}
-                            >
-                              Add Lump Sum Item
-                            </Button>
-                          </div>
-                        ) : null}
+                  <DndContext
+                    sensors={dndSensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(event) => reorderRooms(floor.id, event)}
+                  >
+                    <SortableContext
+                      items={floorRooms.map((room) => room.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="space-y-3">
+                        {floorRooms.map((room, roomIndex) => {
+                          const roomSummary = floorSummary?.rooms.find((item) => item.room.id === room.id)
+                          return (
+                            <SortableRoomCard
+                              key={room.id}
+                              room={room}
+                              roomIndex={roomIndex}
+                              roomSummary={roomSummary}
+                              canEdit={canEdit}
+                              dndSensors={dndSensors}
+                              updateContent={updateContent}
+                              addSqftLine={addSqftLine}
+                              addLumpSumLine={addLumpSumLine}
+                              reorderRoomLines={reorderRoomLines}
+                              updateLine={updateLine}
+                              removeLine={removeLine}
+                            />
+                          )
+                        })}
                       </div>
-                    )
-                  })
+                    </SortableContext>
+                  </DndContext>
                 )}
               </CardContent>
             </Card>
           )
         })}
       </div>
+
 
 
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-background/95 px-3 py-3 shadow-[0_-18px_45px_-28px_rgba(15,23,42,0.55)] backdrop-blur print:hidden">
@@ -1050,6 +1018,141 @@ export function ShortQuotationBuilder({
           }
         }
       `}</style>
+    </div>
+  )
+}
+
+type SortableRoomCardProps = {
+  room: ShortQuotationContent['rooms'][number]
+  roomIndex: number
+  roomSummary: ReturnType<typeof buildShortQuotationSummary>['floors'][number]['rooms'][number] | undefined
+  canEdit: boolean
+  dndSensors: ReturnType<typeof useSensors>
+  updateContent: (updater: (prev: ShortQuotationContent) => ShortQuotationContent) => void
+  addSqftLine: (roomId: string) => void
+  addLumpSumLine: (roomId: string) => void
+  reorderRoomLines: (roomId: string, event: DragEndEvent) => void
+  updateLine: (roomId: string, lineId: string, patch: Partial<ShortQuotationLine>) => void
+  removeLine: (roomId: string, lineId: string) => void
+}
+
+function SortableRoomCard({
+  room,
+  roomIndex,
+  roomSummary,
+  canEdit,
+  dndSensors,
+  updateContent,
+  addSqftLine,
+  addLumpSumLine,
+  reorderRoomLines,
+  updateLine,
+  removeLine,
+}: SortableRoomCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: room.id })
+
+  const cardStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  }
+
+  return (
+    <div ref={setNodeRef} style={cardStyle} className="rounded-lg border bg-background p-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          {canEdit && (
+            <button
+              type="button"
+              className="flex-shrink-0 cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
+              aria-label="Drag room"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+          )}
+          <span className="text-xs font-bold text-muted-foreground w-5 text-center">
+            {String(roomIndex + 1).padStart(2, '0')}
+          </span>
+          <Input
+            className="max-w-sm font-medium"
+            value={room.name}
+            disabled={!canEdit}
+            onChange={(event) =>
+              updateContent((prev) => ({
+                ...prev,
+                rooms: prev.rooms.map((item) =>
+                  item.id === room.id ? { ...item, name: event.target.value } : item,
+                ),
+              }))
+            }
+          />
+        </div>
+        <span className="text-sm font-medium">
+          Room Total: {formatAmount(roomSummary?.total ?? 0)}
+        </span>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead className="bg-muted/40 text-left">
+            <tr>
+              {canEdit && <th className="w-6 px-1 py-2" />}
+              <th className="px-2 py-2">Name</th>
+              <th className="px-2 py-2">Qty Sft</th>
+              <th className="px-2 py-2">Unit Price</th>
+              <th className="px-2 py-2">Total</th>
+              <th className="px-2 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            <DndContext
+              sensors={dndSensors}
+              collisionDetection={closestCenter}
+              onDragEnd={(event) => reorderRoomLines(room.id, event)}
+            >
+              <SortableContext
+                items={room.lines.map((line) => line.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {room.lines.map((line) => (
+                  <SortableShortRow
+                    key={line.id}
+                    line={line}
+                    roomId={room.id}
+                    canEdit={canEdit}
+                    updateLine={updateLine}
+                    removeLine={removeLine}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+          </tbody>
+        </table>
+      </div>
+
+      {canEdit ? (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => addSqftLine(room.id)}
+          >
+            Add Item (Qty × Unit Price)
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => addLumpSumLine(room.id)}
+          >
+            Add Lump Sum Item
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }
