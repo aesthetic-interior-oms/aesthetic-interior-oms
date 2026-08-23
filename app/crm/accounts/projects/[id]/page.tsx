@@ -98,7 +98,7 @@ export default function ProjectDetailPage() {
         title={projectTitle}
         subtitle="Project Expenses Ledger Allocation — Breakdown of construction and material expenses per site."
       />
-      <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-8 flex-1">
+      <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-8 flex-1 w-full max-w-7xl mx-auto">
         {/* Back button */}
         <div>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => router.back()}>
@@ -261,6 +261,16 @@ export default function ProjectDetailPage() {
                           {totalExpense.toLocaleString()} BDT
                         </td>
                       </tr>
+                      {profit !== null && (
+                        <tr className="border-t-2 border-border">
+                          <td colSpan={5} className="p-3 font-bold text-sm text-right">
+                            {profit >= 0 ? 'Total Profit' : 'Total Loss'}
+                          </td>
+                          <td colSpan={2} className={`p-3 text-right font-bold tabular-nums text-sm ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                            {profit.toLocaleString()} BDT
+                          </td>
+                        </tr>
+                      )}
                     </tfoot>
                   )}
                 </table>
