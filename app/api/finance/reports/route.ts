@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
 
         const lead = await prisma.lead.findUnique({
           where: { id: leadId },
-          select: { id: true, name: true, budget: true, agreementValue: true },
+          select: { id: true, name: true, phone: true, location: true, budget: true, agreementValue: true },
         })
 
         return NextResponse.json({

@@ -88,31 +88,35 @@ export default function ProjectDetailPage() {
   const due = agreementValue !== null ? agreementValue - totalPaid : null
   const profit = agreementValue !== null ? agreementValue - totalExpense : null
 
+  const projectTitle = report?.project 
+    ? `${report.project.name}${report.project.phone ? ` • ${report.project.phone}` : ''}${report.project.location ? ` • ${report.project.location}` : ''}`
+    : 'Project Ledger'
+
   return (
-    <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-8">
-      {/* Back button */}
-      <div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => router.back()}>
-          <ArrowLeft className="w-4 h-4" />
-          Back to Projects
-        </Button>
-      </div>
-
-      {loading ? (
-        <div className="flex h-64 flex-col items-center justify-center gap-2 text-muted-foreground">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <p>Loading ledger...</p>
+    <div className="flex flex-col min-h-screen">
+      <CrmPageHeader
+        title={projectTitle}
+        subtitle="Project Expenses Ledger Allocation — Breakdown of construction and material expenses per site."
+      />
+      <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-8 flex-1">
+        {/* Back button */}
+        <div>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => router.back()}>
+            <ArrowLeft className="w-4 h-4" />
+            Back to Projects
+          </Button>
         </div>
-      ) : !report ? (
-        <div className="text-center py-12 text-muted-foreground">Failed to load project data.</div>
-      ) : (
-        <>
-          <CrmPageHeader
-            title={report.project?.name ?? 'Project Ledger'}
-            subtitle="Project Expenses Ledger Allocation — Breakdown of construction and material expenses per site."
-          />
 
-          {/* Summary Cards */}
+        {loading ? (
+          <div className="flex h-64 flex-col items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <p>Loading ledger...</p>
+          </div>
+        ) : !report ? (
+          <div className="text-center py-12 text-muted-foreground">Failed to load project data.</div>
+        ) : (
+          <>
+            {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card>
               <CardContent className="pt-6">
@@ -148,7 +152,12 @@ export default function ProjectDetailPage() {
             </Card>
             <Card className="bg-muted">
               <CardContent className="pt-6">
-                <div className="text-xs text-muted-foreground mb-1">Profit Margin Estimate</div>
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <div className="text-xs text-muted-foreground">Profit Margin Estimate</div>
+                  {profit !== null && profit < 0 && (
+                    <Badge variant="destructive" className="h-5 text-[10px] uppercase font-bold px-1.5 py-0">LOSS</Badge>
+                  )}
+                </div>
                 <div className={`text-xl font-bold ${profit !== null && profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                   {profit !== null ? `${profit.toLocaleString()} BDT` : 'N/A'}
                 </div>
@@ -239,7 +248,15 @@ export default function ProjectDetailPage() {
                   {report.transactions?.length > 0 && (
                     <tfoot className="border-t-2 border-border bg-muted/50">
                       <tr>
-                        <td colSpan={3} className="p-3 font-bold text-sm">Total</td>
+                        <td colSpan={5} className="p-3 font-bold text-sm text-right">Total Inflow</td>
+                        <td className="p-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400 text-sm">
+                          {totalPaid.toLocaleString()} BDT
+                        </td>
+                        <td className="p-3 text-right text-muted-foreground">-</td>
+                      </tr>
+                      <tr className="border-t border-border">
+                        <td colSpan={5} className="p-3 font-bold text-sm text-right">Total Outflow</td>
+                        <td className="p-3 text-right text-muted-foreground">-</td>
                         <td className="p-3 text-right font-bold tabular-nums text-rose-500 text-sm">
                           {totalExpense.toLocaleString()} BDT
                         </td>
@@ -252,6 +269,7 @@ export default function ProjectDetailPage() {
           </Card>
         </>
       )}
+      </div>
     </div>
   )
 }
