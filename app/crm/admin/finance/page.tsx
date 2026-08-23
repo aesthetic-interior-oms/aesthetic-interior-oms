@@ -1071,23 +1071,63 @@ export default function FinanceDashboard() {
                             <th className="p-3">Date</th>
                             <th className="p-3">Category</th>
                             <th className="p-3">Particulars</th>
-                            <th className="p-3 text-right">Amount</th>
+                            <th className="p-3">Account</th>
+                            <th className="p-3">Recorder</th>
+                            <th className="p-3 text-right">Inflow (BDT)</th>
+                            <th className="p-3 text-right">Outflow (BDT)</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
                           {projectReport.transactions?.map((tx: any) => (
                             <tr key={tx.id} className="hover:bg-muted/10">
-                              <td className="p-3 text-xs">
+                              <td className="p-3 text-xs whitespace-nowrap">
                                 {new Date(tx.date).toLocaleDateString()}
                               </td>
                               <td className="p-3 text-xs">{CATEGORY_LABELS[tx.category] || tx.category}</td>
                               <td className="p-3">{tx.particular}</td>
+                              <td className="p-3 text-xs">
+                                <Badge variant="outline">{(tx.account || "").replace(/_/g, " ")}</Badge>
+                              </td>
+                              <td className="p-3 text-xs text-muted-foreground">{tx.recordedBy?.fullName ?? "—"}</td>
+                              <td className="p-3 text-right font-bold text-emerald-500">
+                                {tx.type === "INFLOW" ? `${tx.amount.toLocaleString()} BDT` : "—"}
+                              </td>
                               <td className="p-3 text-right font-bold text-rose-500">
-                                {tx.amount.toLocaleString()} BDT
+                                {tx.type === "OUTFLOW" ? `${tx.amount.toLocaleString()} BDT` : "—"}
                               </td>
                             </tr>
                           ))}
                         </tbody>
+                        {/* Totals footer */}
+                        {projectReport.transactions?.length > 0 && (() => {
+                          const totalIn = projectReport.totalInflow ?? 0
+                          const totalOut = projectReport.totalOutflow ?? 0
+                          const margin = totalIn - totalOut
+                          return (
+                            <tfoot className="border-t-2 border-border bg-muted/40 text-sm font-bold">
+                              <tr>
+                                <td colSpan={5} className="p-3 text-right text-muted-foreground uppercase text-xs tracking-wider">
+                                  Totals
+                                </td>
+                                <td className="p-3 text-right text-emerald-500">{totalIn.toLocaleString()} BDT</td>
+                                <td className="p-3 text-right text-rose-500">{totalOut.toLocaleString()} BDT</td>
+                              </tr>
+                              <tr className="border-t border-border">
+                                <td colSpan={5} className="p-3 text-right text-muted-foreground uppercase text-xs tracking-wider">
+                                  Net Profit Margin
+                                </td>
+                                <td colSpan={2} className={`p-3 text-right text-base ${margin >= 0 ? "text-emerald-500" : "text-rose-500"}`}>
+                                  {margin.toLocaleString()} BDT
+                                  {totalIn > 0 && (
+                                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                                      ({((margin / totalIn) * 100).toFixed(1)}%)
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            </tfoot>
+                          )
+                        })()}
                       </table>
                     </div>
                   </div>
