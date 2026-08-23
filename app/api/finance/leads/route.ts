@@ -24,12 +24,7 @@ export async function GET(request: NextRequest) {
     const srCrmUserId = searchParams.get('srCrmId')?.trim() || '';
 
     const conditions: Prisma.LeadWhereInput[] = [
-      {
-        OR: [
-          { stage: { in: POST_QUOTATION_STAGES } },
-          { agreementType: { not: null } }
-        ]
-      }
+      { accountStatus: { not: null } }
     ];
 
     if (search) {
