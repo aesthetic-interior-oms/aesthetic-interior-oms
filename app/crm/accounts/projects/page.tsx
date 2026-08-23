@@ -360,6 +360,7 @@ export default function AccountsProjectsPage() {
             </div>
           )}
         </div>
+      )}
       </div>
     </div>
   )
