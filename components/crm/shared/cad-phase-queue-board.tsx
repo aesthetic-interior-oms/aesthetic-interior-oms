@@ -1771,15 +1771,25 @@ export function CadPhaseQueueBoard({
                             </>
                           ) : lead.stage === 'BUDGET_PHASE' &&
                             lead.subStatus === 'BUDGET_MEETING_SET' ? (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                void openCompleteMeetingDialog(lead)
-                              }
-                            >
-                              <CalendarClock className="mr-1 h-4 w-4" />
-                              Complete Meeting
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  void openCompleteMeetingDialog(lead)
+                                }
+                              >
+                                <CalendarClock className="mr-1 h-4 w-4" />
+                                Complete Meeting
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => void openCompleteMeetingDialog(lead, true)}
+                              >
+                                <CheckCircle2 className="mr-1 h-4 w-4" />
+                                Agreement Confirm
+                              </Button>
+                            </>
                           ) : null}
                         </>
                       ) : null}
@@ -2014,15 +2024,25 @@ export function CadPhaseQueueBoard({
                             </>
                           ) : lead.stage === 'BUDGET_PHASE' &&
                             lead.subStatus === 'BUDGET_MEETING_SET' ? (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                void openCompleteMeetingDialog(lead)
-                              }
-                            >
-                              <CalendarClock className="mr-1 h-4 w-4" />
-                              Complete Meeting
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() =>
+                                  void openCompleteMeetingDialog(lead)
+                                }
+                              >
+                                <CalendarClock className="mr-1 h-4 w-4" />
+                                Complete Meeting
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => void openCompleteMeetingDialog(lead, true)}
+                              >
+                                <CheckCircle2 className="mr-1 h-4 w-4" />
+                                Agreement Confirm
+                              </Button>
+                            </>
                           ) : null}
                         </>
                       ) : null}
