@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2, MapPin, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 const CATEGORY_LABELS: Record<string, string> = {
   CLIENT_DEPOSIT: 'Client Deposit',
@@ -65,6 +66,7 @@ export default function ProjectDetailPage() {
 
   const [report, setReport] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [modalFilter, setModalFilter] = useState<{ type: 'CATEGORY' | 'INFLOW' | 'OUTFLOW', value?: string } | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -93,7 +95,7 @@ export default function ProjectDetailPage() {
     <div className="flex flex-col min-h-screen">
       {/* Custom Project Header */}
       <header className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
+        <div className="mx-auto flex w-full items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <div>
             <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
               {project?.name ?? 'Project Ledger'}
@@ -122,7 +124,7 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </header>
-      <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-8 flex-1 w-full max-w-7xl mx-auto">
+      <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-8 flex-1 w-full mx-auto">
         {/* Back button */}
         <div>
           <Button variant="outline" size="sm" className="gap-2" onClick={() => router.back()}>
@@ -201,11 +203,19 @@ export default function ProjectDetailPage() {
                   {Object.entries(report.categoryTotals || {}).map(([cat, val]: any) => (
                     <div
                       key={cat}
-                      className="p-3 border border-border rounded-lg bg-muted/30 flex flex-col gap-1"
+                      className="p-3 border border-border rounded-lg bg-muted/30 flex flex-col gap-1 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => setModalFilter({ type: 'CATEGORY', value: cat })}
                     >
-                      <span className="text-xs text-muted-foreground font-medium leading-tight">
-                        {formatCategory(cat)}
-                      </span>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-xs text-muted-foreground font-medium leading-tight">
+                          {formatCategory(cat)}
+                        </span>
+                        {totalExpense > 0 && (
+                          <span className="text-[10px] bg-background/50 text-muted-foreground px-1.5 py-0.5 rounded-sm font-medium shrink-0">
+                            {((val / totalExpense) * 100).toFixed(1)}%
+                          </span>
+                        )}
+                      </div>
                       <span className="text-sm font-bold tabular-nums">{val.toLocaleString()} BDT</span>
                     </div>
                   ))}
@@ -230,8 +240,18 @@ export default function ProjectDetailPage() {
                       <th className="p-3">Particulars</th>
                       <th className="p-3">Account</th>
                       <th className="p-3">Recorder</th>
-                      <th className="p-3 text-right text-emerald-600 dark:text-emerald-400">Inflow</th>
-                      <th className="p-3 text-right text-rose-600 dark:text-rose-400">Outflow</th>
+                      <th 
+                        className="p-3 text-right text-emerald-600 dark:text-emerald-400 cursor-pointer hover:underline"
+                        onClick={() => setModalFilter({ type: 'INFLOW' })}
+                      >
+                        Inflow
+                      </th>
+                      <th 
+                        className="p-3 text-right text-rose-600 dark:text-rose-400 cursor-pointer hover:underline"
+                        onClick={() => setModalFilter({ type: 'OUTFLOW' })}
+                      >
+                        Outflow
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -271,14 +291,14 @@ export default function ProjectDetailPage() {
                   </tbody>
                   {report.transactions?.length > 0 && (
                     <tfoot className="border-t-2 border-border bg-muted/50">
-                      <tr>
+                      <tr className="cursor-pointer hover:bg-muted/80 transition-colors" onClick={() => setModalFilter({ type: 'INFLOW' })}>
                         <td colSpan={5} className="p-3 font-bold text-sm text-right">Total Inflow</td>
                         <td className="p-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400 text-sm">
                           {totalPaid.toLocaleString()} BDT
                         </td>
                         <td className="p-3 text-right text-muted-foreground">-</td>
                       </tr>
-                      <tr className="border-t border-border">
+                      <tr className="border-t border-border cursor-pointer hover:bg-muted/80 transition-colors" onClick={() => setModalFilter({ type: 'OUTFLOW' })}>
                         <td colSpan={5} className="p-3 font-bold text-sm text-right">Total Outflow</td>
                         <td className="p-3 text-right text-muted-foreground">-</td>
                         <td className="p-3 text-right font-bold tabular-nums text-rose-500 text-sm">
@@ -304,6 +324,74 @@ export default function ProjectDetailPage() {
         </>
       )}
       </div>
+
+      <Dialog open={!!modalFilter} onOpenChange={(open) => !open && setModalFilter(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {modalFilter?.type === 'CATEGORY' && `Transactions for ${formatCategory(modalFilter.value || '')}`}
+              {modalFilter?.type === 'INFLOW' && 'Inflow Transactions'}
+              {modalFilter?.type === 'OUTFLOW' && 'Outflow Transactions'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-x-auto rounded-lg border border-border mt-4">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-muted text-xs uppercase tracking-wider text-muted-foreground font-bold border-b border-border">
+                <tr>
+                  <th className="p-3">Date</th>
+                  <th className="p-3">Category</th>
+                  <th className="p-3">Particulars</th>
+                  <th className="p-3">Account</th>
+                  <th className="p-3">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {(() => {
+                  const filteredTransactions = report?.transactions?.filter((tx: any) => {
+                    if (!modalFilter) return false
+                    if (modalFilter.type === 'CATEGORY') return tx.category === modalFilter.value
+                    if (modalFilter.type === 'INFLOW') return tx.type === 'INFLOW'
+                    if (modalFilter.type === 'OUTFLOW') return tx.type === 'OUTFLOW'
+                    return false
+                  }) || []
+                  
+                  if (filteredTransactions.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                          No transactions found.
+                        </td>
+                      </tr>
+                    )
+                  }
+                  
+                  return filteredTransactions.map((tx: any) => (
+                    <tr key={tx.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(tx.date).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </td>
+                      <td className="p-3">
+                        <Badge variant="outline" className="font-normal text-xs">
+                          {formatCategory(tx.category)}
+                        </Badge>
+                      </td>
+                      <td className="p-3 text-sm">{tx.particular}</td>
+                      <td className="p-3 text-xs">{tx.account?.replace(/_/g, ' ')}</td>
+                      <td className={`p-3 font-bold tabular-nums ${tx.type === 'INFLOW' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
+                        {tx.amount.toLocaleString()} BDT
+                      </td>
+                    </tr>
+                  ))
+                })()}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
