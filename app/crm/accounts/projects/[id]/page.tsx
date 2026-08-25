@@ -211,9 +211,9 @@ export default function ProjectDetailPage() {
                           {formatCategory(cat)}
                         </span>
                         {totalExpense > 0 && (
-                          <span className="text-[10px] bg-background/50 text-muted-foreground px-1.5 py-0.5 rounded-sm font-medium shrink-0">
+                          <Badge variant="secondary" className="text-xs font-bold px-2 py-0.5 shrink-0 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800">
                             {((val / totalExpense) * 100).toFixed(1)}%
-                          </span>
+                          </Badge>
                         )}
                       </div>
                       <span className="text-sm font-bold tabular-nums">{val.toLocaleString()} BDT</span>
@@ -272,7 +272,11 @@ export default function ProjectDetailPage() {
                             })}
                           </td>
                           <td className="p-3">
-                            <Badge variant="outline" className="font-normal text-xs">
+                            <Badge 
+                              variant="outline" 
+                              className="font-normal text-xs cursor-pointer hover:bg-muted transition-colors"
+                              onClick={() => setModalFilter({ type: 'CATEGORY', value: tx.category })}
+                            >
                               {formatCategory(tx.category)}
                             </Badge>
                           </td>
@@ -326,7 +330,7 @@ export default function ProjectDetailPage() {
       </div>
 
       <Dialog open={!!modalFilter} onOpenChange={(open) => !open && setModalFilter(null)}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] md:max-w-7xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {modalFilter?.type === 'CATEGORY' && `Transactions for ${formatCategory(modalFilter.value || '')}`}
@@ -375,7 +379,11 @@ export default function ProjectDetailPage() {
                         })}
                       </td>
                       <td className="p-3">
-                        <Badge variant="outline" className="font-normal text-xs">
+                        <Badge 
+                          variant="outline" 
+                          className="font-normal text-xs cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setModalFilter({ type: 'CATEGORY', value: tx.category })}
+                        >
                           {formatCategory(tx.category)}
                         </Badge>
                       </td>
