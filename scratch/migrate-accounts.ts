@@ -21,17 +21,8 @@ async function main() {
 
   console.log(`Found ${transactions.length} transactions to update.`)
   let updatedCount = 0
-  for (const tx of transactions) {
-    const mappedAccount = createdAccounts[tx.account]
-    if (mappedAccount) {
-      await prisma.transaction.update({
-        where: { id: tx.id },
-        data: { financeAccountId: mappedAccount.id },
-      })
-      updatedCount++
-    }
-  }
-  console.log(`Migration completed! Updated ${updatedCount} transactions.`)
+  // Migration already ran; account field has been removed from schema.
+  console.log('Migration script is now a no-op — migration was already applied.')
 }
 
 main().catch(console.error).finally(() => prisma.$disconnect())
