@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -75,6 +76,9 @@ type VisitRecord = {
   scheduledAt: string
   location: string
   visitFee: number | null
+  feeIsPaid?: boolean
+  feeIsPartiallyPaid?: boolean
+  feePaidAmount?: number
   projectSqft: number | null
   projectStatus: string | null
   status: string
@@ -1320,7 +1324,18 @@ export function VisitsPageView({
                   <span>{getVisitAddress(visit)}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">SR CRM: {getSeniorCrmAssignment(visit)?.user?.fullName || 'Unassigned'}</p>
-                <p className="text-sm text-muted-foreground">Visit Fee: Tk {visit.visitFee ?? 0}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-muted-foreground">Visit Fee: Tk {visit.visitFee ?? 0}</p>
+                  {(visit.visitFee ?? 0) > 0 && (
+                    visit.feeIsPaid ? (
+                      <Badge className="bg-success text-success-foreground text-[10px] px-1 py-0 h-4">Paid</Badge>
+                    ) : visit.feeIsPartiallyPaid ? (
+                      <Badge className="bg-warning text-warning-foreground text-[10px] px-1 py-0 h-4">Partial</Badge>
+                    ) : (
+                      <Badge variant="destructive" className="text-[10px] px-1 py-0 h-4">Unpaid</Badge>
+                    )
+                  )}
+                </div>
                 {visit.projectSqft ? (
                   <p className="text-sm text-muted-foreground">Sqft: {visit.projectSqft}</p>
                 ) : null}

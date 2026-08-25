@@ -40,6 +40,10 @@ export type VisitCompleteQueueItem = {
     location: string
     projectSqft: number | null
     projectStatus: string | null
+    visitFee: number
+    feeIsPaid: boolean
+    feeIsPartiallyPaid: boolean
+    feePaidAmount: number
     assignedVisitLead: { id: string; fullName: string } | null
     supportMembers: Array<{ id: string; fullName: string }>
     summary: string | null
@@ -259,6 +263,14 @@ export async function listVisitCompleteQueueItems(input?: {
             },
             orderBy: { createdAt: 'asc' },
           },
+          visitFee: true,
+          visitPayments: {
+            select: {
+              id: true,
+              amount: true,
+              date: true,
+            }
+          },
           result: {
             select: {
               summary: true,
@@ -307,6 +319,18 @@ export async function listVisitCompleteQueueItems(input?: {
     const latestVisit = lead.visits[0] ?? null
     const visitResult = latestVisit?.result ?? null
 
+    let visitFee = 0
+    let feePaidAmount = 0
+    let feeIsPaid = false
+    let feeIsPartiallyPaid = false
+
+    if (latestVisit) {
+      visitFee = latestVisit.visitFee ?? 0
+      feePaidAmount = latestVisit.visitPayments?.reduce((sum: number, tx: any) => sum + tx.amount, 0) || 0
+      feeIsPaid = visitFee > 0 && feePaidAmount >= visitFee
+      feeIsPartiallyPaid = visitFee > 0 && feePaidAmount > 0 && feePaidAmount < visitFee
+    }
+
     return {
       leadId: lead.id,
       leadName: lead.name,
@@ -324,6 +348,10 @@ export async function listVisitCompleteQueueItems(input?: {
             location: latestVisit.location,
             projectSqft: latestVisit.projectSqft ?? null,
             projectStatus: latestVisit.projectStatus ?? null,
+            visitFee,
+            feeIsPaid,
+            feeIsPartiallyPaid,
+            feePaidAmount,
             assignedVisitLead: latestVisit.assignedTo ?? null,
             supportMembers: (latestVisit.supportAssignments ?? []).map((row) => row.supportUser),
             summary: visitResult?.summary ?? null,

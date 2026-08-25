@@ -69,6 +69,19 @@ export async function GET(request: NextRequest) {
               fullName: true,
             },
           },
+          collectedBy: {
+            select: {
+              id: true,
+              fullName: true,
+            },
+          },
+          visit: {
+            select: {
+              id: true,
+              scheduledAt: true,
+              visitFee: true,
+            },
+          },
         },
         orderBy: {
           date: "desc",
@@ -132,16 +145,28 @@ export async function POST(request: NextRequest) {
       amount: number
       account: string
       leadId?: string
+      visitId?: string
+      collectedById?: string
       date?: string
       voucherNo?: string
     }
-    const { type, category, particular, amount, account, leadId, date, voucherNo } = body
+    const { type, category, particular, amount, account, leadId, visitId, collectedById, date, voucherNo } = body
 
     if (!type || !category || !particular || typeof amount !== "number" || !account || !voucherNo) {
       return NextResponse.json(
         { success: false, error: "Missing required fields (type, category, particular, amount, account, voucherNo)" },
         { status: 400 }
       )
+    }
+
+    // If visitId is provided but no leadId, auto-fill leadId from the visit
+    let resolvedLeadId = leadId || null
+    if (visitId && !resolvedLeadId) {
+      const visit = await prisma.visit.findUnique({
+        where: { id: visitId },
+        select: { leadId: true },
+      })
+      if (visit) resolvedLeadId = visit.leadId
     }
 
     const transaction = await prisma.transaction.create({
@@ -151,7 +176,9 @@ export async function POST(request: NextRequest) {
         particular,
         amount,
         account: account as PaymentAccount,
-        leadId: leadId || null,
+        leadId: resolvedLeadId,
+        visitId: visitId || null,
+        collectedById: collectedById || null,
         recordedById: user.id,
         date: date ? new Date(date) : new Date(),
         voucherNo,
@@ -161,6 +188,12 @@ export async function POST(request: NextRequest) {
           select: {
             id: true,
             name: true,
+          },
+        },
+        collectedBy: {
+          select: {
+            id: true,
+            fullName: true,
           },
         },
       },

@@ -105,6 +105,7 @@ const EXPENSE_CATEGORIES: TransactionCategory[] = [
 ]
 
 const INCOME_CATEGORIES: TransactionCategory[] = [
+  { key: "SITE_VISIT_PAYMENT", label: "Site Visit Fee", icon: MapPin },
   { key: "CLIENT_PAYMENT", label: "Client Payment", icon: Wallet },
   { key: "PROJECT_ADVANCE", label: "Project Advance", icon: HandCoins },
   { key: "DESIGN_FEE", label: "Design Fee", icon: FileText },
@@ -187,6 +188,18 @@ export default function FinanceDashboard() {
   const [leadId, setLeadId] = useState<string>("none")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
 
+  // Visit Picker States (for SITE_VISIT_PAYMENT category)
+  const [visitId, setVisitId] = useState<string | null>(null)
+  const [visitSearch, setVisitSearch] = useState("")
+  const [visitSearchResults, setVisitSearchResults] = useState<any[]>([])
+  const [visitSearchLoading, setVisitSearchLoading] = useState(false)
+  const [selectedVisit, setSelectedVisit] = useState<any | null>(null)
+  const [isVisitPickerOpen, setIsVisitPickerOpen] = useState(false)
+
+  // Collected-by (visit team leader) state
+  const [collectedById, setCollectedById] = useState<string | null>(null)
+  const [visitTeamMembers, setVisitTeamMembers] = useState<{ id: string; fullName: string }[]>([])
+
   // Project Picker Dialog States
   const [isProjectPickerOpen, setIsProjectPickerOpen] = useState(false)
   const [financeLeads, setFinanceLeads] = useState<any[]>([])
@@ -245,8 +258,40 @@ export default function FinanceDashboard() {
     }
   }
 
+  const loadVisitSearch = async (query: string) => {
+    if (query.trim().length < 2) {
+      setVisitSearchResults([])
+      return
+    }
+    setVisitSearchLoading(true)
+    try {
+      const res = await fetch(`/api/finance/visit-search?q=${encodeURIComponent(query)}`)
+      const data = await res.json()
+      if (data.success) {
+        setVisitSearchResults(data.data || [])
+      }
+    } catch (e: any) {
+      toast.error("Failed to load visits: " + e.message)
+    } finally {
+      setVisitSearchLoading(false)
+    }
+  }
+
+  const loadVisitTeamMembers = async () => {
+    try {
+      const res = await fetch('/api/user?department=VISIT_TEAM')
+      const data = await res.json()
+      if (data.success) {
+        setVisitTeamMembers(data.data || [])
+      }
+    } catch (e) {
+      console.error("Failed to load visit team members", e)
+    }
+  }
+
   useEffect(() => {
     void loadJournalData(datePreset, customStart, customEnd)
+    void loadVisitTeamMembers()
 
     const storedCategories = window.localStorage.getItem(CUSTOM_CATEGORY_STORAGE_KEY)
     if (storedCategories) {
@@ -342,6 +387,8 @@ export default function FinanceDashboard() {
           amount: parseFloat(amount),
           account,
           leadId: leadId === "none" ? null : leadId,
+          visitId,
+          collectedById,
           date,
           voucherNo,
         }),
@@ -397,6 +444,11 @@ export default function FinanceDashboard() {
             setLeadId("none")
             setPickerSearch("")
             setPickerSrCrmFilter("all")
+            setVisitId(null)
+            setSelectedVisit(null)
+            setCollectedById(null)
+            setVisitSearch("")
+            setVisitSearchResults([])
           }
         }}>
           <DialogTrigger asChild>
@@ -672,6 +724,111 @@ export default function FinanceDashboard() {
                   </DialogContent>
                 </Dialog>
               </div>
+
+              {category === "SITE_VISIT_PAYMENT" && (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold">Select Site Visit</label>
+                    <Dialog open={isVisitPickerOpen} onOpenChange={setIsVisitPickerOpen}>
+                      <DialogTrigger asChild>
+                        <Button type="button" variant="outline" className="w-full justify-between h-auto min-h-10 px-3 py-2">
+                          <span className="flex items-center gap-2 text-left">
+                            {selectedVisit ? (
+                              <span>
+                                {selectedVisit.lead.name} - {new Date(selectedVisit.scheduledAt).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">Search and select a visit</span>
+                            )}
+                          </span>
+                          <Search className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-[95vw] md:max-w-2xl bg-card flex flex-col h-[70vh]">
+                        <DialogHeader className="shrink-0">
+                          <DialogTitle>Select Visit to Pay For</DialogTitle>
+                        </DialogHeader>
+                        <div className="p-1 shrink-0">
+                          <Input
+                            placeholder="Search by Lead Name (min 2 chars)..."
+                            value={visitSearch}
+                            onChange={(e) => {
+                              setVisitSearch(e.target.value)
+                              loadVisitSearch(e.target.value)
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 overflow-y-auto pr-1">
+                          {visitSearchLoading ? (
+                            <div className="flex items-center justify-center h-20 text-muted-foreground text-sm">Searching...</div>
+                          ) : visitSearchResults.length === 0 ? (
+                            <div className="text-center py-10 text-sm text-muted-foreground">
+                              {visitSearch.length < 2 ? "Type at least 2 characters to search" : "No visits found with a fee."}
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {visitSearchResults.map((v) => (
+                                <button
+                                  key={v.id}
+                                  type="button"
+                                  className="w-full text-left rounded-xl border-2 p-3 transition-all duration-200 bg-card hover:border-primary/50"
+                                  onClick={() => {
+                                    setVisitId(v.id)
+                                    setSelectedVisit(v)
+                                    setLeadId(v.lead.id) // Auto-fill lead
+                                    if (v.visitFee && !amount) {
+                                      // Suggest remaining amount
+                                      const remaining = v.visitFee - v.feePaidAmount
+                                      if (remaining > 0) setAmount(remaining.toString())
+                                    }
+                                    if (v.assignedTo?.id && visitTeamMembers.some(m => m.id === v.assignedTo.id)) {
+                                      setCollectedById(v.assignedTo.id) // Auto-fill collectedBy
+                                    }
+                                    setIsVisitPickerOpen(false)
+                                  }}
+                                >
+                                  <div className="flex justify-between items-start mb-1">
+                                    <p className="font-semibold">{v.lead.name}</p>
+                                    <div className="text-right flex items-center gap-2">
+                                      <span className="text-sm font-medium">{v.visitFee} BDT</span>
+                                      {v.feeIsPaid ? (
+                                        <Badge className="bg-success text-success-foreground">Paid</Badge>
+                                      ) : v.feeIsPartiallyPaid ? (
+                                        <Badge className="bg-warning text-warning-foreground">Partial ({v.feePaidAmount})</Badge>
+                                      ) : (
+                                        <Badge variant="destructive">Unpaid</Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground flex justify-between">
+                                    <span>{new Date(v.scheduledAt).toLocaleDateString()}</span>
+                                    <span>Team: {v.assignedTo?.fullName || 'Unassigned'}</span>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold">Collected By (Visit Team)</label>
+                    <Select value={collectedById || "none"} onValueChange={(val) => setCollectedById(val === "none" ? null : val)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select team member" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Not Applicable / None</SelectItem>
+                        {visitTeamMembers.map((member) => (
+                          <SelectItem key={member.id} value={member.id}>{member.fullName}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
 
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1">

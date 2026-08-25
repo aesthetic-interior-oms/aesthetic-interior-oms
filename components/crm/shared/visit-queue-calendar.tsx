@@ -57,6 +57,10 @@ type ScheduledVisit = {
   scheduledAt: string
   location: string
   status: string
+  visitFee: number
+  feeIsPaid: boolean
+  feeIsPartiallyPaid: boolean
+  feePaidAmount: number
   lead: {
     id: string
     name: string
@@ -81,6 +85,10 @@ type QueueItem = {
     location: string
     projectSqft: number | null
     projectStatus: string | null
+    visitFee: number
+    feeIsPaid: boolean
+    feeIsPartiallyPaid: boolean
+    feePaidAmount: number
     assignedVisitLead: { id: string; fullName: string } | null
     supportMembers?: Array<{ id: string; fullName: string }>
     summary: string | null
@@ -490,10 +498,22 @@ export function VisitQueueCalendar({
             </div>
           </div>
 
-          {/* Time */}
+          {/* Time & Fee */}
           <div className="min-w-[80px]">
             <p className="text-xs text-muted-foreground">Time</p>
             <p className="text-sm font-medium text-foreground">{formatTime(visit.scheduledAt)}</p>
+            {visit.visitFee ? (
+              <div className="mt-1 flex items-center gap-1 flex-wrap">
+                <span className="text-xs text-muted-foreground">{visit.visitFee}৳</span>
+                {visit.feeIsPaid ? (
+                  <Badge className="bg-success text-success-foreground text-[10px] px-1 py-0 h-4">Paid</Badge>
+                ) : visit.feeIsPartiallyPaid ? (
+                  <Badge className="bg-warning text-warning-foreground text-[10px] px-1 py-0 h-4">Partial</Badge>
+                ) : (
+                  <Badge variant="destructive" className="text-[10px] px-1 py-0 h-4">Unpaid</Badge>
+                )}
+              </div>
+            ) : null}
           </div>
 
           {/* Location */}
@@ -571,6 +591,17 @@ export function VisitQueueCalendar({
           <div className="min-w-[100px]">
             <p className="text-xs text-muted-foreground">Completed</p>
             <p className="text-sm text-foreground">{formatDate(item.latestCompletedVisit?.completedAt ?? null)}</p>
+            {item.latestCompletedVisit?.visitFee ? (
+              <div className="mt-1">
+                {item.latestCompletedVisit.feeIsPaid ? (
+                  <Badge className="bg-success text-success-foreground text-[10px]">Paid</Badge>
+                ) : item.latestCompletedVisit.feeIsPartiallyPaid ? (
+                  <Badge className="bg-warning text-warning-foreground text-[10px]">Partial</Badge>
+                ) : (
+                  <Badge variant="destructive" className="text-[10px]">Unpaid</Badge>
+                )}
+              </div>
+            ) : null}
           </div>
 
           {/* Location */}

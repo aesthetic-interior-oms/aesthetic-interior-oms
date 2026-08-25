@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
       include: {
         lead: { select: { id: true, name: true } },
         assignedTo: { select: { id: true, fullName: true } },
+        visitPayments: { select: { id: true, amount: true } },
       },
     })
     const hasMore = visits.length > limit
@@ -49,18 +50,24 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: sliced.map((visit) => ({
-        id: visit.id,
-        leadId: visit.leadId,
-        leadName: visit.lead?.name ?? 'Unknown',
-        location: visit.location,
-        visitFee: visit.visitFee,
-        projectSqft: visit.projectSqft,
-        projectStatus: visit.projectStatus,
-        scheduledAt: visit.scheduledAt,
-        status: visit.status,
-        assignedTeamMember: visit.assignedTo?.fullName ?? 'Unassigned',
-      })),
+      data: sliced.map((visit) => {
+        const totalPaid = visit.visitPayments.reduce((sum, p) => sum + p.amount, 0)
+        return {
+          id: visit.id,
+          leadId: visit.leadId,
+          leadName: visit.lead?.name ?? 'Unknown',
+          location: visit.location,
+          visitFee: visit.visitFee,
+          feePaidAmount: totalPaid,
+          feeIsPaid: visit.visitFee > 0 && totalPaid >= visit.visitFee,
+          feeIsPartiallyPaid: visit.visitFee > 0 && totalPaid > 0 && totalPaid < visit.visitFee,
+          projectSqft: visit.projectSqft,
+          projectStatus: visit.projectStatus,
+          scheduledAt: visit.scheduledAt,
+          status: visit.status,
+          assignedTeamMember: visit.assignedTo?.fullName ?? 'Unassigned',
+        }
+      }),
       pagination: {
         offset,
         limit,

@@ -172,6 +172,7 @@ model User {
   notifications Notification[]
   signupNotifications Notification[] @relation("NotificationSubjectUser")
   transactionsRecorded Transaction[] @relation("TransactionRecorder")
+  transactionsCollected Transaction[] @relation("TransactionCollector")
   deviceTokens DeviceToken[]
 }
 
@@ -358,6 +359,7 @@ model Visit {
   supportAssignments VisitSupportAssignment[]
   supportResults VisitSupportResult[]
   notifications Notification[]
+  visitPayments Transaction[] @relation("VisitPayments")
 
   @@index([leadId])
   @@index([assignedToId])
@@ -917,12 +919,18 @@ model Transaction {
   account     PaymentAccount  // CASH or BANK
   recordedById String
   leadId      String?         // Reference to Lead (if site-specific)
-  
+  visitId     String?         // Reference to Visit (for site visit payment)
+  collectedById String?       // Visit team leader who collected the fee from client
+
   lead        Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  visit       Visit?          @relation("VisitPayments", fields: [visitId], references: [id], onDelete: SetNull)
   recordedBy  User            @relation("TransactionRecorder", fields: [recordedById], references: [id])
+  collectedBy User?           @relation("TransactionCollector", fields: [collectedById], references: [id])
 
   @@index([leadId])
+  @@index([visitId])
   @@index([recordedById])
+  @@index([collectedById])
   @@index([date])
 }
 

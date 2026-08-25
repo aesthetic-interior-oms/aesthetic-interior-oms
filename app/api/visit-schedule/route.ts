@@ -121,6 +121,7 @@ export async function GET(request: NextRequest) {
         leadId: true,
         assignedToId: true,
         scheduledAt: true,
+        visitFee: true,
         status: true,
         projectSqft: true,
         projectStatus: true,
@@ -147,6 +148,13 @@ export async function GET(request: NextRequest) {
         },
         assignedTo: { select: { id: true, fullName: true, email: true, phone: true } },
         createdBy: { select: { id: true, fullName: true } },
+        visitPayments: {
+          select: {
+            id: true,
+            amount: true,
+            date: true,
+          },
+        },
         supportAssignments: {
           select: {
             id: true,
@@ -213,11 +221,15 @@ export async function GET(request: NextRequest) {
       orderBy: { scheduledAt: 'desc' },
     });
 
-    const normalizedVisits = visits.map((visit) => ({
-      ...visit,
-      // DB can be behind latest Prisma schema in local/dev; keep response backward-compatible.
-      visitFee: 0,
-    }))
+    const normalizedVisits = visits.map((visit) => {
+      const totalPaid = visit.visitPayments.reduce((sum, p) => sum + p.amount, 0)
+      return {
+        ...visit,
+        feeIsPaid: visit.visitFee > 0 && totalPaid >= visit.visitFee,
+        feeIsPartiallyPaid: visit.visitFee > 0 && totalPaid > 0 && totalPaid < visit.visitFee,
+        feePaidAmount: totalPaid,
+      }
+    })
 
     return NextResponse.json({ success: true, data: normalizedVisits });
   } catch (error) {
