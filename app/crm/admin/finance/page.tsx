@@ -296,8 +296,12 @@ export default function FinanceDashboard() {
     try {
       const res = await fetch('/api/user?department=VISIT_TEAM')
       const data = await res.json()
-      if (data.success) {
-        setVisitTeamMembers(data.data || [])
+      if (Array.isArray(data)) {
+        setVisitTeamMembers(data)
+      } else if (data.success && Array.isArray(data.data)) {
+        setVisitTeamMembers(data.data)
+      } else {
+        setVisitTeamMembers([])
       }
     } catch (e) {
       console.error("Failed to load visit team members", e)

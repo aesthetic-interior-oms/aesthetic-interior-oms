@@ -12,18 +12,35 @@ type CreateUserBody = {
   departmentNames?: string[];
 };
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const authz = await requireDatabaseRoles([]);
     if (!authz.ok) {
       return authz.response;
     }
-    const isAdminDepartmentUser = authz.actor.userDepartments.includes("ADMIN");
-    if (!isAdminDepartmentUser) {
+    const isAuthorized = authz.actor.userDepartments.some(d => 
+      ["ADMIN", "ACCOUNTS", "FINANCE"].includes(d)
+    );
+    if (!isAuthorized) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const departmentName = searchParams.get("department");
+    
+    const whereClause: any = {};
+    if (departmentName) {
+      whereClause.userDepartments = {
+        some: {
+          department: {
+            name: departmentName
+          }
+        }
+      };
+    }
+
     const users = await prisma.user.findMany({
+      where: whereClause,
       orderBy: { created_at: "desc" },
       include: {
         userRoles: {
