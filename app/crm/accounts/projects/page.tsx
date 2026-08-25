@@ -96,7 +96,7 @@ export default function AccountsProjectsPage() {
         title="Projects"
         subtitle="Overview of all confirmed projects and their financial status."
       />
-      <div className="flex flex-col gap-4 p-4 md:gap-8 md:p-8 w-full max-w-7xl mx-auto flex-1">
+      <div className="flex flex-col gap-4 p-4 md:gap-8 md:p-8 w-full flex-1">
         <div className="flex items-center space-x-2 rounded-md border p-1 w-fit">
           <Button
             variant={viewMode === 'table' ? 'secondary' : 'ghost'}

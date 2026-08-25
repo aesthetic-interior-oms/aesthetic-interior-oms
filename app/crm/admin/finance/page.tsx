@@ -162,6 +162,7 @@ function getDateRange(preset: DatePreset, customStart: string, customEnd: string
 export default function FinanceDashboard() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [leads, setLeads] = useState<any[]>([])
+  const [accounts, setAccounts] = useState<any[]>([])
   const [balances, setBalances] = useState({ cash: 0, bank: 0, total: 0 })
   const [loading, setLoading] = useState(true)
 
@@ -183,7 +184,6 @@ export default function FinanceDashboard() {
   })
   const [particular, setParticular] = useState("")
   const [amount, setAmount] = useState("")
-  const [voucherNo, setVoucherNo] = useState("")
   const [account, setAccount] = useState<string>("CASH")
   const [leadId, setLeadId] = useState<string>("none")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
@@ -239,6 +239,21 @@ export default function FinanceDashboard() {
   // Keep old name as alias for places that still call loadData (e.g. after posting)
   const loadData = useCallback(() => loadJournalData(datePreset, customStart, customEnd), [loadJournalData, datePreset, customStart, customEnd])
 
+  const loadAccounts = async () => {
+    try {
+      const res = await fetch('/api/finance/accounts')
+      const data = await res.json()
+      if (data.success) {
+        setAccounts(data.data.filter((a: any) => a.isActive))
+        if (data.data.length > 0 && !account) {
+          setAccount(data.data[0].id)
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load accounts", e)
+    }
+  }
+
   const loadFinanceLeads = async (search = "", srCrmId = "all") => {
     setFinanceLeadsLoading(true)
     try {
@@ -292,6 +307,7 @@ export default function FinanceDashboard() {
   useEffect(() => {
     void loadJournalData(datePreset, customStart, customEnd)
     void loadVisitTeamMembers()
+    void loadAccounts()
 
     const storedCategories = window.localStorage.getItem(CUSTOM_CATEGORY_STORAGE_KEY)
     if (storedCategories) {
@@ -371,8 +387,8 @@ export default function FinanceDashboard() {
 
   const handleCreateTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!particular || !amount || !voucherNo) {
-      toast.error("Please fill in all required fields (including Voucher No)")
+    if (!particular || !amount) {
+      toast.error("Please fill in all required fields")
       return
     }
 
@@ -385,12 +401,11 @@ export default function FinanceDashboard() {
           category,
           particular,
           amount: parseFloat(amount),
-          account,
+          financeAccountId: account,
           leadId: leadId === "none" ? null : leadId,
           visitId,
           collectedById,
           date,
-          voucherNo,
         }),
       })
 
@@ -400,7 +415,6 @@ export default function FinanceDashboard() {
         setIsLogOpen(false)
         setParticular("")
         setAmount("")
-        setVoucherNo("")
         loadData()
       } else {
         toast.error(data.error || "Failed to log transaction")
@@ -487,9 +501,9 @@ export default function FinanceDashboard() {
                     <SelectValue placeholder="Select account" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="CASH">Cash Drawer</SelectItem>
-                    <SelectItem value="BANK_EBL">Eastern Bank Ltd (EBL)</SelectItem>
-                    <SelectItem value="BANK_OTHER">Other Bank Account</SelectItem>
+                    {accounts.map(acc => (
+                      <SelectItem key={acc.id} value={acc.id}>{acc.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -842,15 +856,6 @@ export default function FinanceDashboard() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold">Voucher No.</label>
-                  <Input
-                    placeholder="e.g. V-1234"
-                    value={voucherNo}
-                    onChange={(e) => setVoucherNo(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-1">
                   <label className="text-xs font-semibold">Date</label>
                   <Input
                     type="date"
@@ -1094,7 +1099,9 @@ export default function FinanceDashboard() {
                               day: "numeric",
                             })}
                           </td>
-                          <td className="p-3 font-medium">{tx.particular}</td>
+                          <td className="p-3 font-medium max-w-[150px] lg:max-w-[250px] truncate" title={tx.particular}>
+                            {tx.particular}
+                          </td>
                           <td className="p-3 text-xs">
                             {tx.lead ? (
                               <Badge variant="secondary" className="font-semibold">
@@ -1108,7 +1115,7 @@ export default function FinanceDashboard() {
                             {CATEGORY_LABELS[tx.category] || tx.category}
                           </td>
                           <td className="p-3 text-xs">
-                            <Badge variant="outline">{tx.account.replace("_", " ")}</Badge>
+                            <Badge variant="outline">{tx.financeAccount?.name || "Unknown Account"}</Badge>
                           </td>
                           <td className="p-3 text-xs">{tx.recordedBy?.fullName}</td>
                           <td className="p-3 text-right font-bold text-emerald-500">

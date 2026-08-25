@@ -163,6 +163,13 @@ export default function FinanceSettingsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Finance Settings</h1>
           <p className="text-muted-foreground">Manage your custom income and expense categories.</p>
         </div>
+        <div className="flex gap-2">
+          <Link href="/crm/admin/finance/settings/accounts">
+            <Button variant="outline" className="gap-2">
+              <Wallet className="w-4 h-4" /> Manage Accounts
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Tabs defaultValue="OUTFLOW" value={activeTab} onValueChange={(val) => {

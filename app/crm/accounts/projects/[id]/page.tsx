@@ -280,8 +280,10 @@ export default function ProjectDetailPage() {
                               {formatCategory(tx.category)}
                             </Badge>
                           </td>
-                          <td className="p-3 text-sm">{tx.particular}</td>
-                          <td className="p-3 text-xs">{tx.account?.replace(/_/g, ' ')}</td>
+                          <td className="p-3 text-sm max-w-[150px] lg:max-w-[250px] truncate" title={tx.particular}>
+                            {tx.particular}
+                          </td>
+                          <td className="p-3 text-xs">{tx.financeAccount?.name || 'Unknown'}</td>
                           <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{tx.recordedBy?.fullName || 'Unknown'}</td>
                           <td className="p-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
                             {tx.type === 'INFLOW' ? `${tx.amount.toLocaleString()} BDT` : '-'}
@@ -387,8 +389,10 @@ export default function ProjectDetailPage() {
                           {formatCategory(tx.category)}
                         </Badge>
                       </td>
-                      <td className="p-3 text-sm">{tx.particular}</td>
-                      <td className="p-3 text-xs">{tx.account?.replace(/_/g, ' ')}</td>
+                      <td className="p-3 text-sm max-w-[150px] lg:max-w-[250px] truncate" title={tx.particular}>
+                        {tx.particular}
+                      </td>
+                      <td className="p-3 text-xs">{tx.financeAccount?.name || 'Unknown'}</td>
                       <td className={`p-3 font-bold tabular-nums ${tx.type === 'INFLOW' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
                         {tx.amount.toLocaleString()} BDT
                       </td>

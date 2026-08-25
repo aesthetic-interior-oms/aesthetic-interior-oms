@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { auth } from "@clerk/nextjs/server"
-import { TransactionType, PaymentAccount } from "@/generated/prisma/client"
+import { TransactionType } from "@/generated/prisma/client"
 
 export const runtime = "nodejs"
 export const preferredRegion = "sin1"
@@ -28,7 +28,8 @@ export async function GET(request: NextRequest) {
     const leadId = searchParams.get("leadId") || undefined
     const type = searchParams.get("type") as TransactionType | null
     const category = searchParams.get("category")
-    const account = searchParams.get("account") as PaymentAccount | null
+    const account = searchParams.get("account")
+    const financeAccountId = searchParams.get("financeAccountId")
     const startDateStr = searchParams.get("startDate")
     const endDateStr = searchParams.get("endDate")
 
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
     if (leadId) where.leadId = leadId
     if (type) where.type = type
     if (category) where.category = category
-    if (account) where.account = account
+    if (financeAccountId) where.financeAccountId = financeAccountId
 
     if (startDateStr || endDateStr) {
       const dateFilter: Record<string, Date> = {}
@@ -82,6 +83,7 @@ export async function GET(request: NextRequest) {
               visitFee: true,
             },
           },
+          financeAccount: true,
         },
         orderBy: {
           date: "desc",
@@ -91,7 +93,7 @@ export async function GET(request: NextRequest) {
       }),
       // Single aggregation query for all-time balance (no filters applied here)
       prisma.transaction.groupBy({
-        by: ["type", "account"],
+        by: ["type", "financeAccountId"],
         _sum: {
           amount: true,
         },
@@ -104,13 +106,19 @@ export async function GET(request: NextRequest) {
     let totalCashOut = 0
     let totalBankOut = 0
 
+    // To properly map balances to "cash" vs "bank", we need to know the account type.
+    // We will just fetch all accounts first to classify them.
+    const allAccounts = await prisma.financeAccount.findMany()
+    const accountTypeMap = new Map(allAccounts.map(a => [a.id, a.name.toUpperCase().includes('BANK') ? 'BANK' : 'CASH']))
+
     for (const group of aggregates) {
       const sum = group._sum.amount ?? 0
+      const accType = group.financeAccountId ? accountTypeMap.get(group.financeAccountId) : 'CASH'
       if (group.type === "INFLOW") {
-        if (group.account === "CASH") totalCashIn += sum
+        if (accType === "CASH") totalCashIn += sum
         else totalBankIn += sum
       } else {
-        if (group.account === "CASH") totalCashOut += sum
+        if (accType === "CASH") totalCashOut += sum
         else totalBankOut += sum
       }
     }
@@ -143,18 +151,17 @@ export async function POST(request: NextRequest) {
       category: string
       particular: string
       amount: number
-      account: string
+      financeAccountId: string
       leadId?: string
       visitId?: string
       collectedById?: string
       date?: string
-      voucherNo?: string
     }
-    const { type, category, particular, amount, account, leadId, visitId, collectedById, date, voucherNo } = body
+    const { type, category, particular, amount, financeAccountId, leadId, visitId, collectedById, date } = body
 
-    if (!type || !category || !particular || typeof amount !== "number" || !account || !voucherNo) {
+    if (!type || !category || !particular || typeof amount !== "number" || !financeAccountId) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields (type, category, particular, amount, account, voucherNo)" },
+        { success: false, error: "Missing required fields (type, category, particular, amount, financeAccountId)" },
         { status: 400 }
       )
     }
@@ -171,18 +178,24 @@ export async function POST(request: NextRequest) {
 
     const transaction = await prisma.transaction.create({
       data: {
-        type: type as TransactionType,
+        type: type as any,
         category,
         particular,
         amount,
-        account: account as PaymentAccount,
+        financeAccountId,
         leadId: resolvedLeadId,
         visitId: visitId || null,
         collectedById: collectedById || null,
         recordedById: user.id,
         date: date ? new Date(date) : new Date(),
-        voucherNo,
-      },
+      }
+    })
+
+    const generatedVoucherNo = `v-${String(transaction.serialNo).padStart(6, '0')}`
+
+    const updatedTransaction = await prisma.transaction.update({
+      where: { id: transaction.id },
+      data: { voucherNo: generatedVoucherNo },
       include: {
         lead: {
           select: {
@@ -199,7 +212,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return NextResponse.json({ success: true, data: transaction }, { status: 201 })
+    return NextResponse.json({ success: true, data: updatedTransaction }, { status: 201 })
   } catch (error: unknown) {
     console.error("[POST /api/finance/transactions] failed", error)
     const message = error instanceof Error ? error.message : "Unknown error"

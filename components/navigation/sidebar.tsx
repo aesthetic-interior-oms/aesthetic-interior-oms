@@ -440,6 +440,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/accounts/overheads',
         },
         {
+          icon: ClipboardList,
+          label: 'Visit Payments',
+          href: '/crm/accounts/visit-payments',
+        },
+        {
           icon: Settings,
           label: 'Finance Settings',
           href: '/crm/admin/finance/settings',

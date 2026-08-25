@@ -101,6 +101,7 @@ export async function GET(request: NextRequest) {
           },
           include: {
             recordedBy: { select: { fullName: true } },
+            financeAccount: { select: { id: true, name: true } },
           },
           orderBy: { date: "asc" },
         })
