@@ -133,12 +133,13 @@ export async function POST(request: NextRequest) {
       account: string
       leadId?: string
       date?: string
+      voucherNo?: string
     }
-    const { type, category, particular, amount, account, leadId, date } = body
+    const { type, category, particular, amount, account, leadId, date, voucherNo } = body
 
-    if (!type || !category || !particular || typeof amount !== "number" || !account) {
+    if (!type || !category || !particular || typeof amount !== "number" || !account || !voucherNo) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields (type, category, particular, amount, account)" },
+        { success: false, error: "Missing required fields (type, category, particular, amount, account, voucherNo)" },
         { status: 400 }
       )
     }
@@ -153,6 +154,7 @@ export async function POST(request: NextRequest) {
         leadId: leadId || null,
         recordedById: user.id,
         date: date ? new Date(date) : new Date(),
+        voucherNo,
       },
       include: {
         lead: {

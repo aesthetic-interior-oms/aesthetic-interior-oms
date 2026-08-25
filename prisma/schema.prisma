@@ -907,6 +907,8 @@ enum PaymentAccount {
 
 model Transaction {
   id          String          @id @default(cuid())
+  serialNo    Int             @default(autoincrement())
+  voucherNo   String?         @unique
   date        DateTime        @default(now())
   type        TransactionType
   category    String

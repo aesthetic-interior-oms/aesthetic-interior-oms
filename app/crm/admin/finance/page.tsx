@@ -182,6 +182,7 @@ export default function FinanceDashboard() {
   })
   const [particular, setParticular] = useState("")
   const [amount, setAmount] = useState("")
+  const [voucherNo, setVoucherNo] = useState("")
   const [account, setAccount] = useState<string>("CASH")
   const [leadId, setLeadId] = useState<string>("none")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
@@ -207,14 +208,10 @@ export default function FinanceDashboard() {
       if (filterType !== "all") params.set("type", filterType)
       if (filterLeadId !== "all") params.set("leadId", filterLeadId)
 
-      // Load leads for dropdowns (only once needed, but keep for balance)
-      const [leadsRes, txRes] = await Promise.all([
-        fetch("/api/lead"),
-        fetch(`/api/finance/transactions?${params.toString()}`),
-      ])
-      const [leadsData, txData] = await Promise.all([leadsRes.json(), txRes.json()])
+      // Load transactions
+      const txRes = await fetch(`/api/finance/transactions?${params.toString()}`)
+      const txData = await txRes.json()
 
-      if (leadsData.success) setLeads(leadsData.data || [])
       if (txData.success) {
         setTransactions(txData.data)
         setBalances(txData.balances)
@@ -329,8 +326,8 @@ export default function FinanceDashboard() {
 
   const handleCreateTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!particular || !amount) {
-      toast.error("Please fill in all required fields")
+    if (!particular || !amount || !voucherNo) {
+      toast.error("Please fill in all required fields (including Voucher No)")
       return
     }
 
@@ -346,6 +343,7 @@ export default function FinanceDashboard() {
           account,
           leadId: leadId === "none" ? null : leadId,
           date,
+          voucherNo,
         }),
       })
 
@@ -355,6 +353,7 @@ export default function FinanceDashboard() {
         setIsLogOpen(false)
         setParticular("")
         setAmount("")
+        setVoucherNo("")
         loadData()
       } else {
         toast.error(data.error || "Failed to log transaction")
@@ -384,7 +383,7 @@ export default function FinanceDashboard() {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-6 w-full space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Finance & Accounts</h1>
@@ -674,7 +673,7 @@ export default function FinanceDashboard() {
                 </Dialog>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold">Amount (BDT)</label>
                   <Input
@@ -682,6 +681,15 @@ export default function FinanceDashboard() {
                     placeholder="e.g. 5000"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold">Voucher No.</label>
+                  <Input
+                    placeholder="e.g. V-1234"
+                    value={voucherNo}
+                    onChange={(e) => setVoucherNo(e.target.value)}
                     required
                   />
                 </div>
@@ -861,6 +869,8 @@ export default function FinanceDashboard() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-muted/50 border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        <th className="p-3">S/L</th>
+                        <th className="p-3">Voucher No.</th>
                         <th className="p-3">Date</th>
                         <th className="p-3">Particulars</th>
                         <th className="p-3">Allocated Project</th>
@@ -874,6 +884,8 @@ export default function FinanceDashboard() {
                     <tbody className="divide-y divide-border">
                       {Array.from({ length: 7 }).map((_, i) => (
                         <tr key={i} className="animate-pulse">
+                          <td className="p-3"><div className="h-3 w-8 rounded bg-muted" /></td>
+                          <td className="p-3"><div className="h-3 w-16 rounded bg-muted" /></td>
                           <td className="p-3"><div className="h-3 w-20 rounded bg-muted" /></td>
                           <td className="p-3"><div className="h-3 w-40 rounded bg-muted" /></td>
                           <td className="p-3"><div className="h-3 w-24 rounded bg-muted" /></td>
@@ -897,6 +909,8 @@ export default function FinanceDashboard() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-muted/50 border-b border-border text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        <th className="p-3">S/L</th>
+                        <th className="p-3">Voucher No.</th>
                         <th className="p-3">Date</th>
                         <th className="p-3">Particulars</th>
                         <th className="p-3">Allocated Project</th>
@@ -908,8 +922,14 @@ export default function FinanceDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border text-sm">
-                      {filteredTransactions.map((tx) => (
+                      {filteredTransactions.map((tx, idx) => (
                         <tr key={tx.id} className="hover:bg-muted/20">
+                          <td className="p-3 text-xs font-medium text-muted-foreground">
+                            {tx.serialNo || idx + 1}
+                          </td>
+                          <td className="p-3 text-xs font-mono font-medium">
+                            {tx.voucherNo || "-"}
+                          </td>
                           <td className="p-3 text-xs whitespace-nowrap">
                             {new Date(tx.date).toLocaleDateString("en-US", {
                               year: "numeric",
