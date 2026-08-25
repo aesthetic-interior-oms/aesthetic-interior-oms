@@ -702,6 +702,7 @@ export function CadPhaseQueueBoard({
             stage: 'QUOTATION_PHASE',
             subStatus: 'QUOTATION_ASSIGNED',
             reason: 'Meeting skipped, direct quotation assigned',
+            quotationUserId: quotationMemberId,
           }),
         })
         const stagePayload = await stageRes.json()

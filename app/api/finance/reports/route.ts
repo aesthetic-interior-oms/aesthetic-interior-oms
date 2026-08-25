@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { auth } from "@clerk/nextjs/server"
-import { TransactionType } from "@/generated/prisma/client"
 
 export const runtime = "nodejs"
 export const preferredRegion = "sin1"
@@ -54,7 +53,7 @@ export async function GET(request: NextRequest) {
       let totalInflow = 0
 
       transactions.forEach((tx) => {
-        if (tx.type === TransactionType.INFLOW) {
+        if (tx.type === "INFLOW") {
           totalInflow += tx.amount
         } else {
           // If transaction is associated with a project/lead, it's a project expense
@@ -71,7 +70,7 @@ export async function GET(request: NextRequest) {
       // Group site-wise totals for the month
       const siteExpensesBreakdown: Record<string, { name: string; amount: number }> = {}
       transactions.forEach((tx) => {
-        if (tx.type === TransactionType.OUTFLOW && tx.leadId && tx.lead) {
+        if (tx.type === "OUTFLOW" && tx.leadId && tx.lead) {
           if (!siteExpensesBreakdown[tx.leadId]) {
             siteExpensesBreakdown[tx.leadId] = { name: tx.lead.name, amount: 0 }
           }
@@ -111,10 +110,10 @@ export async function GET(request: NextRequest) {
         let totalOutflow = 0
 
         transactions.forEach((tx) => {
-          if (tx.type === TransactionType.OUTFLOW) {
+          if (tx.type === "OUTFLOW") {
             categoryTotals[tx.category] = (categoryTotals[tx.category] || 0) + tx.amount
             totalOutflow += tx.amount
-          } else if (tx.type === TransactionType.INFLOW) {
+          } else if (tx.type === "INFLOW") {
             totalInflow += tx.amount
           }
         })
@@ -149,7 +148,7 @@ export async function GET(request: NextRequest) {
         const transactions = await prisma.transaction.findMany({
           where: {
             leadId: { in: projectIds },
-            type: TransactionType.OUTFLOW,
+            type: "OUTFLOW",
           },
           include: {
             lead: { select: { id: true, name: true } },

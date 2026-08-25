@@ -425,11 +425,6 @@ const navigationGroups: Record<string, NavGroup[]> = {
       defaultOpen: true,
       items: [
         {
-          icon: LayoutDashboard,
-          label: 'Dashboard',
-          href: '/crm/admin/dashboard',
-        },
-        {
           icon: ClipboardList,
           label: 'Finance',
           href: '/crm/admin/finance',

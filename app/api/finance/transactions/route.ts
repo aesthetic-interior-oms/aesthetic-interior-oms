@@ -93,11 +93,11 @@ export async function GET(request: NextRequest) {
 
     for (const group of aggregates) {
       const sum = group._sum.amount ?? 0
-      if (group.type === TransactionType.INFLOW) {
-        if (group.account === PaymentAccount.CASH) totalCashIn += sum
+      if (group.type === "INFLOW") {
+        if (group.account === "CASH") totalCashIn += sum
         else totalBankIn += sum
       } else {
-        if (group.account === PaymentAccount.CASH) totalCashOut += sum
+        if (group.account === "CASH") totalCashOut += sum
         else totalBankOut += sum
       }
     }
