@@ -14,7 +14,7 @@ export function MemberPerformanceCard({
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-base font-semibold">Your Performance (This Month)</CardTitle>
-        {isTopPerformer && <Badge variant="default">Top Performer ??</Badge>}
+        {isTopPerformer && <Badge variant="default">Top Performer 🏆</Badge>}
       </CardHeader>
       <CardContent>
         <div className="mt-2 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -86,7 +86,7 @@ export function LeaderboardCard({
                   return (
                     <tr key={p.id} className="border-b last:border-0">
                       <td className="p-3 text-left">
-                        {idx === 0 ? '??' : idx === 1 ? '??' : idx === 2 ? '??' : idx + 1}
+                        {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : idx + 1}
                       </td>
                       <td className="p-3 text-left font-medium">{p.user.fullName}</td>
                       <td className="p-3 text-right">{p.totalWork}</td>
