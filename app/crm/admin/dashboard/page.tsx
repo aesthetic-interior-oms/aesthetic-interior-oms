@@ -252,6 +252,15 @@ export default async function AdminDashboardPage() {
   const visitTeamPerformance = calculateVisitTeamPerformance(monthlyVisitPerformanceData)
   const srCrmPerformance = await calculateSrCrmPerformance(prisma)
 
+  const monthStr = (now.getUTCMonth() + 1).toString().padStart(2, '0')
+  const currentMonthYear = `${now.getUTCFullYear()}-${monthStr}`
+
+  const jrArchitectPerformances = await prisma.jrArchitectPerformance.findMany({
+    where: { monthYear: currentMonthYear },
+    include: { user: { select: { fullName: true } } },
+    orderBy: { performanceScore: 'desc' },
+  })
+
   const priorityActions: PriorityAction[] = [
     ...overdueCadTasks.map((task): PriorityAction => ({
       id: `cad-task-${task.id}`,
@@ -372,6 +381,7 @@ export default async function AdminDashboardPage() {
       }}
       visitTeamPerformance={visitTeamPerformance}
       srCrmPerformance={srCrmPerformance}
+      jrArchitectPerformances={jrArchitectPerformances}
       overduePendingVisits={overduePendingVisits.map((visit) => ({
         id: visit.id,
         leadId: visit.lead.id,

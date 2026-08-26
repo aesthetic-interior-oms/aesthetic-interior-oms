@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { VisitStatusChart } from '@/components/crm/shared/visit-status-chart'
+import { LeaderboardCard } from '@/components/crm/jr-architecture/performance-cards'
 
 export const queueLinks = {
   cad: '/crm/admin/cad-phase-queue?queueType=cad-phase',
@@ -56,6 +57,7 @@ type CommandCenterDashboardProps = {
   overduePendingVisits: OverduePendingVisitItem[]
   visitTeamPerformance: VisitTeamPerformanceItem[]
   srCrmPerformance: SrCrmPerformanceItem[]
+  jrArchitectPerformances: any[]
 }
 
 type UpcomingMeetingItem = {
@@ -640,6 +642,7 @@ export function AdminCommandCenterDashboard({
   overduePendingVisits,
   visitTeamPerformance,
   srCrmPerformance,
+  jrArchitectPerformances,
 }: CommandCenterDashboardProps) {
   return (
     <div className="min-h-full bg-gradient-to-b from-background via-background to-muted/20">
@@ -653,6 +656,7 @@ export function AdminCommandCenterDashboard({
         <VisitPendingRedAlertSection items={overduePendingVisits} totalCount={visitInsights.pendingOverdueCount} />
         <SrCrmPerformanceSection members={srCrmPerformance} />
         <VisitTeamPerformanceSection members={visitTeamPerformance} />
+        <LeaderboardCard performances={jrArchitectPerformances} title="JR Architect Performance Leaderboard" />
 
         <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
           <PriorityActionCard priorityActions={priorityActions} />

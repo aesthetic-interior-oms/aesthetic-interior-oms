@@ -12,6 +12,7 @@ import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { logLeadSubStatusChanged } from '@/lib/activity-log-service'
 import { sendPushToUser } from '@/lib/fcm-service'
+import { updateJrArchitectPerformance } from '@/lib/jr-architect-performance'
 
 type RouteContext = { params: { submissionId: string } | Promise<{ submissionId: string }> }
 
@@ -96,6 +97,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         },
         select: {
           id: true,
+          submittedById: true,
           submittedAt: true,
           leadId: true,
           lead: {
@@ -281,11 +283,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
       return {
         submissionId: submission.id,
+        submittedById: submission.submittedById,
         leadId: submission.leadId,
         stage: nextStage,
         subStatus: nextSubStatus,
       }
     })
+
+    // Update Jr Architect Performance if it's a CAD submission and it was approved or dropped
+    if (decision === 'APPROVE' || decision === 'DROP') {
+      updateJrArchitectPerformance(result.submittedById).catch(() => {})
+    }
 
     return NextResponse.json({
       success: true,

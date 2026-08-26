@@ -8,6 +8,7 @@ import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { MemberPerformanceCard, LeaderboardCard } from '@/components/crm/jr-architecture/performance-cards'
 
 export const runtime = 'nodejs'
 export const preferredRegion = 'sin1'
@@ -96,6 +97,18 @@ export default async function JrArchitectureDashboardPage() {
 
   const activeCadTaskCount = openCadTasks + reviewCadTasks
 
+  const monthStr = (now.getUTCMonth() + 1).toString().padStart(2, '0')
+  const currentMonthYear = `${now.getUTCFullYear()}-${monthStr}`
+
+  const performances = await prisma.jrArchitectPerformance.findMany({
+    where: { monthYear: currentMonthYear },
+    include: { user: { select: { fullName: true } } },
+    orderBy: { performanceScore: 'desc' },
+  })
+
+  const topScore = performances[0]?.performanceScore ?? 0
+  const myPerformance = performances.find((p) => p.userId === user.id)
+
   const title = isLeader ? 'JR Architect Command Center' : 'Junior Architect Dashboard'
   const subtitle = isLeader
     ? 'Leader view for CAD throughput, team workload, reassignment queues, and urgent reviews.'
@@ -122,6 +135,9 @@ export default async function JrArchitectureDashboardPage() {
             </div>
           </div>
         </div>
+
+        <MemberPerformanceCard performance={myPerformance} topScore={topScore} />
+        {isLeader && <LeaderboardCard performances={performances} />}
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
           {[
