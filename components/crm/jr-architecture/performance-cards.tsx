@@ -30,7 +30,7 @@ export function MemberPerformanceCard({
             <span className="text-sm text-muted-foreground">Avg Time</span>
             <span className="text-2xl font-bold">
               {performance?.totalWork
-                ? (performance.totalTimeMinutes / performance.totalWork / 60).toFixed(1) + 'h'
+                ? `${(performance.totalTimeMinutes / performance.totalWork / 60).toFixed(1)}h (${(performance.totalTimeMinutes / performance.totalWork / 60 / 24).toFixed(1)}d)`
                 : '0h'}
             </span>
           </div>
@@ -82,7 +82,9 @@ export function LeaderboardCard({
                 </tr>
               ) : (
                 performances.map((p, idx) => {
-                  const avgTime = p.totalWork > 0 ? (p.totalTimeMinutes / p.totalWork / 60).toFixed(1) + 'h' : '0h'
+                  const avgHours = p.totalWork > 0 ? (p.totalTimeMinutes / p.totalWork / 60) : 0
+                  const avgDays = avgHours / 24
+                  const avgTime = p.totalWork > 0 ? `${avgHours.toFixed(1)}h (${avgDays.toFixed(1)}d)` : '0h'
                   return (
                     <tr key={p.id} className="border-b last:border-0">
                       <td className="p-3 text-left">
