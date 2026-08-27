@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
-import { Search, Calendar, Loader2, MapPin, User, Wallet } from 'lucide-react'
+import { Search, Calendar, Loader2, User, FileDown } from 'lucide-react'
 
 type DatePreset = 'today' | 'this_week' | 'this_month' | 'custom'
 
@@ -36,11 +36,20 @@ function getDateRange(preset: DatePreset, customStart: string, customEnd: string
   return { start: customStart, end: customEnd }
 }
 
+function formatDateLabel(preset: DatePreset, customStart: string, customEnd: string): string {
+  const { start, end } = getDateRange(preset, customStart, customEnd)
+  const fmt = (s: string) =>
+    new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  if (start === end) return fmt(start)
+  return `${fmt(start)} – ${fmt(end)}`
+}
+
 export default function VisitPaymentsPage() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [totalAmount, setTotalAmount] = useState(0)
   const [searchTerm, setSearchTerm] = useState('')
+  const [pdfLoading, setPdfLoading] = useState(false)
 
   const [datePreset, setDatePreset] = useState<DatePreset>('this_month')
   const [customStart, setCustomStart] = useState(getTodayStr())
@@ -84,6 +93,119 @@ export default function VisitPaymentsPage() {
     void loadData(datePreset, customStart, customEnd, value)
   }
 
+  const handleDownloadPdf = async () => {
+    if (transactions.length === 0) {
+      toast.error('No data to export.')
+      return
+    }
+    setPdfLoading(true)
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const pageW = doc.internal.pageSize.getWidth()
+      const periodLabel = formatDateLabel(datePreset, customStart, customEnd)
+      const generatedAt = new Date().toLocaleString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+
+      // ── Header ──────────────────────────────────────────────
+      doc.setFontSize(18)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Aesthetic Interior BD', pageW / 2, 16, { align: 'center' })
+
+      doc.setFontSize(13)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Visit Payments Report', pageW / 2, 23, { align: 'center' })
+
+      doc.setFontSize(9)
+      doc.setTextColor(100)
+      doc.text(`Period: ${periodLabel}`, pageW / 2, 30, { align: 'center' })
+      doc.text(`Generated: ${generatedAt}`, pageW / 2, 35, { align: 'center' })
+      doc.setTextColor(0)
+
+      // ── Summary line ─────────────────────────────────────────
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.text(
+        `Total Transactions: ${transactions.length}    |    Total Collected: ${totalAmount.toLocaleString()} BDT`,
+        pageW / 2,
+        41,
+        { align: 'center' },
+      )
+      doc.setFont('helvetica', 'normal')
+
+      // ── Table ────────────────────────────────────────────────
+      autoTable(doc, {
+        startY: 46,
+        head: [
+          ['#', 'Voucher', 'Date', 'Lead / Client', 'Location', 'Particulars', 'Account', 'Collected By', 'Recorded By', 'Amount (BDT)'],
+        ],
+        body: transactions.map((tx, idx) => [
+          idx + 1,
+          tx.voucherNo || '—',
+          new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+          tx.lead?.name || '—',
+          tx.lead?.location || tx.visit?.location || '—',
+          tx.particular || '—',
+          tx.financeAccount?.name || 'Unknown',
+          tx.collectedBy?.fullName || '—',
+          tx.recordedBy?.fullName || '—',
+          tx.amount.toLocaleString(),
+        ]),
+        foot: [
+          ['', '', '', '', '', '', '', '', 'Total Collected', `${totalAmount.toLocaleString()} BDT`],
+        ],
+        headStyles: {
+          fillColor: [30, 30, 30],
+          textColor: 255,
+          fontStyle: 'bold',
+          fontSize: 8,
+          halign: 'left',
+        },
+        bodyStyles: { fontSize: 8, cellPadding: 2.5 },
+        footStyles: {
+          fillColor: [240, 240, 240],
+          textColor: 30,
+          fontStyle: 'bold',
+          fontSize: 8,
+        },
+        columnStyles: {
+          0: { cellWidth: 8, halign: 'center' },
+          2: { cellWidth: 22 },
+          9: { halign: 'right', cellWidth: 26 },
+        },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
+        showFoot: 'lastPage',
+        margin: { left: 10, right: 10 },
+      })
+
+      // ── Page footer on every page ─────────────────────────────────
+      const pageCount = (doc as any).internal.getNumberOfPages()
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i)
+        doc.setFontSize(7)
+        doc.setTextColor(150)
+        doc.text(
+          `Page ${i} of ${pageCount}  |  Aesthetic Interior BD – Visit Payments`,
+          pageW / 2,
+          doc.internal.pageSize.getHeight() - 5,
+          { align: 'center' },
+        )
+      }
+
+      doc.save(`visit-payments-${periodLabel.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`)
+      toast.success('PDF downloaded successfully!')
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to generate PDF. Please try again.')
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
   const presets: { label: string; value: DatePreset }[] = [
     { label: 'Today', value: 'today' },
     { label: 'This Week', value: 'this_week' },
@@ -99,7 +221,7 @@ export default function VisitPaymentsPage() {
       />
       <div className="flex flex-col gap-4 p-4 md:gap-6 md:p-8 w-full">
 
-        {/* Filters */}
+        {/* Filters + Download PDF */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:flex-wrap">
           <div className="flex items-center gap-1 rounded-md border p-1 w-fit">
             {presets.map((p) => (
@@ -143,6 +265,22 @@ export default function VisitPaymentsPage() {
               onChange={(e) => handleSearch(e.target.value)}
             />
           </div>
+
+          {/* Download PDF Button */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex items-center gap-2 ml-auto"
+            onClick={handleDownloadPdf}
+            disabled={pdfLoading || loading || transactions.length === 0}
+          >
+            {pdfLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <FileDown className="w-4 h-4" />
+            )}
+            {pdfLoading ? 'Generating...' : 'Download PDF'}
+          </Button>
         </div>
 
         {/* Summary Card */}
