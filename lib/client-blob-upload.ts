@@ -5,7 +5,7 @@ import {
   formatBytesToMbLabel,
 } from '@/lib/upload-limits'
 
-export type ClientBlobUploadContext = 'cad-work' | 'quotation-work' | 'visualizer-work' | 'visit-result' | 'visit-support-result' | 'lead-attachment' | 'website-project' | 'website-team' | 'website-testimonial'
+export type ClientBlobUploadContext = 'transaction-receipt' | 'cad-work' | 'quotation-work' | 'visualizer-work' | 'visit-result' | 'visit-support-result' | 'lead-attachment' | 'website-project' | 'website-team' | 'website-testimonial'
 
 export type UploadedBlobFileMeta = {
   url: string
@@ -35,6 +35,8 @@ function getUploadMaxBytes(context: ClientBlobUploadContext): number {
 
 function getPathPrefix(context: ClientBlobUploadContext): string {
   switch (context) {
+    case 'transaction-receipt':
+      return 'transaction-receipts'
     case 'cad-work':
       return 'cad-work-submissions'
     case 'quotation-work':

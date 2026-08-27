@@ -55,7 +55,7 @@ import {
   Upload,
   Loader2,
 } from "lucide-react"
-import { upload } from "@vercel/blob/client"
+import { uploadDirectBlobFile } from "@/lib/client-blob-upload"
 
 // Category display mapping
 type TransactionCategoryType = "OUTFLOW" | "INFLOW"
@@ -412,16 +412,12 @@ export default function FinanceDashboard() {
       
       if (imageFile) {
         const tempId = `receipt-${Date.now()}`
-        const pathname = `transaction-receipts/${tempId}/${imageFile.name}`
-        const blob = await upload(pathname, imageFile, {
-          access: 'public',
-          handleUploadUrl: '/api/blob/client-upload',
-          clientPayload: JSON.stringify({
-            context: 'transaction-receipt',
-            ownerId: tempId,
-          })
+        const uploaded = await uploadDirectBlobFile({
+          file: imageFile,
+          context: 'transaction-receipt',
+          ownerId: tempId,
         })
-        uploadedImageUrl = blob.url
+        uploadedImageUrl = uploaded.url
       }
 
       const res = await fetch("/api/finance/transactions", {
