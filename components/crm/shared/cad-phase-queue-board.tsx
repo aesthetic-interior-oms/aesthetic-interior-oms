@@ -332,7 +332,7 @@ export function CadPhaseQueueBoard({
   title: string
   subtitle: string
   leadBasePath: string
-  queueType?: 'cad' | 'meeting' | 'budget' | 'design'
+  queueType?: 'cad' | 'meeting' | 'budget' | 'design' | 'history'
   queueEndpoint?: string
   assigneeDepartment?: string
   assigneeLabel?: string
@@ -403,7 +403,8 @@ export function CadPhaseQueueBoard({
   const isMeetingQueue = queueType === 'meeting'
   const isBudgetQueue = queueType === 'budget'
   const isDesignQueue = queueType === 'design'
-  const isCadQueue = !isMeetingQueue && !isBudgetQueue && !isDesignQueue
+  const isHistoryView = queueType === 'history'
+  const isCadQueue = !isMeetingQueue && !isBudgetQueue && !isDesignQueue && !isHistoryView
   const canDropFromQueue = isCadQueue || isMeetingQueue || isBudgetQueue
 
   useEffect(() => {

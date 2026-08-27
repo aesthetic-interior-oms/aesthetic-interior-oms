@@ -118,14 +118,21 @@ export async function GET(request: NextRequest) {
     const search = toOptionalString(searchParams.get('search'))
     const queueTypeParam = toOptionalString(searchParams.get('queueType'))?.toLowerCase()
     const legacyCadApprovedOnly = toBooleanParam(searchParams.get('cadApprovedOnly'))
-    const queueType: 'cad' | 'meeting' | 'budget' =
-      queueTypeParam === 'meeting' || queueTypeParam === 'budget' || queueTypeParam === 'cad'
+    const queueType: 'cad' | 'meeting' | 'budget' | 'history' =
+      queueTypeParam === 'meeting' || queueTypeParam === 'budget' || queueTypeParam === 'cad' || queueTypeParam === 'history'
         ? queueTypeParam
         : legacyCadApprovedOnly
           ? 'meeting'
           : 'cad'
 
-    const phaseScope: Prisma.LeadWhereInput = queueType === 'meeting'
+    const phaseScope: Prisma.LeadWhereInput = queueType === 'history'
+      ? {
+          OR: [
+            { cadWorkSubmissions: { some: {} } },
+            { assignments: { some: { department: LeadAssignmentDepartment.JR_ARCHITECT } } },
+          ],
+        }
+      : queueType === 'meeting'
       ? {
           OR: [
             {
@@ -164,8 +171,8 @@ export async function GET(request: NextRequest) {
             ],
           }
         : {
-          stage: LeadStage.CAD_PHASE,
-        }
+            stage: LeadStage.CAD_PHASE,
+          }
 
     const searchScope: Prisma.LeadWhereInput | null = search
       ? {
