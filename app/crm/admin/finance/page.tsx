@@ -412,7 +412,8 @@ export default function FinanceDashboard() {
       
       if (imageFile) {
         const tempId = `receipt-${Date.now()}`
-        const blob = await upload(imageFile.name, imageFile, {
+        const pathname = `transaction-receipts/${tempId}/${imageFile.name}`
+        const blob = await upload(pathname, imageFile, {
           access: 'public',
           handleUploadUrl: '/api/blob/client-upload',
           clientPayload: JSON.stringify({
