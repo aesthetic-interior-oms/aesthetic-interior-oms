@@ -156,8 +156,9 @@ export async function POST(request: NextRequest) {
       visitId?: string
       collectedById?: string
       date?: string
+      imageUrl?: string
     }
-    const { type, category, particular, amount, financeAccountId, leadId, visitId, collectedById, date } = body
+    const { type, category, particular, amount, financeAccountId, leadId, visitId, collectedById, date, imageUrl } = body
 
     if (!type || !category || !particular || typeof amount !== "number" || !financeAccountId) {
       return NextResponse.json(
@@ -188,6 +189,7 @@ export async function POST(request: NextRequest) {
         collectedById: collectedById || null,
         recordedById: user.id,
         date: date ? new Date(date) : new Date(),
+        imageUrl: imageUrl || null,
       }
     })
 
@@ -215,6 +217,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: updatedTransaction }, { status: 201 })
   } catch (error: unknown) {
     console.error("[POST /api/finance/transactions] failed", error)
+    const message = error instanceof Error ? error.message : "Unknown error"
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const user = await getDbUser()
+    if (!user) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    }
+
+    const body = await request.json() as { id: string; imageUrl: string }
+    const { id, imageUrl } = body
+
+    if (!id || !imageUrl) {
+      return NextResponse.json({ success: false, error: "Missing id or imageUrl" }, { status: 400 })
+    }
+
+    const transaction = await prisma.transaction.update({
+      where: { id },
+      data: { imageUrl },
+    })
+
+    return NextResponse.json({ success: true, data: transaction })
+  } catch (error: unknown) {
+    console.error("[PATCH /api/finance/transactions] failed", error)
     const message = error instanceof Error ? error.message : "Unknown error"
     return NextResponse.json({ success: false, error: message }, { status: 500 })
   }

@@ -246,9 +246,26 @@ async function authorizeLeadAttachmentUpload(input: { ownerId: string; pathname:
   if (!lead) throw new Error('LEAD_NOT_FOUND')
 }
 
+async function authorizeTransactionReceiptUpload(input: {
+  actorDepartments: Set<string>
+  ownerId: string
+  pathname: string
+}) {
+  assertPathnameScope(input.pathname, 'transaction-receipts', input.ownerId)
+  
+  const isAdmin = input.actorDepartments.has('ADMIN')
+  const isFinance = input.actorDepartments.has('FINANCE')
+  const isAccounts = input.actorDepartments.has('ACCOUNTS')
+  
+  if (!isAdmin && !isFinance && !isAccounts) {
+    throw new Error('FORBIDDEN')
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as HandleUploadBody
+
 
     if (body.type === 'blob.upload-completed') {
       const completedResponse = await handleUpload({
@@ -323,6 +340,12 @@ export async function POST(request: NextRequest) {
           })
         } else if (context === 'lead-attachment') {
           await authorizeLeadAttachmentUpload({ ownerId, pathname })
+        } else if (context === 'transaction-receipt') {
+          await authorizeTransactionReceiptUpload({
+            actorDepartments,
+            ownerId,
+            pathname,
+          })
         } else if (context === 'website-project') {
           if (!actorDepartments.has('ADMIN')) throw new Error('UPLOAD_CONTEXT_NOT_ALLOWED')
           assertPathnameScope(pathname, 'website-projects', ownerId)

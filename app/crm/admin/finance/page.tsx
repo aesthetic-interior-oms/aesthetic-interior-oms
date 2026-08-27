@@ -51,7 +51,11 @@ import {
   MapPin,
   Phone,
   User,
+  Image as ImageIcon,
+  Upload,
+  Loader2,
 } from "lucide-react"
+import { upload } from "@vercel/blob/client"
 
 // Category display mapping
 type TransactionCategoryType = "OUTFLOW" | "INFLOW"
@@ -212,6 +216,12 @@ export default function FinanceDashboard() {
   const [filterLeadId, setFilterLeadId] = useState<string>("all")
   const [filterType, setFilterType] = useState<string>("all")
   const [searchTerm, setSearchTerm] = useState("")
+
+  // Image Upload States
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null)
 
   const loadJournalData = useCallback(async (preset: DatePreset, cStart: string, cEnd: string) => {
     setLoading(true)
@@ -397,6 +407,22 @@ export default function FinanceDashboard() {
     }
 
     try {
+      setIsUploading(true)
+      let uploadedImageUrl = null
+      
+      if (imageFile) {
+        const tempId = `receipt-${Date.now()}`
+        const blob = await upload(imageFile.name, imageFile, {
+          access: 'public',
+          handleUploadUrl: '/api/blob/client-upload',
+          clientPayload: JSON.stringify({
+            context: 'transaction-receipt',
+            ownerId: tempId,
+          })
+        })
+        uploadedImageUrl = blob.url
+      }
+
       const res = await fetch("/api/finance/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -410,6 +436,7 @@ export default function FinanceDashboard() {
           visitId,
           collectedById,
           date,
+          imageUrl: uploadedImageUrl,
         }),
       })
 
@@ -419,12 +446,16 @@ export default function FinanceDashboard() {
         setIsLogOpen(false)
         setParticular("")
         setAmount("")
+        setImageFile(null)
+        setPreviewUrl(null)
         loadData()
       } else {
         toast.error(data.error || "Failed to log transaction")
       }
     } catch (err: any) {
       toast.error("Error logging transaction: " + err.message)
+    } finally {
+      setIsUploading(false)
     }
   }
 
@@ -881,8 +912,59 @@ export default function FinanceDashboard() {
                 />
               </div>
 
-              <Button type="submit" className="w-full mt-4">
-                Confirm Entry
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">Attachment / Receipt (Optional)</label>
+                <div className="flex items-center gap-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="relative w-full"
+                    onClick={() => document.getElementById('receipt-upload')?.click()}
+                  >
+                    {imageFile ? (
+                      <span className="truncate">{imageFile.name}</span>
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <Upload className="w-4 h-4" /> Upload Image
+                      </span>
+                    )}
+                  </Button>
+                  <input
+                    id="receipt-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setImageFile(e.target.files[0])
+                        setPreviewUrl(URL.createObjectURL(e.target.files[0]))
+                      }
+                    }}
+                  />
+                  {previewUrl && (
+                    <div className="w-10 h-10 shrink-0 border rounded overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  {previewUrl && (
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => {
+                        setImageFile(null)
+                        setPreviewUrl(null)
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full mt-4" disabled={isUploading}>
+                {isUploading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading & Saving...</> : "Confirm Entry"}
               </Button>
             </form>
           </DialogContent>
@@ -1043,6 +1125,7 @@ export default function FinanceDashboard() {
                         <th className="p-3">Category</th>
                         <th className="p-3">Account</th>
                         <th className="p-3">Recorder</th>
+                        <th className="p-3 text-center">Receipt</th>
                         <th className="p-3 text-right">Inflow (BDT)</th>
                         <th className="p-3 text-right">Outflow (BDT)</th>
                       </tr>
@@ -1058,6 +1141,7 @@ export default function FinanceDashboard() {
                           <td className="p-3"><div className="h-3 w-28 rounded bg-muted" /></td>
                           <td className="p-3"><div className="h-5 w-16 rounded-full bg-muted" /></td>
                           <td className="p-3"><div className="h-3 w-20 rounded bg-muted" /></td>
+                          <td className="p-3"><div className="h-6 w-6 rounded bg-muted mx-auto" /></td>
                           <td className="p-3"><div className="h-3 w-16 rounded bg-muted ml-auto" /></td>
                           <td className="p-3"><div className="h-3 w-16 rounded bg-muted ml-auto" /></td>
                         </tr>
@@ -1083,6 +1167,7 @@ export default function FinanceDashboard() {
                         <th className="p-3">Category</th>
                         <th className="p-3">Account</th>
                         <th className="p-3">Recorder</th>
+                        <th className="p-3 text-center">Receipt</th>
                         <th className="p-3 text-right">Inflow (BDT)</th>
                         <th className="p-3 text-right">Outflow (BDT)</th>
                       </tr>
@@ -1122,6 +1207,22 @@ export default function FinanceDashboard() {
                             <Badge variant="outline">{tx.financeAccount?.name || "Unknown Account"}</Badge>
                           </td>
                           <td className="p-3 text-xs">{tx.recordedBy?.fullName}</td>
+                          <td className="p-3 text-center">
+                            {tx.imageUrl ? (
+                              <button
+                                type="button"
+                                className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-muted transition-colors text-primary"
+                                onClick={() => setLightboxImage(tx.imageUrl)}
+                                title="View Receipt"
+                              >
+                                <ImageIcon className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              <div className="inline-flex items-center justify-center w-8 h-8 text-muted-foreground/30" title="No Receipt">
+                                <ImageIcon className="w-4 h-4" />
+                              </div>
+                            )}
+                          </td>
                           <td className="p-3 text-right font-bold text-emerald-500">
                             {tx.type === "INFLOW" ? `${tx.amount.toLocaleString()} BDT` : "-"}
                           </td>
@@ -1138,6 +1239,23 @@ export default function FinanceDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Lightbox for Receipt Image */}
+      <Dialog open={!!lightboxImage} onOpenChange={(open) => !open && setLightboxImage(null)}>
+        <DialogContent className="max-w-3xl bg-transparent border-none p-0 overflow-hidden flex flex-col items-center justify-center">
+          <DialogTitle className="sr-only">Receipt Image View</DialogTitle>
+          {lightboxImage && (
+            <div className="relative w-full max-h-[85vh] flex items-center justify-center bg-black/40 rounded-xl overflow-hidden backdrop-blur-sm p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lightboxImage}
+                alt="Receipt Full View"
+                className="max-w-full max-h-[80vh] object-contain rounded-md shadow-2xl"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

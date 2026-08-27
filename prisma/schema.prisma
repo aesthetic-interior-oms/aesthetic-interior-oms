@@ -921,6 +921,7 @@ model Transaction {
   category    String
   particular  String          // Description
   amount      Float
+  imageUrl    String?         // Vercel Blob URL of attached receipt/image
   financeAccountId String?
   financeAccount   FinanceAccount? @relation(fields: [financeAccountId], references: [id], onDelete: SetNull)
   recordedById String
