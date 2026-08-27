@@ -481,61 +481,175 @@ export default function FinanceDashboard() {
     const { default: autoTable } = await import("jspdf-autotable")
 
     const doc = new jsPDF({ orientation: "landscape" })
+    const pageW = doc.internal.pageSize.getWidth()
     const { start, end } = getDateRange(datePreset, customStart, customEnd)
 
-    // Header
-    doc.setFontSize(16)
+    // ── Premium Header ────────────────────────────────────────────────────────
+    doc.setFillColor(15, 23, 42)
+    doc.rect(0, 0, pageW, 28, "F")
+
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(18)
     doc.setFont("helvetica", "bold")
-    doc.text("Aesthetic Interior — Finance Journal", 14, 16)
+    doc.text("AESTHETIC INTERIOR", 14, 13)
 
-    doc.setFontSize(10)
-    doc.setFont("helvetica", "normal")
-    doc.text(`Period: ${start}  →  ${end}`, 14, 24)
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30)
-
-    // Table
-    autoTable(doc, {
-      startY: 38,
-      head: [["#", "Voucher No.", "Date", "Particulars", "Project", "Category", "Account", "Recorder", "Inflow (BDT)", "Outflow (BDT)"]],
-      body: filteredTransactions.map((tx, idx) => [
-        tx.serialNo || idx + 1,
-        tx.voucherNo || "-",
-        tx.date ? new Date(tx.date).toLocaleDateString("en-GB") : "-",
-        tx.particular || "-",
-        tx.lead?.name || "-",
-        tx.category || "-",
-        tx.financeAccount?.name || "-",
-        tx.recordedBy?.fullName || "-",
-        tx.type === "INFLOW" ? tx.amount.toLocaleString() : "-",
-        tx.type === "OUTFLOW" ? tx.amount.toLocaleString() : "-",
-      ]),
-      foot: [[
-        { content: "TOTAL", colSpan: 8, styles: { halign: "right", fontStyle: "bold" } },
-        { content: totalInflow.toLocaleString(), styles: { fontStyle: "bold", textColor: [5, 150, 105] } },
-        { content: totalOutflow.toLocaleString(), styles: { fontStyle: "bold", textColor: [220, 38, 38] } },
-      ]],
-      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
-      bodyStyles: { fontSize: 8 },
-      footStyles: { fillColor: [241, 245, 249], fontSize: 9 },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-    })
-
-    // Summary box below the table
-    const finalY = (doc as any).lastAutoTable.finalY + 10
-    doc.setFontSize(10)
-    doc.setFont("helvetica", "bold")
-    doc.text("Summary", 14, finalY)
-    doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(251, 191, 36)
+    doc.text("FINANCE JOURNAL REPORT", 14, 21)
+
+    doc.setTextColor(200, 210, 230)
+    doc.setFontSize(8)
+    doc.text(`Period: ${start}  →  ${end}`, pageW - 14, 13, { align: "right" })
+    doc.text(`Generated: ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}`, pageW - 14, 21, { align: "right" })
+
+    doc.setDrawColor(251, 191, 36)
+    doc.setLineWidth(0.8)
+    doc.line(0, 28, pageW, 28)
+
+    // Quick stats row
+    doc.setFontSize(8)
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(30, 41, 59)
+    doc.text(`Transactions: ${filteredTransactions.length}`, 14, 36)
     doc.setTextColor(5, 150, 105)
-    doc.text(`Total Inflow:   ${totalInflow.toLocaleString()} BDT`, 14, finalY + 7)
+    doc.text(`Total Inflow: ${totalInflow.toLocaleString()} BDT`, 75, 36)
     doc.setTextColor(220, 38, 38)
-    doc.text(`Total Outflow:  ${totalOutflow.toLocaleString()} BDT`, 14, finalY + 14)
+    doc.text(`Total Outflow: ${totalOutflow.toLocaleString()} BDT`, 155, 36)
     doc.setTextColor(netProfit >= 0 ? 5 : 220, netProfit >= 0 ? 150 : 38, netProfit >= 0 ? 105 : 38)
     doc.setFont("helvetica", "bold")
-    doc.text(`Net Profit:     ${netProfit.toLocaleString()} BDT`, 14, finalY + 21)
+    doc.text(`Net Profit: ${netProfit.toLocaleString()} BDT`, 235, 36)
     doc.setTextColor(0, 0, 0)
 
+    // ── Group & sort by type then category ───────────────────────────────────
+    const sorted = [...filteredTransactions].sort((a, b) => {
+      if (a.type !== b.type) return a.type === "INFLOW" ? -1 : 1
+      const catA = (CATEGORY_LABELS[a.category] || a.category || "").toLowerCase()
+      const catB = (CATEGORY_LABELS[b.category] || b.category || "").toLowerCase()
+      return catA.localeCompare(catB)
+    })
+
+    const bodyRows: any[] = []
+    let lastGroupKey = ""
+    sorted.forEach((tx, idx) => {
+      const catLabel = CATEGORY_LABELS[tx.category] || tx.category || "—"
+      const groupKey = `${tx.type}__${catLabel}`
+      if (groupKey !== lastGroupKey) {
+        lastGroupKey = groupKey
+        bodyRows.push([{
+          content: `${tx.type === "INFLOW" ? "▲ INFLOW" : "▼ OUTFLOW"}  ·  ${catLabel}`,
+          colSpan: 9,
+          styles: {
+            fillColor: tx.type === "INFLOW" ? [236, 253, 245] : [255, 241, 242],
+            textColor: tx.type === "INFLOW" ? [5, 100, 69] : [159, 18, 57],
+            fontStyle: "bold",
+            fontSize: 7.5,
+          },
+        }])
+      }
+      const isInflow = tx.type === "INFLOW"
+      bodyRows.push([
+        { content: tx.serialNo || idx + 1, styles: { textColor: [100, 116, 139] } },
+        { content: tx.voucherNo || "—", styles: { textColor: [100, 116, 139] } },
+        { content: tx.date ? new Date(tx.date).toLocaleDateString("en-GB") : "—" },
+        { content: tx.particular || "—" },
+        { content: tx.lead?.name || "—", styles: { textColor: [71, 85, 105] } },
+        { content: tx.financeAccount?.name || "—", styles: { textColor: [71, 85, 105] } },
+        { content: tx.recordedBy?.fullName || "—", styles: { textColor: [71, 85, 105] } },
+        {
+          content: isInflow ? tx.amount.toLocaleString() : "—",
+          styles: { textColor: isInflow ? [5, 150, 105] : [160, 160, 160], fontStyle: isInflow ? "bold" : "normal", halign: "right" },
+        },
+        {
+          content: !isInflow ? tx.amount.toLocaleString() : "—",
+          styles: { textColor: !isInflow ? [220, 38, 38] : [160, 160, 160], fontStyle: !isInflow ? "bold" : "normal", halign: "right" },
+        },
+      ])
+    })
+
+    // ── Table ─────────────────────────────────────────────────────────────────
+    autoTable(doc, {
+      startY: 42,
+      head: [["#", "Voucher", "Date", "Particulars", "Project", "Account", "Recorder", "Inflow (BDT)", "Outflow (BDT)"]],
+      body: bodyRows,
+      headStyles: {
+        fillColor: [30, 41, 59],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+        fontSize: 8,
+        cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
+      },
+      bodyStyles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
+      alternateRowStyles: { fillColor: [250, 251, 252] },
+      columnStyles: {
+        0: { cellWidth: 8 },
+        1: { cellWidth: 18 },
+        2: { cellWidth: 18 },
+        3: { cellWidth: 35 },
+        4: { cellWidth: 38 },
+        5: { cellWidth: 22 },
+        6: { cellWidth: 22 },
+        7: { cellWidth: 28, halign: "right" },
+        8: { cellWidth: 28, halign: "right" },
+      },
+      didDrawPage: () => {
+        const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber
+        if (pageNum > 1) {
+          doc.setFillColor(15, 23, 42)
+          doc.rect(0, 0, pageW, 10, "F")
+          doc.setTextColor(255, 255, 255)
+          doc.setFontSize(7)
+          doc.setFont("helvetica", "bold")
+          doc.text("AESTHETIC INTERIOR — FINANCE JOURNAL", 14, 7)
+          doc.setFont("helvetica", "normal")
+          doc.setTextColor(200, 210, 230)
+          doc.text(`Period: ${start} → ${end}  |  Page ${pageNum}`, pageW - 14, 7, { align: "right" })
+          doc.setDrawColor(251, 191, 36)
+          doc.setLineWidth(0.5)
+          doc.line(0, 10, pageW, 10)
+        }
+      },
+    })
+
+    // ── Summary — LAST PAGE ONLY ──────────────────────────────────────────────
+    const finalY = (doc as any).lastAutoTable.finalY + 8
+
+    doc.setFillColor(241, 245, 249)
+    doc.roundedRect(14, finalY, pageW - 28, 32, 2, 2, "F")
+    doc.setDrawColor(203, 213, 225)
+    doc.setLineWidth(0.4)
+    doc.roundedRect(14, finalY, pageW - 28, 32, 2, 2, "S")
+
+    doc.setFontSize(9)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(30, 41, 59)
+    doc.text("FINANCIAL SUMMARY", 20, finalY + 8)
+
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(5, 150, 105)
+    doc.text("Total Inflow:", 20, finalY + 18)
+    doc.setFont("helvetica", "bold")
+    doc.text(`${totalInflow.toLocaleString()} BDT`, 60, finalY + 18)
+
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(220, 38, 38)
+    doc.text("Total Outflow:", 110, finalY + 18)
+    doc.setFont("helvetica", "bold")
+    doc.text(`${totalOutflow.toLocaleString()} BDT`, 155, finalY + 18)
+
+    const pc: [number, number, number] = netProfit >= 0 ? [5, 150, 105] : [220, 38, 38]
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(...pc)
+    doc.text("Net Profit:", 205, finalY + 18)
+    doc.setFont("helvetica", "bold")
+    doc.text(`${netProfit.toLocaleString()} BDT`, 240, finalY + 18)
+
+    doc.setFont("helvetica", "normal")
+    doc.setTextColor(100, 116, 139)
+    doc.setFontSize(7.5)
+    doc.text(`${filteredTransactions.length} transactions in this report`, 20, finalY + 27)
+
+    doc.setTextColor(0, 0, 0)
     doc.save(`finance-journal-${start}-to-${end}.pdf`)
   }
 
