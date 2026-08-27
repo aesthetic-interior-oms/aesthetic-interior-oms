@@ -308,6 +308,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/jr-architecture/cad-phase-queue',
         },
         {
+          icon: ClipboardList,
+          label: 'Projects',
+          href: '/crm/jr-architecture/projects',
+        },
+        {
           icon: Calendar,
           label: 'Visits',
           href: '/crm/jr-architecture/visits',
@@ -502,6 +507,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
                 ![
                   '/crm/jr-architecture/queue',
                   '/crm/jr-architecture/cad-phase-queue',
+                  '/crm/jr-architecture/projects',
                   '/crm/jr-architecture/visits',
                 ].includes(item.href),
             ),
