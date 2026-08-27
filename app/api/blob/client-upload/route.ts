@@ -82,13 +82,16 @@ function isAllowedCadContent(pathname: string, fileType: string | undefined, cad
   const normalizedType = (fileType || '').trim().toLowerCase()
   const extension = getCadFileExtension(pathname)
 
+  const isCadMime = normalizedType && ALLOWED_CAD_UPLOAD_MIME_TYPES.has(normalizedType)
+  const isCadExt = ALLOWED_CAD_UPLOAD_EXTENSIONS.has(extension)
+
   if (cadFileType === 'OTHERS') {
-    if (normalizedType && ALLOWED_QUOTATION_UPLOAD_MIME_TYPES.has(normalizedType)) return true
-    return ALLOWED_QUOTATION_UPLOAD_EXTENSIONS.has(extension)
+    const isOtherMime = normalizedType && ALLOWED_QUOTATION_UPLOAD_MIME_TYPES.has(normalizedType)
+    const isOtherExt = ALLOWED_QUOTATION_UPLOAD_EXTENSIONS.has(extension)
+    return !!(isCadMime || isCadExt || isOtherMime || isOtherExt)
   }
 
-  if (normalizedType && ALLOWED_CAD_UPLOAD_MIME_TYPES.has(normalizedType)) return true
-  return ALLOWED_CAD_UPLOAD_EXTENSIONS.has(extension)
+  return !!(isCadMime || isCadExt)
 }
 
 async function authorizeCadUpload(input: {
