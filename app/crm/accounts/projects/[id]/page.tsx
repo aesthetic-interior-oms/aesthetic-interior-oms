@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Loader2, MapPin, Phone } from 'lucide-react'
+import { ArrowLeft, FileDown, Loader2, MapPin, Phone } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -91,6 +91,229 @@ export default function ProjectDetailPage() {
 
   const project = report?.project ?? null
 
+  const totalInflow = totalPaid
+  const totalOutflow = totalExpense
+  const netResult = totalInflow - totalOutflow
+
+  const handleDownloadPDF = async () => {
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
+
+    const doc = new jsPDF({ orientation: 'landscape' })
+    const pageW = doc.internal.pageSize.getWidth()
+    const clientName = project?.name || 'Unknown Client'
+    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+
+    // ── Premium Header ────────────────────────────────────────────────────────
+    doc.setFillColor(15, 23, 42)
+    doc.rect(0, 0, pageW, 28, 'F')
+
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.text('AESTHETIC INTERIOR', 14, 13)
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(251, 191, 36)
+    doc.text('PROJECT FINANCIAL LEDGER', 14, 21)
+
+    doc.setTextColor(200, 210, 230)
+    doc.setFontSize(8)
+    doc.text(`Client: ${clientName}`, pageW - 14, 13, { align: 'right' })
+    doc.text(`Generated: ${today}`, pageW - 14, 21, { align: 'right' })
+
+    doc.setDrawColor(251, 191, 36)
+    doc.setLineWidth(0.8)
+    doc.line(0, 28, pageW, 28)
+
+    // Quick stats row
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(30, 41, 59)
+    doc.text(`Client: ${clientName}`, 14, 36)
+    if (project?.phone) doc.text(`Phone: ${project.phone}`, 80, 36)
+    if (project?.location) doc.text(`Location: ${project.location}`, 155, 36)
+    doc.setTextColor(0, 0, 0)
+
+    // ── Section 1: Category-wise Spending ────────────────────────────────────
+    const catEntries = Object.entries(report.categoryTotals || {}) as [string, number][]
+    if (catEntries.length > 0) {
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(30, 41, 59)
+      doc.text('CATEGORY-WISE SPENDING BREAKDOWN', 14, 44)
+
+      autoTable(doc, {
+        startY: 47,
+        head: [['Category', 'Amount (BDT)', 'Share (%)']],
+        body: catEntries
+          .sort((a, b) => b[1] - a[1])
+          .map(([cat, val]) => [
+            formatCategory(cat),
+            { content: val.toLocaleString(), styles: { textColor: [220, 38, 38], fontStyle: 'bold', halign: 'right' } },
+            {
+              content: totalExpense > 0 ? `${((val / totalExpense) * 100).toFixed(1)}%` : '0%',
+              styles: { halign: 'right', textColor: [71, 85, 105] },
+            },
+          ]),
+        foot: [[
+          { content: 'TOTAL EXPENSE', styles: { fontStyle: 'bold' } },
+          { content: totalExpense.toLocaleString(), styles: { fontStyle: 'bold', textColor: [220, 38, 38], halign: 'right' } },
+          { content: '100%', styles: { fontStyle: 'bold', halign: 'right' } },
+        ]],
+        headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+        footStyles: { fillColor: [241, 245, 249], fontSize: 8.5 },
+        alternateRowStyles: { fillColor: [250, 251, 252] },
+        columnStyles: {
+          0: { cellWidth: 80 },
+          1: { cellWidth: 50, halign: 'right' },
+          2: { cellWidth: 30, halign: 'right' },
+        },
+      })
+    }
+
+    // ── Section 2: Full Transaction Table ────────────────────────────────────
+    const afterCatY = (doc as any).lastAutoTable?.finalY ?? 47
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 41, 59)
+    doc.text('FULL TRANSACTION LOG', 14, afterCatY + 10)
+
+    const txs: any[] = report.transactions || []
+    // Sort: INFLOW first, then by category
+    const sorted = [...txs].sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'INFLOW' ? -1 : 1
+      return (formatCategory(a.category)).localeCompare(formatCategory(b.category))
+    })
+
+    const bodyRows: any[] = []
+    let lastGroupKey = ''
+    sorted.forEach((tx, idx) => {
+      const catLabel = formatCategory(tx.category)
+      const groupKey = `${tx.type}__${catLabel}`
+      if (groupKey !== lastGroupKey) {
+        lastGroupKey = groupKey
+        bodyRows.push([{
+          content: `${tx.type === 'INFLOW' ? '▲ INFLOW' : '▼ OUTFLOW'}  ·  ${catLabel}`,
+          colSpan: 7,
+          styles: {
+            fillColor: tx.type === 'INFLOW' ? [236, 253, 245] : [255, 241, 242],
+            textColor: tx.type === 'INFLOW' ? [5, 100, 69] : [159, 18, 57],
+            fontStyle: 'bold',
+            fontSize: 7.5,
+          },
+        }])
+      }
+      const isInflow = tx.type === 'INFLOW'
+      bodyRows.push([
+        { content: idx + 1, styles: { textColor: [100, 116, 139] } },
+        { content: new Date(tx.date).toLocaleDateString('en-GB') },
+        { content: tx.particular || '—' },
+        { content: tx.financeAccount?.name || '—', styles: { textColor: [71, 85, 105] } },
+        { content: tx.recordedBy?.fullName || '—', styles: { textColor: [71, 85, 105] } },
+        {
+          content: isInflow ? tx.amount.toLocaleString() : '—',
+          styles: { textColor: isInflow ? [5, 150, 105] : [160, 160, 160], fontStyle: isInflow ? 'bold' : 'normal', halign: 'right' },
+        },
+        {
+          content: !isInflow ? tx.amount.toLocaleString() : '—',
+          styles: { textColor: !isInflow ? [220, 38, 38] : [160, 160, 160], fontStyle: !isInflow ? 'bold' : 'normal', halign: 'right' },
+        },
+      ])
+    })
+
+    autoTable(doc, {
+      startY: afterCatY + 14,
+      head: [['#', 'Date', 'Particulars', 'Account', 'Recorder', 'Inflow (BDT)', 'Outflow (BDT)']],
+      body: bodyRows,
+      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, cellPadding: { top: 4, bottom: 4, left: 3, right: 3 } },
+      bodyStyles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
+      alternateRowStyles: { fillColor: [250, 251, 252] },
+      columnStyles: {
+        0: { cellWidth: 8 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 60 },
+        3: { cellWidth: 28 },
+        4: { cellWidth: 30 },
+        5: { cellWidth: 30, halign: 'right' },
+        6: { cellWidth: 30, halign: 'right' },
+      },
+      didDrawPage: () => {
+        const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber
+        if (pageNum > 1) {
+          doc.setFillColor(15, 23, 42)
+          doc.rect(0, 0, pageW, 10, 'F')
+          doc.setTextColor(255, 255, 255)
+          doc.setFontSize(7)
+          doc.setFont('helvetica', 'bold')
+          doc.text('AESTHETIC INTERIOR — PROJECT LEDGER', 14, 7)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(200, 210, 230)
+          doc.text(`${clientName}  |  Page ${pageNum}`, pageW - 14, 7, { align: 'right' })
+          doc.setDrawColor(251, 191, 36)
+          doc.setLineWidth(0.5)
+          doc.line(0, 10, pageW, 10)
+        }
+      },
+    })
+
+    // ── Summary — last page only ──────────────────────────────────────────────
+    const finalY = (doc as any).lastAutoTable.finalY + 8
+    doc.setFillColor(241, 245, 249)
+    doc.roundedRect(14, finalY, pageW - 28, 38, 2, 2, 'F')
+    doc.setDrawColor(203, 213, 225)
+    doc.setLineWidth(0.4)
+    doc.roundedRect(14, finalY, pageW - 28, 38, 2, 2, 'S')
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 41, 59)
+    doc.text('FINANCIAL SUMMARY', 20, finalY + 8)
+
+    // Row 1: Agreement value, Total Paid, Due
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(71, 85, 105)
+    doc.text('Agreement Value:', 20, finalY + 17)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 41, 59)
+    doc.text(agreementValue !== null ? `${agreementValue.toLocaleString()} BDT` : 'Not Defined', 70, finalY + 17)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(5, 150, 105)
+    doc.text('Total Inflow:', 130, finalY + 17)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${totalInflow.toLocaleString()} BDT`, 175, finalY + 17)
+
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(220, 38, 38)
+    doc.text('Total Outflow:', 225, finalY + 17)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${totalOutflow.toLocaleString()} BDT`, 270, finalY + 17)
+
+    // Row 2: Net Profit/Loss
+    const pc: [number, number, number] = netResult >= 0 ? [5, 150, 105] : [220, 38, 38]
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...pc)
+    doc.text(netResult >= 0 ? 'Net Profit:' : 'Net Loss:', 20, finalY + 27)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${netResult.toLocaleString()} BDT`, 70, finalY + 27)
+
+    if (due !== null) {
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(due > 0 ? 220 : 5, due > 0 ? 38 : 150, due > 0 ? 38 : 105)
+      doc.text('Payment Due:', 130, finalY + 27)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`${due.toLocaleString()} BDT`, 175, finalY + 27)
+    }
+
+    doc.setTextColor(0, 0, 0)
+    const safeClientName = clientName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()
+    doc.save(`project-ledger-${safeClientName}.pdf`)
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       {/* Custom Project Header */}
@@ -121,6 +344,17 @@ export default function ProjectDetailPage() {
             <span className="hidden text-sm text-muted-foreground sm:inline">
               {new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}
             </span>
+            {report && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-2"
+                onClick={() => void handleDownloadPDF()}
+              >
+                <FileDown className="w-4 h-4" />
+                Download PDF
+              </Button>
+            )}
           </div>
         </div>
       </header>
