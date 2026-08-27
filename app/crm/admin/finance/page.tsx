@@ -54,6 +54,7 @@ import {
   Image as ImageIcon,
   Upload,
   Loader2,
+  FileDown,
 } from "lucide-react"
 import { uploadDirectBlobFile } from "@/lib/client-blob-upload"
 
@@ -464,6 +465,79 @@ export default function FinanceDashboard() {
       (tx.lead?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
     )
   })
+
+  const totalInflow = filteredTransactions
+    .filter((tx) => tx.type === "INFLOW")
+    .reduce((sum, tx) => sum + tx.amount, 0)
+
+  const totalOutflow = filteredTransactions
+    .filter((tx) => tx.type === "OUTFLOW")
+    .reduce((sum, tx) => sum + tx.amount, 0)
+
+  const netProfit = totalInflow - totalOutflow
+
+  const handleDownloadPDF = async () => {
+    const { default: jsPDF } = await import("jspdf")
+    const { default: autoTable } = await import("jspdf-autotable")
+
+    const doc = new jsPDF({ orientation: "landscape" })
+    const { start, end } = getDateRange(datePreset, customStart, customEnd)
+
+    // Header
+    doc.setFontSize(16)
+    doc.setFont("helvetica", "bold")
+    doc.text("Aesthetic Interior — Finance Journal", 14, 16)
+
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.text(`Period: ${start}  →  ${end}`, 14, 24)
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30)
+
+    // Table
+    autoTable(doc, {
+      startY: 38,
+      head: [["#", "Voucher No.", "Date", "Particulars", "Project", "Category", "Account", "Recorder", "Inflow (BDT)", "Outflow (BDT)"]],
+      body: filteredTransactions.map((tx, idx) => [
+        tx.serialNo || idx + 1,
+        tx.voucherNo || "-",
+        tx.date ? new Date(tx.date).toLocaleDateString("en-GB") : "-",
+        tx.particular || "-",
+        tx.lead?.name || "-",
+        tx.category || "-",
+        tx.financeAccount?.name || "-",
+        tx.recordedBy?.fullName || "-",
+        tx.type === "INFLOW" ? tx.amount.toLocaleString() : "-",
+        tx.type === "OUTFLOW" ? tx.amount.toLocaleString() : "-",
+      ]),
+      foot: [[
+        { content: "TOTAL", colSpan: 8, styles: { halign: "right", fontStyle: "bold" } },
+        { content: totalInflow.toLocaleString(), styles: { fontStyle: "bold", textColor: [5, 150, 105] } },
+        { content: totalOutflow.toLocaleString(), styles: { fontStyle: "bold", textColor: [220, 38, 38] } },
+      ]],
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      bodyStyles: { fontSize: 8 },
+      footStyles: { fillColor: [241, 245, 249], fontSize: 9 },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+    })
+
+    // Summary box below the table
+    const finalY = (doc as any).lastAutoTable.finalY + 10
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "bold")
+    doc.text("Summary", 14, finalY)
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(9)
+    doc.setTextColor(5, 150, 105)
+    doc.text(`Total Inflow:   ${totalInflow.toLocaleString()} BDT`, 14, finalY + 7)
+    doc.setTextColor(220, 38, 38)
+    doc.text(`Total Outflow:  ${totalOutflow.toLocaleString()} BDT`, 14, finalY + 14)
+    doc.setTextColor(netProfit >= 0 ? 5 : 220, netProfit >= 0 ? 150 : 38, netProfit >= 0 ? 105 : 38)
+    doc.setFont("helvetica", "bold")
+    doc.text(`Net Profit:     ${netProfit.toLocaleString()} BDT`, 14, finalY + 21)
+    doc.setTextColor(0, 0, 0)
+
+    doc.save(`finance-journal-${start}-to-${end}.pdf`)
+  }
 
   const handlePresetChange = (preset: DatePreset) => {
     setDatePreset(preset)
@@ -1027,15 +1101,27 @@ export default function FinanceDashboard() {
                   <CardTitle>Daily Journal</CardTitle>
                   <CardDescription>Real-time transaction tracker covering all inflows and outflows.</CardDescription>
                 </div>
-                {/* Search */}
-                <div className="relative shrink-0">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    placeholder="Search journal..."
-                    className="pl-9 w-56"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+                {/* Search + Download */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search journal..."
+                      className="pl-9 w-56"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 shrink-0"
+                    onClick={() => void handleDownloadPDF()}
+                    disabled={loading || filteredTransactions.length === 0}
+                  >
+                    <FileDown className="w-4 h-4" />
+                    Download PDF
+                  </Button>
                 </div>
               </div>
 
