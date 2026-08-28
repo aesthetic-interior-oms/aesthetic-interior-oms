@@ -552,7 +552,7 @@ export default function FinanceDashboard() {
     autoTable(doc, {
       startY: 36,
       head: [["#", mode === "PROJECT" ? "Project Name" : "Category Name", "Inflow (BDT)", "Outflow (BDT)", "Net (BDT)"]],
-      body: bodyRows,
+      body: bodyRows as any[],
       headStyles: {
         fillColor: [241, 245, 249],
         textColor: [71, 85, 105],
