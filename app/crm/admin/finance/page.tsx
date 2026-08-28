@@ -486,11 +486,20 @@ export default function FinanceDashboard() {
     const { default: jsPDF } = await import("jspdf")
     const { default: autoTable } = await import("jspdf-autotable")
 
-    const doc = new jsPDF({ orientation: "portrait" })
+    const doc = new jsPDF({ orientation: "landscape" })
     const pageW = doc.internal.pageSize.getWidth()
     const { start, end } = getDateRange(datePreset, customStart, customEnd)
 
-    doc.setFontSize(20)
+    // Format dates nicely for display: e.g. "01 Aug 2026"
+    const fmtDisplayDate = (dateStr: string) => {
+      if (!dateStr) return "—"
+      const d = new Date(dateStr)
+      return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    }
+    const displayStart = fmtDisplayDate(start)
+    const displayEnd = fmtDisplayDate(end)
+
+    doc.setFontSize(18)
     doc.setFont("helvetica", "bold")
     doc.setTextColor(30, 41, 59)
     doc.text("Aesthetic Interior", 14, 14)
@@ -501,31 +510,37 @@ export default function FinanceDashboard() {
     const reportTitle = mode === "PROJECT" ? "Project Wise Finance Report" : "Category Wise Finance Report"
     doc.text(reportTitle, 14, 21)
 
-    doc.setFontSize(8)
+    // Date range — right aligned, well-formatted, won't overflow
+    doc.setFontSize(8.5)
+    doc.setFont("helvetica", "bold")
     doc.setTextColor(71, 85, 105)
-    doc.text(`Period: ${start}  →  ${end}`, pageW - 14, 12, { align: "right" })
-    doc.text(`Generated: ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}`, pageW - 14, 19, { align: "right" })
+    doc.text(`${displayStart}  →  ${displayEnd}`, pageW - 14, 14, { align: "right" })
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(7.5)
+    doc.setTextColor(100, 116, 139)
+    doc.text(`Generated: ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}`, pageW - 14, 21, { align: "right" })
 
     doc.setDrawColor(226, 232, 240)
     doc.setLineWidth(0.5)
     doc.line(14, 25, pageW - 14, 25)
 
+    // Summary bar
     doc.setFontSize(7.5)
     doc.setFont("helvetica", "normal")
     doc.setTextColor(100, 116, 139)
     doc.text(`${filteredTransactions.length} transactions`, 14, 31)
     doc.setTextColor(5, 150, 105)
-    doc.text(`Inflow: ${totalInflow.toLocaleString()} BDT`, 60, 31)
+    doc.text(`Inflow: ${totalInflow.toLocaleString()} BDT`, 70, 31)
     doc.setTextColor(220, 38, 38)
-    doc.text(`Outflow: ${totalOutflow.toLocaleString()} BDT`, 120, 31)
+    doc.text(`Outflow: ${totalOutflow.toLocaleString()} BDT`, 150, 31)
     const pc: [number, number, number] = netProfit >= 0 ? [5, 150, 105] : [220, 38, 38]
     doc.setTextColor(...pc)
     doc.setFont("helvetica", "bold")
-    doc.text(`Net: ${netProfit.toLocaleString()} BDT`, 170, 31)
+    doc.text(`Net: ${netProfit.toLocaleString()} BDT`, 230, 31)
     doc.setTextColor(0, 0, 0)
 
+    // Build groups
     const groups: Record<string, { inflow: number; outflow: number }> = {}
-
     filteredTransactions.forEach(tx => {
       let key = ""
       if (mode === "PROJECT") {
@@ -538,20 +553,31 @@ export default function FinanceDashboard() {
       else groups[key].outflow += tx.amount
     })
 
-    const bodyRows = Object.entries(groups).map(([name, data], idx) => {
+    // Each group gets two rows: one for Inflow, one for Outflow
+    const bodyRows: any[] = []
+    Object.entries(groups).forEach(([name, data], idx) => {
       const net = data.inflow - data.outflow
-      return [
-        { content: idx + 1, styles: { textColor: [148, 163, 184] } },
-        { content: name, styles: { fontStyle: "bold", textColor: [30, 41, 59] } },
-        { content: data.inflow > 0 ? data.inflow.toLocaleString() : "—", styles: { halign: "right", textColor: [5, 150, 105] } },
-        { content: data.outflow > 0 ? data.outflow.toLocaleString() : "—", styles: { halign: "right", textColor: [220, 38, 38] } },
-        { content: net.toLocaleString(), styles: { halign: "right", fontStyle: "bold", textColor: net >= 0 ? [5, 150, 105] : [220, 38, 38] } },
-      ]
+      const netColor: [number, number, number] = net >= 0 ? [5, 150, 105] : [220, 38, 38]
+
+      // Inflow row
+      bodyRows.push([
+        { content: idx + 1, rowSpan: 2, styles: { valign: "middle", textColor: [148, 163, 184], halign: "center" } },
+        { content: name, rowSpan: 2, styles: { valign: "middle", fontStyle: "bold", textColor: [30, 41, 59] } },
+        { content: "Inflow", styles: { textColor: [5, 150, 105], fontStyle: "italic", fontSize: 8 } },
+        { content: data.inflow > 0 ? data.inflow.toLocaleString() : "—", styles: { halign: "right", textColor: [5, 150, 105], fontStyle: "bold" } },
+        { content: net.toLocaleString(), rowSpan: 2, styles: { valign: "middle", halign: "right", fontStyle: "bold", textColor: netColor } },
+      ])
+
+      // Outflow row
+      bodyRows.push([
+        { content: "Outflow", styles: { textColor: [220, 38, 38], fontStyle: "italic", fontSize: 8 } },
+        { content: data.outflow > 0 ? data.outflow.toLocaleString() : "—", styles: { halign: "right", textColor: [220, 38, 38], fontStyle: "bold" } },
+      ])
     })
 
     autoTable(doc, {
       startY: 36,
-      head: [["#", mode === "PROJECT" ? "Project Name" : "Category Name", "Inflow (BDT)", "Outflow (BDT)", "Net (BDT)"]],
+      head: [["#", mode === "PROJECT" ? "Project Name" : "Category Name", "Type", "Amount (BDT)", "Net (BDT)"]],
       body: bodyRows as any[],
       headStyles: {
         fillColor: [241, 245, 249],
@@ -561,11 +587,11 @@ export default function FinanceDashboard() {
       },
       bodyStyles: { fontSize: 9 },
       columnStyles: {
-        0: { cellWidth: 15 },
+        0: { cellWidth: 12, halign: "center" },
         1: { cellWidth: "auto" },
-        2: { cellWidth: 35, halign: "right" },
-        3: { cellWidth: 35, halign: "right" },
-        4: { cellWidth: 35, halign: "right" },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 45, halign: "right" },
+        4: { cellWidth: 40, halign: "right" },
       },
       didDrawPage: () => {
         const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber
@@ -576,7 +602,7 @@ export default function FinanceDashboard() {
           doc.text(`Aesthetic Interior — ${reportTitle}`, 14, 7)
           doc.setFont("helvetica", "normal")
           doc.setTextColor(100, 116, 139)
-          doc.text(`${start} → ${end}  |  Page ${pageNum}`, pageW - 14, 7, { align: "right" })
+          doc.text(`${displayStart} → ${displayEnd}  |  Page ${pageNum}`, pageW - 14, 7, { align: "right" })
           doc.setDrawColor(226, 232, 240)
           doc.setLineWidth(0.4)
           doc.line(14, 9, pageW - 14, 9)
@@ -584,30 +610,37 @@ export default function FinanceDashboard() {
       },
     })
 
-    const finalY = (doc as any).lastAutoTable.finalY + 8
+    // Footer summary row — Inflow | Outflow | Net Margin as columns
+    const finalY = (doc as any).lastAutoTable.finalY + 6
 
     doc.setDrawColor(226, 232, 240)
     doc.setLineWidth(0.4)
     doc.line(14, finalY, pageW - 14, finalY)
 
-    doc.setFontSize(9)
-    doc.setFont("helvetica", "normal")
-    doc.setTextColor(5, 150, 105)
-    doc.text("Total Inflow:", 14, finalY + 8)
-    doc.setFont("helvetica", "bold")
-    doc.text(`${totalInflow.toLocaleString()} BDT`, 14, finalY + 15)
-
-    doc.setFont("helvetica", "normal")
-    doc.setTextColor(220, 38, 38)
-    doc.text("Total Outflow:", 70, finalY + 8)
-    doc.setFont("helvetica", "bold")
-    doc.text(`${totalOutflow.toLocaleString()} BDT`, 70, finalY + 15)
-
-    doc.setFont("helvetica", "normal")
-    doc.setTextColor(...pc)
-    doc.text(netProfit >= 0 ? "Net Profit:" : "Net Loss:", 130, finalY + 8)
-    doc.setFont("helvetica", "bold")
-    doc.text(`${netProfit.toLocaleString()} BDT`, 130, finalY + 15)
+    autoTable(doc, {
+      startY: finalY + 2,
+      head: [["Total Inflow (BDT)", "Total Outflow (BDT)", "Net Margin (BDT)"]],
+      body: [[
+        { content: totalInflow.toLocaleString(), styles: { textColor: [5, 150, 105], fontStyle: "bold", halign: "center" } },
+        { content: totalOutflow.toLocaleString(), styles: { textColor: [220, 38, 38], fontStyle: "bold", halign: "center" } },
+        { content: netProfit.toLocaleString(), styles: { fontStyle: "bold", halign: "center", textColor: netProfit >= 0 ? [5, 150, 105] : [220, 38, 38] } },
+      ]],
+      headStyles: {
+        fillColor: [30, 41, 59],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+        fontSize: 9,
+        halign: "center",
+      },
+      bodyStyles: { fontSize: 10 },
+      columnStyles: {
+        0: { halign: "center" },
+        1: { halign: "center" },
+        2: { halign: "center" },
+      },
+      tableWidth: pageW - 28,
+      margin: { left: 14 },
+    })
 
     doc.setTextColor(0, 0, 0)
     const fileName = mode === "PROJECT" ? `project-wise-finance-${start}-to-${end}.pdf` : `category-wise-finance-${start}-to-${end}.pdf`
