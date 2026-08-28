@@ -25,6 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
@@ -476,16 +482,14 @@ export default function FinanceDashboard() {
 
   const netProfit = totalInflow - totalOutflow
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = async (mode: "PROJECT" | "CATEGORY") => {
     const { default: jsPDF } = await import("jspdf")
     const { default: autoTable } = await import("jspdf-autotable")
 
-    const doc = new jsPDF({ orientation: "landscape" })
+    const doc = new jsPDF({ orientation: "portrait" })
     const pageW = doc.internal.pageSize.getWidth()
     const { start, end } = getDateRange(datePreset, customStart, customEnd)
 
-    // ── Simple, clean header ─────────────────────────────────────────────────
-    // Left: company name + report title
     doc.setFontSize(20)
     doc.setFont("helvetica", "bold")
     doc.setTextColor(30, 41, 59)
@@ -494,20 +498,18 @@ export default function FinanceDashboard() {
     doc.setFontSize(9)
     doc.setFont("helvetica", "normal")
     doc.setTextColor(100, 116, 139)
-    doc.text("Finance Journal Report", 14, 21)
+    const reportTitle = mode === "PROJECT" ? "Project Wise Finance Report" : "Category Wise Finance Report"
+    doc.text(reportTitle, 14, 21)
 
-    // Right: period + date
     doc.setFontSize(8)
     doc.setTextColor(71, 85, 105)
     doc.text(`Period: ${start}  →  ${end}`, pageW - 14, 12, { align: "right" })
     doc.text(`Generated: ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}`, pageW - 14, 19, { align: "right" })
 
-    // Thin divider line
     doc.setDrawColor(226, 232, 240)
     doc.setLineWidth(0.5)
     doc.line(14, 25, pageW - 14, 25)
 
-    // Quick summary line
     doc.setFontSize(7.5)
     doc.setFont("helvetica", "normal")
     doc.setTextColor(100, 116, 139)
@@ -515,106 +517,63 @@ export default function FinanceDashboard() {
     doc.setTextColor(5, 150, 105)
     doc.text(`Inflow: ${totalInflow.toLocaleString()} BDT`, 60, 31)
     doc.setTextColor(220, 38, 38)
-    doc.text(`Outflow: ${totalOutflow.toLocaleString()} BDT`, 135, 31)
+    doc.text(`Outflow: ${totalOutflow.toLocaleString()} BDT`, 120, 31)
     const pc: [number, number, number] = netProfit >= 0 ? [5, 150, 105] : [220, 38, 38]
     doc.setTextColor(...pc)
     doc.setFont("helvetica", "bold")
-    doc.text(`Net: ${netProfit.toLocaleString()} BDT`, 210, 31)
+    doc.text(`Net: ${netProfit.toLocaleString()} BDT`, 170, 31)
     doc.setTextColor(0, 0, 0)
 
-    // ── Group & sort by PROJECT (lead name), then by type ────────────────────
-    const sorted = [...filteredTransactions].sort((a, b) => {
-      const projA = (a.lead?.name || "zzz_no_project").toLowerCase()
-      const projB = (b.lead?.name || "zzz_no_project").toLowerCase()
-      if (projA !== projB) return projA.localeCompare(projB)
-      // Within same project: INFLOW first
-      if (a.type !== b.type) return a.type === "INFLOW" ? -1 : 1
-      return 0
-    })
+    const groups: Record<string, { inflow: number; outflow: number }> = {}
 
-    const bodyRows: any[] = []
-    let lastProject = ""
-    sorted.forEach((tx, idx) => {
-      const projectName = tx.lead?.name || "— No Project —"
-      if (projectName !== lastProject) {
-        lastProject = projectName
-        // Project separator row
-        bodyRows.push([{
-          content: `📁  ${projectName}`,
-          colSpan: 9,
-          styles: {
-            fillColor: [248, 250, 252],
-            textColor: [30, 41, 59],
-            fontStyle: "bold",
-            fontSize: 8,
-            cellPadding: { top: 3, bottom: 3, left: 5, right: 3 },
-          },
-        }])
+    filteredTransactions.forEach(tx => {
+      let key = ""
+      if (mode === "PROJECT") {
+        key = tx.lead?.name || "— No Project —"
+      } else {
+        key = CATEGORY_LABELS[tx.category] || tx.category || "—"
       }
-      const isInflow = tx.type === "INFLOW"
-      const catLabel = CATEGORY_LABELS[tx.category] || tx.category || "—"
-      bodyRows.push([
-        { content: tx.serialNo || idx + 1, styles: { textColor: [148, 163, 184], fontSize: 7 } },
-        { content: tx.voucherNo || "—", styles: { textColor: [148, 163, 184], fontSize: 7 } },
-        { content: tx.date ? new Date(tx.date).toLocaleDateString("en-GB") : "—", styles: { fontSize: 7.5 } },
-        { content: tx.particular || "—", styles: { fontSize: 7.5 } },
-        { content: catLabel, styles: { textColor: [71, 85, 105], fontSize: 7 } },
-        { content: tx.financeAccount?.name || "—", styles: { textColor: [71, 85, 105], fontSize: 7 } },
-        { content: tx.recordedBy?.fullName || "—", styles: { textColor: [71, 85, 105], fontSize: 7 } },
-        {
-          content: isInflow ? tx.amount.toLocaleString() : "—",
-          styles: {
-            textColor: isInflow ? [5, 150, 105] : [203, 213, 225],
-            fontStyle: isInflow ? "bold" : "normal",
-            halign: "right",
-            fontSize: 7.5,
-          },
-        },
-        {
-          content: !isInflow ? tx.amount.toLocaleString() : "—",
-          styles: {
-            textColor: !isInflow ? [220, 38, 38] : [203, 213, 225],
-            fontStyle: !isInflow ? "bold" : "normal",
-            halign: "right",
-            fontSize: 7.5,
-          },
-        },
-      ])
+      if (!groups[key]) groups[key] = { inflow: 0, outflow: 0 }
+      if (tx.type === "INFLOW") groups[key].inflow += tx.amount
+      else groups[key].outflow += tx.amount
     })
 
-    // ── Table ─────────────────────────────────────────────────────────────────
+    const bodyRows = Object.entries(groups).map(([name, data], idx) => {
+      const net = data.inflow - data.outflow
+      return [
+        { content: idx + 1, styles: { textColor: [148, 163, 184] } },
+        { content: name, styles: { fontStyle: "bold", textColor: [30, 41, 59] } },
+        { content: data.inflow > 0 ? data.inflow.toLocaleString() : "—", styles: { halign: "right", textColor: [5, 150, 105] } },
+        { content: data.outflow > 0 ? data.outflow.toLocaleString() : "—", styles: { halign: "right", textColor: [220, 38, 38] } },
+        { content: net.toLocaleString(), styles: { halign: "right", fontStyle: "bold", textColor: net >= 0 ? [5, 150, 105] : [220, 38, 38] } },
+      ]
+    })
+
     autoTable(doc, {
       startY: 36,
-      head: [["#", "Voucher", "Date", "Particulars", "Category", "Account", "Recorder", "Inflow (BDT)", "Outflow (BDT)"]],
+      head: [["#", mode === "PROJECT" ? "Project Name" : "Category Name", "Inflow (BDT)", "Outflow (BDT)", "Net (BDT)"]],
       body: bodyRows,
       headStyles: {
         fillColor: [241, 245, 249],
         textColor: [71, 85, 105],
         fontStyle: "bold",
-        fontSize: 7.5,
-        cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+        fontSize: 9,
       },
-      bodyStyles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
-      alternateRowStyles: {},  // no alternate colors — project groups handle separation
+      bodyStyles: { fontSize: 9 },
       columnStyles: {
-        0: { cellWidth: 7 },
-        1: { cellWidth: 16 },
-        2: { cellWidth: 18 },
-        3: { cellWidth: 30 },   // Particulars — kept small
-        4: { cellWidth: 30 },   // Category
-        5: { cellWidth: 22 },
-        6: { cellWidth: 22 },
-        7: { cellWidth: 27, halign: "right" },
-        8: { cellWidth: 27, halign: "right" },
+        0: { cellWidth: 15 },
+        1: { cellWidth: "auto" },
+        2: { cellWidth: 35, halign: "right" },
+        3: { cellWidth: 35, halign: "right" },
+        4: { cellWidth: 35, halign: "right" },
       },
-      // Minimal page header on subsequent pages
       didDrawPage: () => {
         const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber
         if (pageNum > 1) {
-          doc.setFontSize(7)
+          doc.setFontSize(8)
           doc.setFont("helvetica", "bold")
           doc.setTextColor(30, 41, 59)
-          doc.text("Aesthetic Interior — Finance Journal", 14, 7)
+          doc.text(`Aesthetic Interior — ${reportTitle}`, 14, 7)
           doc.setFont("helvetica", "normal")
           doc.setTextColor(100, 116, 139)
           doc.text(`${start} → ${end}  |  Page ${pageNum}`, pageW - 14, 7, { align: "right" })
@@ -625,14 +584,13 @@ export default function FinanceDashboard() {
       },
     })
 
-    // ── Summary — LAST PAGE ONLY ──────────────────────────────────────────────
     const finalY = (doc as any).lastAutoTable.finalY + 8
 
     doc.setDrawColor(226, 232, 240)
     doc.setLineWidth(0.4)
     doc.line(14, finalY, pageW - 14, finalY)
 
-    doc.setFontSize(8)
+    doc.setFontSize(9)
     doc.setFont("helvetica", "normal")
     doc.setTextColor(5, 150, 105)
     doc.text("Total Inflow:", 14, finalY + 8)
@@ -641,23 +599,19 @@ export default function FinanceDashboard() {
 
     doc.setFont("helvetica", "normal")
     doc.setTextColor(220, 38, 38)
-    doc.text("Total Outflow:", 80, finalY + 8)
+    doc.text("Total Outflow:", 70, finalY + 8)
     doc.setFont("helvetica", "bold")
-    doc.text(`${totalOutflow.toLocaleString()} BDT`, 80, finalY + 15)
+    doc.text(`${totalOutflow.toLocaleString()} BDT`, 70, finalY + 15)
 
     doc.setFont("helvetica", "normal")
     doc.setTextColor(...pc)
-    doc.text(netProfit >= 0 ? "Net Profit:" : "Net Loss:", 150, finalY + 8)
+    doc.text(netProfit >= 0 ? "Net Profit:" : "Net Loss:", 130, finalY + 8)
     doc.setFont("helvetica", "bold")
-    doc.text(`${netProfit.toLocaleString()} BDT`, 150, finalY + 15)
-
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(7)
-    doc.setTextColor(148, 163, 184)
-    doc.text(`${filteredTransactions.length} transactions in this report`, 14, finalY + 23)
+    doc.text(`${netProfit.toLocaleString()} BDT`, 130, finalY + 15)
 
     doc.setTextColor(0, 0, 0)
-    doc.save(`finance-journal-${start}-to-${end}.pdf`)
+    const fileName = mode === "PROJECT" ? `project-wise-finance-${start}-to-${end}.pdf` : `category-wise-finance-${start}-to-${end}.pdf`
+    doc.save(fileName)
   }
 
   const handlePresetChange = (preset: DatePreset) => {
@@ -1233,16 +1187,27 @@ export default function FinanceDashboard() {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2 shrink-0"
-                    onClick={() => void handleDownloadPDF()}
-                    disabled={loading || filteredTransactions.length === 0}
-                  >
-                    <FileDown className="w-4 h-4" />
-                    Download PDF
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-2 shrink-0"
+                        disabled={loading || filteredTransactions.length === 0}
+                      >
+                        <FileDown className="w-4 h-4" />
+                        Download PDF
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => void handleDownloadPDF("PROJECT")}>
+                        Project Wise
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => void handleDownloadPDF("CATEGORY")}>
+                        Category Wise
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 
