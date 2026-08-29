@@ -95,46 +95,175 @@ export default function ProjectDetailPage() {
   const totalOutflow = totalExpense
   const netResult = totalInflow - totalOutflow
 
+  const filteredTransactions = modalFilter
+    ? report?.transactions?.filter((tx: any) => {
+        if (modalFilter.type === 'CATEGORY') return tx.category === modalFilter.value
+        if (modalFilter.type === 'INFLOW') return tx.type === 'INFLOW'
+        if (modalFilter.type === 'OUTFLOW') return tx.type === 'OUTFLOW'
+        return false
+      }) || []
+    : []
+
+  const modalTotalInflow = filteredTransactions
+    .filter((tx: any) => tx.type === 'INFLOW')
+    .reduce((sum: number, tx: any) => sum + tx.amount, 0)
+
+  const modalTotalOutflow = filteredTransactions
+    .filter((tx: any) => tx.type === 'OUTFLOW')
+    .reduce((sum: number, tx: any) => sum + tx.amount, 0)
+
+  const handleDownloadModalPDF = async () => {
+    if (!modalFilter) return
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
+    const doc = new jsPDF({ orientation: 'portrait' })
+    const pageW = doc.internal.pageSize.getWidth()
+    const clientName = project?.name || 'Unknown Client'
+    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    let filterTitle = ''
+    if (modalFilter.type === 'CATEGORY') filterTitle = `Transactions for ${formatCategory(modalFilter.value || '')}`
+    if (modalFilter.type === 'INFLOW') filterTitle = 'Inflow Transactions'
+    if (modalFilter.type === 'OUTFLOW') filterTitle = 'Outflow Transactions'
+
+    const logoImg = new Image()
+    logoImg.src = "/Logo/HeaderLogo.png"
+    await new Promise((resolve) => {
+      logoImg.onload = resolve
+      logoImg.onerror = resolve
+    })
+
+    // Header Logo
+    doc.addImage(logoImg, "PNG", 14, 14, 43.2, 8)
+
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 41, 59)
+    doc.text('PROJECT LEDGER', pageW - 14, 18, { align: 'right' })
+
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 116, 139)
+    doc.text(`Date: ${today}`, pageW - 14, 23, { align: 'right' })
+
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 41, 59)
+    doc.text(clientName, 14, 35)
+
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(71, 85, 105)
+    let detailsY = 41
+    doc.text(`Filter: ${filterTitle}`, 14, detailsY)
+    
+    doc.setDrawColor(226, 232, 240)
+    doc.setLineWidth(0.5)
+    doc.line(14, detailsY + 2, pageW - 14, detailsY + 2)
+
+    let afterCatY = detailsY + 5
+
+    const bodyRows = filteredTransactions.map((tx: any) => {
+      const isInflow = tx.type === 'INFLOW'
+      return [
+        { content: new Date(tx.date).toLocaleDateString('en-GB') },
+        { content: formatCategory(tx.category) },
+        { content: tx.particular || '—' },
+        {
+          content: isInflow ? tx.amount.toLocaleString() : '—',
+          styles: { textColor: isInflow ? [5, 150, 105] : [160, 160, 160], fontStyle: isInflow ? 'bold' : 'normal', halign: 'right' },
+        },
+        {
+          content: !isInflow ? tx.amount.toLocaleString() : '—',
+          styles: { textColor: !isInflow ? [220, 38, 38] : [160, 160, 160], fontStyle: !isInflow ? 'bold' : 'normal', halign: 'right' },
+        },
+      ]
+    })
+
+    autoTable(doc, {
+      startY: afterCatY + 10,
+      head: [['Date', 'Category', 'Particulars', 'Inflow', 'Outflow']],
+      body: bodyRows,
+      foot: [
+        [
+          { content: 'Total Inflow', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+          { content: modalTotalInflow.toLocaleString(), styles: { halign: 'right', textColor: [5, 150, 105], fontStyle: 'bold' } },
+          { content: '—', styles: { halign: 'right', textColor: [160, 160, 160] } },
+        ],
+        [
+          { content: 'Total Outflow', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+          { content: '—', styles: { halign: 'right', textColor: [160, 160, 160] } },
+          { content: modalTotalOutflow.toLocaleString(), styles: { halign: 'right', textColor: [220, 38, 38], fontStyle: 'bold' } },
+        ]
+      ],
+      headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', fontSize: 8, cellPadding: { top: 4, bottom: 4, left: 3, right: 3 } },
+      bodyStyles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
+      footStyles: { fillColor: [241, 245, 249], fontSize: 8, cellPadding: { top: 4, bottom: 4, left: 3, right: 3 } },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 'auto' },
+        3: { cellWidth: 25, halign: 'right' },
+        4: { cellWidth: 25, halign: 'right' },
+      },
+    })
+    
+    doc.save(`project-ledger-${filterTitle.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.pdf`)
+  }
+
   const handleDownloadPDF = async () => {
     const { default: jsPDF } = await import('jspdf')
     const { default: autoTable } = await import('jspdf-autotable')
 
-    const doc = new jsPDF({ orientation: 'landscape' })
+    const doc = new jsPDF({ orientation: 'portrait' })
     const pageW = doc.internal.pageSize.getWidth()
     const clientName = project?.name || 'Unknown Client'
     const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
-    // ── Premium Header ────────────────────────────────────────────────────────
-    doc.setFillColor(15, 23, 42)
-    doc.rect(0, 0, pageW, 28, 'F')
+    const logoImg = new Image()
+    logoImg.src = "/Logo/HeaderLogo.png"
+    await new Promise((resolve) => {
+      logoImg.onload = resolve
+      logoImg.onerror = resolve
+    })
 
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(18)
+    // Header Logo
+    doc.addImage(logoImg, "PNG", 14, 14, 43.2, 8)
+
+    // Bill Title / Info right aligned
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
-    doc.text('AESTHETIC INTERIOR', 14, 13)
+    doc.setTextColor(30, 41, 59)
+    doc.text('PROJECT LEDGER', pageW - 14, 18, { align: 'right' })
+
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 116, 139)
+    doc.text(`Date: ${today}`, pageW - 14, 23, { align: 'right' })
+
+    // Client Info Section
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 41, 59)
+    doc.text(clientName, 14, 35)
 
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
-    doc.setTextColor(251, 191, 36)
-    doc.text('PROJECT FINANCIAL LEDGER', 14, 21)
+    doc.setTextColor(71, 85, 105)
+    let detailsY = 41
+    if (project?.location) {
+      doc.text(`Location: ${project.location}`, 14, detailsY)
+      detailsY += 5
+    }
+    if (project?.phone) {
+      doc.text(`Phone: ${project.phone}`, 14, detailsY)
+      detailsY += 5
+    }
 
-    doc.setTextColor(200, 210, 230)
-    doc.setFontSize(8)
-    doc.text(`Client: ${clientName}`, pageW - 14, 13, { align: 'right' })
-    doc.text(`Generated: ${today}`, pageW - 14, 21, { align: 'right' })
+    doc.setDrawColor(226, 232, 240)
+    doc.setLineWidth(0.5)
+    doc.line(14, detailsY + 2, pageW - 14, detailsY + 2)
 
-    doc.setDrawColor(251, 191, 36)
-    doc.setLineWidth(0.8)
-    doc.line(0, 28, pageW, 28)
-
-    // Quick stats row
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(30, 41, 59)
-    doc.text(`Client: ${clientName}`, 14, 36)
-    if (project?.phone) doc.text(`Phone: ${project.phone}`, 80, 36)
-    if (project?.location) doc.text(`Location: ${project.location}`, 155, 36)
-    doc.setTextColor(0, 0, 0)
+    let afterCatY = detailsY + 8
 
     // ── Section 1: Category-wise Spending ────────────────────────────────────
     const catEntries = Object.entries(report.categoryTotals || {}) as [string, number][]
@@ -142,65 +271,57 @@ export default function ProjectDetailPage() {
       doc.setFontSize(9)
       doc.setFont('helvetica', 'bold')
       doc.setTextColor(30, 41, 59)
-      doc.text('CATEGORY-WISE SPENDING BREAKDOWN', 14, 44)
+      doc.text('CATEGORY SUMMARY', 14, afterCatY + 5)
 
       autoTable(doc, {
-        startY: 47,
-        head: [['Category', 'Amount (BDT)', 'Share (%)']],
+        startY: afterCatY + 8,
+        head: [['Category', 'Amount (BDT)']],
         body: catEntries
           .sort((a, b) => b[1] - a[1])
           .map(([cat, val]) => [
             formatCategory(cat),
-            { content: val.toLocaleString(), styles: { textColor: [220, 38, 38], fontStyle: 'bold', halign: 'right' } },
-            {
-              content: totalExpense > 0 ? `${((val / totalExpense) * 100).toFixed(1)}%` : '0%',
-              styles: { halign: 'right', textColor: [71, 85, 105] },
-            },
+            { content: val.toLocaleString(), styles: { textColor: [30, 41, 59], fontStyle: 'bold', halign: 'right' } },
           ]),
         foot: [[
           { content: 'TOTAL EXPENSE', styles: { fontStyle: 'bold' } },
-          { content: totalExpense.toLocaleString(), styles: { fontStyle: 'bold', textColor: [220, 38, 38], halign: 'right' } },
-          { content: '100%', styles: { fontStyle: 'bold', halign: 'right' } },
+          { content: totalExpense.toLocaleString(), styles: { fontStyle: 'bold', halign: 'right' } },
         ]],
-        headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+        headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', fontSize: 8 },
         bodyStyles: { fontSize: 8 },
         footStyles: { fillColor: [241, 245, 249], fontSize: 8.5 },
-        alternateRowStyles: { fillColor: [250, 251, 252] },
         columnStyles: {
-          0: { cellWidth: 80 },
+          0: { cellWidth: 100 },
           1: { cellWidth: 50, halign: 'right' },
-          2: { cellWidth: 30, halign: 'right' },
         },
       })
+      afterCatY = (doc as any).lastAutoTable?.finalY ?? (afterCatY + 8)
     }
 
     // ── Section 2: Full Transaction Table ────────────────────────────────────
-    const afterCatY = (doc as any).lastAutoTable?.finalY ?? 47
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(30, 41, 59)
-    doc.text('FULL TRANSACTION LOG', 14, afterCatY + 10)
+    doc.text('TRANSACTIONS', 14, afterCatY + 10)
 
     const txs: any[] = report.transactions || []
-    // Sort: INFLOW first, then by category
+    // Sort: INFLOW first, then by date
     const sorted = [...txs].sort((a, b) => {
       if (a.type !== b.type) return a.type === 'INFLOW' ? -1 : 1
-      return (formatCategory(a.category)).localeCompare(formatCategory(b.category))
+      return new Date(a.date).getTime() - new Date(b.date).getTime()
     })
 
     const bodyRows: any[] = []
     let lastGroupKey = ''
     sorted.forEach((tx, idx) => {
-      const catLabel = formatCategory(tx.category)
-      const groupKey = `${tx.type}__${catLabel}`
+      const groupKey = tx.type
       if (groupKey !== lastGroupKey) {
         lastGroupKey = groupKey
         bodyRows.push([{
-          content: `${tx.type === 'INFLOW' ? '▲ INFLOW' : '▼ OUTFLOW'}  ·  ${catLabel}`,
-          colSpan: 7,
+          content: `${tx.type === 'INFLOW' ? '▲ INFLOW' : '▼ OUTFLOW'}`,
+          colSpan: 5,
           styles: {
-            fillColor: tx.type === 'INFLOW' ? [236, 253, 245] : [255, 241, 242],
-            textColor: tx.type === 'INFLOW' ? [5, 100, 69] : [159, 18, 57],
+            fillColor: [241, 245, 249],
+            textColor: [71, 85, 105],
             fontStyle: 'bold',
             fontSize: 7.5,
           },
@@ -208,11 +329,9 @@ export default function ProjectDetailPage() {
       }
       const isInflow = tx.type === 'INFLOW'
       bodyRows.push([
-        { content: idx + 1, styles: { textColor: [100, 116, 139] } },
         { content: new Date(tx.date).toLocaleDateString('en-GB') },
+        { content: formatCategory(tx.category) },
         { content: tx.particular || '—' },
-        { content: tx.financeAccount?.name || '—', styles: { textColor: [71, 85, 105] } },
-        { content: tx.recordedBy?.fullName || '—', styles: { textColor: [71, 85, 105] } },
         {
           content: isInflow ? tx.amount.toLocaleString() : '—',
           styles: { textColor: isInflow ? [5, 150, 105] : [160, 160, 160], fontStyle: isInflow ? 'bold' : 'normal', halign: 'right' },
@@ -226,87 +345,90 @@ export default function ProjectDetailPage() {
 
     autoTable(doc, {
       startY: afterCatY + 14,
-      head: [['#', 'Date', 'Particulars', 'Account', 'Recorder', 'Inflow (BDT)', 'Outflow (BDT)']],
+      head: [['Date', 'Category', 'Particulars', 'Inflow', 'Outflow']],
       body: bodyRows,
-      headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, cellPadding: { top: 4, bottom: 4, left: 3, right: 3 } },
+      headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', fontSize: 8, cellPadding: { top: 4, bottom: 4, left: 3, right: 3 } },
       bodyStyles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
-      alternateRowStyles: { fillColor: [250, 251, 252] },
       columnStyles: {
-        0: { cellWidth: 8 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 60 },
-        3: { cellWidth: 28 },
-        4: { cellWidth: 30 },
-        5: { cellWidth: 30, halign: 'right' },
-        6: { cellWidth: 30, halign: 'right' },
+        0: { cellWidth: 20 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 'auto' },
+        3: { cellWidth: 25, halign: 'right' },
+        4: { cellWidth: 25, halign: 'right' },
       },
       didDrawPage: () => {
         const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber
         if (pageNum > 1) {
-          doc.setFillColor(15, 23, 42)
-          doc.rect(0, 0, pageW, 10, 'F')
-          doc.setTextColor(255, 255, 255)
           doc.setFontSize(7)
           doc.setFont('helvetica', 'bold')
-          doc.text('AESTHETIC INTERIOR — PROJECT LEDGER', 14, 7)
+          doc.setTextColor(30, 41, 59)
+          doc.text('PROJECT LEDGER', 14, 10)
           doc.setFont('helvetica', 'normal')
-          doc.setTextColor(200, 210, 230)
-          doc.text(`${clientName}  |  Page ${pageNum}`, pageW - 14, 7, { align: 'right' })
-          doc.setDrawColor(251, 191, 36)
+          doc.setTextColor(100, 116, 139)
+          doc.text(`${clientName}  |  Page ${pageNum}`, pageW - 14, 10, { align: 'right' })
+          doc.setDrawColor(226, 232, 240)
           doc.setLineWidth(0.5)
-          doc.line(0, 10, pageW, 10)
+          doc.line(14, 12, pageW - 14, 12)
         }
       },
     })
 
     // ── Summary — last page only ──────────────────────────────────────────────
     const finalY = (doc as any).lastAutoTable.finalY + 8
-    doc.setFillColor(241, 245, 249)
-    doc.roundedRect(14, finalY, pageW - 28, 38, 2, 2, 'F')
-    doc.setDrawColor(203, 213, 225)
-    doc.setLineWidth(0.4)
-    doc.roundedRect(14, finalY, pageW - 28, 38, 2, 2, 'S')
 
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(30, 41, 59)
-    doc.text('FINANCIAL SUMMARY', 20, finalY + 8)
+    doc.text('FINANCIAL SUMMARY', 14, finalY + 5)
 
-    // Row 1: Agreement value, Total Paid, Due
+    doc.setDrawColor(226, 232, 240)
+    doc.setLineWidth(0.5)
+    doc.line(14, finalY + 7, pageW - 14, finalY + 7)
+
+    let summaryY = finalY + 12
+
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(71, 85, 105)
-    doc.text('Agreement Value:', 20, finalY + 17)
+    doc.text('Agreement Value:', 14, summaryY)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(30, 41, 59)
-    doc.text(agreementValue !== null ? `${agreementValue.toLocaleString()} BDT` : 'Not Defined', 70, finalY + 17)
+    doc.text(agreementValue !== null ? `${agreementValue.toLocaleString()} BDT` : 'Not Defined', 60, summaryY)
 
+    summaryY += 6
     doc.setFont('helvetica', 'normal')
+    doc.setTextColor(71, 85, 105)
+    doc.text('Total Inflow:', 14, summaryY)
+    doc.setFont('helvetica', 'bold')
     doc.setTextColor(5, 150, 105)
-    doc.text('Total Inflow:', 130, finalY + 17)
-    doc.setFont('helvetica', 'bold')
-    doc.text(`${totalInflow.toLocaleString()} BDT`, 175, finalY + 17)
+    doc.text(`${totalInflow.toLocaleString()} BDT`, 60, summaryY)
 
+    summaryY += 6
     doc.setFont('helvetica', 'normal')
-    doc.setTextColor(220, 38, 38)
-    doc.text('Total Outflow:', 225, finalY + 17)
+    doc.setTextColor(71, 85, 105)
+    doc.text('Total Outflow:', 14, summaryY)
     doc.setFont('helvetica', 'bold')
-    doc.text(`${totalOutflow.toLocaleString()} BDT`, 270, finalY + 17)
+    doc.setTextColor(220, 38, 38)
+    doc.text(`${totalOutflow.toLocaleString()} BDT`, 60, summaryY)
 
-    // Row 2: Net Profit/Loss
+    summaryY += 8
+    doc.setDrawColor(226, 232, 240)
+    doc.line(14, summaryY - 3, 100, summaryY - 3)
+
     const pc: [number, number, number] = netResult >= 0 ? [5, 150, 105] : [220, 38, 38]
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(...pc)
-    doc.text(netResult >= 0 ? 'Net Profit:' : 'Net Loss:', 20, finalY + 27)
+    doc.text(netResult >= 0 ? 'Net Profit:' : 'Net Loss:', 14, summaryY)
     doc.setFont('helvetica', 'bold')
-    doc.text(`${netResult.toLocaleString()} BDT`, 70, finalY + 27)
+    doc.text(`${netResult.toLocaleString()} BDT`, 60, summaryY)
 
     if (due !== null) {
+      summaryY += 6
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(due > 0 ? 220 : 5, due > 0 ? 38 : 150, due > 0 ? 38 : 105)
-      doc.text('Payment Due:', 130, finalY + 27)
+      doc.text('Payment Due:', 14, summaryY)
       doc.setFont('helvetica', 'bold')
-      doc.text(`${due.toLocaleString()} BDT`, 175, finalY + 27)
+      doc.text(`${due.toLocaleString()} BDT`, 60, summaryY)
     }
 
     doc.setTextColor(0, 0, 0)
@@ -474,6 +596,7 @@ export default function ProjectDetailPage() {
                       <th className="p-3">Particulars</th>
                       <th className="p-3">Account</th>
                       <th className="p-3">Recorder</th>
+                      <th className="p-3 text-center">Image</th>
                       <th 
                         className="p-3 text-right text-emerald-600 dark:text-emerald-400 cursor-pointer hover:underline"
                         onClick={() => setModalFilter({ type: 'INFLOW' })}
@@ -491,7 +614,7 @@ export default function ProjectDetailPage() {
                   <tbody className="divide-y divide-border">
                     {report.transactions?.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                        <td colSpan={8} className="p-8 text-center text-muted-foreground">
                           No transaction logs found for this project.
                         </td>
                       </tr>
@@ -519,6 +642,15 @@ export default function ProjectDetailPage() {
                           </td>
                           <td className="p-3 text-xs">{tx.financeAccount?.name || 'Unknown'}</td>
                           <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{tx.recordedBy?.fullName || 'Unknown'}</td>
+                          <td className="p-3 text-xs text-center">
+                            {tx.imageUrl ? (
+                              <a href={tx.imageUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center text-blue-500 hover:text-blue-700 transition-colors">
+                                View
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground/50">—</span>
+                            )}
+                          </td>
                           <td className="p-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
                             {tx.type === 'INFLOW' ? `${tx.amount.toLocaleString()} BDT` : '-'}
                           </td>
@@ -532,14 +664,14 @@ export default function ProjectDetailPage() {
                   {report.transactions?.length > 0 && (
                     <tfoot className="border-t-2 border-border bg-muted/50">
                       <tr className="cursor-pointer hover:bg-muted/80 transition-colors" onClick={() => setModalFilter({ type: 'INFLOW' })}>
-                        <td colSpan={5} className="p-3 font-bold text-sm text-right">Total Inflow</td>
+                        <td colSpan={6} className="p-3 font-bold text-sm text-right">Total Inflow</td>
                         <td className="p-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400 text-sm">
                           {totalPaid.toLocaleString()} BDT
                         </td>
                         <td className="p-3 text-right text-muted-foreground">-</td>
                       </tr>
                       <tr className="border-t border-border cursor-pointer hover:bg-muted/80 transition-colors" onClick={() => setModalFilter({ type: 'OUTFLOW' })}>
-                        <td colSpan={5} className="p-3 font-bold text-sm text-right">Total Outflow</td>
+                        <td colSpan={6} className="p-3 font-bold text-sm text-right">Total Outflow</td>
                         <td className="p-3 text-right text-muted-foreground">-</td>
                         <td className="p-3 text-right font-bold tabular-nums text-rose-500 text-sm">
                           {totalExpense.toLocaleString()} BDT
@@ -547,7 +679,7 @@ export default function ProjectDetailPage() {
                       </tr>
                       {profit !== null && (
                         <tr className="border-t-2 border-border">
-                          <td colSpan={5} className="p-3 font-bold text-sm text-right">
+                          <td colSpan={6} className="p-3 font-bold text-sm text-right">
                             {profit >= 0 ? 'Total Profit' : 'Total Loss'}
                           </td>
                           <td colSpan={2} className={`p-3 text-right font-bold tabular-nums text-sm ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
@@ -567,12 +699,16 @@ export default function ProjectDetailPage() {
 
       <Dialog open={!!modalFilter} onOpenChange={(open) => !open && setModalFilter(null)}>
         <DialogContent className="max-w-[95vw] md:max-w-7xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+          <DialogHeader className="flex flex-row items-center justify-between border-b pb-4">
             <DialogTitle>
               {modalFilter?.type === 'CATEGORY' && `Transactions for ${formatCategory(modalFilter.value || '')}`}
               {modalFilter?.type === 'INFLOW' && 'Inflow Transactions'}
               {modalFilter?.type === 'OUTFLOW' && 'Outflow Transactions'}
             </DialogTitle>
+            <Button size="sm" variant="outline" className="gap-2" onClick={() => void handleDownloadModalPDF()}>
+              <FileDown className="w-4 h-4" />
+              Download PDF
+            </Button>
           </DialogHeader>
           <div className="overflow-x-auto rounded-lg border border-border mt-4">
             <table className="w-full text-left text-sm">
@@ -582,30 +718,20 @@ export default function ProjectDetailPage() {
                   <th className="p-3">Category</th>
                   <th className="p-3">Particulars</th>
                   <th className="p-3">Account</th>
-                  <th className="p-3">Amount</th>
+                  <th className="p-3 text-center">Image</th>
+                  <th className="p-3 text-right">Inflow (BDT)</th>
+                  <th className="p-3 text-right">Outflow (BDT)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {(() => {
-                  const filteredTransactions = report?.transactions?.filter((tx: any) => {
-                    if (!modalFilter) return false
-                    if (modalFilter.type === 'CATEGORY') return tx.category === modalFilter.value
-                    if (modalFilter.type === 'INFLOW') return tx.type === 'INFLOW'
-                    if (modalFilter.type === 'OUTFLOW') return tx.type === 'OUTFLOW'
-                    return false
-                  }) || []
-                  
-                  if (filteredTransactions.length === 0) {
-                    return (
-                      <tr>
-                        <td colSpan={5} className="p-8 text-center text-muted-foreground">
-                          No transactions found.
-                        </td>
-                      </tr>
-                    )
-                  }
-                  
-                  return filteredTransactions.map((tx: any) => (
+                {filteredTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                      No transactions found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredTransactions.map((tx: any) => (
                     <tr key={tx.id} className="hover:bg-muted/20 transition-colors">
                       <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">
                         {new Date(tx.date).toLocaleDateString('en-GB', {
@@ -627,13 +753,43 @@ export default function ProjectDetailPage() {
                         {tx.particular}
                       </td>
                       <td className="p-3 text-xs">{tx.financeAccount?.name || 'Unknown'}</td>
-                      <td className={`p-3 font-bold tabular-nums ${tx.type === 'INFLOW' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
-                        {tx.amount.toLocaleString()} BDT
+                      <td className="p-3 text-xs text-center">
+                        {tx.imageUrl ? (
+                          <a href={tx.imageUrl} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center text-blue-500 hover:text-blue-700 transition-colors">
+                            View
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground/50">—</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+                        {tx.type === 'INFLOW' ? `${tx.amount.toLocaleString()}` : '-'}
+                      </td>
+                      <td className="p-3 text-right font-bold tabular-nums text-rose-500">
+                        {tx.type === 'OUTFLOW' ? `${tx.amount.toLocaleString()}` : '-'}
                       </td>
                     </tr>
                   ))
-                })()}
+                )}
               </tbody>
+              {filteredTransactions.length > 0 && (
+                <tfoot className="border-t-2 border-border bg-muted/50">
+                  <tr>
+                    <td colSpan={5} className="p-3 font-bold text-sm text-right">Total Inflow</td>
+                    <td className="p-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400 text-sm">
+                      {modalTotalInflow.toLocaleString()}
+                    </td>
+                    <td className="p-3 text-right text-muted-foreground">-</td>
+                  </tr>
+                  <tr className="border-t border-border">
+                    <td colSpan={5} className="p-3 font-bold text-sm text-right">Total Outflow</td>
+                    <td className="p-3 text-right text-muted-foreground">-</td>
+                    <td className="p-3 text-right font-bold tabular-nums text-rose-500 text-sm">
+                      {modalTotalOutflow.toLocaleString()}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </DialogContent>

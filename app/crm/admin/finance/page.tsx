@@ -555,22 +555,33 @@ export default function FinanceDashboard() {
       else groups[key].outflow += tx.amount
     })
 
-    // Each group gets one row
+    // Each group gets two rows: one for Inflow, one for Outflow
     const bodyRows: any[] = []
     Object.entries(groups).forEach(([name, data], idx) => {
+      const bgColor: [number, number, number] = idx % 2 === 0 ? [255, 255, 255] : [248, 250, 252];
+      
+      // Inflow row
       bodyRows.push([
-        { content: idx + 1, styles: { halign: "center", textColor: [148, 163, 184] } },
-        { content: name, styles: { fontStyle: "bold", textColor: [30, 41, 59] } },
-        { content: data.inflow > 0 ? data.inflow.toLocaleString() : "—", styles: { halign: "right", textColor: [5, 150, 105] } },
-        { content: data.outflow > 0 ? data.outflow.toLocaleString() : "—", styles: { halign: "right", textColor: [220, 38, 38] } },
+        { content: idx + 1, rowSpan: 2, styles: { fillColor: bgColor, valign: "middle", halign: "center", textColor: [148, 163, 184] } },
+        { content: name, rowSpan: 2, styles: { fillColor: bgColor, valign: "middle", fontStyle: "bold", textColor: [30, 41, 59] } },
+        { content: "Inflow", styles: { fillColor: bgColor, textColor: [5, 150, 105], fontStyle: "italic", fontSize: 8 } },
+        { content: data.inflow > 0 ? data.inflow.toLocaleString() : "—", styles: { fillColor: bgColor, halign: "right", textColor: [5, 150, 105], fontStyle: "bold" } },
+        { content: "—", styles: { fillColor: bgColor, halign: "right", textColor: [148, 163, 184] } },
+      ])
+
+      // Outflow row
+      bodyRows.push([
+        { content: "Outflow", styles: { fillColor: bgColor, textColor: [220, 38, 38], fontStyle: "italic", fontSize: 8 } },
+        { content: "—", styles: { fillColor: bgColor, halign: "right", textColor: [148, 163, 184] } },
+        { content: data.outflow > 0 ? data.outflow.toLocaleString() : "—", styles: { fillColor: bgColor, halign: "right", textColor: [220, 38, 38], fontStyle: "bold" } },
       ])
     })
 
     autoTable(doc, {
       startY: 36,
-      head: [["#", mode === "PROJECT" ? "Project Name" : "Category Name", "Inflow (BDT)", "Outflow (BDT)"]],
+      head: [["#", mode === "PROJECT" ? "Project Name" : "Category Name", "Type", "Inflow (BDT)", "Outflow (BDT)"]],
       body: bodyRows as any[],
-      theme: 'striped',
+      theme: 'grid',
       styles: {
         lineWidth: 0.1,
         lineColor: [226, 232, 240],
@@ -585,8 +596,9 @@ export default function FinanceDashboard() {
       columnStyles: {
         0: { cellWidth: 15, halign: "center" },
         1: { cellWidth: "auto" },
-        2: { cellWidth: 50, halign: "right" },
-        3: { cellWidth: 50, halign: "right" },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 40, halign: "right" },
+        4: { cellWidth: 40, halign: "right" },
       },
       didDrawPage: () => {
         const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber
