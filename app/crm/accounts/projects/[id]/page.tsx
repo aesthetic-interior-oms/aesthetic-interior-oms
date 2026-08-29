@@ -165,46 +165,89 @@ export default function ProjectDetailPage() {
     const bodyRows = filteredTransactions.map((tx: any) => {
       const isInflow = tx.type === 'INFLOW'
       return [
-        { content: new Date(tx.date).toLocaleDateString('en-GB') },
+        { content: new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) },
         { content: formatCategory(tx.category) },
-        { content: tx.particular || '—' },
         {
           content: isInflow ? tx.amount.toLocaleString() : '—',
-          styles: { textColor: isInflow ? [5, 150, 105] : [160, 160, 160], fontStyle: isInflow ? 'bold' : 'normal', halign: 'right' },
+          styles: { textColor: isInflow ? [5, 150, 105] : [100, 100, 100], fontStyle: isInflow ? 'bold' : 'normal', halign: 'right' },
         },
         {
           content: !isInflow ? tx.amount.toLocaleString() : '—',
-          styles: { textColor: !isInflow ? [220, 38, 38] : [160, 160, 160], fontStyle: !isInflow ? 'bold' : 'normal', halign: 'right' },
+          styles: { textColor: !isInflow ? [220, 38, 38] : [100, 100, 100], fontStyle: !isInflow ? 'bold' : 'normal', halign: 'right' },
         },
       ]
     })
 
     autoTable(doc, {
       startY: afterCatY + 10,
-      head: [['Date', 'Category', 'Particulars', 'Inflow', 'Outflow']],
-      body: bodyRows,
+      head: [['Date', 'Category', 'Inflow', 'Outflow']],
+      body: bodyRows as any[],
+      theme: 'grid',
       foot: [
         [
-          { content: 'Total Inflow', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
-          { content: modalTotalInflow.toLocaleString(), styles: { halign: 'right', textColor: [5, 150, 105], fontStyle: 'bold' } },
-          { content: '—', styles: { halign: 'right', textColor: [160, 160, 160] } },
+          { content: 'Total Inflow', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 0] } },
+          { content: modalTotalInflow.toLocaleString(), styles: { halign: 'right', textColor: [0, 0, 0], fontStyle: 'bold' } },
+          { content: '—', styles: { halign: 'right', textColor: [0, 0, 0] } },
         ],
         [
-          { content: 'Total Outflow', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
-          { content: '—', styles: { halign: 'right', textColor: [160, 160, 160] } },
-          { content: modalTotalOutflow.toLocaleString(), styles: { halign: 'right', textColor: [220, 38, 38], fontStyle: 'bold' } },
+          { content: 'Total Outflow', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 0] } },
+          { content: '—', styles: { halign: 'right', textColor: [0, 0, 0] } },
+          { content: modalTotalOutflow.toLocaleString(), styles: { halign: 'right', textColor: [0, 0, 0], fontStyle: 'bold' } },
         ]
       ],
-      headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', fontSize: 8, cellPadding: { top: 4, bottom: 4, left: 3, right: 3 } },
-      bodyStyles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
-      footStyles: { fillColor: [241, 245, 249], fontSize: 8, cellPadding: { top: 4, bottom: 4, left: 3, right: 3 } },
-      columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 35 },
-        2: { cellWidth: 'auto' },
-        3: { cellWidth: 25, halign: 'right' },
-        4: { cellWidth: 25, halign: 'right' },
+      headStyles: { 
+        fillColor: [255, 255, 255], 
+        textColor: [0, 0, 0], 
+        fontStyle: 'bold', 
+        fontSize: 9,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
       },
+      bodyStyles: { 
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontSize: 8.5,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+      },
+      footStyles: { 
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontSize: 9,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+      },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 'auto' },
+        2: { cellWidth: 30, halign: 'right' },
+        3: { cellWidth: 30, halign: 'right' },
+      },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 1) {
+          data.cell.text = [] // Hide text for custom badge drawing
+        }
+      },
+      didDrawCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 1) {
+          const rawContent = data.cell.raw.content || data.cell.raw
+          doc.setFontSize(8)
+          doc.setFont('helvetica', 'normal')
+          const textW = doc.getTextWidth(rawContent)
+          const badgeH = 5
+          const badgeW = textW + 4
+          const x = data.cell.x + 2
+          const y = data.cell.y + (data.cell.height - badgeH) / 2
+          
+          doc.setFillColor(241, 245, 249)
+          doc.setDrawColor(203, 213, 225)
+          doc.setLineWidth(0.3)
+          doc.roundedRect(x, y, badgeW, badgeH, 1, 1, 'FD')
+          
+          doc.setTextColor(71, 85, 105)
+          doc.text(rawContent, x + 2, y + 3.5)
+        }
+      }
     })
     
     doc.save(`project-ledger-${filterTitle.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.pdf`)
@@ -280,15 +323,35 @@ export default function ProjectDetailPage() {
           .sort((a, b) => b[1] - a[1])
           .map(([cat, val]) => [
             formatCategory(cat),
-            { content: val.toLocaleString(), styles: { textColor: [30, 41, 59], fontStyle: 'bold', halign: 'right' } },
+            { content: val.toLocaleString(), styles: { textColor: [0, 0, 0], fontStyle: 'bold', halign: 'right' } },
           ]),
+        theme: 'grid',
         foot: [[
-          { content: 'TOTAL EXPENSE', styles: { fontStyle: 'bold' } },
-          { content: totalExpense.toLocaleString(), styles: { fontStyle: 'bold', halign: 'right' } },
+          { content: 'TOTAL EXPENSE', styles: { fontStyle: 'bold', textColor: [0, 0, 0] } },
+          { content: totalExpense.toLocaleString(), styles: { fontStyle: 'bold', halign: 'right', textColor: [0, 0, 0] } },
         ]],
-        headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', fontSize: 8 },
-        bodyStyles: { fontSize: 8 },
-        footStyles: { fillColor: [241, 245, 249], fontSize: 8.5 },
+        headStyles: { 
+          fillColor: [255, 255, 255], 
+          textColor: [0, 0, 0], 
+          fontStyle: 'bold', 
+          fontSize: 8,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
+        },
+        bodyStyles: { 
+          fillColor: [255, 255, 255], 
+          textColor: [0, 0, 0],
+          fontSize: 8,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
+        },
+        footStyles: { 
+          fillColor: [255, 255, 255], 
+          textColor: [0, 0, 0],
+          fontSize: 8.5,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
+        },
         columnStyles: {
           0: { cellWidth: 100 },
           1: { cellWidth: 50, halign: 'right' },
@@ -304,57 +367,79 @@ export default function ProjectDetailPage() {
     doc.text('TRANSACTIONS', 14, afterCatY + 10)
 
     const txs: any[] = report.transactions || []
-    // Sort: INFLOW first, then by date
-    const sorted = [...txs].sort((a, b) => {
-      if (a.type !== b.type) return a.type === 'INFLOW' ? -1 : 1
-      return new Date(a.date).getTime() - new Date(b.date).getTime()
-    })
+    // Sort by date (oldest to newest for ledger)
+    const sorted = [...txs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
-    const bodyRows: any[] = []
-    let lastGroupKey = ''
-    sorted.forEach((tx, idx) => {
-      const groupKey = tx.type
-      if (groupKey !== lastGroupKey) {
-        lastGroupKey = groupKey
-        bodyRows.push([{
-          content: `${tx.type === 'INFLOW' ? '▲ INFLOW' : '▼ OUTFLOW'}`,
-          colSpan: 5,
-          styles: {
-            fillColor: [241, 245, 249],
-            textColor: [71, 85, 105],
-            fontStyle: 'bold',
-            fontSize: 7.5,
-          },
-        }])
-      }
+    const bodyRows = sorted.map((tx: any) => {
       const isInflow = tx.type === 'INFLOW'
-      bodyRows.push([
-        { content: new Date(tx.date).toLocaleDateString('en-GB') },
+      return [
+        { content: new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) },
         { content: formatCategory(tx.category) },
         { content: tx.particular || '—' },
         {
           content: isInflow ? tx.amount.toLocaleString() : '—',
-          styles: { textColor: isInflow ? [5, 150, 105] : [160, 160, 160], fontStyle: isInflow ? 'bold' : 'normal', halign: 'right' },
+          styles: { textColor: isInflow ? [5, 150, 105] : [100, 100, 100], fontStyle: isInflow ? 'bold' : 'normal', halign: 'right' },
         },
         {
           content: !isInflow ? tx.amount.toLocaleString() : '—',
-          styles: { textColor: !isInflow ? [220, 38, 38] : [160, 160, 160], fontStyle: !isInflow ? 'bold' : 'normal', halign: 'right' },
+          styles: { textColor: !isInflow ? [220, 38, 38] : [100, 100, 100], fontStyle: !isInflow ? 'bold' : 'normal', halign: 'right' },
         },
-      ])
+      ]
     })
 
     autoTable(doc, {
       startY: afterCatY + 14,
       head: [['Date', 'Category', 'Particulars', 'Inflow', 'Outflow']],
-      body: bodyRows,
-      headStyles: { fillColor: [241, 245, 249], textColor: [71, 85, 105], fontStyle: 'bold', fontSize: 8, cellPadding: { top: 4, bottom: 4, left: 3, right: 3 } },
-      bodyStyles: { fontSize: 7.5, cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 } },
+      body: bodyRows as any[],
+      theme: 'grid',
+      headStyles: { 
+        fillColor: [255, 255, 255], 
+        textColor: [0, 0, 0], 
+        fontStyle: 'bold', 
+        fontSize: 8, 
+        cellPadding: { top: 4, bottom: 4, left: 3, right: 3 },
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+      },
+      bodyStyles: { 
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontSize: 7.5, 
+        cellPadding: { top: 2.5, bottom: 2.5, left: 3, right: 3 },
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+      },
       columnStyles: {
-        0: { cellWidth: 20 },
+        0: { cellWidth: 25 },
         1: { cellWidth: 35 },
         2: { cellWidth: 'auto' },
         3: { cellWidth: 25, halign: 'right' },
         4: { cellWidth: 25, halign: 'right' },
+      },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 1) {
+          data.cell.text = [] // Hide text for custom badge drawing
+        }
+      },
+      didDrawCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 1) {
+          const rawContent = data.cell.raw.content || data.cell.raw
+          doc.setFontSize(7.5)
+          doc.setFont('helvetica', 'normal')
+          const textW = doc.getTextWidth(rawContent)
+          const badgeH = 5
+          const badgeW = textW + 4
+          const x = data.cell.x + 2
+          const y = data.cell.y + (data.cell.height - badgeH) / 2
+          
+          doc.setFillColor(241, 245, 249)
+          doc.setDrawColor(203, 213, 225)
+          doc.setLineWidth(0.3)
+          doc.roundedRect(x, y, badgeW, badgeH, 1, 1, 'FD')
+          
+          doc.setTextColor(0, 0, 0)
+          doc.text(rawContent, x + 2, y + 3.5)
+        }
       },
       didDrawPage: () => {
         const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber

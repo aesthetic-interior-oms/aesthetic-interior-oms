@@ -507,38 +507,49 @@ export default function FinanceDashboard() {
     })
     doc.addImage(logoImg, "PNG", 14, 8, 43.2, 8)
 
-    doc.setFontSize(9)
-    doc.setFont("helvetica", "normal")
+    const dateText = `${displayStart}   →   ${displayEnd}`
+    doc.setFontSize(7.5)
+    doc.setFont("helvetica", "bold")
+    const dateW = doc.getTextWidth(dateText)
+    
+    // Draw background badge for date
+    doc.setFillColor(241, 245, 249)
+    doc.roundedRect(14, 17.5, dateW + 8, 5, 1, 1, 'F')
     doc.setTextColor(71, 85, 105)
-    doc.text(`${displayStart}   --->   ${displayEnd}`, 14, 21)
+    doc.text(dateText, 18, 21.2)
 
     // Report title & generated date — right aligned
     const reportTitle = mode === "PROJECT" ? "Project Wise Finance Report" : "Category Wise Finance Report"
-    doc.setFontSize(8.5)
+    doc.setFontSize(10)
     doc.setFont("helvetica", "bold")
+    doc.setTextColor(30, 41, 59)
     doc.text(reportTitle, pageW - 14, 14, { align: "right" })
     doc.setFont("helvetica", "normal")
     doc.setFontSize(7.5)
     doc.setTextColor(100, 116, 139)
     doc.text(`Generated: ${new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}`, pageW - 14, 21, { align: "right" })
 
+    // Summary bar background
+    doc.setFillColor(248, 250, 252)
     doc.setDrawColor(226, 232, 240)
     doc.setLineWidth(0.5)
-    doc.line(14, 25, pageW - 14, 25)
+    doc.roundedRect(14, 26, pageW - 28, 8, 1.5, 1.5, 'FD')
 
-    // Summary bar
+    // Summary text
     doc.setFontSize(7.5)
-    doc.setFont("helvetica", "normal")
+    doc.setFont("helvetica", "bold")
     doc.setTextColor(100, 116, 139)
-    doc.text(`${filteredTransactions.length} transactions`, 14, 31)
+    doc.text(`TRANSACTIONS: ${filteredTransactions.length}`, 18, 31.5)
+    
     doc.setTextColor(5, 150, 105)
-    doc.text(`Inflow: ${totalInflow.toLocaleString()} BDT`, 70, 31)
+    doc.text(`INFLOW: ${totalInflow.toLocaleString()} BDT`, 70, 31.5)
+    
     doc.setTextColor(220, 38, 38)
-    doc.text(`Outflow: ${totalOutflow.toLocaleString()} BDT`, 150, 31)
+    doc.text(`OUTFLOW: ${totalOutflow.toLocaleString()} BDT`, 140, 31.5)
+    
     const pc: [number, number, number] = netProfit >= 0 ? [5, 150, 105] : [220, 38, 38]
     doc.setTextColor(...pc)
-    doc.setFont("helvetica", "bold")
-    doc.text(`Net: ${netProfit.toLocaleString()} BDT`, 230, 31)
+    doc.text(`NET: ${netProfit.toLocaleString()} BDT`, 210, 31.5)
     doc.setTextColor(0, 0, 0)
 
     // Build groups
@@ -578,7 +589,7 @@ export default function FinanceDashboard() {
     })
 
     autoTable(doc, {
-      startY: 36,
+      startY: 38,
       head: [["#", mode === "PROJECT" ? "Project Name" : "Category Name", "Type", "Inflow (BDT)", "Outflow (BDT)"]],
       body: bodyRows as any[],
       theme: 'grid',
@@ -985,7 +996,7 @@ export default function FinanceDashboard() {
                         </DialogHeader>
                         <div className="p-1 shrink-0">
                           <Input
-                            placeholder="Search by Lead Name (min 2 chars)..."
+                            placeholder="Search by Lead Name or Phone (min 2 chars)..."
                             value={visitSearch}
                             onChange={(e) => {
                               setVisitSearch(e.target.value)
@@ -1098,55 +1109,61 @@ export default function FinanceDashboard() {
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <label className="text-xs font-semibold">Attachment / Receipt (Optional)</label>
-                <div className="flex items-center gap-4">
+                {previewUrl ? (
+                  <div className="flex flex-col gap-2">
+                    <div className="w-full h-48 border rounded-lg overflow-hidden relative bg-muted flex items-center justify-center">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={previewUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => document.getElementById('receipt-upload')?.click()}
+                      >
+                        Change Image
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="destructive"
+                        className="flex-1"
+                        onClick={() => {
+                          setImageFile(null)
+                          setPreviewUrl(null)
+                          const el = document.getElementById('receipt-upload') as HTMLInputElement
+                          if (el) el.value = ''
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
                   <Button
                     type="button"
                     variant="outline"
-                    className="relative w-full"
+                    className="w-full h-24 border-dashed flex flex-col gap-2 bg-muted/20"
                     onClick={() => document.getElementById('receipt-upload')?.click()}
                   >
-                    {imageFile ? (
-                      <span className="truncate">{imageFile.name}</span>
-                    ) : (
-                      <span className="flex items-center gap-2">
-                        <Upload className="w-4 h-4" /> Upload Image
-                      </span>
-                    )}
+                    <Upload className="w-6 h-6 text-muted-foreground" />
+                    <span className="text-muted-foreground">Click to upload image</span>
                   </Button>
-                  <input
-                    id="receipt-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      if (e.target.files && e.target.files[0]) {
-                        setImageFile(e.target.files[0])
-                        setPreviewUrl(URL.createObjectURL(e.target.files[0]))
-                      }
-                    }}
-                  />
-                  {previewUrl && (
-                    <div className="w-10 h-10 shrink-0 border rounded overflow-hidden">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
-                    </div>
-                  )}
-                  {previewUrl && (
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => {
-                        setImageFile(null)
-                        setPreviewUrl(null)
-                      }}
-                    >
-                      Clear
-                    </Button>
-                  )}
-                </div>
+                )}
+                <input
+                  id="receipt-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setImageFile(e.target.files[0])
+                      setPreviewUrl(URL.createObjectURL(e.target.files[0]))
+                    }
+                  }}
+                />
               </div>
 
               <Button type="submit" className="w-full mt-4" disabled={isUploading}>

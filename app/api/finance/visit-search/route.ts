@@ -25,7 +25,10 @@ export async function GET(request: NextRequest) {
       where: {
         visitFee: { gt: 0 },
         lead: {
-          name: { contains: q, mode: "insensitive" },
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { phone: { contains: q, mode: "insensitive" } },
+          ],
         },
       },
       select: {
