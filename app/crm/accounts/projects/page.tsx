@@ -45,10 +45,13 @@ export default function AccountsProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table')
+  const [selectedMonth, setSelectedMonth] = useState('')
 
   const fetchProjects = async () => {
+    setLoading(true)
     try {
-      const response = await fetch('/api/accounts/projects', { cache: 'no-store' })
+      const url = selectedMonth ? `/api/accounts/projects?month=${selectedMonth}` : '/api/accounts/projects'
+      const response = await fetch(url, { cache: 'no-store' })
       const data = await response.json()
       if (data.success) {
         setProjects(data.data)
@@ -64,7 +67,7 @@ export default function AccountsProjectsPage() {
 
   useEffect(() => {
     void fetchProjects()
-  }, [])
+  }, [selectedMonth])
 
   const handleStatusChange = async (projectId: string, newStatus: string) => {
     setUpdatingId(projectId)
@@ -97,25 +100,41 @@ export default function AccountsProjectsPage() {
         subtitle="Overview of all confirmed projects and their financial status."
       />
       <div className="flex flex-col gap-4 p-4 md:gap-8 md:p-8 w-full flex-1">
-        <div className="flex items-center space-x-2 rounded-md border p-1 w-fit">
-          <Button
-            variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('table')}
-            className="h-8"
-          >
-            <TableIcon className="mr-2 h-4 w-4" />
-            Table
-          </Button>
-          <Button
-            variant={viewMode === 'card' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setViewMode('card')}
-            className="h-8"
-          >
-            <LayoutGrid className="mr-2 h-4 w-4" />
-            Grid
-          </Button>
+        <div className="flex flex-wrap items-center gap-4 border-b pb-4">
+          <div className="flex items-center space-x-2 rounded-md border p-1 w-fit">
+            <Button
+              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+              className="h-8"
+            >
+              <TableIcon className="mr-2 h-4 w-4" />
+              Table
+            </Button>
+            <Button
+              variant={viewMode === 'card' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('card')}
+              className="h-8"
+            >
+              <LayoutGrid className="mr-2 h-4 w-4" />
+              Grid
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold">Month:</span>
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-card text-foreground border border-border p-1.5 rounded-md h-9 text-sm"
+            />
+            {selectedMonth && (
+              <Button variant="ghost" size="sm" onClick={() => setSelectedMonth('')} className="h-9">
+                Clear
+              </Button>
+            )}
+          </div>
         </div>
 
       {viewMode === 'table' ? (

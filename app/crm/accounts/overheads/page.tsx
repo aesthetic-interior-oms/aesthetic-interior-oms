@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Loader2 } from 'lucide-react'
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -38,6 +39,7 @@ export default function OverheadsPage() {
   const [selectedMonth, setSelectedMonth] = useState(getDefaultMonth())
   const [monthlyReport, setMonthlyReport] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [modalCategory, setModalCategory] = useState<string | null>(null)
 
   const loadMonthlyReport = async (month: string) => {
     setLoading(true)
@@ -134,8 +136,12 @@ export default function OverheadsPage() {
                     </div>
                   ) : (
                     Object.entries(monthlyReport.overheadBreakdown || {}).map(([cat, amount]: any) => (
-                      <div key={cat} className="p-3 flex justify-between items-center text-sm">
-                        <span className="font-medium">{CATEGORY_LABELS[cat] || cat}</span>
+                      <div 
+                        key={cat} 
+                        className="p-3 flex justify-between items-center text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => setModalCategory(cat)}
+                      >
+                        <span className="font-medium text-blue-600 dark:text-blue-400 underline-offset-2 hover:underline">{CATEGORY_LABELS[cat] || cat}</span>
                         <span className="font-bold">{amount.toLocaleString()} BDT</span>
                       </div>
                     ))
@@ -168,6 +174,61 @@ export default function OverheadsPage() {
               </CardContent>
             </Card>
           </div>
+          
+          {/* Modal for viewing category transactions */}
+          <Dialog open={!!modalCategory} onOpenChange={(open) => !open && setModalCategory(null)}>
+            <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader className="border-b pb-4">
+                <DialogTitle>Transactions for {CATEGORY_LABELS[modalCategory || ''] || modalCategory}</DialogTitle>
+              </DialogHeader>
+              <div className="overflow-x-auto mt-2">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-muted text-xs uppercase text-muted-foreground font-bold border-b border-border">
+                    <tr>
+                      <th className="p-3">Date</th>
+                      <th className="p-3">Particulars</th>
+                      <th className="p-3">Account</th>
+                      <th className="p-3">Recorder</th>
+                      <th className="p-3 text-center">Image</th>
+                      <th className="p-3 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {(() => {
+                      if (!modalCategory || !monthlyReport?.transactions) return null
+                      const txs = monthlyReport.transactions.filter((t: any) => t.category === modalCategory && !t.leadId)
+                      if (txs.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={6} className="p-8 text-center text-muted-foreground">No transactions found.</td>
+                          </tr>
+                        )
+                      }
+                      return txs.map((tx: any) => (
+                        <tr key={tx.id} className="hover:bg-muted/20 transition-colors">
+                          <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </td>
+                          <td className="p-3 text-sm max-w-[200px] truncate" title={tx.particular}>{tx.particular || '—'}</td>
+                          <td className="p-3 text-xs">{tx.financeAccount?.name || 'Unknown'}</td>
+                          <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{tx.recordedBy?.fullName || 'Unknown'}</td>
+                          <td className="p-3 text-xs text-center">
+                            {tx.imageUrl ? (
+                              <a href={tx.imageUrl} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">View</a>
+                            ) : '—'}
+                          </td>
+                          <td className="p-3 text-right font-bold tabular-nums text-rose-500">
+                            {tx.amount.toLocaleString()} BDT
+                          </td>
+                        </tr>
+                      ))
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </DialogContent>
+          </Dialog>
+
         </div>
       ) : (
         <div className="text-center py-8 text-muted-foreground">Processing report...</div>

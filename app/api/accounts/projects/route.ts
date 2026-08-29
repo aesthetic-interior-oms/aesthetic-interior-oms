@@ -1,10 +1,10 @@
 import prisma from '@/lib/prisma'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireDatabaseRoles } from '@/lib/authz'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) {
@@ -16,12 +16,27 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
     }
 
-    const projects = await prisma.lead.findMany({
-      where: {
-        agreementType: {
-          not: null,
-        },
+    const { searchParams } = new URL(request.url)
+    const month = searchParams.get('month')
+
+    const whereClause: any = {
+      agreementType: {
+        not: null,
       },
+    }
+
+    if (month) {
+      const [year, m] = month.split('-')
+      const startDate = new Date(parseInt(year), parseInt(m) - 1, 1)
+      const endDate = new Date(parseInt(year), parseInt(m), 0, 23, 59, 59, 999)
+      whereClause.created_at = {
+        gte: startDate,
+        lte: endDate,
+      }
+    }
+
+    const projects = await prisma.lead.findMany({
+      where: whereClause,
       select: {
         id: true,
         name: true,

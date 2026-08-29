@@ -43,6 +43,8 @@ export async function GET(request: NextRequest) {
           lead: {
             select: { id: true, name: true },
           },
+          financeAccount: { select: { id: true, name: true } },
+          recordedBy: { select: { fullName: true } },
         },
       })
 
@@ -89,6 +91,7 @@ export async function GET(request: NextRequest) {
         },
         overheadBreakdown,
         siteExpensesBreakdown: Object.values(siteExpensesBreakdown),
+        transactions,
       })
     }
 
