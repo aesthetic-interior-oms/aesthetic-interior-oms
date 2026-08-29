@@ -499,22 +499,24 @@ export default function FinanceDashboard() {
     const displayStart = fmtDisplayDate(start)
     const displayEnd = fmtDisplayDate(end)
 
-    doc.setFontSize(18)
-    doc.setFont("helvetica", "bold")
-    doc.setTextColor(30, 41, 59)
-    doc.text("Aesthetic Interior", 14, 14)
+    const logoImg = new Image()
+    logoImg.src = "/Logo/HeaderLogo.png"
+    await new Promise((resolve) => {
+      logoImg.onload = resolve
+      logoImg.onerror = resolve
+    })
+    doc.addImage(logoImg, "PNG", 14, 8, 43.2, 8)
 
     doc.setFontSize(9)
     doc.setFont("helvetica", "normal")
-    doc.setTextColor(100, 116, 139)
-    const reportTitle = mode === "PROJECT" ? "Project Wise Finance Report" : "Category Wise Finance Report"
-    doc.text(reportTitle, 14, 21)
+    doc.setTextColor(71, 85, 105)
+    doc.text(`${displayStart}   --->   ${displayEnd}`, 14, 21)
 
-    // Date range — right aligned, well-formatted, won't overflow
+    // Report title & generated date — right aligned
+    const reportTitle = mode === "PROJECT" ? "Project Wise Finance Report" : "Category Wise Finance Report"
     doc.setFontSize(8.5)
     doc.setFont("helvetica", "bold")
-    doc.setTextColor(71, 85, 105)
-    doc.text(`${displayStart}  →  ${displayEnd}`, pageW - 14, 14, { align: "right" })
+    doc.text(reportTitle, pageW - 14, 14, { align: "right" })
     doc.setFont("helvetica", "normal")
     doc.setFontSize(7.5)
     doc.setTextColor(100, 116, 139)
@@ -544,7 +546,7 @@ export default function FinanceDashboard() {
     filteredTransactions.forEach(tx => {
       let key = ""
       if (mode === "PROJECT") {
-        key = tx.lead?.name || "— No Project —"
+        key = tx.lead?.name || "Office"
       } else {
         key = CATEGORY_LABELS[tx.category] || tx.category || "—"
       }
@@ -553,32 +555,26 @@ export default function FinanceDashboard() {
       else groups[key].outflow += tx.amount
     })
 
-    // Each group gets two rows: one for Inflow, one for Outflow
+    // Each group gets one row
     const bodyRows: any[] = []
     Object.entries(groups).forEach(([name, data], idx) => {
-      const net = data.inflow - data.outflow
-      const netColor: [number, number, number] = net >= 0 ? [5, 150, 105] : [220, 38, 38]
-
-      // Inflow row
       bodyRows.push([
-        { content: idx + 1, rowSpan: 2, styles: { valign: "middle", textColor: [148, 163, 184], halign: "center" } },
-        { content: name, rowSpan: 2, styles: { valign: "middle", fontStyle: "bold", textColor: [30, 41, 59] } },
-        { content: "Inflow", styles: { textColor: [5, 150, 105], fontStyle: "italic", fontSize: 8 } },
-        { content: data.inflow > 0 ? data.inflow.toLocaleString() : "—", styles: { halign: "right", textColor: [5, 150, 105], fontStyle: "bold" } },
-        { content: net.toLocaleString(), rowSpan: 2, styles: { valign: "middle", halign: "right", fontStyle: "bold", textColor: netColor } },
-      ])
-
-      // Outflow row
-      bodyRows.push([
-        { content: "Outflow", styles: { textColor: [220, 38, 38], fontStyle: "italic", fontSize: 8 } },
-        { content: data.outflow > 0 ? data.outflow.toLocaleString() : "—", styles: { halign: "right", textColor: [220, 38, 38], fontStyle: "bold" } },
+        { content: idx + 1, styles: { halign: "center", textColor: [148, 163, 184] } },
+        { content: name, styles: { fontStyle: "bold", textColor: [30, 41, 59] } },
+        { content: data.inflow > 0 ? data.inflow.toLocaleString() : "—", styles: { halign: "right", textColor: [5, 150, 105] } },
+        { content: data.outflow > 0 ? data.outflow.toLocaleString() : "—", styles: { halign: "right", textColor: [220, 38, 38] } },
       ])
     })
 
     autoTable(doc, {
       startY: 36,
-      head: [["#", mode === "PROJECT" ? "Project Name" : "Category Name", "Type", "Amount (BDT)", "Net (BDT)"]],
+      head: [["#", mode === "PROJECT" ? "Project Name" : "Category Name", "Inflow (BDT)", "Outflow (BDT)"]],
       body: bodyRows as any[],
+      theme: 'striped',
+      styles: {
+        lineWidth: 0.1,
+        lineColor: [226, 232, 240],
+      },
       headStyles: {
         fillColor: [241, 245, 249],
         textColor: [71, 85, 105],
@@ -587,11 +583,10 @@ export default function FinanceDashboard() {
       },
       bodyStyles: { fontSize: 9 },
       columnStyles: {
-        0: { cellWidth: 12, halign: "center" },
+        0: { cellWidth: 15, halign: "center" },
         1: { cellWidth: "auto" },
-        2: { cellWidth: 25 },
-        3: { cellWidth: 45, halign: "right" },
-        4: { cellWidth: 40, halign: "right" },
+        2: { cellWidth: 50, halign: "right" },
+        3: { cellWidth: 50, halign: "right" },
       },
       didDrawPage: () => {
         const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber

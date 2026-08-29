@@ -195,7 +195,7 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
         <View style={{ marginBottom: 8 }}>
           <Text style={{ fontSize: 7, color: '#a57c00', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Prepared For</Text>
           <Text style={[styles.bold, { fontSize: 12, color: PRIMARY, marginBottom: 4, lineHeight: 1.25 }]}>{content.clientName}</Text>
-          <Text style={{ fontSize: 10, color: '#555', lineHeight: 1.4 }}>{content.clientAddress}</Text>
+          {content.clientAddress ? <Text style={{ fontSize: 10, color: '#555', lineHeight: 1.4 }}><Text style={styles.bold}>Address: </Text>{content.clientAddress}</Text> : null}
         </View>
         {content.subject ? <Text style={{ fontSize: 10, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
         {cleanIntro ? <View style={{ marginBottom: 8 }}><Text style={[styles.bold, { fontSize: 10, marginBottom: 8 }]}>Dear Sir,</Text><Text style={{ fontSize: 10, textAlign: 'justify', lineHeight: 1.5 }}>{cleanIntro}</Text></View> : null}
