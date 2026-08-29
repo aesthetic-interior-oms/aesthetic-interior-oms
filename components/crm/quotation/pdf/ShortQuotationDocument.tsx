@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   tRow: { flexDirection: 'row', alignItems: 'flex-start', borderBottomWidth: 1, borderBottomColor: '#eeeeee' },
   tRowAlt: { backgroundColor: '#fefdf9' },
   tdCol: { fontSize: 10, paddingVertical: 6, paddingHorizontal: 4, borderRightWidth: 0.5, borderRightColor: '#d7d7d7' },
-  roomTitleRow: { backgroundColor: '#f3f8f7', borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.5, borderColor: '#d7d7d7', paddingVertical: 5, paddingHorizontal: 8 },
+  roomTitleRow: { backgroundColor: '#d9e2e0', borderLeftWidth: 0.75, borderRightWidth: 0.75, borderBottomWidth: 0.5, borderColor: '#d7d7d7', paddingVertical: 5, paddingHorizontal: 8 },
   roomTitleText: { fontSize: 10, fontWeight: 'bold', color: PRIMARY, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 2 },
   packageBadge: { alignSelf: 'center', borderRadius: 8, backgroundColor: '#fff8e6', color: GOLD, fontSize: 7, fontWeight: 'bold', paddingVertical: 2, paddingHorizontal: 5, textTransform: 'uppercase' },
   wSumSl: { width: '8%', textAlign: 'center' },
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   grandTotalRow: { flexDirection: 'row', paddingTop: 8, marginTop: 5, borderTopWidth: 1, borderTopColor: PRIMARY },
   grandTotalLabel: { width: '78%', textAlign: 'right', paddingRight: 10, fontWeight: 'bold', fontSize: 10, color: PRIMARY },
   grandTotalValue: { width: '22%', textAlign: 'right', fontWeight: 'bold', fontSize: 10, color: PRIMARY },
-  inWords: { fontSize: 10, color: '#000', marginTop: 8, textAlign: 'left', fontFamily: 'Playfair Display', fontStyle: 'italic' },
+  inWords: { fontSize: 10, color: '#000', marginTop: 8, textAlign: 'left', fontWeight: 'bold', textDecoration: 'underline' },
   datePanel: { minWidth: 112, alignItems: 'flex-end' },
   metaLabel: { fontSize: 6, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
   metaValue: { fontSize: 7, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
@@ -199,7 +199,7 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
         </View>
         {content.subject ? <Text style={{ fontSize: 10, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
         {cleanIntro ? <View style={{ marginBottom: 8 }}><Text style={[styles.bold, { fontSize: 10, marginBottom: 8 }]}>Dear Sir,</Text><Text style={{ fontSize: 10, textAlign: 'justify', lineHeight: 1.5 }}>{cleanIntro}</Text></View> : null}
-        <Text style={styles.sectionTitle}>{content.packageTier} Short Quotation Summary</Text>
+        <Text style={styles.sectionTitle}>{content.packageTier} Tentative Quotation Summary</Text>
         <View style={[styles.tHead, { borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}><Text style={[styles.thCol, styles.wSumSl]}>SL</Text><Text style={[styles.thCol, styles.wSumName]}>Description</Text><Text style={[styles.thCol, styles.wSumSqft]}>Sqft</Text><Text style={[styles.thCol, styles.wSumTotal]}>Amount</Text></View>
         {summary.floors.map((entry, index) => (
           <View key={entry.floor.id}>
@@ -209,14 +209,6 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
               <Text style={[styles.tdCol, styles.wSumSqft, styles.bold, { borderRightWidth: 0 }]}>{formatAmount(getFloorSqft(entry))}</Text>
               <Text style={[styles.tdCol, styles.wSumTotal, styles.bold, { borderRightWidth: 0 }]}>{formatCurrency(entry.total)}</Text>
             </View>
-            {entry.rooms.map((room) => (
-              <View key={`${entry.floor.id}-${room.room.id}`} style={[styles.tRow, styles.summaryRoomRow]}>
-                <Text style={[styles.tdCol, styles.wSumSl, { borderRightWidth: 0 }]} />
-                <Text style={[styles.tdCol, styles.wSumName, styles.summaryRoomName, { borderRightWidth: 0 }]}>• {softWrapPdfText(room.room.name)}</Text>
-                <Text style={[styles.tdCol, styles.wSumSqft, { borderRightWidth: 0 }]}>{formatAmount(getRoomSqft(room))}</Text>
-                <Text style={[styles.tdCol, styles.wSumTotal, { borderRightWidth: 0 }]}>{formatCurrency(room.total)}</Text>
-              </View>
-            ))}
           </View>
         ))}
         <View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>TOTAL SQFT</Text><Text style={styles.grandTotalValue}>{formatAmount(getTotalSqft(summary))}</Text></View>

@@ -287,7 +287,7 @@ export function QuotationMaker({
         updatedAt: new Date().toISOString(),
         context: previewContext,
         contextId: previewContextId,
-        clientName: leadName,
+        clientName: content.clientName || leadName,
         clientAddress: effectiveClientAddress,
         quotationType,
         projectSqft: projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null,
@@ -453,7 +453,7 @@ export function QuotationMaker({
         updatedAt: new Date().toISOString(),
         context: previewContext,
         contextId: previewContextId,
-        clientName: leadName,
+        clientName: content.clientName || leadName,
         clientAddress: effectiveClientAddress,
         quotationType,
         projectSqft: projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null,
@@ -736,6 +736,18 @@ return (
               disabled={!canEdit}
               onChange={(event) => updateContentField({ quotationDate: event.target.value })}
             />
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">Client Name</p>
+            <Input
+              value={displayContent.clientName ?? leadName}
+              disabled={!canEdit}
+              onChange={(event) => updateContentField({ clientName: event.target.value })}
+              placeholder="Client Name"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Auto-filled from lead name; edit here for the quotation PDF.
+            </p>
           </div>
           <div className="space-y-1">
             <p className="text-xs font-medium text-muted-foreground">PDF location</p>

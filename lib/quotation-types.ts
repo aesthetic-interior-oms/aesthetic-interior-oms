@@ -61,6 +61,7 @@ export type QuotationDraftContent = {
   signatoryName?: string
   signatoryTitle?: string
   summarySubject?: string
+  clientName?: string
   clientAddress?: string
 }
 
