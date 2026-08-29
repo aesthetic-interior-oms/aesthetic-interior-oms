@@ -106,98 +106,116 @@ export default function VisitPaymentsPage() {
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
       const pageW = doc.internal.pageSize.getWidth()
       const periodLabel = formatDateLabel(datePreset, customStart, customEnd)
-      const generatedAt = new Date().toLocaleString('en-GB', {
-        day: '2-digit', month: 'short', year: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-      })
+      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
-      // ── Header ──────────────────────────────────────────────
-      doc.setFontSize(18)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Aesthetic Interior BD', pageW / 2, 16, { align: 'center' })
+      // ── Logo ──────────────────────────────────────────────────
+      const logoImg = new Image()
+      logoImg.src = '/Logo/HeaderLogo.png'
+      await new Promise((resolve) => { logoImg.onload = resolve; logoImg.onerror = resolve })
+      doc.addImage(logoImg, 'PNG', 14, 8, 43.2, 8)
 
+      // ── Title right-aligned ───────────────────────────────────
       doc.setFontSize(13)
-      doc.setFont('helvetica', 'normal')
-      doc.text('Visit Payments Report', pageW / 2, 23, { align: 'center' })
-
-      doc.setFontSize(9)
-      doc.setTextColor(100)
-      doc.text(`Period: ${periodLabel}`, pageW / 2, 30, { align: 'center' })
-      doc.text(`Generated: ${generatedAt}`, pageW / 2, 35, { align: 'center' })
-      doc.setTextColor(0)
-
-      // ── Summary line ─────────────────────────────────────────
-      doc.setFontSize(9)
       doc.setFont('helvetica', 'bold')
-      doc.text(
-        `Total Transactions: ${transactions.length}    |    Total Collected: ${totalAmount.toLocaleString()} BDT`,
-        pageW / 2,
-        41,
-        { align: 'center' },
-      )
-      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(30, 41, 59)
+      doc.text('VISIT PAYMENTS REPORT', pageW - 14, 13, { align: 'right' })
 
-      // ── Table ────────────────────────────────────────────────
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100, 116, 139)
+      doc.text(`Period: ${periodLabel}  ·  Generated: ${today}`, pageW - 14, 19, { align: 'right' })
+
+      // ── Summary badge bar ────────────────────────────────────
+      doc.setFillColor(248, 250, 252)
+      doc.setDrawColor(226, 232, 240)
+      doc.setLineWidth(0.4)
+      doc.roundedRect(14, 22, pageW - 28, 8, 1.5, 1.5, 'FD')
+
+      doc.setFontSize(7.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 116, 139)
+      doc.text(`TRANSACTIONS: ${transactions.length}`, 20, 27.5)
+      doc.setTextColor(5, 150, 105)
+      doc.text(`TOTAL COLLECTED: ${totalAmount.toLocaleString()} BDT`, 80, 27.5)
+
+      // ── Table ──────────────────────────────────────────────────
       autoTable(doc, {
-        startY: 46,
-        head: [
-          ['#', 'Voucher', 'Date', 'Lead / Client', 'Location', 'Particulars', 'Account', 'Collected By', 'Recorded By', 'Amount (BDT)'],
-        ],
+        startY: 34,
+        head: [['#', 'Voucher', 'Date', 'Lead / Client', 'Location', 'Particulars', 'Account', 'Collected By', 'Recorded By', 'Amount (BDT)']],
         body: transactions.map((tx, idx) => [
-          idx + 1,
-          tx.voucherNo || '—',
-          new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-          tx.lead?.name || '—',
-          tx.lead?.location || tx.visit?.location || '—',
-          tx.particular || '—',
-          tx.financeAccount?.name || 'Unknown',
-          tx.collectedBy?.fullName || '—',
-          tx.recordedBy?.fullName || '—',
-          tx.amount.toLocaleString(),
+          { content: idx + 1, styles: { halign: 'center' } },
+          { content: tx.voucherNo || '—', styles: { font: 'courier', fontSize: 7 } },
+          { content: new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) },
+          { content: tx.lead?.name || '—', styles: { fontStyle: 'bold' } },
+          { content: tx.lead?.location || tx.visit?.location || '—' },
+          { content: tx.particular || '—' },
+          { content: tx.financeAccount?.name || 'Unknown' },
+          { content: tx.collectedBy?.fullName || '—' },
+          { content: tx.recordedBy?.fullName || '—' },
+          { content: tx.amount.toLocaleString(), styles: { halign: 'right', fontStyle: 'bold', textColor: [5, 150, 105] } },
         ]),
-        foot: [
-          ['', '', '', '', '', '', '', '', 'Total Collected', `${totalAmount.toLocaleString()} BDT`],
-        ],
+        foot: [[
+          { content: 'Total Collected', colSpan: 9, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 0] } },
+          { content: `${totalAmount.toLocaleString()} BDT`, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 0] } },
+        ]],
+        theme: 'grid',
         headStyles: {
-          fillColor: [30, 30, 30],
-          textColor: 255,
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
           fontStyle: 'bold',
           fontSize: 8,
-          halign: 'left',
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
         },
-        bodyStyles: { fontSize: 8, cellPadding: 2.5 },
+        bodyStyles: {
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
+          fontSize: 7.5,
+          cellPadding: 2.5,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
+        },
         footStyles: {
-          fillColor: [240, 240, 240],
-          textColor: 30,
+          fillColor: [248, 250, 252],
+          textColor: [0, 0, 0],
           fontStyle: 'bold',
           fontSize: 8,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
         },
         columnStyles: {
           0: { cellWidth: 8, halign: 'center' },
-          2: { cellWidth: 22 },
+          2: { cellWidth: 24 },
           9: { halign: 'right', cellWidth: 26 },
         },
-        alternateRowStyles: { fillColor: [250, 250, 250] },
         showFoot: 'lastPage',
         margin: { left: 10, right: 10 },
+        didDrawPage: () => {
+          const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber
+          const pageCount = (doc as any).internal.getNumberOfPages()
+          if (pageNum > 1) {
+            doc.setFontSize(7)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(30, 41, 59)
+            doc.addImage(logoImg, 'PNG', 10, 3, 21.6, 4)
+            doc.setFont('helvetica', 'normal')
+            doc.setTextColor(100, 116, 139)
+            doc.text(`Visit Payments  ·  ${periodLabel}  ·  Page ${pageNum} of ${pageCount}`, pageW - 10, 6, { align: 'right' })
+          }
+          // Bottom page number
+          doc.setFontSize(7)
+          doc.setTextColor(150, 150, 150)
+          doc.text(
+            `Page ${pageNum} of ${pageCount}`,
+            pageW / 2,
+            doc.internal.pageSize.getHeight() - 4,
+            { align: 'center' },
+          )
+        },
       })
 
-      // ── Page footer on every page ─────────────────────────────────
-      const pageCount = (doc as any).internal.getNumberOfPages()
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i)
-        doc.setFontSize(7)
-        doc.setTextColor(150)
-        doc.text(
-          `Page ${i} of ${pageCount}  |  Aesthetic Interior BD – Visit Payments`,
-          pageW / 2,
-          doc.internal.pageSize.getHeight() - 5,
-          { align: 'center' },
-        )
-      }
-
       doc.save(`visit-payments-${periodLabel.replace(/[^a-zA-Z0-9]/g, '-')}.pdf`)
-      toast.success('PDF downloaded successfully!')
+      toast.success('PDF downloaded!')
     } catch (err) {
       console.error(err)
       toast.error('Failed to generate PDF. Please try again.')

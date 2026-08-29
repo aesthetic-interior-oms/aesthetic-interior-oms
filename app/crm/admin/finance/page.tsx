@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
 import {
   Card,
   CardContent,
@@ -1176,18 +1177,20 @@ export default function FinanceDashboard() {
 
       {/* STATS HEADER */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-gradient-to-br from-indigo-500/10 via-indigo-600/5 to-transparent border border-indigo-500/20 backdrop-blur-md">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-indigo-400">Total Net Assets</CardTitle>
-            <DollarSign className="w-5 h-5 text-indigo-400" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-extrabold text-foreground">
-              {balances.total.toLocaleString("en-US")} BDT
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Consolidated Cash & Bank valuation</p>
-          </CardContent>
-        </Card>
+        <Link href="/crm/admin/finance/settings/accounts">
+          <Card className="hover:ring-2 hover:ring-indigo-500/50 transition-all cursor-pointer bg-gradient-to-br from-indigo-500/10 via-indigo-600/5 to-transparent border border-indigo-500/20 backdrop-blur-md h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-indigo-400">Total Net Assets</CardTitle>
+              <DollarSign className="w-5 h-5 text-indigo-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-extrabold text-foreground">
+                {balances.total.toLocaleString("en-US")} BDT
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Consolidated Cash & Bank valuation. Click to view all accounts.</p>
+            </CardContent>
+          </Card>
+        </Link>
 
         <Card className="bg-gradient-to-br from-emerald-500/10 via-emerald-600/5 to-transparent border border-emerald-500/20 backdrop-blur-md">
           <CardHeader className="flex flex-row items-center justify-between pb-2">

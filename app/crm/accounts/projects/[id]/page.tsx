@@ -68,6 +68,10 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true)
   const [modalFilter, setModalFilter] = useState<{ type: 'CATEGORY' | 'INFLOW' | 'OUTFLOW', value?: string } | null>(null)
 
+  // PDF date filter state
+  const [pdfDateStart, setPdfDateStart] = useState('')
+  const [pdfDateEnd, setPdfDateEnd] = useState('')
+
   useEffect(() => {
     if (!id) return
     setLoading(true)
@@ -262,6 +266,14 @@ export default function ProjectDetailPage() {
     const clientName = project?.name || 'Unknown Client'
     const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
+    // Build date filter label for header
+    const fmtD = (s: string) => new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    const periodLabel = pdfDateStart && pdfDateEnd
+      ? `${fmtD(pdfDateStart)}  →  ${fmtD(pdfDateEnd)}`
+      : pdfDateStart
+      ? `From ${fmtD(pdfDateStart)}`
+      : 'All Time'
+
     const logoImg = new Image()
     logoImg.src = "/Logo/HeaderLogo.png"
     await new Promise((resolve) => {
@@ -302,14 +314,47 @@ export default function ProjectDetailPage() {
       detailsY += 5
     }
 
+    // Period badge (only if filtered)
+    if (pdfDateStart || pdfDateEnd) {
+      const badgeText = `Period: ${periodLabel}`
+      const badgeW = doc.getTextWidth(badgeText) + 6
+      doc.setFillColor(241, 245, 249)
+      doc.setDrawColor(203, 213, 225)
+      doc.setLineWidth(0.3)
+      doc.roundedRect(14, detailsY, badgeW, 5.5, 1, 1, 'FD')
+      doc.setFontSize(7.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(71, 85, 105)
+      doc.text(badgeText, 17, detailsY + 3.8)
+      detailsY += 7
+    }
+
     doc.setDrawColor(226, 232, 240)
     doc.setLineWidth(0.5)
     doc.line(14, detailsY + 2, pageW - 14, detailsY + 2)
 
     let afterCatY = detailsY + 8
 
-    // ── Section 1: Category-wise Spending ────────────────────────────────────
-    const catEntries = Object.entries(report.categoryTotals || {}) as [string, number][]
+    // ── Date-filtered transactions ──────────────────────────────────────────
+    const allTxs: any[] = report.transactions || []
+    const filteredByDate = allTxs.filter((tx: any) => {
+      const d = new Date(tx.date)
+      if (pdfDateStart && d < new Date(pdfDateStart)) return false
+      if (pdfDateEnd && d > new Date(pdfDateEnd + 'T23:59:59')) return false
+      return true
+    })
+
+    // Rebuild category totals from filtered transactions
+    const filteredCatTotals: Record<string, number> = {}
+    filteredByDate.forEach((tx: any) => {
+      if (tx.type === 'OUTFLOW') {
+        filteredCatTotals[tx.category] = (filteredCatTotals[tx.category] || 0) + tx.amount
+      }
+    })
+    const filteredTotalExpense = Object.values(filteredCatTotals).reduce((a, b) => a + b, 0)
+
+    // ── Section 1: Category-wise Spending ───────────────────────────────────
+    const catEntries = Object.entries(filteredCatTotals) as [string, number][]
     if (catEntries.length > 0) {
       doc.setFontSize(9)
       doc.setFont('helvetica', 'bold')
@@ -318,57 +363,62 @@ export default function ProjectDetailPage() {
 
       autoTable(doc, {
         startY: afterCatY + 8,
-        head: [['Category', 'Amount (BDT)']],
+        head: [['Category', 'Amount (BDT)', '% of Total']],
         body: catEntries
           .sort((a, b) => b[1] - a[1])
           .map(([cat, val]) => [
             formatCategory(cat),
             { content: val.toLocaleString(), styles: { textColor: [0, 0, 0], fontStyle: 'bold', halign: 'right' } },
+            {
+              content: filteredTotalExpense > 0 ? `${((val / filteredTotalExpense) * 100).toFixed(1)}%` : '—',
+              styles: { halign: 'right', textColor: [0, 0, 0] }
+            },
           ]),
         theme: 'grid',
         foot: [[
           { content: 'TOTAL EXPENSE', styles: { fontStyle: 'bold', textColor: [0, 0, 0] } },
-          { content: totalExpense.toLocaleString(), styles: { fontStyle: 'bold', halign: 'right', textColor: [0, 0, 0] } },
+          { content: filteredTotalExpense.toLocaleString(), styles: { fontStyle: 'bold', halign: 'right', textColor: [0, 0, 0] } },
+          { content: '100%', styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 0] } },
         ]],
-        headStyles: { 
-          fillColor: [255, 255, 255], 
-          textColor: [0, 0, 0], 
-          fontStyle: 'bold', 
+        headStyles: {
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
           fontSize: 8,
           lineColor: [200, 200, 200],
           lineWidth: 0.1,
         },
-        bodyStyles: { 
-          fillColor: [255, 255, 255], 
+        bodyStyles: {
+          fillColor: [255, 255, 255],
           textColor: [0, 0, 0],
           fontSize: 8,
           lineColor: [200, 200, 200],
           lineWidth: 0.1,
         },
-        footStyles: { 
-          fillColor: [255, 255, 255], 
+        footStyles: {
+          fillColor: [255, 255, 255],
           textColor: [0, 0, 0],
           fontSize: 8.5,
           lineColor: [200, 200, 200],
           lineWidth: 0.1,
         },
         columnStyles: {
-          0: { cellWidth: 100 },
-          1: { cellWidth: 50, halign: 'right' },
+          0: { cellWidth: 90 },
+          1: { cellWidth: 40, halign: 'right' },
+          2: { cellWidth: 30, halign: 'right' },
         },
       })
       afterCatY = (doc as any).lastAutoTable?.finalY ?? (afterCatY + 8)
     }
 
-    // ── Section 2: Full Transaction Table ────────────────────────────────────
+    // ── Section 2: Full Transaction Table ───────────────────────────────────
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(30, 41, 59)
     doc.text('TRANSACTIONS', 14, afterCatY + 10)
 
-    const txs: any[] = report.transactions || []
-    // Sort by date (oldest to newest for ledger)
-    const sorted = [...txs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    // Sort by date oldest to newest
+    const sorted = [...filteredByDate].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
     const bodyRows = sorted.map((tx: any) => {
       const isInflow = tx.type === 'INFLOW'
@@ -547,20 +597,48 @@ export default function ProjectDetailPage() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="hidden text-sm text-muted-foreground sm:inline">
               {new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}
             </span>
             {report && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-2"
-                onClick={() => void handleDownloadPDF()}
-              >
-                <FileDown className="w-4 h-4" />
-                Download PDF
-              </Button>
+              <>
+                <input
+                  type="date"
+                  value={pdfDateStart}
+                  onChange={(e) => setPdfDateStart(e.target.value)}
+                  className="bg-card text-foreground border border-border p-1.5 rounded-md h-8 text-xs"
+                  placeholder="From date"
+                  title="PDF from date"
+                />
+                <span className="text-muted-foreground text-xs">→</span>
+                <input
+                  type="date"
+                  value={pdfDateEnd}
+                  onChange={(e) => setPdfDateEnd(e.target.value)}
+                  className="bg-card text-foreground border border-border p-1.5 rounded-md h-8 text-xs"
+                  placeholder="To date"
+                  title="PDF to date"
+                />
+                {(pdfDateStart || pdfDateEnd) && (
+                  <button
+                    onClick={() => { setPdfDateStart(''); setPdfDateEnd('') }}
+                    className="text-xs text-muted-foreground hover:text-foreground underline"
+                    title="Clear date filter"
+                  >
+                    Clear
+                  </button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => void handleDownloadPDF()}
+                >
+                  <FileDown className="w-4 h-4" />
+                  Download PDF
+                </Button>
+              </>
             )}
           </div>
         </div>

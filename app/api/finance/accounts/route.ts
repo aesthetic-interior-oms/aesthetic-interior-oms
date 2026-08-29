@@ -8,9 +8,25 @@ export async function GET() {
     if (!userId) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
 
     const accounts = await prisma.financeAccount.findMany({
+      include: {
+        transactions: {
+          select: { type: true, amount: true }
+        }
+      },
       orderBy: { createdAt: 'asc' }
     })
-    return NextResponse.json({ success: true, data: accounts })
+
+    const accountsWithBalance = accounts.map(acc => {
+      let balance = 0
+      acc.transactions.forEach(tx => {
+        if (tx.type === 'INFLOW') balance += tx.amount
+        else balance -= tx.amount
+      })
+      const { transactions, ...rest } = acc
+      return { ...rest, balance }
+    })
+
+    return NextResponse.json({ success: true, data: accountsWithBalance })
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }

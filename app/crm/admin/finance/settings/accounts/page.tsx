@@ -35,6 +35,7 @@ type FinanceAccount = {
   name: string
   isActive: boolean
   createdAt: string
+  balance: number
 }
 
 type Transaction = {
@@ -418,6 +419,9 @@ export default function AccountsSettingsPage() {
                       </div>
                       <div className="flex flex-col">
                         <span className="font-medium text-sm">{acc.name}</span>
+                        <span className={`text-xs font-bold ${acc.balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          {acc.balance.toLocaleString()} BDT
+                        </span>
                         {!acc.isActive && (
                           <Badge variant="destructive" className="text-[10px] w-fit py-0 px-1 h-4 mt-0.5">Disabled</Badge>
                         )}
