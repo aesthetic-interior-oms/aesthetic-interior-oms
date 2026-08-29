@@ -1473,14 +1473,6 @@ export function LeadActionsPanel({
       setVisitResultError('You can only submit data for visits assigned to you.')
       return
     }
-    const hasPendingPrimarySupport =
-      visitResultRole === 'LEAD' && supportDataEnabled
-        ? hasPendingPrimarySupportResult(selectedVisitResult)
-        : false
-    if (hasPendingPrimarySupport) {
-      setVisitResultError('Visit cannot be completed until the first support member submits support data.')
-      return
-    }
     if (visitResultRole === 'SUPPORT' && !supportDataEnabled) {
       setVisitResultError('Support data workflow is disabled by admin. Support members are read-only.')
       return
@@ -2696,15 +2688,6 @@ export function LeadActionsPanel({
               </div>
             ) : null}
 
-            {visitResultRole === 'LEAD' &&
-            selectedVisitResult &&
-            supportDataEnabled &&
-            hasPendingPrimarySupportResult(selectedVisitResult) ? (
-              <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-                This visit cannot be completed yet. The first support member must submit support data first.
-              </div>
-            ) : null}
-
             {visitResultRole === 'SUPPORT' ? (
               <>
                 <div className="space-y-2">
@@ -2973,10 +2956,7 @@ export function LeadActionsPanel({
                 loadingVisitResultData ||
                 visitResultCandidates.length === 0 ||
                 !visitResultVisitId ||
-                visitResultRole === 'NONE' ||
-                (visitResultRole === 'LEAD' &&
-                  supportDataEnabled &&
-                  Boolean(hasPendingPrimarySupportResult(selectedVisitResult)))
+                visitResultRole === 'NONE'
               }
             >
               {submittingVisitResult

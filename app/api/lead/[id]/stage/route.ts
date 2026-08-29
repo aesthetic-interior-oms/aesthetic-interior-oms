@@ -288,7 +288,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         {
           success: false,
           error:
-            'Visit Completed must be submitted from the visit result flow after support member data is submitted.',
+            'Visit Completed must be submitted from the visit result flow.',
         },
         { status: 409 },
       );

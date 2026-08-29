@@ -596,12 +596,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
       if (!summary) {
         throw new Error('LEAD_SUMMARY_REQUIRED')
       }
-      const isPrimarySupportPending =
-        visitWorkflow.supportDataEnabled && Boolean(primarySupportAssignment && !primarySupportAssignment.result)
-      if (isPrimarySupportPending) {
-        throw new Error('SUPPORT_PENDING')
-      }
-
       const hadLeadResult = Boolean(visit.result)
       const savedResult = await tx.visitResult.upsert({
         where: { visitId },
@@ -792,16 +786,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
           error: 'supportClientName, supportProjectArea and supportProjectStatus are required',
         },
         { status: 400 },
-      )
-    }
-
-    if (error instanceof Error && error.message === 'SUPPORT_PENDING') {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Visit cannot be completed until the first support member submits support data.',
-        },
-        { status: 409 },
       )
     }
 
