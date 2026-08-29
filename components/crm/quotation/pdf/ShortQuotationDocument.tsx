@@ -205,7 +205,7 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
           <View key={entry.floor.id}>
             <View style={[styles.tRow, styles.summaryFloorRow]}>
               <Text style={[styles.tdCol, styles.wSumSl, { borderRightWidth: 0 }]}>{String(index + 1).padStart(2, '0')}</Text>
-              <Text style={[styles.tdCol, styles.wSumName, styles.bold, { borderRightWidth: 0 }]}>{softWrapPdfText(entry.floor.name)}</Text>
+              <Text style={[styles.tdCol, styles.wSumName, { borderRightWidth: 0 }]}>{softWrapPdfText(entry.floor.name)}</Text>
               <Text style={[styles.tdCol, styles.wSumSqft, styles.bold, { borderRightWidth: 0 }]}>{formatAmount(getFloorSqft(entry))}</Text>
               <Text style={[styles.tdCol, styles.wSumTotal, styles.bold, { borderRightWidth: 0 }]}>{formatCurrency(entry.total)}</Text>
             </View>
