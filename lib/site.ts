@@ -1,10 +1,6 @@
 export const siteName = "Aesthetic Interior Studio"
 
-export const siteUrl = (
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  process.env.NEXT_PUBLIC_APP_URL ??
-  "https://www.aestheticinteriorbd.com"
-).replace(/\/$/, "")
+export const siteUrl = "https://www.aestheticinteriorbd.com"
 
 export function absoluteUrl(path: string) {
   if (/^https?:\/\//i.test(path)) {

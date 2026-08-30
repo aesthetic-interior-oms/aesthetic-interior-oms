@@ -85,7 +85,7 @@ function PageFooter({ content }: { content: ShortQuotationContent }) {
         </div>
         <div className="flex w-[30%] flex-col items-center">
           <p>+88 0132969 4663</p>
-          <p>hello@aestheticinterior.com</p>
+          <p>hello@aestheticinteriorbd.com</p>
           <p className="font-bold" style={{ color: PRIMARY }}>www.aestheticinteriorbd.com</p>
         </div>
         <div className="flex w-[35%] flex-col items-end justify-end">

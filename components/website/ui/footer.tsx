@@ -199,7 +199,7 @@ export function Footer() {
                 className="flex items-center gap-3 text-white/70 hover:text-[#a57c00] transition-colors"
               >
                 <Mail className="h-5 w-5 text-[#a57c00] flex-shrink-0" />
-                <span className="text-sm break-all">hello@aestheticinterior.com</span>
+                <span className="text-sm break-all">hello@aestheticinteriorbd.com</span>
               </motion.a>
             </div>
           </motion.div>

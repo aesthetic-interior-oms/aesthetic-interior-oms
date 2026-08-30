@@ -85,11 +85,11 @@ export function CTASection() {
 
           <div className="space-y-2">
             <motion.a
-              href="mailto:hello@aestheticinterior.com"
+              href="mailto:hello@aestheticinteriorbd.com"
               whileHover={{ color: '#a57c00' }}
               className="block cursor-pointer font-medium text-white transition-colors"
             >
-              hello@aestheticinterior.com
+              hello@aestheticinteriorbd.com
             </motion.a>
 
             <motion.a

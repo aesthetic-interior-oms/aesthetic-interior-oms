@@ -25,7 +25,7 @@ export default function PrivacyPolicyPage() {
         <h2 className="mb-2 text-xl font-semibold">3. Data Deletion</h2>
         <p>
           You can request deletion of your data at any time by messaging our Facebook Page or
-          contacting us at <strong>support@aestheticinterior.com</strong>. We process deletion
+          contacting us at <strong>support@aestheticinteriorbd.com</strong>. We process deletion
           requests within 48 hours.
         </p>
       </section>

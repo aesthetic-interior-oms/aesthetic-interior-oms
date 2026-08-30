@@ -22,7 +22,7 @@ export function LocalBusinessJsonLd() {
     logo: absoluteUrl("/Logo/HeaderLogo.png"),
     url: siteUrl,
     telephone: "+8801329694663",
-    email: "hello@aestheticinterior.com",
+    email: "hello@aestheticinteriorbd.com",
     priceRange: "$$",
     address: {
       "@type": "PostalAddress",
