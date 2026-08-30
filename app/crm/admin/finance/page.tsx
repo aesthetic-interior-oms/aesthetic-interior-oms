@@ -62,6 +62,8 @@ import {
   Upload,
   Loader2,
   FileDown,
+  Pencil,
+  Trash2,
 } from "lucide-react"
 import { uploadDirectBlobFile } from "@/lib/client-blob-upload"
 
@@ -177,6 +179,9 @@ export default function FinanceDashboard() {
   const [accounts, setAccounts] = useState<any[]>([])
   const [balances, setBalances] = useState({ cash: 0, bank: 0, total: 0 })
   const [loading, setLoading] = useState(true)
+  const [activeTxId, setActiveTxId] = useState<string | null>(null)
+  const [editingTxId, setEditingTxId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState<string | null>(null)
 
   // Journal date filter states
   const [datePreset, setDatePreset] = useState<DatePreset>("today")
@@ -428,31 +433,35 @@ export default function FinanceDashboard() {
         uploadedImageUrl = uploaded.url
       }
 
-      const res = await fetch("/api/finance/transactions", {
-        method: "POST",
+      const method = editingTxId ? "PATCH" : "POST"
+      const url = editingTxId ? `/api/finance/transactions/${editingTxId}` : "/api/finance/transactions"
+
+      const payload: any = {
+        type,
+        category,
+        particular,
+        amount: parseFloat(amount),
+        financeAccountId: account,
+        leadId: leadId === "none" ? null : leadId,
+        visitId,
+        collectedById,
+        date,
+      }
+      if (uploadedImageUrl) {
+        payload.imageUrl = uploadedImageUrl
+      }
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type,
-          category,
-          particular,
-          amount: parseFloat(amount),
-          financeAccountId: account,
-          leadId: leadId === "none" ? null : leadId,
-          visitId,
-          collectedById,
-          date,
-          imageUrl: uploadedImageUrl,
-        }),
+        body: JSON.stringify(payload),
       })
 
       const data = await res.json()
       if (data.success) {
-        toast.success("Transaction logged successfully")
+        toast.success(editingTxId ? "Transaction updated successfully" : "Transaction logged successfully")
         setIsLogOpen(false)
-        setParticular("")
-        setAmount("")
-        setImageFile(null)
-        setPreviewUrl(null)
+        resetForm()
         loadData()
       } else {
         toast.error(data.error || "Failed to log transaction")
@@ -462,6 +471,48 @@ export default function FinanceDashboard() {
     } finally {
       setIsUploading(false)
     }
+  }
+
+  const handleDeleteTransaction = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this transaction?")) return
+    try {
+      setIsDeleting(id)
+      const res = await fetch(`/api/finance/transactions/${id}`, { method: "DELETE" })
+      const data = await res.json()
+      if (data.success) {
+        toast.success("Transaction deleted")
+        if (activeTxId === id) setActiveTxId(null)
+        loadData()
+      } else {
+        toast.error(data.error || "Failed to delete transaction")
+      }
+    } catch (err: any) {
+      toast.error("Error deleting transaction: " + err.message)
+    } finally {
+      setIsDeleting(null)
+    }
+  }
+
+  const openEditTransaction = (tx: any) => {
+    setEditingTxId(tx.id)
+    setType(tx.type)
+    setCategory(tx.category)
+    setParticular(tx.particular)
+    setAmount(tx.amount.toString())
+    setAccount(tx.financeAccountId)
+    setLeadId(tx.leadId || "none")
+    setDate(new Date(tx.date).toISOString().split("T")[0])
+    setPreviewUrl(tx.imageUrl || null)
+    setImageFile(null)
+    setIsLogOpen(true)
+  }
+
+  const resetForm = () => {
+    setEditingTxId(null)
+    setParticular("")
+    setAmount("")
+    setImageFile(null)
+    setPreviewUrl(null)
   }
 
   // Client-side search filter only (type/date filters go to the API)
@@ -688,6 +739,7 @@ export default function FinanceDashboard() {
         <Dialog open={isLogOpen} onOpenChange={(open) => {
           setIsLogOpen(open)
           if (!open) {
+            resetForm()
             setLeadId("none")
             setPickerSearch("")
             setPickerSrCrmFilter("all")
@@ -705,7 +757,7 @@ export default function FinanceDashboard() {
           </DialogTrigger>
           <DialogContent className="max-w-md bg-card border border-border">
             <DialogHeader>
-              <DialogTitle>Log New Transaction</DialogTitle>
+              <DialogTitle>{editingTxId ? "Edit Transaction" : "Log New Transaction"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleCreateTransaction} className="space-y-4 pt-4">
               <div className="grid grid-cols-2 gap-2">
@@ -1402,64 +1454,103 @@ export default function FinanceDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border text-sm">
-                      {filteredTransactions.map((tx, idx) => (
-                        <tr key={tx.id} className="hover:bg-muted/20">
-                          <td className="p-3 text-xs font-medium text-muted-foreground">
-                            {tx.serialNo || idx + 1}
-                          </td>
-                          <td className="p-3 text-xs font-mono font-medium">
-                            {tx.voucherNo || "-"}
-                          </td>
-                          <td className="p-3 text-xs whitespace-nowrap">
-                            {new Date(tx.date).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </td>
-                          <td className="p-3 font-medium max-w-[150px] lg:max-w-[250px] truncate" title={tx.particular}>
-                            {tx.particular}
-                          </td>
-                          <td className="p-3 text-xs">
-                            {tx.lead ? (
-                              <Badge variant="secondary" className="font-semibold">
-                                {tx.lead.name}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">Office (Overhead)</span>
+                      {filteredTransactions.map((tx, idx) => {
+                        const isActive = activeTxId === tx.id
+                        const isDeletingThis = isDeleting === tx.id
+                        return (
+                          <React.Fragment key={tx.id}>
+                            <tr
+                              className={`cursor-pointer transition-colors ${isActive ? "bg-primary/5" : "hover:bg-muted/20"}`}
+                              onClick={() => setActiveTxId(isActive ? null : tx.id)}
+                            >
+                              <td className="p-3 text-xs font-medium text-muted-foreground">
+                                {tx.serialNo || idx + 1}
+                              </td>
+                              <td className="p-3 text-xs font-mono font-medium">
+                                {tx.voucherNo || "-"}
+                              </td>
+                              <td className="p-3 text-xs whitespace-nowrap">
+                                {new Date(tx.date).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </td>
+                              <td className="p-3 font-medium max-w-[150px] lg:max-w-[250px] truncate" title={tx.particular}>
+                                {tx.particular}
+                              </td>
+                              <td className="p-3 text-xs">
+                                {tx.lead ? (
+                                  <Badge variant="secondary" className="font-semibold">
+                                    {tx.lead.name}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-muted-foreground">Office (Overhead)</span>
+                                )}
+                              </td>
+                              <td className="p-3 text-xs">
+                                {CATEGORY_LABELS[tx.category] || tx.category}
+                              </td>
+                              <td className="p-3 text-xs">
+                                <Badge variant="outline">{tx.financeAccount?.name || "Unknown Account"}</Badge>
+                              </td>
+                              <td className="p-3 text-xs">{tx.recordedBy?.fullName}</td>
+                              <td className="p-3 text-center">
+                                {tx.imageUrl ? (
+                                  <button
+                                    type="button"
+                                    className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-muted transition-colors text-primary"
+                                    onClick={(e) => { e.stopPropagation(); setLightboxImage(tx.imageUrl) }}
+                                    title="View Receipt"
+                                  >
+                                    <ImageIcon className="w-4 h-4" />
+                                  </button>
+                                ) : (
+                                  <div className="inline-flex items-center justify-center w-8 h-8 text-muted-foreground/30" title="No Receipt">
+                                    <ImageIcon className="w-4 h-4" />
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-3 text-right font-bold text-emerald-500">
+                                {tx.type === "INFLOW" ? `${tx.amount.toLocaleString()} BDT` : "-"}
+                              </td>
+                              <td className="p-3 text-right font-bold text-rose-500">
+                                {tx.type === "OUTFLOW" ? `${tx.amount.toLocaleString()} BDT` : "-"}
+                              </td>
+                            </tr>
+                            {isActive && (
+                              <tr className="bg-primary/5 border-t-0">
+                                <td colSpan={11} className="px-4 py-2">
+                                  <div className="flex items-center gap-2 justify-end">
+                                    <span className="text-xs text-muted-foreground mr-auto">
+                                      #{tx.voucherNo || tx.id.slice(0, 8)} — Actions
+                                    </span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs gap-1.5"
+                                      onClick={(e) => { e.stopPropagation(); openEditTransaction(tx) }}
+                                    >
+                                      <Pencil className="w-3 h-3" />
+                                      Edit
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      className="h-7 text-xs gap-1.5"
+                                      disabled={isDeletingThis}
+                                      onClick={(e) => { e.stopPropagation(); handleDeleteTransaction(tx.id) }}
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                      {isDeletingThis ? "Deleting..." : "Delete"}
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
                             )}
-                          </td>
-                          <td className="p-3 text-xs">
-                            {CATEGORY_LABELS[tx.category] || tx.category}
-                          </td>
-                          <td className="p-3 text-xs">
-                            <Badge variant="outline">{tx.financeAccount?.name || "Unknown Account"}</Badge>
-                          </td>
-                          <td className="p-3 text-xs">{tx.recordedBy?.fullName}</td>
-                          <td className="p-3 text-center">
-                            {tx.imageUrl ? (
-                              <button
-                                type="button"
-                                className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-muted transition-colors text-primary"
-                                onClick={() => setLightboxImage(tx.imageUrl)}
-                                title="View Receipt"
-                              >
-                                <ImageIcon className="w-4 h-4" />
-                              </button>
-                            ) : (
-                              <div className="inline-flex items-center justify-center w-8 h-8 text-muted-foreground/30" title="No Receipt">
-                                <ImageIcon className="w-4 h-4" />
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-3 text-right font-bold text-emerald-500">
-                            {tx.type === "INFLOW" ? `${tx.amount.toLocaleString()} BDT` : "-"}
-                          </td>
-                          <td className="p-3 text-right font-bold text-rose-500">
-                            {tx.type === "OUTFLOW" ? `${tx.amount.toLocaleString()} BDT` : "-"}
-                          </td>
-                        </tr>
-                      ))}
+                          </React.Fragment>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>

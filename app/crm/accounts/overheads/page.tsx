@@ -43,6 +43,7 @@ export default function OverheadsPage() {
   const [loading, setLoading] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [modalCategory, setModalCategory] = useState<string | null>(null)
+  const [modalPdfLoading, setModalPdfLoading] = useState(false)
 
   const loadMonthlyReport = async (month: string) => {
     setLoading(true)
@@ -211,6 +212,95 @@ export default function OverheadsPage() {
     }
   }
 
+  const handleDownloadModalPDF = async (category: string) => {
+    if (!monthlyReport?.transactions) {
+      toast.error('No data available to export.')
+      return
+    }
+    const txs = monthlyReport.transactions.filter((t: any) => t.category === category && !t.leadId)
+    if (txs.length === 0) {
+      toast.error('No transactions in this category.')
+      return
+    }
+
+    setModalPdfLoading(true)
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+
+      const doc = new jsPDF({ orientation: 'portrait' })
+      const pageW = doc.internal.pageSize.getWidth()
+      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      const [year, month] = selectedMonth.split('-')
+      const monthLabel = new Date(parseInt(year), parseInt(month) - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+      const catLabel = CATEGORY_LABELS[category] || category
+      const total = txs.reduce((sum: number, t: any) => sum + t.amount, 0)
+
+      const logoImg = new Image()
+      logoImg.src = '/Logo/HeaderLogo.png'
+      await new Promise((resolve) => {
+        logoImg.onload = resolve
+        logoImg.onerror = resolve
+      })
+
+      doc.addImage(logoImg, 'PNG', 14, 14, 43.2, 8)
+
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(30, 41, 59)
+      doc.text(catLabel.toUpperCase(), pageW - 14, 18, { align: 'right' })
+
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(100, 116, 139)
+      doc.text(`Month: ${monthLabel}  ·  Generated: ${today}`, pageW - 14, 23, { align: 'right' })
+
+      doc.setFillColor(248, 250, 252)
+      doc.setDrawColor(226, 232, 240)
+      doc.setLineWidth(0.4)
+      doc.roundedRect(14, 28, pageW - 28, 8, 1.5, 1.5, 'FD')
+
+      doc.setFontSize(7.5)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(100, 116, 139)
+      doc.text(`TRANSACTIONS: ${txs.length}`, 20, 33.5)
+      doc.setTextColor(220, 38, 38)
+      doc.text(`TOTAL: ${total.toLocaleString()} BDT`, 80, 33.5)
+
+      autoTable(doc, {
+        startY: 40,
+        head: [['Date', 'Particulars', 'Account', 'Recorder', 'Amount (BDT)']],
+        body: txs
+          .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+          .map((tx: any) => [
+            new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+            tx.particular || '—',
+            tx.financeAccount?.name || 'Unknown',
+            tx.recordedBy?.fullName || 'Unknown',
+            { content: tx.amount.toLocaleString(), styles: { halign: 'right', fontStyle: 'bold', textColor: [220, 38, 38] } },
+          ]),
+        foot: [[
+          { content: 'Total', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 0] } },
+          { content: `${total.toLocaleString()} BDT`, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 0] } },
+        ]],
+        theme: 'grid',
+        headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [200, 200, 200], lineWidth: 0.1 },
+        bodyStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontSize: 7.5, cellPadding: 2.5, lineColor: [200, 200, 200], lineWidth: 0.1 },
+        footStyles: { fillColor: [248, 250, 252], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [200, 200, 200], lineWidth: 0.1 },
+        columnStyles: { 0: { cellWidth: 24 }, 4: { halign: 'right', cellWidth: 28 } },
+      })
+
+      const slug = catLabel.toLowerCase().replace(/\s+/g, '-')
+      doc.save(`${slug}-${selectedMonth}.pdf`)
+      toast.success('PDF downloaded!')
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to generate PDF.')
+    } finally {
+      setModalPdfLoading(false)
+    }
+  }
+
   return (
     <div className="flex flex-col min-h-screen">
       <CrmPageHeader
@@ -341,7 +431,24 @@ export default function OverheadsPage() {
           <Dialog open={!!modalCategory} onOpenChange={(open) => !open && setModalCategory(null)}>
             <DialogContent className="max-w-[95vw] md:max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader className="border-b pb-4">
-                <DialogTitle>Transactions for {CATEGORY_LABELS[modalCategory || ''] || modalCategory}</DialogTitle>
+                <div className="flex items-center justify-between gap-4">
+                  <DialogTitle>
+                    Transactions for {CATEGORY_LABELS[modalCategory || ''] || modalCategory}
+                  </DialogTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2 shrink-0"
+                    disabled={modalPdfLoading}
+                    onClick={() => modalCategory && handleDownloadModalPDF(modalCategory)}
+                  >
+                    {modalPdfLoading
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <FileDown className="w-4 h-4" />
+                    }
+                    Download PDF
+                  </Button>
+                </div>
               </DialogHeader>
               <div className="overflow-x-auto mt-2">
                 <table className="w-full text-left text-sm">
