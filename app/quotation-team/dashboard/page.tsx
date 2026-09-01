@@ -18,18 +18,23 @@ import {
 import {
   AlertCircle,
   ArrowUpRight,
+  Award,
+  Calendar,
   CheckCircle2,
   Clock,
-  FileCheck2,
   FileSpreadsheet,
   FileText,
   Layers,
   RefreshCw,
+  Trophy,
+  UserCheck,
+  Zap,
 } from 'lucide-react'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 
 type StatusBreakdownItem = {
@@ -65,10 +70,55 @@ type DashboardStats = {
   draftCount: number
 }
 
+type PerformanceMember = {
+  rank: number
+  userId: string
+  fullName: string
+  email: string
+  detailSqft: number
+  shortSqft: number
+  totalSqft: number
+  completedCount: number
+  avgWorkingHours: number
+  performanceScore: number
+  updatedAt: string | null
+}
+
+type DepartmentSummary = {
+  totalTeamMembers: number
+  totalDepartmentSqft: number
+  totalDetailSqft: number
+  totalShortSqft: number
+  totalCompletedQuotations: number
+  avgDepartmentSpeedHours: number
+}
+
+function getRecentMonthsList() {
+  const months: { label: string; value: string }[] = []
+  const now = new Date()
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const yyyy = d.getFullYear()
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    const monthKey = `${yyyy}-${mm}`
+    const label = d.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+    months.push({ label, value: monthKey })
+  }
+  return months
+}
+
 export default function QuotationTeamDashboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<DashboardStats | null>(null)
+
+  // Performance state
+  const availableMonths = getRecentMonthsList()
+  const [selectedMonth, setSelectedMonth] = useState(availableMonths[0]?.value ?? '')
+  const [perfLoading, setPerfLoading] = useState(true)
+  const [myPerformance, setMyPerformance] = useState<PerformanceMember | null>(null)
+  const [deptSummary, setDeptSummary] = useState<DepartmentSummary | null>(null)
+  const [leaderboard, setLeaderboard] = useState<PerformanceMember[]>([])
 
   const fetchDashboardData = async () => {
     setLoading(true)
@@ -87,34 +137,75 @@ export default function QuotationTeamDashboardPage() {
     }
   }
 
+  const fetchPerformanceData = async (monthKey: string) => {
+    setPerfLoading(true)
+    try {
+      const response = await fetch(`/api/quotation/performance?month=${monthKey}`, { cache: 'no-store' })
+      const payload = await response.json()
+      if (response.ok && payload.success) {
+        setMyPerformance(payload.myPerformance as PerformanceMember | null)
+        setDeptSummary(payload.departmentSummary as DepartmentSummary)
+        setLeaderboard(payload.leaderboard as PerformanceMember[])
+      }
+    } catch (err) {
+      console.error('Failed to load quotation performance data:', err)
+    } finally {
+      setPerfLoading(false)
+    }
+  }
+
   useEffect(() => {
     void fetchDashboardData()
   }, [])
+
+  useEffect(() => {
+    if (selectedMonth) {
+      void fetchPerformanceData(selectedMonth)
+    }
+  }, [selectedMonth])
 
   return (
     <div className="min-h-screen bg-background">
       <CrmPageHeader
         title="Quotation Team Dashboard"
-        subtitle="Real-time analytics, pipeline breakdown, performance trends, and assigned quotation queues."
+        subtitle="Real-time analytics, pipeline breakdown, performance trends, and pre-calculated department metrics."
       />
 
-      <main className="mx-auto max-w-[1440px] space-y-6 px-6 py-6">
-        {/* Header Action Row */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <main className="mx-auto max-w-[1440px] space-y-8 px-6 py-6">
+        {/* Header Action Row & Month Filter */}
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-4 shadow-sm">
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-foreground">Performance Overview</h2>
-            <p className="text-xs text-muted-foreground">Updated from backend database records</p>
+            <h2 className="text-xl font-bold tracking-tight text-foreground">Quotation Department Performance</h2>
+            <p className="text-xs text-muted-foreground">Pre-calculated on backend for zero-latency loading</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[180px] h-9">
+                  <SelectValue placeholder="Select Month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableMonths.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => void fetchDashboardData()}
-              disabled={loading}
+              onClick={() => {
+                void fetchDashboardData()
+                void fetchPerformanceData(selectedMonth)
+              }}
+              disabled={loading || perfLoading}
               className="h-9"
             >
-              <RefreshCw className={`mr-1.5 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh Data
+              <RefreshCw className={`mr-1.5 h-4 w-4 ${loading || perfLoading ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
             <Button size="sm" asChild className="h-9">
               <Link href="/quotation-team/my-work">
@@ -135,9 +226,242 @@ export default function QuotationTeamDashboardPage() {
           </Card>
         ) : null}
 
-        {/* KPI Metric Cards */}
+        {/* --- PERFORMANCE SYSTEM SECTION --- */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-foreground">Monthly Team Performance</h3>
+            <Badge variant="outline" className="text-xs font-normal">
+              Month: {availableMonths.find((m) => m.value === selectedMonth)?.label ?? selectedMonth}
+            </Badge>
+          </div>
+
+          {/* Performance Overview Grid */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* My Rank & Score Card */}
+            <Card className="border-amber-200 bg-gradient-to-br from-amber-50/50 to-orange-50/50 dark:border-amber-900/40 dark:from-amber-950/20 dark:to-orange-950/20">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                  My Performance Rank
+                </CardTitle>
+                <Trophy className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </CardHeader>
+              <CardContent>
+                {perfLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-24" />
+                    <Skeleton className="h-3 w-36" />
+                  </div>
+                ) : myPerformance ? (
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-amber-950 dark:text-amber-100">
+                        #{myPerformance.rank}
+                      </span>
+                      <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                        ({myPerformance.performanceScore} pts)
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-amber-800/80 dark:text-amber-300/70">
+                      Out of {deptSummary?.totalTeamMembers ?? 0} team members
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No personal activity recorded for this month</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Total Detail SQFT Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Detail Quotation SQFT</CardTitle>
+                <div className="rounded-lg bg-blue-500/10 p-2 text-blue-600 dark:text-blue-400">
+                  <FileSpreadsheet className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {perfLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-2xl font-bold">
+                      {(deptSummary?.totalDetailSqft ?? 0).toLocaleString()}{' '}
+                      <span className="text-xs font-normal text-muted-foreground">SFT</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Mine: <span className="font-semibold text-foreground">{(myPerformance?.detailSqft ?? 0).toLocaleString()} SFT</span>
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Total Short SQFT Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Short Quotation SQFT</CardTitle>
+                <div className="rounded-lg bg-indigo-500/10 p-2 text-indigo-600 dark:text-indigo-400">
+                  <FileText className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {perfLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                      {(deptSummary?.totalShortSqft ?? 0).toLocaleString()}{' '}
+                      <span className="text-xs font-normal text-muted-foreground">SFT</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Mine: <span className="font-semibold text-foreground">{(myPerformance?.shortSqft ?? 0).toLocaleString()} SFT</span>
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Avg Completion Speed Card */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Avg Completion Speed</CardTitle>
+                <div className="rounded-lg bg-emerald-500/10 p-2 text-emerald-600 dark:text-emerald-400">
+                  <Zap className="h-4 w-4" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                {perfLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-20" />
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                ) : (
+                  <div>
+                    <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                      {deptSummary?.avgDepartmentSpeedHours ?? 0} <span className="text-xs font-normal text-muted-foreground">hours</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Mine: <span className="font-semibold text-foreground">{myPerformance?.avgWorkingHours ?? 0} hrs / task</span>
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Department Leaderboard & Comparison Table */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between py-4">
+              <div>
+                <CardTitle className="text-base font-bold">Team Member Performance Leaderboard</CardTitle>
+                <CardDescription>
+                  Pre-calculated stats for all quotation department members for{' '}
+                  <span className="font-medium text-foreground">
+                    {availableMonths.find((m) => m.value === selectedMonth)?.label}
+                  </span>
+                </CardDescription>
+              </div>
+              <Badge variant="secondary" className="text-xs">
+                {leaderboard.length} Members
+              </Badge>
+            </CardHeader>
+            <CardContent className="p-0">
+              {perfLoading ? (
+                <div className="space-y-3 p-4">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ) : leaderboard.length === 0 ? (
+                <div className="py-12 text-center text-sm text-muted-foreground">
+                  No quotation team performance data recorded for this month.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px] text-sm">
+                    <thead className="bg-muted/50 text-left text-xs font-semibold uppercase text-muted-foreground">
+                      <tr>
+                        <th className="w-16 px-4 py-3 text-center">Rank</th>
+                        <th className="px-4 py-3">Member Name</th>
+                        <th className="px-4 py-3 text-right">Detail SQFT</th>
+                        <th className="px-4 py-3 text-right">Short SQFT</th>
+                        <th className="px-4 py-3 text-right">Total SQFT</th>
+                        <th className="px-4 py-3 text-center">Completed</th>
+                        <th className="px-4 py-3 text-right">Avg Speed</th>
+                        <th className="px-4 py-3 text-right font-bold text-foreground">Score</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {leaderboard.map((member) => {
+                        const isMe = member.userId === myPerformance?.userId
+                        return (
+                          <tr
+                            key={member.userId}
+                            className={`hover:bg-muted/30 transition-colors ${
+                              isMe ? 'bg-amber-500/10 font-medium dark:bg-amber-500/15' : ''
+                            }`}
+                          >
+                            <td className="px-4 py-3 text-center">
+                              {member.rank === 1 ? (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-xs font-bold text-white shadow-xs">
+                                  1
+                                </span>
+                              ) : member.rank === 2 ? (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-300 text-xs font-bold text-slate-800 shadow-xs">
+                                  2
+                                </span>
+                              ) : member.rank === 3 ? (
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-700 text-xs font-bold text-white shadow-xs">
+                                  3
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">#{member.rank}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-foreground">{member.fullName}</span>
+                                {isMe ? <Badge variant="outline" className="text-[10px]">You</Badge> : null}
+                              </div>
+                              <span className="text-xs text-muted-foreground">{member.email}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">{member.detailSqft.toLocaleString()} SFT</td>
+                            <td className="px-4 py-3 text-right">{member.shortSqft.toLocaleString()} SFT</td>
+                            <td className="px-4 py-3 text-right font-semibold text-foreground">
+                              {member.totalSqft.toLocaleString()} SFT
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <Badge variant="secondary" className="text-xs">
+                                {member.completedCount}
+                              </Badge>
+                            </td>
+                            <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                              {member.avgWorkingHours > 0 ? `${member.avgWorkingHours} hrs` : 'N/A'}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-1 text-xs font-extrabold text-primary">
+                                {member.performanceScore} / 100
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* --- KPI STATS SECTION --- */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Card 1: Total Assigned */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Assigned Tasks</CardTitle>
@@ -160,7 +484,6 @@ export default function QuotationTeamDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Card 2: In Working */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Active In-Progress</CardTitle>
@@ -185,7 +508,6 @@ export default function QuotationTeamDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Card 3: Completed / Approved */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Completed &amp; Approved</CardTitle>
@@ -210,7 +532,6 @@ export default function QuotationTeamDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Card 4: Total SQFT Handled */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total SQFT Volume</CardTitle>
@@ -238,7 +559,6 @@ export default function QuotationTeamDashboardPage() {
 
         {/* Charts Section using Recharts */}
         <div className="grid gap-6 lg:grid-cols-7">
-          {/* Chart 1: Monthly Trends (Bar Chart) - 4 cols */}
           <Card className="lg:col-span-4">
             <CardHeader>
               <CardTitle className="text-base font-semibold">Monthly Workflow Activity</CardTitle>
@@ -274,7 +594,6 @@ export default function QuotationTeamDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Chart 2: Status Distribution (Pie Chart) - 3 cols */}
           <Card className="lg:col-span-3">
             <CardHeader>
               <CardTitle className="text-base font-semibold">Status Breakdown</CardTitle>
@@ -338,7 +657,6 @@ export default function QuotationTeamDashboardPage() {
 
         {/* Recent Work Activity & Quick Navigation */}
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Recent Queue - 2 cols */}
           <Card className="lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between py-4">
               <div>
@@ -395,7 +713,6 @@ export default function QuotationTeamDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Quick Tools & Shortcuts - 1 col */}
           <Card>
             <CardHeader className="py-4">
               <CardTitle className="text-base font-semibold">Quotation Tools &amp; Resources</CardTitle>

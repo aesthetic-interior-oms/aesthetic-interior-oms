@@ -11,6 +11,7 @@ import prisma from '@/lib/prisma'
 import { listVisitCompleteQueueItems } from '@/lib/visit-complete-queue'
 import { calculateVisitTeamPerformance } from '@/lib/visit-performance'
 import { calculateSrCrmPerformance } from '@/lib/sr-crm-performance'
+import { getMonthKey, syncAllQuotationTeamPerformance } from '@/lib/quotation-performance'
 import {
   AdminCommandCenterDashboard,
   formatLabel,
@@ -261,6 +262,27 @@ export default async function AdminDashboardPage() {
     orderBy: { performanceScore: 'desc' },
   })
 
+  // Quotation Team Pre-Calculated Monthly Performance
+  const monthKey = getMonthKey(now)
+  await syncAllQuotationTeamPerformance(now)
+  const quotationPerformanceRecords = await prisma.quotationUserPerformance.findMany({
+    where: { monthKey },
+    include: { user: { select: { fullName: true, email: true } } },
+    orderBy: { performanceScore: 'desc' },
+  })
+
+  const quotationPerformances = quotationPerformanceRecords.map((r) => ({
+    userId: r.userId,
+    fullName: r.user.fullName,
+    email: r.user.email,
+    detailSqft: r.detailSqft,
+    shortSqft: r.shortSqft,
+    totalSqft: r.totalSqft,
+    completedCount: r.completedCount,
+    avgWorkingHours: r.avgWorkingHours,
+    performanceScore: r.performanceScore,
+  }))
+
   const priorityActions: PriorityAction[] = [
     ...overdueCadTasks.map((task): PriorityAction => ({
       id: `cad-task-${task.id}`,
@@ -382,6 +404,7 @@ export default async function AdminDashboardPage() {
       visitTeamPerformance={visitTeamPerformance}
       srCrmPerformance={srCrmPerformance}
       jrArchitectPerformances={jrArchitectPerformances}
+      quotationPerformances={quotationPerformances}
       overduePendingVisits={overduePendingVisits.map((visit) => ({
         id: visit.id,
         leadId: visit.lead.id,

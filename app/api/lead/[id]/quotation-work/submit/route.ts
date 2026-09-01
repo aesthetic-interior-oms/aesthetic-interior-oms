@@ -17,6 +17,7 @@ import {
 } from "@/lib/activity-log-service";
 import { ensureSeniorCrmAssignment } from "@/lib/lead-handoff";
 import { sendPushToUser } from "@/lib/fcm-service";
+import { recalculateQuotationUserPerformance } from "@/lib/quotation-performance";
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
@@ -275,6 +276,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
       return { lead: updatedLead, submissionId: submission.id };
     });
+
+    // Trigger pre-calculated quotation performance update for actor user
+    void recalculateQuotationUserPerformance(authResult.actorUserId).catch((err) =>
+      console.error('[QuotationSubmit] Recalculation error:', err),
+    )
 
     return NextResponse.json(
       {

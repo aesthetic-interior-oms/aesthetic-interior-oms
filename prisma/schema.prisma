@@ -175,6 +175,7 @@ model User {
   transactionsCollected Transaction[] @relation("TransactionCollector")
   deviceTokens DeviceToken[]
   jrArchitectPerformances JrArchitectPerformance[]
+  quotationPerformances QuotationUserPerformance[]
 }
 
 model DeviceToken {
@@ -1079,5 +1080,25 @@ model JrArchitectPerformance {
   @@unique([userId, monthYear])
   @@index([userId])
   @@index([monthYear])
+}
+
+model QuotationUserPerformance {
+  id               String   @id @default(cuid())
+  userId           String
+  monthKey         String   // Format: "YYYY-MM"
+  detailSqft       Float    @default(0) // Total projectSqft for detail quotations
+  shortSqft        Float    @default(0) // Total projectSqft for short quotations
+  totalSqft        Float    @default(0) // Combined total projectSqft
+  completedCount   Int      @default(0) // Total completed/approved quotation count
+  avgWorkingHours  Float    @default(0) // Average completion time in hours
+  performanceScore Float    @default(0) // Pre-calculated score out of 100
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, monthKey])
+  @@index([userId])
+  @@index([monthKey])
 }
 
