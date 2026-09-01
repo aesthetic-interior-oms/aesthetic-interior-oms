@@ -83,7 +83,7 @@ export async function recalculateQuotationUserPerformance(userId: string, target
       // Calculate SQFT per document type
       const fallbackSqft = lead.visits[0]?.projectSqft ?? 0
 
-      const detailDraft = lead.quotationDrafts.find((d) => d.draftKey === 'detail')
+      const detailDraft = lead.quotationDrafts.find((d) => d.draftKey === 'detail' || d.draftKey.startsWith('detail:owner:'))
       const shortDrafts = lead.quotationDrafts.filter((d) => d.draftKey.startsWith('short:'))
 
       let leadDetailSqft = 0

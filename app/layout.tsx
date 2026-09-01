@@ -47,9 +47,6 @@ export const metadata: Metadata = {
     "interior designer in Mirpur Dhaka",
     "best interior design company in Bangladesh",
   ],
-  alternates: {
-    canonical: "/",
-  },
   openGraph: {
     type: "website",
     locale: "en_BD",
