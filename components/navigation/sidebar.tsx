@@ -18,6 +18,7 @@ import {
   Settings,
   ChevronDown,
   FlaskConical,
+  FileText,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -199,6 +200,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: CalendarClock,
           label: 'Meeting Queue',
           href: '/crm/sr/meeting-queue',
+        },
+        {
+          icon: FileText,
+          label: 'Quotation Queue',
+          href: '/crm/sr/quotation',
         },
         {
           icon: CalendarClock,

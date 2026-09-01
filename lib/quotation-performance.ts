@@ -48,6 +48,7 @@ export async function recalculateQuotationUserPerformance(userId: string, target
         select: {
           draftKey: true,
           projectSqft: true,
+          content: true,
           status: true,
           updatedAt: true,
           createdAt: true,
@@ -79,17 +80,53 @@ export async function recalculateQuotationUserPerformance(userId: string, target
       const fallbackSqft = lead.visits[0]?.projectSqft ?? 0
 
       const detailDraft = lead.quotationDrafts.find((d) => d.draftKey === 'detail')
-      const shortDraft = lead.quotationDrafts.find((d) => d.draftKey.startsWith('short:'))
+      const shortDrafts = lead.quotationDrafts.filter((d) => d.draftKey.startsWith('short:'))
+
+      let leadDetailSqft = 0
+      let leadShortSqft = 0
 
       if (detailDraft) {
-        detailSqft += detailDraft.projectSqft ?? fallbackSqft
+        let extractedSqft = detailDraft.projectSqft ?? 0
+        if (extractedSqft <= 0 && detailDraft.content && typeof detailDraft.content === 'object') {
+          const contentObj = detailDraft.content as any
+          if (Array.isArray(contentObj.lineItems)) {
+            extractedSqft = contentObj.lineItems
+              .filter((item: any) => item.included && (item.unit === 'sqft' || item.unit === 'sft'))
+              .reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0)
+          }
+        }
+        leadDetailSqft = extractedSqft > 0 ? extractedSqft : fallbackSqft
       }
-      if (shortDraft) {
-        shortSqft += shortDraft.projectSqft ?? fallbackSqft
+
+      if (shortDrafts.length > 0) {
+        for (const shortDraft of shortDrafts) {
+          let extractedSqft = shortDraft.projectSqft ?? 0
+          if (extractedSqft <= 0 && shortDraft.content && typeof shortDraft.content === 'object') {
+            const contentObj = shortDraft.content as any
+            if (Array.isArray(contentObj.floors)) {
+              for (const floor of contentObj.floors) {
+                if (Array.isArray(floor.rooms)) {
+                  for (const room of floor.rooms) {
+                    if (Array.isArray(room.items)) {
+                      extractedSqft += room.items
+                        .filter((item: any) => item.included && (item.unit === 'sqft' || item.unit === 'sft'))
+                        .reduce((sum: number, item: any) => sum + (Number(item.sqft) || Number(item.quantity) || 0), 0)
+                    }
+                  }
+                }
+              }
+            }
+          }
+          leadShortSqft += extractedSqft > 0 ? extractedSqft : fallbackSqft
+        }
       }
-      if (!detailDraft && !shortDraft && fallbackSqft > 0) {
-        detailSqft += fallbackSqft
+
+      if (!detailDraft && shortDrafts.length === 0 && fallbackSqft > 0) {
+        leadDetailSqft = fallbackSqft
       }
+
+      detailSqft += leadDetailSqft
+      shortSqft += leadShortSqft
     }
   }
 
