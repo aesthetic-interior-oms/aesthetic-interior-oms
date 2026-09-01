@@ -90,6 +90,8 @@ export async function recalculateQuotationUserPerformance(userId: string, target
         if (extractedSqft <= 0 && detailDraft.content && typeof detailDraft.content === 'object') {
           const contentObj = detailDraft.content as any
           if (Array.isArray(contentObj.lineItems)) {
+            // Note: Line items in detail quotations contain individual material sqft, which may overstate project sqft
+            // if summed directly, but we use it as a last-resort fallback if projectSqft wasn't explicitly entered.
             extractedSqft = contentObj.lineItems
               .filter((item: any) => item.included && (item.unit === 'sqft' || item.unit === 'sft'))
               .reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0)
@@ -103,21 +105,21 @@ export async function recalculateQuotationUserPerformance(userId: string, target
           let extractedSqft = shortDraft.projectSqft ?? 0
           if (extractedSqft <= 0 && shortDraft.content && typeof shortDraft.content === 'object') {
             const contentObj = shortDraft.content as any
-            if (Array.isArray(contentObj.floors)) {
-              for (const floor of contentObj.floors) {
-                if (Array.isArray(floor.rooms)) {
-                  for (const room of floor.rooms) {
-                    if (Array.isArray(room.items)) {
-                      extractedSqft += room.items
-                        .filter((item: any) => item.included && (item.unit === 'sqft' || item.unit === 'sft'))
-                        .reduce((sum: number, item: any) => sum + (Number(item.sqft) || Number(item.quantity) || 0), 0)
-                    }
-                  }
+            if (Array.isArray(contentObj.rooms)) {
+              for (const room of contentObj.rooms) {
+                if (Array.isArray(room.lines)) {
+                  extractedSqft += room.lines
+                    .reduce((sum: number, line: any) => sum + (Number(line.quantitySqft) || 0), 0)
                 }
               }
             }
           }
-          leadShortSqft += extractedSqft > 0 ? extractedSqft : fallbackSqft
+          // Note: If multiple short packages are created for the same lead, 
+          // we only count the SQFT once, using the max among packages to prevent artificially inflating performance.
+          const draftSqft = extractedSqft > 0 ? extractedSqft : fallbackSqft
+          if (draftSqft > leadShortSqft) {
+            leadShortSqft = draftSqft
+          }
         }
       }
 

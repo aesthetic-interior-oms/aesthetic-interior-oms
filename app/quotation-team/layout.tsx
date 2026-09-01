@@ -45,16 +45,10 @@ export default async function QuotationTeamLayout({
     user.userDepartments.map((row) => row.department.name),
   )
 
-  if (departmentNames.has('QUOTATION_TEAM') || departmentNames.has('QUOTATION')) {
+  const isQuotationAdmin = departmentNames.has('ADMIN') || departmentNames.has('SR_CRM')
+
+  if (departmentNames.has('QUOTATION_TEAM') || departmentNames.has('QUOTATION') || isQuotationAdmin) {
     return <MainLayout role="Quotation Team">{children}</MainLayout>
-  }
-
-  if (departmentNames.has('ADMIN')) {
-    redirect(ADMIN_DASHBOARD)
-  }
-
-  if (departmentNames.has('SR_CRM')) {
-    redirect(SR_CRM_DASHBOARD)
   }
 
   if (departmentNames.has('JR_CRM')) {
