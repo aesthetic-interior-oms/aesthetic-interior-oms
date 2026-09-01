@@ -3,6 +3,10 @@ import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/
 export const QUOTATION_EDITABLE_SUBSTATUSES = new Set<LeadSubStatus>([
   LeadSubStatus.QUOTATION_WORKING,
   LeadSubStatus.QUOTATION_CORRECTION,
+  LeadSubStatus.BUDGET_ASSIGNED,
+  LeadSubStatus.BUDGET_WORKING,
+  LeadSubStatus.BUDGET_MEETING_SET,
+  LeadSubStatus.BUDGET_MEETING,
 ])
 
 export function isQuotationDepartment(actorDepartments: string[]): boolean {
@@ -48,7 +52,7 @@ export function buildQuotationLeadWhere(input: {
 
   return {
     id: input.leadId,
-    stage: LeadStage.QUOTATION_PHASE,
+    stage: { in: [LeadStage.QUOTATION_PHASE, LeadStage.BUDGET_PHASE] },
     ...(isAdminOrSr
       ? {}
       : {

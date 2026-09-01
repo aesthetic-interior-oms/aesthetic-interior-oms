@@ -62,10 +62,14 @@ export async function recalculateQuotationUserPerformance(userId: string, target
   let completedCount = 0
   let totalWorkingHoursSum = 0
 
+  console.log(`[QuotationPerformance] User ${userId} has ${assignedLeads.length} leads assigned in the quotation phase.`)
+
   for (const lead of assignedLeads) {
     const isCompleted =
       lead.subStatus === LeadSubStatus.QUOTATION_COMPLETED ||
       lead.subStatus === LeadSubStatus.QUOTATION_APPROVED
+
+    console.log(`[QuotationPerformance] Processing lead ${lead.id} | subStatus: ${lead.subStatus} | isCompleted: ${isCompleted}`)
 
     if (isCompleted) {
       completedCount += 1
@@ -98,6 +102,7 @@ export async function recalculateQuotationUserPerformance(userId: string, target
           }
         }
         leadDetailSqft = extractedSqft > 0 ? extractedSqft : fallbackSqft
+        console.log(`[QuotationPerformance] Lead ${lead.id} Detail Draft -> projectSqft: ${detailDraft.projectSqft}, calculated fallback: ${extractedSqft}, final: ${leadDetailSqft}`)
       }
 
       if (shortDrafts.length > 0) {
@@ -117,6 +122,7 @@ export async function recalculateQuotationUserPerformance(userId: string, target
           // Note: If multiple short packages are created for the same lead, 
           // we only count the SQFT once, using the max among packages to prevent artificially inflating performance.
           const draftSqft = extractedSqft > 0 ? extractedSqft : fallbackSqft
+          console.log(`[QuotationPerformance] Lead ${lead.id} Short Draft (${shortDraft.draftKey}) -> projectSqft: ${shortDraft.projectSqft}, calculated fallback: ${extractedSqft}, final package: ${draftSqft}`)
           if (draftSqft > leadShortSqft) {
             leadShortSqft = draftSqft
           }
@@ -125,14 +131,17 @@ export async function recalculateQuotationUserPerformance(userId: string, target
 
       if (!detailDraft && shortDrafts.length === 0 && fallbackSqft > 0) {
         leadDetailSqft = fallbackSqft
+        console.log(`[QuotationPerformance] Lead ${lead.id} No Drafts -> using visit fallback sqft: ${fallbackSqft}`)
       }
 
+      console.log(`[QuotationPerformance] Lead ${lead.id} TOTALS -> detail: ${leadDetailSqft}, short: ${leadShortSqft}`)
       detailSqft += leadDetailSqft
       shortSqft += leadShortSqft
     }
   }
 
   const totalSqft = detailSqft + shortSqft
+  console.log(`[QuotationPerformance] User ${userId} FINAL -> Total detail: ${detailSqft}, Total short: ${shortSqft}, Completed count: ${completedCount}`)
   const avgWorkingHours = completedCount > 0 ? Number((totalWorkingHoursSum / completedCount).toFixed(1)) : 0
 
   // Score calculation out of 100:
