@@ -29,22 +29,13 @@ export async function GET(request: Request) {
             userId: authResult.actorUserId,
           },
         },
-        OR: [
-          { stage: LeadStage.QUOTATION_PHASE },
-          {
-            assignments: {
-              some: {
-                department: LeadAssignmentDepartment.QUOTATION,
-                userId: authResult.actorUserId,
-              },
-            },
-          },
-        ],
+        // Include both QUOTATION_PHASE and BUDGET_PHASE leads
+        stage: { in: [LeadStage.QUOTATION_PHASE, LeadStage.BUDGET_PHASE] },
         ...(includeHistory
           ? {}
           : {
               NOT: {
-                subStatus: 'QUOTATION_APPROVED',
+                subStatus: { in: ['QUOTATION_APPROVED'] },
               },
             }),
       },

@@ -17,6 +17,9 @@ function resolveDepartmentAliases(departmentName: string): string[] {
   if (departmentName === '3D_VISUALIZER' || departmentName === 'VISUALIZER_3D') {
     return ['3D_VISUALIZER', 'VISUALIZER_3D']
   }
+  if (departmentName === 'QUOTATION_TEAM' || departmentName === 'QUOTATION') {
+    return ['QUOTATION_TEAM', 'QUOTATION', 'SR_CRM']
+  }
   return [departmentName]
 }
 

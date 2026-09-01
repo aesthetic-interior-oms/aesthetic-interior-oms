@@ -159,11 +159,11 @@ export default function SrCrmQuotationPage() {
   const handleSelfAssignQuotationMaker = async (leadId: string) => {
     setBusyId(leadId);
     try {
-      // Fetch current logged in user ID
-      const userRes = await fetch('/api/user/me', { cache: 'no-store' });
+      // Fetch current logged in user ID via /api/me (returns user at root level)
+      const userRes = await fetch('/api/me', { cache: 'no-store' });
       const userPayload = await userRes.json();
-      const meId = userPayload?.user?.id;
-      if (!meId) throw new Error('User info unavailable');
+      const meId = userPayload?.id;
+      if (!meId) throw new Error('User info unavailable – please refresh and try again');
 
       const response = await fetch(`/api/lead/${leadId}/assignments/QUOTATION`, {
         method: 'PUT',
@@ -407,6 +407,7 @@ export default function SrCrmQuotationPage() {
         ) : viewMode === "card" ? (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {leads.map((lead) => {
+              const isBudgetPhase = lead.stage === "BUDGET_PHASE";
               const isWorking = lead.subStatus === "QUOTATION_WORKING";
               const isAssigned = lead.subStatus === "QUOTATION_ASSIGNED";
               const isCompleted =
@@ -434,18 +435,25 @@ export default function SrCrmQuotationPage() {
                           </p>
                         ) : null}
                       </div>
-                      <Badge
-                        variant={
-                          isCompleted
-                            ? "default"
-                            : isWorking
-                            ? "secondary"
-                            : "outline"
-                        }
-                        className="shrink-0 text-xs"
-                      >
-                        {formatLabel(lead.subStatus ?? lead.stage)}
-                      </Badge>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        {isBudgetPhase && (
+                          <Badge variant="outline" className="text-xs border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-950/30 dark:text-orange-300">
+                            Budget Phase
+                          </Badge>
+                        )}
+                        <Badge
+                          variant={
+                            isCompleted
+                              ? "default"
+                              : isWorking
+                              ? "secondary"
+                              : "outline"
+                          }
+                          className="text-xs"
+                        >
+                          {formatLabel(lead.subStatus ?? lead.stage)}
+                        </Badge>
+                      </div>
                     </div>
 
                     <div className="space-y-2 rounded-lg bg-muted/40 p-3 text-xs">
@@ -471,7 +479,7 @@ export default function SrCrmQuotationPage() {
                         Open Quotation Maker
                       </Link>
                     </Button>
-                    {!lead.quotationAssignee ? (
+                    {!isBudgetPhase && !lead.quotationAssignee ? (
                       <Button
                         size="sm"
                         variant="secondary"
@@ -479,9 +487,9 @@ export default function SrCrmQuotationPage() {
                         onClick={() => void handleSelfAssignQuotationMaker(lead.id)}
                       >
                         <UserCheck className="mr-1 h-3.5 w-3.5" />
-                        Self-Assign
+                        {busyId === lead.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Self-Assign"}
                       </Button>
-                    ) : isAssigned ? (
+                    ) : !isBudgetPhase && isAssigned ? (
                       <Button
                         size="sm"
                         disabled={busyId === lead.id}
@@ -493,7 +501,7 @@ export default function SrCrmQuotationPage() {
                           "Start Work"
                         )}
                       </Button>
-                    ) : isWorking ? (
+                    ) : !isBudgetPhase && isWorking ? (
                       <Button
                         size="sm"
                         variant="default"
@@ -516,6 +524,7 @@ export default function SrCrmQuotationPage() {
                     <tr>
                       <th className="p-4">Lead Name</th>
                       <th className="p-4">Location</th>
+                      <th className="p-4">Stage</th>
                       <th className="p-4">Quotation Maker</th>
                       <th className="p-4">Status</th>
                       <th className="p-4 text-right">Project Sqft</th>
@@ -523,37 +532,51 @@ export default function SrCrmQuotationPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {leads.map((lead) => (
-                      <tr key={lead.id} className="hover:bg-muted/30">
-                        <td className="p-4 font-semibold text-foreground">
-                          <Link
-                            href={`/quotation-team/leads/${lead.id}`}
-                            className="hover:underline"
-                          >
-                            {lead.name}
-                          </Link>
-                        </td>
-                        <td className="p-4 text-muted-foreground">{lead.location ?? "N/A"}</td>
-                        <td className="p-4 font-medium text-foreground">
-                          {lead.quotationAssignee?.fullName ?? "Unassigned"}
-                        </td>
-                        <td className="p-4">
-                          <Badge variant="outline" className="text-xs">
-                            {formatLabel(lead.subStatus ?? lead.stage)}
-                          </Badge>
-                        </td>
-                        <td className="p-4 text-right font-medium">
-                          {lead.projectSqft ? `${lead.projectSqft} SQFT` : "N/A"}
-                        </td>
-                        <td className="p-4 text-right">
-                          <Button size="sm" variant="outline" asChild>
-                            <Link href={`/quotation-team/leads/${lead.id}`}>
-                              Open Quotation Maker
+                    {leads.map((lead) => {
+                      const isBudgetPhase = lead.stage === "BUDGET_PHASE";
+                      return (
+                        <tr key={lead.id} className="hover:bg-muted/30">
+                          <td className="p-4 font-semibold text-foreground">
+                            <Link
+                              href={`/quotation-team/leads/${lead.id}`}
+                              className="hover:underline"
+                            >
+                              {lead.name}
                             </Link>
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="p-4 text-muted-foreground">{lead.location ?? "N/A"}</td>
+                          <td className="p-4">
+                            {isBudgetPhase ? (
+                              <Badge variant="outline" className="text-xs border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-700 dark:bg-orange-950/30 dark:text-orange-300">
+                                Budget Phase
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">
+                                Quotation Phase
+                              </Badge>
+                            )}
+                          </td>
+                          <td className="p-4 font-medium text-foreground">
+                            {lead.quotationAssignee?.fullName ?? "Unassigned"}
+                          </td>
+                          <td className="p-4">
+                            <Badge variant="outline" className="text-xs">
+                              {formatLabel(lead.subStatus ?? lead.stage)}
+                            </Badge>
+                          </td>
+                          <td className="p-4 text-right font-medium">
+                            {lead.projectSqft ? `${lead.projectSqft} SQFT` : "N/A"}
+                          </td>
+                          <td className="p-4 text-right">
+                            <Button size="sm" variant="outline" asChild>
+                              <Link href={`/quotation-team/leads/${lead.id}`}>
+                                Open Quotation Maker
+                              </Link>
+                            </Button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

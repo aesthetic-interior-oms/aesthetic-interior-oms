@@ -15,27 +15,42 @@ export async function GET(request: NextRequest) {
     const [yyyy, mm] = monthKey.split('-').map(Number)
     const targetDate = new Date(yyyy, (mm || 1) - 1, 1)
 
+    let lastError: string | null = null
+
     // Make sure all quotation team performance records exist and are up to date
-    await syncAllQuotationTeamPerformance(targetDate)
+    try {
+      await syncAllQuotationTeamPerformance(targetDate)
+    } catch (err) {
+      const msg = err instanceof Error ? `${err.name}: ${err.message}\n${err.stack ?? ''}` : String(err)
+      console.error('[GET /api/quotation/performance] Sync error:', msg)
+      lastError = `SyncError: ${msg}`
+    }
 
     // Fetch pre-calculated performance records from database
-    const performanceRecords = await prisma.quotationUserPerformance.findMany({
-      where: {
-        monthKey,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
+    let performanceRecords: any[] = []
+    try {
+      performanceRecords = await prisma.quotationUserPerformance.findMany({
+        where: {
+          monthKey,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+            },
           },
         },
-      },
-      orderBy: {
-        performanceScore: 'desc',
-      },
-    })
+        orderBy: {
+          performanceScore: 'desc',
+        },
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? `${err.name}: ${err.message}\n${err.stack ?? ''}` : String(err)
+      console.error('[GET /api/quotation/performance] findMany error:', msg)
+      if (!lastError) lastError = `FindManyError: ${msg}`
+    }
 
     // Fetch all active quotation team members to ensure everyone is listed even if 0 activity
     const teamMembers = await prisma.user.findMany({
@@ -110,11 +125,13 @@ export async function GET(request: NextRequest) {
       myPerformance,
       departmentSummary,
       leaderboard: rankedLeaderboard,
+      debugError: lastError,
     })
   } catch (error) {
-    console.error('[GET /api/quotation/performance] Error:', error)
+    const errorDetails = error instanceof Error ? `${error.name}: ${error.message}\n${error.stack ?? ''}` : String(error)
+    console.error('[GET /api/quotation/performance] Critical Handler Error:', errorDetails)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch quotation performance stats' },
+      { success: false, error: 'Failed to fetch quotation performance stats', errorDetails },
       { status: 500 },
     )
   }
