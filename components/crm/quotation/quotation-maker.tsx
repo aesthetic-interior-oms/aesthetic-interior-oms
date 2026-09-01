@@ -153,7 +153,9 @@ export function QuotationMaker({
   const [customTypeFloorId, setCustomTypeFloorId] = useState<string | null>(null)
   const [customTypeAreaId, setCustomTypeAreaId] = useState<string | null>(null)
   const [activeFloorId, setActiveFloorId] = useState<string | null>(null)
+  const [activeAreaId, setActiveAreaId] = useState<string | null>(null)
   const visibleFloorRatios = useRef(new Map<string, number>())
+  const visibleAreaRatios = useRef(new Map<string, { ratio: number; floorId: string; areaId: string }>())
 
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -240,6 +242,7 @@ export function QuotationMaker({
   useEffect(() => {
     if (floors.length === 0) {
       setActiveFloorId(null)
+      setActiveAreaId(null)
       return
     }
 
@@ -253,32 +256,57 @@ export function QuotationMaker({
     if (floors.length === 0) return
 
     visibleFloorRatios.current.clear()
+    visibleAreaRatios.current.clear()
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           const floorId = entry.target.getAttribute('data-floor-id')
-          if (!floorId) return
-          if (entry.isIntersecting) {
-            visibleFloorRatios.current.set(floorId, entry.intersectionRatio)
-          } else {
-            visibleFloorRatios.current.delete(floorId)
+          const areaId = entry.target.getAttribute('data-area-id')
+
+          if (areaId && floorId) {
+            if (entry.isIntersecting) {
+              visibleAreaRatios.current.set(areaId, { ratio: entry.intersectionRatio, floorId, areaId })
+            } else {
+              visibleAreaRatios.current.delete(areaId)
+            }
+          } else if (floorId) {
+            if (entry.isIntersecting) {
+              visibleFloorRatios.current.set(floorId, entry.intersectionRatio)
+            } else {
+              visibleFloorRatios.current.delete(floorId)
+            }
           }
         })
 
-        const mostVisibleFloor = [...visibleFloorRatios.current.entries()]
-          .sort((a, b) => b[1] - a[1])[0]?.[0]
-        if (mostVisibleFloor) setActiveFloorId(mostVisibleFloor)
+        const mostVisibleAreaEntry = [...visibleAreaRatios.current.values()]
+          .sort((a, b) => b.ratio - a.ratio)[0]
+
+        if (mostVisibleAreaEntry) {
+          setActiveFloorId(mostVisibleAreaEntry.floorId)
+          setActiveAreaId(mostVisibleAreaEntry.areaId)
+        } else {
+          const mostVisibleFloor = [...visibleFloorRatios.current.entries()]
+            .sort((a, b) => b[1] - a[1])[0]?.[0]
+          if (mostVisibleFloor) {
+            setActiveFloorId(mostVisibleFloor)
+            setActiveAreaId(null)
+          }
+        }
       },
-      { root: null, rootMargin: '-18% 0px -55% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] },
+      { root: null, rootMargin: '-10% 0px -40% 0px', threshold: [0, 0.2, 0.5, 0.8, 1] },
     )
 
     floors.forEach((floor) => {
-      const element = document.getElementById(`quotation-floor-${floor.id}`)
-      if (element) observer.observe(element)
+      const floorEl = document.getElementById(`quotation-floor-${floor.id}`)
+      if (floorEl) observer.observe(floorEl)
+
+      const areaElements = document.querySelectorAll(`[data-floor-id="${floor.id}"][data-area-id]`)
+      areaElements.forEach((el) => observer.observe(el))
     })
 
     return () => observer.disconnect()
-  }, [floors])
+  }, [floors, content?.areas])
 
   useEffect(() => {
     if (!content || !totals) return
@@ -587,12 +615,15 @@ export function QuotationMaker({
 
   const displayContent = withDetailQuotationDefaults(content)
   const taskbarFloorId = activeFloorId ?? displayContent.sections.at(-1)?.id ?? null
-  const taskbarAreaId = taskbarFloorId
-    ? ([...(displayContent.areas ?? [])]
-      .filter((area) => area.floorId === taskbarFloorId)
-      .sort((a, b) => a.sortOrder - b.sortOrder)
-      .at(-1)?.id ?? null)
-    : null
+  const floorAreas = taskbarFloorId
+    ? [...(displayContent.areas ?? [])]
+        .filter((area) => area.floorId === taskbarFloorId)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+    : []
+  const taskbarAreaId =
+    activeAreaId && floorAreas.some((a) => a.id === activeAreaId)
+      ? activeAreaId
+      : floorAreas.at(-1)?.id ?? null
   const openTaskbarSavedItem = () => {
     if (!taskbarFloorId) {
       toast.error('Add a floor first')
@@ -854,7 +885,13 @@ return (
               </CardHeader>
               <CardContent className="space-y-4 p-4">
                 {areaGroups.map(({ area, lines }) => (
-                  <div key={area.id} className="overflow-hidden rounded-lg border bg-background">
+                  <div
+                    key={area.id}
+                    id={`quotation-area-${area.id}`}
+                    data-floor-id={floor.id}
+                    data-area-id={area.id.startsWith('general-') ? '' : area.id}
+                    className="overflow-hidden rounded-lg border bg-background"
+                  >
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
                       <Input
                         value={area.name}

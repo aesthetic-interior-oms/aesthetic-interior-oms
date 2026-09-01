@@ -608,7 +608,7 @@ export function DetailQuotationDocument({
         </View>
 
         <View style={styles.grandTotalRow}>
-          <Text style={styles.grandTotalLabel}>Total SQFT: {formatDetailAmount(totalSqft)} SQFT</Text>
+          <Text style={styles.grandTotalLabel}>Grand Total</Text>
           <Text style={styles.grandTotalValue}>{formatDetailCurrency(totals.grandTotal)}</Text>
         </View>
         <Text style={styles.inWords}>In Words: {amountInWordsTaka(totals.grandTotal)}</Text>
@@ -664,7 +664,7 @@ export function DetailQuotationDocument({
 
                 if (isFirstMaterialRow && isPkg) {
                   quantityCell = <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>Package</Text>
-                  priceText = 'Per Design'
+                  priceText = 'As Per Design'
                 } else {
                   quantityCell = <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>{isFirstMaterialRow ? formatDetailQtyCell(line) : ''}</Text>
                   priceText = isFirstMaterialRow ? formatDetailUnitPriceCurrency(line) : ''
