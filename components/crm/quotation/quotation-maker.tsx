@@ -586,7 +586,7 @@ export function QuotationMaker({
   }
 
   const displayContent = withDetailQuotationDefaults(content)
-  const taskbarFloorId = displayContent.sections.at(-1)?.id ?? null
+  const taskbarFloorId = activeFloorId ?? displayContent.sections.at(-1)?.id ?? null
   const taskbarAreaId = taskbarFloorId
     ? ([...(displayContent.areas ?? [])]
       .filter((area) => area.floorId === taskbarFloorId)

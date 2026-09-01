@@ -207,8 +207,7 @@ const styles = StyleSheet.create({
   wTotal: { width: '12%', textAlign: 'right' },
 
   // Columns Summary
-  wSumName: { width: '54%', paddingLeft: 10 },
-  wSumSqft: { width: '18%', textAlign: 'right' },
+  wSumName: { width: '72%', paddingLeft: 10 },
   wSumTotal: { width: '22%', textAlign: 'right' },
   summaryFloorRow: { backgroundColor: '#f3f8f7' },
   summaryAreaName: { paddingLeft: 18, color: '#555555' },
@@ -225,7 +224,7 @@ const styles = StyleSheet.create({
     borderTopColor: PRIMARY,
   },
   grandTotalLabel: {
-    width: '88%',
+    width: '78%',
     textAlign: 'right',
     paddingRight: 10,
     fontWeight: 'bold',
@@ -233,7 +232,7 @@ const styles = StyleSheet.create({
     color: PRIMARY,
   },
   grandTotalValue: {
-    width: '12%',
+    width: '22%',
     textAlign: 'right',
     fontWeight: 'bold',
     fontSize: 10,
@@ -244,12 +243,13 @@ const styles = StyleSheet.create({
     color: '#000000',
     marginTop: 4,
     textAlign: 'left',
-    fontFamily: 'Playfair Display',
-    fontStyle: 'italic',
+    fontFamily: 'Noto Sans Bengali',
+    fontWeight: 'bold',
+    textDecoration: 'underline',
   },
-  datePanel: { minWidth: 112, alignItems: 'flex-end' },
+  datePanel: { minWidth: 130, alignItems: 'flex-end' },
   metaLabel: { fontSize: 6, color: GOLD, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 0.5 },
-  metaValue: { fontSize: 7, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
+  metaValue: { fontSize: 9.5, color: PRIMARY, fontWeight: 'bold', textAlign: 'right' },
   headerPattern: { position: 'absolute', top: 0, left: 0, right: 0, height: 58, opacity: 0.08 },
   headerRuleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   headerRule: { height: 2.2, backgroundColor: PRIMARY },
@@ -314,13 +314,25 @@ const styles = StyleSheet.create({
 const formatDateString = (dateString: string) => {
   if (!dateString) return 'N/A'
   try {
+    // If date string is formatted like DD-MM-YYYY (e.g. 17-08-2026)
+    if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(dateString.trim())) {
+      const [d, m, y] = dateString.trim().split('-').map(Number)
+      const dateObj = new Date(y, m - 1, d)
+      if (!isNaN(dateObj.getTime())) {
+        return new Intl.DateTimeFormat('en-GB', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        }).format(dateObj)
+      }
+    }
     const timestamp = Date.parse(dateString)
     if (isNaN(timestamp)) return dateString
-    return new Date(timestamp).toLocaleDateString('en-US', {
+    return new Intl.DateTimeFormat('en-GB', {
+      day: 'numeric',
+      month: 'long',
       year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+    }).format(new Date(timestamp))
   } catch {
     return dateString
   }
@@ -401,18 +413,11 @@ function getDetailAreaSqft(lines: QuotationDraftContent['lineItems']) {
 }
 
 function getDetailAreaTotal(lines: QuotationDraftContent['lineItems']) {
-  return Math.round(
-    lines.reduce((sum, line) => {
-      if (isRateOnlyLine(line)) return sum
-      return sum + line.amount
-    }, 0),
-  )
+  return lines.reduce((lineSum, line) => lineSum + line.amount, 0)
 }
 
 function getDetailTotalSqft(floorSummaries: ReturnType<typeof buildDetailFloorSummaries>) {
-  return Math.round(
-    floorSummaries.reduce((sum, entry) => sum + getDetailFloorSqft(entry), 0),
-  )
+  return floorSummaries.reduce((sum, entry) => sum + getDetailFloorSqft(entry), 0)
 }
 
 const formatDetailCurrency = (value: number) => `${BDT_SYMBOL} ${formatDetailAmount(value)}`
@@ -582,7 +587,6 @@ export function DetailQuotationDocument({
           <View style={[styles.tHead, { marginBottom: 3 }]} fixed>
             <Text style={[styles.thCol, styles.summaryThCol, styles.wSl]}>SL</Text>
             <Text style={[styles.thCol, styles.summaryThCol, styles.wSumName]}>Description</Text>
-            <Text style={[styles.thCol, styles.summaryThCol, styles.wSumSqft]}>Sqft</Text>
             <Text style={[styles.thCol, styles.summaryThCol, styles.wSumTotal, styles.thColLast]}>Amount ({BDT_SYMBOL})</Text>
           </View>
           {floorSummaries.map((entry, index) => (
@@ -590,14 +594,12 @@ export function DetailQuotationDocument({
               <View style={[styles.tRow, styles.summaryFloorRow]}>
                 <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
                 <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text>
-                <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumSqft, styles.bold]}>{formatDetailAmount(getDetailFloorSqft(entry))}</Text>
                 <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailTableAmount(entry.total)}</Text>
               </View>
               {getAreaGroups(entry).map((area) => (
                 <View key={`${entry.floor.id}-${area.id}`} style={styles.tRow}>
                   <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl]} />
                   <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.summaryAreaName]}>{softWrapPdfText(area.name)}</Text>
-                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumSqft]}>{formatDetailAmount(getDetailAreaSqft(area.lines))}</Text>
                   <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>{formatDetailTableAmount(getDetailAreaTotal(area.lines))}</Text>
                 </View>
               ))}
@@ -606,7 +608,7 @@ export function DetailQuotationDocument({
         </View>
 
         <View style={styles.grandTotalRow}>
-          <Text style={styles.grandTotalLabel}>Grand Total ({formatDetailAmount(totalSqft)} SQFT)</Text>
+          <Text style={styles.grandTotalLabel}>Total SQFT: {formatDetailAmount(totalSqft)} SQFT</Text>
           <Text style={styles.grandTotalValue}>{formatDetailCurrency(totals.grandTotal)}</Text>
         </View>
         <Text style={styles.inWords}>In Words: {amountInWordsTaka(totals.grandTotal)}</Text>

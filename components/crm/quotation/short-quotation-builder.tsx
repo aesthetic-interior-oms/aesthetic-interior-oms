@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { CopyCheck, Download, ExternalLink, GripVertical, Loader2, Plus, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
@@ -260,6 +260,51 @@ export function ShortQuotationBuilder({
   const updateContent = (updater: (prev: ShortQuotationContent) => ShortQuotationContent) => {
     setContent((prev) => (prev ? normalizeShortQuotationContent(updater(prev)) : prev))
   }
+
+  const [activeFloorId, setActiveFloorId] = useState<string | null>(null)
+  const visibleFloorRatios = useRef<Map<string, number>>(new Map())
+
+  useEffect(() => {
+    if (!content || content.floors.length === 0) {
+      setActiveFloorId(null)
+      return
+    }
+    setActiveFloorId((current) => {
+      if (current && content.floors.some((f) => f.id === current)) return current
+      return content.floors[0]?.id ?? null
+    })
+  }, [content])
+
+  useEffect(() => {
+    if (!content || content.floors.length === 0) return
+
+    visibleFloorRatios.current.clear()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const floorId = entry.target.getAttribute('data-floor-id')
+          if (!floorId) return
+          if (entry.isIntersecting) {
+            visibleFloorRatios.current.set(floorId, entry.intersectionRatio)
+          } else {
+            visibleFloorRatios.current.delete(floorId)
+          }
+        })
+
+        const mostVisibleFloor = [...visibleFloorRatios.current.entries()]
+          .sort((a, b) => b[1] - a[1])[0]?.[0]
+        if (mostVisibleFloor) setActiveFloorId(mostVisibleFloor)
+      },
+      { root: null, rootMargin: '-18% 0px -55% 0px', threshold: [0, 0.25, 0.5, 0.75, 1] },
+    )
+
+    content.floors.forEach((floor) => {
+      const element = document.getElementById(`short-quotation-floor-${floor.id}`)
+      if (element) observer.observe(element)
+    })
+
+    return () => observer.disconnect()
+  }, [content])
 
   useEffect(() => {
     if (!content) return
@@ -568,7 +613,7 @@ export function ShortQuotationBuilder({
   }
 
   const sortedFloors = [...content.floors].sort((a, b) => a.sortOrder - b.sortOrder)
-  const taskbarFloorId = sortedFloors.at(-1)?.id ?? null
+  const taskbarFloorId = activeFloorId ?? sortedFloors.at(-1)?.id ?? null
   const taskbarRoomId = taskbarFloorId
     ? content.rooms
         .filter((room) => room.floorId === taskbarFloorId)
@@ -871,7 +916,7 @@ export function ShortQuotationBuilder({
           const floorSummary = summary.floors.find((item) => item.floor.id === floor.id)
 
           return (
-            <Card key={floor.id}>
+            <Card key={floor.id} id={`short-quotation-floor-${floor.id}`} data-floor-id={floor.id}>
               <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 py-3">
                 <Input
                   className="max-w-sm font-semibold"

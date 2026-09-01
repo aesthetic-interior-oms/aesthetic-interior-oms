@@ -37,80 +37,82 @@ export default function SettingsPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-7 mb-8">
-            <TabsTrigger value="users" className="flex items-center gap-2">
+        {/* Vertical Tabs Layout */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} orientation="vertical" className="flex flex-col md:flex-row gap-6 w-full items-start">
+          <TabsList className="flex flex-col w-full md:w-64 h-auto shrink-0 space-y-1 p-2 bg-card border border-border rounded-xl justify-start items-stretch">
+            <TabsTrigger value="users" className="flex items-center justify-start gap-3 px-3 py-2.5 w-full text-left font-medium">
               <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">Users</span>
+              <span>Users</span>
             </TabsTrigger>
-            <TabsTrigger value="roles" className="flex items-center gap-2">
+            <TabsTrigger value="roles" className="flex items-center justify-start gap-3 px-3 py-2.5 w-full text-left font-medium">
               <Shield className="w-4 h-4" />
-              <span className="hidden sm:inline">Roles</span>
+              <span>Roles</span>
             </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center gap-2">
+            <TabsTrigger value="notifications" className="flex items-center justify-start gap-3 px-3 py-2.5 w-full text-left font-medium">
               <Bell className="w-4 h-4" />
-              <span className="hidden sm:inline">Notifications</span>
+              <span>Notifications</span>
             </TabsTrigger>
-            <TabsTrigger value="activity" className="flex items-center gap-2">
+            <TabsTrigger value="activity" className="flex items-center justify-start gap-3 px-3 py-2.5 w-full text-left font-medium">
               <Activity className="w-4 h-4" />
-              <span className="hidden sm:inline">Activity</span>
+              <span>Activity</span>
             </TabsTrigger>
-            <TabsTrigger value="integrations" className="flex items-center gap-2">
+            <TabsTrigger value="integrations" className="flex items-center justify-start gap-3 px-3 py-2.5 w-full text-left font-medium">
               <Plug className="w-4 h-4" />
-              <span className="hidden sm:inline">Integration</span>
+              <span>Integration</span>
             </TabsTrigger>
-            <TabsTrigger value="visit-workflow" className="flex items-center gap-2">
+            <TabsTrigger value="visit-workflow" className="flex items-center justify-start gap-3 px-3 py-2.5 w-full text-left font-medium">
               <SlidersHorizontal className="w-4 h-4" />
-              <span className="hidden sm:inline">Visit Workflow</span>
+              <span>Visit Workflow</span>
             </TabsTrigger>
-            <TabsTrigger value="performance" className="flex items-center gap-2">
+            <TabsTrigger value="performance" className="flex items-center justify-start gap-3 px-3 py-2.5 w-full text-left font-medium">
               <BarChart3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Performance</span>
+              <span>Performance</span>
             </TabsTrigger>
-            <TabsTrigger value="quotation" className="flex items-center gap-2">
+            <TabsTrigger value="quotation" className="flex items-center justify-start gap-3 px-3 py-2.5 w-full text-left font-medium">
               <SlidersHorizontal className="w-4 h-4" />
-              <span className="hidden sm:inline">Quotation</span>
+              <span>Quotation</span>
             </TabsTrigger>
           </TabsList>
 
-          {/* User Management Tab */}
-          <TabsContent value="users" className="space-y-6">
-            <UserManagement />
-          </TabsContent>
+          <div className="flex-1 w-full min-w-0">
+            {/* User Management Tab */}
+            <TabsContent value="users" className="space-y-6 mt-0">
+              <UserManagement />
+            </TabsContent>
 
-          {/* Role & Permissions Tab */}
-          <TabsContent value="roles" className="space-y-6">
-            <RolePermissions />
-          </TabsContent>
+            {/* Role & Permissions Tab */}
+            <TabsContent value="roles" className="space-y-6 mt-0">
+              <RolePermissions />
+            </TabsContent>
 
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="space-y-6">
-            <NotificationSettings />
-          </TabsContent>
+            {/* Notifications Tab */}
+            <TabsContent value="notifications" className="space-y-6 mt-0">
+              <NotificationSettings />
+            </TabsContent>
 
-          {/* Activity Log Tab */}
-          <TabsContent value="activity" className="space-y-6">
-            <SrCrmRotationSettings />
-            <ActivityLog />
-          </TabsContent>
+            {/* Activity Log Tab */}
+            <TabsContent value="activity" className="space-y-6 mt-0">
+              <SrCrmRotationSettings />
+              <ActivityLog />
+            </TabsContent>
 
-          {/* Integrations Tab */}
-          <TabsContent value="integrations" className="space-y-6">
-            <IntegrationSettings />
-          </TabsContent>
+            {/* Integrations Tab */}
+            <TabsContent value="integrations" className="space-y-6 mt-0">
+              <IntegrationSettings />
+            </TabsContent>
 
-          <TabsContent value="visit-workflow" className="space-y-6">
-            <VisitWorkflowSettings />
-          </TabsContent>
+            <TabsContent value="visit-workflow" className="space-y-6 mt-0">
+              <VisitWorkflowSettings />
+            </TabsContent>
 
-          <TabsContent value="performance" className="space-y-6">
-            <PerformanceDescriptionSettings />
-          </TabsContent>
+            <TabsContent value="performance" className="space-y-6 mt-0">
+              <PerformanceDescriptionSettings />
+            </TabsContent>
 
-          <TabsContent value="quotation" className="space-y-6">
-            <QuotationSettingsPage />
-          </TabsContent>
+            <TabsContent value="quotation" className="space-y-6 mt-0">
+              <QuotationSettingsPage />
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
     </main>

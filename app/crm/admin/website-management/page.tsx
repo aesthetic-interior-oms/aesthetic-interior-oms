@@ -14,34 +14,36 @@ export default function WebsiteManagementPage() {
           <p className="mt-2 text-sm text-slate-600">Add content, publish it, and drag items in the list to control website order.</p>
         </div>
 
-        <Tabs defaultValue="team" className="space-y-5">
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-2xl border bg-white p-2 shadow-sm md:grid-cols-4">
-            <TabsTrigger value="team" className="h-11 rounded-xl data-[state=active]:bg-[#17382d] data-[state=active]:text-white">
-              <UsersRound className="mr-2 h-4 w-4" /> Team
+        <Tabs defaultValue="team" orientation="vertical" className="flex flex-col md:flex-row gap-6 items-start">
+          <TabsList className="flex flex-col w-full md:w-64 h-auto shrink-0 space-y-1 rounded-2xl border bg-white p-2 shadow-sm justify-start items-stretch">
+            <TabsTrigger value="team" className="h-11 justify-start rounded-xl px-4 data-[state=active]:bg-[#17382d] data-[state=active]:text-white">
+              <UsersRound className="mr-2 h-4 w-4 shrink-0" /> Team
             </TabsTrigger>
-            <TabsTrigger value="videos" className="h-11 rounded-xl data-[state=active]:bg-[#17382d] data-[state=active]:text-white">
-              <Video className="mr-2 h-4 w-4" /> Videos
+            <TabsTrigger value="videos" className="h-11 justify-start rounded-xl px-4 data-[state=active]:bg-[#17382d] data-[state=active]:text-white">
+              <Video className="mr-2 h-4 w-4 shrink-0" /> Videos
             </TabsTrigger>
-            <TabsTrigger value="testimonials" className="h-11 rounded-xl data-[state=active]:bg-[#17382d] data-[state=active]:text-white">
-              <MessageSquareQuote className="mr-2 h-4 w-4" /> Testimonials
+            <TabsTrigger value="testimonials" className="h-11 justify-start rounded-xl px-4 data-[state=active]:bg-[#17382d] data-[state=active]:text-white">
+              <MessageSquareQuote className="mr-2 h-4 w-4 shrink-0" /> Testimonials
             </TabsTrigger>
-            <TabsTrigger value="projects" className="h-11 rounded-xl data-[state=active]:bg-[#17382d] data-[state=active]:text-white">
-              <ImageIcon className="mr-2 h-4 w-4" /> Projects
+            <TabsTrigger value="projects" className="h-11 justify-start rounded-xl px-4 data-[state=active]:bg-[#17382d] data-[state=active]:text-white">
+              <ImageIcon className="mr-2 h-4 w-4 shrink-0" /> Projects
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="team" className="mt-0">
-            <WebsiteTeamManager />
-          </TabsContent>
-          <TabsContent value="videos" className="mt-0">
-            <WebsiteVideoManager />
-          </TabsContent>
-          <TabsContent value="testimonials" className="mt-0">
-            <WebsiteTestimonialManager />
-          </TabsContent>
-          <TabsContent value="projects" className="mt-0">
-            <WebsiteProjectManager />
-          </TabsContent>
+          <div className="flex-1 w-full min-w-0">
+            <TabsContent value="team" className="mt-0">
+              <WebsiteTeamManager />
+            </TabsContent>
+            <TabsContent value="videos" className="mt-0">
+              <WebsiteVideoManager />
+            </TabsContent>
+            <TabsContent value="testimonials" className="mt-0">
+              <WebsiteTestimonialManager />
+            </TabsContent>
+            <TabsContent value="projects" className="mt-0">
+              <WebsiteProjectManager />
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
     </main>

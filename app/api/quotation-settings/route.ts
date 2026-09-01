@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const authResult = await requireDatabaseRoles(['ADMIN', 'QUOTATION_TEAM', 'QUOTATION'])
+    const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) return authResult.response
 
     const body = await request.json()
@@ -76,7 +76,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const authResult = await requireDatabaseRoles(['ADMIN', 'QUOTATION_TEAM', 'QUOTATION'])
+    const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) return authResult.response
 
     const templateKey = request.nextUrl.searchParams.get('templateKey')
