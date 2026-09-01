@@ -624,6 +624,12 @@ export function QuotationMaker({
     activeAreaId && floorAreas.some((a) => a.id === activeAreaId)
       ? activeAreaId
       : floorAreas.at(-1)?.id ?? null
+
+  const activeFloorObj = displayContent.sections.find((s) => s.id === taskbarFloorId)
+  const activeAreaObj = floorAreas.find((a) => a.id === taskbarAreaId)
+  const activeTargetName = activeAreaObj?.name
+    ? `${activeFloorObj?.name ?? ''} → ${activeAreaObj.name}`
+    : activeFloorObj?.name ?? ''
   const openTaskbarSavedItem = () => {
     if (!taskbarFloorId) {
       toast.error('Add a floor first')
@@ -973,10 +979,10 @@ return (
           ) : null}
           <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarFloorId} onClick={openTaskbarSavedItem}>
             <Plus className="mr-1.5 h-4 w-4" />
-            Add from Saved Item
+            Add from Saved Item {activeTargetName ? `(${activeTargetName})` : ''}
           </Button>
           <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarFloorId} onClick={openTaskbarCustomItem}>
-            Custom Item
+            Custom Item {activeTargetName ? `(${activeTargetName})` : ''}
           </Button>
           <span className="text-xs text-muted-foreground">Ctrl+S saves</span>
         </div>
