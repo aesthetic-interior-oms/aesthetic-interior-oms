@@ -142,12 +142,36 @@ export async function recalculateQuotationUserPerformance(userId: string, target
   const speedScore = completedCount > 0 ? Math.min(20, Math.max(5, 20 - (avgWorkingHours / 24) * 5)) : 0
   const performanceScore = Number(Math.min(100, Math.round(sqftScore + countScore + speedScore)).toFixed(1))
 
-  // Pre-calculated database upsert
-  const record = await prisma.quotationUserPerformance.upsert({
-    where: {
-      userId_monthKey: { userId, monthKey },
-    },
-    create: {
+  try {
+    const record = await prisma.quotationUserPerformance.upsert({
+      where: {
+        userId_monthKey: { userId, monthKey },
+      },
+      create: {
+        userId,
+        monthKey,
+        detailSqft,
+        shortSqft,
+        totalSqft,
+        completedCount,
+        avgWorkingHours,
+        performanceScore,
+      },
+      update: {
+        detailSqft,
+        shortSqft,
+        totalSqft,
+        completedCount,
+        avgWorkingHours,
+        performanceScore,
+      },
+    })
+
+    return record
+  } catch (err) {
+    console.error(`[QuotationPerformance] Failed to upsert for user ${userId}:`, err)
+    return {
+      id: `fallback-${userId}-${monthKey}`,
       userId,
       monthKey,
       detailSqft,
@@ -156,18 +180,10 @@ export async function recalculateQuotationUserPerformance(userId: string, target
       completedCount,
       avgWorkingHours,
       performanceScore,
-    },
-    update: {
-      detailSqft,
-      shortSqft,
-      totalSqft,
-      completedCount,
-      avgWorkingHours,
-      performanceScore,
-    },
-  })
-
-  return record
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+  }
 }
 
 /**
