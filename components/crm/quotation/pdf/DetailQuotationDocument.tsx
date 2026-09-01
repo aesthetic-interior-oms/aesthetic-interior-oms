@@ -201,9 +201,9 @@ const styles = StyleSheet.create({
   // Columns Detail
   wSl: { width: '6%', textAlign: 'center' },
   wName: { width: '16%' },
-  wMats: { width: '46%' },
+  wMats: { width: '44%' },
   wQty: { width: '10%', textAlign: 'center' },
-  wPrice: { width: '10%', textAlign: 'right' },
+  wPrice: { width: '12%', textAlign: 'right' },
   wTotal: { width: '12%', textAlign: 'right' },
 
   // Columns Summary
