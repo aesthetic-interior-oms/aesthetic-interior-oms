@@ -9,6 +9,7 @@ import {
 } from '@/lib/quotation-auth'
 import { calculateQuotationTotals, normalizeQuotationContent } from '@/lib/quotation-calculations'
 import { calculateLeadQuotationSqftSummary } from '@/lib/quotation-sqft-calculator'
+import { recalculateQuotationUserPerformance } from '@/lib/quotation-performance'
 import {
   applyQuotationTypeToContent,
   buildDefaultQuotationContent,
@@ -718,6 +719,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       const primaryIndex = targetSlots.indexOf(requestedSlot)
       const savedDraft = results[primaryIndex >= 0 ? primaryIndex : 0]
 
+      void recalculateQuotationUserPerformance(authResult.actorUserId).catch((err) => {
+        console.error('[lead/:id/quotation-draft][PUT] Performance sync error:', err)
+      })
+
       return NextResponse.json({
         success: true,
         data: serializeDraft(savedDraft),
@@ -750,6 +755,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         grandTotal,
         status,
       },
+    })
+
+    void recalculateQuotationUserPerformance(authResult.actorUserId).catch((err) => {
+      console.error('[lead/:id/quotation-draft][PUT] Performance sync error:', err)
     })
 
     return NextResponse.json({

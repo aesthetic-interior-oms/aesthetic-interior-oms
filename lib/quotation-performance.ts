@@ -15,24 +15,26 @@ export function getMonthKey(date: Date = new Date()): string {
 export async function recalculateQuotationUserPerformance(userId: string, targetDate: Date = new Date()) {
   const monthKey = getMonthKey(targetDate)
 
-  const year = targetDate.getFullYear()
-  const month = targetDate.getMonth()
-  const startOfMonth = new Date(year, month, 1)
-  const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999)
-
-  // Fetch all leads assigned to this user in QUOTATION department
+  // Fetch all leads assigned to this user in QUOTATION department OR where user created/updated quotation drafts
   const assignedLeads = await prisma.lead.findMany({
     where: {
-      assignments: {
-        some: {
-          department: LeadAssignmentDepartment.QUOTATION,
-          userId,
+      OR: [
+        {
+          assignments: {
+            some: {
+              department: LeadAssignmentDepartment.QUOTATION,
+              userId,
+            },
+          },
         },
-      },
-      updated_at: {
-        gte: startOfMonth,
-        lte: endOfMonth,
-      },
+        {
+          quotationDrafts: {
+            some: {
+              OR: [{ createdById: userId }, { updatedById: userId }],
+            },
+          },
+        },
+      ],
     },
     select: {
       id: true,
@@ -63,35 +65,34 @@ export async function recalculateQuotationUserPerformance(userId: string, target
   let completedCount = 0
   let totalWorkingHoursSum = 0
 
-  console.log(`[QuotationPerformance] User ${userId} has ${assignedLeads.length} leads assigned in the quotation phase.`)
+  console.log(`[QuotationPerformance] User ${userId} has ${assignedLeads.length} leads assigned/drafted in quotation.`)
 
   for (const lead of assignedLeads) {
     const isCompleted =
       lead.subStatus === LeadSubStatus.QUOTATION_COMPLETED ||
-      lead.subStatus === LeadSubStatus.QUOTATION_APPROVED
-
-    console.log(`[QuotationPerformance] Processing lead ${lead.id} | subStatus: ${lead.subStatus} | isCompleted: ${isCompleted}`)
+      lead.subStatus === LeadSubStatus.QUOTATION_APPROVED ||
+      lead.stage === LeadStage.BUDGET_PHASE ||
+      lead.stage === LeadStage.VISUALIZATION_PHASE ||
+      lead.stage === LeadStage.CONVERSION
 
     if (isCompleted) {
       completedCount += 1
-
-      // Calculate working hours
       const startTime = new Date(lead.created_at).getTime()
       const endTime = new Date(lead.updated_at).getTime()
       const diffHours = Math.max(0.5, (endTime - startTime) / (1000 * 60 * 60))
       totalWorkingHoursSum += diffHours
-
-      // Calculate SQFT per document type (averaging versions/packages)
-      const fallbackSqft = lead.visits[0]?.projectSqft ?? 0
-      const sqftSummary = calculateLeadQuotationSqftSummary(lead.quotationDrafts, fallbackSqft)
-
-      const leadDetailSqft = sqftSummary.avgDetailSqft
-      const leadShortSqft = sqftSummary.avgShortSqft
-
-      console.log(`[QuotationPerformance] Lead ${lead.id} TOTALS -> avgDetail: ${leadDetailSqft}, avgShort: ${leadShortSqft}`)
-      detailSqft += leadDetailSqft
-      shortSqft += leadShortSqft
     }
+
+    // Always calculate SQFT per document type (averaging versions/packages) for all leads worked on
+    const fallbackSqft = lead.visits[0]?.projectSqft ?? 0
+    const sqftSummary = calculateLeadQuotationSqftSummary(lead.quotationDrafts, fallbackSqft)
+
+    const leadDetailSqft = sqftSummary.avgDetailSqft
+    const leadShortSqft = sqftSummary.avgShortSqft
+
+    console.log(`[QuotationPerformance] Lead ${lead.id} TOTALS -> avgDetail: ${leadDetailSqft}, avgShort: ${leadShortSqft}`)
+    detailSqft += leadDetailSqft
+    shortSqft += leadShortSqft
   }
 
   const totalSqft = detailSqft + shortSqft
