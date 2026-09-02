@@ -162,13 +162,34 @@ export async function syncAllQuotationTeamPerformance(targetDate: Date = new Dat
   const quotationUsers = await prisma.user.findMany({
     where: {
       isActive: true,
-      userDepartments: {
-        some: {
-          department: {
-            name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'], mode: 'insensitive' },
+      OR: [
+        {
+          userDepartments: {
+            some: {
+              department: {
+                name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'], mode: 'insensitive' },
+              },
+            },
           },
         },
-      },
+        {
+          leadAssignments: {
+            some: {
+              department: LeadAssignmentDepartment.QUOTATION,
+            },
+          },
+        },
+        {
+          quotationDraftsCreated: {
+            some: {},
+          },
+        },
+        {
+          quotationDraftsUpdated: {
+            some: {},
+          },
+        },
+      ],
     },
     select: { id: true },
   })

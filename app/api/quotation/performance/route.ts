@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
+import { LeadAssignmentDepartment } from '@/generated/prisma/client'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { getMonthKey, syncAllQuotationTeamPerformance } from '@/lib/quotation-performance'
 
@@ -56,13 +57,37 @@ export async function GET(request: NextRequest) {
     const teamMembers = await prisma.user.findMany({
       where: {
         isActive: true,
-        userDepartments: {
-          some: {
-            department: {
-              name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'], mode: 'insensitive' },
+        OR: [
+          {
+            userDepartments: {
+              some: {
+                department: {
+                  name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'], mode: 'insensitive' },
+                },
+              },
             },
           },
-        },
+          {
+            leadAssignments: {
+              some: {
+                department: LeadAssignmentDepartment.QUOTATION,
+              },
+            },
+          },
+          {
+            quotationDraftsCreated: {
+              some: {},
+            },
+          },
+          {
+            quotationDraftsUpdated: {
+              some: {},
+            },
+          },
+          {
+            id: authResult.actorUserId,
+          },
+        ],
       },
       select: {
         id: true,
