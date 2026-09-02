@@ -120,11 +120,11 @@ export default function QuotationTeamDashboardPage() {
   const [deptSummary, setDeptSummary] = useState<DepartmentSummary | null>(null)
   const [leaderboard, setLeaderboard] = useState<PerformanceMember[]>([])
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (monthKey: string) => {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('/api/quotation/dashboard', { cache: 'no-store' })
+      const response = await fetch(`/api/quotation/dashboard?month=${monthKey}`, { cache: 'no-store' })
       const payload = await response.json()
       if (!response.ok || !payload.success) {
         throw new Error(payload.error ?? 'Failed to load dashboard metrics')
@@ -155,11 +155,8 @@ export default function QuotationTeamDashboardPage() {
   }
 
   useEffect(() => {
-    void fetchDashboardData()
-  }, [])
-
-  useEffect(() => {
     if (selectedMonth) {
+      void fetchDashboardData(selectedMonth)
       void fetchPerformanceData(selectedMonth)
     }
   }, [selectedMonth])
@@ -198,7 +195,7 @@ export default function QuotationTeamDashboardPage() {
               variant="outline"
               size="sm"
               onClick={() => {
-                void fetchDashboardData()
+                void fetchDashboardData(selectedMonth)
                 void fetchPerformanceData(selectedMonth)
               }}
               disabled={loading || perfLoading}
