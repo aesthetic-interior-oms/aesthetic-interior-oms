@@ -304,6 +304,9 @@ function toDetailQuotationContent(value: unknown): QuotationDraftContent | null 
     signatoryName: typeof record.signatoryName === 'string' ? record.signatoryName : undefined,
     signatoryTitle: typeof record.signatoryTitle === 'string' ? record.signatoryTitle : undefined,
     summarySubject: typeof record.summarySubject === 'string' ? record.summarySubject : undefined,
+    clientName: typeof record.clientName === 'string' ? record.clientName : undefined,
+    clientAddress: typeof record.clientAddress === 'string' ? record.clientAddress : undefined,
+    versionTitle: typeof record.versionTitle === 'string' ? record.versionTitle : undefined,
   }
 }
 

@@ -75,7 +75,7 @@ export function DetailQuotationLivePreview({
               contextId,
               slotIndex,
               clientName: content.clientName || result.data.lead?.name || 'Client',
-              clientAddress: result.data.lead?.location ?? null,
+              clientAddress: content.clientAddress || result.data.lead?.location || null,
               quotationType: validQType,
               projectSqft: source.projectSqft ?? null,
               content,

@@ -140,9 +140,13 @@ export function QuotationMaker({
   const [slotIndex, setSlotIndex] = useState<number>(1)
   const [availableSlots, setAvailableSlots] = useState<Array<{ slotIndex: number; title: string; grandTotal: number; exists: boolean }>>([
     { slotIndex: 1, title: 'Version 1', grandTotal: 0, exists: true },
+    { slotIndex: 2, title: 'Version 2', grandTotal: 0, exists: true },
+    { slotIndex: 3, title: 'Version 3', grandTotal: 0, exists: true },
   ])
   const [editingTitleSlot, setEditingTitleSlot] = useState<number | null>(null)
   const [editingTitleText, setEditingTitleText] = useState('')
+  const [saveAllConfirmOpen, setSaveAllConfirmOpen] = useState(false)
+  const [confirmClientNameInput, setConfirmClientNameInput] = useState('')
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -220,14 +224,12 @@ export function QuotationMaker({
       if (Array.isArray(data.templates)) setTemplates(data.templates)
       if (Array.isArray(data.fullTemplates)) setFullTemplates(data.fullTemplates)
       if (Array.isArray(data.availableSlots)) {
-        const filledSlots = [1, 2, 3]
-          .map((sIndex) => {
-            const found = data.availableSlots.find((item: any) => item.slotIndex === sIndex)
-            return found
-              ? { ...found }
-              : { slotIndex: sIndex, title: `Version ${sIndex}`, grandTotal: 0, exists: false }
-          })
-          .filter((s) => s.exists || s.slotIndex === 1 || s.slotIndex === targetSlot)
+        const filledSlots = [1, 2, 3].map((sIndex) => {
+          const found = data.availableSlots.find((item: any) => item.slotIndex === sIndex)
+          return found
+            ? { ...found, exists: true }
+            : { slotIndex: sIndex, title: `Version ${sIndex}`, grandTotal: 0, exists: true }
+        })
         setAvailableSlots(filledSlots)
       }
 
@@ -715,39 +717,52 @@ return (
             </div>
           </div>
 
-          {/* Quotation Version Tabs */}
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-amber-200/60 pt-3 print:hidden">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-amber-900/80">
-                Versions (Max 3):
+          {/* Quotation Version Tabs (3 Versions Always Present) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-amber-200/60 pt-4 print:hidden">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-950">
+                Quotation Versions:
               </span>
-              {availableSlots.map((s) => {
-                const isActive = s.slotIndex === slotIndex
-                const isEditing = editingTitleSlot === s.slotIndex
-                return (
-                  <div
-                    key={s.slotIndex}
-                    onClick={() => {
-                      if (s.slotIndex !== slotIndex) {
-                        setSlotIndex(s.slotIndex)
-                        void loadDraft(s.slotIndex)
-                      }
-                    }}
-                    className={`group relative flex items-center gap-1.5 rounded-md border px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
-                      isActive
-                        ? 'border-amber-600 bg-amber-600 text-white shadow-sm'
-                        : 'border-amber-200 bg-white hover:bg-amber-100/50 text-slate-800'
-                    }`}
-                  >
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editingTitleText}
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => setEditingTitleText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+              <div className="flex flex-wrap items-center gap-2.5">
+                {availableSlots.map((s) => {
+                  const isActive = s.slotIndex === slotIndex
+                  const isEditing = editingTitleSlot === s.slotIndex
+                  return (
+                    <div
+                      key={s.slotIndex}
+                      onClick={() => {
+                        if (s.slotIndex !== slotIndex) {
+                          setSlotIndex(s.slotIndex)
+                          void loadDraft(s.slotIndex)
+                        }
+                      }}
+                      className={`group relative flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-all cursor-pointer shadow-sm ${
+                        isActive
+                          ? 'border-amber-600 bg-amber-600 text-white shadow-md ring-2 ring-amber-400/40'
+                          : 'border-slate-200 bg-white hover:bg-amber-50 text-slate-800'
+                      }`}
+                    >
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editingTitleText}
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => setEditingTitleText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const trimmed = editingTitleText.trim() || `Version ${s.slotIndex}`
+                              setAvailableSlots((prev) =>
+                                prev.map((item) => (item.slotIndex === s.slotIndex ? { ...item, title: trimmed } : item)),
+                              )
+                              if (s.slotIndex === slotIndex && content) {
+                                setContent({ ...content, versionTitle: trimmed })
+                              }
+                              setEditingTitleSlot(null)
+                            }
+                            if (e.key === 'Escape') setEditingTitleSlot(null)
+                          }}
+                          onBlur={() => {
                             const trimmed = editingTitleText.trim() || `Version ${s.slotIndex}`
                             setAvailableSlots((prev) =>
                               prev.map((item) => (item.slotIndex === s.slotIndex ? { ...item, title: trimmed } : item)),
@@ -756,116 +771,40 @@ return (
                               setContent({ ...content, versionTitle: trimmed })
                             }
                             setEditingTitleSlot(null)
-                          }
-                          if (e.key === 'Escape') setEditingTitleSlot(null)
-                        }}
-                        onBlur={() => {
-                          const trimmed = editingTitleText.trim() || `Version ${s.slotIndex}`
-                          setAvailableSlots((prev) =>
-                            prev.map((item) => (item.slotIndex === s.slotIndex ? { ...item, title: trimmed } : item)),
-                          )
-                          if (s.slotIndex === slotIndex && content) {
-                            setContent({ ...content, versionTitle: trimmed })
-                          }
-                          setEditingTitleSlot(null)
-                        }}
-                        className="h-5 w-24 rounded border px-1 text-xs text-black"
-                      />
-                    ) : (
-                      <span
-                        className="font-medium"
-                        onDoubleClick={(e) => {
-                          e.stopPropagation()
-                          setEditingTitleSlot(s.slotIndex)
-                          setEditingTitleText(s.title)
-                        }}
-                      >
-                        {s.title}
-                      </span>
-                    )}
+                          }}
+                          className="h-6 w-32 rounded border px-2 text-sm text-black"
+                        />
+                      ) : (
+                        <span
+                          className="font-semibold text-sm"
+                          onDoubleClick={(e) => {
+                            e.stopPropagation()
+                            setEditingTitleSlot(s.slotIndex)
+                            setEditingTitleText(s.title)
+                          }}
+                        >
+                          {s.title}
+                        </span>
+                      )}
 
-                    {!isEditing && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setEditingTitleSlot(s.slotIndex)
-                          setEditingTitleText(s.title)
-                        }}
-                        className="opacity-60 hover:opacity-100"
-                        title="Double-click or click to rename tab"
-                      >
-                        <Edit2 className="h-3 w-3" />
-                      </button>
-                    )}
-
-                    {s.slotIndex > 1 && !isEditing && (
-                      <button
-                        type="button"
-                        onClick={async (e) => {
-                          e.stopPropagation()
-                          if (!confirm(`Are you sure you want to delete ${s.title}?`)) return
-                          try {
-                            if (!isPlayground) {
-                              const res = await fetch(
-                                `/api/lead/${leadId}/quotation-draft?documentType=detail&slot=${s.slotIndex}`,
-                                { method: 'DELETE' },
-                              )
-                              if (!res.ok) throw new Error('Failed to delete draft version')
-                            }
-                            toast.success(`Deleted ${s.title}`)
-                            const remaining = availableSlots.filter((item) => item.slotIndex !== s.slotIndex)
-                            setAvailableSlots(remaining)
-                            if (slotIndex === s.slotIndex) {
-                              setSlotIndex(1)
-                              void loadDraft(1)
-                            }
-                          } catch (err) {
-                            toast.error(err instanceof Error ? err.message : 'Failed to delete version')
-                          }
-                        }}
-                        className="opacity-60 hover:opacity-100 hover:text-red-300"
-                        title="Delete version"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-
-              {availableSlots.length < 3 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const existingIndexes = availableSlots.map((s) => s.slotIndex)
-                    let nextSlot = 1
-                    for (let i = 1; i <= 3; i++) {
-                      if (!existingIndexes.includes(i)) {
-                        nextSlot = i
-                        break
-                      }
-                    }
-                    if (availableSlots.length >= 3 || nextSlot > 3) {
-                      toast.error('Maximum 3 detail quotation versions allowed')
-                      return
-                    }
-                    const newSlots = [
-                      ...availableSlots,
-                      { slotIndex: nextSlot, title: `Version ${nextSlot}`, grandTotal: 0, exists: false },
-                    ].sort((a, b) => a.slotIndex - b.slotIndex)
-                    setAvailableSlots(newSlots)
-                    setSlotIndex(nextSlot)
-                    void loadDraft(nextSlot)
-                  }}
-                  className="h-7 border-dashed border-amber-300 bg-white/50 text-xs hover:bg-amber-100/50"
-                >
-                  <Plus className="mr-1 h-3 w-3" />
-                  Add Version ({availableSlots.length}/3)
-                </Button>
-              )}
+                      {!isEditing && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setEditingTitleSlot(s.slotIndex)
+                            setEditingTitleText(s.title)
+                          }}
+                          className="opacity-70 hover:opacity-100"
+                          title="Double-click or click to rename tab"
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -941,10 +880,13 @@ return (
             <Button
               type="button"
               variant="default"
-              className="bg-amber-700 text-white hover:bg-amber-800"
+              className="bg-black text-white hover:bg-neutral-800"
               disabled={!canEdit || saving}
-              onClick={() => void saveDraft(true)}
-              title="Save current quotation data into all 3 (or all active) versions"
+              onClick={() => {
+                setConfirmClientNameInput('')
+                setSaveAllConfirmOpen(true)
+              }}
+              title="Save current quotation data into all 3 versions"
             >
               <Save className="mr-1.5 h-4 w-4" />
               {saving ? 'Saving...' : 'Save in All'}
@@ -1243,6 +1185,56 @@ return (
             >
               <span className="font-semibold">Package item</span>
               <span className="text-xs text-muted-foreground">Fixed total price, no unit price or sqft needed</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog for Save in All */}
+      <Dialog open={saveAllConfirmOpen} onOpenChange={setSaveAllConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Save to All Quotation Versions?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <p className="text-muted-foreground">
+              This action will copy and save the current quotation items and pricing into <strong>Version 1, Version 2, and Version 3</strong>.
+            </p>
+            <p className="font-medium text-slate-900 dark:text-slate-100">
+              To confirm, please type the client name: <span className="rounded bg-amber-100 px-2 py-0.5 font-bold text-amber-900 dark:bg-amber-950 dark:text-amber-100">{content?.clientName || leadName}</span>
+            </p>
+            <Input
+              type="text"
+              value={confirmClientNameInput}
+              onChange={(e) => setConfirmClientNameInput(e.target.value)}
+              placeholder={`Type "${content?.clientName || leadName}" to confirm`}
+              className="h-9"
+              onKeyDown={(e) => {
+                const expected = (content?.clientName || leadName || '').trim().toLowerCase()
+                if (e.key === 'Enter' && confirmClientNameInput.trim().toLowerCase() === expected && !saving) {
+                  setSaveAllConfirmOpen(false)
+                  void saveDraft(true)
+                }
+              }}
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setSaveAllConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-black text-white hover:bg-neutral-800"
+              disabled={
+                confirmClientNameInput.trim().toLowerCase() !== (content?.clientName || leadName || '').trim().toLowerCase() ||
+                saving
+              }
+              onClick={async () => {
+                setSaveAllConfirmOpen(false)
+                await saveDraft(true)
+              }}
+            >
+              {saving ? 'Saving...' : 'Confirm & Save in All'}
             </Button>
           </div>
         </DialogContent>
