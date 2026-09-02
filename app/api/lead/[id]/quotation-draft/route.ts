@@ -8,6 +8,7 @@ import {
   canEditQuotationDraft,
 } from '@/lib/quotation-auth'
 import { calculateQuotationTotals, normalizeQuotationContent } from '@/lib/quotation-calculations'
+import { calculateLeadQuotationSqftSummary } from '@/lib/quotation-sqft-calculator'
 import {
   applyQuotationTypeToContent,
   buildDefaultQuotationContent,
@@ -485,6 +486,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       }
     })
 
+    const sqftSummary = calculateLeadQuotationSqftSummary(savedDrafts, projectSqft ?? 0)
+
     if (!selectedDraft) {
       const shortContent = buildDefaultShortQuotationContent({
         clientName: lead.name,
@@ -522,6 +525,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
             status: 'DRAFT' as const,
           },
           availableSlots,
+          sqftSummary,
           templates: listQuotationTemplates(),
           fullTemplates: mergedTemplates,
           lead: {
@@ -547,6 +551,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         documentType,
         defaultDraft: null,
         availableSlots,
+        sqftSummary,
         templates: listQuotationTemplates(),
         fullTemplates: mergedTemplates,
         activeTemplate:

@@ -44,6 +44,28 @@ type QueueLeadOptionalRelations = QueueLead & {
     startsAt: Date
     notes: string | null
   }>
+  cadWorkSubmissions?: Array<{
+    id: string
+    note: string | null
+    submittedAt: Date
+    submittedBy: { id: string; fullName: string }
+    files: Array<{
+      id: string
+      fileName: string
+      url: string
+      fileType: string
+      cadFileType: string
+    }>
+  }>
+  attachments?: Array<{
+    id: string
+    fileName: string
+    url: string
+    fileType: string
+  }>
+  quotationDrafts?: Array<{
+    id: string
+  }>
 }
 
 async function fetchQueueLeads(where: Prisma.LeadWhereInput, includeOptionalRelations: boolean) {
@@ -89,6 +111,44 @@ async function fetchQueueLeads(where: Prisma.LeadWhereInput, includeOptionalRela
                 orderBy: { createdAt: 'asc' },
               },
             },
+          },
+          cadWorkSubmissions: {
+            orderBy: { submittedAt: 'desc' },
+            take: 5,
+            select: {
+              id: true,
+              note: true,
+              submittedAt: true,
+              submittedBy: {
+                select: {
+                  id: true,
+                  fullName: true,
+                },
+              },
+              files: {
+                select: {
+                  id: true,
+                  fileName: true,
+                  url: true,
+                  fileType: true,
+                  cadFileType: true,
+                },
+              },
+            },
+          },
+          attachments: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+            select: {
+              id: true,
+              fileName: true,
+              url: true,
+              fileType: true,
+            },
+          },
+          quotationDrafts: {
+            take: 1,
+            select: { id: true },
           },
         }
       : {},
@@ -283,6 +343,9 @@ export async function GET(request: NextRequest) {
               }
             : null,
           latestFirstMeeting,
+          cadWorkSubmissions: relationLead.cadWorkSubmissions ?? [],
+          attachments: relationLead.attachments ?? [],
+          hasQuotationDraft: (relationLead.quotationDrafts?.length ?? 0) > 0,
           canSetMeeting:
             (lead.stage === LeadStage.CAD_PHASE && lead.subStatus === LeadSubStatus.CAD_APPROVED) ||
             (lead.stage === LeadStage.QUOTATION_PHASE && lead.subStatus === LeadSubStatus.QUOTATION_APPROVED),

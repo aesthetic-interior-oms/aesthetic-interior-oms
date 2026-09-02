@@ -45,6 +45,10 @@ type TaskLead = {
     email: string;
   } | null;
   projectSqft: number | null;
+  avgDetailSqft?: number;
+  avgShortSqft?: number;
+  detailVersionsCount?: number;
+  shortPackagesCount?: number;
   canStart: boolean;
   canSubmit: boolean;
   attachments?: Array<{
@@ -119,16 +123,12 @@ export default function QuotationAssignedTaskPage() {
   const summary = useMemo(
     () => ({
       total: leads.length,
-      assigned: leads.filter((lead) => lead.subStatus === "QUOTATION_ASSIGNED")
-        .length,
-      working: leads.filter((lead) => lead.subStatus === "QUOTATION_WORKING")
-        .length,
-      completed: leads.filter(
-        (lead) => lead.subStatus === "QUOTATION_COMPLETED",
-      ).length,
-      corrections: leads.filter(
-        (lead) => lead.subStatus === "QUOTATION_CORRECTION",
-      ).length,
+      assigned: leads.filter((lead) => lead.subStatus === "QUOTATION_ASSIGNED").length,
+      working: leads.filter((lead) => lead.subStatus === "QUOTATION_WORKING").length,
+      completed: leads.filter((lead) => lead.subStatus === "QUOTATION_COMPLETED").length,
+      corrections: leads.filter((lead) => lead.subStatus === "QUOTATION_CORRECTION").length,
+      totalDetailSqft: leads.reduce((sum, l) => sum + (l.avgDetailSqft ?? 0), 0),
+      totalShortSqft: leads.reduce((sum, l) => sum + (l.avgShortSqft ?? 0), 0),
     }),
     [leads],
   );
@@ -266,48 +266,56 @@ export default function QuotationAssignedTaskPage() {
             </Badge>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             {[
-              { key: 'total', label: 'Total Assigned', value: summary.total, Icon: ClipboardList, className: 'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950', iconClass: 'bg-white/15 text-white ring-white/25 dark:bg-slate-950/10 dark:text-slate-950 dark:ring-slate-950/15', accentClass: 'from-primary to-blue-400' },
-              { key: 'assigned', label: 'Assigned', value: summary.assigned, Icon: UserRound, className: 'border-blue-200/70 from-blue-50 via-white to-sky-50 text-blue-800 dark:border-blue-500/30 dark:from-blue-950/60 dark:via-slate-950 dark:to-sky-950/40 dark:text-blue-100', iconClass: 'bg-blue-100 text-blue-700 ring-blue-200 dark:bg-blue-500/15 dark:text-blue-200 dark:ring-blue-400/20', accentClass: 'from-blue-500 to-sky-500' },
-              { key: 'working', label: 'Working', value: summary.working, Icon: PenTool, className: 'border-amber-200/70 from-amber-50 via-white to-orange-50 text-amber-800 dark:border-amber-500/30 dark:from-amber-950/60 dark:via-slate-950 dark:to-orange-950/40 dark:text-amber-100', iconClass: 'bg-amber-100 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20', accentClass: 'from-amber-500 to-orange-500' },
-              { key: 'completed', label: 'Completed', value: summary.completed, Icon: CheckCircle, className: 'border-emerald-200/70 from-emerald-50 via-white to-teal-50 text-emerald-800 dark:border-emerald-500/30 dark:from-emerald-950/60 dark:via-slate-950 dark:to-teal-950/40 dark:text-emerald-100', iconClass: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20', accentClass: 'from-emerald-500 to-teal-500' },
-              { key: 'corrections', label: 'Corrections', value: summary.corrections, Icon: RotateCcw, className: 'border-rose-200/70 from-rose-50 via-white to-pink-50 text-rose-800 dark:border-rose-500/30 dark:from-rose-950/60 dark:via-slate-950 dark:to-pink-950/40 dark:text-rose-100', iconClass: 'bg-rose-100 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-rose-400/20', accentClass: 'from-rose-500 to-pink-500' },
+              { key: 'total', label: 'Total Assigned', value: summary.total, isSqft: false, Icon: ClipboardList, className: 'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950', iconClass: 'bg-white/15 text-white ring-white/25 dark:bg-slate-950/10 dark:text-slate-950 dark:ring-slate-950/15', accentClass: 'from-primary to-blue-400' },
+              { key: 'assigned', label: 'Assigned', value: summary.assigned, isSqft: false, Icon: UserRound, className: 'border-blue-200/70 from-blue-50 via-white to-sky-50 text-blue-800 dark:border-blue-500/30 dark:from-blue-950/60 dark:via-slate-950 dark:to-sky-950/40 dark:text-blue-100', iconClass: 'bg-blue-100 text-blue-700 ring-blue-200 dark:bg-blue-500/15 dark:text-blue-200 dark:ring-blue-400/20', accentClass: 'from-blue-500 to-sky-500' },
+              { key: 'working', label: 'Working', value: summary.working, isSqft: false, Icon: PenTool, className: 'border-amber-200/70 from-amber-50 via-white to-orange-50 text-amber-800 dark:border-amber-500/30 dark:from-amber-950/60 dark:via-slate-950 dark:to-orange-950/40 dark:text-amber-100', iconClass: 'bg-amber-100 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20', accentClass: 'from-amber-500 to-orange-500' },
+              { key: 'completed', label: 'Completed', value: summary.completed, isSqft: false, Icon: CheckCircle, className: 'border-emerald-200/70 from-emerald-50 via-white to-teal-50 text-emerald-800 dark:border-emerald-500/30 dark:from-emerald-950/60 dark:via-slate-950 dark:to-teal-950/40 dark:text-emerald-100', iconClass: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20', accentClass: 'from-emerald-500 to-teal-500' },
+              { key: 'corrections', label: 'Corrections', value: summary.corrections, isSqft: false, Icon: RotateCcw, className: 'border-rose-200/70 from-rose-50 via-white to-pink-50 text-rose-800 dark:border-rose-500/30 dark:from-rose-950/60 dark:via-slate-950 dark:to-pink-950/40 dark:text-rose-100', iconClass: 'bg-rose-100 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-rose-400/20', accentClass: 'from-rose-500 to-pink-500' },
+              { key: 'detailSqft', label: 'Detail SQFT', value: summary.totalDetailSqft, isSqft: true, Icon: Sparkles, className: 'border-purple-200/70 from-purple-50 via-white to-indigo-50 text-purple-900 dark:border-purple-500/30 dark:from-purple-950/60 dark:via-slate-950 dark:to-indigo-950/40 dark:text-purple-100', iconClass: 'bg-purple-100 text-purple-700 ring-purple-200 dark:bg-purple-500/15 dark:text-purple-200 dark:ring-purple-400/20', accentClass: 'from-purple-500 to-indigo-500' },
+              { key: 'shortSqft', label: 'Short SQFT', value: summary.totalShortSqft, isSqft: true, Icon: Sparkles, className: 'border-cyan-200/70 from-cyan-50 via-white to-sky-50 text-cyan-900 dark:border-cyan-500/30 dark:from-cyan-950/60 dark:via-slate-950 dark:to-sky-950/40 dark:text-cyan-100', iconClass: 'bg-cyan-100 text-cyan-700 ring-cyan-200 dark:bg-cyan-500/15 dark:text-cyan-200 dark:ring-cyan-400/20', accentClass: 'from-cyan-500 to-sky-500' },
             ].map((stat) => {
-              const percentage = summary.total > 0 ? Math.round((stat.value / summary.total) * 100) : 0;
+              const percentage = summary.total > 0 && !stat.isSqft ? Math.round((Number(stat.value) / summary.total) * 100) : 0;
               return (
                 <div
                   key={stat.key}
-                  className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${stat.className}`}
+                  className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-3.5 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${stat.className}`}
                 >
                   <span className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/30 blur-2xl transition group-hover:scale-125 dark:bg-white/10" />
                   <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${stat.accentClass}`} />
 
-                  <div className="relative flex items-start justify-between gap-3">
+                  <div className="relative flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="truncate text-[11px] font-bold uppercase tracking-[0.16em] opacity-75">
+                      <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">
                         {stat.label}
                       </p>
-                      <div className="mt-3 flex items-end gap-2">
-                        <p className="text-3xl font-black leading-none tracking-tight">
-                          {stat.value}
+                      <div className="mt-2.5 flex items-end gap-1.5">
+                        <p className="text-2xl font-black leading-none tracking-tight">
+                          {stat.isSqft ? Number(stat.value).toLocaleString() : stat.value}
                         </p>
-                        <span className="mb-0.5 rounded-full bg-white/45 px-2 py-0.5 text-[10px] font-bold shadow-sm ring-1 ring-black/5 dark:bg-black/15 dark:ring-white/10">
-                          {percentage}%
-                        </span>
+                        {!stat.isSqft ? (
+                          <span className="mb-0.5 rounded-full bg-white/45 px-1.5 py-0.5 text-[9px] font-bold shadow-sm ring-1 ring-black/5 dark:bg-black/15 dark:ring-white/10">
+                            {percentage}%
+                          </span>
+                        ) : (
+                          <span className="mb-0.5 text-[10px] font-bold opacity-75">sqft</span>
+                        )}
                       </div>
                     </div>
-                    <span className={`rounded-2xl p-2.5 shadow-sm ring-1 ${stat.iconClass}`}>
-                      <stat.Icon className="h-5 w-5" />
+                    <span className={`rounded-xl p-2 shadow-sm ring-1 ${stat.iconClass}`}>
+                      <stat.Icon className="h-4 w-4" />
                     </span>
                   </div>
 
-                  <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
-                    <span
-                      className={`block h-full rounded-full bg-gradient-to-r ${stat.accentClass} transition-all duration-500`}
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
+                  {!stat.isSqft ? (
+                    <div className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
+                      <span
+                        className={`block h-full rounded-full bg-gradient-to-r ${stat.accentClass} transition-all duration-500`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  ) : null}
                 </div>
               )
             })}
@@ -375,7 +383,14 @@ export default function QuotationAssignedTaskPage() {
                           </td>
                           <td className="px-4 py-3">
                             <div className="max-w-[150px] truncate" title={lead.location ?? ""}>{lead.location ?? "—"}</div>
-                            <div className="text-xs text-muted-foreground mt-0.5">{lead.projectSqft ? `${lead.projectSqft.toLocaleString()} sqft` : ""}</div>
+                            <div className="flex flex-col text-[11px] text-muted-foreground mt-1 space-y-0.5">
+                              <span className="inline-flex items-center gap-1">
+                                <span className="font-semibold text-cyan-700 dark:text-cyan-400">Short SQFT:</span> {lead.avgShortSqft ? `${lead.avgShortSqft.toLocaleString()}` : "0"}
+                              </span>
+                              <span className="inline-flex items-center gap-1">
+                                <span className="font-semibold text-purple-700 dark:text-purple-400">Detail SQFT:</span> {lead.avgDetailSqft ? `${lead.avgDetailSqft.toLocaleString()}` : "0"}
+                              </span>
+                            </div>
                           </td>
                           <td className="px-4 py-3 text-xs">
                             {lead.latestFirstMeeting?.startsAt ? new Date(lead.latestFirstMeeting.startsAt).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' }) : "Not set"}
@@ -524,12 +539,12 @@ export default function QuotationAssignedTaskPage() {
                         <span className="max-w-[200px] truncate" title={lead.location}>{lead.location}</span>
                       </span>
                     )}
-                    {lead.projectSqft ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Sparkles className="h-4 w-4 shrink-0 text-primary/70" />
-                        {lead.projectSqft.toLocaleString()} sqft
-                      </span>
-                    ) : null}
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50/80 px-2.5 py-1 text-xs font-medium text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                      <Sparkles className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                      Short SQFT: <strong>{lead.avgShortSqft ? lead.avgShortSqft.toLocaleString() : 0}</strong>
+                      <span className="opacity-40">|</span>
+                      Detail SQFT: <strong>{lead.avgDetailSqft ? lead.avgDetailSqft.toLocaleString() : 0}</strong>
+                    </span>
                     {lead.srCrmAssignee && (
                       <span className="inline-flex items-center gap-1">
                         <UserRound className="h-4 w-4 shrink-0 text-primary/70" />

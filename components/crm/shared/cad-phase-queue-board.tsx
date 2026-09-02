@@ -3,11 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ComponentType } from 'react'
 import Link from 'next/link'
+import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
 import {
   CalendarClock,
   CheckCircle2,
   ClipboardCheck,
+  Download,
   FilePlus2,
+  FileText,
   DraftingCompass,
   LayoutGrid,
   ListFilter,
@@ -98,6 +101,26 @@ type LeadRecord = {
   canSubmitMeetingData: boolean
   canReassignJrArchitect?: boolean
   canReassignQuotation?: boolean
+  hasQuotationDraft?: boolean
+  cadWorkSubmissions?: Array<{
+    id: string
+    note: string | null
+    submittedAt: string
+    submittedBy: { id: string; fullName: string }
+    files: Array<{
+      id: string
+      fileName: string
+      url: string
+      fileType: string
+      cadFileType: string
+    }>
+  }>
+  attachments?: Array<{
+    id: string
+    fileName: string
+    url: string
+    fileType: string
+  }>
 }
 
 type QueueResponse = {
@@ -1883,6 +1906,126 @@ export function CadPhaseQueueBoard({
                       </p>
                     ) : null}
                   </div>
+
+                  {/* JR Architect Uploaded Planning Files & Quotation Team Files */}
+                  {(() => {
+                    const allSubFiles = (lead.cadWorkSubmissions ?? []).flatMap((sub) =>
+                      (sub.files ?? []).map((file) => ({
+                        id: file.id,
+                        fileName: file.fileName,
+                        url: file.url,
+                        fileType: file.fileType,
+                        cadFileType: file.cadFileType,
+                        submittedBy: sub.submittedBy?.fullName,
+                      })),
+                    )
+
+                    const allLeadAtts = (lead.attachments ?? []).map((att) => ({
+                      id: att.id,
+                      fileName: att.fileName,
+                      url: att.url,
+                      fileType: att.fileType,
+                      cadFileType: 'ATTACHMENT',
+                      submittedBy: 'Team File',
+                    }))
+
+                    const combinedFiles = [...allSubFiles, ...allLeadAtts]
+
+                    const isQuotationFile = (f: { fileName: string }) =>
+                      f.fileName.includes('[Short') || f.fileName.includes('[Detail') || f.fileName.toLowerCase().includes('quotation')
+
+                    const jrArchitectFiles = combinedFiles.filter((f) => !isQuotationFile(f))
+                    const quotationFiles = combinedFiles.filter((f) => isQuotationFile(f))
+
+                    if (jrArchitectFiles.length === 0 && quotationFiles.length === 0 && !lead.hasQuotationDraft) return null
+
+                    return (
+                      <div className="mt-3 space-y-2">
+                        {/* JR Architect Planning Files Block */}
+                        {jrArchitectFiles.length > 0 && (
+                          <div className="rounded-lg border border-sky-200/80 bg-gradient-to-br from-sky-50/80 via-white to-blue-50/40 p-3 text-sm dark:border-sky-800/60 dark:from-sky-950/30 dark:via-slate-950 dark:to-blue-950/20">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-sky-900 dark:text-sky-200">
+                                <FileText className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+                                JR Architect Planning Files ({jrArchitectFiles.length})
+                              </p>
+                              <Badge variant="outline" className="text-[10px] bg-white text-sky-800 border-sky-300 dark:bg-slate-900 dark:text-sky-200 dark:border-sky-700">
+                                Click to Download
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {jrArchitectFiles.map((file) => (
+                                <a
+                                  key={file.id}
+                                  href={file.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download
+                                  className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-md border border-sky-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-800 transition hover:border-sky-500 hover:bg-sky-50 hover:text-sky-900 dark:border-sky-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-sky-950"
+                                  title={`${file.fileName} (${file.cadFileType})`}
+                                >
+                                  <FileText className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
+                                  <span className="max-w-[180px] truncate">{file.fileName}</span>
+                                  <Badge variant="secondary" className="px-1.5 py-0 text-[9px] font-semibold bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
+                                    {file.cadFileType}
+                                  </Badge>
+                                  <Download className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Quotation Team Files Block */}
+                        {(quotationFiles.length > 0 || lead.hasQuotationDraft) && (
+                          <div className="rounded-lg border border-amber-200/80 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/40 p-3 text-sm dark:border-amber-800/60 dark:from-amber-950/30 dark:via-slate-950 dark:to-orange-950/20">
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <p className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+                                <FileText className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                                Quotation Team Files & PDFs ({quotationFiles.length + (lead.hasQuotationDraft ? 1 : 0)})
+                              </p>
+                              <Badge variant="outline" className="text-[10px] bg-white text-amber-800 border-amber-300 dark:bg-slate-900 dark:text-amber-200 dark:border-amber-700">
+                                Click to Download
+                              </Badge>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {lead.hasQuotationDraft && (
+                                <a
+                                  href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id })}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-md border border-amber-300 bg-amber-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-amber-700 shadow-sm"
+                                  title="Download generated Detail Quotation PDF"
+                                >
+                                  <FileText className="h-3.5 w-3.5 shrink-0 text-white" />
+                                  <span className="max-w-[180px] truncate">Detail Quotation PDF</span>
+                                  <Badge variant="secondary" className="px-1.5 py-0 text-[9px] font-bold bg-white text-amber-900">
+                                    LIVE PDF
+                                  </Badge>
+                                  <Download className="h-3.5 w-3.5 shrink-0 text-white" />
+                                </a>
+                              )}
+                              {quotationFiles.map((file) => (
+                                <a
+                                  key={file.id}
+                                  href={file.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download
+                                  className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-md border border-amber-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-800 transition hover:border-amber-500 hover:bg-amber-50 hover:text-amber-900 dark:border-amber-800 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-amber-950"
+                                  title={file.fileName}
+                                >
+                                  <FileText className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                                  <span className="max-w-[180px] truncate">{file.fileName}</span>
+                                  <Download className="h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </CardContent>
               </Card>
                 ))}

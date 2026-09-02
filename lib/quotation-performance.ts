@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma'
 import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/prisma/client'
+import { calculateLeadQuotationSqftSummary } from '@/lib/quotation-sqft-calculator'
 
 export function getMonthKey(date: Date = new Date()): string {
   const yyyy = date.getFullYear()
@@ -80,61 +81,14 @@ export async function recalculateQuotationUserPerformance(userId: string, target
       const diffHours = Math.max(0.5, (endTime - startTime) / (1000 * 60 * 60))
       totalWorkingHoursSum += diffHours
 
-      // Calculate SQFT per document type
+      // Calculate SQFT per document type (averaging versions/packages)
       const fallbackSqft = lead.visits[0]?.projectSqft ?? 0
+      const sqftSummary = calculateLeadQuotationSqftSummary(lead.quotationDrafts, fallbackSqft)
 
-      const detailDraft = lead.quotationDrafts.find((d) => d.draftKey === 'detail' || d.draftKey.startsWith('detail:owner:'))
-      const shortDrafts = lead.quotationDrafts.filter((d) => d.draftKey.startsWith('short:'))
+      const leadDetailSqft = sqftSummary.avgDetailSqft
+      const leadShortSqft = sqftSummary.avgShortSqft
 
-      let leadDetailSqft = 0
-      let leadShortSqft = 0
-
-      if (detailDraft) {
-        let extractedSqft = detailDraft.projectSqft ?? 0
-        if (extractedSqft <= 0 && detailDraft.content && typeof detailDraft.content === 'object') {
-          const contentObj = detailDraft.content as any
-          if (Array.isArray(contentObj.lineItems)) {
-            // Note: Line items in detail quotations contain individual material sqft, which may overstate project sqft
-            // if summed directly, but we use it as a last-resort fallback if projectSqft wasn't explicitly entered.
-            extractedSqft = contentObj.lineItems
-              .filter((item: any) => item.included && (item.unit === 'sqft' || item.unit === 'sft'))
-              .reduce((sum: number, item: any) => sum + (Number(item.quantity) || 0), 0)
-          }
-        }
-        leadDetailSqft = extractedSqft > 0 ? extractedSqft : fallbackSqft
-        console.log(`[QuotationPerformance] Lead ${lead.id} Detail Draft -> projectSqft: ${detailDraft.projectSqft}, calculated fallback: ${extractedSqft}, final: ${leadDetailSqft}`)
-      }
-
-      if (shortDrafts.length > 0) {
-        for (const shortDraft of shortDrafts) {
-          let extractedSqft = shortDraft.projectSqft ?? 0
-          if (extractedSqft <= 0 && shortDraft.content && typeof shortDraft.content === 'object') {
-            const contentObj = shortDraft.content as any
-            if (Array.isArray(contentObj.rooms)) {
-              for (const room of contentObj.rooms) {
-                if (Array.isArray(room.lines)) {
-                  extractedSqft += room.lines
-                    .reduce((sum: number, line: any) => sum + (Number(line.quantitySqft) || 0), 0)
-                }
-              }
-            }
-          }
-          // Note: If multiple short packages are created for the same lead, 
-          // we only count the SQFT once, using the max among packages to prevent artificially inflating performance.
-          const draftSqft = extractedSqft > 0 ? extractedSqft : fallbackSqft
-          console.log(`[QuotationPerformance] Lead ${lead.id} Short Draft (${shortDraft.draftKey}) -> projectSqft: ${shortDraft.projectSqft}, calculated fallback: ${extractedSqft}, final package: ${draftSqft}`)
-          if (draftSqft > leadShortSqft) {
-            leadShortSqft = draftSqft
-          }
-        }
-      }
-
-      if (!detailDraft && shortDrafts.length === 0 && fallbackSqft > 0) {
-        leadDetailSqft = fallbackSqft
-        console.log(`[QuotationPerformance] Lead ${lead.id} No Drafts -> using visit fallback sqft: ${fallbackSqft}`)
-      }
-
-      console.log(`[QuotationPerformance] Lead ${lead.id} TOTALS -> detail: ${leadDetailSqft}, short: ${leadShortSqft}`)
+      console.log(`[QuotationPerformance] Lead ${lead.id} TOTALS -> avgDetail: ${leadDetailSqft}, avgShort: ${leadShortSqft}`)
       detailSqft += leadDetailSqft
       shortSqft += leadShortSqft
     }

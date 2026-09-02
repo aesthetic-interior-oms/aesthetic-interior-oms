@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/prisma/client'
 import { requireDatabaseRoles } from '@/lib/authz'
+import { calculateLeadQuotationSqftSummary } from '@/lib/quotation-sqft-calculator'
 
 export async function GET(request: Request) {
   try {
@@ -90,13 +91,21 @@ export async function GET(request: Request) {
           orderBy: { scheduledAt: 'desc' },
           take: 1,
         },
+        quotationDrafts: {
+          select: {
+            draftKey: true,
+            projectSqft: true,
+            content: true,
+          },
+        },
       },
       orderBy: { updated_at: 'desc' },
     })
 
-    return NextResponse.json({
-      success: true,
-      data: leads.map((lead) => ({
+    const tasksData = leads.map((lead) => {
+      const fallbackSqft = lead.visits[0]?.projectSqft ?? 0
+      const sqftSummary = calculateLeadQuotationSqftSummary(lead.quotationDrafts ?? [], fallbackSqft)
+      return {
         id: lead.id,
         name: lead.name,
         phone: lead.phone,
@@ -109,7 +118,11 @@ export async function GET(request: Request) {
         srCrmAssignee: lead.assignments.find((a) => a.department === 'SR_CRM')?.user ?? null,
         jrArchitectAssignee: lead.assignments.find((a) => a.department === 'JR_ARCHITECT')?.user ?? null,
         latestFirstMeeting: lead.meetingEvents[0] ?? null,
-        projectSqft: lead.visits[0]?.projectSqft ?? null,
+        projectSqft: fallbackSqft || null,
+        avgDetailSqft: sqftSummary.avgDetailSqft,
+        avgShortSqft: sqftSummary.avgShortSqft,
+        detailVersionsCount: sqftSummary.detailVersionsCount,
+        shortPackagesCount: sqftSummary.shortPackagesCount,
         attachments: lead.attachments,
         canStart:
           lead.stage === LeadStage.QUOTATION_PHASE &&
@@ -117,7 +130,20 @@ export async function GET(request: Request) {
             lead.subStatus === LeadSubStatus.QUOTATION_CORRECTION),
         canSubmit:
           lead.stage === LeadStage.QUOTATION_PHASE && lead.subStatus === LeadSubStatus.QUOTATION_WORKING,
-      })),
+      }
+    })
+
+    const totalDetailSqft = tasksData.reduce((sum, item) => sum + item.avgDetailSqft, 0)
+    const totalShortSqft = tasksData.reduce((sum, item) => sum + item.avgShortSqft, 0)
+
+    return NextResponse.json({
+      success: true,
+      data: tasksData,
+      metrics: {
+        totalDetailSqft,
+        totalShortSqft,
+        totalSqftWorked: totalDetailSqft + totalShortSqft,
+      },
     })
   } catch (error) {
     console.error('[quotation/assigned-tasks][GET] Error:', error)
