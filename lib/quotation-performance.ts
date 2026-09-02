@@ -43,6 +43,7 @@ export async function recalculateQuotationUserPerformance(userId: string, target
       updated_at: true,
       created_at: true,
       visits: {
+        where: { status: 'COMPLETED' },
         select: { projectSqft: true },
         orderBy: { scheduledAt: 'desc' },
         take: 1,

@@ -87,6 +87,7 @@ export async function GET(request: Request) {
           take: 1,
         },
         visits: {
+          where: { status: 'COMPLETED' },
           select: { projectSqft: true },
           orderBy: { scheduledAt: 'desc' },
           take: 1,
