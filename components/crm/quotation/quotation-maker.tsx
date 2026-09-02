@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
+import { Edit2, ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -137,6 +137,13 @@ export function QuotationMaker({
   const previewContext = isPlayground ? 'playground' : 'lead'
   const previewContextId = isPlayground ? 'playground' : leadId
 
+  const [slotIndex, setSlotIndex] = useState<number>(1)
+  const [availableSlots, setAvailableSlots] = useState<Array<{ slotIndex: number; title: string; grandTotal: number; exists: boolean }>>([
+    { slotIndex: 1, title: 'Version 1', grandTotal: 0, exists: true },
+  ])
+  const [editingTitleSlot, setEditingTitleSlot] = useState<number | null>(null)
+  const [editingTitleText, setEditingTitleText] = useState('')
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [startingWork, setStartingWork] = useState(false)
@@ -176,7 +183,7 @@ export function QuotationMaker({
     })
   }
 
-  const loadDraft = useCallback(async () => {
+  const loadDraft = useCallback(async (targetSlot: number = slotIndex) => {
     setLoading(true)
     try {
       if (isPlayground) {
@@ -186,7 +193,7 @@ export function QuotationMaker({
           setTemplates(templatesPayload.data.templates)
         }
 
-        const stored = loadPlaygroundDetailDraft()
+        const stored = loadPlaygroundDetailDraft(targetSlot)
         if (stored) {
           setQuotationType(stored.quotationType)
           setProjectSqft(stored.projectSqft ? String(stored.projectSqft) : '')
@@ -194,13 +201,15 @@ export function QuotationMaker({
         } else {
           setQuotationType('STANDARD')
           setProjectSqft('')
-          setContent(buildDefaultFloorDetailContent())
+          const def = buildDefaultFloorDetailContent()
+          def.versionTitle = `Version ${targetSlot}`
+          setContent(def)
         }
         setCanEdit(true)
         return
       }
 
-      const response = await fetch(`/api/lead/${leadId}/quotation-draft?documentType=detail`, { cache: 'no-store' })
+      const response = await fetch(`/api/lead/${leadId}/quotation-draft?documentType=detail&slot=${targetSlot}`, { cache: 'no-store' })
       const payload = await response.json()
       if (!response.ok || !payload?.success || !payload?.data) {
         throw new Error(payload?.error ?? 'Failed to load quotation')
@@ -210,6 +219,17 @@ export function QuotationMaker({
       setCanEdit(Boolean(data.canEdit))
       if (Array.isArray(data.templates)) setTemplates(data.templates)
       if (Array.isArray(data.fullTemplates)) setFullTemplates(data.fullTemplates)
+      if (Array.isArray(data.availableSlots)) {
+        const filledSlots = [1, 2, 3]
+          .map((sIndex) => {
+            const found = data.availableSlots.find((item: any) => item.slotIndex === sIndex)
+            return found
+              ? { ...found }
+              : { slotIndex: sIndex, title: `Version ${sIndex}`, grandTotal: 0, exists: false }
+          })
+          .filter((s) => s.exists || s.slotIndex === 1 || s.slotIndex === targetSlot)
+        setAvailableSlots(filledSlots)
+      }
 
       const source = data.draft ?? data.defaultDetailDraft
       if (!source) throw new Error('Quotation data unavailable')
@@ -218,14 +238,18 @@ export function QuotationMaker({
       const validQType = (qType === 'BASIC' || qType === 'STANDARD' || qType === 'PREMIUM' || qType === 'MIXED') ? qType : 'STANDARD'
       setQuotationType(validQType)
       setProjectSqft(source.projectSqft ? String(source.projectSqft) : '')
-      setContent(normalizeQuotationContent(withDetailQuotationDefaults(source.content)))
+      const normContent = normalizeQuotationContent(withDetailQuotationDefaults(source.content))
+      if (!normContent.versionTitle) {
+        normContent.versionTitle = `Version ${targetSlot}`
+      }
+      setContent(normContent)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load quotation')
       setContent(null)
     } finally {
       setLoading(false)
     }
-  }, [isPlayground, leadId])
+  }, [isPlayground, leadId, slotIndex])
 
   useEffect(() => {
     void loadDraft()
@@ -481,6 +505,7 @@ export function QuotationMaker({
         updatedAt: new Date().toISOString(),
         context: previewContext,
         contextId: previewContextId,
+        slotIndex,
         clientName: content.clientName || leadName,
         clientAddress: effectiveClientAddress,
         quotationType,
@@ -489,11 +514,11 @@ export function QuotationMaker({
         totals,
       })
     }
-    const url = buildDetailPreviewUrl({ context: previewContext, contextId: previewContextId })
+    const url = buildDetailPreviewUrl({ context: previewContext, contextId: previewContextId, slotIndex })
     void window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  const saveDraft = useCallback(async () => {
+  const saveDraft = useCallback(async (allSlots: boolean = false) => {
     if (!content || !canEdit) return
     const normalized = normalizeQuotationContent(content)
 
@@ -511,15 +536,35 @@ export function QuotationMaker({
     setSaving(true)
     try {
       const projectSqftValue = projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null
+      const activeTargetSlots = availableSlots.map((s) => s.slotIndex)
+
       if (isPlayground) {
-        savePlaygroundDetailDraft({
-          quotationType,
-          projectSqft: projectSqftValue,
-          templateKey: FLOOR_DETAIL_TEMPLATE_KEY,
-          content: normalized,
-        })
+        if (allSlots) {
+          activeTargetSlots.forEach((s) => {
+            savePlaygroundDetailDraft(
+              {
+                quotationType,
+                projectSqft: projectSqftValue,
+                templateKey: FLOOR_DETAIL_TEMPLATE_KEY,
+                content: { ...normalized, versionTitle: availableSlots.find((item) => item.slotIndex === s)?.title || `Version ${s}` },
+              },
+              s,
+            )
+          })
+          toast.success('Saved to all versions (playground)')
+        } else {
+          savePlaygroundDetailDraft(
+            {
+              quotationType,
+              projectSqft: projectSqftValue,
+              templateKey: FLOOR_DETAIL_TEMPLATE_KEY,
+              content: normalized,
+            },
+            slotIndex,
+          )
+          toast.success(`Saved Version ${slotIndex} to browser`)
+        }
         setContent(normalized)
-        toast.success('Saved to browser (playground only)')
         return
       }
 
@@ -528,6 +573,9 @@ export function QuotationMaker({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           documentType: 'detail',
+          slotIndex,
+          saveAllSlots: allSlots,
+          targetSlots: activeTargetSlots,
           quotationType,
           projectSqft: projectSqftValue,
           content: normalized,
@@ -539,13 +587,14 @@ export function QuotationMaker({
         throw new Error(payload?.error ?? 'Failed to save quotation')
       }
       setContent(normalized)
-      toast.success('Quotation saved')
+      toast.success(allSlots ? 'Quotation saved in all versions' : 'Quotation saved')
+      await loadDraft(slotIndex)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save quotation')
     } finally {
       setSaving(false)
     }
-  }, [canEdit, content, isPlayground, leadId, projectSqft, quotationType])
+  }, [canEdit, content, isPlayground, leadId, projectSqft, quotationType, slotIndex, availableSlots, loadDraft])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -649,7 +698,7 @@ export function QuotationMaker({
 return (
     <div className="space-y-5 pb-28 print:pb-0 quotation-maker-root">
       <Card className="overflow-hidden border border-amber-100 bg-gradient-to-br from-amber-50 via-white to-orange-50 shadow-lg print:hidden">
-        <CardHeader className="space-y-3">
+        <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1">
               <CardTitle className="text-2xl text-amber-950">Detail Quotation Studio</CardTitle>
@@ -662,6 +711,160 @@ return (
                 <Badge variant="outline">Playground</Badge>
               ) : (
                 <Badge variant="outline">{formatLabel(leadSubStatus)}</Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Quotation Version Tabs */}
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-amber-200/60 pt-3 print:hidden">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-amber-900/80">
+                Versions (Max 3):
+              </span>
+              {availableSlots.map((s) => {
+                const isActive = s.slotIndex === slotIndex
+                const isEditing = editingTitleSlot === s.slotIndex
+                return (
+                  <div
+                    key={s.slotIndex}
+                    onClick={() => {
+                      if (s.slotIndex !== slotIndex) {
+                        setSlotIndex(s.slotIndex)
+                        void loadDraft(s.slotIndex)
+                      }
+                    }}
+                    className={`group relative flex items-center gap-1.5 rounded-md border px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
+                      isActive
+                        ? 'border-amber-600 bg-amber-600 text-white shadow-sm'
+                        : 'border-amber-200 bg-white hover:bg-amber-100/50 text-slate-800'
+                    }`}
+                  >
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editingTitleText}
+                        autoFocus
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => setEditingTitleText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const trimmed = editingTitleText.trim() || `Version ${s.slotIndex}`
+                            setAvailableSlots((prev) =>
+                              prev.map((item) => (item.slotIndex === s.slotIndex ? { ...item, title: trimmed } : item)),
+                            )
+                            if (s.slotIndex === slotIndex && content) {
+                              setContent({ ...content, versionTitle: trimmed })
+                            }
+                            setEditingTitleSlot(null)
+                          }
+                          if (e.key === 'Escape') setEditingTitleSlot(null)
+                        }}
+                        onBlur={() => {
+                          const trimmed = editingTitleText.trim() || `Version ${s.slotIndex}`
+                          setAvailableSlots((prev) =>
+                            prev.map((item) => (item.slotIndex === s.slotIndex ? { ...item, title: trimmed } : item)),
+                          )
+                          if (s.slotIndex === slotIndex && content) {
+                            setContent({ ...content, versionTitle: trimmed })
+                          }
+                          setEditingTitleSlot(null)
+                        }}
+                        className="h-5 w-24 rounded border px-1 text-xs text-black"
+                      />
+                    ) : (
+                      <span
+                        className="font-medium"
+                        onDoubleClick={(e) => {
+                          e.stopPropagation()
+                          setEditingTitleSlot(s.slotIndex)
+                          setEditingTitleText(s.title)
+                        }}
+                      >
+                        {s.title}
+                      </span>
+                    )}
+
+                    {!isEditing && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditingTitleSlot(s.slotIndex)
+                          setEditingTitleText(s.title)
+                        }}
+                        className="opacity-60 hover:opacity-100"
+                        title="Double-click or click to rename tab"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </button>
+                    )}
+
+                    {s.slotIndex > 1 && !isEditing && (
+                      <button
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation()
+                          if (!confirm(`Are you sure you want to delete ${s.title}?`)) return
+                          try {
+                            if (!isPlayground) {
+                              const res = await fetch(
+                                `/api/lead/${leadId}/quotation-draft?documentType=detail&slot=${s.slotIndex}`,
+                                { method: 'DELETE' },
+                              )
+                              if (!res.ok) throw new Error('Failed to delete draft version')
+                            }
+                            toast.success(`Deleted ${s.title}`)
+                            const remaining = availableSlots.filter((item) => item.slotIndex !== s.slotIndex)
+                            setAvailableSlots(remaining)
+                            if (slotIndex === s.slotIndex) {
+                              setSlotIndex(1)
+                              void loadDraft(1)
+                            }
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : 'Failed to delete version')
+                          }
+                        }}
+                        className="opacity-60 hover:opacity-100 hover:text-red-300"
+                        title="Delete version"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+
+              {availableSlots.length < 3 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const existingIndexes = availableSlots.map((s) => s.slotIndex)
+                    let nextSlot = 1
+                    for (let i = 1; i <= 3; i++) {
+                      if (!existingIndexes.includes(i)) {
+                        nextSlot = i
+                        break
+                      }
+                    }
+                    if (availableSlots.length >= 3 || nextSlot > 3) {
+                      toast.error('Maximum 3 detail quotation versions allowed')
+                      return
+                    }
+                    const newSlots = [
+                      ...availableSlots,
+                      { slotIndex: nextSlot, title: `Version ${nextSlot}`, grandTotal: 0, exists: false },
+                    ].sort((a, b) => a.slotIndex - b.slotIndex)
+                    setAvailableSlots(newSlots)
+                    setSlotIndex(nextSlot)
+                    void loadDraft(nextSlot)
+                  }}
+                  className="h-7 border-dashed border-amber-300 bg-white/50 text-xs hover:bg-amber-100/50"
+                >
+                  <Plus className="mr-1 h-3 w-3" />
+                  Add Version ({availableSlots.length}/3)
+                </Button>
               )}
             </div>
           </div>
@@ -731,9 +934,20 @@ return (
               <Plus className="mr-1.5 h-4 w-4" />
               Add Floor
             </Button>
-            <Button type="button" variant="outline" disabled={!canEdit || saving} onClick={() => void saveDraft()}>
+            <Button type="button" variant="outline" disabled={!canEdit || saving} onClick={() => void saveDraft(false)}>
               <Save className="mr-1.5 h-4 w-4" />
               {saving ? 'Saving...' : 'Save'}
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              className="bg-amber-700 text-white hover:bg-amber-800"
+              disabled={!canEdit || saving}
+              onClick={() => void saveDraft(true)}
+              title="Save current quotation data into all 3 (or all active) versions"
+            >
+              <Save className="mr-1.5 h-4 w-4" />
+              {saving ? 'Saving...' : 'Save in All'}
             </Button>
             <Button type="button" variant="outline" onClick={openLivePreviewTab}>
               <ExternalLink className="mr-1.5 h-4 w-4" />

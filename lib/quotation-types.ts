@@ -63,6 +63,7 @@ export type QuotationDraftContent = {
   summarySubject?: string
   clientName?: string
   clientAddress?: string
+  versionTitle?: string
 }
 
 export type QuotationTemplateItem = {

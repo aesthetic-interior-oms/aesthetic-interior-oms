@@ -2,13 +2,14 @@ import { DetailQuotationLivePreview } from '@/components/crm/quotation/detail-qu
 import type { DetailPreviewContext } from '@/lib/detail-quotation-preview-sync'
 
 type DetailPreviewPageProps = {
-  searchParams: Promise<{ context?: string; id?: string }>
+  searchParams: Promise<{ context?: string; id?: string; slot?: string }>
 }
 
 export default async function DetailPreviewPage({ searchParams }: DetailPreviewPageProps) {
   const params = await searchParams
   const context: DetailPreviewContext = params.context === 'playground' ? 'playground' : 'lead'
   const contextId = params.id?.trim() || (context === 'playground' ? 'playground' : '')
+  const slotIndex = params.slot ? parseInt(params.slot, 10) || 1 : 1
 
   if (!contextId) {
     return (
@@ -18,5 +19,5 @@ export default async function DetailPreviewPage({ searchParams }: DetailPreviewP
     )
   }
 
-  return <DetailQuotationLivePreview context={context} contextId={contextId} />
+  return <DetailQuotationLivePreview context={context} contextId={contextId} slotIndex={slotIndex} />
 }

@@ -48,6 +48,9 @@ type RouteContext = { params: { id: string } | Promise<{ id: string }> }
 
 type SaveQuotationDraftBody = {
   documentType?: unknown
+  slotIndex?: unknown
+  saveAllSlots?: unknown
+  targetSlots?: unknown
   quotationType?: unknown
   projectSqft?: unknown
   content?: unknown
@@ -310,8 +313,23 @@ function parseStoredQuotationContent(value: unknown): QuotationStoredContent | n
   return toDetailQuotationContent(value)
 }
 
-function buildDraftKey(documentType: 'short' | 'detail', packageTier?: ShortQuotationPackage | null) {
-  if (documentType === 'detail') return 'detail'
+function toSlotIndex(value: unknown): number {
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 3) return value
+  if (typeof value === 'string') {
+    const parsed = parseInt(value.trim(), 10)
+    if (parsed >= 1 && parsed <= 3) return parsed
+  }
+  return 1
+}
+
+function buildDraftKey(
+  documentType: 'short' | 'detail',
+  packageTier?: ShortQuotationPackage | null,
+  slotIndex: number = 1,
+) {
+  if (documentType === 'detail') {
+    return slotIndex === 1 ? 'detail' : `detail:slot:${slotIndex}`
+  }
   return `short:${(packageTier ?? 'PREMIUM').toLowerCase()}`
 }
 
@@ -320,6 +338,14 @@ function buildOwnedDraftKey(baseDraftKey: string, ownerUserId: string) {
 }
 
 function matchesBaseDraftKey(draftKey: string, baseDraftKey: string) {
+  if (baseDraftKey === 'detail' || baseDraftKey === 'detail:slot:1') {
+    return (
+      draftKey === 'detail' ||
+      draftKey === 'detail:slot:1' ||
+      draftKey.startsWith('detail:owner:') ||
+      draftKey.startsWith('detail:slot:1:owner:')
+    )
+  }
   return draftKey === baseDraftKey || draftKey.startsWith(`${baseDraftKey}:owner:`)
 }
 
@@ -422,8 +448,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const requestedTemplateKey = resolveTemplateKey(request.nextUrl.searchParams.get('templateKey'))
     const requestedDocumentType = toRequestedDocumentType(request.nextUrl.searchParams.get('documentType'))
     const requestedShortPackage = toShortQuotationPackage(request.nextUrl.searchParams.get('packageTier')) ?? 'PREMIUM'
+    const requestedSlot = toSlotIndex(request.nextUrl.searchParams.get('slot'))
     const requestedDraftKey = requestedDocumentType
-      ? buildDraftKey(requestedDocumentType, requestedShortPackage)
+      ? buildDraftKey(requestedDocumentType, requestedShortPackage, requestedSlot)
       : null
     const savedDrafts = lead.quotationDrafts ?? []
     const selectedDraft = requestedDraftKey
@@ -432,6 +459,28 @@ export async function GET(request: NextRequest, context: RouteContext) {
         ?? savedDrafts.find((draft) => matchesBaseDraftKey(draft.draftKey, requestedDraftKey))
         ?? null
       : savedDrafts[0] ?? null
+
+    const availableSlots = [1, 2, 3].map((s) => {
+      const bKey = s === 1 ? 'detail' : `detail:slot:${s}`
+      const foundDraft =
+        savedDrafts.find((d) => d.draftKey === buildOwnedDraftKey(bKey, authResult.actorUserId)) ||
+        savedDrafts.find((d) => d.draftKey === bKey) ||
+        savedDrafts.find((d) => matchesBaseDraftKey(d.draftKey, bKey))
+
+      const c = foundDraft?.content as Record<string, any> | undefined
+      const title =
+        typeof c?.versionTitle === 'string' && c.versionTitle.trim()
+          ? c.versionTitle.trim()
+          : `Version ${s}`
+
+      return {
+        slotIndex: s,
+        exists: Boolean(foundDraft),
+        title,
+        grandTotal: foundDraft?.grandTotal ?? 0,
+        updatedAt: foundDraft?.updatedAt?.toISOString() ?? null,
+      }
+    })
 
     if (!selectedDraft) {
       const shortContent = buildDefaultShortQuotationContent({
@@ -445,6 +494,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         quotationType: 'STANDARD',
         projectSqft,
       })
+      detailContent.versionTitle = `Version ${requestedSlot}`
       const detailTotals = calculateQuotationTotals(detailContent)
 
       const mergedTemplates = await getMergedQuotationTemplates()
@@ -468,6 +518,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
             grandTotal: detailTotals.grandTotal,
             status: 'DRAFT' as const,
           },
+          availableSlots,
           templates: listQuotationTemplates(),
           fullTemplates: mergedTemplates,
           lead: {
@@ -492,6 +543,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         draft: serializeDraft(selectedDraft),
         documentType,
         defaultDraft: null,
+        availableSlots,
         templates: listQuotationTemplates(),
         fullTemplates: mergedTemplates,
         activeTemplate:
@@ -525,6 +577,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     const body = (await request.json().catch(() => ({}))) as SaveQuotationDraftBody
+    const requestedSlot = toSlotIndex(body.slotIndex)
+    const saveAllSlots = Boolean(body.saveAllSlots)
+    const targetSlotsInput = Array.isArray(body.targetSlots)
+      ? (body.targetSlots as unknown[]).map((s: unknown) => toSlotIndex(s)).filter((s: number, i: number, self: number[]) => self.indexOf(s) === i)
+      : [1, 2, 3]
+
     const quotationType = toQuotationType(body.quotationType) ?? 'STANDARD'
     const projectSqft = toOptionalNumber(body.projectSqft)
     const contentInput = parseStoredQuotationContent(body.content)
@@ -614,8 +672,53 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       : quotationType
 
     const documentType = isShort ? 'short' : 'detail'
+
+    if (!isShort && saveAllSlots) {
+      const targetSlots = targetSlotsInput.length > 0 ? targetSlotsInput : [1, 2, 3]
+      const upsertPromises = targetSlots.map((s: number) => {
+        const bKey = s === 1 ? 'detail' : `detail:slot:${s}`
+        const dKey = buildOwnedDraftKey(bKey, authResult.actorUserId)
+        const slotContent = {
+          ...normalizedContent,
+          versionTitle: (normalizedContent as QuotationDraftContent).versionTitle || `Version ${s}`,
+        }
+        return prisma.quotationDraft.upsert({
+          where: { leadId_draftKey: { leadId: lead.id, draftKey: dKey } },
+          create: {
+            leadId: lead.id,
+            draftKey: dKey,
+            createdById: authResult.actorUserId,
+            updatedById: authResult.actorUserId,
+            quotationType: storedQuotationType,
+            projectSqft: resolvedProjectSqft,
+            content: slotContent,
+            grandTotal,
+            status,
+          },
+          update: {
+            updatedById: authResult.actorUserId,
+            quotationType: storedQuotationType,
+            projectSqft: resolvedProjectSqft,
+            content: slotContent,
+            grandTotal,
+            status,
+          },
+        })
+      })
+
+      const results = await Promise.all(upsertPromises)
+      const primaryIndex = targetSlots.indexOf(requestedSlot)
+      const savedDraft = results[primaryIndex >= 0 ? primaryIndex : 0]
+
+      return NextResponse.json({
+        success: true,
+        data: serializeDraft(savedDraft),
+        message: 'Quotation saved to all detail versions',
+      })
+    }
+
     const requestedShortPackage = documentType === 'short' ? (normalizedContent as ShortQuotationContent).packageTier : null
-    const baseDraftKey = buildDraftKey(documentType, requestedShortPackage)
+    const baseDraftKey = buildDraftKey(documentType, requestedShortPackage, requestedSlot)
     const draftKey = buildOwnedDraftKey(baseDraftKey, authResult.actorUserId)
 
     const savedDraft = await prisma.quotationDraft.upsert({
@@ -652,6 +755,56 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 }
 
+export async function DELETE(request: NextRequest, context: RouteContext) {
+  try {
+    const authResult = await requireDatabaseRoles([])
+    if (!authResult.ok) return authResult.response
+
+    const leadId = await resolveLeadId(context)
+    if (!leadId) {
+      return NextResponse.json({ success: false, error: 'Invalid lead id' }, { status: 400 })
+    }
+
+    const requestedSlot = toSlotIndex(request.nextUrl.searchParams.get('slot'))
+    if (requestedSlot === 1) {
+      return NextResponse.json({ success: false, error: 'Slot 1 cannot be deleted' }, { status: 400 })
+    }
+
+    const actorDepartments = authResult.actor.userDepartments ?? []
+    if (!canAccessQuotationDraft(actorDepartments)) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
+
+    const leadWhere = buildQuotationLeadWhere({
+      leadId,
+      actorUserId: authResult.actorUserId,
+      actorDepartments,
+    })
+    if (!leadWhere) {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
+
+    const baseDraftKey = `detail:slot:${requestedSlot}`
+    const ownedDraftKey = buildOwnedDraftKey(baseDraftKey, authResult.actorUserId)
+
+    await prisma.quotationDraft.deleteMany({
+      where: {
+        leadId,
+        OR: [
+          { draftKey: baseDraftKey },
+          { draftKey: ownedDraftKey },
+          { draftKey: { startsWith: `${baseDraftKey}:owner:` } },
+        ],
+      },
+    })
+
+    return NextResponse.json({ success: true, message: `Version ${requestedSlot} deleted` })
+  } catch (error) {
+    console.error('[lead/:id/quotation-draft][DELETE] Error:', error)
+    return NextResponse.json({ success: false, error: 'Failed to delete draft version' }, { status: 500 })
+  }
+}
+
 export async function OPTIONS() {
-  return new NextResponse(null, { status: 204, headers: { Allow: 'GET, PUT, OPTIONS' } })
+  return new NextResponse(null, { status: 204, headers: { Allow: 'GET, PUT, DELETE, OPTIONS' } })
 }

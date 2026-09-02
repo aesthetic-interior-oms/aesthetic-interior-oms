@@ -39,10 +39,14 @@ export function savePlaygroundShortDraft(content: ShortQuotationContent) {
   window.localStorage.setItem(playgroundShortKey(content.packageTier), JSON.stringify(content))
 }
 
-export function loadPlaygroundDetailDraft(): PlaygroundDetailDraft | null {
+function playgroundDetailKey(slotIndex: number = 1) {
+  return slotIndex === 1 ? PLAYGROUND_DETAIL_KEY : `${PLAYGROUND_DETAIL_KEY}:slot:${slotIndex}`
+}
+
+export function loadPlaygroundDetailDraft(slotIndex: number = 1): PlaygroundDetailDraft | null {
   if (!canUseStorage()) return null
   try {
-    const raw = window.localStorage.getItem(PLAYGROUND_DETAIL_KEY)
+    const raw = window.localStorage.getItem(playgroundDetailKey(slotIndex))
     if (!raw) return null
     const parsed = JSON.parse(raw) as PlaygroundDetailDraft
     if (!parsed?.content || typeof parsed.content !== 'object') return null
@@ -52,13 +56,13 @@ export function loadPlaygroundDetailDraft(): PlaygroundDetailDraft | null {
   }
 }
 
-export function savePlaygroundDetailDraft(draft: Omit<PlaygroundDetailDraft, 'savedAt'>) {
+export function savePlaygroundDetailDraft(draft: Omit<PlaygroundDetailDraft, 'savedAt'>, slotIndex: number = 1) {
   if (!canUseStorage()) return
   const payload: PlaygroundDetailDraft = {
     ...draft,
     savedAt: new Date().toISOString(),
   }
-  window.localStorage.setItem(PLAYGROUND_DETAIL_KEY, JSON.stringify(payload))
+  window.localStorage.setItem(playgroundDetailKey(slotIndex), JSON.stringify(payload))
 }
 
 export function clearPlaygroundDrafts() {

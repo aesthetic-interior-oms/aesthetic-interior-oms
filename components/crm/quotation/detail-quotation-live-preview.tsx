@@ -38,18 +38,20 @@ function generateDetailQuotationCode(quotationType: string) {
 type DetailQuotationLivePreviewProps = {
   context: DetailPreviewContext
   contextId: string
+  slotIndex?: number
 }
 
 export function DetailQuotationLivePreview({
   context,
   contextId,
+  slotIndex = 1,
 }: DetailQuotationLivePreviewProps) {
   const [payload, setPayload] = useState<DetailPreviewPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
 
   const loadPayload = useCallback(async () => {
-    const cached = readDetailPreview(context, contextId)
+    const cached = readDetailPreview(context, contextId, slotIndex)
     if (cached) {
       setPayload(cached)
       setLoading(false)
@@ -58,7 +60,7 @@ export function DetailQuotationLivePreview({
 
     if (context === 'lead') {
       try {
-        const response = await fetch(`/api/lead/${contextId}/quotation-draft?documentType=detail`, { cache: 'no-store' })
+        const response = await fetch(`/api/lead/${contextId}/quotation-draft?documentType=detail&slot=${slotIndex}`, { cache: 'no-store' })
         const result = await response.json()
         if (response.ok && result?.success && result?.data) {
           const source = result.data.draft ?? result.data.defaultDetailDraft
@@ -71,6 +73,7 @@ export function DetailQuotationLivePreview({
               updatedAt: new Date().toISOString(),
               context,
               contextId,
+              slotIndex,
               clientName: content.clientName || result.data.lead?.name || 'Client',
               clientAddress: result.data.lead?.location ?? null,
               quotationType: validQType,
@@ -84,13 +87,14 @@ export function DetailQuotationLivePreview({
         // fall through to empty state
       }
     } else if (context === 'playground') {
-      const stored = loadPlaygroundDetailDraft()
+      const stored = loadPlaygroundDetailDraft(slotIndex)
       if (stored) {
         const normalized = withDetailQuotationDefaults(stored.content)
         setPayload({
           updatedAt: stored.savedAt,
           context,
           contextId,
+          slotIndex,
           clientName: normalized.clientName || 'Sample Client',
           clientAddress: 'Sample address for testing',
           quotationType: stored.quotationType,
@@ -104,6 +108,7 @@ export function DetailQuotationLivePreview({
           updatedAt: new Date().toISOString(),
           context,
           contextId,
+          slotIndex,
           clientName: 'Sample Client',
           clientAddress: 'Sample address for testing',
           quotationType: 'STANDARD',
@@ -115,7 +120,7 @@ export function DetailQuotationLivePreview({
     }
 
     setLoading(false)
-  }, [context, contextId])
+  }, [context, contextId, slotIndex])
 
   const handleDownloadPdf = async () => {
     if (!payload) return
@@ -154,6 +159,7 @@ export function DetailQuotationLivePreview({
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            slotIndex,
             quotationType: payload.quotationType,
             projectSqft: payload.projectSqft,
             content: contentForDownload,
@@ -173,10 +179,10 @@ export function DetailQuotationLivePreview({
   useEffect(() => {
     void loadPayload()
     return subscribeDetailPreview(context, contextId, () => {
-      const next = readDetailPreview(context, contextId)
+      const next = readDetailPreview(context, contextId, slotIndex)
       if (next) setPayload(next)
-    })
-  }, [context, contextId, loadPayload])
+    }, slotIndex)
+  }, [context, contextId, loadPayload, slotIndex])
 
   if (loading) {
     return (
