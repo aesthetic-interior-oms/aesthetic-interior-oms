@@ -3,10 +3,7 @@ import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/
 export const QUOTATION_EDITABLE_SUBSTATUSES = new Set<LeadSubStatus>([
   LeadSubStatus.QUOTATION_WORKING,
   LeadSubStatus.QUOTATION_CORRECTION,
-  LeadSubStatus.BUDGET_ASSIGNED,
-  LeadSubStatus.BUDGET_WORKING,
   LeadSubStatus.BUDGET_MEETING_SET,
-  LeadSubStatus.BUDGET_MEETING,
 ])
 
 export function isQuotationDepartment(actorDepartments: string[]): boolean {
