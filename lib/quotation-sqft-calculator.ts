@@ -99,7 +99,11 @@ export function calculateLeadQuotationSqftSummary(
     totalShortSqft += extractDraftSqft(draft, fallbackSqft)
   }
   const avgShortSqft =
-    shortDrafts.length > 0 ? Math.round(totalShortSqft / shortDrafts.length) : 0
+    shortDrafts.length > 0
+      ? Math.round(totalShortSqft / shortDrafts.length)
+      : fallbackSqft > 0
+        ? fallbackSqft
+        : 0
 
   return {
     avgDetailSqft,

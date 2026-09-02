@@ -673,6 +673,34 @@ export function ShortQuotationBuilder({
               )}
             </div>
           </div>
+
+          {/* Package Tabs (Platinum, Premium, Luxury) - Always Enabled for Read-Only & Edit */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-amber-200/60 pt-4 print:hidden">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-amber-950">
+                Package Tiers:
+              </span>
+              <div className="flex flex-wrap items-center gap-2.5">
+                {SHORT_QUOTATION_PACKAGES.map((pkg) => {
+                  const isActive = pkg === selectedPackageTier
+                  return (
+                    <button
+                      key={pkg}
+                      type="button"
+                      onClick={() => setPackageTier(pkg)}
+                      className={`flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-all cursor-pointer shadow-sm ${
+                        isActive
+                          ? 'border-amber-600 bg-amber-600 text-white shadow-md ring-2 ring-amber-400/40'
+                          : 'border-slate-200 bg-white hover:bg-amber-50 text-slate-800'
+                      }`}
+                    >
+                      {pkg.charAt(0) + pkg.slice(1).toLowerCase()}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4 border-t border-amber-100 bg-background p-5 text-foreground md:p-6">
           <div className="grid gap-3 md:grid-cols-3">
@@ -680,7 +708,6 @@ export function ShortQuotationBuilder({
               <p className="text-xs font-medium text-muted-foreground">Package</p>
               <Select
                 value={content.packageTier}
-                disabled={!canEdit}
                 onValueChange={(value) => setPackageTier(value as ShortQuotationPackage)}
               >
                 <SelectTrigger>

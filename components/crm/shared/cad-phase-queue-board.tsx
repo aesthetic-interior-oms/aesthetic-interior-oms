@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ComponentType } from 'react'
 import Link from 'next/link'
 import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
+import { buildShortPreviewUrl } from '@/lib/short-quotation-preview-sync'
 import {
   CalendarClock,
   CheckCircle2,
@@ -1990,20 +1991,36 @@ export function CadPhaseQueueBoard({
                             </div>
                             <div className="flex flex-wrap gap-2">
                               {lead.hasQuotationDraft && (
-                                <a
-                                  href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id })}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-md border border-amber-300 bg-amber-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-amber-700 shadow-sm"
-                                  title="Download generated Detail Quotation PDF"
-                                >
-                                  <FileText className="h-3.5 w-3.5 shrink-0 text-white" />
-                                  <span className="max-w-[180px] truncate">Detail Quotation PDF</span>
-                                  <Badge variant="secondary" className="px-1.5 py-0 text-[9px] font-bold bg-white text-amber-900">
-                                    LIVE PDF
-                                  </Badge>
-                                  <Download className="h-3.5 w-3.5 shrink-0 text-white" />
-                                </a>
+                                <>
+                                  <a
+                                    href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id })}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-md border border-amber-300 bg-amber-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-amber-700 shadow-sm"
+                                    title="Download generated Detail Quotation PDF"
+                                  >
+                                    <FileText className="h-3.5 w-3.5 shrink-0 text-white" />
+                                    <span className="max-w-[180px] truncate">Detail Quotation PDF</span>
+                                    <Badge variant="secondary" className="px-1.5 py-0 text-[9px] font-bold bg-white text-amber-900">
+                                      LIVE PDF
+                                    </Badge>
+                                    <Download className="h-3.5 w-3.5 shrink-0 text-white" />
+                                  </a>
+                                  <a
+                                    href={buildShortPreviewUrl({ context: 'lead', contextId: lead.id })}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-md border border-sky-300 bg-sky-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-sky-700 shadow-sm"
+                                    title="Download generated Short Quotation PDF"
+                                  >
+                                    <FileText className="h-3.5 w-3.5 shrink-0 text-white" />
+                                    <span className="max-w-[180px] truncate">Short Quotation PDF</span>
+                                    <Badge variant="secondary" className="px-1.5 py-0 text-[9px] font-bold bg-white text-sky-900">
+                                      LIVE PDF
+                                    </Badge>
+                                    <Download className="h-3.5 w-3.5 shrink-0 text-white" />
+                                  </a>
+                                </>
                               )}
                               {quotationFiles.map((file) => (
                                 <a
