@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         userDepartments: {
           some: {
             department: {
-              name: { in: ['QUOTATION', 'QUOTATION_TEAM'] },
+              name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'], mode: 'insensitive' },
             },
           },
         },

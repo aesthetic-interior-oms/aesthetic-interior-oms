@@ -15,14 +15,15 @@ export function getMonthKey(date: Date = new Date()): string {
 export async function recalculateQuotationUserPerformance(userId: string, targetDate: Date = new Date()) {
   const monthKey = getMonthKey(targetDate)
 
-  // Fetch all leads assigned to this user in QUOTATION department OR where user created/updated quotation drafts
+  // Fetch all leads assigned to this user (assignedTo, primaryOwner, assignments, or drafts)
   const assignedLeads = await prisma.lead.findMany({
     where: {
       OR: [
+        { assignedTo: userId },
+        { primaryOwnerUserId: userId },
         {
           assignments: {
             some: {
-              department: LeadAssignmentDepartment.QUOTATION,
               userId,
             },
           },
@@ -43,9 +44,8 @@ export async function recalculateQuotationUserPerformance(userId: string, target
       updated_at: true,
       created_at: true,
       visits: {
-        select: { projectSqft: true },
+        select: { projectSqft: true, status: true },
         orderBy: { scheduledAt: 'desc' },
-        take: 1,
       },
       quotationDrafts: {
         select: {
@@ -84,13 +84,16 @@ export async function recalculateQuotationUserPerformance(userId: string, target
     }
 
     // Always calculate SQFT per document type (averaging versions/packages) for all leads worked on
-    const fallbackSqft = lead.visits[0]?.projectSqft ?? 0
+    // Prefer projectSqft from a COMPLETED visit; fall back to any visit that has a projectSqft value
+    const completedVisitSqft = lead.visits.find((v) => v.status === 'COMPLETED' && v.projectSqft)?.projectSqft ?? null
+    const anyVisitSqft = lead.visits.find((v) => v.projectSqft)?.projectSqft ?? null
+    const fallbackSqft = Number(completedVisitSqft ?? anyVisitSqft ?? 0)
     const sqftSummary = calculateLeadQuotationSqftSummary(lead.quotationDrafts, fallbackSqft)
 
     const leadDetailSqft = sqftSummary.avgDetailSqft
     const leadShortSqft = sqftSummary.avgShortSqft
 
-    console.log(`[QuotationPerformance] Lead ${lead.id} TOTALS -> avgDetail: ${leadDetailSqft}, avgShort: ${leadShortSqft}`)
+    console.log(`[QuotationPerformance] Lead ${lead.id} fallbackSqft: ${fallbackSqft}, avgDetail: ${leadDetailSqft}, avgShort: ${leadShortSqft}`)
     detailSqft += leadDetailSqft
     shortSqft += leadShortSqft
   }
@@ -158,10 +161,11 @@ export async function recalculateQuotationUserPerformance(userId: string, target
 export async function syncAllQuotationTeamPerformance(targetDate: Date = new Date()) {
   const quotationUsers = await prisma.user.findMany({
     where: {
+      isActive: true,
       userDepartments: {
         some: {
           department: {
-            name: { in: ['QUOTATION', 'QUOTATION_TEAM'] },
+            name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'], mode: 'insensitive' },
           },
         },
       },
