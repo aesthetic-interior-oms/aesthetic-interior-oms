@@ -26,6 +26,8 @@ Font.register({
   ],
 });
 
+Font.registerHyphenationCallback((word) => [word])
+
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 import {
   buildDetailFloorSummaries,

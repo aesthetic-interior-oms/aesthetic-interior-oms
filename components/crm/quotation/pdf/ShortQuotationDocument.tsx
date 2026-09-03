@@ -25,6 +25,8 @@ Font.register({
   ],
 })
 
+Font.registerHyphenationCallback((word) => [word])
+
 import { amountInWordsTaka } from '@/lib/number-to-words'
 import { buildShortQuotationSummary, formatShortQuotationDate } from '@/lib/short-quotation-calculations'
 import type { ShortQuotationContent } from '@/lib/short-quotation-types'
