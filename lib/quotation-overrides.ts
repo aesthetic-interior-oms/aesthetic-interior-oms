@@ -23,9 +23,28 @@ export async function getMergedQuotationTemplates() {
       } as QuotationTemplateItem
     }).filter(Boolean) as QuotationTemplateItem[]
     
+    const newItems = overrides
+      .filter((o) => o.templateKey === base.key && o.isNewItem && !o.isDeleted)
+      .map(
+        (o) =>
+          ({
+            id: o.itemId,
+            sectionId: o.sectionId || template.sections[0]?.id || 'general',
+            description: o.description || 'New Saved Item',
+            materials: o.materials || '',
+            unit: (o.unit as any) || 'sqft',
+            priceMode: (o.priceMode as any) || 'fixed',
+            basicRate: o.basicRate ?? 0,
+            standardRate: o.standardRate ?? 0,
+            premiumRate: o.premiumRate ?? 0,
+            rateMin: o.rateMin ?? undefined,
+            rateMax: o.rateMax ?? undefined,
+          }) satisfies QuotationTemplateItem,
+      )
+
     return {
       ...template,
-      items: mergedItems
+      items: [...mergedItems, ...newItems],
     }
   })
 }
