@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, FileDown, Loader2, MapPin, Phone } from 'lucide-react'
+import { ArrowLeft, FileDown, Loader2, MapPin, Phone, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DateRangePicker, type DateRange } from '@/components/ui/date-range-picker'
 
 const CATEGORY_LABELS: Record<string, string> = {
   CLIENT_DEPOSIT: 'Client Deposit',
@@ -68,44 +69,96 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true)
   const [modalFilter, setModalFilter] = useState<{ type: 'CATEGORY' | 'INFLOW' | 'OUTFLOW', value?: string } | null>(null)
 
-  // PDF date filter state
-  const [pdfDateStart, setPdfDateStart] = useState('')
-  const [pdfDateEnd, setPdfDateEnd] = useState('')
+  // Date range filter state
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
 
   useEffect(() => {
     if (!id) return
     setLoading(true)
-    fetch(`/api/finance/reports?mode=project&leadId=${id}`)
+
+    let url = `/api/finance/reports?mode=project&leadId=${id}`
+    if (dateRange?.from) {
+      const fromStr = `${dateRange.from.getFullYear()}-${String(dateRange.from.getMonth() + 1).padStart(2, '0')}-${String(dateRange.from.getDate()).padStart(2, '0')}`
+      url += `&startDate=${fromStr}`
+    }
+    if (dateRange?.to) {
+      const toStr = `${dateRange.to.getFullYear()}-${String(dateRange.to.getMonth() + 1).padStart(2, '0')}-${String(dateRange.to.getDate()).padStart(2, '0')}`
+      url += `&endDate=${toStr}`
+    }
+
+    fetch(url)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) setReport(data)
       })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, dateRange])
 
-  const totalExpense = report
-    ? ((Object.values(report.categoryTotals || {}) as number[]).reduce((a, b) => a + b, 0))
-    : 0
+  // All financial values and filtered transactions are pre-calculated by backend API
+  const isDateFiltered = Boolean(report?.isFiltered || dateRange?.from || dateRange?.to)
+  const agreementValue = report?.agreementValue ?? report?.project?.agreementValue ?? report?.project?.budget ?? null
+  const displayTotalPaid = report?.totalPaid ?? 0
+  const displayTotalExpense = report?.totalOutflow ?? 0
+  const displayDue = report?.paymentDue ?? (agreementValue !== null ? agreementValue - displayTotalPaid : null)
+  const displayProfit = report?.profitEstimate ?? (agreementValue !== null ? agreementValue - displayTotalExpense : null)
 
-  const agreementValue = report?.project?.agreementValue ?? report?.project?.budget ?? null
-  const totalPaid = report?.totalPaid ?? 0
-  const due = agreementValue !== null ? agreementValue - totalPaid : null
-  const profit = agreementValue !== null ? agreementValue - totalExpense : null
+  const activeCategoryTotals = report?.categoryTotals || {}
+  const filteredTransactionsByDate = report?.transactions || []
+  const activeTotalInflow = report?.totalInflow ?? 0
+  const activeTotalOutflow = report?.totalOutflow ?? 0
 
   const project = report?.project ?? null
+  const netResult = displayTotalPaid - displayTotalExpense
 
-  const totalInflow = totalPaid
-  const totalOutflow = totalExpense
-  const netResult = totalInflow - totalOutflow
+  const setPresetRange = (preset: 'ALL' | 'TODAY' | 'THIS_MONTH' | 'LAST_7_DAYS' | 'LAST_30_DAYS') => {
+    const today = new Date()
+    if (preset === 'ALL') {
+      setDateRange(undefined)
+      return
+    }
+    if (preset === 'TODAY') {
+      const from = new Date(today)
+      from.setHours(0, 0, 0, 0)
+      const to = new Date(today)
+      to.setHours(23, 59, 59, 999)
+      setDateRange({ from, to })
+      return
+    }
+    if (preset === 'THIS_MONTH') {
+      const from = new Date(today.getFullYear(), today.getMonth(), 1)
+      const to = new Date(today)
+      to.setHours(23, 59, 59, 999)
+      setDateRange({ from, to })
+      return
+    }
+    if (preset === 'LAST_7_DAYS') {
+      const from = new Date(today)
+      from.setDate(from.getDate() - 6)
+      from.setHours(0, 0, 0, 0)
+      const to = new Date(today)
+      to.setHours(23, 59, 59, 999)
+      setDateRange({ from, to })
+      return
+    }
+    if (preset === 'LAST_30_DAYS') {
+      const from = new Date(today)
+      from.setDate(from.getDate() - 29)
+      from.setHours(0, 0, 0, 0)
+      const to = new Date(today)
+      to.setHours(23, 59, 59, 999)
+      setDateRange({ from, to })
+      return
+    }
+  }
 
   const filteredTransactions = modalFilter
-    ? report?.transactions?.filter((tx: any) => {
+    ? filteredTransactionsByDate.filter((tx: any) => {
         if (modalFilter.type === 'CATEGORY') return tx.category === modalFilter.value
         if (modalFilter.type === 'INFLOW') return tx.type === 'INFLOW'
         if (modalFilter.type === 'OUTFLOW') return tx.type === 'OUTFLOW'
         return false
-      }) || []
+      })
     : []
 
   const modalTotalInflow = filteredTransactions
@@ -267,11 +320,13 @@ export default function ProjectDetailPage() {
     const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 
     // Build date filter label for header
-    const fmtD = (s: string) => new Date(s).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    const periodLabel = pdfDateStart && pdfDateEnd
-      ? `${fmtD(pdfDateStart)}  →  ${fmtD(pdfDateEnd)}`
-      : pdfDateStart
-      ? `From ${fmtD(pdfDateStart)}`
+    const fmtD = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    const periodLabel = dateRange?.from && dateRange?.to
+      ? `${fmtD(dateRange.from)}  →  ${fmtD(dateRange.to)}`
+      : dateRange?.from
+      ? `From ${fmtD(dateRange.from)}`
+      : dateRange?.to
+      ? `Until ${fmtD(dateRange.to)}`
       : 'All Time'
 
     const logoImg = new Image()
@@ -314,8 +369,16 @@ export default function ProjectDetailPage() {
       detailsY += 5
     }
 
+    // Agreement Value / Budget at top in bold
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 41, 59)
+    const formattedAgreement = agreementValue !== null ? `${agreementValue.toLocaleString()} BDT` : 'Not Defined'
+    doc.text(`Agreement Value / Budget: ${formattedAgreement}`, 14, detailsY)
+    detailsY += 6
+
     // Period badge (only if filtered)
-    if (pdfDateStart || pdfDateEnd) {
+    if (dateRange?.from || dateRange?.to) {
       const badgeText = `Period: ${periodLabel}`
       const badgeW = doc.getTextWidth(badgeText) + 6
       doc.setFillColor(241, 245, 249)
@@ -336,22 +399,9 @@ export default function ProjectDetailPage() {
     let afterCatY = detailsY + 8
 
     // ── Date-filtered transactions ──────────────────────────────────────────
-    const allTxs: any[] = report.transactions || []
-    const filteredByDate = allTxs.filter((tx: any) => {
-      const d = new Date(tx.date)
-      if (pdfDateStart && d < new Date(pdfDateStart)) return false
-      if (pdfDateEnd && d > new Date(pdfDateEnd + 'T23:59:59')) return false
-      return true
-    })
-
-    // Rebuild category totals from filtered transactions
-    const filteredCatTotals: Record<string, number> = {}
-    filteredByDate.forEach((tx: any) => {
-      if (tx.type === 'OUTFLOW') {
-        filteredCatTotals[tx.category] = (filteredCatTotals[tx.category] || 0) + tx.amount
-      }
-    })
-    const filteredTotalExpense = Object.values(filteredCatTotals).reduce((a, b) => a + b, 0)
+    const filteredByDate = filteredTransactionsByDate
+    const filteredCatTotals = activeCategoryTotals
+    const filteredTotalExpense = displayTotalExpense
 
     // ── Section 1: Category-wise Spending ───────────────────────────────────
     const catEntries = Object.entries(filteredCatTotals) as [string, number][]
@@ -516,55 +566,51 @@ export default function ProjectDetailPage() {
     doc.setTextColor(30, 41, 59)
     doc.text('FINANCIAL SUMMARY', 14, finalY + 5)
 
-    doc.setDrawColor(226, 232, 240)
-    doc.setLineWidth(0.5)
-    doc.line(14, finalY + 7, pageW - 14, finalY + 7)
+    const summaryTableRows = [
+      ['Total Paid (Deposits)', `${displayTotalPaid.toLocaleString()} BDT`],
+      ['Payment Due', displayDue !== null ? `${displayDue.toLocaleString()} BDT` : 'N/A'],
+      ['Site Expense Logged', `${displayTotalExpense.toLocaleString()} BDT`],
+      ['Profit Margin Estimate', displayProfit !== null ? `${displayProfit.toLocaleString()} BDT` : 'N/A'],
+    ]
 
-    let summaryY = finalY + 12
-
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(71, 85, 105)
-    doc.text('Agreement Value:', 14, summaryY)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(30, 41, 59)
-    doc.text(agreementValue !== null ? `${agreementValue.toLocaleString()} BDT` : 'Not Defined', 60, summaryY)
-
-    summaryY += 6
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(71, 85, 105)
-    doc.text('Total Inflow:', 14, summaryY)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(5, 150, 105)
-    doc.text(`${totalInflow.toLocaleString()} BDT`, 60, summaryY)
-
-    summaryY += 6
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(71, 85, 105)
-    doc.text('Total Outflow:', 14, summaryY)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(220, 38, 38)
-    doc.text(`${totalOutflow.toLocaleString()} BDT`, 60, summaryY)
-
-    summaryY += 8
-    doc.setDrawColor(226, 232, 240)
-    doc.line(14, summaryY - 3, 100, summaryY - 3)
-
-    const pc: [number, number, number] = netResult >= 0 ? [5, 150, 105] : [220, 38, 38]
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(...pc)
-    doc.text(netResult >= 0 ? 'Net Profit:' : 'Net Loss:', 14, summaryY)
-    doc.setFont('helvetica', 'bold')
-    doc.text(`${netResult.toLocaleString()} BDT`, 60, summaryY)
-
-    if (due !== null) {
-      summaryY += 6
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(due > 0 ? 220 : 5, due > 0 ? 38 : 150, due > 0 ? 38 : 105)
-      doc.text('Payment Due:', 14, summaryY)
-      doc.setFont('helvetica', 'bold')
-      doc.text(`${due.toLocaleString()} BDT`, 60, summaryY)
-    }
+    autoTable(doc, {
+      startY: finalY + 8,
+      head: [['Financial Metric', 'Amount']],
+      body: summaryTableRows,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [241, 245, 249],
+        textColor: [30, 41, 59],
+        fontStyle: 'bold',
+        fontSize: 8.5,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+      },
+      bodyStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontSize: 8.5,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+      },
+      columnStyles: {
+        0: { cellWidth: 90, fontStyle: 'bold' },
+        1: { cellWidth: 60, halign: 'right', fontStyle: 'bold' },
+      },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 1) {
+          if (data.row.index === 0) {
+            data.cell.styles.textColor = [5, 150, 105]
+          } else if (data.row.index === 1) {
+            data.cell.styles.textColor = (displayDue !== null && displayDue > 0) ? [220, 38, 38] : [5, 150, 105]
+          } else if (data.row.index === 2) {
+            data.cell.styles.textColor = [220, 38, 38]
+          } else if (data.row.index === 3) {
+            data.cell.styles.textColor = (displayProfit !== null && displayProfit >= 0) ? [5, 150, 105] : [220, 38, 38]
+          }
+        }
+      }
+    })
 
     doc.setTextColor(0, 0, 0)
     const safeClientName = clientName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()
@@ -602,43 +648,82 @@ export default function ProjectDetailPage() {
               {new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })}
             </span>
             {report && (
-              <>
-                <input
-                  type="date"
-                  value={pdfDateStart}
-                  onChange={(e) => setPdfDateStart(e.target.value)}
-                  className="bg-card text-foreground border border-border p-1.5 rounded-md h-8 text-xs"
-                  placeholder="From date"
-                  title="PDF from date"
-                />
-                <span className="text-muted-foreground text-xs">→</span>
-                <input
-                  type="date"
-                  value={pdfDateEnd}
-                  onChange={(e) => setPdfDateEnd(e.target.value)}
-                  className="bg-card text-foreground border border-border p-1.5 rounded-md h-8 text-xs"
-                  placeholder="To date"
-                  title="PDF to date"
-                />
-                {(pdfDateStart || pdfDateEnd) && (
-                  <button
-                    onClick={() => { setPdfDateStart(''); setPdfDateEnd('') }}
-                    className="text-xs text-muted-foreground hover:text-foreground underline"
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1 bg-muted/40 p-1 rounded-lg border border-border">
+                  <Button
+                    size="sm"
+                    variant={!dateRange ? "secondary" : "ghost"}
+                    className="h-7 text-xs px-2"
+                    onClick={() => setPresetRange('ALL')}
+                  >
+                    All Time
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs px-2"
+                    onClick={() => setPresetRange('TODAY')}
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs px-2"
+                    onClick={() => setPresetRange('THIS_MONTH')}
+                  >
+                    This Month
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs px-2"
+                    onClick={() => setPresetRange('LAST_7_DAYS')}
+                  >
+                    7 Days
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs px-2"
+                    onClick={() => setPresetRange('LAST_30_DAYS')}
+                  >
+                    30 Days
+                  </Button>
+                </div>
+
+                <div className="w-56 sm:w-64">
+                  <DateRangePicker
+                    value={dateRange}
+                    onChange={setDateRange}
+                    placeholder="Filter by date range"
+                    className="h-8 text-xs"
+                  />
+                </div>
+
+                {isDateFiltered && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => setDateRange(undefined)}
                     title="Clear date filter"
                   >
-                    Clear
-                  </button>
+                    <X className="w-3.5 h-3.5 mr-1" />
+                    Reset Filter
+                  </Button>
                 )}
+
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-2"
+                  className="h-8 gap-2 text-xs"
                   onClick={() => void handleDownloadPDF()}
                 >
                   <FileDown className="w-4 h-4" />
                   Download PDF
                 </Button>
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -675,15 +760,15 @@ export default function ProjectDetailPage() {
               <CardContent className="pt-6">
                 <div className="text-xs text-muted-foreground mb-1">Total Paid (Deposits)</div>
                 <div className="text-xl font-bold text-emerald-500">
-                  {totalPaid.toLocaleString()} BDT
+                  {displayTotalPaid.toLocaleString()} BDT
                 </div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-6">
                 <div className="text-xs text-muted-foreground mb-1">Payment Due</div>
-                <div className={`text-xl font-bold ${due !== null && due > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
-                  {due !== null ? `${due.toLocaleString()} BDT` : 'N/A'}
+                <div className={`text-xl font-bold ${displayDue !== null && displayDue > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                  {displayDue !== null ? `${displayDue.toLocaleString()} BDT` : 'N/A'}
                 </div>
               </CardContent>
             </Card>
@@ -691,7 +776,7 @@ export default function ProjectDetailPage() {
               <CardContent className="pt-6">
                 <div className="text-xs text-muted-foreground mb-1">Site Expense Logged</div>
                 <div className="text-xl font-bold text-rose-500">
-                  {totalExpense.toLocaleString()} BDT
+                  {displayTotalExpense.toLocaleString()} BDT
                 </div>
               </CardContent>
             </Card>
@@ -699,19 +784,19 @@ export default function ProjectDetailPage() {
               <CardContent className="pt-6">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <div className="text-xs text-muted-foreground">Profit Margin Estimate</div>
-                  {profit !== null && profit < 0 && (
+                  {displayProfit !== null && displayProfit < 0 && (
                     <Badge variant="destructive" className="h-5 text-[10px] uppercase font-bold px-1.5 py-0">LOSS</Badge>
                   )}
                 </div>
-                <div className={`text-xl font-bold ${profit !== null && profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                  {profit !== null ? `${profit.toLocaleString()} BDT` : 'N/A'}
+                <div className={`text-xl font-bold ${displayProfit !== null && displayProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                  {displayProfit !== null ? `${displayProfit.toLocaleString()} BDT` : 'N/A'}
                 </div>
               </CardContent>
             </Card>
           </div>
 
           {/* Category Breakdown */}
-          {Object.keys(report.categoryTotals || {}).length > 0 && (
+          {Object.keys(activeCategoryTotals).length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Category-wise Spending Breakdown</CardTitle>
@@ -719,7 +804,7 @@ export default function ProjectDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                  {Object.entries(report.categoryTotals || {}).map(([cat, val]: any) => (
+                  {Object.entries(activeCategoryTotals).map(([cat, val]: any) => (
                     <div
                       key={cat}
                       className="p-3 border border-border rounded-lg bg-muted/30 flex flex-col gap-1 cursor-pointer hover:bg-muted/50 transition-colors"
@@ -729,9 +814,9 @@ export default function ProjectDetailPage() {
                         <span className="text-xs text-muted-foreground font-medium leading-tight">
                           {formatCategory(cat)}
                         </span>
-                        {totalExpense > 0 && (
+                        {displayTotalExpense > 0 && (
                           <Badge variant="secondary" className="text-xs font-bold px-2 py-0.5 shrink-0 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800">
-                            {((val / totalExpense) * 100).toFixed(1)}%
+                            {((val / displayTotalExpense) * 100).toFixed(1)}%
                           </Badge>
                         )}
                       </div>
@@ -747,7 +832,9 @@ export default function ProjectDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Raw Logs for this Site</CardTitle>
-              <CardDescription>All transactions recorded for this project.</CardDescription>
+              <CardDescription>
+                {isDateFiltered ? 'Filtered transactions for selected date range.' : 'All transactions recorded for this project.'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="p-0">
               <div className="overflow-x-auto rounded-b-xl">
@@ -775,14 +862,14 @@ export default function ProjectDetailPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {report.transactions?.length === 0 ? (
+                    {filteredTransactionsByDate.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="p-8 text-center text-muted-foreground">
-                          No transaction logs found for this project.
+                          No transaction logs found for this project in the selected period.
                         </td>
                       </tr>
                     ) : (
-                      report.transactions?.map((tx: any) => (
+                      filteredTransactionsByDate.map((tx: any) => (
                         <tr key={tx.id} className="hover:bg-muted/20 transition-colors">
                           <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(tx.date).toLocaleDateString('en-GB', {
@@ -824,12 +911,12 @@ export default function ProjectDetailPage() {
                       ))
                     )}
                   </tbody>
-                  {report.transactions?.length > 0 && (
+                  {filteredTransactionsByDate.length > 0 && (
                     <tfoot className="border-t-2 border-border bg-muted/50">
                       <tr className="cursor-pointer hover:bg-muted/80 transition-colors" onClick={() => setModalFilter({ type: 'INFLOW' })}>
                         <td colSpan={6} className="p-3 font-bold text-sm text-right">Total Inflow</td>
                         <td className="p-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400 text-sm">
-                          {totalPaid.toLocaleString()} BDT
+                          {activeTotalInflow.toLocaleString()} BDT
                         </td>
                         <td className="p-3 text-right text-muted-foreground">-</td>
                       </tr>
@@ -837,16 +924,16 @@ export default function ProjectDetailPage() {
                         <td colSpan={6} className="p-3 font-bold text-sm text-right">Total Outflow</td>
                         <td className="p-3 text-right text-muted-foreground">-</td>
                         <td className="p-3 text-right font-bold tabular-nums text-rose-500 text-sm">
-                          {totalExpense.toLocaleString()} BDT
+                          {activeTotalOutflow.toLocaleString()} BDT
                         </td>
                       </tr>
-                      {profit !== null && (
+                      {displayProfit !== null && (
                         <tr className="border-t-2 border-border">
                           <td colSpan={6} className="p-3 font-bold text-sm text-right">
-                            {profit >= 0 ? 'Total Profit' : 'Total Loss'}
+                            {displayProfit >= 0 ? 'Total Profit' : 'Total Loss'}
                           </td>
-                          <td colSpan={2} className={`p-3 text-right font-bold tabular-nums text-sm ${profit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                            {profit.toLocaleString()} BDT
+                          <td colSpan={2} className={`p-3 text-right font-bold tabular-nums text-sm ${displayProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                            {displayProfit.toLocaleString()} BDT
                           </td>
                         </tr>
                       )}

@@ -97,17 +97,40 @@ export async function GET(request: NextRequest) {
 
     if (mode === "project") {
       if (leadId) {
+        const startDateStr = searchParams.get("startDate")
+        const endDateStr = searchParams.get("endDate")
+
+        const whereClause: any = { leadId }
+        if (startDateStr || endDateStr) {
+          whereClause.date = {}
+          if (startDateStr) {
+            const start = new Date(startDateStr)
+            start.setHours(0, 0, 0, 0)
+            whereClause.date.gte = start
+          }
+          if (endDateStr) {
+            const end = new Date(endDateStr)
+            end.setHours(23, 59, 59, 999)
+            whereClause.date.lte = end
+          }
+        }
+
         // Detailed category-wise expenses and payments for a single project
         const transactions = await prisma.transaction.findMany({
-          where: {
-            leadId,
-          },
+          where: whereClause,
           include: {
             recordedBy: { select: { fullName: true } },
             financeAccount: { select: { id: true, name: true } },
           },
           orderBy: { date: "asc" },
         })
+
+        // All-time inflow total for lead
+        const allTimeInflowAgg = await prisma.transaction.aggregate({
+          where: { leadId, type: "INFLOW" },
+          _sum: { amount: true },
+        })
+        const allTimeTotalPaid = allTimeInflowAgg._sum.amount ?? 0
 
         const categoryTotals: Record<string, number> = {}
         let totalInflow = 0
@@ -127,14 +150,25 @@ export async function GET(request: NextRequest) {
           select: { id: true, name: true, phone: true, location: true, budget: true, agreementValue: true },
         })
 
+        const agreementValue = lead?.agreementValue ?? lead?.budget ?? null
+        const isFiltered = Boolean(startDateStr || endDateStr)
+        const totalPaid = isFiltered ? totalInflow : allTimeTotalPaid
+        const paymentDue = agreementValue !== null ? agreementValue - totalPaid : null
+        const profitEstimate = agreementValue !== null ? agreementValue - totalOutflow : null
+
         return NextResponse.json({
           success: true,
           project: lead,
-          transactions: transactions,
+          transactions,
           categoryTotals,
-          totalPaid: totalInflow,
+          allTimeTotalPaid,
+          totalPaid,
           totalInflow,
           totalOutflow,
+          agreementValue,
+          paymentDue,
+          profitEstimate,
+          isFiltered,
         })
       } else {
         // Project-basis Daily Expenses breakdown (Replaces Project Basis daily expenses.pdf)
