@@ -438,6 +438,7 @@ export function QuotationMaker({
             amount: 0,
             included: true,
             isCustom: true,
+            unitPriceLabel: 'as per project design',
           }
         : {
             id: `custom-${floorId}-${Date.now()}-${customCount}`,
@@ -1296,9 +1297,23 @@ function SortableRow({ line, lineIndex, isPkg, canEdit, updateLineItem, removeLi
         )}
       </td>
       {isPkg ? (
-        <td colSpan={2} className="px-3 py-2 max-w-[200px]">
-          <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 break-words">Package</span>
-        </td>
+        <>
+          <td className="px-3 py-2 max-w-[150px]">
+            {canEdit ? (
+              <Input
+                type="text"
+                value={line.unitPriceLabel ?? 'as per project design'}
+                placeholder="as per project design"
+                onChange={(e) => updateLineItem(line.id, { unitPriceLabel: e.target.value })}
+              />
+            ) : (
+              <span className="break-all">{line.unitPriceLabel || 'as per project design'}</span>
+            )}
+          </td>
+          <td className="px-3 py-2 max-w-[100px]">
+            <span className="inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800 break-words">Package</span>
+          </td>
+        </>
       ) : (
         <>
           <td className="px-3 py-2 max-w-[120px]">

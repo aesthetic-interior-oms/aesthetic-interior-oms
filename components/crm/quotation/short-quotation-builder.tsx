@@ -497,6 +497,7 @@ export function ShortQuotationBuilder({
                   name: '',
                   quantitySqft: null,
                   unitPrice: null,
+                  unitPriceLabel: 'as per project design',
                   total: 0,
                   isLumpSum: true,
                 },
@@ -1294,7 +1295,17 @@ function SortableShortRow({
       </td>
       <td className="px-2 py-2">
         {line.isLumpSum ? (
-          <span className="text-xs text-muted-foreground">—</span>
+          <Input
+            type="text"
+            disabled={!canEdit}
+            value={line.unitPriceLabel ?? 'as per project design'}
+            onChange={(event) =>
+              updateLine(roomId, line.id, {
+                unitPriceLabel: event.target.value,
+              })
+            }
+            placeholder="as per project design"
+          />
         ) : (
           <Input
             type="text"

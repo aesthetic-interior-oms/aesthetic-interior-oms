@@ -664,7 +664,7 @@ export function DetailQuotationDocument({
 
                 if (isFirstMaterialRow && isPkg) {
                   quantityCell = <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>Package</Text>
-                  priceText = 'As Per Design'
+                  priceText = line.unitPriceLabel?.trim() || 'as per project design'
                 } else {
                   quantityCell = <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>{isFirstMaterialRow ? formatDetailQtyCell(line) : ''}</Text>
                   priceText = isFirstMaterialRow ? formatDetailUnitPriceCurrency(line) : ''

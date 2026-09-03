@@ -36,6 +36,7 @@ export type QuotationLineItem = {
   included: boolean
   isCustom: boolean
   notes?: string
+  unitPriceLabel?: string
 }
 
 export type QuotationDraftContent = {

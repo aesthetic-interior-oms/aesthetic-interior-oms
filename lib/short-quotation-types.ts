@@ -7,6 +7,7 @@ export type ShortQuotationLine = {
   unitPrice: number | null
   total: number
   isLumpSum: boolean
+  unitPriceLabel?: string
 }
 
 export type ShortQuotationRoom = {

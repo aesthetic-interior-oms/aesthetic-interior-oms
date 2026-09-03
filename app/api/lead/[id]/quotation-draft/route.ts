@@ -119,6 +119,7 @@ function toShortQuotationLine(value: unknown): ShortQuotationLine | null {
     unitPrice: toOptionalNumber(line.unitPrice),
     total: toOptionalNumber(line.total) ?? 0,
     isLumpSum: Boolean(line.isLumpSum),
+    unitPriceLabel: typeof line.unitPriceLabel === 'string' ? line.unitPriceLabel : undefined,
   }
 }
 
@@ -270,6 +271,9 @@ function toDetailQuotationContent(value: unknown): QuotationDraftContent | null 
       if (line.priceOnRequest === true) parsed.priceOnRequest = true
       if (typeof line.notes === 'string' && line.notes.trim()) {
         parsed.notes = line.notes
+      }
+      if (typeof line.unitPriceLabel === 'string') {
+        parsed.unitPriceLabel = line.unitPriceLabel
       }
       return parsed
     })
