@@ -682,7 +682,7 @@ export function DetailQuotationDocument({
                     <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>{matText || isFirstMaterialRow ? <SingleMaterialLine text={matText} /> : <Text wrap={false} style={styles.matText}></Text>}</View>
                     {quantityCell}
                     {isFirstMaterialRow && isMergedPkg ? (
-                      <Text style={[styles.tdCol, { width: '24%', textAlign: 'center', fontSize: 8 }, rowCellStyle]}>
+                      <Text style={[styles.tdCol, { width: '24%', textAlign: 'center' }, rowCellStyle]}>
                         {softWrapPdfText(line.unitPriceLabel?.trim() || 'as per project design')}
                       </Text>
                     ) : (

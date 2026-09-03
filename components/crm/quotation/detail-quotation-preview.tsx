@@ -347,7 +347,7 @@ export function DetailQuotationPreview({
                     )}
                   </span>
                   {isMergedPkg ? (
-                    <span className="w-[22%] text-center text-[8px] text-neutral-600 px-1.5 py-2">
+                    <span className="w-[22%] text-center text-neutral-600 px-1.5 py-2">
                       {line.unitPriceLabel?.trim() || 'as per project design'}
                     </span>
                   ) : (
