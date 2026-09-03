@@ -141,15 +141,26 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
           {floorSummary.rooms.map((roomSummary) => (
             <Fragment key={roomSummary.room.id}>
               <div className="mt-3 px-2 py-1 text-center text-[9px] font-bold uppercase" style={{ color: PRIMARY, backgroundColor: '#f3f8f7' }}>{roomSummary.room.name}</div>
-              {roomSummary.lines.map((line, lineIndex) => (
-                <div key={line.id} className="flex items-start border-b py-2 text-[10px]" style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#fefdf9' : '#ffffff' }}>
-                  <span className="w-[8%] text-center text-neutral-500">{String(lineSerials.get(line.id) ?? lineIndex + 1).padStart(2, '0')}</span>
-                  <span className="w-[42%] pr-1 font-bold leading-snug">{line.name}</span>
-                  <span className="w-[12%] text-center text-neutral-600">{line.isLumpSum ? <span className="inline-block rounded-full bg-[#fff8e6] px-2 py-0.5 text-[7px] font-bold uppercase text-[#a57c00]">Package</span> : formatAmount(line.quantitySqft ?? 0)}</span>
-                  <span className="w-[18%] text-right text-neutral-600">{line.isLumpSum ? <span className="text-[8px] italic">{line.unitPriceLabel?.trim() || 'as per project design'}</span> : formatCurrency(line.unitPrice ?? 0)}</span>
-                  <span className="w-[20%] text-right font-bold" style={{ color: PRIMARY }}>{formatCurrency(line.total)}</span>
-                </div>
-              ))}
+              {roomSummary.lines.map((line, lineIndex) => {
+                const isMergedLumpSum = line.isLumpSum && (!line.total || line.total <= 0)
+                return (
+                  <div key={line.id} className="flex items-start border-b py-2 text-[10px]" style={{ borderColor: '#eeeeee', backgroundColor: lineIndex % 2 === 1 ? '#fefdf9' : '#ffffff' }}>
+                    <span className="w-[8%] text-center text-neutral-500">{String(lineSerials.get(line.id) ?? lineIndex + 1).padStart(2, '0')}</span>
+                    <span className="w-[42%] pr-1 font-bold leading-snug">{line.name}</span>
+                    <span className="w-[12%] text-center text-neutral-600">{line.isLumpSum ? <span className="inline-block rounded-full bg-[#fff8e6] px-2 py-0.5 text-[7px] font-bold uppercase text-[#a57c00]">Package</span> : formatAmount(line.quantitySqft ?? 0)}</span>
+                    {isMergedLumpSum ? (
+                      <span className="w-[38%] text-center text-[8px] text-neutral-600">
+                        {line.unitPriceLabel?.trim() || 'as per project design'}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="w-[18%] text-right text-neutral-600">{line.isLumpSum ? <span className="text-[8px] italic">{line.unitPriceLabel?.trim() || 'as per project design'}</span> : formatCurrency(line.unitPrice ?? 0)}</span>
+                        <span className="w-[20%] text-right font-bold" style={{ color: PRIMARY }}>{formatCurrency(line.total)}</span>
+                      </>
+                    )}
+                  </div>
+                )
+              })}
               <div className="mt-1 flex justify-end text-[9px] font-bold" style={{ color: PRIMARY }}><span className="pr-4">Total for {roomSummary.room.name}</span><span>{formatAmount(roomSummary.total)}</span></div>
             </Fragment>
           ))}

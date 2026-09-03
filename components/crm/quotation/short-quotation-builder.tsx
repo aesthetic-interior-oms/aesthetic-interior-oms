@@ -125,7 +125,7 @@ function findFirstShortQuotationIssue(content: ShortQuotationContent) {
   return content.rooms
     .flatMap((room) => room.lines.map((line) => ({ room, line })))
     .find(({ line }) => {
-      if (line.isLumpSum) return line.total <= 0
+      if (line.isLumpSum) return false
       return (line.quantitySqft ?? 0) <= 0 || (line.unitPrice ?? 0) <= 0
     })
 }
@@ -1326,12 +1326,14 @@ function SortableShortRow({
             type="text"
             inputMode="decimal"
             disabled={!canEdit}
-            value={line.total}
-            onChange={(event) =>
+            value={line.total === 0 ? '' : (line.total ?? '')}
+            placeholder="Optional"
+            onChange={(event) => {
+              const val = event.target.value.replace(/,/g, '')
               updateLine(roomId, line.id, {
-                total: Number(event.target.value.replace(/,/g, '')) || 0,
+                total: val === '' ? 0 : Number(val) || 0,
               })
-            }
+            }}
           />
         ) : (
           <span className="font-medium">{formatAmount(line.total)}</span>
