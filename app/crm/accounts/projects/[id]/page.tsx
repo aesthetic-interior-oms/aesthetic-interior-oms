@@ -321,13 +321,6 @@ export default function ProjectDetailPage() {
 
     // Build date filter label for header
     const fmtD = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-    const periodLabel = dateRange?.from && dateRange?.to
-      ? `${fmtD(dateRange.from)}  →  ${fmtD(dateRange.to)}`
-      : dateRange?.from
-      ? `From ${fmtD(dateRange.from)}`
-      : dateRange?.to
-      ? `Until ${fmtD(dateRange.to)}`
-      : 'All Time'
 
     const logoImg = new Image()
     logoImg.src = "/Logo/HeaderLogo.png"
@@ -348,7 +341,32 @@ export default function ProjectDetailPage() {
     doc.setFontSize(8)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(100, 116, 139)
-    doc.text(`Date: ${today}`, pageW - 14, 23, { align: 'right' })
+    doc.text(`Generated Date: ${today}`, pageW - 14, 23, { align: 'right' })
+
+    // Start Date & End Date Box on Right Side Header
+    const startDateText = dateRange?.from ? fmtD(dateRange.from) : 'All Time'
+    const endDateText = dateRange?.to ? fmtD(dateRange.to) : 'All Time'
+    const boxW = 56
+    const boxH = 13
+    const boxX = pageW - 14 - boxW
+    const boxY = 26
+
+    doc.setFillColor(248, 250, 252)
+    doc.setDrawColor(203, 213, 225)
+    doc.setLineWidth(0.4)
+    doc.roundedRect(boxX, boxY, boxW, boxH, 1.5, 1.5, 'FD')
+
+    doc.setFontSize(7)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(71, 85, 105)
+    doc.text('Start Date:', boxX + 3.5, boxY + 4.5)
+    doc.setFont('helvetica', 'normal')
+    doc.text(startDateText, boxX + boxW - 3.5, boxY + 4.5, { align: 'right' })
+
+    doc.setFont('helvetica', 'bold')
+    doc.text('End Date:', boxX + 3.5, boxY + 9.5)
+    doc.setFont('helvetica', 'normal')
+    doc.text(endDateText, boxX + boxW - 3.5, boxY + 9.5, { align: 'right' })
 
     // Client Info Section
     doc.setFontSize(16)
@@ -376,21 +394,6 @@ export default function ProjectDetailPage() {
     const formattedAgreement = agreementValue !== null ? `${agreementValue.toLocaleString()} BDT` : 'Not Defined'
     doc.text(`Agreement Value / Budget: ${formattedAgreement}`, 14, detailsY)
     detailsY += 6
-
-    // Period badge (only if filtered)
-    if (dateRange?.from || dateRange?.to) {
-      const badgeText = `Period: ${periodLabel}`
-      const badgeW = doc.getTextWidth(badgeText) + 6
-      doc.setFillColor(241, 245, 249)
-      doc.setDrawColor(203, 213, 225)
-      doc.setLineWidth(0.3)
-      doc.roundedRect(14, detailsY, badgeW, 5.5, 1, 1, 'FD')
-      doc.setFontSize(7.5)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(71, 85, 105)
-      doc.text(badgeText, 17, detailsY + 3.8)
-      detailsY += 7
-    }
 
     doc.setDrawColor(226, 232, 240)
     doc.setLineWidth(0.5)
@@ -487,11 +490,44 @@ export default function ProjectDetailPage() {
       ]
     })
 
+    const inflowPercentStr = agreementValue && agreementValue > 0 ? `${((activeTotalInflow / agreementValue) * 100).toFixed(1)}%` : null
+    const allTimePaid = report?.allTimeTotalPaid ?? displayTotalPaid
+    const paidPercentStr = agreementValue && agreementValue > 0 ? `${((allTimePaid / agreementValue) * 100).toFixed(1)}%` : null
+    const netDifference = activeTotalInflow - activeTotalOutflow
+
     autoTable(doc, {
       startY: afterCatY + 14,
       head: [['Date', 'Category', 'Particulars', 'Inflow', 'Outflow']],
       body: bodyRows as any[],
       theme: 'grid',
+      foot: [
+        [
+          { content: 'Total Inflow (Period)', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold', textColor: [30, 41, 59] } },
+          { content: `${activeTotalInflow.toLocaleString()}${inflowPercentStr ? ` (${inflowPercentStr})` : ''}`, styles: { halign: 'right', fontStyle: 'bold', textColor: [5, 150, 105] } },
+          { content: '—', styles: { halign: 'right', textColor: [100, 100, 100] } },
+        ],
+        [
+          { content: 'Total Outflow (Period)', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold', textColor: [30, 41, 59] } },
+          { content: '—', styles: { halign: 'right', textColor: [100, 100, 100] } },
+          { content: activeTotalOutflow.toLocaleString(), styles: { halign: 'right', fontStyle: 'bold', textColor: [220, 38, 38] } },
+        ],
+        [
+          { content: 'Total Net Profit / Loss (Difference)', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold', textColor: [30, 41, 59] } },
+          {
+            content: `${netDifference >= 0 ? '+' : ''}${netDifference.toLocaleString()} BDT`,
+            colSpan: 2,
+            styles: { halign: 'right', fontStyle: 'bold', textColor: netDifference >= 0 ? [5, 150, 105] : [220, 38, 38] }
+          },
+        ],
+        [
+          { content: 'Total Paid (Deposits)', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold', textColor: [30, 41, 59] } },
+          {
+            content: `${allTimePaid.toLocaleString()} BDT${paidPercentStr ? ` (${paidPercentStr} Deposited)` : ''}`,
+            colSpan: 2,
+            styles: { halign: 'right', fontStyle: 'bold', textColor: [5, 150, 105] }
+          },
+        ]
+      ],
       headStyles: { 
         fillColor: [255, 255, 255], 
         textColor: [0, 0, 0], 
@@ -509,12 +545,20 @@ export default function ProjectDetailPage() {
         lineColor: [200, 200, 200],
         lineWidth: 0.1,
       },
+      footStyles: { 
+        fillColor: [248, 250, 252],
+        textColor: [0, 0, 0],
+        fontSize: 8, 
+        cellPadding: { top: 3, bottom: 3, left: 3, right: 3 },
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+      },
       columnStyles: {
         0: { cellWidth: 25 },
         1: { cellWidth: 35 },
         2: { cellWidth: 'auto' },
-        3: { cellWidth: 25, halign: 'right' },
-        4: { cellWidth: 25, halign: 'right' },
+        3: { cellWidth: 30, halign: 'right' },
+        4: { cellWidth: 30, halign: 'right' },
       },
       didParseCell: (data: any) => {
         if (data.section === 'body' && data.column.index === 1) {
@@ -567,10 +611,30 @@ export default function ProjectDetailPage() {
     doc.text('FINANCIAL SUMMARY', 14, finalY + 5)
 
     const summaryTableRows = [
-      ['Total Paid (Deposits)', `${displayTotalPaid.toLocaleString()} BDT`],
-      ['Payment Due', displayDue !== null ? `${displayDue.toLocaleString()} BDT` : 'N/A'],
-      ['Site Expense Logged', `${displayTotalExpense.toLocaleString()} BDT`],
-      ['Profit Margin Estimate', displayProfit !== null ? `${displayProfit.toLocaleString()} BDT` : 'N/A'],
+      [
+        'Total Inflow (Period)',
+        `${activeTotalInflow.toLocaleString()} BDT${inflowPercentStr !== null ? ` (${inflowPercentStr} of Agreement)` : ''}`
+      ],
+      [
+        'Total Outflow (Period)',
+        `${activeTotalOutflow.toLocaleString()} BDT`
+      ],
+      [
+        'Total Net Profit / Loss (Difference)',
+        `${netDifference >= 0 ? '+' : ''}${netDifference.toLocaleString()} BDT`
+      ],
+      [
+        'Total Paid (Deposits)',
+        `${allTimePaid.toLocaleString()} BDT${paidPercentStr !== null ? ` (${paidPercentStr} Deposited)` : ''}`
+      ],
+      [
+        'Payment Due',
+        displayDue !== null ? `${displayDue.toLocaleString()} BDT` : 'N/A'
+      ],
+      [
+        'Profit Margin Estimate (All Time)',
+        displayProfit !== null ? `${displayProfit.toLocaleString()} BDT` : 'N/A'
+      ],
     ]
 
     autoTable(doc, {

@@ -132,6 +132,13 @@ export async function GET(request: NextRequest) {
         })
         const allTimeTotalPaid = allTimeInflowAgg._sum.amount ?? 0
 
+        // All-time outflow total for lead
+        const allTimeOutflowAgg = await prisma.transaction.aggregate({
+          where: { leadId, type: "OUTFLOW" },
+          _sum: { amount: true },
+        })
+        const allTimeTotalOutflow = allTimeOutflowAgg._sum.amount ?? 0
+
         const categoryTotals: Record<string, number> = {}
         let totalInflow = 0
         let totalOutflow = 0
@@ -153,8 +160,8 @@ export async function GET(request: NextRequest) {
         const agreementValue = lead?.agreementValue ?? lead?.budget ?? null
         const isFiltered = Boolean(startDateStr || endDateStr)
         const totalPaid = isFiltered ? totalInflow : allTimeTotalPaid
-        const paymentDue = agreementValue !== null ? agreementValue - totalPaid : null
-        const profitEstimate = agreementValue !== null ? agreementValue - totalOutflow : null
+        const paymentDue = agreementValue !== null ? agreementValue - allTimeTotalPaid : null
+        const allTimeProfitEstimate = agreementValue !== null ? agreementValue - allTimeTotalOutflow : null
 
         return NextResponse.json({
           success: true,
@@ -162,12 +169,14 @@ export async function GET(request: NextRequest) {
           transactions,
           categoryTotals,
           allTimeTotalPaid,
+          allTimeTotalOutflow,
+          allTimeProfitEstimate,
           totalPaid,
           totalInflow,
           totalOutflow,
           agreementValue,
           paymentDue,
-          profitEstimate,
+          profitEstimate: allTimeProfitEstimate,
           isFiltered,
         })
       } else {

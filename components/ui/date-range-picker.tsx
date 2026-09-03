@@ -80,12 +80,29 @@ type SimpleCalendarProps = {
 
 function SimpleCalendar({ mode = "range", selected, defaultMonth, onSelect, numberOfMonths = 2 }: SimpleCalendarProps) {
   const today = new Date()
-  const base = defaultMonth ?? today
-  const months = [new Date(base)]
-  if (numberOfMonths > 1) {
-    const next = new Date(base)
-    next.setMonth(next.getMonth() + 1)
-    months.push(next)
+  const initialBase = defaultMonth ?? selected?.from ?? today
+  const [viewYear, setViewYear] = React.useState(initialBase.getFullYear())
+  const [viewMonth, setViewMonth] = React.useState(initialBase.getMonth())
+
+  const months = React.useMemo(() => {
+    const result: Date[] = []
+    for (let i = 0; i < numberOfMonths; i++) {
+      const d = new Date(viewYear, viewMonth + i, 1)
+      result.push(d)
+    }
+    return result
+  }, [viewYear, viewMonth, numberOfMonths])
+
+  function goToPrev() {
+    const d = new Date(viewYear, viewMonth - 1, 1)
+    setViewYear(d.getFullYear())
+    setViewMonth(d.getMonth())
+  }
+
+  function goToNext() {
+    const d = new Date(viewYear, viewMonth + 1, 1)
+    setViewYear(d.getFullYear())
+    setViewMonth(d.getMonth())
   }
 
   function handleDayClick(date: Date) {
@@ -106,69 +123,114 @@ function SimpleCalendar({ mode = "range", selected, defaultMonth, onSelect, numb
     onSelect({ from: current.from, to: date })
   }
 
+  const yearOptions = Array.from({ length: 10 }, (_, i) => today.getFullYear() - 5 + i)
+  const monthNames = ["January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"]
+
   return (
-    <div className="flex gap-3">
-      {months.map((month, idx) => {
-        const year = month.getFullYear()
-        const monthLabel = format(month, "MMMM yyyy")
-        const firstDayOfWeek = 0
-        const first = new Date(year, month.getMonth(), 1)
-        const startDay = (first.getDay() - firstDayOfWeek + 7) % 7
-        const daysInMonth = new Date(year, month.getMonth() + 1, 0).getDate()
+    <div className="flex flex-col gap-2">
+      {/* Navigation header */}
+      <div className="flex items-center justify-between px-1 gap-2">
+        <button
+          type="button"
+          onClick={goToPrev}
+          className="h-7 w-7 flex items-center justify-center rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Previous month"
+        >
+          ‹
+        </button>
+        <div className="flex items-center gap-1.5">
+          <select
+            value={viewMonth}
+            onChange={(e) => setViewMonth(Number(e.target.value))}
+            className="text-sm font-medium bg-background border border-input rounded px-1.5 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            {monthNames.map((name, i) => (
+              <option key={name} value={i}>{name}</option>
+            ))}
+          </select>
+          <select
+            value={viewYear}
+            onChange={(e) => setViewYear(Number(e.target.value))}
+            className="text-sm font-medium bg-background border border-input rounded px-1.5 py-0.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
+        <button
+          type="button"
+          onClick={goToNext}
+          className="h-7 w-7 flex items-center justify-center rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Next month"
+        >
+          ›
+        </button>
+      </div>
 
-        const prevLabel = format(new Date(year, month.getMonth() - 1, 1), "MMMM yyyy")
-        const prevDays = new Date(year, month.getMonth(), 0).getDate()
+      {/* Calendar grid */}
+      <div className="flex gap-3">
+        {months.map((month, idx) => {
+          const year = month.getFullYear()
+          const mIdx = month.getMonth()
+          const first = new Date(year, mIdx, 1)
+          const startDay = first.getDay()
+          const daysInMonth = new Date(year, mIdx + 1, 0).getDate()
+          const prevDays = new Date(year, mIdx, 0).getDate()
 
-        const cells: React.ReactNode[] = []
-        for (let i = startDay - 1; i >= 0; i--) {
-          const date = new Date(year, month.getMonth() - 1, prevDays - i)
-          cells.push(
-            <div key={`prev-${idx}-${i}`} className="h-9 w-9 inline-flex items-center justify-center text-sm text-gray-400">
-              {date.getDate()}
-            </div>
-          )
-        }
-        for (let d = 1; d <= daysInMonth; d++) {
-          const date = new Date(year, month.getMonth(), d)
-          cells.push(
-            <Day
-              key={d}
-              date={date}
-              selected={selected}
-              onClick={(e) => {
-                e.preventDefault()
-                handleDayClick(date)
-              }}
-            />
-          )
-        }
-        const remaining = 42 - cells.length
-        for (let i = 1; i <= remaining; i++) {
-          const date = new Date(year, month.getMonth() + 1, i)
-          cells.push(
-            <div key={`next-${idx}-${i}`} className="h-9 w-9 inline-flex items-center justify-center text-sm text-gray-400">
-              {date.getDate()}
-            </div>
-          )
-        }
+          const cells: React.ReactNode[] = []
+          for (let i = startDay - 1; i >= 0; i--) {
+            const date = new Date(year, mIdx - 1, prevDays - i)
+            cells.push(
+              <div key={`prev-${idx}-${i}`} className="h-9 w-9 inline-flex items-center justify-center text-sm text-gray-300">
+                {date.getDate()}
+              </div>
+            )
+          }
+          for (let d = 1; d <= daysInMonth; d++) {
+            const date = new Date(year, mIdx, d)
+            cells.push(
+              <Day
+                key={d}
+                date={date}
+                selected={selected}
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleDayClick(date)
+                }}
+              />
+            )
+          }
+          const remaining = 42 - cells.length
+          for (let i = 1; i <= remaining; i++) {
+            const date = new Date(year, mIdx + 1, i)
+            cells.push(
+              <div key={`next-${idx}-${i}`} className="h-9 w-9 inline-flex items-center justify-center text-sm text-gray-300">
+                {date.getDate()}
+              </div>
+            )
+          }
 
-        return (
-          <div key={idx}>
-            <div className="flex items-center justify-between px-1">
-              <div className="text-xs font-medium text-gray-900">{monthLabel}</div>
-              <div className="text-xs text-gray-500">{prevLabel}</div>
-            </div>
-            <div className="mt-2 flex flex-wrap w-[196px]">
-              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((weekday) => (
-                <div key={weekday} className="w-9 text-center text-[10px] font-medium text-gray-500">
-                  {weekday}
+          return (
+            <div key={idx}>
+              {numberOfMonths > 1 && (
+                <div className="text-xs font-medium text-center text-muted-foreground mb-1">
+                  {monthNames[mIdx]} {year}
                 </div>
-              ))}
-              {cells}
+              )}
+              <div className="mt-1 flex flex-wrap w-[196px]">
+                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((weekday) => (
+                  <div key={weekday} className="w-9 text-center text-[10px] font-medium text-gray-500">
+                    {weekday}
+                  </div>
+                ))}
+                {cells}
+              </div>
             </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }
