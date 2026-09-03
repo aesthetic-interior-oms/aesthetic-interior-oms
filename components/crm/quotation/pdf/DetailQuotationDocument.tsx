@@ -661,6 +661,7 @@ export function DetailQuotationDocument({
                 const isLastSubRow = rowIndex === tableLineCount - 1
                 const nameText = nameLines[rowIndex] ?? ''
                 const matText = materialLines[rowIndex] ?? ''
+                const isMergedPkg = isPkg && (!line.amount || line.amount <= 0)
                 let quantityCell
                 let priceText = ''
 
@@ -680,8 +681,19 @@ export function DetailQuotationDocument({
                     <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>{nameText ? softWrapPdfText(nameText) : ''}</Text>
                     <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>{matText || isFirstMaterialRow ? <SingleMaterialLine text={matText} /> : <Text wrap={false} style={styles.matText}></Text>}</View>
                     {quantityCell}
-                    {priceCell}
-                    <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>{isFirstMaterialRow ? formatDetailTotalCurrency(line) : ''}{isFirstMaterialRow && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}</Text>
+                    {isFirstMaterialRow && isMergedPkg ? (
+                      <Text style={[styles.tdCol, { width: '24%', textAlign: 'center', fontSize: 8 }, rowCellStyle]}>
+                        {softWrapPdfText(line.unitPriceLabel?.trim() || 'as per project design')}
+                      </Text>
+                    ) : (
+                      <>
+                        {priceCell}
+                        <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>{isFirstMaterialRow ? formatDetailTotalCurrency(line) : ''}{isFirstMaterialRow && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}</Text>
+                      </>
+                    )}
+                    {!isFirstMaterialRow && isMergedPkg ? (
+                      <Text style={[styles.tdCol, { width: '24%' }, rowCellStyle]} />
+                    ) : null}
                   </View>
                 )
               })

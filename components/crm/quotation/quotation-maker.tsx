@@ -525,10 +525,10 @@ export function QuotationMaker({
     if (!content || !canEdit) return
     const normalized = normalizeQuotationContent(content)
 
-    // Count issues but don't block — show a soft warning
+    // Count issues but don't block — show a soft warning (package lines with no amount are intentionally allowed)
     const missingLines = normalized.lineItems.filter((line) => {
       if (!line.included) return false
-      if (isPackageLine(line)) return line.amount <= 0
+      if (isPackageLine(line)) return false
       return line.rate <= 0 || line.quantity <= 0
     })
     if (missingLines.length > 0) {
