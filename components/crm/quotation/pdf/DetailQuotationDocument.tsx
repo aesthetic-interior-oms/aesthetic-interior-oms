@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   inWords: {
     fontSize: 10,
     color: '#000000',
-    marginTop: 4,
+    marginTop: 14,
     textAlign: 'left',
     fontFamily: 'Noto Sans Bengali',
     fontWeight: 'bold',

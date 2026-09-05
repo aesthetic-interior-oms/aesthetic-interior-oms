@@ -293,7 +293,7 @@ export function DetailQuotationPreview({
             {formatDetailAmount(totals.grandTotal)}
           </span>
         </div>
-        <p className="text-left text-[9px] italic text-neutral-900 mt-1" style={{ fontFamily: "var(--font-playfair-display), serif" }}>
+        <p className="text-left text-[9px] italic text-neutral-900 mt-3.5" style={{ fontFamily: "var(--font-playfair-display), serif" }}>
           In Words:{' '}
           <span className="font-bold">{amountInWordsTaka(totals.grandTotal)}</span>
         </p>
@@ -384,7 +384,7 @@ export function DetailQuotationPreview({
               {formatDetailAmount(entry.total)}
             </span>
           </div>
-          <p className="text-left text-[9px] italic text-neutral-900 mt-1" style={{ fontFamily: "var(--font-playfair-display), serif" }}>
+          <p className="text-left text-[9px] italic text-neutral-900 mt-3.5" style={{ fontFamily: "var(--font-playfair-display), serif" }}>
             In Words:{' '}
             <span className="font-bold">{amountInWordsTaka(entry.total)}</span>
           </p>
