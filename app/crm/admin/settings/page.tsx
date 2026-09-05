@@ -130,7 +130,7 @@ function PerformanceDescriptionSettings() {
     {
       title: 'Visit Team performance',
       description:
-        'Visit Team performance uses monthly scheduled visits and scores each member from visit completion rate, report completeness, lead pipeline depth, and completed-visit volume. Lead and support visit work are both counted by the backend.',
+        'Visit Team performance uses monthly scheduled visits and scores each member from visit completion rate, report completeness, project square feet, and completed-visit volume. Lead and support visit work are both counted by the backend.',
     },
     {
       title: 'SR CRM performance',

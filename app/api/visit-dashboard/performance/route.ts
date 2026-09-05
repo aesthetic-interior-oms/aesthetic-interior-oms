@@ -1,47 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireDatabaseRoles } from '@/lib/authz'
 import prisma from '@/lib/prisma'
-import { calculateVisitTeamPerformance } from '@/lib/visit-performance'
+import { getMonthlyVisitTeamPerformance } from '@/lib/visit-performance'
+import { normalizeMonthKey } from '@/lib/quotation-performance'
 
 const VISIT_DASHBOARD_DEPARTMENTS = new Set(['ADMIN', 'VISIT_TEAM'])
 
-function startOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1)
-}
-
-async function loadMonthlyVisits() {
-  const now = new Date()
-  return prisma.visit.findMany({
-    where: {
-      scheduledAt: {
-        gte: startOfMonth(now),
-        lt: new Date(now.getFullYear(), now.getMonth() + 1, 1),
-      },
-    },
-    select: {
-      status: true,
-      assignedTo: { select: { id: true, fullName: true } },
-      // Lead stage depth — used as deepData input
-      lead: { select: { stage: true, subStatus: true } },
-      // Report presence — used for reportCount (visit team broader approach)
-      result: { select: { id: true } },
-      supportAssignments: {
-        select: {
-          supportUserId: true,
-          supportUser: { select: { id: true, fullName: true } },
-          result: { select: { id: true } },
-        },
-      },
-      supportResults: {
-        select: {
-          supportUserId: true,
-        },
-      },
-    },
-  })
-}
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) return authResult.response
@@ -65,8 +30,8 @@ export async function GET() {
       )
     }
 
-    const visits = await loadMonthlyVisits()
-    const members = calculateVisitTeamPerformance(visits)
+    const monthKey = normalizeMonthKey(request.nextUrl.searchParams.get('month'))
+    const { members } = await getMonthlyVisitTeamPerformance(monthKey)
 
     const currentUserPerformance =
       members.find((m) => m.id === authResult.actorUserId) ?? null
@@ -79,6 +44,7 @@ export async function GET() {
 
     return NextResponse.json({
       success: true,
+      monthKey,
       data: {
         topPerformer: members[0] ?? null,
         currentUserPerformance,

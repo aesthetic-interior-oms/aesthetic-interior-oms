@@ -9,9 +9,9 @@ import {
 } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
 import { listVisitCompleteQueueItems } from '@/lib/visit-complete-queue'
-import { calculateVisitTeamPerformance } from '@/lib/visit-performance'
+import { getMonthlyVisitTeamPerformance } from '@/lib/visit-performance'
 import { calculateSrCrmPerformance } from '@/lib/sr-crm-performance'
-import { getMonthKey, syncAllQuotationTeamPerformance } from '@/lib/quotation-performance'
+import { getMonthKey, normalizeMonthKey, syncAllQuotationTeamPerformance } from '@/lib/quotation-performance'
 import {
   AdminCommandCenterDashboard,
   formatLabel,
@@ -20,7 +20,19 @@ import {
   type PriorityAction,
 } from './_components/command-center-dashboard'
 
-export default async function AdminDashboardPage() {
+type AdminDashboardPageProps = {
+  searchParams?: Promise<{
+    visitMonth?: string | string[]
+  }>
+}
+
+function firstSearchParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value
+}
+
+export default async function AdminDashboardPage({ searchParams }: AdminDashboardPageProps) {
+  const params = await searchParams
+  const visitPerformanceMonthKey = normalizeMonthKey(firstSearchParam(params?.visitMonth))
   const now = new Date()
   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
   const overdueSubmissionCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000)
@@ -66,9 +78,6 @@ export default async function AdminDashboardPage() {
       },
     ],
   }
-
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1)
 
   const [cadCount, reviewCount, meetingCount, budgetCount, visitItems, upcomingMeetings, overdueCadTasks, overdueQuotationTasks, reviewSubmissions, budgetLeads, overdueQuotationReviews, designQueueCount, overdueDesignQueueCount, designReviewPendingCount, overdueDesignReviews, visitStatusCounts, pendingOverdueVisitCount, overduePendingVisits, monthlyVisitPerformanceData] =
     await Promise.all([
@@ -226,31 +235,10 @@ export default async function AdminDashboardPage() {
           lead: { select: { id: true, name: true, location: true } },
         },
       }),
-      prisma.visit.findMany({
-        where: { scheduledAt: { gte: monthStart, lt: nextMonthStart } },
-        select: {
-          status: true,
-          assignedTo: { select: { id: true, fullName: true } },
-          lead: { select: { stage: true, subStatus: true } },
-          result: { select: { id: true } },
-          supportAssignments: {
-            select: {
-              supportUserId: true,
-              supportUser: { select: { id: true, fullName: true } },
-              result: { select: { id: true } },
-            },
-          },
-          supportResults: {
-            select: {
-              supportUserId: true,
-            },
-          },
-        },
-      }),
+      getMonthlyVisitTeamPerformance(visitPerformanceMonthKey),
     ])
 
-  // Unified performance calculation — same formula as visit-team dashboard
-  const visitTeamPerformance = calculateVisitTeamPerformance(monthlyVisitPerformanceData)
+  const visitTeamPerformance = monthlyVisitPerformanceData.members
   const srCrmPerformance = await calculateSrCrmPerformance(prisma)
 
   const monthStr = (now.getUTCMonth() + 1).toString().padStart(2, '0')
@@ -449,6 +437,7 @@ export default async function AdminDashboardPage() {
         pendingOverdueCount: pendingOverdueVisitCount,
       }}
       visitTeamPerformance={visitTeamPerformance}
+      visitTeamPerformanceMonthKey={monthlyVisitPerformanceData.monthKey}
       srCrmPerformance={srCrmPerformance}
       jrArchitectPerformances={jrArchitectPerformances}
       quotationPerformances={quotationPerformances}

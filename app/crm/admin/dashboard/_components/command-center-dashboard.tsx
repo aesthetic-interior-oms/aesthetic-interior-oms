@@ -1,9 +1,13 @@
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   ArrowRight,
   CalendarClock,
   ClipboardCheck,
   DraftingCompass,
+  Download,
   FileCheck2,
   Handshake,
   Medal,
@@ -17,10 +21,27 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { VisitStatusChart } from '@/components/crm/shared/visit-status-chart'
 import { LeaderboardCard } from '@/components/crm/jr-architecture/performance-cards'
 import { QuotationLeaderboardSection, type QuotationPerformanceItem } from './quotation-leaderboard-section'
+
+async function loadLogoBase64(url = '/Logo/HeaderLogo.png'): Promise<string | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const blob = await res.blob()
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
 
 export const queueLinks = {
   cad: '/crm/admin/cad-phase-queue?queueType=cad-phase',
@@ -57,6 +78,7 @@ type CommandCenterDashboardProps = {
   visitInsights: VisitInsights
   overduePendingVisits: OverduePendingVisitItem[]
   visitTeamPerformance: VisitTeamPerformanceItem[]
+  visitTeamPerformanceMonthKey: string
   srCrmPerformance: SrCrmPerformanceItem[]
   jrArchitectPerformances: JrArchitectPerformanceItem[]
   quotationPerformances: QuotationPerformanceItem[]
@@ -116,9 +138,12 @@ type SrCrmPerformanceItem = {
   userId: string
   name: string
   activeProjectSqft: number
+  totalAgreementValue: number
   review: { score: number; count: number; best: number; better: number; good: number }
   meeting: { score: number; count: number; best: number; better: number; good: number }
   conversion: { score: number; count: number }
+  sqftScore: number
+  agreementScore: number
   totalPerformance: number
 }
 
@@ -128,7 +153,8 @@ type VisitTeamPerformanceItem = {
   totalVisits: number
   completed: number
   reportCompleteness: number
-  deepData: number
+  totalSqft: number
+  avgSqft: number
   performance: number
   leadVisits: number
   supportVisits: number
@@ -184,6 +210,19 @@ function formatMoney(value: number | null | undefined): string {
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(value)
+}
+
+function formatNumber(value: number | null | undefined): string {
+  return Number.isFinite(value ?? Number.NaN) ? Number(value).toLocaleString() : '0'
+}
+
+function formatMonthKey(value: string): string {
+  const [year, month] = value.split('-').map(Number)
+  if (!year || !month) return value
+  return new Date(year, month - 1, 1).toLocaleString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  })
 }
 
 function QueueStatusGrid({ counts }: { counts: CommandCenterDashboardProps['queueCounts'] }) {
@@ -447,24 +486,161 @@ function DesignFlowCard({ designWatch }: { designWatch: DesignWatch }) {
 
 
 function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] }) {
+  const [downloading, setDownloading] = useState(false)
   const averagePerformance = members.length
     ? Math.round(members.reduce((sum, member) => sum + member.totalPerformance, 0) / members.length)
     : 0
 
+  const downloadPdf = async () => {
+    setDownloading(true)
+    try {
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+
+      const doc = new jsPDF({ orientation: 'landscape' })
+      const pageWidth = doc.internal.pageSize.getWidth()
+
+      const logoDataUrl = await loadLogoBase64('/Logo/HeaderLogo.png')
+
+      const now = new Date()
+      const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+      const dateLabel = now.toLocaleDateString('en-GB')
+
+      const totalSqft = members.reduce((sum, m) => sum + (m.activeProjectSqft || 0), 0)
+      const totalAgreement = members.reduce((sum, m) => sum + (m.totalAgreementValue || 0), 0)
+
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', 14, 10, 54, 10)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(14)
+        doc.setTextColor(31, 54, 61) // #1f363d PRIMARY
+        doc.text('SR CRM Performance Leaderboard', 74, 17)
+
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(100, 116, 139)
+        doc.text(`Month: ${monthLabel}`, 74, 23)
+        doc.text(`Generated: ${dateLabel}`, pageWidth - 14, 23, { align: 'right' })
+
+        doc.setTextColor(30, 41, 59)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(9)
+        doc.text(
+          `Members: ${members.length}  |  Team Avg: ${averagePerformance}/100  |  Active SQFT: ${totalSqft.toLocaleString()}  |  Agreement Value: BDT ${totalAgreement.toLocaleString()}`,
+          14,
+          31,
+        )
+      } else {
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(14)
+        doc.setTextColor(31, 54, 61)
+        doc.text('SR CRM Performance Leaderboard', 14, 16)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(100, 116, 139)
+        doc.text(`Month: ${monthLabel}`, 14, 23)
+        doc.text(`Generated: ${dateLabel}`, pageWidth - 14, 23, { align: 'right' })
+
+        doc.setTextColor(30, 41, 59)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(9)
+        doc.text(
+          `Members: ${members.length}  |  Team Avg: ${averagePerformance}/100  |  Active SQFT: ${totalSqft.toLocaleString()}  |  Agreement Value: BDT ${totalAgreement.toLocaleString()}`,
+          14,
+          31,
+        )
+      }
+
+      autoTable(doc, {
+        startY: 38,
+        head: [[
+          'Rank',
+          'Name',
+          'Active SQFT',
+          'Agreement Value',
+          'Review (/30)',
+          'Meeting (/20)',
+          'Conversion (/20)',
+          'SQFT Score (/15)',
+          'Agreement Score (/15)',
+          'Final Score (/100)',
+        ]],
+        body: members.map((m, index) => [
+          String(index + 1),
+          m.name,
+          `${(m.activeProjectSqft || 0).toLocaleString()} SFT`,
+          `BDT ${(m.totalAgreementValue || 0).toLocaleString()}`,
+          `${m.review?.score || 0} / 30 (${m.review?.count || 0} appr)`,
+          `${m.meeting?.score || 0} / 20 (${m.meeting?.count || 0} comp)`,
+          `${m.conversion?.score || 0} / 20 (${m.conversion?.count || 0} moves)`,
+          `${m.sqftScore || 0} / 15`,
+          `${m.agreementScore || 0} / 15`,
+          `${m.totalPerformance || 0} / 100`,
+        ]),
+        theme: 'grid',
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          lineColor: [226, 232, 240],
+          lineWidth: 0.1,
+        },
+        headStyles: {
+          fillColor: [31, 54, 61], // #1f363d PRIMARY
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+        },
+        columnStyles: {
+          0: { cellWidth: 14, halign: 'center' },
+          1: { cellWidth: 42 },
+          2: { halign: 'right' },
+          3: { halign: 'right' },
+          4: { halign: 'right' },
+          5: { halign: 'right' },
+          6: { halign: 'right' },
+          7: { halign: 'right' },
+          8: { halign: 'right' },
+          9: { halign: 'right', fontStyle: 'bold' },
+        },
+        didDrawPage: () => {
+          doc.setFontSize(7)
+          doc.setTextColor(100, 116, 139)
+          doc.text(`Aesthetic Interior - SR CRM Performance Leaderboard - ${monthLabel}`, 14, 202)
+          doc.text(`Page ${doc.getNumberOfPages()}`, pageWidth - 14, 202, { align: 'right' })
+        },
+      })
+
+      doc.save(`sr-crm-performance-leaderboard.pdf`)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return (
     <Card className="border-border/70 shadow-sm">
       <CardHeader className="space-y-2">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2 text-base">
               <Medal className="size-4 text-primary" />
               SR CRM Performance
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              Monthly leaderboard for active sqft, review approvals, meeting completion, and serial conversions.
+              Monthly leaderboard for active project SQFT, agreement value, review approvals, meeting completion, and conversions.
             </p>
           </div>
-          <Badge variant="outline">Team avg {averagePerformance}/100</Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">Team avg {averagePerformance}/100</Badge>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void downloadPdf()}
+              disabled={downloading || members.length === 0}
+              className="h-9 gap-2"
+            >
+              <Download className="size-4" />
+              {downloading ? 'Preparing' : 'Download PDF'}
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="grid gap-3 lg:grid-cols-2">
@@ -479,7 +655,9 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
                     <p className="truncate text-sm font-semibold text-foreground">#{index + 1} {member.name}</p>
                     {index === 0 ? <Badge variant="secondary">Top</Badge> : null}
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{member.activeProjectSqft.toLocaleString()} active sqft</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {member.activeProjectSqft.toLocaleString()} SFT · ৳{member.totalAgreementValue.toLocaleString()} agreement
+                  </p>
                 </div>
                 <Badge variant="outline" className={member.totalPerformance >= 80 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : member.totalPerformance >= 55 ? 'border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300'}>
                   {member.totalPerformance}/100
@@ -488,10 +666,12 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-primary" style={{ width: `${member.totalPerformance}%` }} />
               </div>
-              <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
-                <span>Review {member.review.score} · {member.review.count} approvals</span>
-                <span>Meeting {member.meeting.score} · {member.meeting.count} completions</span>
-                <span>Conversion {member.conversion.score} · {member.conversion.count} moves</span>
+              <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-5">
+                <span>Review {member.review.score}/30</span>
+                <span>Meeting {member.meeting.score}/20</span>
+                <span>Conversion {member.conversion.score}/20</span>
+                <span>SQFT {member.sqftScore}/15</span>
+                <span>Agreement {member.agreementScore}/15</span>
               </div>
             </div>
           ))
@@ -501,10 +681,17 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
   )
 }
 
-function VisitTeamPerformanceSection({ members }: { members: VisitTeamPerformanceItem[] }) {
+function VisitTeamPerformanceSection({
+  members,
+  monthKey,
+}: {
+  members: VisitTeamPerformanceItem[]
+  monthKey: string
+}) {
   const averagePerformance = members.length
     ? Math.round(members.reduce((sum, member) => sum + member.performance, 0) / members.length)
     : 0
+  const monthLabel = formatMonthKey(monthKey)
 
   return (
     <Card className="border-border/70 shadow-sm">
@@ -515,13 +702,26 @@ function VisitTeamPerformanceSection({ members }: { members: VisitTeamPerformanc
               <UserCheck className="size-4 text-primary" />
               Visit Team Performance
             </CardTitle>
+            <p className="mt-1 text-sm text-muted-foreground">{monthLabel}</p>
           </div>
-          <Badge variant="outline">Team avg {averagePerformance}/100</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">Team avg {averagePerformance}/100</Badge>
+            <form action="/crm/admin/dashboard" className="flex items-center gap-2">
+              <Input
+                type="month"
+                name="visitMonth"
+                defaultValue={monthKey}
+                aria-label="Visit performance month"
+                className="h-9 w-[150px]"
+              />
+              <Button type="submit" size="sm" variant="outline">Apply</Button>
+            </form>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="grid gap-3 lg:grid-cols-2">
         {members.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">No visit-team activity found for the current month.</p>
+          <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">No visit-team activity found for {monthLabel}.</p>
         ) : (
           members.map((member) => (
             <div key={member.id} className="rounded-xl border border-border/70 p-4">
@@ -535,6 +735,11 @@ function VisitTeamPerformanceSection({ members }: { members: VisitTeamPerformanc
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-primary" style={{ width: `${member.performance}%` }} />
+              </div>
+              <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+                <span>{formatNumber(member.totalSqft)} sqft</span>
+                <span>{member.completed}/{member.totalVisits} completed</span>
+                <span>{member.leadVisits} lead · {member.supportVisits} support</span>
               </div>
             </div>
           ))
@@ -649,6 +854,7 @@ export function AdminCommandCenterDashboard({
   visitInsights,
   overduePendingVisits,
   visitTeamPerformance,
+  visitTeamPerformanceMonthKey,
   srCrmPerformance,
   jrArchitectPerformances,
   quotationPerformances,
@@ -665,7 +871,7 @@ export function AdminCommandCenterDashboard({
         <QueueStatusGrid counts={queueCounts} />
         <VisitPendingRedAlertSection items={overduePendingVisits} totalCount={visitInsights.pendingOverdueCount} />
         <SrCrmPerformanceSection members={srCrmPerformance} />
-        <VisitTeamPerformanceSection members={visitTeamPerformance} />
+        <VisitTeamPerformanceSection members={visitTeamPerformance} monthKey={visitTeamPerformanceMonthKey} />
         <LeaderboardCard performances={jrArchitectPerformances} title="JR Architect Performance Leaderboard" />
         <QuotationLeaderboardSection
           initialPerformances={quotationPerformances}

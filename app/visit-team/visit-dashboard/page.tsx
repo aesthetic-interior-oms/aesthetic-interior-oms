@@ -65,7 +65,15 @@ type VisitRecord = {
 }
 
 type ApiResponse = { success: boolean; data?: VisitRecord[]; error?: string }
-type PerformanceRow = { id: string; name: string; totalVisits: number; completed: number; performance: number }
+type PerformanceRow = {
+  id: string
+  name: string
+  totalVisits: number
+  completed: number
+  totalSqft: number
+  avgSqft: number
+  performance: number
+}
 type PerformanceResponse = { success: boolean; data?: { topPerformer: PerformanceRow | null; currentUserPerformance: PerformanceRow | null; averagePerformance: number }; error?: string }
 type DashboardData = ReturnType<typeof buildDashboardData>
 type CurrentUser = { id: string; fullName: string; userDepartments?: Array<{ department?: { name?: string } }> }
@@ -249,7 +257,7 @@ function PerformanceHighlights({ performance, currentUser }: { performance: Perf
     ? `${userPerformance.name.split(' ')[0]}'s performance`
     : 'Team average performance'
   const compareDetail = userPerformance
-    ? `${userPerformance.completed}/${userPerformance.totalVisits} done this month`
+    ? `${userPerformance.completed}/${userPerformance.totalVisits} done • ${userPerformance.totalSqft.toLocaleString()} sqft`
     : 'Backend-calculated team performance'
 
   return (
@@ -266,7 +274,7 @@ function PerformanceHighlights({ performance, currentUser }: { performance: Perf
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
               {topPerformer
-                ? `${topPerformer.performance}/100 score • ${topPerformer.completed}/${topPerformer.totalVisits} done`
+                ? `${topPerformer.performance}/100 score • ${topPerformer.completed}/${topPerformer.totalVisits} done • ${topPerformer.totalSqft.toLocaleString()} sqft`
                 : 'Performance will appear after backend monthly data is available.'}
             </p>
           </div>

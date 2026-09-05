@@ -9,13 +9,14 @@ import {
 
 type SrCrmPerformanceClient = Pick<
   PrismaClient,
-  'user' | 'visit' | 'leadPhaseReview' | 'activityLog' | 'leadMeetingEvent' | 'leadStatusHistory'
+  'user' | 'visit' | 'leadPhaseReview' | 'activityLog' | 'leadMeetingEvent' | 'leadStatusHistory' | 'lead'
 >
 
 export type SrCrmPerformanceRow = {
   userId: string
   name: string
   activeProjectSqft: number
+  totalAgreementValue: number
   review: {
     score: number
     count: number
@@ -34,14 +35,17 @@ export type SrCrmPerformanceRow = {
     score: number
     count: number
   }
+  sqftScore: number
+  agreementScore: number
   totalPerformance: number
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000
-const REVIEW_WEIGHT = 35
-const MEETING_WEIGHT = 25
-const CONVERSION_WEIGHT = 25
+const REVIEW_WEIGHT = 30
+const MEETING_WEIGHT = 20
+const CONVERSION_WEIGHT = 20
 const SQFT_WEIGHT = 15
+const AGREEMENT_WEIGHT = 15
 
 function startOfMonth(value: Date): Date {
   return new Date(value.getFullYear(), value.getMonth(), 1)
@@ -107,16 +111,19 @@ export async function calculateSrCrmPerformance(
       userId: user.id,
       name: user.fullName,
       activeProjectSqft: 0,
+      totalAgreementValue: 0,
       review: { score: 0, count: 0, best: 0, better: 0, good: 0 },
       meeting: { score: 0, count: 0, best: 0, better: 0, good: 0 },
       conversion: { score: 0, count: 0 },
+      sqftScore: 0,
+      agreementScore: 0,
       totalPerformance: 0,
     })
   }
 
   if (rows.size === 0) return []
 
-  const [activeVisits, phaseReviews, visualApprovals, meetingCompletions, conversions] = await Promise.all([
+  const [activeVisits, assignedLeads, phaseReviews, visualApprovals, meetingCompletions, conversions] = await Promise.all([
     prisma.visit.findMany({
       where: {
         lead: {
@@ -134,6 +141,25 @@ export async function calculateSrCrmPerformance(
               select: { userId: true },
             },
           },
+        },
+      },
+    }),
+    prisma.lead.findMany({
+      where: {
+        OR: [
+          { assignments: { some: { department: LeadAssignmentDepartment.SR_CRM, userId: { in: [...rows.keys()] } } } },
+          { assignedTo: { in: [...rows.keys()] } },
+        ],
+        created_at: { lt: nextMonthStart },
+      },
+      select: {
+        id: true,
+        agreementValue: true,
+        budget: true,
+        assignedTo: true,
+        assignments: {
+          where: { department: LeadAssignmentDepartment.SR_CRM, userId: { in: [...rows.keys()] } },
+          select: { userId: true },
         },
       },
     }),
@@ -222,7 +248,22 @@ export async function calculateSrCrmPerformance(
     }
   }
 
+  for (const lead of assignedLeads) {
+    const userIds = new Set<string>()
+    if (lead.assignedTo && rows.has(lead.assignedTo)) userIds.add(lead.assignedTo)
+    for (const a of lead.assignments) {
+      if (rows.has(a.userId)) userIds.add(a.userId)
+    }
+
+    const value = lead.agreementValue ?? lead.budget ?? 0
+    for (const uid of userIds) {
+      const row = rows.get(uid)
+      if (row) row.totalAgreementValue += value
+    }
+  }
+
   const maxSqft = Math.max(...[...rows.values()].map((row) => row.activeProjectSqft), 0)
+  const maxAgreement = Math.max(...[...rows.values()].map((row) => row.totalAgreementValue), 0)
 
   const reviewPointsByUser = new Map<string, number>()
   for (const review of phaseReviews) {
@@ -263,11 +304,17 @@ export async function calculateSrCrmPerformance(
 
   for (const row of rows.values()) {
     row.activeProjectSqft = Math.round(row.activeProjectSqft)
+    row.totalAgreementValue = Math.round(row.totalAgreementValue)
     row.review.score = weightedScore(reviewPointsByUser.get(row.userId) ?? 0, row.review.count, REVIEW_WEIGHT)
     row.meeting.score = weightedScore(meetingPointsByUser.get(row.userId) ?? 0, row.meeting.count, MEETING_WEIGHT)
     row.conversion.score = maxConversions > 0 ? Math.round((row.conversion.count / maxConversions) * CONVERSION_WEIGHT) : 0
-    const sqftScore = maxSqft > 0 ? Math.round((row.activeProjectSqft / maxSqft) * SQFT_WEIGHT) : 0
-    row.totalPerformance = Math.min(100, row.review.score + row.meeting.score + row.conversion.score + sqftScore)
+    row.sqftScore = maxSqft > 0 ? Math.round((row.activeProjectSqft / maxSqft) * SQFT_WEIGHT) : 0
+    row.agreementScore = maxAgreement > 0 ? Math.round((row.totalAgreementValue / maxAgreement) * AGREEMENT_WEIGHT) : 0
+
+    row.totalPerformance = Math.min(
+      100,
+      row.review.score + row.meeting.score + row.conversion.score + row.sqftScore + row.agreementScore,
+    )
   }
 
   return [...rows.values()].sort((first, second) => second.totalPerformance - first.totalPerformance || first.name.localeCompare(second.name))

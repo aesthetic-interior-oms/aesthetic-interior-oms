@@ -87,6 +87,22 @@ function safeFilePart(value: string): string {
   return value.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase()
 }
 
+async function loadLogoBase64(url = '/Logo/HeaderLogo.png'): Promise<string | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const blob = await res.blob()
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = () => resolve(null)
+      reader.readAsDataURL(blob)
+    })
+  } catch {
+    return null
+  }
+}
+
 export function QuotationLeaderboardSection({
   initialPerformances,
   initialMonthKey,
@@ -137,24 +153,49 @@ export function QuotationLeaderboardSection({
       const doc = new jsPDF({ orientation: 'landscape' })
       const pageWidth = doc.internal.pageSize.getWidth()
 
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(14)
-      doc.text('Quotation Team Performance Leaderboard', 14, 16)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.setTextColor(100, 116, 139)
-      doc.text(`Month: ${monthLabel}`, 14, 23)
-      doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - 14, 23, { align: 'right' })
+      const logoDataUrl = await loadLogoBase64('/Logo/HeaderLogo.png')
 
-      doc.setTextColor(30, 41, 59)
-      doc.setFont('helvetica', 'bold')
-      doc.text(`Members: ${performances.length}`, 14, 31)
-      doc.text(`Team Average: ${teamAverage}/100`, 55, 31)
-      doc.text(
-        `Total SQFT: ${formatNumber(performances.reduce((sum, item) => sum + item.totalSqft, 0))}`,
-        105,
-        31,
-      )
+      if (logoDataUrl) {
+        doc.addImage(logoDataUrl, 'PNG', 14, 10, 54, 10)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(14)
+        doc.setTextColor(31, 54, 61) // Primary #1f363d
+        doc.text('Quotation Team Performance Leaderboard', 74, 17)
+
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(100, 116, 139)
+        doc.text(`Month: ${monthLabel}`, 74, 23)
+        doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - 14, 23, { align: 'right' })
+
+        doc.setTextColor(30, 41, 59)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(9)
+        doc.text(
+          `Members: ${performances.length}  |  Team Avg: ${teamAverage}/100  |  Total SQFT: ${formatNumber(performances.reduce((sum, item) => sum + item.totalSqft, 0))}`,
+          14,
+          31,
+        )
+      } else {
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(14)
+        doc.setTextColor(31, 54, 61)
+        doc.text('Quotation Team Performance Leaderboard', 14, 16)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(100, 116, 139)
+        doc.text(`Month: ${monthLabel}`, 14, 23)
+        doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - 14, 23, { align: 'right' })
+
+        doc.setTextColor(30, 41, 59)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(9)
+        doc.text(
+          `Members: ${performances.length}  |  Team Average: ${teamAverage}/100  |  Total SQFT: ${formatNumber(performances.reduce((sum, item) => sum + item.totalSqft, 0))}`,
+          14,
+          31,
+        )
+      }
 
       autoTable(doc, {
         startY: 38,
