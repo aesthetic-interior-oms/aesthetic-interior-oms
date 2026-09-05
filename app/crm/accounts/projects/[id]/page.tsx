@@ -211,8 +211,25 @@ export default function ProjectDetailPage() {
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(71, 85, 105)
     let detailsY = 41
+    if (project?.location) {
+      doc.text(`Location: ${project.location}`, 14, detailsY)
+      detailsY += 5
+    }
+    if (project?.phone) {
+      doc.text(`Phone: ${project.phone}`, 14, detailsY)
+      detailsY += 5
+    }
     doc.text(`Filter: ${filterTitle}`, 14, detailsY)
-    
+    detailsY += 5
+
+    // Agreement Value / Budget at top in bold
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 41, 59)
+    const formattedAgreement = agreementValue !== null ? `${agreementValue.toLocaleString()} BDT` : 'Not Defined'
+    doc.text(`Agreement Value / Budget: ${formattedAgreement}`, 14, detailsY)
+    detailsY += 6
+
     doc.setDrawColor(226, 232, 240)
     doc.setLineWidth(0.5)
     doc.line(14, detailsY + 2, pageW - 14, detailsY + 2)
@@ -221,9 +238,11 @@ export default function ProjectDetailPage() {
 
     const bodyRows = filteredTransactions.map((tx: any) => {
       const isInflow = tx.type === 'INFLOW'
+      const accountName = tx.financeAccount?.name || '—'
       return [
         { content: new Date(tx.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) },
         { content: formatCategory(tx.category) },
+        { content: accountName },
         {
           content: isInflow ? tx.amount.toLocaleString() : '—',
           styles: { textColor: isInflow ? [5, 150, 105] : [100, 100, 100], fontStyle: isInflow ? 'bold' : 'normal', halign: 'right' },
@@ -235,22 +254,38 @@ export default function ProjectDetailPage() {
       ]
     })
 
+    const modalInflowPercent = agreementValue && agreementValue > 0 ? ((modalTotalInflow / agreementValue) * 100).toFixed(1) : null
+
     autoTable(doc, {
       startY: afterCatY + 10,
-      head: [['Date', 'Category', 'Inflow', 'Outflow']],
+      head: [['Date', 'Category', 'Account', 'Inflow', 'Outflow']],
       body: bodyRows as any[],
       theme: 'grid',
       foot: [
         [
-          { content: 'Total Inflow', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 0] } },
-          { content: modalTotalInflow.toLocaleString(), styles: { halign: 'right', textColor: [0, 0, 0], fontStyle: 'bold' } },
-          { content: '—', styles: { halign: 'right', textColor: [0, 0, 0] } },
+          { content: 'Total Inflow (Period)', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold', textColor: [30, 41, 59] } },
+          {
+            content: `${modalTotalInflow.toLocaleString()} BDT${modalInflowPercent ? ` (${modalInflowPercent}% of Agreement)` : ''}`,
+            colSpan: 2,
+            styles: { halign: 'right', fontStyle: 'bold', textColor: [5, 150, 105] }
+          },
         ],
         [
-          { content: 'Total Outflow', colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 0] } },
-          { content: '—', styles: { halign: 'right', textColor: [0, 0, 0] } },
-          { content: modalTotalOutflow.toLocaleString(), styles: { halign: 'right', textColor: [0, 0, 0], fontStyle: 'bold' } },
-        ]
+          { content: 'Total Outflow (Period)', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold', textColor: [30, 41, 59] } },
+          {
+            content: `${modalTotalOutflow.toLocaleString()} BDT`,
+            colSpan: 2,
+            styles: { halign: 'right', fontStyle: 'bold', textColor: [220, 38, 38] }
+          },
+        ],
+        [
+          { content: 'Payment Due', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold', textColor: [30, 41, 59] } },
+          {
+            content: displayDue !== null ? `${displayDue.toLocaleString()} BDT` : 'N/A',
+            colSpan: 2,
+            styles: { halign: 'right', fontStyle: 'bold', textColor: [220, 38, 38] }
+          },
+        ],
       ],
       headStyles: { 
         fillColor: [255, 255, 255], 
@@ -268,17 +303,18 @@ export default function ProjectDetailPage() {
         lineWidth: 0.1,
       },
       footStyles: { 
-        fillColor: [255, 255, 255],
+        fillColor: [248, 250, 252],
         textColor: [0, 0, 0],
-        fontSize: 9,
+        fontSize: 8.5,
         lineColor: [200, 200, 200],
         lineWidth: 0.1,
       },
       columnStyles: {
-        0: { cellWidth: 35 },
-        1: { cellWidth: 'auto' },
-        2: { cellWidth: 30, halign: 'right' },
+        0: { cellWidth: 28 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 'auto' },
         3: { cellWidth: 30, halign: 'right' },
+        4: { cellWidth: 30, halign: 'right' },
       },
       didParseCell: (data: any) => {
         if (data.section === 'body' && data.column.index === 1) {

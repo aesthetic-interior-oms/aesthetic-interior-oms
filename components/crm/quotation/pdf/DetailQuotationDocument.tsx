@@ -681,19 +681,19 @@ export function DetailQuotationDocument({
                     <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>{nameText ? softWrapPdfText(nameText) : ''}</Text>
                     <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>{matText || isFirstMaterialRow ? <SingleMaterialLine text={matText} /> : <Text wrap={false} style={styles.matText}></Text>}</View>
                     {quantityCell}
-                    {isFirstMaterialRow && isMergedPkg ? (
-                      <Text style={[styles.tdCol, { width: '24%', textAlign: 'center' }, rowCellStyle]}>
-                        {softWrapPdfText(line.unitPriceLabel?.trim() || 'as per project design')}
+                    {isMergedPkg ? (
+                      <Text style={[styles.tdCol, styles.tdColLast, { width: '24%', textAlign: 'center' }, rowCellStyle]}>
+                        {isFirstMaterialRow ? softWrapPdfText(line.unitPriceLabel?.trim() || 'as per project design') : ''}
                       </Text>
                     ) : (
                       <>
                         {priceCell}
-                        <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>{isFirstMaterialRow ? formatDetailTotalCurrency(line) : ''}{isFirstMaterialRow && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}</Text>
+                        <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>
+                          {isFirstMaterialRow ? formatDetailTotalCurrency(line) : ''}
+                          {isFirstMaterialRow && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
+                        </Text>
                       </>
                     )}
-                    {!isFirstMaterialRow && isMergedPkg ? (
-                      <Text style={[styles.tdCol, { width: '24%' }, rowCellStyle]} />
-                    ) : null}
                   </View>
                 )
               })
