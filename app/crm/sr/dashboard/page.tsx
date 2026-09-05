@@ -11,13 +11,13 @@ import {
 import prisma from '@/lib/prisma'
 import { listVisitCompleteQueueItems } from '@/lib/visit-complete-queue'
 import { calculateSrCrmPerformance } from '@/lib/sr-crm-performance'
+import { CommandCenterDashboard } from './_components/command-center-dashboard'
 import {
-  CommandCenterDashboard,
   formatLabel,
   formatRelativeTime,
   queueLinks,
   type PriorityAction,
-} from './_components/command-center-dashboard'
+} from '@/lib/dashboard-formatting'
 
 function buildSrAssignmentScope(userId: string | null): Prisma.LeadWhereInput {
   if (!userId) return {}

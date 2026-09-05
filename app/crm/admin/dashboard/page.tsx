@@ -12,13 +12,13 @@ import { listVisitCompleteQueueItems } from '@/lib/visit-complete-queue'
 import { getMonthlyVisitTeamPerformance } from '@/lib/visit-performance'
 import { calculateSrCrmPerformance } from '@/lib/sr-crm-performance'
 import { getMonthKey, normalizeMonthKey, syncAllQuotationTeamPerformance } from '@/lib/quotation-performance'
+import { AdminCommandCenterDashboard } from './_components/command-center-dashboard'
 import {
-  AdminCommandCenterDashboard,
   formatLabel,
   formatRelativeTime,
   queueLinks,
   type PriorityAction,
-} from './_components/command-center-dashboard'
+} from '@/lib/dashboard-formatting'
 
 type AdminDashboardPageProps = {
   searchParams?: Promise<{
