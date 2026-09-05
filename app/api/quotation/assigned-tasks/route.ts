@@ -34,14 +34,6 @@ export async function GET(request: Request) {
           return { gte: startDate, lt: nextMonthStart }
         })()
       : null
-    const monthlyDraftWhere = monthRange
-      ? {
-          OR: [
-            { createdById: authResult.actorUserId, createdAt: monthRange },
-            { updatedById: authResult.actorUserId, updatedAt: monthRange },
-          ],
-        }
-      : null
 
     const leads = await prisma.lead.findMany({
       where: {
@@ -49,36 +41,19 @@ export async function GET(request: Request) {
           some: {
             department: LeadAssignmentDepartment.QUOTATION,
             userId: authResult.actorUserId,
+            ...(monthRange ? { createdAt: monthRange } : {}),
           },
         },
-        ...(monthRange
+        ...(!monthRange && !includeHistory
           ? {
-              OR: [
-                { updated_at: monthRange },
-                {
-                  assignments: {
-                    some: {
-                      department: LeadAssignmentDepartment.QUOTATION,
-                      userId: authResult.actorUserId,
-                      createdAt: monthRange,
-                    },
-                  },
-                },
-                {
-                  quotationDrafts: {
-                    some: monthlyDraftWhere ?? undefined,
-                  },
-                },
-              ],
-            }
-          : includeHistory
-          ? {}
-          : {
               stage: LeadStage.QUOTATION_PHASE,
               NOT: {
                 subStatus: LeadSubStatus.QUOTATION_APPROVED,
               },
-            }),
+            }
+          : !monthRange && includeHistory
+          ? {}
+          : {}),
       },
       select: {
         id: true,
@@ -130,7 +105,6 @@ export async function GET(request: Request) {
           take: 1,
         },
         quotationDrafts: {
-          ...(monthlyDraftWhere ? { where: monthlyDraftWhere } : {}),
           select: {
             draftKey: true,
             projectSqft: true,
