@@ -56,6 +56,7 @@ type ShortQuotationBuilderProps = {
   leadLocation: string | null
   leadSubStatus: string | null
   mode?: 'lead' | 'playground'
+  onDraftSaved?: () => void
 }
 
 type DraftPayload = {
@@ -140,6 +141,7 @@ export function ShortQuotationBuilder({
   leadLocation,
   leadSubStatus,
   mode = 'lead',
+  onDraftSaved,
 }: ShortQuotationBuilderProps) {
   const isPlayground = mode === 'playground'
   const previewContext = isPlayground ? 'playground' : 'lead'
@@ -389,13 +391,14 @@ export function ShortQuotationBuilder({
       }
       setContent(normalized)
       toast.success(syncAllPackages ? 'Same quotation saved for Platinum, Premium, and Luxury' : 'Short quotation saved')
+      onDraftSaved?.()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save quotation')
     } finally {
       setSaving(false)
       setSavingAllPackages(false)
     }
-  }, [canEdit, content, isPlayground, persistShortQuotationContent])
+  }, [canEdit, content, isPlayground, persistShortQuotationContent, onDraftSaved])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

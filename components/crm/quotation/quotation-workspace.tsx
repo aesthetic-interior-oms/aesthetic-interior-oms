@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { QuotationMaker } from '@/components/crm/quotation/quotation-maker'
@@ -27,27 +27,35 @@ export function QuotationWorkspace({
     shortPackagesCount: number
   } | null>(null)
 
-  useEffect(() => {
-    const loadDraftMeta = async () => {
-      try {
-        const response = await fetch(`/api/lead/${leadId}/quotation-draft`, { cache: 'no-store' })
-        const payload = await response.json()
-        if (!response.ok || !payload?.success || !payload?.data) return
-        if (payload.data.sqftSummary) {
-          setSqftSummary(payload.data.sqftSummary)
-        }
-        const documentType = payload.data.documentType as 'short' | 'detail' | undefined
-        if (payload.data.draft && documentType === 'detail') {
-          setActiveTab('detail')
-        } else {
-          setActiveTab('short')
-        }
-      } catch {
+  const loadDraftMeta = useCallback(async (options?: { updateActiveTab?: boolean }) => {
+    try {
+      const response = await fetch(`/api/lead/${leadId}/quotation-draft`, { cache: 'no-store' })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success || !payload?.data) return
+      if (payload.data.sqftSummary) {
+        setSqftSummary(payload.data.sqftSummary)
+      }
+      if (options?.updateActiveTab === false) return
+      const documentType = payload.data.documentType as 'short' | 'detail' | undefined
+      if (payload.data.draft && documentType === 'detail') {
+        setActiveTab('detail')
+      } else {
+        setActiveTab('short')
+      }
+    } catch {
+      if (options?.updateActiveTab !== false) {
         setActiveTab('short')
       }
     }
-    void loadDraftMeta()
   }, [leadId])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadDraftMeta()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [loadDraftMeta])
 
   return (
     <div className="space-y-4">
@@ -111,6 +119,7 @@ export function QuotationWorkspace({
               leadName={leadName}
               leadLocation={leadLocation}
               leadSubStatus={leadSubStatus}
+              onDraftSaved={() => void loadDraftMeta({ updateActiveTab: false })}
             />
           ) : null}
         </TabsContent>
@@ -121,6 +130,7 @@ export function QuotationWorkspace({
               leadName={leadName}
               leadLocation={leadLocation}
               leadSubStatus={leadSubStatus}
+              onDraftSaved={() => void loadDraftMeta({ updateActiveTab: false })}
             />
           ) : null}
         </TabsContent>

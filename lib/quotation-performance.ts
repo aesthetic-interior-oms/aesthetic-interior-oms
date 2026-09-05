@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma'
-import { LeadAssignmentDepartment, LeadStage, LeadSubStatus, Prisma } from '@/generated/prisma/client'
+import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/prisma/client'
 import { calculateLeadQuotationSqftSummary } from '@/lib/quotation-sqft-calculator'
 
 export function getMonthKey(date: Date = new Date()): string {
@@ -27,124 +27,187 @@ export function getMonthDateRange(monthKeyOrDate: string | Date = new Date()) {
   return { monthKey, startDate, nextMonthStart, endDate }
 }
 
+type PerformanceDraft = {
+  id: string
+  draftKey: string
+  createdById?: string | null
+  updatedById?: string | null
+  projectSqft?: number | null
+  content?: unknown
+  updatedAt: Date
+}
+
+export type QuotationPerformanceProject = {
+  leadId: string
+  leadName: string
+  stage: string
+  subStatus: string | null
+  assignedAt: Date | null
+  completedAt: Date | null
+  detailSqft: number
+  shortSqft: number
+  totalSqft: number
+  detailVersionsCount: number
+  shortPackagesCount: number
+  workingHours: number
+  updatedAt: Date
+}
+
+function isCompletedForQuotationPerformance(lead: { stage: LeadStage; subStatus: LeadSubStatus | null }) {
+  return (
+    lead.subStatus === LeadSubStatus.QUOTATION_COMPLETED ||
+    lead.subStatus === LeadSubStatus.QUOTATION_APPROVED ||
+    lead.stage === LeadStage.BUDGET_PHASE ||
+    lead.stage === LeadStage.VISUALIZATION_PHASE ||
+    lead.stage === LeadStage.CONVERSION
+  )
+}
+
+function matchesBaseDraftKey(draftKey: string, baseDraftKey: string) {
+  if (baseDraftKey === 'detail' || baseDraftKey === 'detail:slot:1') {
+    return (
+      draftKey === 'detail' ||
+      draftKey === 'detail:slot:1' ||
+      draftKey.startsWith('detail:owner:') ||
+      draftKey.startsWith('detail:slot:1:owner:')
+    )
+  }
+  return draftKey === baseDraftKey || draftKey.startsWith(`${baseDraftKey}:owner:`)
+}
+
+function isOwnedDraftKey(draftKey: string, ownerUserId: string) {
+  return draftKey.endsWith(`:owner:${ownerUserId}`)
+}
+
+export function pickVisibleQuotationDraftsForUser<T extends PerformanceDraft>(drafts: T[], ownerUserId: string): T[] {
+  const baseKeys = [
+    'detail',
+    'detail:slot:2',
+    'detail:slot:3',
+    'short:platinum',
+    'short:premium',
+    'short:luxury',
+  ]
+  const picked = new Map<string, T>()
+
+  for (const baseKey of baseKeys) {
+    const matches = drafts
+      .filter((draft) => matchesBaseDraftKey(draft.draftKey, baseKey))
+      .sort((first, second) => second.updatedAt.getTime() - first.updatedAt.getTime())
+    const owned = matches.find((draft) => isOwnedDraftKey(draft.draftKey, ownerUserId))
+    const authoredBase = matches.find(
+      (draft) =>
+        draft.draftKey === baseKey &&
+        (draft.createdById === ownerUserId || draft.updatedById === ownerUserId),
+    )
+    const base = matches.find((draft) => draft.draftKey === baseKey)
+    const fallback = matches[0]
+    const selected = owned ?? authoredBase ?? base ?? fallback
+
+    if (selected) {
+      picked.set(selected.id, selected)
+    }
+  }
+
+  return Array.from(picked.values())
+}
+
+export async function listQuotationUserPerformanceProjects(userId: string, targetDate: Date = new Date()) {
+  const { startDate, nextMonthStart } = getMonthDateRange(targetDate)
+  const monthRange = { gte: startDate, lt: nextMonthStart }
+
+  const assignedLeads = await prisma.lead.findMany({
+    where: {
+      assignments: {
+        some: {
+          department: LeadAssignmentDepartment.QUOTATION,
+          userId,
+          createdAt: monthRange,
+        },
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      stage: true,
+      subStatus: true,
+      updated_at: true,
+      visits: {
+        select: { projectSqft: true, status: true },
+        orderBy: { scheduledAt: 'desc' },
+      },
+      assignments: {
+        where: {
+          department: LeadAssignmentDepartment.QUOTATION,
+          userId,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: { createdAt: true },
+      },
+      quotationDrafts: {
+        orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true,
+          draftKey: true,
+          createdById: true,
+          updatedById: true,
+          projectSqft: true,
+          content: true,
+          updatedAt: true,
+        },
+      },
+    },
+    orderBy: { updated_at: 'desc' },
+  })
+
+  return assignedLeads.map((lead): QuotationPerformanceProject => {
+    const visibleDrafts = pickVisibleQuotationDraftsForUser(lead.quotationDrafts, userId)
+    const completedVisitSqft = lead.visits.find((v) => v.status === 'COMPLETED' && v.projectSqft)?.projectSqft ?? null
+    const anyVisitSqft = lead.visits.find((v) => v.projectSqft)?.projectSqft ?? null
+    const fallbackSqft = Number(completedVisitSqft ?? anyVisitSqft ?? 0)
+    const sqftSummary = calculateLeadQuotationSqftSummary(visibleDrafts, fallbackSqft)
+    const detailSqft = sqftSummary.detailVersionsCount > 0 ? sqftSummary.avgDetailSqft : 0
+    const shortSqft = sqftSummary.shortPackagesCount > 0 ? sqftSummary.avgShortSqft : 0
+    const assignedAt = lead.assignments[0]?.createdAt ?? null
+    const completedAt = isCompletedForQuotationPerformance(lead) ? lead.updated_at : null
+    const workingHours =
+      assignedAt && completedAt
+        ? Number(Math.max(0.5, (completedAt.getTime() - assignedAt.getTime()) / (1000 * 60 * 60)).toFixed(1))
+        : 0
+
+    return {
+      leadId: lead.id,
+      leadName: lead.name,
+      stage: lead.stage,
+      subStatus: lead.subStatus,
+      assignedAt,
+      completedAt,
+      detailSqft,
+      shortSqft,
+      totalSqft: detailSqft + shortSqft,
+      detailVersionsCount: sqftSummary.detailVersionsCount,
+      shortPackagesCount: sqftSummary.shortPackagesCount,
+      workingHours,
+      updatedAt: lead.updated_at,
+    }
+  })
+}
+
 /**
  * Calculates and persists monthly quotation performance for a specific user.
  * Can be triggered automatically on quotation work submit, draft save, or approval.
  */
 export async function recalculateQuotationUserPerformance(userId: string, targetDate: Date = new Date()) {
-  const { monthKey, startDate, nextMonthStart } = getMonthDateRange(targetDate)
-  const monthRange = { gte: startDate, lt: nextMonthStart }
-  const monthDraftActivityWhere: Prisma.QuotationDraftWhereInput = {
-    OR: [
-      { createdById: userId, createdAt: monthRange },
-      { updatedById: userId, updatedAt: monthRange },
-    ],
-  }
+  const { monthKey } = getMonthDateRange(targetDate)
+  const projects = await listQuotationUserPerformanceProjects(userId, targetDate)
+  const detailSqft = projects.reduce((sum, project) => sum + project.detailSqft, 0)
+  const shortSqft = projects.reduce((sum, project) => sum + project.shortSqft, 0)
+  const completedProjects = projects.filter((project) => project.completedAt)
+  const completedCount = completedProjects.length
+  const totalWorkingHoursSum = completedProjects.reduce((sum, project) => sum + project.workingHours, 0)
 
-  // Fetch leads with quotation activity for this user inside the selected month.
-  const assignedLeads = await prisma.lead.findMany({
-    where: {
-      OR: [
-        {
-          assignedTo: userId,
-          updated_at: monthRange,
-        },
-        {
-          primaryOwnerUserId: userId,
-          updated_at: monthRange,
-        },
-        {
-          assignments: {
-            some: {
-              userId,
-              createdAt: monthRange,
-            },
-          },
-        },
-        {
-          quotationDrafts: { some: monthDraftActivityWhere },
-        },
-        {
-          AND: [
-            {
-              OR: [
-                { assignedTo: userId },
-                { primaryOwnerUserId: userId },
-                { assignments: { some: { userId } } },
-              ],
-            },
-            { subStatus: { in: [LeadSubStatus.QUOTATION_COMPLETED, LeadSubStatus.QUOTATION_APPROVED] } },
-            { updated_at: monthRange },
-          ],
-        },
-      ],
-    },
-    select: {
-      id: true,
-      stage: true,
-      subStatus: true,
-      updated_at: true,
-      created_at: true,
-      visits: {
-        select: { projectSqft: true, status: true },
-        orderBy: { scheduledAt: 'desc' },
-      },
-      quotationDrafts: {
-        where: monthDraftActivityWhere,
-        select: {
-          draftKey: true,
-          projectSqft: true,
-          content: true,
-          status: true,
-          updatedAt: true,
-          createdAt: true,
-        },
-      },
-    },
-  })
-
-  let detailSqft = 0
-  let shortSqft = 0
-  let completedCount = 0
-  let totalWorkingHoursSum = 0
-
-  console.log(`[QuotationPerformance] User ${userId} has ${assignedLeads.length} leads assigned/drafted in quotation.`)
-
-  for (const lead of assignedLeads) {
-    const leadUpdatedAt = new Date(lead.updated_at)
-    const isCompleted =
-      leadUpdatedAt >= startDate &&
-      leadUpdatedAt < nextMonthStart &&
-      (lead.subStatus === LeadSubStatus.QUOTATION_COMPLETED ||
-        lead.subStatus === LeadSubStatus.QUOTATION_APPROVED ||
-        lead.stage === LeadStage.BUDGET_PHASE ||
-        lead.stage === LeadStage.VISUALIZATION_PHASE ||
-        lead.stage === LeadStage.CONVERSION)
-
-    if (isCompleted) {
-      completedCount += 1
-      const startTime = new Date(lead.created_at).getTime()
-      const endTime = new Date(lead.updated_at).getTime()
-      const diffHours = Math.max(0.5, (endTime - startTime) / (1000 * 60 * 60))
-      totalWorkingHoursSum += diffHours
-    }
-
-    // Always calculate SQFT per document type (averaging versions/packages) for all leads worked on
-    // Prefer projectSqft from a COMPLETED visit; fall back to any visit that has a projectSqft value
-    const completedVisitSqft = lead.visits.find((v) => v.status === 'COMPLETED' && v.projectSqft)?.projectSqft ?? null
-    const anyVisitSqft = lead.visits.find((v) => v.projectSqft)?.projectSqft ?? null
-    const fallbackSqft = Number(completedVisitSqft ?? anyVisitSqft ?? 0)
-    const sqftSummary = calculateLeadQuotationSqftSummary(lead.quotationDrafts, fallbackSqft)
-
-    const leadDetailSqft = sqftSummary.avgDetailSqft
-    const leadShortSqft = sqftSummary.avgShortSqft
-
-    if (lead.quotationDrafts.length > 0) {
-      console.log(`[QuotationPerformance] Lead ${lead.id} fallbackSqft: ${fallbackSqft}, avgDetail: ${leadDetailSqft}, avgShort: ${leadShortSqft}`)
-      detailSqft += leadDetailSqft
-      shortSqft += leadShortSqft
-    }
-  }
+  console.log(`[QuotationPerformance] User ${userId} has ${projects.length} quotation assignments in ${monthKey}.`)
 
   const totalSqft = detailSqft + shortSqft
   console.log(`[QuotationPerformance] User ${userId} FINAL -> Total detail: ${detailSqft}, Total short: ${shortSqft}, Completed count: ${completedCount}`)

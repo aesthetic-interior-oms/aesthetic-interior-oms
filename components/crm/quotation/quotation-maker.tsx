@@ -82,6 +82,7 @@ type QuotationMakerProps = {
   leadLocation: string | null
   leadSubStatus: string | null
   mode?: 'lead' | 'playground'
+  onDraftSaved?: () => void
 }
 
 type TemplateOption = { key: string; name: string; sourceDocument: string }
@@ -98,7 +99,9 @@ type DraftResponse = {
   draft: DraftPayload | null
   defaultDraft: DraftPayload | null
   defaultDetailDraft?: DraftPayload | null
+  availableSlots?: Array<{ slotIndex: number; title: string; grandTotal: number; exists: boolean }>
   templates?: TemplateOption[]
+  fullTemplates?: Array<Record<string, unknown>>
   canEdit: boolean
 }
 
@@ -132,6 +135,7 @@ export function QuotationMaker({
   leadLocation,
   leadSubStatus,
   mode = 'lead',
+  onDraftSaved,
 }: QuotationMakerProps) {
   const isPlayground = mode === 'playground'
   const previewContext = isPlayground ? 'playground' : 'lead'
@@ -156,7 +160,7 @@ export function QuotationMaker({
   const [projectSqft, setProjectSqft] = useState('')
   const [content, setContent] = useState<QuotationDraftContent | null>(null)
   const [templates, setTemplates] = useState<TemplateOption[]>([])
-  const [fullTemplates, setFullTemplates] = useState<any[]>([])
+  const [fullTemplates, setFullTemplates] = useState<Array<Record<string, unknown>>>([])
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerFloorId, setPickerFloorId] = useState<string | null>(null)
   const [pickerAreaId, setPickerAreaId] = useState<string | null>(null)
@@ -219,13 +223,13 @@ export function QuotationMaker({
         throw new Error(payload?.error ?? 'Failed to load quotation')
       }
 
-      const data = payload.data as any
+      const data = payload.data as DraftResponse
       setCanEdit(Boolean(data.canEdit))
       if (Array.isArray(data.templates)) setTemplates(data.templates)
       if (Array.isArray(data.fullTemplates)) setFullTemplates(data.fullTemplates)
       if (Array.isArray(data.availableSlots)) {
         const filledSlots = [1, 2, 3].map((sIndex) => {
-          const found = data.availableSlots.find((item: any) => item.slotIndex === sIndex)
+          const found = data.availableSlots?.find((item) => item.slotIndex === sIndex)
           return found
             ? { ...found, exists: true }
             : { slotIndex: sIndex, title: `Version ${sIndex}`, grandTotal: 0, exists: true }
@@ -591,13 +595,14 @@ export function QuotationMaker({
       }
       setContent(normalized)
       toast.success(allSlots ? 'Quotation saved in all versions' : 'Quotation saved')
+      onDraftSaved?.()
       await loadDraft(slotIndex)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save quotation')
     } finally {
       setSaving(false)
     }
-  }, [canEdit, content, isPlayground, leadId, projectSqft, quotationType, slotIndex, availableSlots, loadDraft])
+  }, [canEdit, content, isPlayground, leadId, projectSqft, quotationType, slotIndex, availableSlots, loadDraft, onDraftSaved])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -634,15 +639,6 @@ export function QuotationMaker({
   const canStartWork =
     !isPlayground &&
     (leadSubStatus === 'QUOTATION_ASSIGNED' || leadSubStatus === 'QUOTATION_CORRECTION')
-
-  const catalogOptions =
-    templates.length > 0
-      ? templates
-      : [
-          { key: 'ceiling-curtain', name: 'Ceiling & Curtain' },
-          { key: 'tv-unit', name: 'TV Unit' },
-          { key: 'folding-sliding-door', name: 'Folding & Sliding Door' },
-        ]
 
   if (loading) {
     return (

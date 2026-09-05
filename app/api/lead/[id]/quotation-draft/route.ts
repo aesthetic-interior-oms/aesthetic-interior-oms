@@ -358,6 +358,44 @@ function matchesBaseDraftKey(draftKey: string, baseDraftKey: string) {
   return draftKey === baseDraftKey || draftKey.startsWith(`${baseDraftKey}:owner:`)
 }
 
+function isOwnedDraftKey(draftKey: string, ownerUserId: string) {
+  return draftKey.endsWith(`:owner:${ownerUserId}`)
+}
+
+function pickVisibleDraftsForUser<
+  T extends {
+    id: string
+    draftKey: string
+    updatedAt: Date
+  },
+>(drafts: T[], ownerUserId: string): T[] {
+  const baseKeys = [
+    'detail',
+    'detail:slot:2',
+    'detail:slot:3',
+    'short:platinum',
+    'short:premium',
+    'short:luxury',
+  ]
+  const picked = new Map<string, T>()
+
+  for (const baseKey of baseKeys) {
+    const matches = drafts
+      .filter((draft) => matchesBaseDraftKey(draft.draftKey, baseKey))
+      .sort((first, second) => second.updatedAt.getTime() - first.updatedAt.getTime())
+    const owned = matches.find((draft) => isOwnedDraftKey(draft.draftKey, ownerUserId))
+    const base = matches.find((draft) => draft.draftKey === baseKey)
+    const fallback = matches[0]
+    const selected = owned ?? base ?? fallback
+
+    if (selected) {
+      picked.set(selected.id, selected)
+    }
+  }
+
+  return Array.from(picked.values())
+}
+
 function serializeDraft(draft: {
   id: string
   draftKey?: string
@@ -462,12 +500,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
       ? buildDraftKey(requestedDocumentType, requestedShortPackage, requestedSlot)
       : null
     const savedDrafts = lead.quotationDrafts ?? []
+    const visibleDrafts = pickVisibleDraftsForUser(savedDrafts, authResult.actorUserId)
     const selectedDraft = requestedDraftKey
       ? savedDrafts.find((draft) => draft.draftKey === buildOwnedDraftKey(requestedDraftKey, authResult.actorUserId))
         ?? savedDrafts.find((draft) => draft.draftKey === requestedDraftKey)
         ?? savedDrafts.find((draft) => matchesBaseDraftKey(draft.draftKey, requestedDraftKey))
         ?? null
-      : savedDrafts[0] ?? null
+      : visibleDrafts[0] ?? null
 
     const availableSlots = [1, 2, 3].map((s) => {
       const bKey = s === 1 ? 'detail' : `detail:slot:${s}`
@@ -476,7 +515,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         savedDrafts.find((d) => d.draftKey === bKey) ||
         savedDrafts.find((d) => matchesBaseDraftKey(d.draftKey, bKey))
 
-      const c = foundDraft?.content as Record<string, any> | undefined
+      const c = foundDraft?.content as Record<string, unknown> | undefined
       const title =
         typeof c?.versionTitle === 'string' && c.versionTitle.trim()
           ? c.versionTitle.trim()
@@ -491,7 +530,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       }
     })
 
-    const sqftSummary = calculateLeadQuotationSqftSummary(savedDrafts, projectSqft ?? 0)
+    const sqftSummary = calculateLeadQuotationSqftSummary(visibleDrafts, projectSqft ?? 0)
 
     if (!selectedDraft) {
       const shortContent = buildDefaultShortQuotationContent({
