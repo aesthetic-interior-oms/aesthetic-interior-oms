@@ -265,23 +265,70 @@ export default async function AdminDashboardPage() {
   // Quotation Team Pre-Calculated Monthly Performance
   const monthKey = getMonthKey(now)
   await syncAllQuotationTeamPerformance(now)
-  const quotationPerformanceRecords = await prisma.quotationUserPerformance.findMany({
-    where: { monthKey },
-    include: { user: { select: { fullName: true, email: true } } },
-    orderBy: { performanceScore: 'desc' },
-  })
+  const [quotationPerformanceRecords, quotationTeamMembers] = await Promise.all([
+    prisma.quotationUserPerformance.findMany({
+      where: { monthKey },
+      include: { user: { select: { fullName: true, email: true } } },
+      orderBy: { performanceScore: 'desc' },
+    }),
+    prisma.user.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          {
+            userDepartments: {
+              some: {
+                department: {
+                  name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'], mode: 'insensitive' },
+                },
+              },
+            },
+          },
+          {
+            leadAssignments: {
+              some: {
+                department: LeadAssignmentDepartment.QUOTATION,
+              },
+            },
+          },
+          {
+            quotationDraftsCreated: {
+              some: {},
+            },
+          },
+          {
+            quotationDraftsUpdated: {
+              some: {},
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+      },
+    }),
+  ])
 
-  const quotationPerformances = quotationPerformanceRecords.map((r) => ({
-    userId: r.userId,
-    fullName: r.user.fullName,
-    email: r.user.email,
-    detailSqft: r.detailSqft,
-    shortSqft: r.shortSqft,
-    totalSqft: r.totalSqft,
-    completedCount: r.completedCount,
-    avgWorkingHours: r.avgWorkingHours,
-    performanceScore: r.performanceScore,
-  }))
+  const quotationPerformanceByUser = new Map(quotationPerformanceRecords.map((record) => [record.userId, record]))
+  const quotationPerformances = quotationTeamMembers
+    .map((member) => {
+      const performance = quotationPerformanceByUser.get(member.id)
+      return {
+        userId: member.id,
+        fullName: member.fullName,
+        email: member.email,
+        detailSqft: performance?.detailSqft ?? 0,
+        shortSqft: performance?.shortSqft ?? 0,
+        totalSqft: performance?.totalSqft ?? 0,
+        completedCount: performance?.completedCount ?? 0,
+        avgWorkingHours: performance?.avgWorkingHours ?? 0,
+        performanceScore: performance?.performanceScore ?? 0,
+        updatedAt: performance?.updatedAt.toISOString() ?? null,
+      }
+    })
+    .sort((first, second) => second.performanceScore - first.performanceScore)
 
   const priorityActions: PriorityAction[] = [
     ...overdueCadTasks.map((task): PriorityAction => ({
@@ -405,6 +452,7 @@ export default async function AdminDashboardPage() {
       srCrmPerformance={srCrmPerformance}
       jrArchitectPerformances={jrArchitectPerformances}
       quotationPerformances={quotationPerformances}
+      quotationPerformanceMonthKey={monthKey}
       overduePendingVisits={overduePendingVisits.map((visit) => ({
         id: visit.id,
         leadId: visit.lead.id,

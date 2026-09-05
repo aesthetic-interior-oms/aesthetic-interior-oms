@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, FileText, Loader2, MapPin, UserRound, Sparkles, ClipboardList, PenTool, CheckCircle, RotateCcw, CalendarClock } from "lucide-react";
+import { Download, FileText, Loader2, MapPin, UserRound, Sparkles, ClipboardList, PenTool, CheckCircle, RotateCcw, CalendarClock, RefreshCw } from "lucide-react";
 import { CrmPageHeader } from "@/components/crm/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -69,6 +70,23 @@ function formatLabel(value: string | null | undefined) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function getRecentMonthsList() {
+  const months: { label: string; value: string }[] = [];
+  const now = new Date();
+
+  for (let i = 0; i < 12; i += 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    months.push({
+      label: d.toLocaleString("en-US", { month: "long", year: "numeric" }),
+      value: `${yyyy}-${mm}`,
+    });
+  }
+
+  return months;
+}
+
 export default function QuotationAssignedTaskPage() {
   type QuotationPackageType = "PREMIUM" | "STANDARD" | "BASIC" | "MIXED";
   type AttachmentDocumentType = "SHORT" | "DETAIL";
@@ -88,15 +106,17 @@ export default function QuotationAssignedTaskPage() {
   ]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
+  const availableMonths = useMemo(() => getRecentMonthsList(), []);
+  const [selectedMonth, setSelectedMonth] = useState(availableMonths[0]?.value ?? "");
+  const selectedMonthLabel = availableMonths.find((month) => month.value === selectedMonth)?.label ?? selectedMonth;
 
-  function createEmptyAttachment(): AttachmentInput {
-    return { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" };
-  }
-
-  const loadTasks = useCallback(async () => {
+  const loadTasks = useCallback(async (monthKey: string) => {
     setLoading(true);
     try {
-      const response = await fetch("/api/quotation/assigned-tasks", {
+      const params = new URLSearchParams();
+      if (monthKey) params.set("month", monthKey);
+
+      const response = await fetch(`/api/quotation/assigned-tasks?${params.toString()}`, {
         cache: "no-store",
       });
       const payload = await response.json();
@@ -117,8 +137,8 @@ export default function QuotationAssignedTaskPage() {
   }, []);
 
   useEffect(() => {
-    void loadTasks();
-  }, [loadTasks]);
+    void loadTasks(selectedMonth);
+  }, [loadTasks, selectedMonth]);
 
   const summary = useMemo(
     () => ({
@@ -150,7 +170,7 @@ export default function QuotationAssignedTaskPage() {
         throw new Error(payload?.error ?? "Failed to start quotation work");
       }
       toast.success("Quotation work started");
-      await loadTasks();
+      await loadTasks(selectedMonth);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -229,7 +249,7 @@ export default function QuotationAssignedTaskPage() {
       setSubmitLead(null);
       setSubmitNote("");
       setSubmitAttachments([{ id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }]);
-      await loadTasks();
+      await loadTasks(selectedMonth);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -261,9 +281,37 @@ export default function QuotationAssignedTaskPage() {
                 Overview of your quotation tasks and their current phases.
               </p>
             </div>
-            <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
-              Live tracking
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+                {selectedMonthLabel}
+              </Badge>
+              <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-background px-2 py-1">
+                <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="h-9 w-[180px] border-0 px-2 shadow-none focus:ring-0">
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMonths.map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 gap-2"
+                disabled={loading}
+                onClick={() => void loadTasks(selectedMonth)}
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
@@ -329,7 +377,7 @@ export default function QuotationAssignedTaskPage() {
         ) : leads.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              No quotation tasks assigned yet.
+              No quotation tasks found for {selectedMonthLabel}.
             </CardContent>
           </Card>
         ) : (

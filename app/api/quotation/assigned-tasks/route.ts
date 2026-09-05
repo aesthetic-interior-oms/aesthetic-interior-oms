@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/prisma/client'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { calculateLeadQuotationSqftSummary } from '@/lib/quotation-sqft-calculator'
+import { getMonthDateRange, normalizeMonthKey } from '@/lib/quotation-performance'
 
 export async function GET(request: Request) {
   try {
@@ -25,6 +26,22 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const includeHistory = searchParams.get('includeHistory') === '1'
+    const requestedMonth = searchParams.get('month')
+    const monthKey = requestedMonth ? normalizeMonthKey(requestedMonth) : null
+    const monthRange = monthKey
+      ? (() => {
+          const { startDate, nextMonthStart } = getMonthDateRange(monthKey)
+          return { gte: startDate, lt: nextMonthStart }
+        })()
+      : null
+    const monthlyDraftWhere = monthRange
+      ? {
+          OR: [
+            { createdById: authResult.actorUserId, createdAt: monthRange },
+            { updatedById: authResult.actorUserId, updatedAt: monthRange },
+          ],
+        }
+      : null
 
     const leads = await prisma.lead.findMany({
       where: {
@@ -34,7 +51,27 @@ export async function GET(request: Request) {
             userId: authResult.actorUserId,
           },
         },
-        ...(includeHistory
+        ...(monthRange
+          ? {
+              OR: [
+                { updated_at: monthRange },
+                {
+                  assignments: {
+                    some: {
+                      department: LeadAssignmentDepartment.QUOTATION,
+                      userId: authResult.actorUserId,
+                      createdAt: monthRange,
+                    },
+                  },
+                },
+                {
+                  quotationDrafts: {
+                    some: monthlyDraftWhere ?? undefined,
+                  },
+                },
+              ],
+            }
+          : includeHistory
           ? {}
           : {
               stage: LeadStage.QUOTATION_PHASE,
@@ -93,6 +130,7 @@ export async function GET(request: Request) {
           take: 1,
         },
         quotationDrafts: {
+          ...(monthlyDraftWhere ? { where: monthlyDraftWhere } : {}),
           select: {
             draftKey: true,
             projectSqft: true,
@@ -139,6 +177,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       success: true,
+      monthKey,
       data: tasksData,
       metrics: {
         totalDetailSqft,

@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { VisitStatusChart } from '@/components/crm/shared/visit-status-chart'
 import { LeaderboardCard } from '@/components/crm/jr-architecture/performance-cards'
+import { QuotationLeaderboardSection, type QuotationPerformanceItem } from './quotation-leaderboard-section'
 
 export const queueLinks = {
   cad: '/crm/admin/cad-phase-queue?queueType=cad-phase',
@@ -57,8 +58,9 @@ type CommandCenterDashboardProps = {
   overduePendingVisits: OverduePendingVisitItem[]
   visitTeamPerformance: VisitTeamPerformanceItem[]
   srCrmPerformance: SrCrmPerformanceItem[]
-  jrArchitectPerformances: any[]
-  quotationPerformances: any[]
+  jrArchitectPerformances: JrArchitectPerformanceItem[]
+  quotationPerformances: QuotationPerformanceItem[]
+  quotationPerformanceMonthKey: string
 }
 
 type UpcomingMeetingItem = {
@@ -130,6 +132,17 @@ type VisitTeamPerformanceItem = {
   performance: number
   leadVisits: number
   supportVisits: number
+}
+
+type JrArchitectPerformanceItem = {
+  id: string
+  totalWork: number
+  totalSqft: number
+  totalTimeMinutes: number
+  performanceScore: number
+  user: {
+    fullName: string
+  }
 }
 
 type OverduePendingVisitItem = {
@@ -626,72 +639,6 @@ function CommandShortcutsCard() {
   )
 }
 
-function QuotationLeaderboardSection({ performances }: { performances: any[] }) {
-  return (
-    <Card className="border-border/70 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between py-4">
-        <div>
-          <CardTitle className="flex items-center gap-2 text-base font-semibold">
-            <Medal className="size-4 text-amber-500" />
-            Quotation Team Performance Leaderboard
-          </CardTitle>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Pre-calculated monthly SQFT volume, completion count, and working speed stats
-          </p>
-        </div>
-        <Badge variant="outline">{performances.length} Members</Badge>
-      </CardHeader>
-      <CardContent className="p-0">
-        {performances.length === 0 ? (
-          <p className="p-5 text-center text-sm text-muted-foreground">No quotation team performance data recorded for this month.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs font-semibold uppercase text-muted-foreground">
-                <tr>
-                  <th className="w-16 p-3 text-center">Rank</th>
-                  <th className="p-3">Name</th>
-                  <th className="p-3 text-right">Detail SQFT</th>
-                  <th className="p-3 text-right">Short SQFT</th>
-                  <th className="p-3 text-right">Total SQFT</th>
-                  <th className="p-3 text-center">Completed</th>
-                  <th className="p-3 text-right">Avg Speed</th>
-                  <th className="p-3 text-right font-bold text-foreground">Score</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {performances.map((item, idx) => (
-                  <tr key={item.userId} className="hover:bg-muted/30 transition-colors">
-                    <td className="p-3 text-center font-bold text-muted-foreground">#{idx + 1}</td>
-                    <td className="p-3">
-                      <span className="font-semibold text-foreground">{item.fullName}</span>
-                      <p className="text-xs text-muted-foreground">{item.email}</p>
-                    </td>
-                    <td className="p-3 text-right">{item.detailSqft.toLocaleString()} SFT</td>
-                    <td className="p-3 text-right">{item.shortSqft.toLocaleString()} SFT</td>
-                    <td className="p-3 text-right font-semibold text-foreground">{item.totalSqft.toLocaleString()} SFT</td>
-                    <td className="p-3 text-center">
-                      <Badge variant="secondary" className="text-xs">{item.completedCount}</Badge>
-                    </td>
-                    <td className="p-3 text-right text-xs text-muted-foreground">
-                      {item.avgWorkingHours > 0 ? `${item.avgWorkingHours} hrs` : 'N/A'}
-                    </td>
-                    <td className="p-3 text-right">
-                      <span className="inline-flex items-center rounded-md bg-amber-500/10 px-2.5 py-1 text-xs font-extrabold text-amber-700 dark:text-amber-300">
-                        {item.performanceScore} / 100
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
 export function AdminCommandCenterDashboard({
   queueCounts,
   priorityActions,
@@ -705,6 +652,7 @@ export function AdminCommandCenterDashboard({
   srCrmPerformance,
   jrArchitectPerformances,
   quotationPerformances,
+  quotationPerformanceMonthKey,
 }: CommandCenterDashboardProps) {
   return (
     <div className="min-h-full bg-gradient-to-b from-background via-background to-muted/20">
@@ -719,7 +667,10 @@ export function AdminCommandCenterDashboard({
         <SrCrmPerformanceSection members={srCrmPerformance} />
         <VisitTeamPerformanceSection members={visitTeamPerformance} />
         <LeaderboardCard performances={jrArchitectPerformances} title="JR Architect Performance Leaderboard" />
-        <QuotationLeaderboardSection performances={quotationPerformances} />
+        <QuotationLeaderboardSection
+          initialPerformances={quotationPerformances}
+          initialMonthKey={quotationPerformanceMonthKey}
+        />
 
         <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
           <PriorityActionCard priorityActions={priorityActions} />
