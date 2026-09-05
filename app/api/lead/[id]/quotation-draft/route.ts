@@ -762,6 +762,18 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       const primaryIndex = targetSlots.indexOf(requestedSlot)
       const savedDraft = results[primaryIndex >= 0 ? primaryIndex : 0]
 
+      if (grandTotal > 0) {
+        await prisma.lead.update({
+          where: { id: lead.id },
+          data: {
+            budget: grandTotal,
+            quotationType: storedQuotationType,
+          },
+        }).catch((err) => {
+          console.error('[lead/:id/quotation-draft][PUT] Lead budget sync error:', err)
+        })
+      }
+
       void recalculateQuotationUserPerformance(authResult.actorUserId).catch((err) => {
         console.error('[lead/:id/quotation-draft][PUT] Performance sync error:', err)
       })
@@ -799,6 +811,18 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         status,
       },
     })
+
+    if (grandTotal > 0) {
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: {
+          budget: grandTotal,
+          quotationType: storedQuotationType,
+        },
+      }).catch((err) => {
+        console.error('[lead/:id/quotation-draft][PUT] Lead budget sync error:', err)
+      })
+    }
 
     void recalculateQuotationUserPerformance(authResult.actorUserId).catch((err) => {
       console.error('[lead/:id/quotation-draft][PUT] Performance sync error:', err)

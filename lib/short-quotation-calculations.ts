@@ -65,7 +65,9 @@ export function buildShortQuotationSummary(content: ShortQuotationContent): Shor
     return { floor, rooms: floorRooms, total }
   })
 
-  const grandTotal = floorSummaries.reduce((sum, floor) => sum + floor.total, 0)
+  const subTotal = floorSummaries.reduce((sum, floor) => sum + floor.total, 0)
+  const discount = content.discountAmount && Number.isFinite(content.discountAmount) ? content.discountAmount : 0
+  const grandTotal = Math.max(0, subTotal - discount)
 
   return { floors: floorSummaries, grandTotal, allLines }
 }

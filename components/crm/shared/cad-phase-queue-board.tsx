@@ -521,6 +521,7 @@ export function CadPhaseQueueBoard({
     'DESIGN_AGREEMENT' | 'FITOUT_AGREEMENT' | 'NO_APPROVAL'
   >('NO_APPROVAL')
   const [agreementValue, setAgreementValue] = useState<number | ''>('')
+  const [discountAmount, setDiscountAmount] = useState<number | ''>('')
   const [isDirectAgreementConfirm, setIsDirectAgreementConfirm] = useState(false)
   const [quotationMembers, setQuotationMembers] = useState<DepartmentUser[]>([])
   const [visualizerMembers, setVisualizerMembers] = useState<DepartmentUser[]>(
@@ -1181,6 +1182,7 @@ export function CadPhaseQueueBoard({
             reason: `Direct agreement confirmed (Quotation Approved → Visualization) with ${clientApproval.replace('_', ' ').toLowerCase()}. ${completeMeetingNote.trim()}`,
             agreementType: clientApproval,
             agreementValue: agreementValue !== '' ? agreementValue : undefined,
+            discountAmount: discountAmount !== '' ? discountAmount : undefined,
           }),
         })
         const payload = await response.json()
@@ -1234,6 +1236,7 @@ export function CadPhaseQueueBoard({
                   : `${isDirectAgreementConfirm ? 'Direct agreement confirmed' : 'Budget meeting completed'} with ${clientApproval.replace('_', ' ').toLowerCase()} and assigned to 3D Visualizer. ${completeMeetingNote.trim()}`,
               agreementType: clientApproval !== 'NO_APPROVAL' ? clientApproval : undefined,
               agreementValue: clientApproval !== 'NO_APPROVAL' && agreementValue !== '' ? agreementValue : undefined,
+              discountAmount: clientApproval !== 'NO_APPROVAL' && discountAmount !== '' ? discountAmount : undefined,
             }),
           },
         )
@@ -2662,15 +2665,48 @@ export function CadPhaseQueueBoard({
                   </Select>
                 </div>
                 {clientApproval !== 'NO_APPROVAL' ? (
-                  <div className="space-y-1">
-                    <Label>Agreement Value (BDT)</Label>
-                    <Input
-                      type="number"
-                      placeholder="e.g. 500000"
-                      value={agreementValue}
-                      onChange={(e) => setAgreementValue(e.target.value === '' ? '' : Number(e.target.value))}
-                    />
-                  </div>
+                  <>
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Label>Agreement Value (BDT)</Label>
+                        {completeMeetingLead?.budget ? (
+                          <span className="text-xs text-muted-foreground">
+                            Quotation Total: ৳{completeMeetingLead.budget.toLocaleString()}
+                          </span>
+                        ) : null}
+                      </div>
+                      <Input
+                        type="number"
+                        placeholder={
+                          completeMeetingLead?.budget
+                            ? `Default: ৳${completeMeetingLead.budget}`
+                            : 'e.g. 500000'
+                        }
+                        value={agreementValue}
+                        onChange={(e) => setAgreementValue(e.target.value === '' ? '' : Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Discount Amount (BDT)</Label>
+                      <Input
+                        type="number"
+                        placeholder="e.g. 50000 (Optional)"
+                        value={discountAmount}
+                        onChange={(e) => setDiscountAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                      />
+                      {discountAmount !== '' && Number(discountAmount) > 0 ? (
+                        <p className="text-xs text-emerald-600 font-medium pt-0.5">
+                          Settled Agreement Value: ৳
+                          {(
+                            (agreementValue !== ''
+                              ? Number(agreementValue)
+                              : completeMeetingLead?.budget || 0) - Number(discountAmount)
+                          ).toLocaleString()}{' '}
+                          (Quotation will be updated automatically)
+                        </p>
+                      ) : null}
+                    </div>
+                  </>
                 ) : null}
                 {clientApproval !== 'NO_APPROVAL' ? (
                   <div className="space-y-1">

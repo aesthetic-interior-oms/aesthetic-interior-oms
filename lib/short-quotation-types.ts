@@ -38,6 +38,8 @@ export type ShortQuotationContent = {
   floors: ShortQuotationFloor[]
   rooms: ShortQuotationRoom[]
   footerNotes: string[]
+  discountAmount?: number
+  discountPercent?: number
 }
 
 export type ShortQuotationLineWithSerial = ShortQuotationLine & {

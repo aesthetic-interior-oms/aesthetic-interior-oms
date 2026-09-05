@@ -198,7 +198,8 @@ export default function LeadDetailPage() {
     srCrmId: '',
     visualizer3dId: '',
     agreementType: '',
-    agreementValue: ''
+    agreementValue: '',
+    discountAmount: '',
   })
   const [startingFinance, setStartingFinance] = useState(false)
   const [startFinanceError, setStartFinanceError] = useState<string | null>(null)
@@ -1307,13 +1308,40 @@ export default function LeadDetailPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Agreement Value (BDT)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Agreement Value (BDT)</Label>
+                {lead?.budget ? (
+                  <span className="text-xs text-muted-foreground">
+                    Quotation Total: ৳{lead.budget.toLocaleString()}
+                  </span>
+                ) : null}
+              </div>
               <Input
                 type="number"
-                placeholder="Total Agreement Value"
+                placeholder={lead?.budget ? `Default: ৳${lead.budget}` : 'Total Agreement Value'}
                 value={financeForm.agreementValue}
                 onChange={(e) => setFinanceForm(prev => ({ ...prev, agreementValue: e.target.value }))}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Discount Amount (BDT)</Label>
+              <Input
+                type="number"
+                placeholder="e.g. 50000 (Optional)"
+                value={financeForm.discountAmount}
+                onChange={(e) => setFinanceForm(prev => ({ ...prev, discountAmount: e.target.value }))}
+              />
+              {financeForm.discountAmount && Number(financeForm.discountAmount) > 0 ? (
+                <p className="text-xs text-emerald-600 font-medium">
+                  Settled Agreement Value: ৳
+                  {(
+                    (financeForm.agreementValue !== ''
+                      ? Number(financeForm.agreementValue)
+                      : lead?.budget || 0) - Number(financeForm.discountAmount)
+                  ).toLocaleString()}{' '}
+                  (Quotation will be updated automatically)
+                </p>
+              ) : null}
             </div>
             {startFinanceError && (
               <p className="text-sm text-destructive">{startFinanceError}</p>
@@ -1321,7 +1349,7 @@ export default function LeadDetailPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setStartFinanceOpen(false)} disabled={startingFinance}>Cancel</Button>
-            <Button onClick={submitStartFinance} disabled={startingFinance || !financeForm.agreementType || !financeForm.agreementValue}>
+            <Button onClick={submitStartFinance} disabled={startingFinance || !financeForm.agreementType}>
               {startingFinance ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <DollarSign className="w-4 h-4 mr-2" />}
               Start Finance
             </Button>

@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireDatabaseRoles } from '@/lib/authz'
+import { processAgreementAndDiscountSync } from '@/lib/agreement-discount-sync'
 
 export async function POST(req: Request) {
   try {
@@ -11,9 +12,9 @@ export async function POST(req: Request) {
     const actor = authResult.actor
 
     const body = await req.json()
-    const { leadId, srCrmId, visualizer3dId, agreementType, agreementValue } = body
+    const { leadId, srCrmId, visualizer3dId, agreementType, agreementValue, discount, discountAmount } = body
 
-    if (!leadId || !agreementType || agreementValue === undefined) {
+    if (!leadId || !agreementType) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
     }
 
@@ -22,12 +23,25 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 })
     }
 
+    const discountInput = discountAmount !== undefined ? Number(discountAmount) : discount !== undefined ? Number(discount) : null
+    const rawAgreementValue = agreementValue !== undefined && agreementValue !== null && agreementValue !== '' ? Number(agreementValue) : null
+
+    const syncResult = await processAgreementAndDiscountSync({
+      tx: prisma,
+      leadId,
+      actorUserId: actor.id,
+      agreementValueInput: rawAgreementValue,
+      discountAmountInput: discountInput,
+    })
+
+    const finalAgreementValue = syncResult.settledAgreementValue ?? (rawAgreementValue ?? 0)
+
     // 1. Update Lead
     const updatedLead = await prisma.lead.update({
       where: { id: leadId },
       data: {
         agreementType,
-        agreementValue: Number(agreementValue),
+        agreementValue: finalAgreementValue,
         accountStatus: 'PENDING',
         stage: 'VISUALIZATION_PHASE',
         subStatus: 'VISUAL_ASSIGNED',

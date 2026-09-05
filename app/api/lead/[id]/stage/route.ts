@@ -18,6 +18,7 @@ import { canManagePrimaryLeadFlow } from '@/lib/lead-workflow-auth';
 import { ensurePhaseTaskForSubStatus } from '@/lib/lead-phase-task';
 import { createSrCadReviewTodosForCadStart } from '@/lib/sr-cad-todo';
 import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles';
+import { processAgreementAndDiscountSync } from '@/lib/agreement-discount-sync';
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
@@ -36,6 +37,8 @@ type UpdateLeadStageBody = {
   quotationUserId?: unknown;
   agreementType?: unknown;
   agreementValue?: unknown;
+  discount?: unknown;
+  discountAmount?: unknown;
 };
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
@@ -123,6 +126,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const agreementType = toOptionalString(body.agreementType);
     const agreementValueRaw = body.agreementValue;
     const agreementValue = typeof agreementValueRaw === 'number' ? agreementValueRaw : typeof agreementValueRaw === 'string' ? parseFloat(agreementValueRaw) : null;
+    const discountRaw = body.discountAmount ?? body.discount;
+    const discountInput = typeof discountRaw === 'number' ? discountRaw : typeof discountRaw === 'string' ? parseFloat(discountRaw) : null;
     debugLog('📋 [lead/:id/stage][PATCH] - Extracted fields. Stage:', nextStage, 'SubStatus:', requestedSubStatus);
 
     if (!nextStage) {
@@ -324,13 +329,27 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     let notifyVisitMemberOfCadId: string | null = null;
 
     const updatedLead = await prisma.$transaction(async (tx) => {
+      let finalAgreementValue = agreementValue;
+      if (agreementType !== null || agreementValue !== null || (discountInput !== null && discountInput > 0)) {
+        const syncResult = await processAgreementAndDiscountSync({
+          tx,
+          leadId,
+          actorUserId: userId,
+          agreementValueInput: agreementValue,
+          discountAmountInput: discountInput,
+        });
+        if (syncResult.settledAgreementValue !== null) {
+          finalAgreementValue = syncResult.settledAgreementValue;
+        }
+      }
+
       const updated = await tx.lead.update({
         where: { id: leadId },
         data: {
           stage: nextStage,
           subStatus: nextSubStatus,
           ...(agreementType !== null ? { agreementType } : {}),
-          ...(agreementValue !== null && !isNaN(agreementValue) ? { agreementValue } : {}),
+          ...(finalAgreementValue !== null && !isNaN(finalAgreementValue) ? { agreementValue: finalAgreementValue } : {}),
           ...(agreementType !== null ? { accountStatus: 'PENDING' } : {}),
         },
       });
