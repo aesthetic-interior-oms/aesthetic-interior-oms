@@ -1,5 +1,5 @@
 import prisma from '@/lib/prisma'
-import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/prisma/client'
+import { LeadAssignmentDepartment, LeadStage, LeadSubStatus, Prisma } from '@/generated/prisma/client'
 import { calculateLeadQuotationSqftSummary } from '@/lib/quotation-sqft-calculator'
 
 export function getMonthKey(date: Date = new Date()): string {
@@ -8,32 +8,74 @@ export function getMonthKey(date: Date = new Date()): string {
   return `${yyyy}-${mm}`
 }
 
+const MONTH_KEY_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/
+
+export function normalizeMonthKey(monthKey?: string | null, fallbackDate: Date = new Date()): string {
+  if (monthKey && MONTH_KEY_PATTERN.test(monthKey)) {
+    return monthKey
+  }
+  return getMonthKey(fallbackDate)
+}
+
+export function getMonthDateRange(monthKeyOrDate: string | Date = new Date()) {
+  const monthKey = typeof monthKeyOrDate === 'string' ? normalizeMonthKey(monthKeyOrDate) : getMonthKey(monthKeyOrDate)
+  const [yyyy, mm] = monthKey.split('-').map(Number)
+  const startDate = new Date(yyyy, mm - 1, 1, 0, 0, 0, 0)
+  const nextMonthStart = new Date(yyyy, mm, 1, 0, 0, 0, 0)
+  const endDate = new Date(nextMonthStart.getTime() - 1)
+
+  return { monthKey, startDate, nextMonthStart, endDate }
+}
+
 /**
  * Calculates and persists monthly quotation performance for a specific user.
  * Can be triggered automatically on quotation work submit, draft save, or approval.
  */
 export async function recalculateQuotationUserPerformance(userId: string, targetDate: Date = new Date()) {
-  const monthKey = getMonthKey(targetDate)
+  const { monthKey, startDate, nextMonthStart } = getMonthDateRange(targetDate)
+  const monthRange = { gte: startDate, lt: nextMonthStart }
+  const monthDraftActivityWhere: Prisma.QuotationDraftWhereInput = {
+    OR: [
+      { createdById: userId, createdAt: monthRange },
+      { updatedById: userId, updatedAt: monthRange },
+    ],
+  }
 
-  // Fetch all leads assigned to this user (assignedTo, primaryOwner, assignments, or drafts)
+  // Fetch leads with quotation activity for this user inside the selected month.
   const assignedLeads = await prisma.lead.findMany({
     where: {
       OR: [
-        { assignedTo: userId },
-        { primaryOwnerUserId: userId },
+        {
+          assignedTo: userId,
+          updated_at: monthRange,
+        },
+        {
+          primaryOwnerUserId: userId,
+          updated_at: monthRange,
+        },
         {
           assignments: {
             some: {
               userId,
+              createdAt: monthRange,
             },
           },
         },
         {
-          quotationDrafts: {
-            some: {
-              OR: [{ createdById: userId }, { updatedById: userId }],
+          quotationDrafts: { some: monthDraftActivityWhere },
+        },
+        {
+          AND: [
+            {
+              OR: [
+                { assignedTo: userId },
+                { primaryOwnerUserId: userId },
+                { assignments: { some: { userId } } },
+              ],
             },
-          },
+            { subStatus: { in: [LeadSubStatus.QUOTATION_COMPLETED, LeadSubStatus.QUOTATION_APPROVED] } },
+            { updated_at: monthRange },
+          ],
         },
       ],
     },
@@ -48,6 +90,7 @@ export async function recalculateQuotationUserPerformance(userId: string, target
         orderBy: { scheduledAt: 'desc' },
       },
       quotationDrafts: {
+        where: monthDraftActivityWhere,
         select: {
           draftKey: true,
           projectSqft: true,
@@ -68,12 +111,15 @@ export async function recalculateQuotationUserPerformance(userId: string, target
   console.log(`[QuotationPerformance] User ${userId} has ${assignedLeads.length} leads assigned/drafted in quotation.`)
 
   for (const lead of assignedLeads) {
+    const leadUpdatedAt = new Date(lead.updated_at)
     const isCompleted =
-      lead.subStatus === LeadSubStatus.QUOTATION_COMPLETED ||
-      lead.subStatus === LeadSubStatus.QUOTATION_APPROVED ||
-      lead.stage === LeadStage.BUDGET_PHASE ||
-      lead.stage === LeadStage.VISUALIZATION_PHASE ||
-      lead.stage === LeadStage.CONVERSION
+      leadUpdatedAt >= startDate &&
+      leadUpdatedAt < nextMonthStart &&
+      (lead.subStatus === LeadSubStatus.QUOTATION_COMPLETED ||
+        lead.subStatus === LeadSubStatus.QUOTATION_APPROVED ||
+        lead.stage === LeadStage.BUDGET_PHASE ||
+        lead.stage === LeadStage.VISUALIZATION_PHASE ||
+        lead.stage === LeadStage.CONVERSION)
 
     if (isCompleted) {
       completedCount += 1
@@ -93,9 +139,11 @@ export async function recalculateQuotationUserPerformance(userId: string, target
     const leadDetailSqft = sqftSummary.avgDetailSqft
     const leadShortSqft = sqftSummary.avgShortSqft
 
-    console.log(`[QuotationPerformance] Lead ${lead.id} fallbackSqft: ${fallbackSqft}, avgDetail: ${leadDetailSqft}, avgShort: ${leadShortSqft}`)
-    detailSqft += leadDetailSqft
-    shortSqft += leadShortSqft
+    if (lead.quotationDrafts.length > 0) {
+      console.log(`[QuotationPerformance] Lead ${lead.id} fallbackSqft: ${fallbackSqft}, avgDetail: ${leadDetailSqft}, avgShort: ${leadShortSqft}`)
+      detailSqft += leadDetailSqft
+      shortSqft += leadShortSqft
+    }
   }
 
   const totalSqft = detailSqft + shortSqft

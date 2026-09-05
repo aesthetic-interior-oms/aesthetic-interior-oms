@@ -1,8 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { LeadAssignmentDepartment } from '@/generated/prisma/client'
+import { LeadAssignmentDepartment, Prisma } from '@/generated/prisma/client'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { getMonthKey, syncAllQuotationTeamPerformance } from '@/lib/quotation-performance'
+import { getMonthDateRange, normalizeMonthKey, syncAllQuotationTeamPerformance } from '@/lib/quotation-performance'
+
+type QuotationPerformanceRecord = Prisma.QuotationUserPerformanceGetPayload<{
+  include: {
+    user: {
+      select: {
+        id: true
+        fullName: true
+        email: true
+      }
+    }
+  }
+}>
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,11 +22,10 @@ export async function GET(request: NextRequest) {
     if (!authResult.ok) return authResult.response
 
     const searchParams = request.nextUrl.searchParams
-    const monthKey = searchParams.get('month') || getMonthKey()
+    const monthKey = normalizeMonthKey(searchParams.get('month'))
 
     // Parse target month date for syncing
-    const [yyyy, mm] = monthKey.split('-').map(Number)
-    const targetDate = new Date(yyyy, (mm || 1) - 1, 1)
+    const { startDate: targetDate } = getMonthDateRange(monthKey)
 
     let lastError: string | null = null
 
@@ -28,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch pre-calculated performance records from database
-    let performanceRecords: any[] = []
+    let performanceRecords: QuotationPerformanceRecord[] = []
     try {
       performanceRecords = await prisma.quotationUserPerformance.findMany({
         where: {

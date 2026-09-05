@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma'
 import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/prisma/client'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { calculateLeadQuotationSqftSummary } from '@/lib/quotation-sqft-calculator'
-import { getMonthKey } from '@/lib/quotation-performance'
+import { getMonthDateRange, normalizeMonthKey } from '@/lib/quotation-performance'
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,11 +26,9 @@ export async function GET(request: NextRequest) {
 
     const currentUserId = authResult.actorUserId
     const searchParams = request.nextUrl.searchParams
-    const monthKey = searchParams.get('month') || getMonthKey()
-
-    const [yyyy, mm] = monthKey.split('-').map(Number)
-    const startDate = new Date(yyyy, (mm || 1) - 1, 1, 0, 0, 0, 0)
-    const endDate = new Date(yyyy, mm || 1, 0, 23, 59, 59, 999)
+    const monthKey = normalizeMonthKey(searchParams.get('month'))
+    const { startDate, nextMonthStart, endDate } = getMonthDateRange(monthKey)
+    const monthRange = { gte: startDate, lt: nextMonthStart }
 
     // Fetch leads assigned to the quotation team / current user
     const [assignedLeads, allQuotationDrafts, recentQuotationLeads] = await Promise.all([
@@ -69,6 +67,12 @@ export async function GET(request: NextRequest) {
             orderBy: { scheduledAt: 'desc' },
           },
           quotationDrafts: {
+            where: {
+              OR: [
+                { createdAt: monthRange },
+                { updatedAt: monthRange },
+              ],
+            },
             select: {
               draftKey: true,
               projectSqft: true,
@@ -81,10 +85,7 @@ export async function GET(request: NextRequest) {
       }),
       prisma.quotationDraft.findMany({
         where: {
-          updatedAt: {
-            gte: startDate,
-            lte: endDate,
-          },
+          updatedAt: monthRange,
         },
         select: {
           id: true,
@@ -100,6 +101,20 @@ export async function GET(request: NextRequest) {
       prisma.lead.findMany({
         where: {
           stage: LeadStage.QUOTATION_PHASE,
+          OR: [
+            { updated_at: monthRange },
+            { assignments: { some: { department: LeadAssignmentDepartment.QUOTATION, createdAt: monthRange } } },
+            {
+              quotationDrafts: {
+                some: {
+                  OR: [
+                    { createdAt: monthRange },
+                    { updatedAt: monthRange },
+                  ],
+                },
+              },
+            },
+          ],
         },
         select: {
           id: true,
@@ -130,13 +145,12 @@ export async function GET(request: NextRequest) {
       const inDrafts = lead.quotationDrafts.some((d) => {
         const u = new Date(d.updatedAt)
         const c = new Date(d.createdAt)
-        return (u >= startDate && u <= endDate) || (c >= startDate && c <= endDate)
+        return (u >= startDate && u < nextMonthStart) || (c >= startDate && c < nextMonthStart)
       })
       return inCreated || inUpdated || inVisits || inDrafts
     })
 
-    // Use monthLeads if any, else fall back to assignedLeads if total history requested
-    const targetLeads = monthLeads.length > 0 ? monthLeads : assignedLeads
+    const targetLeads = monthLeads
 
     // Aggregate key KPI counters for the selected month
     const assignedCount = targetLeads.filter((l) => l.subStatus === LeadSubStatus.QUOTATION_ASSIGNED).length
@@ -152,6 +166,7 @@ export async function GET(request: NextRequest) {
       const completedVisitSqft = lead.visits.find((v) => v.status === 'COMPLETED' && v.projectSqft)?.projectSqft ?? null
       const anyVisitSqft = lead.visits.find((v) => v.projectSqft)?.projectSqft ?? null
       const fallbackSqft = Number(completedVisitSqft ?? anyVisitSqft ?? 0)
+      if (lead.quotationDrafts.length === 0) return acc
       const summary = calculateLeadQuotationSqftSummary(lead.quotationDrafts, fallbackSqft)
       return acc + summary.totalAvgSqft
     }, 0)
