@@ -72,10 +72,12 @@ function PageHeader({
   date,
   clientName,
   clientAddress,
+  showDate = true,
 }: {
   date: string
   clientName: string
   clientAddress: string | null
+  showDate?: boolean
 }) {
   const formattedDate = formatDateString(date)
 
@@ -91,9 +93,13 @@ function PageHeader({
           <div className="w-1/2">
             <img src="/Logo/HeaderLogo.png" alt="Logo" className="w-[150px] object-contain object-left" />
           </div>
-          <div className="ml-auto rounded-xl border border-[#e7d49a] bg-[#fffdf7] px-4 py-2 text-right shadow-sm">
-            <p className="text-[7px] font-bold uppercase tracking-[0.16em]" style={{ color: '#a57c00' }}>Quotation Date</p>
-            <p className="mt-0.5 text-[10px] font-bold" style={{ color: PRIMARY }}>{formattedDate}</p>
+          <div className="ml-auto rounded-xl border border-[#e7d49a] bg-[#fffdf7] px-4 py-2 text-right shadow-sm min-h-[42px] min-w-[112px]">
+            {showDate ? (
+              <>
+                <p className="text-[7px] font-bold uppercase tracking-[0.16em]" style={{ color: '#a57c00' }}>Quotation Date</p>
+                <p className="mt-0.5 text-[10px] font-bold" style={{ color: PRIMARY }}>{formattedDate}</p>
+              </>
+            ) : null}
           </div>
         </div>
       </div>
@@ -282,7 +288,7 @@ export function DetailQuotationPreview({
 
         {/* Grand Total */}
         <div className="flex justify-end items-center border-t pt-2 mt-2" style={{ borderColor: PRIMARY }}>
-          <span className="text-[10px] font-bold pr-4" style={{ color: PRIMARY }}>Grand Total ({formatDetailAmount(totalSqft)} SQFT)</span>
+          <span className="text-[10px] font-bold pr-4 uppercase" style={{ color: PRIMARY }}>GRAND TOTAL ({formatDetailAmount(totalSqft)} SQFT)</span>
           <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>
             {formatDetailAmount(totals.grandTotal)}
           </span>
@@ -309,6 +315,7 @@ export function DetailQuotationPreview({
             date={normalized.quotationDate ?? ''}
             clientName={clientName}
             clientAddress={clientAddress}
+            showDate={false}
           />
 
           <SectionTitle>{entry.floor.name}</SectionTitle>
@@ -370,8 +377,8 @@ export function DetailQuotationPreview({
 
           {/* Floor Total */}
           <div className="flex justify-end items-center border-t pt-2 mt-2" style={{ borderColor: PRIMARY }}>
-            <span className="text-[10px] font-bold pr-4" style={{ color: PRIMARY }}>
-              Total for {entry.floor.name}
+            <span className="text-[10px] font-bold pr-4 uppercase" style={{ color: PRIMARY }}>
+              TOTAL FOR {entry.floor.name}
             </span>
             <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>
               {formatDetailAmount(entry.total)}
@@ -396,6 +403,7 @@ export function DetailQuotationPreview({
           date={normalized.quotationDate ?? ''}
           clientName={clientName}
           clientAddress={clientAddress}
+          showDate={false}
         />
 
         <SectionTitle>Terms &amp; Signatures</SectionTitle>

@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   summaryAreaName: { paddingLeft: 18, color: '#555555' },
   summaryTdCol: { borderRightWidth: 0 },
   areaTotalRow: { backgroundColor: '#fff8e6' },
-  areaTotalLabel: { textAlign: 'right', color: PRIMARY },
+  areaTotalLabel: { textAlign: 'right', color: PRIMARY, textTransform: 'uppercase' },
 
   // Totals
   grandTotalRow: {
@@ -232,6 +232,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 10,
     color: PRIMARY,
+    textTransform: 'uppercase',
   },
   grandTotalValue: {
     width: '22%',
@@ -347,7 +348,19 @@ const WatermarkBackground = () => (
 );
 
 
-const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
+const GlobalHeader = ({
+  date,
+  subject,
+  clientName,
+  clientAddress,
+  showDate = true,
+}: {
+  date: string
+  subject?: string
+  clientName?: string
+  clientAddress?: string
+  showDate?: boolean
+}) => {
   const formattedDate = formatDateString(date);
 
   return (
@@ -364,8 +377,12 @@ const GlobalHeader = ({ date, subject, clientName, clientAddress }: any) => {
             <Image src={`${getBaseUrl()}/Logo/HeaderLogo.png`} style={{ width: 154 }} />
           </View>
           <View style={styles.datePanel}>
-            <Text style={[styles.metaLabel, { textAlign: 'right' }]}>Quotation Date</Text>
-            <Text style={styles.metaValue}>{formattedDate}</Text>
+            {showDate ? (
+              <>
+                <Text style={[styles.metaLabel, { textAlign: 'right' }]}>Quotation Date</Text>
+                <Text style={styles.metaValue}>{formattedDate}</Text>
+              </>
+            ) : null}
           </View>
         </View>
       </View>
@@ -586,7 +603,7 @@ export function DetailQuotationDocument({
         <Text style={styles.sectionTitle}>Project Summary</Text>
 
         <View style={styles.tableWrapper}>
-          <View style={[styles.tHead, { marginBottom: 3 }]} fixed>
+          <View style={[styles.tHead, { marginBottom: 3 }]}>
             <Text style={[styles.thCol, styles.summaryThCol, styles.wSl]}>SL</Text>
             <Text style={[styles.thCol, styles.summaryThCol, styles.wSumName]}>Description</Text>
             <Text style={[styles.thCol, styles.summaryThCol, styles.wSumTotal, styles.thColLast]}>Amount ({BDT_SYMBOL})</Text>
@@ -610,7 +627,7 @@ export function DetailQuotationDocument({
         </View>
 
         <View style={styles.grandTotalRow}>
-          <Text style={styles.grandTotalLabel}>Grand Total</Text>
+          <Text style={styles.grandTotalLabel}>GRAND TOTAL</Text>
           <Text style={styles.grandTotalValue}>{formatDetailCurrency(totals.grandTotal)}</Text>
         </View>
         <Text style={styles.inWords}>In Words: {amountInWordsTaka(totals.grandTotal)}</Text>
@@ -627,13 +644,14 @@ export function DetailQuotationDocument({
             subject={content.subject ?? ''}
             clientName={clientName}
             clientAddress={clientAddress || ''}
+            showDate={false}
           />
 
           <Text style={styles.sectionTitle}>{softWrapPdfText(entry.floor.name)}</Text>
 
 
           <View style={styles.tableWrapper}>
-            <View style={styles.tHead} fixed>
+            <View style={styles.tHead}>
               <Text style={[styles.thCol, styles.wSl]}>SL</Text>
               <Text style={[styles.thCol, styles.wName]}>Name</Text>
               <Text style={[styles.thCol, styles.wMats]}>Materials</Text>
@@ -701,7 +719,7 @@ export function DetailQuotationDocument({
                 <View style={[styles.tRow, styles.areaTotalRow]} wrap={false}>
                   <Text style={[styles.tdCol, styles.wSl]} />
                   <Text style={[styles.tdCol, styles.wName]} />
-                  <Text style={[styles.tdCol, styles.wMats, styles.bold, styles.areaTotalLabel]}>Total for {softWrapPdfText(area.name)}</Text>
+                  <Text style={[styles.tdCol, styles.wMats, styles.bold, styles.areaTotalLabel]}>TOTAL FOR {softWrapPdfText(area.name).toUpperCase()}</Text>
                   <Text style={[styles.tdCol, styles.wQty, styles.bold]}>{formatDetailAmount(getDetailAreaSqft(area.lines))}</Text>
                   <Text style={[styles.tdCol, styles.wPrice]} />
                   <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }]}>{formatDetailCurrency(getDetailAreaTotal(area.lines))}</Text>
@@ -711,7 +729,7 @@ export function DetailQuotationDocument({
           </View>
 
           <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>
-            <Text style={styles.grandTotalLabel}>Total for {softWrapPdfText(entry.floor.name)} ({formatDetailAmount(getDetailFloorSqft(entry))} SQFT)</Text>
+            <Text style={styles.grandTotalLabel}>TOTAL FOR {softWrapPdfText(entry.floor.name).toUpperCase()} ({formatDetailAmount(getDetailFloorSqft(entry))} SQFT)</Text>
             <Text style={styles.grandTotalValue}>{formatDetailCurrency(entry.total)}</Text>
           </View>
           <Text style={styles.inWords}>In Words: {amountInWordsTaka(entry.total)}</Text>
@@ -728,6 +746,7 @@ export function DetailQuotationDocument({
           subject={content.subject ?? ''}
           clientName={clientName}
           clientAddress={clientAddress || ''}
+          showDate={false}
         />
 
         <Text style={styles.sectionTitle}>Terms &amp; Signatures</Text>
