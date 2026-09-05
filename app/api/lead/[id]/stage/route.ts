@@ -153,8 +153,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       actorDepartments.some((department) =>
         ['ADMIN', 'SR_CRM', 'JR_ARCHITECT'].includes(department),
       ) &&
-      ((nextStage === LeadStage.VISUALIZATION_PHASE &&
-        requestedSubStatus === LeadSubStatus.VISUAL_ASSIGNED) ||
+      ((nextStage === LeadStage.CONVERSION &&
+        requestedSubStatus === LeadSubStatus.CLIENT_CONFIRMED) ||
         (nextStage === LeadStage.BUDGET_PHASE &&
           requestedSubStatus === LeadSubStatus.REJECTED_OFFER));
     const leadWhere = isBudgetMeetingCompletionRequest || isVisitQueueDropRequest

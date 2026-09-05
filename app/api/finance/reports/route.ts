@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { auth } from "@clerk/nextjs/server"
+import { Prisma } from "@/generated/prisma/client"
 
 export const runtime = "nodejs"
 export const preferredRegion = "sin1"
@@ -10,7 +11,10 @@ async function getDbUser() {
   if (!clerkUserId) return null
   return prisma.user.findUnique({
     where: { clerkUserId },
-    select: { id: true },
+    select: {
+      id: true,
+      userDepartments: { select: { department: { select: { name: true } } } },
+    },
   })
 }
 
@@ -100,7 +104,7 @@ export async function GET(request: NextRequest) {
         const startDateStr = searchParams.get("startDate")
         const endDateStr = searchParams.get("endDate")
 
-        const whereClause: any = { leadId }
+        const whereClause: Prisma.TransactionWhereInput = { leadId }
         if (startDateStr || endDateStr) {
           whereClause.date = {}
           if (startDateStr) {
@@ -154,7 +158,25 @@ export async function GET(request: NextRequest) {
 
         const lead = await prisma.lead.findUnique({
           where: { id: leadId },
-          select: { id: true, name: true, phone: true, location: true, budget: true, agreementValue: true },
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            location: true,
+            budget: true,
+            stage: true,
+            subStatus: true,
+            agreementType: true,
+            agreementValue: true,
+            accountStatus: true,
+            assignments: {
+              where: { department: 'VISUALIZER_3D' },
+              select: {
+                user: { select: { id: true, fullName: true, email: true } },
+              },
+              take: 1,
+            },
+          },
         })
 
         const agreementValue = lead?.agreementValue ?? lead?.budget ?? null
@@ -162,6 +184,12 @@ export async function GET(request: NextRequest) {
         const totalPaid = isFiltered ? totalInflow : allTimeTotalPaid
         const paymentDue = agreementValue !== null ? agreementValue - allTimeTotalPaid : null
         const allTimeProfitEstimate = agreementValue !== null ? agreementValue - allTimeTotalOutflow : null
+        const actorDepartments = new Set(user.userDepartments.map((row) => row.department.name))
+        const pendingVisualizerRelease = Boolean(
+          lead?.agreementType &&
+            lead.accountStatus === 'PENDING' &&
+            lead.stage !== 'VISUALIZATION_PHASE',
+        )
 
         return NextResponse.json({
           success: true,
@@ -178,6 +206,13 @@ export async function GET(request: NextRequest) {
           paymentDue,
           profitEstimate: allTimeProfitEstimate,
           isFiltered,
+          visualizerRelease: {
+            pending: pendingVisualizerRelease,
+            canRequestAdminApproval: pendingVisualizerRelease && actorDepartments.has('ACCOUNTS'),
+            canAdminRelease: pendingVisualizerRelease && actorDepartments.has('ADMIN'),
+            visualizer: lead?.assignments[0]?.user ?? null,
+            hasFirstTransaction: allTimeTotalPaid > 0,
+          },
         })
       } else {
         // Project-basis Daily Expenses breakdown (Replaces Project Basis daily expenses.pdf)
@@ -212,8 +247,9 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({ success: false, error: "Invalid mode parameter" }, { status: 400 })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[GET /api/finance/reports] failed", error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    const message = error instanceof Error ? error.message : "Unknown error"
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }

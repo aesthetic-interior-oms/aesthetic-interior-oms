@@ -1152,7 +1152,7 @@ export function CadPhaseQueueBoard({
         completeMeetingLead.stage === 'QUOTATION_PHASE' &&
         completeMeetingLead.subStatus === 'QUOTATION_APPROVED'
       ) {
-        // Direct agreement from Budget Queue (Quotation Approved stage — skip budget meeting)
+        // Direct agreement from Budget Queue (Quotation Approved stage - skip budget meeting)
         if (clientApproval === 'NO_APPROVAL') {
           toast.error('Please select an agreement type (Design or Fitout) to confirm')
           return
@@ -1177,9 +1177,9 @@ export function CadPhaseQueueBoard({
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            stage: 'VISUALIZATION_PHASE',
-            subStatus: 'VISUAL_ASSIGNED',
-            reason: `Direct agreement confirmed (Quotation Approved → Visualization) with ${clientApproval.replace('_', ' ').toLowerCase()}. ${completeMeetingNote.trim()}`,
+            stage: 'CONVERSION',
+            subStatus: 'CLIENT_CONFIRMED',
+            reason: `Direct agreement confirmed with ${clientApproval.replace('_', ' ').toLowerCase()}. Sent to Accounts pending first transaction before 3D Visualizer release. ${completeMeetingNote.trim()}`,
             agreementType: clientApproval,
             agreementValue: agreementValue !== '' ? agreementValue : undefined,
             discountAmount: discountAmount !== '' ? discountAmount : undefined,
@@ -1187,9 +1187,9 @@ export function CadPhaseQueueBoard({
         })
         const payload = await response.json()
         if (!response.ok || !payload?.success) {
-          throw new Error(payload?.error ?? 'Failed to move lead to Visualization phase')
+          throw new Error(payload?.error ?? 'Failed to send lead to Accounts pending')
         }
-        toast.success('Agreement confirmed — Lead sent to Design Queue')
+        toast.success('Agreement confirmed - Lead sent to Accounts pending')
       } else if (
         (completeMeetingLead.stage === 'BUDGET_PHASE' &&
         completeMeetingLead.subStatus === 'BUDGET_MEETING_SET') || isDirectAgreementConfirm
@@ -1225,15 +1225,15 @@ export function CadPhaseQueueBoard({
               stage:
                 clientApproval === 'NO_APPROVAL'
                   ? 'BUDGET_PHASE'
-                  : 'VISUALIZATION_PHASE',
+                  : 'CONVERSION',
               subStatus:
                 clientApproval === 'NO_APPROVAL'
                   ? 'REJECTED_OFFER'
-                  : 'VISUAL_ASSIGNED',
+                  : 'CLIENT_CONFIRMED',
               reason:
                 clientApproval === 'NO_APPROVAL'
                   ? `Budget meeting completed: no approval. ${completeMeetingNote.trim()}`
-                  : `${isDirectAgreementConfirm ? 'Direct agreement confirmed' : 'Budget meeting completed'} with ${clientApproval.replace('_', ' ').toLowerCase()} and assigned to 3D Visualizer. ${completeMeetingNote.trim()}`,
+                  : `${isDirectAgreementConfirm ? 'Direct agreement confirmed' : 'Budget meeting completed'} with ${clientApproval.replace('_', ' ').toLowerCase()}. Sent to Accounts pending first transaction before 3D Visualizer release. ${completeMeetingNote.trim()}`,
               agreementType: clientApproval !== 'NO_APPROVAL' ? clientApproval : undefined,
               agreementValue: clientApproval !== 'NO_APPROVAL' && agreementValue !== '' ? agreementValue : undefined,
               discountAmount: clientApproval !== 'NO_APPROVAL' && discountAmount !== '' ? discountAmount : undefined,
@@ -1247,7 +1247,7 @@ export function CadPhaseQueueBoard({
         toast.success(
           clientApproval === 'NO_APPROVAL'
             ? 'Budget meeting completed'
-            : 'Lead sent to Design Queue',
+            : 'Lead sent to Accounts pending',
         )
       } else {
         throw new Error('This lead is not eligible for meeting completion')
@@ -2628,9 +2628,9 @@ export function CadPhaseQueueBoard({
             </DialogTitle>
             <DialogDescription>
               {completeMeetingLead?.stage === 'BUDGET_PHASE'
-                ? 'Complete budget meeting, select client approval, and assign a 3D Visualizer.'
+                ? 'Complete budget meeting, select client approval, and select the 3D Visualizer for release after first transaction.'
                 : isDirectAgreementConfirm
-                  ? 'Confirm agreement details and assign a 3D Visualizer.'
+                  ? 'Confirm agreement details and select the 3D Visualizer for release after first transaction.'
                   : 'Complete first meeting and assign quotation member.'}
             </DialogDescription>
           </DialogHeader>
@@ -2710,7 +2710,7 @@ export function CadPhaseQueueBoard({
                 ) : null}
                 {clientApproval !== 'NO_APPROVAL' ? (
                   <div className="space-y-1">
-                    <Label>Assign 3D Visualizer</Label>
+                    <Label>Pending 3D Visualizer</Label>
                     <Select
                       value={visualizerMemberId}
                       onValueChange={setVisualizerMemberId}

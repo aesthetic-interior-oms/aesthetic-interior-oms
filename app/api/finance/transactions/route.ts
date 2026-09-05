@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { auth } from "@clerk/nextjs/server"
 import { TransactionType } from "@/generated/prisma/client"
+import { sendPushToUser } from "@/lib/fcm-service"
+import { releaseVisualizerAfterPaymentGate } from "@/lib/visualizer-release"
 
 export const runtime = "nodejs"
 export const preferredRegion = "sin1"
@@ -28,7 +30,6 @@ export async function GET(request: NextRequest) {
     const leadId = searchParams.get("leadId") || undefined
     const type = searchParams.get("type") as TransactionType | null
     const category = searchParams.get("category")
-    const account = searchParams.get("account")
     const financeAccountId = searchParams.get("financeAccountId")
     const startDateStr = searchParams.get("startDate")
     const endDateStr = searchParams.get("endDate")
@@ -166,6 +167,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    if (!Object.values(TransactionType).includes(type as TransactionType)) {
+      return NextResponse.json({ success: false, error: "Invalid transaction type" }, { status: 400 })
+    }
 
     // If visitId is provided but no leadId, auto-fill leadId from the visit
     let resolvedLeadId = leadId || null
@@ -177,44 +181,70 @@ export async function POST(request: NextRequest) {
       if (visit) resolvedLeadId = visit.leadId
     }
 
-    const transaction = await prisma.transaction.create({
-      data: {
-        type: type as any,
-        category,
-        particular,
-        amount,
-        financeAccountId,
-        leadId: resolvedLeadId,
-        visitId: visitId || null,
-        collectedById: collectedById || null,
-        recordedById: user.id,
-        date: date ? new Date(date) : new Date(),
-        imageUrl: imageUrl || null,
-      }
-    })
+    const result = await prisma.$transaction(async (tx) => {
+      const transaction = await tx.transaction.create({
+        data: {
+          type: type as TransactionType,
+          category,
+          particular,
+          amount,
+          financeAccountId,
+          leadId: resolvedLeadId,
+          visitId: visitId || null,
+          collectedById: collectedById || null,
+          recordedById: user.id,
+          date: date ? new Date(date) : new Date(),
+          imageUrl: imageUrl || null,
+        }
+      })
 
-    const generatedVoucherNo = `v-${String(transaction.serialNo).padStart(6, '0')}`
+      const generatedVoucherNo = `v-${String(transaction.serialNo).padStart(6, '0')}`
 
-    const updatedTransaction = await prisma.transaction.update({
-      where: { id: transaction.id },
-      data: { voucherNo: generatedVoucherNo },
-      include: {
-        lead: {
-          select: {
-            id: true,
-            name: true,
+      const updatedTransaction = await tx.transaction.update({
+        where: { id: transaction.id },
+        data: { voucherNo: generatedVoucherNo },
+        include: {
+          lead: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          collectedBy: {
+            select: {
+              id: true,
+              fullName: true,
+            },
           },
         },
-        collectedBy: {
-          select: {
-            id: true,
-            fullName: true,
-          },
-        },
-      },
+      })
+
+      const visualizerRelease =
+        resolvedLeadId && type === TransactionType.INFLOW
+          ? await releaseVisualizerAfterPaymentGate({
+              tx,
+              leadId: resolvedLeadId,
+              actorUserId: user.id,
+            })
+          : null
+
+      return { transaction: updatedTransaction, visualizerRelease }
     })
 
-    return NextResponse.json({ success: true, data: updatedTransaction }, { status: 201 })
+    if (result.visualizerRelease?.released && result.visualizerRelease.visualizerUserId) {
+      sendPushToUser(
+        result.visualizerRelease.visualizerUserId,
+        '3D Visualizer work released',
+        `${result.visualizerRelease.leadName ?? 'Project'} is ready for 3D visualization.`,
+        { type: 'VISUALIZER_RELEASED', leadId: result.visualizerRelease.leadId },
+      ).catch((pushErr) => console.error('[POST /api/finance/transactions] visualizer release push failed', pushErr))
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: result.transaction,
+      visualizerRelease: result.visualizerRelease,
+    }, { status: 201 })
   } catch (error: unknown) {
     console.error("[POST /api/finance/transactions] failed", error)
     const message = error instanceof Error ? error.message : "Unknown error"

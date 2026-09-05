@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, FileDown, Loader2, MapPin, Phone, X } from 'lucide-react'
+import { ArrowLeft, FileDown, Loader2, MapPin, Phone, Send, ShieldCheck, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { DateRangePicker, type DateRange } from '@/components/ui/date-range-picker'
+import { toast } from '@/components/ui/sonner'
 
 const CATEGORY_LABELS: Record<string, string> = {
   CLIENT_DEPOSIT: 'Client Deposit',
@@ -67,14 +68,15 @@ export default function ProjectDetailPage() {
 
   const [report, setReport] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [releaseActionLoading, setReleaseActionLoading] = useState(false)
   const [modalFilter, setModalFilter] = useState<{ type: 'CATEGORY' | 'INFLOW' | 'OUTFLOW', value?: string } | null>(null)
 
   // Date range filter state
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
 
-  useEffect(() => {
+  const loadProjectReport = useCallback(async (showLoading = true) => {
     if (!id) return
-    setLoading(true)
+    if (showLoading) setLoading(true)
 
     let url = `/api/finance/reports?mode=project&leadId=${id}`
     if (dateRange?.from) {
@@ -86,14 +88,25 @@ export default function ProjectDetailPage() {
       url += `&endDate=${toStr}`
     }
 
-    fetch(url)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success) setReport(data)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [id, dateRange])
+    try {
+      const response = await fetch(url, { cache: 'no-store' })
+      const data = await response.json()
+      if (data.success) {
+        setReport(data)
+      } else {
+        toast.error(data.error || 'Failed to load project data')
+      }
+    } catch (error) {
+      console.error(error)
+      toast.error('Failed to load project data')
+    } finally {
+      if (showLoading) setLoading(false)
+    }
+  }, [dateRange, id])
+
+  useEffect(() => {
+    void loadProjectReport()
+  }, [loadProjectReport])
 
   // All financial values and filtered transactions are pre-calculated by backend API
   const isDateFiltered = Boolean(report?.isFiltered || dateRange?.from || dateRange?.to)
@@ -110,6 +123,51 @@ export default function ProjectDetailPage() {
 
   const project = report?.project ?? null
   const netResult = displayTotalPaid - displayTotalExpense
+  const visualizerRelease = report?.visualizerRelease ?? null
+
+  const requestVisualizerRelease = async () => {
+    if (!id) return
+    setReleaseActionLoading(true)
+    try {
+      const response = await fetch(`/api/accounts/projects/${id}/visualizer-release-request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Accounts requested release before first transaction.' }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to request admin approval')
+      }
+      toast.success(data.message || 'Admin approval requested')
+      await loadProjectReport(false)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to request admin approval')
+    } finally {
+      setReleaseActionLoading(false)
+    }
+  }
+
+  const releaseVisualizerNow = async () => {
+    if (!id) return
+    setReleaseActionLoading(true)
+    try {
+      const response = await fetch(`/api/accounts/projects/${id}/release-visualizer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Admin released before first transaction.' }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to release 3D Visualizer')
+      }
+      toast.success(data.message || '3D Visualizer released')
+      await loadProjectReport(false)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to release 3D Visualizer')
+    } finally {
+      setReleaseActionLoading(false)
+    }
+  }
 
   const setPresetRange = (preset: 'ALL' | 'TODAY' | 'THIS_MONTH' | 'LAST_7_DAYS' | 'LAST_30_DAYS') => {
     const today = new Date()
@@ -846,6 +904,44 @@ export default function ProjectDetailPage() {
           <div className="text-center py-12 text-muted-foreground">Failed to load project data.</div>
         ) : (
           <>
+            {visualizerRelease?.pending ? (
+              <Card className="border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/30">
+                <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-semibold text-amber-900 dark:text-amber-100">
+                      Pending first transaction before 3D Visualizer release
+                    </p>
+                    <p className="mt-1 text-sm text-amber-800/80 dark:text-amber-100/80">
+                      Selected visualizer: {visualizerRelease.visualizer?.fullName ?? 'Not selected yet'}. This project stays in Accounts until the first inflow is recorded.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {visualizerRelease.canRequestAdminApproval ? (
+                      <Button
+                        variant="outline"
+                        className="gap-2 border-amber-400 bg-background"
+                        disabled={releaseActionLoading}
+                        onClick={() => void requestVisualizerRelease()}
+                      >
+                        {releaseActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                        Ask Admin
+                      </Button>
+                    ) : null}
+                    {visualizerRelease.canAdminRelease ? (
+                      <Button
+                        className="gap-2"
+                        disabled={releaseActionLoading}
+                        onClick={() => void releaseVisualizerNow()}
+                      >
+                        {releaseActionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                        Release 3D Visualizer
+                      </Button>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+
             {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card>
