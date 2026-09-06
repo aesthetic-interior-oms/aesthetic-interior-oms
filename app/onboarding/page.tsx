@@ -22,7 +22,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 
-const DEFAULT_REDIRECT = "/";
+const DEFAULT_REDIRECT = "/crm/admin/dashboard";
 const DEPARTMENT_ROUTES: Record<string, string> = {
   ADMIN: "/crm/admin/dashboard",
   JR_CRM: "/crm/jr/dashboard",
@@ -155,8 +155,12 @@ export default function OnboardingPage() {
         }
 
         const me = (await meRes.json()) as MeResponse;
+        const deptNames = (me.userDepartments ?? []).map((d) => d.department?.name).filter(Boolean);
         const existingDepartmentName =
-          me.userDepartments?.[0]?.department?.name ?? me.clerkDepartment?.name ?? null;
+          deptNames.find((name) => name.toUpperCase().replace(/\s+/g, '_') === 'PROJECT_COORDINATOR') ??
+          me.userDepartments?.[0]?.department?.name ??
+          me.clerkDepartment?.name ??
+          null;
         setRequiresAdminApproval(Boolean(me.requiresAdminApproval));
         setIsRejected(Boolean(me.isRejected));
         setBootstrapMode(Boolean(me.bootstrapMode));
