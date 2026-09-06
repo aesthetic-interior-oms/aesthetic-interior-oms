@@ -327,6 +327,7 @@ export async function PUT(
       'JR_ARCHITECT',
       'VISUALIZER_3D',
       'ACCOUNTS',
+      'PROJECT_COORDINATOR',
     ]
     if (!validDepartments.includes(department)) {
       return NextResponse.json(
@@ -599,6 +600,7 @@ export async function DELETE(
       'JR_ARCHITECT',
       'VISUALIZER_3D',
       'ACCOUNTS',
+      'PROJECT_COORDINATOR',
     ]
     if (!validDepartments.includes(department)) {
       return NextResponse.json(
