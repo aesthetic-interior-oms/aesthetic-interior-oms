@@ -62,6 +62,7 @@ import {
   addAreaToFloor,
   addCatalogItemToFloor,
   addFloorToContent,
+  addFinishingElectricalWorkItem,
   buildDefaultFloorDetailContent,
   findCatalogItemAcrossTemplates,
   FLOOR_DETAIL_TEMPLATE_KEY,
@@ -74,6 +75,7 @@ import type {
   QuotationDraftContent,
   QuotationFileType,
   QuotationLineItem,
+  QuotationUnit,
 } from '@/lib/quotation-types'
 
 type QuotationMakerProps = {
@@ -407,6 +409,18 @@ export function QuotationMaker({
 
   const addFloor = () => {
     setContent((prev) => (prev ? addFloorToContent(prev) : prev))
+  }
+
+  const addFinishingElectricalWork = () => {
+    setContent((prev) => {
+      if (!prev) return prev
+      const sqft = Number(projectSqft.replace(/,/g, ''))
+      const next = addFinishingElectricalWorkItem(prev, {
+        quantity: Number.isFinite(sqft) && sqft > 0 ? sqft : 1,
+      })
+      toast.success('Added Finishing & Electrical Work item')
+      return normalizeQuotationContent(next)
+    })
   }
 
   const addArea = (floorId: string | null = activeFloorId) => {
@@ -870,6 +884,16 @@ return (
               <Plus className="mr-1.5 h-4 w-4" />
               Add Floor
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-950/40"
+              disabled={!canEdit}
+              onClick={addFinishingElectricalWork}
+            >
+              <Plus className="mr-1.5 h-4 w-4" />
+              Add Finishing & Electrical Work
+            </Button>
             <Button type="button" variant="outline" disabled={!canEdit || saving} onClick={() => void saveDraft(false)}>
               <Save className="mr-1.5 h-4 w-4" />
               {saving ? 'Saving...' : 'Save'}
@@ -1113,6 +1137,17 @@ return (
             <Plus className="mr-1.5 h-4 w-4" />
             Add Floor
           </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-950/40"
+            disabled={!canEdit}
+            onClick={addFinishingElectricalWork}
+          >
+            <Plus className="mr-1.5 h-4 w-4" />
+            Finishing & Electrical Work
+          </Button>
           <Button type="button" size="sm" variant="outline" disabled={!canEdit || !activeFloorId} onClick={() => addArea()}>
             <Plus className="mr-1.5 h-4 w-4" />
             Add Area
@@ -1321,18 +1356,35 @@ function SortableRow({ line, lineIndex, isPkg, canEdit, updateLineItem, removeLi
             ) : <span className="break-all">{fmt(line.rate)}</span>}
             <p className="mt-1 text-[11px] text-muted-foreground break-words">PDF: {formatTemplatePriceHint(line)}</p>
           </td>
-          <td className="px-3 py-2 max-w-[100px]">
+          <td className="px-3 py-2 max-w-[120px]">
             {canEdit ? (
-              <Input type="text" inputMode="decimal" 
-                value={line.quantity > 0 ? String(line.quantity) : ''}
-                placeholder="0"
-                onChange={(e) => updateLineItem(line.id, { quantity: Number(e.target.value.replace(/,/g, '')) || 0 })} />
-            ) : <span className="break-all">{line.quantity}</span>}
+              <div className="space-y-1">
+                <Input type="text" inputMode="decimal" 
+                  value={line.quantity > 0 ? String(line.quantity) : ''}
+                  placeholder="Qty/SFT"
+                  onChange={(e) => updateLineItem(line.id, { quantity: Number(e.target.value.replace(/,/g, '')) || 0 })} />
+                <Select
+                  value={line.unit ?? 'sqft'}
+                  onValueChange={(val) => updateLineItem(line.id, { unit: val as QuotationUnit })}
+                >
+                  <SelectTrigger className="h-6 text-[10px] px-1 bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sqft">sqft</SelectItem>
+                    <SelectItem value="nos">nos</SelectItem>
+                    <SelectItem value="ls">ls</SelectItem>
+                    <SelectItem value="rmt">rmt</SelectItem>
+                    <SelectItem value="rft">rft</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : <span className="break-all">{line.quantity} {line.unit}</span>}
           </td>
         </>
       )}
       <td className="px-3 py-2 text-right font-medium max-w-[150px]">
-        {isPkg && canEdit ? (
+        {(isPkg || line.isCustom || line.isFinishingElectrical) && canEdit ? (
           <Input type="text" inputMode="decimal" className="text-right"
             value={line.amount > 0 ? String(line.amount) : ''}
             placeholder="Total"

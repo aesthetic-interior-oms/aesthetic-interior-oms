@@ -175,3 +175,59 @@ export function applyQuotationTypeToFloorContent(
 export function isFloorBasedDetailContent(content: QuotationDraftContent) {
   return content.templateKey === FLOOR_DETAIL_TEMPLATE_KEY || content.sections.length === 0
 }
+
+export const FINISHING_ELECTRICAL_SECTION_ID = 'finishing-electrical-works-section'
+
+export function ensureFinishingElectricalSection(content: QuotationDraftContent): {
+  content: QuotationDraftContent
+  section: QuotationSection
+} {
+  const existing = content.sections.find(
+    (s) => s.sectionType === 'FINISHING_ELECTRICAL' || s.id === FINISHING_ELECTRICAL_SECTION_ID || s.name === 'Finishing & Electrical Works',
+  )
+  if (existing) {
+    return { content, section: existing }
+  }
+
+  const section: QuotationSection = {
+    id: FINISHING_ELECTRICAL_SECTION_ID,
+    name: 'Finishing & Electrical Works',
+    sortOrder: 9999,
+    sectionType: 'FINISHING_ELECTRICAL',
+  }
+
+  return {
+    content: {
+      ...content,
+      sections: [...content.sections, section],
+    },
+    section,
+  }
+}
+
+export function addFinishingElectricalWorkItem(
+  content: QuotationDraftContent,
+  itemData?: Partial<QuotationLineItem>,
+): QuotationDraftContent {
+  const { content: updatedContent, section } = ensureFinishingElectricalSection(content)
+
+  const line: QuotationLineItem = {
+    id: crypto.randomUUID(),
+    sectionId: section.id,
+    description: itemData?.description ?? 'Finishing & Electrical Work Item',
+    materials: itemData?.materials ?? '',
+    unit: itemData?.unit ?? 'sqft',
+    rate: itemData?.rate ?? 0,
+    quantity: itemData?.quantity ?? 1,
+    amount: itemData?.amount ?? ((itemData?.rate ?? 0) * (itemData?.quantity ?? 1)),
+    included: true,
+    isCustom: true,
+    isFinishingElectrical: true,
+  }
+
+  return {
+    ...updatedContent,
+    lineItems: [...updatedContent.lineItems, line],
+  }
+}
+
