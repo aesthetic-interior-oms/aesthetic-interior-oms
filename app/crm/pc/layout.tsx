@@ -35,7 +35,7 @@ export default async function ProjectCoordinatorLayout({
   }
 
   const departmentNames = new Set(
-    user.userDepartments.map((row) => row.department.name),
+    user.userDepartments.map((row) => row.department.name.toUpperCase().replace(/\s+/g, '_')),
   )
 
   if (

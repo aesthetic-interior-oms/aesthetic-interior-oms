@@ -98,8 +98,10 @@ export default function OnboardingPage() {
   );
 
   const resolveRedirect = (departmentName?: string | null) => {
-    const redirect = !departmentName ? DEFAULT_REDIRECT : DEPARTMENT_ROUTES[departmentName] ?? DEFAULT_REDIRECT;
-    // console.log('[OnboardingPage] resolveRedirect:', { departmentName, redirect });
+    if (!departmentName) return DEFAULT_REDIRECT;
+    const normalized = departmentName.toUpperCase().replace(/\s+/g, '_');
+    const redirect = DEPARTMENT_ROUTES[normalized] ?? DEPARTMENT_ROUTES[departmentName] ?? DEFAULT_REDIRECT;
+    // console.log('[OnboardingPage] resolveRedirect:', { departmentName, normalized, redirect });
     return redirect;
   };
 

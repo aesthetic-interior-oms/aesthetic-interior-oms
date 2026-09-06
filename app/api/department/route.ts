@@ -108,6 +108,8 @@ export async function GET() {
     }
     
     debugLog('🔍 [GET /api/department] - Querying database...');
+    const { ensureStandardDepartmentsExist } = await import('@/lib/ensure-departments');
+    await ensureStandardDepartmentsExist();
     const departments = await prisma.department.findMany({
       include: {
         _count: {
