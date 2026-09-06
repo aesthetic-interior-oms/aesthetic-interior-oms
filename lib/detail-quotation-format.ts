@@ -71,8 +71,8 @@ export function formatDetailUnitPriceCell(line: QuotationLineItem) {
 }
 
 export function formatDetailTotalCell(line: QuotationLineItem) {
-  if (isRateOnlyLine(line)) return '----'
-  if (isPackageLine(line)) return formatDetailAmount(line.amount)
+  if (isRateOnlyLine(line)) return '---'
+  if (!line.amount || line.amount <= 0) return '---'
   return formatDetailAmount(line.amount)
 }
 

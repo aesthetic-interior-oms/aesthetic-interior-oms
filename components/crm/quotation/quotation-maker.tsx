@@ -271,6 +271,34 @@ export function QuotationMaker({
     return [...content.sections].sort((a, b) => a.sortOrder - b.sortOrder)
   }, [content])
 
+  const editorLineSlMap = useMemo(() => {
+    if (!content) return new Map<string, number>()
+    const map = new Map<string, number>()
+    let count = 0
+    floors.forEach((floor) => {
+      const isFE = floor.sectionType === 'FINISHING_ELECTRICAL' || floor.name === 'Finishing & Electrical Works'
+      const floorAreas = [...(content.areas ?? [])]
+        .filter((area) => area.floorId === floor.id)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+      const unassignedLines = content.lineItems.filter((line) => line.sectionId === floor.id && !line.areaId && line.included)
+      const namedAreaGroups = floorAreas.map((area) => ({ area, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.areaId === area.id && line.included) }))
+      const generalAreaGroup = { area: { id: `general-${floor.id}`, floorId: floor.id, name: 'General Area', sortOrder: 0 }, lines: unassignedLines }
+      const areaGroups = isFE
+        ? [{ area: { id: `fe-${floor.id}`, floorId: floor.id, name: '', sortOrder: 0 }, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
+        : floorAreas.length > 0
+          ? [generalAreaGroup, ...namedAreaGroups].filter((group) => group.lines.length > 0 || !group.area.id.startsWith('general-'))
+          : [{ ...generalAreaGroup, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
+
+      areaGroups.forEach((group) => {
+        group.lines.forEach((line) => {
+          count += 1
+          map.set(line.id, count)
+        })
+      })
+    })
+    return map
+  }, [content, floors])
+
   useEffect(() => {
     if (floors.length === 0) {
       setActiveFloorId(null)
@@ -1020,15 +1048,18 @@ return (
         </Card>
       ) : (
         floors.map((floor) => {
+          const isFE = floor.sectionType === 'FINISHING_ELECTRICAL' || floor.name === 'Finishing & Electrical Works'
           const floorAreas = [...(content.areas ?? [])]
             .filter((area) => area.floorId === floor.id)
             .sort((a, b) => a.sortOrder - b.sortOrder)
           const unassignedLines = content.lineItems.filter((line) => line.sectionId === floor.id && !line.areaId && line.included)
           const namedAreaGroups = floorAreas.map((area) => ({ area, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.areaId === area.id && line.included) }))
           const generalAreaGroup = { area: { id: `general-${floor.id}`, floorId: floor.id, name: 'General Area', sortOrder: 0 }, lines: unassignedLines }
-          const areaGroups = floorAreas.length > 0
-            ? [generalAreaGroup, ...namedAreaGroups].filter((group) => group.lines.length > 0 || !group.area.id.startsWith('general-'))
-            : [{ ...generalAreaGroup, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
+          const areaGroups = isFE
+            ? [{ area: { id: `fe-${floor.id}`, floorId: floor.id, name: '', sortOrder: 0 }, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
+            : floorAreas.length > 0
+              ? [generalAreaGroup, ...namedAreaGroups].filter((group) => group.lines.length > 0 || !group.area.id.startsWith('general-'))
+              : [{ ...generalAreaGroup, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
           const floorLineCount = areaGroups.reduce((sum, group) => sum + group.lines.length, 0)
 
           return (
@@ -1056,9 +1087,15 @@ return (
                   </div>
                   {canEdit ? (
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" size="sm" variant="outline" onClick={() => addArea(floor.id)}>
-                        <Plus className="mr-1 h-3.5 w-3.5" /> Add Area
-                      </Button>
+                      {!isFE ? (
+                        <Button type="button" size="sm" variant="outline" onClick={() => addArea(floor.id)}>
+                          <Plus className="mr-1 h-3.5 w-3.5" /> Add Area
+                        </Button>
+                      ) : (
+                        <Button type="button" size="sm" variant="outline" onClick={addFinishingElectricalWork}>
+                          <Plus className="mr-1 h-3.5 w-3.5" /> Add Item
+                        </Button>
+                      )}
                       <Button type="button" size="icon" variant="ghost" onClick={() => removeFloor(floor.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -1075,33 +1112,35 @@ return (
                     data-area-id={area.id.startsWith('general-') ? '' : area.id}
                     className="overflow-hidden rounded-lg border bg-background"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
-                      <Input
-                        value={area.name}
-                        disabled={!canEdit || area.id.startsWith('general-')}
-                        placeholder="e.g. Living Area, Master Bed"
-                        className="h-8 max-w-xs text-sm font-semibold"
-                        onChange={(event) => setContent((prev) => (prev ? updateAreaName(prev, area.id, event.target.value) : prev))}
-                      />
-                      {canEdit ? (
-                        <div className="flex flex-wrap gap-2">
-                          <Button type="button" size="sm" variant="outline" onClick={() => openItemPicker(floor.id, area.id.startsWith('general-') ? undefined : area.id)}>
-                            <Plus className="mr-1 h-3.5 w-3.5" /> Add from saved list
-                          </Button>
-                          <Button type="button" size="sm" variant="ghost" onClick={() => { setCustomTypeFloorId(floor.id); setCustomTypeAreaId(area.id.startsWith('general-') ? null : area.id) }}>
-                            Custom item
-                          </Button>
-                          {!area.id.startsWith('general-') ? <Button type="button" size="icon" variant="ghost" onClick={() => setContent((prev) => (prev ? removeAreaFromContent(prev, area.id) : prev))}><Trash2 className="h-4 w-4" /></Button> : null}
-                        </div>
-                      ) : null}
-                    </div>
+                    {area.name ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
+                        <Input
+                          value={area.name}
+                          disabled={!canEdit || area.id.startsWith('general-')}
+                          placeholder="e.g. Living Area, Master Bed"
+                          className="h-8 max-w-xs text-sm font-semibold"
+                          onChange={(event) => setContent((prev) => (prev ? updateAreaName(prev, area.id, event.target.value) : prev))}
+                        />
+                        {canEdit ? (
+                          <div className="flex flex-wrap gap-2">
+                            <Button type="button" size="sm" variant="outline" onClick={() => openItemPicker(floor.id, area.id.startsWith('general-') ? undefined : area.id)}>
+                              <Plus className="mr-1 h-3.5 w-3.5" /> Add from saved list
+                            </Button>
+                            <Button type="button" size="sm" variant="ghost" onClick={() => { setCustomTypeFloorId(floor.id); setCustomTypeAreaId(area.id.startsWith('general-') ? null : area.id) }}>
+                              Custom item
+                            </Button>
+                            {!area.id.startsWith('general-') ? <Button type="button" size="icon" variant="ghost" onClick={() => setContent((prev) => (prev ? removeAreaFromContent(prev, area.id) : prev))}><Trash2 className="h-4 w-4" /></Button> : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {lines.length === 0 ? <div className="px-4 py-6 text-center text-sm text-muted-foreground">No items in this area yet.</div> : (
                       <div className="overflow-x-auto">
                         <table className="w-full min-w-[980px] text-sm">
                           <thead className="bg-muted/50 text-left"><tr>{canEdit && <th className="w-6 px-1 py-2" />}<th className="w-12 px-3 py-2 font-medium">SL</th><th className="min-w-[160px] px-3 py-2 font-medium">Name</th><th className="min-w-[280px] px-3 py-2 font-medium">Materials</th><th className="px-3 py-2 font-medium">Unit price</th><th className="px-3 py-2 font-medium">Qty / SFT</th><th className="px-3 py-2 text-right font-medium">Total</th><th className="px-3 py-2" /></tr></thead>
                           <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(event) => reorderFloorLines(floor.id, event)}>
                             <SortableContext items={lines.map((l) => l.id)} strategy={verticalListSortingStrategy}>
-                              <tbody>{lines.map((line, lineIndex) => <SortableRow key={line.id} line={line} lineIndex={lineIndex} isPkg={isPackageLine(line)} canEdit={canEdit} updateLineItem={updateLineItem} removeLine={removeLine} lineNeedsManualPrice={lineNeedsManualPrice} />)}</tbody>
+                              <tbody>{lines.map((line, lineIndex) => <SortableRow key={line.id} line={line} lineIndex={lineIndex} slNumber={editorLineSlMap.get(line.id)} isPkg={isPackageLine(line)} canEdit={canEdit} updateLineItem={updateLineItem} removeLine={removeLine} lineNeedsManualPrice={lineNeedsManualPrice} />)}</tbody>
                             </SortableContext>
                           </DndContext>
                         </table>
@@ -1278,6 +1317,7 @@ return (
 type SortableRowProps = {
   line: QuotationLineItem
   lineIndex: number
+  slNumber?: number
   isPkg: boolean
   canEdit: boolean
   updateLineItem: (id: string, patch: Partial<QuotationLineItem>) => void
@@ -1285,7 +1325,7 @@ type SortableRowProps = {
   lineNeedsManualPrice: (line: QuotationLineItem) => boolean
 }
 
-function SortableRow({ line, lineIndex, isPkg, canEdit, updateLineItem, removeLine, lineNeedsManualPrice }: SortableRowProps) {
+function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem, removeLine, lineNeedsManualPrice }: SortableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: line.id })
 
   const rowStyle = {
@@ -1296,6 +1336,7 @@ function SortableRow({ line, lineIndex, isPkg, canEdit, updateLineItem, removeLi
   }
 
   function fmt(v: number) {
+    if (!v || v <= 0) return '---'
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v)
   }
 
@@ -1313,7 +1354,7 @@ function SortableRow({ line, lineIndex, isPkg, canEdit, updateLineItem, removeLi
           </button>
         </td>
       )}
-      <td className="px-3 py-2 text-muted-foreground">{lineIndex + 1}</td>
+      <td className="px-3 py-2 text-muted-foreground">{slNumber ?? (lineIndex + 1)}</td>
       <td className="px-3 py-2 max-w-[200px]">
         {canEdit ? (
           <Input value={line.description} className="break-words" onChange={(e) => updateLineItem(line.id, { description: e.target.value })} />
