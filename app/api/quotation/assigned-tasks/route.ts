@@ -118,7 +118,7 @@ export async function GET(request: Request) {
 
     const tasksData = leads.map((lead) => {
       const fallbackSqft = lead.visits[0]?.projectSqft ?? 0
-      const sqftSummary = calculateLeadQuotationSqftSummary(lead.quotationDrafts ?? [], fallbackSqft)
+      const sqftSummary = calculateLeadQuotationSqftSummary(lead.quotationDrafts ?? [], 0)
       return {
         id: lead.id,
         name: lead.name,

@@ -166,7 +166,7 @@ export async function listQuotationUserPerformanceProjects(userId: string, targe
     const completedVisitSqft = lead.visits.find((v) => v.status === 'COMPLETED' && v.projectSqft)?.projectSqft ?? null
     const anyVisitSqft = lead.visits.find((v) => v.projectSqft)?.projectSqft ?? null
     const fallbackSqft = Number(completedVisitSqft ?? anyVisitSqft ?? 0)
-    const sqftSummary = calculateLeadQuotationSqftSummary(visibleDrafts, fallbackSqft)
+    const sqftSummary = calculateLeadQuotationSqftSummary(visibleDrafts, 0)
     const detailSqft = sqftSummary.detailVersionsCount > 0 ? sqftSummary.avgDetailSqft : 0
     const shortSqft = sqftSummary.shortPackagesCount > 0 ? sqftSummary.avgShortSqft : 0
     const assignedAt = lead.assignments[0]?.createdAt ?? null

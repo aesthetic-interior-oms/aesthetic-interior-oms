@@ -19,7 +19,7 @@ export type LeadQuotationSqftSummary = {
  * 3. Sum of quantity from detail lineItems with unit sqft/sft
  * 4. fallbackSqft (visit projectSqft)
  */
-export function extractDraftSqft(draft: QuotationDraftLike, fallbackSqft = 0): number {
+export function extractDraftSqft(draft: QuotationDraftLike, _fallbackSqft = 0): number {
   // First priority: explicitly stored projectSqft on the draft row itself
   if (draft.projectSqft && draft.projectSqft > 0) {
     return Number(draft.projectSqft)
@@ -56,7 +56,7 @@ export function extractDraftSqft(draft: QuotationDraftLike, fallbackSqft = 0): n
     }
   }
 
-  return fallbackSqft > 0 ? fallbackSqft : 0
+  return 0
 }
 
 /**
@@ -77,33 +77,28 @@ function isShortDraftKey(key: string): boolean {
 
 export function calculateLeadQuotationSqftSummary(
   drafts: QuotationDraftLike[],
-  fallbackSqft = 0,
+  _fallbackSqft = 0,
 ): LeadQuotationSqftSummary {
   const detailDrafts = drafts.filter((d) => isDetailDraftKey(d.draftKey))
   const shortDrafts = drafts.filter((d) => isShortDraftKey(d.draftKey))
 
   let totalDetailSqft = 0
   for (const draft of detailDrafts) {
-    totalDetailSqft += extractDraftSqft(draft, fallbackSqft)
+    totalDetailSqft += extractDraftSqft(draft, 0)
   }
-  // If no detail drafts exist yet, use visit fallback as best estimate
   const avgDetailSqft =
     detailDrafts.length > 0
       ? Math.round(totalDetailSqft / detailDrafts.length)
-      : fallbackSqft > 0
-        ? fallbackSqft
-        : 0
+      : 0
 
   let totalShortSqft = 0
   for (const draft of shortDrafts) {
-    totalShortSqft += extractDraftSqft(draft, fallbackSqft)
+    totalShortSqft += extractDraftSqft(draft, 0)
   }
   const avgShortSqft =
     shortDrafts.length > 0
       ? Math.round(totalShortSqft / shortDrafts.length)
-      : fallbackSqft > 0
-        ? fallbackSqft
-        : 0
+      : 0
 
   return {
     avgDetailSqft,

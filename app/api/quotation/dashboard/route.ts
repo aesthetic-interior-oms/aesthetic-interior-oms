@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
       const anyVisitSqft = lead.visits.find((v) => v.projectSqft)?.projectSqft ?? null
       const fallbackSqft = Number(completedVisitSqft ?? anyVisitSqft ?? 0)
       if (lead.quotationDrafts.length === 0) return acc
-      const summary = calculateLeadQuotationSqftSummary(lead.quotationDrafts, fallbackSqft)
+      const summary = calculateLeadQuotationSqftSummary(lead.quotationDrafts, 0)
       return acc + summary.totalAvgSqft
     }, 0)
 

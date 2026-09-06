@@ -530,7 +530,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       }
     })
 
-    const sqftSummary = calculateLeadQuotationSqftSummary(visibleDrafts, projectSqft ?? 0)
+    const sqftSummary = calculateLeadQuotationSqftSummary(visibleDrafts, 0)
 
     if (!selectedDraft) {
       const shortContent = buildDefaultShortQuotationContent({
