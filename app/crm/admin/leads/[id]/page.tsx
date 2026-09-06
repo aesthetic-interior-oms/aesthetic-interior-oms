@@ -1366,10 +1366,15 @@ export default function LeadDetailPage() {
               </div>
               <Input
                 type="number"
+                readOnly
+                disabled
+                className="bg-muted text-muted-foreground cursor-not-allowed"
                 placeholder={lead?.budget ? `Default: ৳${lead.budget}` : 'Total Agreement Value'}
                 value={financeForm.agreementValue}
-                onChange={(e) => setFinanceForm((prev) => ({ ...prev, agreementValue: e.target.value }))}
               />
+              <p className="text-[11px] text-muted-foreground">
+                Agreement value is based on quotation total. Use discount below to adjust.
+              </p>
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">

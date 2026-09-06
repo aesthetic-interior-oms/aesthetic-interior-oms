@@ -2735,14 +2735,19 @@ export function CadPhaseQueueBoard({
                       </div>
                       <Input
                         type="number"
+                        readOnly
+                        disabled
+                        className="bg-muted text-muted-foreground cursor-not-allowed"
                         placeholder={
                           completeMeetingLead?.budget
                             ? `Default: ৳${completeMeetingLead.budget}`
                             : 'e.g. 500000'
                         }
                         value={agreementValue}
-                        onChange={(e) => setAgreementValue(e.target.value === '' ? '' : Number(e.target.value))}
                       />
+                      <p className="text-[11px] text-muted-foreground">
+                        Agreement value is based on quotation total. Use discount below to adjust.
+                      </p>
                     </div>
 
                     <div className="space-y-1">

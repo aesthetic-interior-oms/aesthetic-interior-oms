@@ -423,7 +423,7 @@ export default function SrCrmQuotationPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <Link
-                          href={`/quotation-team/leads/${lead.id}`}
+                          href={`/crm/sr/quotation/${lead.id}`}
                           className="font-bold text-foreground hover:underline"
                         >
                           {lead.name}
@@ -474,7 +474,7 @@ export default function SrCrmQuotationPage() {
 
                   <div className="flex items-center justify-between border-t bg-muted/20 px-5 py-3">
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/quotation-team/leads/${lead.id}`}>
+                      <Link href={`/crm/sr/quotation/${lead.id}`}>
                         <PenTool className="mr-1.5 h-3.5 w-3.5" />
                         Open Quotation Maker
                       </Link>
@@ -538,7 +538,7 @@ export default function SrCrmQuotationPage() {
                         <tr key={lead.id} className="hover:bg-muted/30">
                           <td className="p-4 font-semibold text-foreground">
                             <Link
-                              href={`/quotation-team/leads/${lead.id}`}
+                              href={`/crm/sr/quotation/${lead.id}`}
                               className="hover:underline"
                             >
                               {lead.name}
@@ -569,7 +569,7 @@ export default function SrCrmQuotationPage() {
                           </td>
                           <td className="p-4 text-right">
                             <Button size="sm" variant="outline" asChild>
-                              <Link href={`/quotation-team/leads/${lead.id}`}>
+                              <Link href={`/crm/sr/quotation/${lead.id}`}>
                                 Open Quotation Maker
                               </Link>
                             </Button>
