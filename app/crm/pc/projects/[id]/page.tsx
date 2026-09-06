@@ -2,29 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, FileText, MapPin, User, SquareStack } from 'lucide-react'
+import { Loader2, FileText, MapPin, User, SquareStack, Download, CheckCircle2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
-
-type QuotationItem = {
-  name?: string
-  description?: string
-  quantity?: number
-  area?: number
-  unit?: string
-  total?: number
-}
-
-type QuotationSection = {
-  sectionTitle?: string
-  items?: QuotationItem[]
-}
+import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
 
 type QuotationDraft = {
   id: string
   draftKey: string
+  quotationType?: string
   grandTotal: number
   status: string
   updatedAt: string
@@ -46,94 +35,257 @@ type LeadDetail = {
   quotationDrafts: QuotationDraft[]
 }
 
-function draftVersionLabel(draftKey: string, index: number): string {
+function draftVersionLabel(draftKey: string, quotationType?: string, index: number = 0): string {
+  const typeLabel = quotationType === 'SHORT' ? 'Short' : 'Detail'
   if (draftKey.includes(':slot:')) {
     const slot = draftKey.split(':slot:')[1]
-    return `Version ${slot}`
+    return `${typeLabel} Version ${slot}`
   }
-  return `Version ${index + 1}`
+  return `${typeLabel} Version ${index + 1}`
 }
 
 function renderQuotationContent(content: unknown) {
   if (!content || typeof content !== 'object') {
-    return (
-      <p className="text-muted-foreground text-sm">
-        No items found in quotation.
-      </p>
-    )
+    return <p className="text-muted-foreground text-sm py-4">No items found in quotation.</p>
   }
 
   const c = content as Record<string, unknown>
-  let sections: QuotationSection[] = []
 
-  if (Array.isArray(c.sections)) {
-    sections = c.sections as QuotationSection[]
-  } else if (Array.isArray(c.items)) {
-    // flat items — wrap in a single section
-    sections = [{ items: c.items as QuotationItem[] }]
-  }
+  // Summary header details
+  const subject = typeof c.summarySubject === 'string' ? c.summarySubject : (typeof c.subject === 'string' ? c.subject : null)
+  const discountAmount = typeof c.discountAmount === 'number' ? c.discountAmount : 0
+  const discountPercent = typeof c.discountPercent === 'number' ? c.discountPercent : 0
+  const grandTotal = typeof c.grandTotal === 'number' ? c.grandTotal : 0
 
-  if (sections.length === 0) {
+  // 1. DETAIL QUOTATION (has lineItems array)
+  if (Array.isArray(c.lineItems) && c.lineItems.length > 0) {
+    const rawLines = c.lineItems as Array<{
+      id?: string
+      description?: string
+      quantity?: number
+      unit?: string
+      rate?: number
+      amount?: number
+      materials?: string
+      sectionId?: string
+      areaId?: string
+      included?: boolean
+    }>
+
+    const includedLines = rawLines.filter((l) => l.included !== false)
+
+    // Sections & Areas map
+    const sectionsMap = new Map<string, string>()
+    if (Array.isArray(c.sections)) {
+      ;(c.sections as Array<{ id: string; name?: string }>).forEach((s) => {
+        if (s.id && s.name) sectionsMap.set(s.id, s.name)
+      })
+    }
+
+    const areasMap = new Map<string, string>()
+    if (Array.isArray(c.areas)) {
+      ;(c.areas as Array<{ id: string; name?: string }>).forEach((a) => {
+        if (a.id && a.name) areasMap.set(a.id, a.name)
+      })
+    }
+
+    // Group lines by area or section
+    const grouped = new Map<string, typeof includedLines>()
+    includedLines.forEach((line) => {
+      let groupName = 'Quotation Items'
+      if (line.areaId && areasMap.has(line.areaId)) {
+        groupName = areasMap.get(line.areaId)!
+      } else if (line.sectionId && sectionsMap.has(line.sectionId)) {
+        groupName = sectionsMap.get(line.sectionId)!
+      }
+      if (!grouped.has(groupName)) {
+        grouped.set(groupName, [])
+      }
+      grouped.get(groupName)!.push(line)
+    })
+
     return (
-      <p className="text-muted-foreground text-sm">
-        No items found in quotation.
-      </p>
+      <div className="space-y-6">
+        {subject ? (
+          <div className="p-3 rounded-md bg-muted/30 border text-xs font-medium text-foreground">
+            Subject: {subject}
+          </div>
+        ) : null}
+
+        {Array.from(grouped.entries()).map(([groupTitle, lines], gi) => (
+          <div key={gi} className="space-y-2">
+            <h4 className="font-semibold text-sm text-foreground border-b pb-1">
+              {groupTitle}
+            </h4>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-medium text-muted-foreground border-b">
+                    <th className="py-2 pr-4 font-semibold">Item & Specifications</th>
+                    <th className="py-2 pr-3 font-semibold text-right w-24">Qty / Area</th>
+                    <th className="py-2 pr-3 font-semibold text-right w-24">Rate (৳)</th>
+                    <th className="py-2 font-semibold text-right w-28">Total (৳)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {lines.map((line, li) => (
+                    <tr key={li} className="align-top hover:bg-muted/20">
+                      <td className="py-2.5 pr-4">
+                        <div className="font-medium text-foreground">
+                          {line.description || 'Custom Item'}
+                        </div>
+                        {line.materials ? (
+                          <div className="mt-1 text-xs text-muted-foreground whitespace-pre-line bg-muted/20 p-2 rounded border border-border/30">
+                            {line.materials}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="py-2.5 pr-3 text-right tabular-nums">
+                        {line.quantity != null ? `${line.quantity} ${line.unit ?? ''}` : '—'}
+                      </td>
+                      <td className="py-2.5 pr-3 text-right tabular-nums">
+                        {line.rate != null ? `৳${line.rate.toLocaleString()}` : '—'}
+                      </td>
+                      <td className="py-2.5 text-right tabular-nums font-semibold">
+                        {line.amount != null ? `৳${line.amount.toLocaleString()}` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+
+        {/* Totals Summary */}
+        <div className="flex flex-col items-end border-t pt-4 space-y-1 text-sm">
+          {discountAmount > 0 ? (
+            <div className="flex justify-between w-64 text-xs text-muted-foreground">
+              <span>Discount ({discountPercent > 0 ? `${discountPercent}%` : 'Fixed'}):</span>
+              <span>- ৳{discountAmount.toLocaleString()}</span>
+            </div>
+          ) : null}
+          <div className="flex justify-between w-64 font-bold text-base pt-1 text-foreground">
+            <span>Grand Total:</span>
+            <span>৳{grandTotal.toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
     )
   }
 
-  return (
-    <div className="space-y-6">
-      {sections.map((section, si) => (
-        <div key={si}>
-          {section.sectionTitle && (
-            <h4 className="font-semibold text-sm mb-2 border-b pb-1">
-              {section.sectionTitle}
+  // 2. SHORT QUOTATION (has roomCards array)
+  const roomCards = Array.isArray(c.roomCards)
+    ? (c.roomCards as Array<{
+        roomName?: string
+        name?: string
+        items?: Array<{
+          name?: string
+          title?: string
+          description?: string
+          workDescription?: string
+          materials?: string
+          unit?: string
+          quantity?: number
+          qty?: number
+          area?: number
+          totalPrice?: number
+          total?: number
+          amount?: number
+          unitPrice?: number
+          rate?: number
+        }>
+      }>)
+    : []
+
+  if (roomCards.length > 0) {
+    return (
+      <div className="space-y-6">
+        {subject ? (
+          <div className="p-3 rounded-md bg-muted/30 border text-xs font-medium text-foreground">
+            Subject: {subject}
+          </div>
+        ) : null}
+
+        {roomCards.map((room, ri) => (
+          <div key={ri} className="space-y-2">
+            <h4 className="font-semibold text-sm text-foreground border-b pb-1">
+              {room.roomName || room.name || `Room ${ri + 1}`}
             </h4>
-          )}
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-muted-foreground border-b">
-                <th className="py-1 pr-4 font-medium">Item</th>
-                <th className="py-1 pr-3 font-medium text-right">Qty</th>
-                <th className="py-1 pr-3 font-medium text-right">Area</th>
-                <th className="py-1 pr-3 font-medium text-right">Unit</th>
-                <th className="py-1 font-medium text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.isArray(section.items) &&
-                section.items.map((item, ii) => (
-                  <tr key={ii} className="border-b border-border/40">
-                    <td className="py-2 pr-4">
-                      <div className="font-medium">
-                        {item.name ?? item.description ?? '—'}
-                      </div>
-                      {item.description && item.name && (
-                        <div className="text-xs text-muted-foreground">
-                          {item.description}
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-2 pr-3 text-right tabular-nums">
-                      {item.quantity ?? '—'}
-                    </td>
-                    <td className="py-2 pr-3 text-right tabular-nums">
-                      {item.area != null ? `${item.area} sqft` : '—'}
-                    </td>
-                    <td className="py-2 pr-3 text-right">
-                      {item.unit ?? '—'}
-                    </td>
-                    <td className="py-2 text-right tabular-nums font-medium">
-                      {item.total != null
-                        ? `৳${item.total.toLocaleString()}`
-                        : '—'}
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs font-medium text-muted-foreground border-b">
+                    <th className="py-2 pr-4 font-semibold">Item & Work Details</th>
+                    <th className="py-2 pr-3 font-semibold text-right w-24">Qty / Area</th>
+                    <th className="py-2 pr-3 font-semibold text-right w-24">Rate (৳)</th>
+                    <th className="py-2 font-semibold text-right w-28">Total (৳)</th>
                   </tr>
-                ))}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {(room.items ?? []).map((item, ii) => {
+                    const itemName = item.name || item.title || item.description || 'Item'
+                    const workDesc = item.workDescription || item.materials || (item.name && item.description ? item.description : null)
+                    const qty = item.quantity ?? item.qty ?? item.area
+                    const rate = item.unitPrice ?? item.rate
+                    const itemTotal = item.totalPrice ?? item.total ?? item.amount
+
+                    return (
+                      <tr key={ii} className="align-top hover:bg-muted/20">
+                        <td className="py-2.5 pr-4">
+                          <div className="font-medium text-foreground">{itemName}</div>
+                          {workDesc ? (
+                            <div className="mt-1 text-xs text-muted-foreground whitespace-pre-line bg-muted/20 p-2 rounded border border-border/30">
+                              {workDesc}
+                            </div>
+                          ) : null}
+                        </td>
+                        <td className="py-2.5 pr-3 text-right tabular-nums">
+                          {qty != null ? `${qty} ${item.unit ?? ''}` : '—'}
+                        </td>
+                        <td className="py-2.5 pr-3 text-right tabular-nums">
+                          {rate != null ? `৳${rate.toLocaleString()}` : '—'}
+                        </td>
+                        <td className="py-2.5 text-right tabular-nums font-semibold">
+                          {itemTotal != null ? `৳${itemTotal.toLocaleString()}` : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+
+        {/* Totals Summary */}
+        <div className="flex flex-col items-end border-t pt-4 space-y-1 text-sm">
+          {discountAmount > 0 ? (
+            <div className="flex justify-between w-64 text-xs text-muted-foreground">
+              <span>Discount ({discountPercent > 0 ? `${discountPercent}%` : 'Fixed'}):</span>
+              <span>- ৳{discountAmount.toLocaleString()}</span>
+            </div>
+          ) : null}
+          <div className="flex justify-between w-64 font-bold text-base pt-1 text-foreground">
+            <span>Grand Total:</span>
+            <span>৳{grandTotal.toLocaleString()}</span>
+          </div>
         </div>
-      ))}
+      </div>
+    )
+  }
+
+  // Fallback
+  return (
+    <div className="space-y-4">
+      {subject ? (
+        <div className="p-3 rounded-md bg-muted/30 border text-xs font-medium text-foreground">
+          Subject: {subject}
+        </div>
+      ) : null}
+      <p className="text-muted-foreground text-sm py-2">
+        Quotation saved. Grand Total: <span className="font-semibold text-foreground">৳{grandTotal.toLocaleString()}</span>
+      </p>
     </div>
   )
 }
@@ -187,7 +339,7 @@ export default function PCProjectDetailPage() {
   }
 
   const selectedDraft =
-    lead.quotationDrafts.find((d) => d.id === selectedDraftId) ?? null
+    lead.quotationDrafts.find((d) => d.id === selectedDraftId) ?? lead.quotationDrafts[0] ?? null
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -245,60 +397,75 @@ export default function PCProjectDetailPage() {
                     : 'N/A'}
                 </p>
               </div>
-
             </div>
           </CardContent>
         </Card>
 
-        {/* Quotation */}
+        {/* Quotation Section */}
         <Card>
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-base">Quotation</CardTitle>
+                <CardTitle className="text-base">Quotation Breakdown</CardTitle>
               </div>
-              {lead.quotationDrafts.length > 1 && (
-                <div className="flex flex-wrap gap-2">
-                  {lead.quotationDrafts.map((draft, idx) => (
-                    <button
-                      key={draft.id}
-                      onClick={() => setSelectedDraftId(draft.id)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                        selectedDraftId === draft.id
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'border-border bg-muted/40 hover:bg-muted'
-                      }`}
-                    >
-                      {draftVersionLabel(draft.draftKey, idx)}
-                      {' — '}
-                      ৳{draft.grandTotal.toLocaleString()}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="flex flex-wrap items-center gap-2">
+                {lead.quotationDrafts.length > 1 && (
+                  <div className="flex flex-wrap gap-2">
+                    {lead.quotationDrafts.map((draft, idx) => (
+                      <button
+                        key={draft.id}
+                        onClick={() => setSelectedDraftId(draft.id)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                          selectedDraftId === draft.id
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'border-border bg-muted/40 hover:bg-muted'
+                        }`}
+                      >
+                        {draftVersionLabel(draft.draftKey, draft.quotationType, idx)}
+                        {' — '}
+                        ৳{draft.grandTotal.toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {selectedDraft ? (
+                  <Link
+                    href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id })}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Open PDF Preview
+                  </Link>
+                ) : null}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
             {lead.quotationDrafts.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-sm py-4">
                 No quotation available for this project.
               </p>
             ) : selectedDraft ? (
               <div>
-                <div className="flex justify-between items-center mb-4 text-sm">
-                  <span className="text-muted-foreground">
-                    Last updated:{' '}
-                    {new Date(selectedDraft.updatedAt).toLocaleDateString(
-                      'en-US',
-                      {
+                <div className="flex justify-between items-center mb-4 text-sm bg-muted/20 p-3 rounded-md border">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>
+                      Draft: <strong className="text-foreground">{draftVersionLabel(selectedDraft.draftKey, selectedDraft.quotationType)}</strong>
+                    </span>
+                    <span>•</span>
+                    <span>
+                      Updated: {new Date(selectedDraft.updatedAt).toLocaleDateString('en-US', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
-                      },
-                    )}
-                  </span>
-                  <span className="font-semibold tabular-nums text-base">
+                      })}
+                    </span>
+                  </div>
+                  <span className="font-bold tabular-nums text-base text-foreground">
                     Total: ৳{selectedDraft.grandTotal.toLocaleString()}
                   </span>
                 </div>

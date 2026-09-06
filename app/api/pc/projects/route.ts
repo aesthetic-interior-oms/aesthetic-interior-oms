@@ -77,10 +77,10 @@ export async function GET(req: NextRequest) {
           take: 1,
         },
         quotationDrafts: {
-          where: { draftKey: { startsWith: 'detail' } },
           select: {
             id: true,
             draftKey: true,
+            quotationType: true,
             grandTotal: true,
             status: true,
             updatedAt: true,
