@@ -1,5 +1,6 @@
 import { LeadAssignmentDepartment, LeadSubStatus, LeadStage, Prisma } from '@/generated/prisma/client'
 import { logActivity } from '@/lib/activity-log-service'
+import { getDepartmentNameAliases } from '@/lib/department-normalization'
 
 export const PAYMENT_SUBSTATUSES: LeadSubStatus[] = [
   LeadSubStatus.CLIENT_CONFIRMED,
@@ -77,6 +78,8 @@ export async function ensureDepartmentAssignment({
   preferredUserId,
   actorUserId,
 }: EnsureAssignmentInput): Promise<{ assigned: boolean; userId: string | null }> {
+  const departmentNames = getDepartmentNameAliases(department)
+
   const existing = await tx.leadAssignment.findFirst({
     where: { leadId, department },
     select: { id: true, userId: true },
@@ -95,7 +98,7 @@ export async function ensureDepartmentAssignment({
         userDepartments: {
           some: {
             department: {
-              name: department,
+              name: { in: departmentNames },
             },
           },
         },
@@ -112,7 +115,7 @@ export async function ensureDepartmentAssignment({
         userDepartments: {
           some: {
             department: {
-              name: department,
+              name: { in: departmentNames },
             },
           },
         },

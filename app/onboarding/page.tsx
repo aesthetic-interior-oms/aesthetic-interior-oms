@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { normalizeDepartmentName } from "@/lib/department-normalization";
 
 const DEFAULT_REDIRECT = "/crm/admin/dashboard";
 const DEPARTMENT_ROUTES: Record<string, string> = {
@@ -98,9 +99,9 @@ export default function OnboardingPage() {
   );
 
   const resolveRedirect = (departmentName?: string | null) => {
-    if (!departmentName) return DEFAULT_REDIRECT;
-    const normalized = departmentName.toUpperCase().replace(/\s+/g, '_');
-    const redirect = DEPARTMENT_ROUTES[normalized] ?? DEPARTMENT_ROUTES[departmentName] ?? DEFAULT_REDIRECT;
+    const normalized = normalizeDepartmentName(departmentName);
+    if (!normalized) return DEFAULT_REDIRECT;
+    const redirect = DEPARTMENT_ROUTES[normalized] ?? DEFAULT_REDIRECT;
     // console.log('[OnboardingPage] resolveRedirect:', { departmentName, normalized, redirect });
     return redirect;
   };
@@ -157,7 +158,7 @@ export default function OnboardingPage() {
         const me = (await meRes.json()) as MeResponse;
         const deptNames = (me.userDepartments ?? []).map((d) => d.department?.name).filter(Boolean);
         const existingDepartmentName =
-          deptNames.find((name) => name.toUpperCase().replace(/\s+/g, '_') === 'PROJECT_COORDINATOR') ??
+          deptNames.find((name) => normalizeDepartmentName(name) === 'PROJECT_COORDINATOR') ??
           me.userDepartments?.[0]?.department?.name ??
           me.clerkDepartment?.name ??
           null;

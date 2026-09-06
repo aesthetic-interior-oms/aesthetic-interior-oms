@@ -1,5 +1,9 @@
 import prisma from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  getDepartmentNameAliases,
+  normalizeDepartmentName,
+} from '@/lib/department-normalization';
 
 const VALID_DEPARTMENTS = [
   'ADMIN',
@@ -21,7 +25,7 @@ function resolveDepartmentAliases(departmentName: string): string[] {
   if (departmentName === 'QUOTATION_TEAM' || departmentName === 'QUOTATION') {
     return ['QUOTATION_TEAM', 'QUOTATION', 'SR_CRM']
   }
-  return [departmentName]
+  return getDepartmentNameAliases(departmentName)
 }
 
 // GET - Fetch all users in a specific department (by name)
@@ -63,7 +67,7 @@ export async function GET(
       );
     }
 
-    const departmentName = nameParam.toUpperCase();
+    const departmentName = normalizeDepartmentName(nameParam) ?? '';
     // console.log('[DEPT-API] departmentName:', departmentName);
 
    

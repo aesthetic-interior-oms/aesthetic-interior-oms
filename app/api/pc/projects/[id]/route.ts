@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
 import prisma from '@/lib/prisma'
+import { normalizeDepartmentName } from '@/lib/department-normalization'
 
 export const runtime = 'nodejs'
 
@@ -35,7 +36,11 @@ export async function GET(
       where: { userId: user.id },
       select: { department: { select: { name: true } } },
     })
-    const deptNames = new Set(userDepts.map((d) => d.department.name))
+    const deptNames = new Set(
+      userDepts
+        .map((d) => normalizeDepartmentName(d.department.name))
+        .filter((name): name is string => Boolean(name)),
+    )
 
     const isAdmin = deptNames.has('ADMIN')
     const isPc = deptNames.has('PROJECT_COORDINATOR')

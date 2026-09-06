@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { processAgreementAndDiscountSync } from '@/lib/agreement-discount-sync'
 import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/prisma/client'
+import { getDepartmentNameAliases } from '@/lib/department-normalization'
 
 export async function POST(req: Request) {
   try {
@@ -150,7 +151,13 @@ export async function POST(req: Request) {
       const pcUser = await prisma.user.findFirst({
         where: {
           isActive: true,
-          userDepartments: { some: { department: { name: 'PROJECT_COORDINATOR' } } },
+          userDepartments: {
+            some: {
+              department: {
+                name: { in: getDepartmentNameAliases('PROJECT_COORDINATOR') },
+              },
+            },
+          },
         },
         select: { id: true },
         orderBy: [{ fullName: 'asc' }, { created_at: 'asc' }],

@@ -2,6 +2,7 @@ import { auth } from '@clerk/nextjs/server'
 import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import { MainLayout } from '@/components/layout/mainlayout'
+import { normalizeDepartmentName } from '@/lib/department-normalization'
 
 export const runtime = 'nodejs'
 export const preferredRegion = 'sin1'
@@ -35,7 +36,9 @@ export default async function ProjectCoordinatorLayout({
   }
 
   const departmentNames = new Set(
-    user.userDepartments.map((row) => row.department.name.toUpperCase().replace(/\s+/g, '_')),
+    user.userDepartments
+      .map((row) => normalizeDepartmentName(row.department.name))
+      .filter((name): name is string => Boolean(name)),
   )
 
   if (
