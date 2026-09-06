@@ -13,7 +13,20 @@ export async function POST(req: Request) {
     const actor = authResult.actor
 
     const body = await req.json()
-    const { leadId, srCrmId, visualizer3dId, agreementType, agreementValue, discount, discountAmount } = body
+    const {
+      leadId,
+      srCrmId,
+      visualizer3dId,
+      agreementType,
+      agreementValue,
+      discount,
+      discountAmount,
+      discountPercent,
+      discountType,
+      selectedDraftId,
+      selectedDraftKey,
+      slotIndex,
+    } = body
 
     if (!leadId || !agreementType) {
       return NextResponse.json({ success: false, error: 'Missing required fields' }, { status: 400 })
@@ -25,14 +38,20 @@ export async function POST(req: Request) {
     }
 
     const discountInput = discountAmount !== undefined ? Number(discountAmount) : discount !== undefined ? Number(discount) : null
+    const discountPercentInput = discountPercent !== undefined && discountPercent !== null ? Number(discountPercent) : null
     const rawAgreementValue = agreementValue !== undefined && agreementValue !== null && agreementValue !== '' ? Number(agreementValue) : null
 
     const syncResult = await processAgreementAndDiscountSync({
       tx: prisma,
       leadId,
       actorUserId: actor.id,
+      selectedDraftId: typeof selectedDraftId === 'string' ? selectedDraftId : null,
+      selectedDraftKey: typeof selectedDraftKey === 'string' ? selectedDraftKey : null,
+      slotIndex: typeof slotIndex === 'number' ? slotIndex : typeof slotIndex === 'string' ? parseInt(slotIndex, 10) : null,
       agreementValueInput: rawAgreementValue,
+      discountType: discountType === 'PERCENTAGE' ? 'PERCENTAGE' : 'FIXED',
       discountAmountInput: discountInput,
+      discountPercentInput,
     })
 
     const finalAgreementValue = syncResult.settledAgreementValue ?? (rawAgreementValue ?? 0)
@@ -125,6 +144,35 @@ export async function POST(req: Request) {
         description: `Agreement confirmed: Type ${agreementType}, Value ${finalAgreementValue}. Sent to Accounts pending first transaction before 3D Visualizer release.`,
       }
     })
+
+    // 4. Auto-assign PROJECT_COORDINATOR for FITOUT agreements
+    if (agreementType === 'FITOUT_AGREEMENT') {
+      const pcUser = await prisma.user.findFirst({
+        where: {
+          isActive: true,
+          userDepartments: { some: { department: { name: 'PROJECT_COORDINATOR' } } },
+        },
+        select: { id: true },
+        orderBy: [{ fullName: 'asc' }, { created_at: 'asc' }],
+      })
+      if (pcUser) {
+        await prisma.leadAssignment.upsert({
+          where: {
+            leadId_department_userId: {
+              leadId,
+              department: LeadAssignmentDepartment.PROJECT_COORDINATOR,
+              userId: pcUser.id,
+            },
+          },
+          update: {},
+          create: {
+            leadId,
+            department: LeadAssignmentDepartment.PROJECT_COORDINATOR,
+            userId: pcUser.id,
+          },
+        })
+      }
+    }
 
     return NextResponse.json({ success: true, lead: updatedLead })
   } catch (error: unknown) {

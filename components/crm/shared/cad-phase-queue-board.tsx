@@ -522,6 +522,10 @@ export function CadPhaseQueueBoard({
   >('NO_APPROVAL')
   const [agreementValue, setAgreementValue] = useState<number | ''>('')
   const [discountAmount, setDiscountAmount] = useState<number | ''>('')
+  const [discountType, setDiscountType] = useState<'FIXED' | 'PERCENTAGE'>('FIXED')
+  const [discountPercent, setDiscountPercent] = useState<number | ''>('')
+  const [quotationVersions, setQuotationVersions] = useState<Array<{ slotIndex: number; title: string; grandTotal: number; exists: boolean }>>([])
+  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number>(1)
   const [isDirectAgreementConfirm, setIsDirectAgreementConfirm] = useState(false)
   const [quotationMembers, setQuotationMembers] = useState<DepartmentUser[]>([])
   const [visualizerMembers, setVisualizerMembers] = useState<DepartmentUser[]>(
@@ -571,6 +575,26 @@ export function CadPhaseQueueBoard({
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 400)
     return () => window.clearTimeout(timer)
   }, [searchInput])
+
+  useEffect(() => {
+    if (completeMeetingOpen && completeMeetingLead?.id) {
+      fetch(`/api/lead/${completeMeetingLead.id}/quotation-draft`)
+        .then((res) => res.json())
+        .then((payload) => {
+          if (payload?.success && Array.isArray(payload.data?.availableSlots)) {
+            const slots = payload.data.availableSlots.filter((s: any) => s.exists)
+            setQuotationVersions(slots)
+            if (slots.length > 0) {
+              setSelectedSlotIndex(slots[0].slotIndex)
+              if (agreementValue === '') {
+                setAgreementValue(slots[0].grandTotal)
+              }
+            }
+          }
+        })
+        .catch((err) => console.error('Failed to load quotation versions:', err))
+    }
+  }, [completeMeetingOpen, completeMeetingLead])
 
   const loadLeads = useCallback(async () => {
     try {
@@ -1182,7 +1206,10 @@ export function CadPhaseQueueBoard({
             reason: `Direct agreement confirmed with ${clientApproval.replace('_', ' ').toLowerCase()}. Sent to Accounts pending first transaction before 3D Visualizer release. ${completeMeetingNote.trim()}`,
             agreementType: clientApproval,
             agreementValue: agreementValue !== '' ? agreementValue : undefined,
-            discountAmount: discountAmount !== '' ? discountAmount : undefined,
+            slotIndex: selectedSlotIndex,
+            discountType,
+            discountAmount: discountType === 'FIXED' && discountAmount !== '' ? discountAmount : undefined,
+            discountPercent: discountType === 'PERCENTAGE' && discountPercent !== '' ? discountPercent : undefined,
           }),
         })
         const payload = await response.json()
@@ -1236,7 +1263,10 @@ export function CadPhaseQueueBoard({
                   : `${isDirectAgreementConfirm ? 'Direct agreement confirmed' : 'Budget meeting completed'} with ${clientApproval.replace('_', ' ').toLowerCase()}. Sent to Accounts pending first transaction before 3D Visualizer release. ${completeMeetingNote.trim()}`,
               agreementType: clientApproval !== 'NO_APPROVAL' ? clientApproval : undefined,
               agreementValue: clientApproval !== 'NO_APPROVAL' && agreementValue !== '' ? agreementValue : undefined,
-              discountAmount: clientApproval !== 'NO_APPROVAL' && discountAmount !== '' ? discountAmount : undefined,
+              slotIndex: clientApproval !== 'NO_APPROVAL' ? selectedSlotIndex : undefined,
+              discountType: clientApproval !== 'NO_APPROVAL' ? discountType : undefined,
+              discountAmount: clientApproval !== 'NO_APPROVAL' && discountType === 'FIXED' && discountAmount !== '' ? discountAmount : undefined,
+              discountPercent: clientApproval !== 'NO_APPROVAL' && discountType === 'PERCENTAGE' && discountPercent !== '' ? discountPercent : undefined,
             }),
           },
         )
@@ -2666,6 +2696,34 @@ export function CadPhaseQueueBoard({
                 </div>
                 {clientApproval !== 'NO_APPROVAL' ? (
                   <>
+                    {quotationVersions.length > 0 ? (
+                      <div className="space-y-1">
+                        <Label>Select Quotation Version / Agreement</Label>
+                        <Select
+                          value={String(selectedSlotIndex)}
+                          onValueChange={(val) => {
+                            const idx = Number(val)
+                            setSelectedSlotIndex(idx)
+                            const target = quotationVersions.find((s) => s.slotIndex === idx)
+                            if (target && target.grandTotal > 0) {
+                              setAgreementValue(target.grandTotal)
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select quotation version" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {quotationVersions.map((v) => (
+                              <SelectItem key={v.slotIndex} value={String(v.slotIndex)}>
+                                {v.title} — ৳{v.grandTotal.toLocaleString()}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : null}
+
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
                         <Label>Agreement Value (BDT)</Label>
@@ -2686,22 +2744,56 @@ export function CadPhaseQueueBoard({
                         onChange={(e) => setAgreementValue(e.target.value === '' ? '' : Number(e.target.value))}
                       />
                     </div>
+
                     <div className="space-y-1">
-                      <Label>Discount Amount (BDT)</Label>
-                      <Input
-                        type="number"
-                        placeholder="e.g. 50000 (Optional)"
-                        value={discountAmount}
-                        onChange={(e) => setDiscountAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                      />
-                      {discountAmount !== '' && Number(discountAmount) > 0 ? (
+                      <div className="flex items-center justify-between">
+                        <Label>Discount</Label>
+                        <div className="flex items-center space-x-1 text-xs">
+                          <Button
+                            type="button"
+                            variant={discountType === 'FIXED' ? 'default' : 'outline'}
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => setDiscountType('FIXED')}
+                          >
+                            Fixed (৳)
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={discountType === 'PERCENTAGE' ? 'default' : 'outline'}
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => setDiscountType('PERCENTAGE')}
+                          >
+                            Percent (%)
+                          </Button>
+                        </div>
+                      </div>
+                      {discountType === 'FIXED' ? (
+                        <Input
+                          type="number"
+                          placeholder="Discount Amount in BDT (e.g. 50000)"
+                          value={discountAmount}
+                          onChange={(e) => setDiscountAmount(e.target.value === '' ? '' : Number(e.target.value))}
+                        />
+                      ) : (
+                        <Input
+                          type="number"
+                          placeholder="Discount Percentage (e.g. 10 for 10%)"
+                          value={discountPercent}
+                          onChange={(e) => setDiscountPercent(e.target.value === '' ? '' : Number(e.target.value))}
+                        />
+                      )}
+                      {((discountType === 'FIXED' && discountAmount !== '' && Number(discountAmount) > 0) ||
+                        (discountType === 'PERCENTAGE' && discountPercent !== '' && Number(discountPercent) > 0)) ? (
                         <p className="text-xs text-emerald-600 font-medium pt-0.5">
                           Settled Agreement Value: ৳
-                          {(
-                            (agreementValue !== ''
-                              ? Number(agreementValue)
-                              : completeMeetingLead?.budget || 0) - Number(discountAmount)
-                          ).toLocaleString()}{' '}
+                          {(() => {
+                            const selectedVer = quotationVersions.find((v) => v.slotIndex === selectedSlotIndex)
+                            const base = agreementValue !== '' ? Number(agreementValue) : (selectedVer?.grandTotal || completeMeetingLead?.budget || 0)
+                            const disc = discountType === 'FIXED' ? Number(discountAmount || 0) : Math.round((base * Number(discountPercent || 0)) / 100)
+                            return Math.max(0, base - disc).toLocaleString()
+                          })()}{' '}
                           (Quotation will be updated automatically)
                         </p>
                       ) : null}

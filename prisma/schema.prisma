@@ -640,6 +640,7 @@ enum LeadAssignmentDepartment {
   JR_ARCHITECT
   VISUALIZER_3D
   ACCOUNTS
+  PROJECT_COORDINATOR
 }
 
 model Role {

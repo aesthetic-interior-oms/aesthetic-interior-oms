@@ -463,6 +463,32 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
+  'Project Coordinator': [
+    {
+      id: 'pc-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/pc/dashboard',
+        },
+      ],
+    },
+    {
+      id: 'pc-workflow',
+      label: 'Projects',
+      defaultOpen: true,
+      items: [
+        {
+          icon: ClipboardList,
+          label: 'My Projects',
+          href: '/crm/pc/projects',
+        },
+      ],
+    },
+  ],
 }
 
 export function Sidebar({ open, onOpenChange, role }: SidebarProps) {

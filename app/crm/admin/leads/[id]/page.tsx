@@ -194,12 +194,16 @@ export default function LeadDetailPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const [startFinanceOpen, setStartFinanceOpen] = useState(false)
+  const [financeVersions, setFinanceVersions] = useState<any[]>([])
   const [financeForm, setFinanceForm] = useState({
     srCrmId: '',
     visualizer3dId: '',
     agreementType: '',
     agreementValue: '',
     discountAmount: '',
+    discountPercent: '',
+    discountType: 'FIXED' as 'FIXED' | 'PERCENTAGE',
+    slotIndex: 1,
   })
   const [startingFinance, setStartingFinance] = useState(false)
   const [startFinanceError, setStartFinanceError] = useState<string | null>(null)
@@ -247,10 +251,26 @@ export default function LeadDetailPage() {
   }
 
   useEffect(() => {
-    if (startFinanceOpen) {
+    if (startFinanceOpen && leadId) {
       loadFinanceUsers()
+      fetch(`/api/lead/${leadId}/quotation-draft`)
+        .then((res) => res.json())
+        .then((payload) => {
+          if (payload?.success && Array.isArray(payload.data?.availableSlots)) {
+            const slots = payload.data.availableSlots.filter((s: any) => s.exists)
+            setFinanceVersions(slots)
+            if (slots.length > 0) {
+              setFinanceForm((prev) => ({
+                ...prev,
+                slotIndex: slots[0].slotIndex,
+                agreementValue: prev.agreementValue || String(slots[0].grandTotal || ''),
+              }))
+            }
+          }
+        })
+        .catch((err) => console.error('Error loading quotation versions for finance:', err))
     }
-  }, [startFinanceOpen])
+  }, [startFinanceOpen, leadId])
 
   const submitStartFinance = async () => {
     setStartingFinance(true)
@@ -1307,6 +1327,34 @@ export default function LeadDetailPage() {
                 </SelectContent>
               </Select>
             </div>
+            {financeVersions.length > 0 ? (
+              <div className="space-y-2">
+                <Label>Select Quotation Version / Agreement</Label>
+                <Select
+                  value={String(financeForm.slotIndex)}
+                  onValueChange={(val) => {
+                    const idx = Number(val)
+                    const target = financeVersions.find((s: any) => s.slotIndex === idx)
+                    setFinanceForm((prev) => ({
+                      ...prev,
+                      slotIndex: idx,
+                      agreementValue: target?.grandTotal ? String(target.grandTotal) : prev.agreementValue,
+                    }))
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select quotation version" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {financeVersions.map((v: any) => (
+                      <SelectItem key={v.slotIndex} value={String(v.slotIndex)}>
+                        {v.title} — ৳{v.grandTotal.toLocaleString()}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Agreement Value (BDT)</Label>
@@ -1320,25 +1368,58 @@ export default function LeadDetailPage() {
                 type="number"
                 placeholder={lead?.budget ? `Default: ৳${lead.budget}` : 'Total Agreement Value'}
                 value={financeForm.agreementValue}
-                onChange={(e) => setFinanceForm(prev => ({ ...prev, agreementValue: e.target.value }))}
+                onChange={(e) => setFinanceForm((prev) => ({ ...prev, agreementValue: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label>Discount Amount (BDT)</Label>
-              <Input
-                type="number"
-                placeholder="e.g. 50000 (Optional)"
-                value={financeForm.discountAmount}
-                onChange={(e) => setFinanceForm(prev => ({ ...prev, discountAmount: e.target.value }))}
-              />
-              {financeForm.discountAmount && Number(financeForm.discountAmount) > 0 ? (
-                <p className="text-xs text-emerald-600 font-medium">
+              <div className="flex items-center justify-between">
+                <Label>Discount</Label>
+                <div className="flex items-center space-x-1 text-xs">
+                  <Button
+                    type="button"
+                    variant={financeForm.discountType === 'FIXED' ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setFinanceForm((prev) => ({ ...prev, discountType: 'FIXED' }))}
+                  >
+                    Fixed (৳)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={financeForm.discountType === 'PERCENTAGE' ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setFinanceForm((prev) => ({ ...prev, discountType: 'PERCENTAGE' }))}
+                  >
+                    Percent (%)
+                  </Button>
+                </div>
+              </div>
+              {financeForm.discountType === 'FIXED' ? (
+                <Input
+                  type="number"
+                  placeholder="Discount Amount in BDT (e.g. 50000)"
+                  value={financeForm.discountAmount}
+                  onChange={(e) => setFinanceForm((prev) => ({ ...prev, discountAmount: e.target.value }))}
+                />
+              ) : (
+                <Input
+                  type="number"
+                  placeholder="Discount Percentage (e.g. 10 for 10%)"
+                  value={financeForm.discountPercent}
+                  onChange={(e) => setFinanceForm((prev) => ({ ...prev, discountPercent: e.target.value }))}
+                />
+              )}
+              {((financeForm.discountType === 'FIXED' && financeForm.discountAmount && Number(financeForm.discountAmount) > 0) ||
+                (financeForm.discountType === 'PERCENTAGE' && financeForm.discountPercent && Number(financeForm.discountPercent) > 0)) ? (
+                <p className="text-xs text-emerald-600 font-medium pt-0.5">
                   Settled Agreement Value: ৳
-                  {(
-                    (financeForm.agreementValue !== ''
-                      ? Number(financeForm.agreementValue)
-                      : lead?.budget || 0) - Number(financeForm.discountAmount)
-                  ).toLocaleString()}{' '}
+                  {(() => {
+                    const selectedVer = financeVersions.find((v: any) => v.slotIndex === financeForm.slotIndex)
+                    const base = financeForm.agreementValue !== '' ? Number(financeForm.agreementValue) : (selectedVer?.grandTotal || lead?.budget || 0)
+                    const disc = financeForm.discountType === 'FIXED' ? Number(financeForm.discountAmount || 0) : Math.round((base * Number(financeForm.discountPercent || 0)) / 100)
+                    return Math.max(0, base - disc).toLocaleString()
+                  })()}{' '}
                   (Quotation will be updated automatically)
                 </p>
               ) : null}

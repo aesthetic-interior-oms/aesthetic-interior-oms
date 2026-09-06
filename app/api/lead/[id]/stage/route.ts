@@ -39,6 +39,11 @@ type UpdateLeadStageBody = {
   agreementValue?: unknown;
   discount?: unknown;
   discountAmount?: unknown;
+  discountPercent?: unknown;
+  discountType?: unknown;
+  selectedDraftId?: unknown;
+  selectedDraftKey?: unknown;
+  slotIndex?: unknown;
 };
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
@@ -128,6 +133,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const agreementValue = typeof agreementValueRaw === 'number' ? agreementValueRaw : typeof agreementValueRaw === 'string' ? parseFloat(agreementValueRaw) : null;
     const discountRaw = body.discountAmount ?? body.discount;
     const discountInput = typeof discountRaw === 'number' ? discountRaw : typeof discountRaw === 'string' ? parseFloat(discountRaw) : null;
+    const discountPercentRaw = body.discountPercent;
+    const discountPercentInput = typeof discountPercentRaw === 'number' ? discountPercentRaw : typeof discountPercentRaw === 'string' ? parseFloat(discountPercentRaw) : null;
+    const discountType = body.discountType === 'PERCENTAGE' ? 'PERCENTAGE' : 'FIXED';
+    const selectedDraftId = toOptionalString(body.selectedDraftId);
+    const selectedDraftKey = toOptionalString(body.selectedDraftKey);
+    const slotIndexInput = typeof body.slotIndex === 'number' ? body.slotIndex : typeof body.slotIndex === 'string' ? parseInt(body.slotIndex, 10) : null;
     debugLog('📋 [lead/:id/stage][PATCH] - Extracted fields. Stage:', nextStage, 'SubStatus:', requestedSubStatus);
 
     if (!nextStage) {
@@ -330,13 +341,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const updatedLead = await prisma.$transaction(async (tx) => {
       let finalAgreementValue = agreementValue;
-      if (agreementType !== null || agreementValue !== null || (discountInput !== null && discountInput > 0)) {
+      if (agreementType !== null || agreementValue !== null || (discountInput !== null && discountInput > 0) || (discountPercentInput !== null && discountPercentInput > 0)) {
         const syncResult = await processAgreementAndDiscountSync({
           tx,
           leadId,
           actorUserId: userId,
+          selectedDraftId,
+          selectedDraftKey,
+          slotIndex: slotIndexInput,
           agreementValueInput: agreementValue,
+          discountType,
           discountAmountInput: discountInput,
+          discountPercentInput,
         });
         if (syncResult.settledAgreementValue !== null) {
           finalAgreementValue = syncResult.settledAgreementValue;
@@ -394,6 +410,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
               : autoHandoffDepartment === 'QUOTATION'
                 ? requestedQuotationUserId
                 : undefined,
+          actorUserId: userId,
+        });
+      }
+
+      // Auto-assign PROJECT_COORDINATOR when a FITOUT agreement is confirmed
+      if (agreementType === 'FITOUT_AGREEMENT') {
+        await ensureDepartmentAssignment({
+          tx,
+          leadId,
+          department: LeadAssignmentDepartment.PROJECT_COORDINATOR,
           actorUserId: userId,
         });
       }
