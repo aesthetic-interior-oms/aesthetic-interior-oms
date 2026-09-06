@@ -43,11 +43,20 @@ export default async function VisitsLayout({
   }
 
   const departmentNames = new Set(
-    user.userDepartments.map((row) => row.department.name),
+    user.userDepartments.map((row) => row.department.name.toUpperCase().replace(/\s+/g, '_')),
   );
 
-  if (departmentNames.has("VISIT_TEAM")) {
+  const isVisitAllowed =
+    departmentNames.has("VISIT_TEAM") ||
+    departmentNames.has("ADMIN") ||
+    departmentNames.has("PROJECT_COORDINATOR");
+
+  if (isVisitAllowed) {
     return <MainLayout role="Visit Team">{children}</MainLayout>;
+  }
+
+  if (departmentNames.has("PROJECT_COORDINATOR")) {
+    redirect("/crm/pc/dashboard");
   }
 
   if (departmentNames.has("JR_CRM")) {
@@ -58,5 +67,5 @@ export default async function VisitsLayout({
     redirect(SR_CRM_DASHBOARD);
   }
 
-  redirect("/");
+  redirect("/onboarding");
 }

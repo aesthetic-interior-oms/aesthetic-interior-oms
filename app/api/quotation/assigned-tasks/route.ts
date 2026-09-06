@@ -15,7 +15,8 @@ export async function GET(request: Request) {
       actorDepartments.has('ADMIN') ||
       actorDepartments.has('SR_CRM') ||
       actorDepartments.has('QUOTATION') ||
-      actorDepartments.has('QUOTATION_TEAM')
+      actorDepartments.has('QUOTATION_TEAM') ||
+      actorDepartments.has('PROJECT_COORDINATOR')
 
     if (!canView) {
       return NextResponse.json(

@@ -42,13 +42,22 @@ export default async function QuotationTeamLayout({
   }
 
   const departmentNames = new Set(
-    user.userDepartments.map((row) => row.department.name),
+    user.userDepartments.map((row) => row.department.name.toUpperCase().replace(/\s+/g, '_')),
   )
 
-  const isQuotationAdmin = departmentNames.has('ADMIN') || departmentNames.has('SR_CRM')
+  const isQuotationAllowed =
+    departmentNames.has('QUOTATION_TEAM') ||
+    departmentNames.has('QUOTATION') ||
+    departmentNames.has('ADMIN') ||
+    departmentNames.has('SR_CRM') ||
+    departmentNames.has('PROJECT_COORDINATOR')
 
-  if (departmentNames.has('QUOTATION_TEAM') || departmentNames.has('QUOTATION') || isQuotationAdmin) {
+  if (isQuotationAllowed) {
     return <MainLayout role="Quotation Team">{children}</MainLayout>
+  }
+
+  if (departmentNames.has('PROJECT_COORDINATOR')) {
+    redirect('/crm/pc/dashboard')
   }
 
   if (departmentNames.has('JR_CRM')) {
@@ -66,5 +75,6 @@ export default async function QuotationTeamLayout({
   if (departmentNames.has('VISUALIZER_3D') || departmentNames.has('3D_VISUALIZER')) {
     redirect(VISUALIZER_DASHBOARD)
   }
-  redirect('/')
+
+  redirect('/onboarding')
 }
