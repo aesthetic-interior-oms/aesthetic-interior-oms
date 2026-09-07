@@ -25,6 +25,7 @@ model Lead {
   quotationType String?
   agreementType String?
   agreementValue Float?
+  agreementSqft  Float?
   location   String?
   remarks    String?
   assignedTo String?

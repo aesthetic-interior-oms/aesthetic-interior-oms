@@ -78,6 +78,7 @@ export function buildDetailPreviewUrl(input: {
   context: DetailPreviewContext
   contextId: string
   slotIndex?: number
+  download?: boolean
 }) {
   const params = new URLSearchParams({
     context: input.context,
@@ -85,6 +86,9 @@ export function buildDetailPreviewUrl(input: {
   })
   if (input.slotIndex && input.slotIndex > 1) {
     params.set('slot', String(input.slotIndex))
+  }
+  if (input.download) {
+    params.set('download', 'true')
   }
   return `/quotation-team/detail-preview?${params.toString()}`
 }

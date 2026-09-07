@@ -178,6 +178,36 @@ export function isFloorBasedDetailContent(content: QuotationDraftContent) {
 
 export const FINISHING_ELECTRICAL_SECTION_ID = 'finishing-electrical-works-section'
 
+export function ensureFinishingElectricalArea(
+  content: QuotationDraftContent,
+  floorId: string,
+): {
+  content: QuotationDraftContent
+  area: QuotationArea
+} {
+  const existingArea = (content.areas ?? []).find(
+    (a) => a.floorId === floorId && (a.name === 'Finishing & Electrical Works' || a.name === 'Finishing & Electrical'),
+  )
+  if (existingArea) {
+    return { content, area: existingArea }
+  }
+
+  const newArea: QuotationArea = {
+    id: crypto.randomUUID(),
+    floorId,
+    name: 'Finishing & Electrical Works',
+    sortOrder: (content.areas?.length ?? 0) + 1,
+  }
+
+  return {
+    content: {
+      ...content,
+      areas: [...(content.areas ?? []), newArea],
+    },
+    area: newArea,
+  }
+}
+
 export function ensureFinishingElectricalSection(content: QuotationDraftContent): {
   content: QuotationDraftContent
   section: QuotationSection
@@ -207,13 +237,38 @@ export function ensureFinishingElectricalSection(content: QuotationDraftContent)
 
 export function addFinishingElectricalWorkItem(
   content: QuotationDraftContent,
+  targetFloorId?: string,
   itemData?: Partial<QuotationLineItem>,
 ): QuotationDraftContent {
-  const { content: updatedContent, section } = ensureFinishingElectricalSection(content)
+  const floorId = targetFloorId || content.sections[0]?.id
+  if (!floorId) {
+    // If no floor exists, fallback to section
+    const { content: updatedContent, section } = ensureFinishingElectricalSection(content)
+    const line: QuotationLineItem = {
+      id: crypto.randomUUID(),
+      sectionId: section.id,
+      description: itemData?.description ?? 'Finishing & Electrical Work Item',
+      materials: itemData?.materials ?? '',
+      unit: itemData?.unit ?? 'sqft',
+      rate: itemData?.rate ?? 0,
+      quantity: itemData?.quantity ?? 1,
+      amount: itemData?.amount ?? ((itemData?.rate ?? 0) * (itemData?.quantity ?? 1)),
+      included: true,
+      isCustom: true,
+      isFinishingElectrical: true,
+    }
+    return {
+      ...updatedContent,
+      lineItems: [...updatedContent.lineItems, line],
+    }
+  }
+
+  const { content: contentWithArea, area } = ensureFinishingElectricalArea(content, floorId)
 
   const line: QuotationLineItem = {
     id: crypto.randomUUID(),
-    sectionId: section.id,
+    sectionId: floorId,
+    areaId: area.id,
     description: itemData?.description ?? 'Finishing & Electrical Work Item',
     materials: itemData?.materials ?? '',
     unit: itemData?.unit ?? 'sqft',
@@ -226,8 +281,8 @@ export function addFinishingElectricalWorkItem(
   }
 
   return {
-    ...updatedContent,
-    lineItems: [...updatedContent.lineItems, line],
+    ...contentWithArea,
+    lineItems: [...contentWithArea.lineItems, line],
   }
 }
 

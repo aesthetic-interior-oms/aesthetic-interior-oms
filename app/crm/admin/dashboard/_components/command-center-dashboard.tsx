@@ -127,6 +127,7 @@ type SrCrmPerformanceItem = {
   name: string
   activeProjectSqft: number
   totalAgreementValue: number
+  agreementSqft: number
   review: { score: number; count: number; best: number; better: number; good: number }
   meeting: { score: number; count: number; best: number; better: number; good: number }
   conversion: { score: number; count: number }
@@ -474,6 +475,7 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
 
       const totalSqft = members.reduce((sum, m) => sum + (m.activeProjectSqft || 0), 0)
       const totalAgreement = members.reduce((sum, m) => sum + (m.totalAgreementValue || 0), 0)
+      const totalAgreementSqft = members.reduce((sum, m) => sum + (m.agreementSqft || 0), 0)
 
       if (logoDataUrl) {
         doc.addImage(logoDataUrl, 'PNG', 14, 10, 54, 10)
@@ -492,7 +494,7 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(9)
         doc.text(
-          `Members: ${members.length}  |  Team Avg: ${averagePerformance}/100  |  Active SQFT: ${totalSqft.toLocaleString()}  |  Agreement Value: BDT ${totalAgreement.toLocaleString()}`,
+          `Members: ${members.length}  |  Team Avg: ${averagePerformance}/100  |  Active SQFT: ${totalSqft.toLocaleString()}  |  Agreement SQFT: ${totalAgreementSqft.toLocaleString()}  |  Agreement Value: BDT ${totalAgreement.toLocaleString()}`,
           14,
           31,
         )
@@ -511,7 +513,7 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
         doc.setFont('helvetica', 'bold')
         doc.setFontSize(9)
         doc.text(
-          `Members: ${members.length}  |  Team Avg: ${averagePerformance}/100  |  Active SQFT: ${totalSqft.toLocaleString()}  |  Agreement Value: BDT ${totalAgreement.toLocaleString()}`,
+          `Members: ${members.length}  |  Team Avg: ${averagePerformance}/100  |  Active SQFT: ${totalSqft.toLocaleString()}  |  Agreement SQFT: ${totalAgreementSqft.toLocaleString()}  |  Agreement Value: BDT ${totalAgreement.toLocaleString()}`,
           14,
           31,
         )
@@ -523,6 +525,7 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
           'Rank',
           'Name',
           'Active SQFT',
+          'Agreement SQFT',
           'Agreement Value',
           'Review (/30)',
           'Meeting (/20)',
@@ -535,6 +538,7 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
           String(index + 1),
           m.name,
           `${(m.activeProjectSqft || 0).toLocaleString()} SFT`,
+          `${(m.agreementSqft || 0).toLocaleString()} SFT`,
           `BDT ${(m.totalAgreementValue || 0).toLocaleString()}`,
           `${m.review?.score || 0} / 30 (${m.review?.count || 0} appr)`,
           `${m.meeting?.score || 0} / 20 (${m.meeting?.count || 0} comp)`,
@@ -557,7 +561,7 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
         },
         columnStyles: {
           0: { cellWidth: 14, halign: 'center' },
-          1: { cellWidth: 42 },
+          1: { cellWidth: 38 },
           2: { halign: 'right' },
           3: { halign: 'right' },
           4: { halign: 'right' },
@@ -565,7 +569,8 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
           6: { halign: 'right' },
           7: { halign: 'right' },
           8: { halign: 'right' },
-          9: { halign: 'right', fontStyle: 'bold' },
+          9: { halign: 'right' },
+          10: { halign: 'right', fontStyle: 'bold' },
         },
         didDrawPage: () => {
           doc.setFontSize(7)
@@ -622,7 +627,7 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
                     {index === 0 ? <Badge variant="secondary">Top</Badge> : null}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {member.activeProjectSqft.toLocaleString()} SFT · ৳{member.totalAgreementValue.toLocaleString()} agreement
+                    Active: {member.activeProjectSqft.toLocaleString()} SFT · Agreement: {member.agreementSqft.toLocaleString()} SFT · ৳{member.totalAgreementValue.toLocaleString()} value
                   </p>
                 </div>
                 <Badge variant="outline" className={member.totalPerformance >= 80 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : member.totalPerformance >= 55 ? 'border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300'}>

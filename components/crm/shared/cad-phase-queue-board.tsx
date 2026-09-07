@@ -417,7 +417,7 @@ function LeadFilesSection({ lead }: { lead: LeadRecord }) {
             {lead.hasQuotationDraft && (
               <>
                 <a
-                  href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id })}
+                  href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id, download: true })}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-md border border-amber-300 bg-amber-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-amber-700 shadow-sm"
@@ -431,7 +431,7 @@ function LeadFilesSection({ lead }: { lead: LeadRecord }) {
                   <Download className="h-3.5 w-3.5 shrink-0 text-white" />
                 </a>
                 <a
-                  href={buildShortPreviewUrl({ context: 'lead', contextId: lead.id })}
+                  href={buildShortPreviewUrl({ context: 'lead', contextId: lead.id, download: true })}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex min-h-8 max-w-full items-center gap-2 rounded-md border border-sky-300 bg-sky-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-sky-700 shadow-sm"

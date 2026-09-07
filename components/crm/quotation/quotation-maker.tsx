@@ -439,11 +439,16 @@ export function QuotationMaker({
     setContent((prev) => (prev ? addFloorToContent(prev) : prev))
   }
 
-  const addFinishingElectricalWork = () => {
+  const addFinishingElectricalWork = (targetFloorId?: string) => {
+    const floorId = targetFloorId || activeFloorId || content?.sections[0]?.id
+    if (!floorId) {
+      toast.error('Add a floor first')
+      return
+    }
     setContent((prev) => {
       if (!prev) return prev
       const sqft = Number(projectSqft.replace(/,/g, ''))
-      const next = addFinishingElectricalWorkItem(prev, {
+      const next = addFinishingElectricalWorkItem(prev, floorId, {
         quantity: Number.isFinite(sqft) && sqft > 0 ? sqft : 1,
       })
       toast.success('Added Finishing & Electrical Work item')
@@ -917,7 +922,7 @@ return (
               variant="outline"
               className="border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-950/40"
               disabled={!canEdit}
-              onClick={addFinishingElectricalWork}
+              onClick={() => addFinishingElectricalWork()}
             >
               <Plus className="mr-1.5 h-4 w-4" />
               Add Finishing & Electrical Work
@@ -1088,11 +1093,16 @@ return (
                   {canEdit ? (
                     <div className="flex flex-wrap gap-2">
                       {!isFE ? (
-                        <Button type="button" size="sm" variant="outline" onClick={() => addArea(floor.id)}>
-                          <Plus className="mr-1 h-3.5 w-3.5" /> Add Area
-                        </Button>
+                        <>
+                          <Button type="button" size="sm" variant="outline" onClick={() => addArea(floor.id)}>
+                            <Plus className="mr-1 h-3.5 w-3.5" /> Add Area
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" onClick={() => addFinishingElectricalWork(floor.id)}>
+                            <Plus className="mr-1 h-3.5 w-3.5" /> Finishing & Electrical
+                          </Button>
+                        </>
                       ) : (
-                        <Button type="button" size="sm" variant="outline" onClick={addFinishingElectricalWork}>
+                        <Button type="button" size="sm" variant="outline" onClick={() => addFinishingElectricalWork(floor.id)}>
                           <Plus className="mr-1 h-3.5 w-3.5" /> Add Item
                         </Button>
                       )}
@@ -1182,7 +1192,7 @@ return (
             variant="outline"
             className="border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-950/40"
             disabled={!canEdit}
-            onClick={addFinishingElectricalWork}
+            onClick={() => addFinishingElectricalWork()}
           >
             <Plus className="mr-1.5 h-4 w-4" />
             Finishing & Electrical Work

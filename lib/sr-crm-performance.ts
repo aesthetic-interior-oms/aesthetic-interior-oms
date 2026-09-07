@@ -17,6 +17,7 @@ export type SrCrmPerformanceRow = {
   name: string
   activeProjectSqft: number
   totalAgreementValue: number
+  agreementSqft: number
   review: {
     score: number
     count: number
@@ -112,6 +113,7 @@ export async function calculateSrCrmPerformance(
       name: user.fullName,
       activeProjectSqft: 0,
       totalAgreementValue: 0,
+      agreementSqft: 0,
       review: { score: 0, count: 0, best: 0, better: 0, good: 0 },
       meeting: { score: 0, count: 0, best: 0, better: 0, good: 0 },
       conversion: { score: 0, count: 0 },
@@ -155,6 +157,7 @@ export async function calculateSrCrmPerformance(
       select: {
         id: true,
         agreementValue: true,
+        agreementSqft: true,
         budget: true,
         assignedTo: true,
         assignments: {
@@ -256,9 +259,13 @@ export async function calculateSrCrmPerformance(
     }
 
     const value = lead.agreementValue ?? lead.budget ?? 0
+    const sqft = lead.agreementSqft ?? 0
     for (const uid of userIds) {
       const row = rows.get(uid)
-      if (row) row.totalAgreementValue += value
+      if (row) {
+        row.totalAgreementValue += value
+        row.agreementSqft += sqft
+      }
     }
   }
 

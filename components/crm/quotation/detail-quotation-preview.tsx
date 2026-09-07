@@ -376,18 +376,22 @@ export function DetailQuotationPreview({
           </div>
 
           {/* Floor Total */}
-          <div className="flex justify-end items-center border-t pt-2 mt-2" style={{ borderColor: PRIMARY }}>
-            <span className="text-[10px] font-bold pr-4 uppercase" style={{ color: PRIMARY }}>
-              TOTAL FOR {entry.floor.name}
-            </span>
-            <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>
-              {formatDetailAmount(entry.total)}
-            </span>
-          </div>
-          <p className="text-left text-[9px] italic text-neutral-900 mt-3.5" style={{ fontFamily: "var(--font-playfair-display), serif" }}>
-            In Words:{' '}
-            <span className="font-bold">{amountInWordsTaka(entry.total)}</span>
-          </p>
+          {entry.floor.sectionType !== 'FINISHING_ELECTRICAL' && entry.floor.name !== 'Finishing & Electrical Works' && (
+            <>
+              <div className="flex justify-end items-center border-t pt-2 mt-2" style={{ borderColor: PRIMARY }}>
+                <span className="text-[10px] font-bold pr-4 uppercase" style={{ color: PRIMARY }}>
+                  TOTAL FOR {entry.floor.name}
+                </span>
+                <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>
+                  {formatDetailAmount(entry.total)}
+                </span>
+              </div>
+              <p className="text-left text-[9px] italic text-neutral-900 mt-3.5" style={{ fontFamily: "var(--font-playfair-display), serif" }}>
+                In Words:{' '}
+                <span className="font-bold">{amountInWordsTaka(entry.total)}</span>
+              </p>
+            </>
+          )}
 
           {/* Footer */}
           <div className="absolute bottom-5 left-[7px] right-[7px]">

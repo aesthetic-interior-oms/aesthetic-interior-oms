@@ -107,6 +107,7 @@ type SrCrmPerformanceItem = {
   userId: string
   name: string
   activeProjectSqft: number
+  agreementSqft: number
   review: {
     score: number
     count: number
@@ -525,7 +526,7 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
                     <p className="truncate text-sm font-semibold text-foreground">{member.name}</p>
                     {index === 0 ? <Badge variant="secondary">Top</Badge> : null}
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">Working on {member.activeProjectSqft.toLocaleString()} sqft</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Active: {member.activeProjectSqft.toLocaleString()} sqft · Agreement: {member.agreementSqft.toLocaleString()} sqft</p>
                 </div>
                 <Badge variant="outline" className={member.totalPerformance >= 80 ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : member.totalPerformance >= 55 ? 'border-blue-500/20 bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300'}>
                   {member.totalPerformance}/100

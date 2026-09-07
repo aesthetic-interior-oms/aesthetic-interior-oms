@@ -718,14 +718,14 @@ export function DetailQuotationDocument({
                     let priceText = ''
 
                     if (isFirstMaterialRow && isPkg) {
-                      quantityCell = <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>Package</Text>
+                      quantityCell = <Text style={[styles.tdCol, styles.wQty, rowCellStyle, { fontSize: 7 }]}>Package</Text>
                       priceText = line.unitPriceLabel?.trim() || 'as per project design'
                     } else {
                       quantityCell = <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>{isFirstMaterialRow ? formatDetailQtyCell(line) : ''}</Text>
                       priceText = isFirstMaterialRow ? formatDetailUnitPriceCurrency(line) : ''
                     }
 
-                    const priceCell = <Text style={[styles.tdCol, styles.wPrice, rowCellStyle]}>{priceText}</Text>
+                    const priceCell = <Text style={[styles.tdCol, styles.wPrice, rowCellStyle, isPkg ? { fontSize: 7 } : {}]}>{priceText}</Text>
 
                     return (
                       <View key={`${line.id}-${rowIndex}`} wrap={false} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}, !isLastSubRow ? { borderBottomWidth: 0 } : {}]}>
@@ -734,7 +734,7 @@ export function DetailQuotationDocument({
                         <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>{matText || isFirstMaterialRow ? <SingleMaterialLine text={matText} /> : <Text wrap={false} style={styles.matText}></Text>}</View>
                         {quantityCell}
                         {isMergedPkg ? (
-                          <Text style={[styles.tdCol, styles.tdColLast, { width: '24%', textAlign: 'center' }, rowCellStyle]}>
+                          <Text style={[styles.tdCol, styles.tdColLast, { width: '24%', textAlign: 'center', fontSize: 7 }, rowCellStyle]}>
                             {isFirstMaterialRow ? softWrapPdfText(line.unitPriceLabel?.trim() || 'as per project design') : ''}
                           </Text>
                         ) : (
@@ -750,7 +750,7 @@ export function DetailQuotationDocument({
                     )
                   })
                 })}
-                {area.name ? (
+                {area.name && area.name !== 'Finishing & Electrical Works' && area.name !== 'Finishing & Electrical' ? (
                   <View style={[styles.tRow, styles.areaTotalRow]} wrap={false}>
                     <Text style={[styles.tdCol, styles.wSl]} />
                     <Text style={[styles.tdCol, styles.wName]} />
@@ -764,11 +764,15 @@ export function DetailQuotationDocument({
             ))}
           </View>
 
-          <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>
-            <Text style={styles.grandTotalLabel}>TOTAL FOR {softWrapPdfText(entry.floor.name).toUpperCase()} ({formatDetailAmount(getDetailFloorSqft(entry))} SQFT)</Text>
-            <Text style={styles.grandTotalValue}>{formatDetailCurrency(entry.total)}</Text>
-          </View>
-          <Text style={styles.inWords}>In Words: {amountInWordsTaka(entry.total)}</Text>
+          {entry.floor.sectionType !== 'FINISHING_ELECTRICAL' && entry.floor.name !== 'Finishing & Electrical Works' ? (
+            <>
+              <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>
+                <Text style={styles.grandTotalLabel}>TOTAL FOR {softWrapPdfText(entry.floor.name).toUpperCase()} ({formatDetailAmount(getDetailFloorSqft(entry))} SQFT)</Text>
+                <Text style={styles.grandTotalValue}>{formatDetailCurrency(entry.total)}</Text>
+              </View>
+              <Text style={styles.inWords}>In Words: {amountInWordsTaka(entry.total)}</Text>
+            </>
+          ) : null}
 
           <FooterFixed content={content} />
         </Page>

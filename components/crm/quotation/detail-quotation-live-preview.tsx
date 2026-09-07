@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { DetailQuotationPreview } from '@/components/crm/quotation/detail-quotation-preview'
@@ -39,16 +39,19 @@ type DetailQuotationLivePreviewProps = {
   context: DetailPreviewContext
   contextId: string
   slotIndex?: number
+  autoDownload?: boolean
 }
 
 export function DetailQuotationLivePreview({
   context,
   contextId,
   slotIndex = 1,
+  autoDownload = false,
 }: DetailQuotationLivePreviewProps) {
   const [payload, setPayload] = useState<DetailPreviewPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [downloading, setDownloading] = useState(false)
+  const downloadedRef = useRef(false)
 
   const loadPayload = useCallback(async () => {
     const cached = readDetailPreview(context, contextId, slotIndex)
@@ -183,6 +186,13 @@ export function DetailQuotationLivePreview({
       if (next) setPayload(next)
     }, slotIndex)
   }, [context, contextId, loadPayload, slotIndex])
+
+  useEffect(() => {
+    if (autoDownload && payload && !downloadedRef.current && !downloading) {
+      downloadedRef.current = true
+      void handleDownloadPdf()
+    }
+  }, [autoDownload, payload, downloading, handleDownloadPdf])
 
   if (loading) {
     return (

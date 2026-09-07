@@ -68,10 +68,14 @@ export function subscribeShortPreview(
 export function buildShortPreviewUrl(input: {
   context: ShortPreviewContext
   contextId: string
+  download?: boolean
 }) {
   const params = new URLSearchParams({
     context: input.context,
     id: input.contextId,
   })
+  if (input.download) {
+    params.set('download', 'true')
+  }
   return `/quotation-team/short-preview?${params.toString()}`
 }
