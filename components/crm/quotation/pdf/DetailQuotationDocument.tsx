@@ -491,44 +491,47 @@ function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
 }
 
 function splitPdfTableLines(value: string | null | undefined, lineLength: number) {
-  const text = (value ?? '').trim()
+  const text = value ?? ''
   if (!text) return ['']
 
-  return text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      const words = line.split(/\s+/)
-      const output: string[] = []
-      let current = ''
+  // Split by newlines without removing empty lines
+  const rawLines = text.split('\n')
 
-      words.forEach((word) => {
-        const wordParts = word.match(new RegExp(`.{1,${lineLength}}`, 'g')) ?? [word]
+  return rawLines.flatMap((rawLine) => {
+    // If the line is empty (user gave a line gap), preserve it as a blank line
+    if (!rawLine.trim()) return ['']
 
-        wordParts.forEach((part) => {
-          if (!current) {
-            current = part
-            return
-          }
+    // Split words by space to preserve multiple spaces/indentation
+    const words = rawLine.split(' ')
+    const output: string[] = []
+    let current = ''
 
-          if (`${current} ${part}`.length > lineLength) {
-            output.push(current)
-            current = part
-            return
-          }
+    words.forEach((word) => {
+      const wordParts = word ? (word.match(new RegExp(`.{1,${lineLength}}`, 'g')) ?? [word]) : ['']
 
-          current = `${current} ${part}`
-        })
+      wordParts.forEach((part) => {
+        if (!current) {
+          current = part
+          return
+        }
+
+        if (`${current} ${part}`.length > lineLength) {
+          output.push(current)
+          current = part
+          return
+        }
+
+        current = `${current} ${part}`
       })
-
-      if (current) output.push(current)
-      return output.length > 0 ? output : ['']
     })
+
+    if (current) output.push(current)
+    return output.length > 0 ? output : ['']
+  })
 }
 
 function SingleMaterialLine({ text }: { text: string }) {
-  if (!text) return <Text wrap={false} style={styles.matText}>—</Text>
+  if (!text || !text.trim()) return <Text wrap={false} style={styles.matText}>{"\u00A0"}</Text>
   const match = text.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
   const isWithoutWiring = text.toLowerCase().includes('without supplying wiring') || text.toLowerCase().includes('without suppling wiring');
   if (!match) {
@@ -700,7 +703,7 @@ export function DetailQuotationDocument({
                 {area.lines.map((line, lineIndex) => {
                   const isPkg = isPackageLine(line)
                   const nameLines = splitPdfTableLines(line.description, 14)
-                  const materialLines = splitPdfTableLines(line.materials, 76)
+                  const materialLines = splitPdfTableLines(line.materials, 52)
                   const tableLineCount = Math.max(nameLines.length, materialLines.length)
                   const rowCellStyle = {
                     paddingTop: DETAIL_ROW_VERTICAL_PADDING,
