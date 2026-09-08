@@ -65,7 +65,7 @@ export function formatDetailUnitPriceCell(line: QuotationLineItem) {
   if (isPackageLine(line)) {
     return line.unitPriceLabel?.trim() || 'as per project design'
   }
-  if (isRateOnlyLine(line)) return `---- ${formatDetailAmount(line.rate)} ----`
+  if (isRateOnlyLine(line)) return formatDetailAmount(line.rate)
   if (line.rate <= 0) return '----'
   return formatDetailAmount(line.rate)
 }

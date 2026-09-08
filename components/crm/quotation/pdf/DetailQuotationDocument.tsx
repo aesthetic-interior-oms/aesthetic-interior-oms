@@ -443,7 +443,7 @@ const formatDetailCurrency = (value: number) => `${BDT_SYMBOL} ${formatDetailAmo
 const formatDetailTableAmount = (value: number) => formatDetailAmount(value)
 
 function formatDetailUnitPriceCurrency(line: QuotationDraftContent['lineItems'][number]) {
-  if (isRateOnlyLine(line)) return `---- ${formatDetailTableAmount(line.rate)} ----`
+  if (isRateOnlyLine(line)) return formatDetailTableAmount(line.rate)
   if (line.rate <= 0) return formatDetailUnitPriceCell(line)
   return formatDetailTableAmount(line.rate)
 }
