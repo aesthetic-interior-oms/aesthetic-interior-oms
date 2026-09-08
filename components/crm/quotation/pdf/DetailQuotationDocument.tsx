@@ -491,50 +491,63 @@ function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
 }
 
 function splitPdfTableLines(value: string | null | undefined, lineLength: number) {
-  const text = (value ?? '').trim()
-  if (!text) return ['']
+  if (!value) return ['']
+  const rawLines = value.split(/\r?\n/)
+  if (rawLines.length === 0) return ['']
 
-  return text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      const words = line.split(/\s+/)
-      const output: string[] = []
-      let current = ''
+  const result: string[] = []
 
-      words.forEach((word) => {
-        const wordParts = word.match(new RegExp(`.{1,${lineLength}}`, 'g')) ?? [word]
+  for (const rawLine of rawLines) {
+    if (rawLine === '') {
+      result.push('')
+      continue
+    }
 
-        wordParts.forEach((part) => {
-          if (!current) {
-            current = part
-            return
-          }
+    const words = rawLine.split(' ')
+    let current = ''
 
-          if (`${current} ${part}`.length > lineLength) {
-            output.push(current)
-            current = part
-            return
-          }
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i]
+      const wordChunks = word.length > lineLength
+        ? (word.match(new RegExp(`.{1,${lineLength}}`, 'g')) ?? [word])
+        : [word]
 
-          current = `${current} ${part}`
-        })
-      })
+      for (let j = 0; j < wordChunks.length; j++) {
+        const chunk = wordChunks[j]
+        if (!current) {
+          current = chunk
+        } else if (current.length + 1 + chunk.length > lineLength) {
+          result.push(current)
+          current = chunk
+        } else {
+          current = `${current} ${chunk}`
+        }
+      }
+    }
 
-      if (current) output.push(current)
-      return output.length > 0 ? output : ['']
-    })
+    if (current || rawLine !== '') {
+      result.push(current)
+    }
+  }
+
+  return result.length > 0 ? result : ['']
 }
 
-function SingleMaterialLine({ text }: { text: string }) {
-  if (!text) return <Text wrap={false} style={styles.matText}>—</Text>
+function SingleMaterialLine({ text, isFirstRowAndEmpty }: { text: string; isFirstRowAndEmpty?: boolean }) {
+  if (!text) {
+    if (isFirstRowAndEmpty) {
+      return <Text wrap={false} style={styles.matText}>—</Text>
+    }
+    return <Text wrap={false} style={styles.matText}>{"\u00A0"}</Text>
+  }
   const match = text.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
   const isWithoutWiring = text.toLowerCase().includes('without supplying wiring') || text.toLowerCase().includes('without suppling wiring');
   if (!match) {
-    return <Text wrap={false} style={styles.matText}>
-      <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(text)}</Text>
-    </Text>
+    return (
+      <Text wrap={false} style={styles.matText}>
+        <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(text)}</Text>
+      </Text>
+    )
   }
   const prefix = match[1]
   const rest = text.substring(prefix.length)
@@ -700,7 +713,7 @@ export function DetailQuotationDocument({
                 {area.lines.map((line, lineIndex) => {
                   const isPkg = isPackageLine(line)
                   const nameLines = splitPdfTableLines(line.description, 14)
-                  const materialLines = splitPdfTableLines(line.materials, 76)
+                  const materialLines = splitPdfTableLines(line.materials, 42)
                   const tableLineCount = Math.max(nameLines.length, materialLines.length)
                   const rowCellStyle = {
                     paddingTop: DETAIL_ROW_VERTICAL_PADDING,
@@ -731,7 +744,7 @@ export function DetailQuotationDocument({
                       <View key={`${line.id}-${rowIndex}`} wrap={false} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}, !isLastSubRow ? { borderBottomWidth: 0 } : {}]}>
                         <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>{isFirstMaterialRow ? slNumber : ''}</Text>
                         <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>{nameText ? softWrapPdfText(nameText) : ''}</Text>
-                        <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>{matText || isFirstMaterialRow ? <SingleMaterialLine text={matText} /> : <Text wrap={false} style={styles.matText}></Text>}</View>
+                        <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}><SingleMaterialLine text={matText} isFirstRowAndEmpty={isFirstMaterialRow && !line.materials?.trim()} /></View>
                         {quantityCell}
                         {isMergedPkg ? (
                           <Text style={[styles.tdCol, styles.tdColLast, { width: '24%', textAlign: 'center', fontSize: 7 }, rowCellStyle]}>
