@@ -205,8 +205,8 @@ const styles = StyleSheet.create({
   wName: { width: '16%' },
   wMats: { width: '44%' },
   wQty: { width: '10%', textAlign: 'center' },
-  wPrice: { width: '12%', textAlign: 'right' },
-  wTotal: { width: '12%', textAlign: 'right' },
+  wPrice: { width: '12%', textAlign: 'center' },
+  wTotal: { width: '12%', textAlign: 'center' },
 
   // Columns Summary
   wSumName: { width: '72%', paddingLeft: 10 },

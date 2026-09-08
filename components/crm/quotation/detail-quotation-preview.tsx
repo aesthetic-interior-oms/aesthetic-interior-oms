@@ -326,8 +326,8 @@ export function DetailQuotationPreview({
               { label: 'Name', className: 'w-[18%]' },
               { label: 'Materials', className: 'w-[42%]' },
               { label: 'Qty/Sft', className: 'w-[10%] text-center' },
-              { label: 'Unit Price', className: 'w-[10%] text-right whitespace-nowrap' },
-              { label: 'Total', className: 'w-[12%] text-right' },
+              { label: 'Unit Price', className: 'w-[10%] text-center whitespace-nowrap' },
+              { label: 'Total', className: 'w-[12%] text-center' },
             ]}
           />
 
@@ -359,10 +359,10 @@ export function DetailQuotationPreview({
                     </span>
                   ) : (
                     <>
-                      <span className="w-[10%] text-right text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
+                      <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
                         {formatDetailUnitPriceCell(line)}
                       </span>
-                      <span className="w-[12%] text-right font-bold px-1.5 py-2" style={{ color: PRIMARY }}>
+                      <span className="w-[12%] text-center font-bold px-1.5 py-2" style={{ color: PRIMARY }}>
                         {formatDetailTotalCell(line)}
                         {line.description.toLowerCase().includes('electric wiring') ? (
                           <span className="block text-[7px] font-normal text-neutral-500">(Approx)</span>
