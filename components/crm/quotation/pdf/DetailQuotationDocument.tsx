@@ -658,13 +658,21 @@ export function DetailQuotationDocument({
                 <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text>
                 <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailTableAmount(entry.total)}</Text>
               </View>
-              {getAreaGroups(entry).map((area) => (
-                <View key={`${entry.floor.id}-${area.id}`} style={styles.tRow}>
-                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl]} />
-                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.summaryAreaName]}>{softWrapPdfText(area.name)}</Text>
-                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>{formatDetailTableAmount(getDetailAreaTotal(area.lines))}</Text>
-                </View>
-              ))}
+              {getAreaGroups(entry)
+                .filter(
+                  (area) =>
+                    area.name !== 'Finishing & Electrical Works' &&
+                    area.name !== 'Finishing & Electrical' &&
+                    !area.name?.toLowerCase().includes('finishing') &&
+                    !area.name?.toLowerCase().includes('electrical'),
+                )
+                .map((area) => (
+                  <View key={`${entry.floor.id}-${area.id}`} style={styles.tRow}>
+                    <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl]} />
+                    <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.summaryAreaName]}>{softWrapPdfText(area.name)}</Text>
+                    <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>{formatDetailTableAmount(getDetailAreaTotal(area.lines))}</Text>
+                  </View>
+                ))}
             </View>
           ))}
         </View>
@@ -713,7 +721,7 @@ export function DetailQuotationDocument({
                 {area.lines.map((line, lineIndex) => {
                   const isPkg = isPackageLine(line)
                   const nameLines = splitPdfTableLines(line.description, 14)
-                  const materialLines = splitPdfTableLines(line.materials, 42)
+                  const materialLines = splitPdfTableLines(line.materials, 50)
                   const tableLineCount = Math.max(nameLines.length, materialLines.length)
                   const rowCellStyle = {
                     paddingTop: DETAIL_ROW_VERTICAL_PADDING,
