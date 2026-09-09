@@ -2,11 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, FileDown, Loader2, MapPin, Phone, Send, ShieldCheck, X } from 'lucide-react'
+import { ArrowLeft, FileDown, History, Loader2, MapPin, Minus, Phone, Plus, Send, ShieldCheck, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { DateRangePicker, type DateRange } from '@/components/ui/date-range-picker'
 import { toast } from '@/components/ui/sonner'
 
@@ -71,6 +73,14 @@ export default function ProjectDetailPage() {
   const [releaseActionLoading, setReleaseActionLoading] = useState(false)
   const [modalFilter, setModalFilter] = useState<{ type: 'CATEGORY' | 'INFLOW' | 'OUTFLOW', value?: string } | null>(null)
 
+  // Agreement Value Adjustment state
+  const [agreementHistoryModalOpen, setAgreementHistoryModalOpen] = useState(false)
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false)
+  const [adjustType, setAdjustType] = useState<'ADD' | 'DECREASE'>('ADD')
+  const [adjustAmount, setAdjustAmount] = useState('')
+  const [adjustNote, setAdjustNote] = useState('')
+  const [adjustSubmitting, setAdjustSubmitting] = useState(false)
+
   // Date range filter state
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
 
@@ -124,6 +134,124 @@ export default function ProjectDetailPage() {
   const project = report?.project ?? null
   const netResult = displayTotalPaid - displayTotalExpense
   const visualizerRelease = report?.visualizerRelease ?? null
+
+  const initialAgreementValue = report?.initialAgreementValue ?? agreementValue
+  const agreementLogs = report?.agreementLogs ?? []
+  const agreementAdjustmentTotal = report?.agreementAdjustmentTotal ?? 0
+
+  const handleSaveAgreementAdjustment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!id) return
+    const numAmount = parseFloat(adjustAmount.replace(/,/g, ''))
+    if (isNaN(numAmount) || numAmount <= 0) {
+      toast.error('Please enter a valid amount')
+      return
+    }
+
+    const finalDelta = adjustType === 'ADD' ? numAmount : -numAmount
+    setAdjustSubmitting(true)
+
+    try {
+      const res = await fetch(`/api/accounts/projects/${id}/agreement-log`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: finalDelta,
+          note: adjustNote,
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update agreement value')
+      }
+
+      toast.success(adjustType === 'ADD' ? 'Agreement value increased' : 'Agreement value decreased')
+      setAdjustModalOpen(false)
+      setAdjustAmount('')
+      setAdjustNote('')
+      await loadProjectReport(false)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update agreement value')
+    } finally {
+      setAdjustSubmitting(false)
+    }
+  }
+
+  const handleDownloadAgreementHistoryPDF = async () => {
+    const { default: jsPDF } = await import('jspdf')
+    const { default: autoTable } = await import('jspdf-autotable')
+    const doc = new jsPDF({ orientation: 'portrait' })
+    const pageW = doc.internal.pageSize.getWidth()
+    const clientName = project?.name || 'Client Project'
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+
+    const logoImg = new Image()
+    logoImg.src = "/Logo/HeaderLogo.png"
+    await new Promise((resolve) => {
+      logoImg.onload = resolve
+      logoImg.onerror = resolve
+    })
+
+    // Header Logo
+    doc.addImage(logoImg, "PNG", 14, 14, 43.2, 8)
+
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 41, 59)
+    doc.text('AGREEMENT VALUE LOG', pageW - 14, 18, { align: 'right' })
+
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(100, 116, 139)
+    doc.text(`Project: ${clientName}`, 14, 30)
+    let detailsY = 35
+    if (project?.location) {
+      doc.text(`Location: ${project.location}`, 14, detailsY)
+      detailsY += 5
+    }
+    doc.text(`Generated On: ${dateStr}`, 14, detailsY)
+    detailsY += 7
+
+    // Summary Box
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(30, 41, 59)
+    doc.text(`Original Agreement Value: ${(initialAgreementValue ?? 0).toLocaleString()} BDT`, 14, detailsY)
+    detailsY += 5
+    doc.text(`Total Adjustments: ${(agreementAdjustmentTotal > 0 ? '+' : '')}${(agreementAdjustmentTotal ?? 0).toLocaleString()} BDT`, 14, detailsY)
+    detailsY += 5
+    doc.text(`Current Agreement Value: ${(agreementValue ?? 0).toLocaleString()} BDT`, 14, detailsY)
+    detailsY += 7
+
+    // Build log rows with running total (oldest to newest calculation)
+    const sortedAsc = [...agreementLogs].sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    let currentRunning = initialAgreementValue ?? 0
+
+    const tableRows = sortedAsc.map((log: any) => {
+      const isAdd = log.amount > 0
+      currentRunning += log.amount
+      return [
+        { content: new Date(log.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
+        { content: isAdd ? 'Add Work (+)' : 'Decrease (-)', styles: { textColor: isAdd ? [5, 150, 105] : [220, 38, 38], fontStyle: 'bold' } },
+        { content: `${isAdd ? '+' : ''}${log.amount.toLocaleString()} BDT`, styles: { halign: 'right', textColor: isAdd ? [5, 150, 105] : [220, 38, 38], fontStyle: 'bold' } },
+        { content: `${currentRunning.toLocaleString()} BDT`, styles: { halign: 'right', fontStyle: 'bold' } },
+        { content: log.note || '—' },
+        { content: log.createdBy?.fullName || 'System' },
+      ]
+    })
+
+    autoTable(doc, {
+      startY: detailsY,
+      head: [['Date & Time', 'Type', 'Amount', 'New Balance', 'Particulars / Note', 'Logged By']],
+      body: tableRows as any[],
+      theme: 'grid',
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold' },
+      styles: { fontSize: 8, cellPadding: 3 },
+    })
+
+    doc.save(`${clientName.replace(/\s+/g, '_')}_Agreement_Value_Log.pdf`)
+  }
 
   const requestVisualizerRelease = async () => {
     if (!id) return
@@ -944,11 +1072,68 @@ export default function ProjectDetailPage() {
 
             {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Card>
+            <Card 
+              className="relative overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+              onClick={() => setAgreementHistoryModalOpen(true)}
+            >
               <CardContent className="pt-6">
-                <div className="text-xs text-muted-foreground mb-1">Agreement Value / Budget</div>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-xs text-muted-foreground">Agreement Value / Budget</div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-1.5 text-[11px] text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setAgreementHistoryModalOpen(true)
+                    }}
+                  >
+                    <History className="h-3 w-3 mr-1" />
+                    History
+                  </Button>
+                </div>
                 <div className="text-xl font-bold">
                   {agreementValue !== null ? `${agreementValue.toLocaleString()} BDT` : 'Not Defined'}
+                </div>
+                {agreementValue !== null && (
+                  <div className="mt-2 text-[11px] text-muted-foreground flex flex-wrap items-center justify-between gap-1 border-t pt-1.5 border-border/60">
+                    <span>Original: <strong className="font-semibold text-foreground">{initialAgreementValue ? `${initialAgreementValue.toLocaleString()} BDT` : 'N/A'}</strong></span>
+                    {agreementAdjustmentTotal !== 0 && (
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${agreementAdjustmentTotal > 0 ? 'text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30' : 'text-rose-600 border-rose-300 bg-rose-50 dark:bg-rose-950/30'}`}>
+                        {agreementAdjustmentTotal > 0 ? `+${agreementAdjustmentTotal.toLocaleString()}` : `${agreementAdjustmentTotal.toLocaleString()}`} BDT
+                      </Badge>
+                    )}
+                  </div>
+                )}
+                <div className="mt-3 flex gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-7 text-xs gap-1 border-emerald-300 hover:bg-emerald-50 text-emerald-700 dark:hover:bg-emerald-950/30"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setAdjustType('ADD')
+                      setAdjustAmount('')
+                      setAdjustNote('')
+                      setAdjustModalOpen(true)
+                    }}
+                  >
+                    <Plus className="h-3 w-3" /> Add Work
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 h-7 text-xs gap-1 border-rose-300 hover:bg-rose-50 text-rose-700 dark:hover:bg-rose-950/30"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setAdjustType('DECREASE')
+                      setAdjustAmount('')
+                      setAdjustNote('')
+                      setAdjustModalOpen(true)
+                    }}
+                  >
+                    <Minus className="h-3 w-3" /> Decrease
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -1238,6 +1423,219 @@ export default function ProjectDetailPage() {
               )}
             </table>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Agreement Value History Modal */}
+      <Dialog open={agreementHistoryModalOpen} onOpenChange={setAgreementHistoryModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between pr-6">
+              <div>
+                <DialogTitle className="text-lg font-bold">Agreement Value Adjustment History</DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Project: <strong className="text-foreground">{project?.name || 'Client Project'}</strong>
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs"
+                onClick={() => void handleDownloadAgreementHistoryPDF()}
+              >
+                <FileDown className="h-4 w-4" /> Download PDF
+              </Button>
+            </div>
+          </DialogHeader>
+
+          {/* Summary Box */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 bg-muted/40 rounded-lg border border-border my-2 text-center sm:text-left">
+            <div>
+              <div className="text-[11px] text-muted-foreground">Original Value</div>
+              <div className="text-sm font-bold">{initialAgreementValue ? `${initialAgreementValue.toLocaleString()} BDT` : 'N/A'}</div>
+            </div>
+            <div>
+              <div className="text-[11px] text-muted-foreground">Total Adjustments</div>
+              <div className={`text-sm font-bold ${agreementAdjustmentTotal > 0 ? 'text-emerald-600' : agreementAdjustmentTotal < 0 ? 'text-rose-600' : ''}`}>
+                {agreementAdjustmentTotal > 0 ? `+${agreementAdjustmentTotal.toLocaleString()}` : `${agreementAdjustmentTotal.toLocaleString()}`} BDT
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] text-muted-foreground">Current Agreement Value</div>
+              <div className="text-sm font-bold text-primary">{agreementValue ? `${agreementValue.toLocaleString()} BDT` : 'N/A'}</div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 my-1">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1 border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+              onClick={() => {
+                setAdjustType('ADD')
+                setAdjustAmount('')
+                setAdjustNote('')
+                setAdjustModalOpen(true)
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" /> Add Work
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1 border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+              onClick={() => {
+                setAdjustType('DECREASE')
+                setAdjustAmount('')
+                setAdjustNote('')
+                setAdjustModalOpen(true)
+              }}
+            >
+              <Minus className="h-3.5 w-3.5" /> Decrease Work
+            </Button>
+          </div>
+
+          {/* Logs Table */}
+          <div className="overflow-x-auto border border-border rounded-lg mt-2">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-muted text-muted-foreground font-semibold uppercase tracking-wider border-b border-border">
+                <tr>
+                  <th className="p-2.5">Date & Time</th>
+                  <th className="p-2.5">Type & Amount</th>
+                  <th className="p-2.5 text-right">Running Total</th>
+                  <th className="p-2.5">Particulars / Reason</th>
+                  <th className="p-2.5">Logged By</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {agreementLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                      No adjustments logged yet. Initial agreement value: {initialAgreementValue ? `${initialAgreementValue.toLocaleString()} BDT` : 'N/A'}.
+                    </td>
+                  </tr>
+                ) : (
+                  (() => {
+                    const sortedAsc = [...agreementLogs].sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                    let runningBal = initialAgreementValue ?? 0
+                    const logsWithBal = sortedAsc.map((log: any) => {
+                      runningBal += log.amount
+                      return { ...log, runningBalance: runningBal }
+                    }).reverse()
+
+                    return logsWithBal.map((log: any) => {
+                      const isAdd = log.amount > 0
+                      return (
+                        <tr key={log.id} className="hover:bg-muted/20 transition-colors">
+                          <td className="p-2.5 text-muted-foreground whitespace-nowrap">
+                            {new Date(log.createdAt).toLocaleString('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="p-2.5 font-bold">
+                            <span className={isAdd ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
+                              {isAdd ? `+${log.amount.toLocaleString()}` : `${log.amount.toLocaleString()}`} BDT
+                            </span>
+                          </td>
+                          <td className="p-2.5 text-right font-bold tabular-nums">
+                            {log.runningBalance.toLocaleString()} BDT
+                          </td>
+                          <td className="p-2.5 max-w-[200px] truncate" title={log.note || ''}>
+                            {log.note || <span className="text-muted-foreground/60">—</span>}
+                          </td>
+                          <td className="p-2.5 text-muted-foreground whitespace-nowrap">
+                            {log.createdBy?.fullName || 'System'}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  })()
+                )}
+              </tbody>
+            </table>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add / Decrease Work Dialog */}
+      <Dialog open={adjustModalOpen} onOpenChange={setAdjustModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">
+              {adjustType === 'ADD' ? 'Add Work (Increase Agreement)' : 'Decrease Work (Reduce Agreement)'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleSaveAgreementAdjustment} className="space-y-4 py-2">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={adjustType === 'ADD' ? 'default' : 'outline'}
+                className={`flex-1 gap-1 ${adjustType === 'ADD' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : ''}`}
+                onClick={() => setAdjustType('ADD')}
+              >
+                <Plus className="h-4 w-4" /> Add Work
+              </Button>
+              <Button
+                type="button"
+                variant={adjustType === 'DECREASE' ? 'default' : 'outline'}
+                className={`flex-1 gap-1 ${adjustType === 'DECREASE' ? 'bg-rose-600 hover:bg-rose-700 text-white' : ''}`}
+                onClick={() => setAdjustType('DECREASE')}
+              >
+                <Minus className="h-4 w-4" /> Decrease Work
+              </Button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                {adjustType === 'ADD' ? 'Amount to Increase (BDT)' : 'Amount to Decrease (BDT)'} *
+              </label>
+              <Input
+                type="number"
+                min="1"
+                step="any"
+                required
+                placeholder="e.g. 50000"
+                value={adjustAmount}
+                onChange={(e) => setAdjustAmount(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Particulars / Reason for Adjustment
+              </label>
+              <Textarea
+                rows={3}
+                placeholder="e.g. Added 20 sqft ceiling work in dining area per client request"
+                value={adjustNote}
+                onChange={(e) => setAdjustNote(e.target.value)}
+              />
+            </div>
+
+            <DialogFooter className="gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAdjustModalOpen(false)}
+                disabled={adjustSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={adjustSubmitting}
+                className={adjustType === 'ADD' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-rose-600 hover:bg-rose-700 text-white'}
+              >
+                {adjustSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+                {adjustType === 'ADD' ? 'Save Work Addition' : 'Save Work Reduction'}
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

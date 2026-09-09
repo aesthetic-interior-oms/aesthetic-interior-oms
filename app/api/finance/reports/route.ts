@@ -168,7 +168,16 @@ export async function GET(request: NextRequest) {
             subStatus: true,
             agreementType: true,
             agreementValue: true,
+            initialAgreementValue: true,
             accountStatus: true,
+            agreementValueLogs: {
+              orderBy: { createdAt: 'desc' },
+              include: {
+                createdBy: {
+                  select: { id: true, fullName: true, email: true },
+                },
+              },
+            },
             assignments: {
               where: { department: 'VISUALIZER_3D' },
               select: {
@@ -180,6 +189,9 @@ export async function GET(request: NextRequest) {
         })
 
         const agreementValue = lead?.agreementValue ?? lead?.budget ?? null
+        const initialAgreementValue = lead?.initialAgreementValue ?? agreementValue
+        const agreementLogs = lead?.agreementValueLogs ?? []
+        const agreementAdjustmentTotal = agreementLogs.reduce((sum, log) => sum + log.amount, 0)
         const isFiltered = Boolean(startDateStr || endDateStr)
         const totalPaid = isFiltered ? totalInflow : allTimeTotalPaid
         const paymentDue = agreementValue !== null ? agreementValue - allTimeTotalPaid : null
@@ -203,6 +215,9 @@ export async function GET(request: NextRequest) {
           totalInflow,
           totalOutflow,
           agreementValue,
+          initialAgreementValue,
+          agreementAdjustmentTotal,
+          agreementLogs,
           paymentDue,
           profitEstimate: allTimeProfitEstimate,
           isFiltered,
