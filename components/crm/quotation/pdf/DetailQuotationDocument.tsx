@@ -205,8 +205,8 @@ const styles = StyleSheet.create({
   wName: { width: '16%' },
   wMats: { width: '44%' },
   wQty: { width: '10%', textAlign: 'center' },
-  wPrice: { width: '12%', textAlign: 'right' },
-  wTotal: { width: '12%', textAlign: 'right' },
+  wPrice: { width: '12%', textAlign: 'center' },
+  wTotal: { width: '12%', textAlign: 'center' },
 
   // Columns Summary
   wSumName: { width: '72%', paddingLeft: 10 },
@@ -443,7 +443,7 @@ const formatDetailCurrency = (value: number) => `${BDT_SYMBOL} ${formatDetailAmo
 const formatDetailTableAmount = (value: number) => formatDetailAmount(value)
 
 function formatDetailUnitPriceCurrency(line: QuotationDraftContent['lineItems'][number]) {
-  if (isRateOnlyLine(line)) return `---- ${formatDetailTableAmount(line.rate)} ----`
+  if (isRateOnlyLine(line)) return formatDetailTableAmount(line.rate)
   if (line.rate <= 0) return formatDetailUnitPriceCell(line)
   return formatDetailTableAmount(line.rate)
 }
@@ -491,53 +491,63 @@ function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
 }
 
 function splitPdfTableLines(value: string | null | undefined, lineLength: number) {
-  const text = value ?? ''
-  if (!text) return ['']
+  if (!value) return ['']
+  const rawLines = value.split(/\r?\n/)
+  if (rawLines.length === 0) return ['']
 
-  // Split by newlines without removing empty lines
-  const rawLines = text.split('\n')
+  const result: string[] = []
 
-  return rawLines.flatMap((rawLine) => {
-    // If the line is empty (user gave a line gap), preserve it as a blank line
-    if (!rawLine.trim()) return ['']
+  for (const rawLine of rawLines) {
+    if (rawLine === '') {
+      result.push('')
+      continue
+    }
 
-    // Split words by space to preserve multiple spaces/indentation
     const words = rawLine.split(' ')
-    const output: string[] = []
     let current = ''
 
-    words.forEach((word) => {
-      const wordParts = word ? (word.match(new RegExp(`.{1,${lineLength}}`, 'g')) ?? [word]) : ['']
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i]
+      const wordChunks = word.length > lineLength
+        ? (word.match(new RegExp(`.{1,${lineLength}}`, 'g')) ?? [word])
+        : [word]
 
-      wordParts.forEach((part) => {
+      for (let j = 0; j < wordChunks.length; j++) {
+        const chunk = wordChunks[j]
         if (!current) {
-          current = part
-          return
+          current = chunk
+        } else if (current.length + 1 + chunk.length > lineLength) {
+          result.push(current)
+          current = chunk
+        } else {
+          current = `${current} ${chunk}`
         }
+      }
+    }
 
-        if (`${current} ${part}`.length > lineLength) {
-          output.push(current)
-          current = part
-          return
-        }
+    if (current || rawLine !== '') {
+      result.push(current)
+    }
+  }
 
-        current = `${current} ${part}`
-      })
-    })
-
-    if (current) output.push(current)
-    return output.length > 0 ? output : ['']
-  })
+  return result.length > 0 ? result : ['']
 }
 
-function SingleMaterialLine({ text }: { text: string }) {
-  if (!text || !text.trim()) return <Text wrap={false} style={styles.matText}>{"\u00A0"}</Text>
+function SingleMaterialLine({ text, isFirstRowAndEmpty }: { text: string; isFirstRowAndEmpty?: boolean }) {
+  if (!text) {
+    if (isFirstRowAndEmpty) {
+      return <Text wrap={false} style={styles.matText}>—</Text>
+    }
+    return <Text wrap={false} style={styles.matText}>{"\u00A0"}</Text>
+  }
   const match = text.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
   const isWithoutWiring = text.toLowerCase().includes('without supplying wiring') || text.toLowerCase().includes('without suppling wiring');
   if (!match) {
-    return <Text wrap={false} style={styles.matText}>
-      <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(text)}</Text>
-    </Text>
+    return (
+      <Text wrap={false} style={styles.matText}>
+        <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(text)}</Text>
+      </Text>
+    )
   }
   const prefix = match[1]
   const rest = text.substring(prefix.length)
@@ -648,13 +658,21 @@ export function DetailQuotationDocument({
                 <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text>
                 <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailTableAmount(entry.total)}</Text>
               </View>
-              {getAreaGroups(entry).map((area) => (
-                <View key={`${entry.floor.id}-${area.id}`} style={styles.tRow}>
-                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl]} />
-                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.summaryAreaName]}>{softWrapPdfText(area.name)}</Text>
-                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>{formatDetailTableAmount(getDetailAreaTotal(area.lines))}</Text>
-                </View>
-              ))}
+              {getAreaGroups(entry)
+                .filter(
+                  (area) =>
+                    area.name !== 'Finishing & Electrical Works' &&
+                    area.name !== 'Finishing & Electrical' &&
+                    !area.name?.toLowerCase().includes('finishing') &&
+                    !area.name?.toLowerCase().includes('electrical'),
+                )
+                .map((area) => (
+                  <View key={`${entry.floor.id}-${area.id}`} style={styles.tRow}>
+                    <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl]} />
+                    <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.summaryAreaName]}>{softWrapPdfText(area.name)}</Text>
+                    <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>{formatDetailTableAmount(getDetailAreaTotal(area.lines))}</Text>
+                  </View>
+                ))}
             </View>
           ))}
         </View>
@@ -703,7 +721,7 @@ export function DetailQuotationDocument({
                 {area.lines.map((line, lineIndex) => {
                   const isPkg = isPackageLine(line)
                   const nameLines = splitPdfTableLines(line.description, 14)
-                  const materialLines = splitPdfTableLines(line.materials, 52)
+                  const materialLines = splitPdfTableLines(line.materials, 50)
 
                   let priceTextRaw = ''
                   if (isPkg) {
@@ -751,7 +769,7 @@ export function DetailQuotationDocument({
                       <View key={`${line.id}-${rowIndex}`} wrap={false} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}, !isLastSubRow ? { borderBottomWidth: 0 } : {}]}>
                         <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>{isFirstMaterialRow ? slNumber : ''}</Text>
                         <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>{nameText ? softWrapPdfText(nameText) : ''}</Text>
-                        <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>{matText || isFirstMaterialRow ? <SingleMaterialLine text={matText} /> : <Text wrap={false} style={styles.matText}></Text>}</View>
+                        <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}><SingleMaterialLine text={matText} isFirstRowAndEmpty={isFirstMaterialRow && !line.materials?.trim()} /></View>
                         {isPkg ? (
                           <Text style={[styles.tdCol, { width: '22%', textAlign: 'center', fontSize: 9 }, rowCellStyle]}>
                             {priceText ? softWrapPdfText(priceText) : ''}
