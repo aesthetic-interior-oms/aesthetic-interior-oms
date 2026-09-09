@@ -164,11 +164,11 @@ export async function GET(request: NextRequest) {
 
     // Calculate total square footage handled for the selected month using calculator summary
     const totalSqftHandled = targetLeads.reduce((acc, lead) => {
-      const completedVisitSqft = lead.visits.find((v) => v.status === 'COMPLETED' && v.projectSqft)?.projectSqft ?? null
-      const anyVisitSqft = lead.visits.find((v) => v.projectSqft)?.projectSqft ?? null
-      const fallbackSqft = Number(completedVisitSqft ?? anyVisitSqft ?? 0)
-      if (lead.quotationDrafts.length === 0) return acc
-      const summary = calculateLeadQuotationSqftSummary(lead.quotationDrafts, 0)
+      const monthDrafts = lead.quotationDrafts.filter(
+        (d) => new Date(d.updatedAt) >= startDate && new Date(d.updatedAt) < nextMonthStart,
+      )
+      if (monthDrafts.length === 0) return acc
+      const summary = calculateLeadQuotationSqftSummary(monthDrafts, 0)
       return acc + summary.totalAvgSqft
     }, 0)
 

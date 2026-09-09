@@ -118,13 +118,25 @@ export async function listQuotationUserPerformanceProjects(userId: string, targe
 
   const assignedLeads = await prisma.lead.findMany({
     where: {
-      assignments: {
-        some: {
-          department: LeadAssignmentDepartment.QUOTATION,
-          userId,
-          createdAt: monthRange,
+      OR: [
+        {
+          assignments: {
+            some: {
+              department: LeadAssignmentDepartment.QUOTATION,
+              userId,
+              createdAt: monthRange,
+            },
+          },
         },
-      },
+        {
+          quotationDrafts: {
+            some: {
+              updatedAt: monthRange,
+              OR: [{ createdById: userId }, { updatedById: userId }],
+            },
+          },
+        },
+      ],
     },
     select: {
       id: true,
@@ -161,37 +173,60 @@ export async function listQuotationUserPerformanceProjects(userId: string, targe
     orderBy: { updated_at: 'desc' },
   })
 
-  return assignedLeads.map((lead): QuotationPerformanceProject => {
-    const visibleDrafts = pickVisibleQuotationDraftsForUser(lead.quotationDrafts, userId)
-    const completedVisitSqft = lead.visits.find((v) => v.status === 'COMPLETED' && v.projectSqft)?.projectSqft ?? null
-    const anyVisitSqft = lead.visits.find((v) => v.projectSqft)?.projectSqft ?? null
-    const fallbackSqft = Number(completedVisitSqft ?? anyVisitSqft ?? 0)
-    const sqftSummary = calculateLeadQuotationSqftSummary(visibleDrafts, 0)
-    const detailSqft = sqftSummary.detailVersionsCount > 0 ? sqftSummary.avgDetailSqft : 0
-    const shortSqft = sqftSummary.shortPackagesCount > 0 ? sqftSummary.avgShortSqft : 0
-    const assignedAt = lead.assignments[0]?.createdAt ?? null
-    const completedAt = isCompletedForQuotationPerformance(lead) ? lead.updated_at : null
-    const workingHours =
-      assignedAt && completedAt
-        ? Number(Math.max(0.5, (completedAt.getTime() - assignedAt.getTime()) / (1000 * 60 * 60)).toFixed(1))
-        : 0
+  return assignedLeads
+    .map((lead): QuotationPerformanceProject | null => {
+      // Filter drafts edited by this user in this target month
+      const userMonthDrafts = lead.quotationDrafts.filter(
+        (draft) =>
+          (draft.createdById === userId || draft.updatedById === userId) &&
+          draft.updatedAt >= startDate &&
+          draft.updatedAt < nextMonthStart,
+      )
 
-    return {
-      leadId: lead.id,
-      leadName: lead.name,
-      stage: lead.stage,
-      subStatus: lead.subStatus,
-      assignedAt,
-      completedAt,
-      detailSqft,
-      shortSqft,
-      totalSqft: detailSqft + shortSqft,
-      detailVersionsCount: sqftSummary.detailVersionsCount,
-      shortPackagesCount: sqftSummary.shortPackagesCount,
-      workingHours,
-      updatedAt: lead.updated_at,
-    }
-  })
+      const monthShortDrafts = userMonthDrafts.filter((d) => d.draftKey.startsWith('short:'))
+      const monthDetailDrafts = userMonthDrafts.filter((d) => d.draftKey.startsWith('detail'))
+
+      const shortSqftSummary = calculateLeadQuotationSqftSummary(monthShortDrafts, 0)
+      const detailSqftSummary = calculateLeadQuotationSqftSummary(monthDetailDrafts, 0)
+
+      const shortSqft = monthShortDrafts.length > 0 ? shortSqftSummary.avgShortSqft : 0
+      const detailSqft = monthDetailDrafts.length > 0 ? detailSqftSummary.avgDetailSqft : 0
+
+      const assignmentInMonth =
+        lead.assignments[0]?.createdAt &&
+        lead.assignments[0].createdAt >= startDate &&
+        lead.assignments[0].createdAt < nextMonthStart
+
+      if (userMonthDrafts.length === 0 && !assignmentInMonth) {
+        return null
+      }
+
+      const assignedAt = lead.assignments[0]?.createdAt ?? null
+      const completedAt = isCompletedForQuotationPerformance(lead) ? lead.updated_at : null
+      const workingHours =
+        assignedAt && completedAt
+          ? Number(Math.max(0.5, (completedAt.getTime() - assignedAt.getTime()) / (1000 * 60 * 60)).toFixed(1))
+          : 0
+
+      const latestDraftUpdate = userMonthDrafts[0]?.updatedAt ?? lead.updated_at
+
+      return {
+        leadId: lead.id,
+        leadName: lead.name,
+        stage: lead.stage,
+        subStatus: lead.subStatus,
+        assignedAt,
+        completedAt,
+        detailSqft,
+        shortSqft,
+        totalSqft: detailSqft + shortSqft,
+        detailVersionsCount: monthDetailDrafts.length,
+        shortPackagesCount: monthShortDrafts.length,
+        workingHours,
+        updatedAt: latestDraftUpdate,
+      }
+    })
+    .filter((p): p is QuotationPerformanceProject => p !== null)
 }
 
 /**

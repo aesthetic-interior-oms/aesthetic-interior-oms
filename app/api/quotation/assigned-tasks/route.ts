@@ -38,13 +38,25 @@ export async function GET(request: Request) {
 
     const leads = await prisma.lead.findMany({
       where: {
-        assignments: {
-          some: {
-            department: LeadAssignmentDepartment.QUOTATION,
-            userId: authResult.actorUserId,
-            ...(monthRange ? { createdAt: monthRange } : {}),
+        OR: [
+          {
+            assignments: {
+              some: {
+                department: LeadAssignmentDepartment.QUOTATION,
+                userId: authResult.actorUserId,
+                ...(monthRange ? { createdAt: monthRange } : {}),
+              },
+            },
           },
-        },
+          {
+            quotationDrafts: {
+              some: {
+                ...(monthRange ? { updatedAt: monthRange } : {}),
+                OR: [{ createdById: authResult.actorUserId }, { updatedById: authResult.actorUserId }],
+              },
+            },
+          },
+        ],
         ...(!monthRange && !includeHistory
           ? {
               stage: LeadStage.QUOTATION_PHASE,
@@ -52,8 +64,6 @@ export async function GET(request: Request) {
                 subStatus: LeadSubStatus.QUOTATION_APPROVED,
               },
             }
-          : !monthRange && includeHistory
-          ? {}
           : {}),
       },
       select: {
@@ -106,10 +116,15 @@ export async function GET(request: Request) {
           take: 1,
         },
         quotationDrafts: {
+          orderBy: { updatedAt: 'desc' },
           select: {
+            id: true,
             draftKey: true,
             projectSqft: true,
             content: true,
+            updatedAt: true,
+            createdById: true,
+            updatedById: true,
           },
         },
       },
@@ -118,7 +133,26 @@ export async function GET(request: Request) {
 
     const tasksData = leads.map((lead) => {
       const fallbackSqft = lead.visits[0]?.projectSqft ?? 0
-      const sqftSummary = calculateLeadQuotationSqftSummary(lead.quotationDrafts ?? [], 0)
+
+      // Filter drafts edited in monthRange by current user if monthRange is provided
+      const userMonthDrafts = monthRange
+        ? lead.quotationDrafts.filter(
+            (d) =>
+              d.updatedAt >= monthRange.gte &&
+              d.updatedAt < monthRange.lt &&
+              (d.createdById === authResult.actorUserId || d.updatedById === authResult.actorUserId),
+          )
+        : lead.quotationDrafts
+
+      const sqftSummary = calculateLeadQuotationSqftSummary(
+        userMonthDrafts.length > 0 ? userMonthDrafts : lead.quotationDrafts,
+        0,
+      )
+
+      const latestDraftUpdate =
+        (userMonthDrafts.length > 0 ? userMonthDrafts[0]?.updatedAt : lead.quotationDrafts[0]?.updatedAt) ??
+        lead.updated_at
+
       return {
         id: lead.id,
         name: lead.name,
@@ -126,7 +160,7 @@ export async function GET(request: Request) {
         location: lead.location,
         stage: lead.stage,
         subStatus: lead.subStatus,
-        updatedAt: lead.updated_at,
+        updatedAt: latestDraftUpdate,
         budget: lead.budget,
         quotationAssignee: lead.assignments.find((a) => a.department === 'QUOTATION')?.user ?? null,
         srCrmAssignee: lead.assignments.find((a) => a.department === 'SR_CRM')?.user ?? null,
