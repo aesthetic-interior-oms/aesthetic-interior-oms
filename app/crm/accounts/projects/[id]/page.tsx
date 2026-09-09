@@ -166,7 +166,7 @@ export default function ProjectDetailPage() {
         throw new Error(data.error || 'Failed to update agreement value')
       }
 
-      toast.success(adjustType === 'ADD' ? 'Agreement value increased' : 'Agreement value decreased')
+      toast.success(adjustType === 'ADD' ? 'Work added to agreement value' : 'Work removed from agreement value')
       setAdjustModalOpen(false)
       setAdjustAmount('')
       setAdjustNote('')
@@ -233,7 +233,7 @@ export default function ProjectDetailPage() {
       currentRunning += log.amount
       return [
         { content: new Date(log.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) },
-        { content: isAdd ? 'Add Work (+)' : 'Decrease (-)', styles: { textColor: isAdd ? [5, 150, 105] : [220, 38, 38], fontStyle: 'bold' } },
+        { content: isAdd ? 'Add Work (+)' : 'Remove Work (-)', styles: { textColor: isAdd ? [5, 150, 105] : [220, 38, 38], fontStyle: 'bold' } },
         { content: `${isAdd ? '+' : ''}${log.amount.toLocaleString()} BDT`, styles: { halign: 'right', textColor: isAdd ? [5, 150, 105] : [220, 38, 38], fontStyle: 'bold' } },
         { content: `${currentRunning.toLocaleString()} BDT`, styles: { halign: 'right', fontStyle: 'bold' } },
         { content: log.note || '—' },
@@ -1132,7 +1132,7 @@ export default function ProjectDetailPage() {
                       setAdjustModalOpen(true)
                     }}
                   >
-                    <Minus className="h-3 w-3" /> Decrease
+                    <Minus className="h-3 w-3" /> Remove Work
                   </Button>
                 </div>
               </CardContent>
@@ -1491,7 +1491,7 @@ export default function ProjectDetailPage() {
                 setAdjustModalOpen(true)
               }}
             >
-              <Minus className="h-3.5 w-3.5" /> Decrease Work
+              <Minus className="h-3.5 w-3.5" /> Remove Work
             </Button>
           </div>
 
@@ -1561,12 +1561,12 @@ export default function ProjectDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Add / Decrease Work Dialog */}
+      {/* Add / Remove Work Dialog */}
       <Dialog open={adjustModalOpen} onOpenChange={setAdjustModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base font-bold">
-              {adjustType === 'ADD' ? 'Add Work (Increase Agreement)' : 'Decrease Work (Reduce Agreement)'}
+              {adjustType === 'ADD' ? 'Add Work (Increase Agreement)' : 'Remove Work (Reduce Agreement)'}
             </DialogTitle>
           </DialogHeader>
 
@@ -1586,13 +1586,13 @@ export default function ProjectDetailPage() {
                 className={`flex-1 gap-1 ${adjustType === 'DECREASE' ? 'bg-rose-600 hover:bg-rose-700 text-white' : ''}`}
                 onClick={() => setAdjustType('DECREASE')}
               >
-                <Minus className="h-4 w-4" /> Decrease Work
+                <Minus className="h-4 w-4" /> Remove Work
               </Button>
             </div>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">
-                {adjustType === 'ADD' ? 'Amount to Increase (BDT)' : 'Amount to Decrease (BDT)'} *
+                {adjustType === 'ADD' ? 'Amount to Add (BDT)' : 'Amount to Remove (BDT)'} *
               </label>
               <Input
                 type="number"
@@ -1632,7 +1632,7 @@ export default function ProjectDetailPage() {
                 className={adjustType === 'ADD' ? 'bg-emerald-600 hover:bg-emerald-700 text-white' : 'bg-rose-600 hover:bg-rose-700 text-white'}
               >
                 {adjustSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
-                {adjustType === 'ADD' ? 'Save Work Addition' : 'Save Work Reduction'}
+                {adjustType === 'ADD' ? 'Save Work Addition' : 'Save Work Removal'}
               </Button>
             </DialogFooter>
           </form>
