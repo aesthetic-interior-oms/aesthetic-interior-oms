@@ -4,6 +4,9 @@ export const QUOTATION_EDITABLE_SUBSTATUSES = new Set<LeadSubStatus>([
   LeadSubStatus.QUOTATION_WORKING,
   LeadSubStatus.QUOTATION_CORRECTION,
   LeadSubStatus.BUDGET_MEETING_SET,
+  LeadSubStatus.QUOTATION_ASSIGNED,
+  LeadSubStatus.QUOTATION_COMPLETED,
+  LeadSubStatus.QUOTATION_APPROVED,
 ])
 
 export function isQuotationDepartment(actorDepartments: string[]): boolean {
@@ -23,8 +26,10 @@ export function canEditQuotationDraft(input: {
   actorUserId: string
   leadSubStatus: LeadSubStatus | null
   assignedQuotationUserId: string | null
+  leadStage?: LeadStage | null
 }): boolean {
-  if (!input.leadSubStatus || !QUOTATION_EDITABLE_SUBSTATUSES.has(input.leadSubStatus)) {
+  // Quotation editing is locked once the lead reaches CONVERSION stage
+  if (input.leadStage === LeadStage.CONVERSION) {
     return false
   }
 
@@ -32,6 +37,8 @@ export function canEditQuotationDraft(input: {
 
   if (!isQuotationDepartment(input.actorDepartments)) return false
   if (!input.assignedQuotationUserId) return false
+
+  // Once assigned to a lead, quotation team member can edit until CONVERSION stage without needing reassignment
   return input.assignedQuotationUserId === input.actorUserId
 }
 
@@ -49,7 +56,7 @@ export function buildQuotationLeadWhere(input: {
 
   return {
     id: input.leadId,
-    stage: { in: [LeadStage.QUOTATION_PHASE, LeadStage.BUDGET_PHASE] },
+    stage: { notIn: [LeadStage.CONVERSION] },
     ...(isAdminOrSr
       ? {}
       : {

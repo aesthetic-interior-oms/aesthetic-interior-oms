@@ -451,11 +451,9 @@ export default function QuotationAssignedTaskPage() {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex flex-wrap justify-end gap-2">
-                              {lead.subStatus === "QUOTATION_WORKING" || lead.subStatus === "QUOTATION_CORRECTION" ? (
-                                <Button asChild size="sm" variant="ghost" className="h-8 px-2 text-xs">
-                                  <Link href={`/quotation-team/leads/${lead.id}`}>Work</Link>
-                                </Button>
-                              ) : null}
+                              <Button asChild size="sm" variant="ghost" className="h-8 px-2 text-xs">
+                                <Link href={`/quotation-team/leads/${lead.id}`}>Work</Link>
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="outline"

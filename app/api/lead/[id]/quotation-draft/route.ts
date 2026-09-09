@@ -461,6 +461,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         id: true,
         name: true,
         location: true,
+        stage: true,
         subStatus: true,
         visits: {
           orderBy: { scheduledAt: 'desc' },
@@ -489,6 +490,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       actorUserId: authResult.actorUserId,
       leadSubStatus: lead.subStatus,
       assignedQuotationUserId,
+      leadStage: lead.stage,
     })
 
     const projectSqft = lead.visits[0]?.projectSqft ?? null
@@ -665,6 +667,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       where: leadWhere,
       select: {
         id: true,
+        stage: true,
         subStatus: true,
         visits: {
           orderBy: { scheduledAt: 'desc' },
@@ -690,6 +693,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       actorUserId: authResult.actorUserId,
       leadSubStatus: lead.subStatus,
       assignedQuotationUserId,
+      leadStage: lead.stage,
     })
 
     if (!canEdit) {

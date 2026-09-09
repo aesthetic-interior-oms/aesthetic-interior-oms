@@ -59,10 +59,7 @@ export async function GET(request: Request) {
         ],
         ...(!monthRange && !includeHistory
           ? {
-              stage: LeadStage.QUOTATION_PHASE,
-              NOT: {
-                subStatus: LeadSubStatus.QUOTATION_APPROVED,
-              },
+              stage: { notIn: [LeadStage.CONVERSION] },
             }
           : {}),
       },
