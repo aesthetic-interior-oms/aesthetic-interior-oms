@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, FileText, Loader2, MapPin, UserRound, Sparkles, ClipboardList, PenTool, CheckCircle, RotateCcw, CalendarClock, RefreshCw } from "lucide-react";
+import { Download, FileText, Loader2, MapPin, UserRound, Sparkles, ClipboardList, PenTool, CheckCircle, RotateCcw, CalendarClock, RefreshCw, X, Filter } from "lucide-react";
 import { CrmPageHeader } from "@/components/crm/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -140,18 +140,47 @@ export default function QuotationAssignedTaskPage() {
     void loadTasks(selectedMonth);
   }, [loadTasks, selectedMonth]);
 
+  const [selectedStatFilter, setSelectedStatFilter] = useState<string>("total");
+
   const summary = useMemo(
     () => ({
       total: leads.length,
       assigned: leads.filter((lead) => lead.subStatus === "QUOTATION_ASSIGNED").length,
       working: leads.filter((lead) => lead.subStatus === "QUOTATION_WORKING").length,
-      completed: leads.filter((lead) => lead.subStatus === "QUOTATION_COMPLETED").length,
+      completed: leads.filter((lead) => lead.subStatus === "QUOTATION_COMPLETED" || lead.subStatus === "QUOTATION_APPROVED").length,
       corrections: leads.filter((lead) => lead.subStatus === "QUOTATION_CORRECTION").length,
       totalDetailSqft: leads.reduce((sum, l) => sum + (l.avgDetailSqft ?? 0), 0),
       totalShortSqft: leads.reduce((sum, l) => sum + (l.avgShortSqft ?? 0), 0),
     }),
     [leads],
   );
+
+  const filteredLeads = useMemo(() => {
+    if (selectedStatFilter === "total") return leads;
+    if (selectedStatFilter === "assigned") {
+      return leads.filter((lead) => lead.subStatus === "QUOTATION_ASSIGNED");
+    }
+    if (selectedStatFilter === "working") {
+      return leads.filter((lead) => lead.subStatus === "QUOTATION_WORKING");
+    }
+    if (selectedStatFilter === "completed") {
+      return leads.filter(
+        (lead) =>
+          lead.subStatus === "QUOTATION_COMPLETED" ||
+          lead.subStatus === "QUOTATION_APPROVED"
+      );
+    }
+    if (selectedStatFilter === "corrections") {
+      return leads.filter((lead) => lead.subStatus === "QUOTATION_CORRECTION");
+    }
+    if (selectedStatFilter === "detailSqft") {
+      return leads.filter((lead) => (lead.avgDetailSqft ?? 0) > 0);
+    }
+    if (selectedStatFilter === "shortSqft") {
+      return leads.filter((lead) => (lead.avgShortSqft ?? 0) > 0);
+    }
+    return leads;
+  }, [leads, selectedStatFilter]);
 
 
   const canShowLeadAttachments = (lead: TaskLead) =>
@@ -325,10 +354,15 @@ export default function QuotationAssignedTaskPage() {
               { key: 'shortSqft', label: 'Short SQFT', value: summary.totalShortSqft, isSqft: true, Icon: Sparkles, className: 'border-cyan-200/70 from-cyan-50 via-white to-sky-50 text-cyan-900 dark:border-cyan-500/30 dark:from-cyan-950/60 dark:via-slate-950 dark:to-sky-950/40 dark:text-cyan-100', iconClass: 'bg-cyan-100 text-cyan-700 ring-cyan-200 dark:bg-cyan-500/15 dark:text-cyan-200 dark:ring-cyan-400/20', accentClass: 'from-cyan-500 to-sky-500' },
             ].map((stat) => {
               const percentage = summary.total > 0 && !stat.isSqft ? Math.round((Number(stat.value) / summary.total) * 100) : 0;
+              const isSelected = selectedStatFilter === stat.key;
               return (
-                <div
+                <button
+                  type="button"
                   key={stat.key}
-                  className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-3.5 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${stat.className}`}
+                  onClick={() => setSelectedStatFilter((prev) => (prev === stat.key && stat.key !== 'total' ? 'total' : stat.key))}
+                  className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-3.5 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer ${
+                    isSelected ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-950 shadow-md scale-[1.02]' : 'opacity-90 hover:opacity-100'
+                  } ${stat.className}`}
                 >
                   <span className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/30 blur-2xl transition group-hover:scale-125 dark:bg-white/10" />
                   <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${stat.accentClass}`} />
@@ -364,7 +398,7 @@ export default function QuotationAssignedTaskPage() {
                       />
                     </div>
                   ) : null}
-                </div>
+                </button>
               )
             })}
           </div>
@@ -380,9 +414,46 @@ export default function QuotationAssignedTaskPage() {
               No quotation tasks found for {selectedMonthLabel}.
             </CardContent>
           </Card>
+        ) : filteredLeads.length === 0 ? (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground space-y-3">
+              <p>No quotation tasks match the selected stat filter.</p>
+              <Button variant="outline" size="sm" onClick={() => setSelectedStatFilter("total")}>
+                Clear Filter
+              </Button>
+            </CardContent>
+          </Card>
         ) : (
           <>
-            <div className="mb-4 flex items-center justify-end border-b border-border/40 pb-4">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-4">
+              <div className="flex items-center gap-2">
+                {selectedStatFilter !== "total" ? (
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="gap-1.5 px-3 py-1 text-xs font-semibold">
+                      <span>Filter:</span>
+                      <span className="font-bold text-primary uppercase">
+                        {selectedStatFilter}
+                      </span>
+                      <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px]">
+                        {filteredLeads.length} leads
+                      </span>
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => setSelectedStatFilter("total")}
+                    >
+                      <X className="mr-1 h-3 w-3" /> Clear Filter
+                    </Button>
+                  </div>
+                ) : (
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Showing all <strong>{leads.length}</strong> assigned tasks
+                  </span>
+                )}
+              </div>
+
               <div className="flex items-center gap-2 rounded-md border p-1 bg-muted/20">
                 <Button
                   variant={viewMode === "card" ? "secondary" : "ghost"}
@@ -418,7 +489,7 @@ export default function QuotationAssignedTaskPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
-                      {leads.map((lead) => (
+                      {filteredLeads.map((lead) => (
                         <tr key={lead.id} className="hover:bg-muted/30">
                           <td className="px-4 py-3">
                             <Link href={`/quotation-team/leads/${lead.id}`} className="font-semibold hover:text-primary hover:underline">{lead.name}</Link>
@@ -481,7 +552,7 @@ export default function QuotationAssignedTaskPage() {
               </div>
             ) : (
           <div className="space-y-3">
-            {leads.map((lead) => (
+            {filteredLeads.map((lead) => (
               <Card
                 key={lead.id}
                 className={`overflow-hidden shadow-sm transition hover:shadow-md border ${
