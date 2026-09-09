@@ -165,11 +165,31 @@ export async function GET(request: NextRequest) {
             location: true,
             budget: true,
             stage: true,
-            subStatus: true,
+            quotationType: true,
             agreementType: true,
             agreementValue: true,
             initialAgreementValue: true,
             accountStatus: true,
+            quotationDrafts: {
+              select: {
+                id: true,
+                draftKey: true,
+                grandTotal: true,
+                updatedAt: true,
+              },
+              orderBy: { updatedAt: 'desc' },
+            },
+            attachments: {
+              select: {
+                id: true,
+                fileName: true,
+                url: true,
+                fileType: true,
+                category: true,
+                createdAt: true,
+              },
+              orderBy: { createdAt: 'desc' },
+            },
             agreementValueLogs: {
               orderBy: { createdAt: 'desc' },
               include: {

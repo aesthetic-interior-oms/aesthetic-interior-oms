@@ -18,7 +18,7 @@ export function isQuotationAdmin(actorDepartments: string[]): boolean {
 }
 
 export function canAccessQuotationDraft(actorDepartments: string[]): boolean {
-  return isQuotationAdmin(actorDepartments) || isQuotationDepartment(actorDepartments)
+  return isQuotationAdmin(actorDepartments) || isQuotationDepartment(actorDepartments) || actorDepartments.includes('ACCOUNTS')
 }
 
 export function canEditQuotationDraft(input: {
@@ -47,17 +47,17 @@ export function buildQuotationLeadWhere(input: {
   actorUserId: string
   actorDepartments: string[]
 }) {
-  const isAdminOrSr = isQuotationAdmin(input.actorDepartments)
+  const isAdminOrSrOrAccounts = isQuotationAdmin(input.actorDepartments) || input.actorDepartments.includes('ACCOUNTS')
   const isQuotation = isQuotationDepartment(input.actorDepartments)
 
-  if (!isAdminOrSr && !isQuotation) {
+  if (!isAdminOrSrOrAccounts && !isQuotation) {
     return null
   }
 
   return {
     id: input.leadId,
     stage: { notIn: [LeadStage.CONVERSION] },
-    ...(isAdminOrSr
+    ...(isAdminOrSrOrAccounts
       ? {}
       : {
           assignments: {

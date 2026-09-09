@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, FileDown, History, Loader2, MapPin, Minus, Phone, Plus, Send, ShieldCheck, X } from 'lucide-react'
+import { ArrowLeft, Download, ExternalLink, FileDown, FileText, History, Loader2, MapPin, Minus, Phone, Plus, Send, ShieldCheck, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { DateRangePicker, type DateRange } from '@/components/ui/date-range-picker'
 import { toast } from '@/components/ui/sonner'
+import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
+import { buildShortPreviewUrl } from '@/lib/short-quotation-preview-sync'
 
 const CATEGORY_LABELS: Record<string, string> = {
   CLIENT_DEPOSIT: 'Client Deposit',
@@ -1175,6 +1177,140 @@ export default function ProjectDetailPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Saved Quotation Software Document */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    Saved Quotation Software Document
+                  </CardTitle>
+                  <CardDescription>
+                    Access and download the latest quotation document generated for this project.
+                  </CardDescription>
+                </div>
+                {report?.project?.quotationType && (
+                  <Badge variant="outline" className="text-xs uppercase">
+                    {report.project.quotationType}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {report?.project?.quotationDrafts && report.project.quotationDrafts.length > 0 ? (
+                <div className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2">
+                    <div>
+                      <span className="text-xs text-muted-foreground">Latest Saved Draft Total: </span>
+                      <span className="font-semibold text-sm text-foreground">
+                        {report.project.quotationDrafts[0].grandTotal
+                          ? `${report.project.quotationDrafts[0].grandTotal.toLocaleString()} BDT`
+                          : 'Saved Draft Available'}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Updated: {new Date(report.project.quotationDrafts[0].updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <a
+                      href={buildDetailPreviewUrl({ context: 'lead', contextId: String(id), download: true })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button size="sm" variant="default" className="gap-2 text-xs">
+                        <Download className="h-3.5 w-3.5" />
+                        Download Detail Quotation PDF
+                      </Button>
+                    </a>
+                    <a
+                      href={buildDetailPreviewUrl({ context: 'lead', contextId: String(id), download: false })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button size="sm" variant="outline" className="gap-2 text-xs">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        Preview Detail Quotation
+                      </Button>
+                    </a>
+                    <a
+                      href={buildShortPreviewUrl({ context: 'lead', contextId: String(id), download: true })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button size="sm" variant="outline" className="gap-2 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30">
+                        <Download className="h-3.5 w-3.5" />
+                        Download Short Quotation PDF
+                      </Button>
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/80 bg-muted/20 p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Generate or download quotation software PDF preview for this project:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <a
+                      href={buildDetailPreviewUrl({ context: 'lead', contextId: String(id), download: true })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button size="sm" variant="default" className="gap-2 text-xs">
+                        <Download className="h-3.5 w-3.5" />
+                        Download Detail Quotation PDF
+                      </Button>
+                    </a>
+                    <a
+                      href={buildShortPreviewUrl({ context: 'lead', contextId: String(id), download: true })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button size="sm" variant="outline" className="gap-2 text-xs">
+                        <Download className="h-3.5 w-3.5" />
+                        Download Short Quotation PDF
+                      </Button>
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* File Attachments (Uploaded Quotations) */}
+              {report?.project?.attachments &&
+                report.project.attachments.filter(
+                  (att: any) =>
+                    att.category === 'QUOTATION' ||
+                    att.category === 'quotation-work' ||
+                    att.fileType?.includes('pdf') ||
+                    att.fileName?.toLowerCase().includes('quotation')
+                ).length > 0 && (
+                  <div className="pt-2 border-t border-border/60">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2">Uploaded Quotation Files:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {report.project.attachments
+                        .filter(
+                          (att: any) =>
+                            att.category === 'QUOTATION' ||
+                            att.category === 'quotation-work' ||
+                            att.fileType?.includes('pdf') ||
+                            att.fileName?.toLowerCase().includes('quotation')
+                        )
+                        .map((att: any) => (
+                          <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" download>
+                            <Button size="sm" variant="secondary" className="gap-2 text-xs h-8">
+                              <Download className="h-3.5 w-3.5" />
+                              {att.fileName}
+                            </Button>
+                          </a>
+                        ))}
+                    </div>
+                  </div>
+                )}
+            </CardContent>
+          </Card>
 
           {/* Category Breakdown */}
           {Object.keys(activeCategoryTotals).length > 0 && (
