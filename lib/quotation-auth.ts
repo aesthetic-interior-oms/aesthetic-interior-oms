@@ -56,7 +56,6 @@ export function buildQuotationLeadWhere(input: {
 
   return {
     id: input.leadId,
-    stage: { notIn: [LeadStage.CONVERSION] },
     ...(isAdminOrSrOrAccounts
       ? {}
       : {
