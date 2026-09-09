@@ -704,7 +704,35 @@ export function DetailQuotationDocument({
                   const isPkg = isPackageLine(line)
                   const nameLines = splitPdfTableLines(line.description, 14)
                   const materialLines = splitPdfTableLines(line.materials, 52)
-                  const tableLineCount = Math.max(nameLines.length, materialLines.length)
+
+                  let priceTextRaw = ''
+                  if (isPkg) {
+                    const userWritten = line.unitPriceLabel?.trim()
+                    priceTextRaw = userWritten && userWritten !== 'as per project design' ? userWritten : '--'
+                  } else {
+                    priceTextRaw = formatDetailUnitPriceCurrency(line)
+                  }
+
+                  const priceLines = isPkg
+                    ? splitPdfTableLines(priceTextRaw, 18)
+                    : splitPdfTableLines(priceTextRaw, 9)
+
+                  let totalTextRaw = ''
+                  if (isPkg) {
+                    if (line.amount && line.amount > 0) {
+                      totalTextRaw = `${formatDetailTableAmount(line.amount)}\n(Approx)`
+                    } else {
+                      totalTextRaw = '---'
+                    }
+                  } else {
+                    totalTextRaw = formatDetailTotalCurrency(line)
+                    if (line.description?.toLowerCase().includes('electric wiring') && line.amount && line.amount > 0) {
+                      totalTextRaw += '\n(Approx)'
+                    }
+                  }
+                  const totalLines = splitPdfTableLines(totalTextRaw, 9)
+
+                  const tableLineCount = Math.max(nameLines.length, materialLines.length, priceLines.length, totalLines.length)
                   const rowCellStyle = {
                     paddingTop: DETAIL_ROW_VERTICAL_PADDING,
                     paddingBottom: DETAIL_ROW_VERTICAL_PADDING,
@@ -716,39 +744,31 @@ export function DetailQuotationDocument({
                     const isLastSubRow = rowIndex === tableLineCount - 1
                     const nameText = nameLines[rowIndex] ?? ''
                     const matText = materialLines[rowIndex] ?? ''
-                    const isMergedPkg = isPkg && (!line.amount || line.amount <= 0)
-                    let quantityCell
-                    let priceText = ''
-
-                    if (isFirstMaterialRow && isPkg) {
-                      quantityCell = <Text style={[styles.tdCol, styles.wQty, rowCellStyle, { fontSize: 7 }]}>Package</Text>
-                      priceText = line.unitPriceLabel?.trim() || 'as per project design'
-                    } else {
-                      quantityCell = <Text style={[styles.tdCol, styles.wQty, rowCellStyle]}>{isFirstMaterialRow ? formatDetailQtyCell(line) : ''}</Text>
-                      priceText = isFirstMaterialRow ? formatDetailUnitPriceCurrency(line) : ''
-                    }
-
-                    const priceCell = <Text style={[styles.tdCol, styles.wPrice, rowCellStyle, isPkg ? { fontSize: 7 } : {}]}>{priceText}</Text>
+                    const priceText = priceLines[rowIndex] ?? ''
+                    const totalText = totalLines[rowIndex] ?? ''
 
                     return (
                       <View key={`${line.id}-${rowIndex}`} wrap={false} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}, !isLastSubRow ? { borderBottomWidth: 0 } : {}]}>
                         <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>{isFirstMaterialRow ? slNumber : ''}</Text>
                         <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>{nameText ? softWrapPdfText(nameText) : ''}</Text>
                         <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}>{matText || isFirstMaterialRow ? <SingleMaterialLine text={matText} /> : <Text wrap={false} style={styles.matText}></Text>}</View>
-                        {quantityCell}
-                        {isMergedPkg ? (
-                          <Text style={[styles.tdCol, styles.tdColLast, { width: '24%', textAlign: 'center', fontSize: 7 }, rowCellStyle]}>
-                            {isFirstMaterialRow ? softWrapPdfText(line.unitPriceLabel?.trim() || 'as per project design') : ''}
+                        {isPkg ? (
+                          <Text style={[styles.tdCol, { width: '22%', textAlign: 'center', fontSize: 9 }, rowCellStyle]}>
+                            {priceText ? softWrapPdfText(priceText) : ''}
                           </Text>
                         ) : (
                           <>
-                            {priceCell}
-                            <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>
-                              {isFirstMaterialRow ? formatDetailTotalCurrency(line) : ''}
-                              {isFirstMaterialRow && line.description?.toLowerCase().includes('electric wiring') ? '\n(Approx)' : ''}
+                            <Text style={[styles.tdCol, styles.wQty, rowCellStyle, { fontSize: 9 }]}>
+                              {isFirstMaterialRow ? formatDetailQtyCell(line) : ''}
+                            </Text>
+                            <Text style={[styles.tdCol, styles.wPrice, rowCellStyle, { fontSize: 9 }]}>
+                              {priceText ? softWrapPdfText(priceText) : ''}
                             </Text>
                           </>
                         )}
+                        <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>
+                          {totalText ? softWrapPdfText(totalText) : ''}
+                        </Text>
                       </View>
                     )
                   })

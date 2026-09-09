@@ -63,7 +63,8 @@ export function formatDetailQtyCell(line: QuotationLineItem) {
 
 export function formatDetailUnitPriceCell(line: QuotationLineItem) {
   if (isPackageLine(line)) {
-    return line.unitPriceLabel?.trim() || 'as per project design'
+    const raw = line.unitPriceLabel?.trim()
+    return raw && raw !== 'as per project design' ? raw : '--'
   }
   if (isRateOnlyLine(line)) return `---- ${formatDetailAmount(line.rate)} ----`
   if (line.rate <= 0) return '----'

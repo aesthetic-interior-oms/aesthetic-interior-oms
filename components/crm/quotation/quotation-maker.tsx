@@ -489,7 +489,7 @@ export function QuotationMaker({
             amount: 0,
             included: true,
             isCustom: true,
-            unitPriceLabel: 'as per project design',
+            unitPriceLabel: '',
           }
         : {
             id: `custom-${floorId}-${Date.now()}-${customCount}`,
@@ -853,10 +853,21 @@ return (
           </div>
         </CardHeader>
         <CardContent className="space-y-4 border-t border-amber-100 bg-background p-5 text-foreground md:p-6">
-          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-5">
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Client</p>
               <p className="text-sm font-medium">{leadName}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Quotation Date</p>
+              <Input
+                type="text"
+                value={displayContent.quotationDate ?? ''}
+                disabled={!canEdit}
+                onChange={(event) => updateContentField({ quotationDate: event.target.value })}
+                placeholder="e.g. 15 October 2026 or DD-MM-YYYY"
+                className="h-8"
+              />
             </div>
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Rate</p>
@@ -1384,12 +1395,12 @@ function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem
             {canEdit ? (
               <Input
                 type="text"
-                value={line.unitPriceLabel ?? 'as per project design'}
-                placeholder="as per project design"
+                value={line.unitPriceLabel === 'as per project design' ? '' : (line.unitPriceLabel ?? '')}
+                placeholder="--"
                 onChange={(e) => updateLineItem(line.id, { unitPriceLabel: e.target.value })}
               />
             ) : (
-              <span className="break-all">{line.unitPriceLabel || 'as per project design'}</span>
+              <span className="break-all">{line.unitPriceLabel && line.unitPriceLabel !== 'as per project design' ? line.unitPriceLabel : '--'}</span>
             )}
           </td>
           <td className="px-3 py-2 max-w-[100px]">

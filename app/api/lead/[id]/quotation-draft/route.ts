@@ -706,7 +706,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       projectSqft && projectSqft > 0 ? projectSqft : lead.visits[0]?.projectSqft ?? null
 
     const isShort = isShortQuotationContent(contentInput)
-    const savedQuotationDate = todayShortQuotationDate()
+    const savedQuotationDate =
+      typeof contentInput?.quotationDate === 'string' && contentInput.quotationDate.trim().length > 0
+        ? contentInput.quotationDate.trim()
+        : todayShortQuotationDate()
     const calculatedContent = isShort
       ? normalizeShortQuotationContent(contentInput)
       : normalizeQuotationContent(

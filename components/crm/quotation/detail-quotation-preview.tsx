@@ -334,7 +334,9 @@ export function DetailQuotationPreview({
           <div>
             {entry.lines.map((line, lineIndex) => {
               const isPkg = isPackageLine(line)
-              const isMergedPkg = isPkg && (!line.amount || line.amount <= 0)
+              const rawLabel = line.unitPriceLabel?.trim()
+              const pkgLabel = rawLabel && rawLabel !== 'as per project design' ? rawLabel : '--'
+              const hasAmount = Boolean(line.amount && line.amount > 0)
               return (
                 <div
                   key={line.id}
@@ -346,30 +348,39 @@ export function DetailQuotationPreview({
                   </span>
                   <span className="w-[18%] border-r border-[#d7d7d7] px-1.5 py-2 leading-snug">{line.description}</span>
                   <span className="w-[42%] border-r border-[#d7d7d7] px-1.5 py-2">{formatMaterialText(line.materials)}</span>
-                  <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
-                    {isPkg ? (
-                      <span className="inline-block whitespace-nowrap rounded-full bg-[#1f363d]/10 px-1.5 py-0.5 text-[6px] font-bold uppercase leading-none text-[#1f363d]">Package</span>
-                    ) : (
-                      formatDetailQtyCell(line)
-                    )}
-                  </span>
-                  {isMergedPkg ? (
-                    <span className="w-[22%] text-center text-neutral-600 px-1.5 py-2">
-                      {line.unitPriceLabel?.trim() || 'as per project design'}
+                  {isPkg ? (
+                    <span className="w-[20%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
+                      {pkgLabel}
                     </span>
                   ) : (
                     <>
+                      <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
+                        {formatDetailQtyCell(line)}
+                      </span>
                       <span className="w-[10%] text-right text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
                         {formatDetailUnitPriceCell(line)}
                       </span>
-                      <span className="w-[12%] text-right font-bold px-1.5 py-2" style={{ color: PRIMARY }}>
+                    </>
+                  )}
+                  <span className="w-[12%] text-right font-bold px-1.5 py-2" style={{ color: PRIMARY }}>
+                    {isPkg ? (
+                      hasAmount ? (
+                        <>
+                          {formatDetailAmount(line.amount)}
+                          <span className="block text-[7px] font-normal text-neutral-500">(Approx)</span>
+                        </>
+                      ) : (
+                        '---'
+                      )
+                    ) : (
+                      <>
                         {formatDetailTotalCell(line)}
                         {line.description.toLowerCase().includes('electric wiring') ? (
                           <span className="block text-[7px] font-normal text-neutral-500">(Approx)</span>
                         ) : null}
-                      </span>
-                    </>
-                  )}
+                      </>
+                    )}
+                  </span>
                 </div>
               )
             })}
