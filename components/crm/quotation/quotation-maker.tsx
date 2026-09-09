@@ -1053,6 +1053,24 @@ return (
               onChange={(event) => updateContentField({ terms: event.target.value })}
             />
           </div>
+          <div className="space-y-1 md:col-span-2">
+            <p className="text-xs font-medium text-muted-foreground">Mode of Payment</p>
+            <Textarea
+              rows={3}
+              disabled={!canEdit}
+              value={displayContent.paymentTerms ?? ''}
+              onChange={(event) => updateContentField({ paymentTerms: event.target.value })}
+            />
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <p className="text-xs font-medium text-muted-foreground">Duration of Work</p>
+            <Textarea
+              rows={3}
+              disabled={!canEdit}
+              value={displayContent.durationNotes ?? ''}
+              onChange={(event) => updateContentField({ durationNotes: event.target.value })}
+            />
+          </div>
         </div>
       </CollapsibleCard>
 
