@@ -50,7 +50,8 @@ export default async function QuotationTeamLayout({
     departmentNames.has('QUOTATION') ||
     departmentNames.has('ADMIN') ||
     departmentNames.has('SR_CRM') ||
-    departmentNames.has('PROJECT_COORDINATOR')
+    departmentNames.has('PROJECT_COORDINATOR') ||
+    departmentNames.has('ACCOUNTS')
 
   if (isQuotationAllowed) {
     return <MainLayout role="Quotation Team">{children}</MainLayout>
