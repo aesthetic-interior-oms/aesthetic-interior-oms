@@ -607,12 +607,10 @@ export default function QuotationAssignedTaskPage() {
                     )}
                     <span className="inline-flex items-center gap-1">
                       <CalendarClock className="h-4 w-4 shrink-0 text-primary/70" />
-                      Visit Date:
+                      Quotation Date:
                       <span className="font-medium text-foreground">
-                        {lead.latestFirstMeeting?.startsAt
-                          ? new Date(
-                              lead.latestFirstMeeting.startsAt,
-                            ).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })
+                        {lead.updatedAt
+                          ? new Date(lead.updatedAt).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })
                           : "Not set"}
                       </span>
                     </span>
