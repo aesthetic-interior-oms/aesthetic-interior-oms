@@ -62,18 +62,19 @@ export function QuotationItemPicker({
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
-    return template.items.filter((item: QuotationTemplateItem) => {
+    const items = Array.isArray(template?.items) ? template.items : []
+    return items.filter((item: QuotationTemplateItem) => {
       if (!normalizedQuery) return true
       return (
-        item.description.toLowerCase().includes(normalizedQuery) ||
-        item.materials.toLowerCase().includes(normalizedQuery)
+        (item.description ?? '').toLowerCase().includes(normalizedQuery) ||
+        (item.materials ?? '').toLowerCase().includes(normalizedQuery)
       )
     })
-  }, [query, template.items])
+  }, [query, template?.items])
 
   const sectionNameById = useMemo(
-    () => new Map(template.sections.map((section: any) => [section.id, section.name])),
-    [template.sections],
+    () => new Map((Array.isArray(template?.sections) ? template.sections : []).map((section: any) => [section.id, section.name])),
+    [template?.sections],
   )
 
   const handleSelect = (templateItemId: string) => {
