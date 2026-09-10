@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Edit2, ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
+import { ArrowDownToLine, Edit2, ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -77,6 +77,9 @@ import type {
   QuotationLineItem,
   QuotationUnit,
 } from '@/lib/quotation-types'
+import { convertShortToDetailContent, shortPackageTierLabel } from '@/lib/short-to-detail-import'
+import { isShortQuotationContent } from '@/lib/quotation-document'
+import type { ShortQuotationPackage } from '@/lib/short-quotation-types'
 
 type QuotationMakerProps = {
   leadId: string
@@ -153,6 +156,8 @@ export function QuotationMaker({
   const [editingTitleText, setEditingTitleText] = useState('')
   const [saveAllConfirmOpen, setSaveAllConfirmOpen] = useState(false)
   const [confirmClientNameInput, setConfirmClientNameInput] = useState('')
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [importingShort, setImportingShort] = useState(false)
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -681,6 +686,42 @@ export function QuotationMaker({
     }
   }
 
+  const importFromShortQuotation = async (packageTier: ShortQuotationPackage) => {
+    if (!leadId || isPlayground) return
+    setImportingShort(true)
+    setImportDialogOpen(false)
+    try {
+      const response = await fetch(
+        `/api/lead/${leadId}/quotation-draft?documentType=short&packageTier=${packageTier}`,
+        { cache: 'no-store' },
+      )
+      const payload = await response.json()
+      if (!response.ok || !payload?.success || !payload?.data) {
+        throw new Error(payload?.error ?? 'Failed to load short quotation')
+      }
+      const shortContent = payload.data.draft?.content ?? payload.data.defaultDraft?.content
+      if (!shortContent || !isShortQuotationContent(shortContent)) {
+        toast.error(`No saved ${shortPackageTierLabel(packageTier)} short quotation found for this lead`)
+        return
+      }
+      const detailContent = convertShortToDetailContent(shortContent, { preserveHeader: true })
+      // Preserve current metadata from the active slot
+      const merged = {
+        ...detailContent,
+        versionTitle: content?.versionTitle ?? `Version ${slotIndex}`,
+        quotationDate: content?.quotationDate ?? detailContent.quotationDate,
+      }
+      setContent(normalizeQuotationContent(withDetailQuotationDefaults(merged)))
+      toast.success(
+        `Imported ${shortPackageTierLabel(packageTier)} short quotation — review and save when ready`,
+      )
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to import short quotation')
+    } finally {
+      setImportingShort(false)
+    }
+  }
+
   const handlePrint = () => openLivePreviewTab()
 
   const canStartWork =
@@ -938,6 +979,23 @@ return (
               <Plus className="mr-1.5 h-4 w-4" />
               Add Finishing & Electrical Work
             </Button>
+            {!isPlayground && (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-sky-500 text-sky-700 hover:bg-sky-50 dark:border-sky-600 dark:text-sky-300 dark:hover:bg-sky-950/40"
+                disabled={!canEdit || importingShort}
+                onClick={() => setImportDialogOpen(true)}
+                title="Load data from the saved short quotation for this lead into the detail quotation editor"
+              >
+                {importingShort ? (
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowDownToLine className="mr-1.5 h-4 w-4" />
+                )}
+                {importingShort ? 'Importing...' : 'Import from Short Quotation'}
+              </Button>
+            )}
             <Button type="button" variant="outline" disabled={!canEdit || saving} onClick={() => void saveDraft(false)}>
               <Save className="mr-1.5 h-4 w-4" />
               {saving ? 'Saving...' : 'Save'}
@@ -1345,6 +1403,43 @@ return (
               }}
             >
               {saving ? 'Saving...' : 'Confirm & Save in All'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Import from Short Quotation dialog ── */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Import from Short Quotation</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <p className="text-muted-foreground">
+              Select a package tier. All floors, rooms, and line items from that short quotation will be loaded into the detail editor.
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 rounded border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-3 py-2">
+              ⚠ This will replace the current content in the editor. Your changes will NOT be auto-saved — click Save after reviewing.
+            </p>
+            <div className="flex flex-col gap-2 pt-1">
+              {(['PLATINUM', 'PREMIUM', 'LUXURY'] as const).map((tier) => (
+                <Button
+                  key={tier}
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start gap-2 font-medium"
+                  disabled={importingShort}
+                  onClick={() => void importFromShortQuotation(tier)}
+                >
+                  <ArrowDownToLine className="h-4 w-4 shrink-0 text-sky-600" />
+                  Import {shortPackageTierLabel(tier)} Package
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="flex justify-end pt-1">
+            <Button type="button" variant="ghost" onClick={() => setImportDialogOpen(false)}>
+              Cancel
             </Button>
           </div>
         </DialogContent>

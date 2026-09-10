@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { CopyCheck, Download, ExternalLink, GripVertical, Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { BookOpen, CopyCheck, Download, ExternalLink, GripVertical, Loader2, Plus, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -44,6 +44,8 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { ShortQuotationItemPicker, type PickedCatalogItem, type PickedBundle } from '@/components/crm/quotation/short-quotation-item-picker'
+import { listQuotationTemplates } from '@/lib/quotation-templates'
 import type {
   ShortQuotationContent,
   ShortQuotationLine,
@@ -155,6 +157,19 @@ export function ShortQuotationBuilder({
   const [selectedPackageTier, setSelectedPackageTier] = useState<ShortQuotationPackage>('PREMIUM')
   const [generatingPdf, setGeneratingPdf] = useState(false)
 
+  // Catalog item picker state
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerRoomId, setPickerRoomId] = useState<string | null>(null)
+  const [pickerCatalogKey, setPickerCatalogKey] = useState('ceiling-curtain')
+  const [fullTemplates, setFullTemplates] = useState<Array<Record<string, unknown>>>([])
+  const catalogs = useMemo(() => {
+    if (fullTemplates.length) {
+      return fullTemplates.map((t: any) => ({ key: t.key as string, name: t.name as string }))
+    }
+    return listQuotationTemplates().map((t) => ({ key: t.key, name: t.name }))
+  }, [fullTemplates])
+
+
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -210,6 +225,14 @@ export function ShortQuotationBuilder({
             }),
           )
         }
+        // Load templates for catalog picker in playground too
+        try {
+          const tmplRes = await fetch('/api/quotation/templates', { cache: 'no-store' })
+          const tmplPayload = await tmplRes.json()
+          if (tmplRes.ok && tmplPayload?.success && Array.isArray(tmplPayload.data?.templates)) {
+            setFullTemplates(tmplPayload.data.templates)
+          }
+        } catch { /* ignore template fetch errors */ }
         setCanEdit(true)
         return
       }
@@ -225,6 +248,15 @@ export function ShortQuotationBuilder({
 
       const data = payload.data as DraftResponse
       setCanEdit(Boolean(data.canEdit))
+
+      // Load full templates for catalog picker (same endpoint used by detail quotation)
+      try {
+        const tmplRes = await fetch('/api/quotation/templates', { cache: 'no-store' })
+        const tmplPayload = await tmplRes.json()
+        if (tmplRes.ok && tmplPayload?.success && Array.isArray(tmplPayload.data?.templates)) {
+          setFullTemplates(tmplPayload.data.templates)
+        }
+      } catch { /* ignore template fetch errors */ }
 
       const draftContent = data.draft?.content
       const defaultContent = data.defaultDraft?.content
@@ -509,6 +541,67 @@ export function ShortQuotationBuilder({
           : room,
       ),
     }))
+  }
+
+  const openPickerForRoom = (roomId: string) => {
+    setPickerRoomId(roomId)
+    setPickerOpen(true)
+  }
+
+  const handlePickCatalogItem = (picked: PickedCatalogItem) => {
+    if (!pickerRoomId) return
+    updateContent((prev) => ({
+      ...prev,
+      rooms: prev.rooms.map((room) =>
+        room.id === pickerRoomId
+          ? {
+              ...room,
+              lines: [
+                ...room.lines,
+                {
+                  id: crypto.randomUUID(),
+                  name: picked.name,
+                  quantitySqft: null,
+                  unitPrice: picked.unitPrice > 0 ? picked.unitPrice : null,
+                  total: 0,
+                  isLumpSum: false,
+                  catalogItemId: picked.catalogItemId,
+                  catalogTemplateKey: picked.catalogTemplateKey,
+                },
+              ],
+            }
+          : room,
+      ),
+    }))
+    toast.success(`Added: ${picked.name}`)
+  }
+
+  const handlePickBundle = (picked: PickedBundle) => {
+    if (!pickerRoomId) return
+    const { bundle } = picked
+    updateContent((prev) => ({
+      ...prev,
+      rooms: prev.rooms.map((room) =>
+        room.id === pickerRoomId
+          ? {
+              ...room,
+              lines: [
+                ...room.lines,
+                ...bundle.lines.map((bundleLine) => ({
+                  id: crypto.randomUUID(),
+                  name: bundleLine.name,
+                  quantitySqft: null,
+                  unitPrice: null,
+                  total: 0,
+                  isLumpSum: bundleLine.isLumpSum,
+                  ...(bundleLine.unitPriceLabel ? { unitPriceLabel: bundleLine.unitPriceLabel } : {}),
+                })),
+              ],
+            }
+          : room,
+      ),
+    }))
+    toast.success(`Added ${bundle.lines.length} items from "${bundle.name}"`)
   }
 
   const addFooterNote = () => {
@@ -1004,6 +1097,7 @@ export function ShortQuotationBuilder({
                               updateContent={updateContent}
                               addSqftLine={addSqftLine}
                               addLumpSumLine={addLumpSumLine}
+                              openPickerForRoom={openPickerForRoom}
                               reorderRoomLines={reorderRoomLines}
                               updateLine={updateLine}
                               removeLine={removeLine}
@@ -1094,6 +1188,17 @@ export function ShortQuotationBuilder({
           }
         }
       `}</style>
+
+      <ShortQuotationItemPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        catalogs={catalogs}
+        fullTemplates={fullTemplates}
+        catalogTemplateKey={pickerCatalogKey}
+        onCatalogTemplateKeyChange={setPickerCatalogKey}
+        onPickCatalogItem={handlePickCatalogItem}
+        onPickBundle={handlePickBundle}
+      />
     </div>
   )
 }
@@ -1107,6 +1212,7 @@ type SortableRoomCardProps = {
   updateContent: (updater: (prev: ShortQuotationContent) => ShortQuotationContent) => void
   addSqftLine: (roomId: string) => void
   addLumpSumLine: (roomId: string) => void
+  openPickerForRoom: (roomId: string) => void
   reorderRoomLines: (roomId: string, event: DragEndEvent) => void
   updateLine: (roomId: string, lineId: string, patch: Partial<ShortQuotationLine>) => void
   removeLine: (roomId: string, lineId: string) => void
@@ -1121,6 +1227,7 @@ function SortableRoomCard({
   updateContent,
   addSqftLine,
   addLumpSumLine,
+  openPickerForRoom,
   reorderRoomLines,
   updateLine,
   removeLine,
@@ -1226,6 +1333,16 @@ function SortableRoomCard({
             onClick={() => addLumpSumLine(room.id)}
           >
             Add Lump Sum Item
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="gap-1.5"
+            onClick={() => openPickerForRoom(room.id)}
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            Add from Catalog / Bundle
           </Button>
         </div>
       ) : null}

@@ -8,6 +8,10 @@ export type ShortQuotationLine = {
   total: number
   isLumpSum: boolean
   unitPriceLabel?: string
+  /** Reference to a detail-quotation catalog item (informational only, not shown in PDF) */
+  catalogItemId?: string
+  /** Which catalog template the item came from */
+  catalogTemplateKey?: string
 }
 
 export type ShortQuotationRoom = {
