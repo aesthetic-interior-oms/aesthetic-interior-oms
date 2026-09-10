@@ -572,6 +572,7 @@ export function ShortQuotationBuilder({
                   isLumpSum: false,
                   catalogItemId: picked.catalogItemId,
                   catalogTemplateKey: picked.catalogTemplateKey,
+                  materials: picked.materials,
                 },
               ],
             }

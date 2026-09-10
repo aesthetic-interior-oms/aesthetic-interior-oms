@@ -35,6 +35,7 @@ export type PickedCatalogItem = {
   unitPrice: number
   catalogItemId: string
   catalogTemplateKey: string
+  materials: string
 }
 
 export type PickedBundle = {
@@ -110,6 +111,7 @@ export function ShortQuotationItemPicker({
       unitPrice,
       catalogItemId: item.id,
       catalogTemplateKey,
+      materials: item.materials ?? '',
     })
     onOpenChange(false)
     setQuery('')

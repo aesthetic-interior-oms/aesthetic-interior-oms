@@ -1,32 +1,50 @@
+import { QUOTATION_TEMPLATES } from '@/lib/quotation-templates'
 import { withDetailQuotationDefaults } from '@/lib/detail-quotation-format'
 import { FLOOR_DETAIL_TEMPLATE_KEY } from '@/lib/floor-detail-quotation'
-import type { ShortQuotationContent, ShortQuotationPackage } from '@/lib/short-quotation-types'
+import type { ShortQuotationContent, ShortQuotationLine, ShortQuotationPackage } from '@/lib/short-quotation-types'
 import type { QuotationArea, QuotationDraftContent, QuotationLineItem, QuotationSection } from '@/lib/quotation-types'
 
 /**
  * Convert a ShortQuotationContent into a QuotationDraftContent so it can
  * be loaded and edited in the detail quotation builder.
- *
- * Mapping:
- *   short floor  →  detail section (floor)
- *   short room   →  detail area under that floor
- *   short line   →  detail line item
- *     line.name           → lineItem.description
- *     line.quantitySqft   → lineItem.quantity (unit = 'sqft')
- *     line.unitPrice      → lineItem.rate
- *     line.total          → lineItem.amount
- *     line.isLumpSum      → lineItem.unit = 'ls', lineItem.amount = line.total
- *     line.catalogItemId  → lineItem.templateId (if present)
- *     line.catalogTemplateKey → lineItem.catalogTemplateKey (if present)
  */
 export function convertShortToDetailContent(
   short: ShortQuotationContent,
   options?: {
     /** Keep clientName / clientAddress / dates from the short quotation */
     preserveHeader?: boolean
+    /** Loaded full catalog templates to auto-populate materials if catalogItemId is linked */
+    fullTemplates?: any[]
   },
 ): QuotationDraftContent {
   const preserveHeader = options?.preserveHeader ?? true
+  const fullTemplates = options?.fullTemplates ?? []
+
+  // Helper to retrieve materials from line property or catalog lookup
+  const findMaterials = (line: ShortQuotationLine): string => {
+    if (typeof line.materials === 'string' && line.materials.trim().length > 0) {
+      return line.materials.trim()
+    }
+    const searchTemplates = Array.isArray(fullTemplates) && fullTemplates.length > 0 ? fullTemplates : QUOTATION_TEMPLATES
+    if (line.catalogItemId) {
+      for (const t of searchTemplates) {
+        if (Array.isArray(t.items)) {
+          const matched = t.items.find((i: any) => i.id === line.catalogItemId)
+          if (matched?.materials) return matched.materials
+        }
+      }
+    }
+    if (line.name?.trim()) {
+      const lowerName = line.name.trim().toLowerCase()
+      for (const t of searchTemplates) {
+        if (Array.isArray(t.items)) {
+          const matched = t.items.find((i: any) => typeof i.description === 'string' && i.description.trim().toLowerCase() === lowerName)
+          if (matched?.materials) return matched.materials
+        }
+      }
+    }
+    return ''
+  }
 
   const sections: QuotationSection[] = short.floors.map((floor, idx) => ({
     id: floor.id,
@@ -47,19 +65,20 @@ export function convertShortToDetailContent(
       const rate = isLs ? 0 : (line.unitPrice ?? 0)
       const quantity = isLs ? 1 : (line.quantitySqft ?? 0)
       const amount = isLs ? (line.total ?? 0) : (line.unitPrice ?? 0) * (line.quantitySqft ?? 0)
+      const materials = findMaterials(line)
 
       const item: QuotationLineItem = {
         id: line.id,
         sectionId: room.floorId,
         areaId: room.id,
         description: line.name || 'Item',
-        materials: '',
+        materials,
         unit: isLs ? 'ls' : 'sqft',
         rate,
         quantity,
         amount,
         included: true,
-        isCustom: true,
+        isCustom: !materials,
         ...(line.unitPriceLabel ? { unitPriceLabel: line.unitPriceLabel } : {}),
         ...(line.catalogItemId ? { templateId: line.catalogItemId } : {}),
         ...(line.catalogTemplateKey ? { catalogTemplateKey: line.catalogTemplateKey } : {}),

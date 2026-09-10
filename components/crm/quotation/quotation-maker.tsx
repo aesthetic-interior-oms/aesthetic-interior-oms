@@ -705,7 +705,7 @@ export function QuotationMaker({
         toast.error(`No saved ${shortPackageTierLabel(packageTier)} short quotation found for this lead`)
         return
       }
-      const detailContent = convertShortToDetailContent(shortContent, { preserveHeader: true })
+      const detailContent = convertShortToDetailContent(shortContent, { preserveHeader: true, fullTemplates })
       // Preserve current metadata from the active slot
       const merged = {
         ...detailContent,

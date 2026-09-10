@@ -12,6 +12,8 @@ export type ShortQuotationLine = {
   catalogItemId?: string
   /** Which catalog template the item came from */
   catalogTemplateKey?: string
+  /** Catalog item materials description */
+  materials?: string
 }
 
 export type ShortQuotationRoom = {
