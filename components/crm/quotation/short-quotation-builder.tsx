@@ -709,7 +709,7 @@ export function ShortQuotationBuilder({
     }
   }
 
-  const sortedFloors = [...content.floors].sort((a, b) => a.sortOrder - b.sortOrder)
+  const sortedFloors = Array.isArray(content?.floors) ? [...content.floors].sort((a, b) => a.sortOrder - b.sortOrder) : []
   const taskbarFloorId = activeFloorId ?? sortedFloors.at(-1)?.id ?? null
   const taskbarRoomId = taskbarFloorId
     ? content.rooms

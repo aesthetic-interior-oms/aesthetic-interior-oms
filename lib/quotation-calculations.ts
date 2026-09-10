@@ -23,22 +23,29 @@ export function normalizeLineItem(line: QuotationLineItem): QuotationLineItem {
 }
 
 export function normalizeQuotationContent(content: QuotationDraftContent): QuotationDraftContent {
-  const lineItems = content.lineItems.map(normalizeLineItem)
+  const lineItems = Array.isArray(content?.lineItems) ? content.lineItems.map(normalizeLineItem) : []
+  const sections = Array.isArray(content?.sections) ? content.sections : []
+  const areas = Array.isArray(content?.areas) ? content.areas : []
   const totals = calculateQuotationTotals({
     ...content,
+    sections,
+    areas,
     lineItems,
   })
 
   return {
     ...content,
+    sections,
+    areas,
     lineItems,
     discountAmount: totals.discountAmount,
   }
 }
 
 export function calculateQuotationTotals(content: QuotationDraftContent): QuotationTotals {
-  const includedItems = content.lineItems.filter((line) => line.included)
-  const subtotal = includedItems.reduce((sum, line) => sum + line.amount, 0)
+  const lineItems = Array.isArray(content?.lineItems) ? content.lineItems : []
+  const includedItems = lineItems.filter((line) => line?.included)
+  const subtotal = includedItems.reduce((sum, line) => sum + (line?.amount ?? 0), 0)
 
   const discountPercent = Number.isFinite(content.discountPercent)
     ? Math.min(100, Math.max(0, content.discountPercent))

@@ -30,15 +30,18 @@ export function withDetailQuotationDefaults(
 ): QuotationDraftContent {
   return {
     ...content,
-    quotationDate: content.quotationDate ?? todayShortQuotationDate(),
-    subject: content.subject ?? DEFAULT_DETAIL_SUBJECT,
-    introLetter: content.introLetter ?? DEFAULT_DETAIL_INTRO_LETTER,
-    paymentTerms: content.paymentTerms ?? DEFAULT_DETAIL_PAYMENT_TERMS,
-    durationNotes: content.durationNotes ?? DEFAULT_DETAIL_DURATION,
-    drawingDesign: content.drawingDesign ?? DEFAULT_DRAWING_DESIGN,
-    signatoryName: content.signatoryName ?? DEFAULT_SIGNATORY_NAME,
-    signatoryTitle: content.signatoryTitle ?? DEFAULT_SIGNATORY_TITLE,
-    summarySubject: content.summarySubject ?? DEFAULT_DETAIL_SUMMARY_SUBJECT,
+    sections: Array.isArray(content?.sections) ? content.sections : [],
+    areas: Array.isArray(content?.areas) ? content.areas : [],
+    lineItems: Array.isArray(content?.lineItems) ? content.lineItems : [],
+    quotationDate: content?.quotationDate ?? todayShortQuotationDate(),
+    subject: content?.subject ?? DEFAULT_DETAIL_SUBJECT,
+    introLetter: content?.introLetter ?? DEFAULT_DETAIL_INTRO_LETTER,
+    paymentTerms: content?.paymentTerms ?? DEFAULT_DETAIL_PAYMENT_TERMS,
+    durationNotes: content?.durationNotes ?? DEFAULT_DETAIL_DURATION,
+    drawingDesign: content?.drawingDesign ?? DEFAULT_DRAWING_DESIGN,
+    signatoryName: content?.signatoryName ?? DEFAULT_SIGNATORY_NAME,
+    signatoryTitle: content?.signatoryTitle ?? DEFAULT_SIGNATORY_TITLE,
+    summarySubject: content?.summarySubject ?? DEFAULT_DETAIL_SUMMARY_SUBJECT,
   }
 }
 

@@ -56,8 +56,8 @@ export function QuotationItemPicker({
   }, [catalogTemplateKey, fullTemplates])
 
   const sections = useMemo(
-    () => [...template.sections].sort((a, b) => a.sortOrder - b.sortOrder),
-    [template.sections],
+    () => (Array.isArray(template?.sections) ? [...template.sections].sort((a, b) => a.sortOrder - b.sortOrder) : []),
+    [template?.sections],
   )
 
   const filteredItems = useMemo(() => {

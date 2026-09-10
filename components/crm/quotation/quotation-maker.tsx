@@ -272,7 +272,7 @@ export function QuotationMaker({
   const effectiveClientAddress = content?.clientAddress ?? leadLocation ?? ''
 
   const floors = useMemo(() => {
-    if (!content) return []
+    if (!content || !Array.isArray(content.sections)) return []
     return [...content.sections].sort((a, b) => a.sortOrder - b.sortOrder)
   }, [content])
 
@@ -280,19 +280,20 @@ export function QuotationMaker({
     if (!content) return new Map<string, number>()
     const map = new Map<string, number>()
     let count = 0
+    const lineItems = Array.isArray(content.lineItems) ? content.lineItems : []
     floors.forEach((floor) => {
       const isFE = floor.sectionType === 'FINISHING_ELECTRICAL' || floor.name === 'Finishing & Electrical Works'
       const floorAreas = [...(content.areas ?? [])]
         .filter((area) => area.floorId === floor.id)
         .sort((a, b) => a.sortOrder - b.sortOrder)
-      const unassignedLines = content.lineItems.filter((line) => line.sectionId === floor.id && !line.areaId && line.included)
-      const namedAreaGroups = floorAreas.map((area) => ({ area, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.areaId === area.id && line.included) }))
+      const unassignedLines = lineItems.filter((line) => line.sectionId === floor.id && !line.areaId && line.included)
+      const namedAreaGroups = floorAreas.map((area) => ({ area, lines: lineItems.filter((line) => line.sectionId === floor.id && line.areaId === area.id && line.included) }))
       const generalAreaGroup = { area: { id: `general-${floor.id}`, floorId: floor.id, name: 'General Area', sortOrder: 0 }, lines: unassignedLines }
       const areaGroups = isFE
-        ? [{ area: { id: `fe-${floor.id}`, floorId: floor.id, name: '', sortOrder: 0 }, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
+        ? [{ area: { id: `fe-${floor.id}`, floorId: floor.id, name: '', sortOrder: 0 }, lines: lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
         : floorAreas.length > 0
           ? [generalAreaGroup, ...namedAreaGroups].filter((group) => group.lines.length > 0 || !group.area.id.startsWith('general-'))
-          : [{ ...generalAreaGroup, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
+          : [{ ...generalAreaGroup, lines: lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
 
       areaGroups.forEach((group) => {
         group.lines.forEach((line) => {
