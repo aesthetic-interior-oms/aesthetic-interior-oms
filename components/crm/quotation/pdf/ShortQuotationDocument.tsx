@@ -200,7 +200,7 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
         <Text style={styles.inWords}>In Words: {amountInWordsTaka(summary.grandTotal)}</Text>
 
         {content.terms ? (
-          <View style={{ marginTop: 14 }}>
+          <View style={{ marginTop: 16 }}>
             <Text style={styles.sectionTitle}>Terms &amp; Conditions</Text>
             {content.terms
               .split('\n')
@@ -214,14 +214,21 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
                   body = line.slice(colonIndex + 1).trim()
                 }
                 return (
-                  <Text key={index} style={{ fontSize: 8.5, marginTop: 4, lineHeight: 1.4 }}>
-                    {header ? <Text style={[styles.bold, { color: PRIMARY }]}>{header} </Text> : null}
-                    {softWrapPdfText(body)}
-                  </Text>
+                  <View key={index} style={{ marginTop: 8 }}>
+                    {header ? (
+                      <Text style={{ fontSize: 10, fontWeight: 'bold', color: PRIMARY, marginBottom: 2 }}>
+                        {header}
+                      </Text>
+                    ) : null}
+                    <Text style={{ fontSize: 8.5, lineHeight: 1.5, color: '#333' }}>
+                      {softWrapPdfText(body)}
+                    </Text>
+                  </View>
                 )
               })}
           </View>
         ) : null}
+
 
         <FooterFixed content={content} />
       </Page>
