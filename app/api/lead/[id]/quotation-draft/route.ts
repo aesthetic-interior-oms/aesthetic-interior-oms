@@ -125,6 +125,9 @@ function toShortQuotationLine(value: unknown): ShortQuotationLine | null {
     total: toOptionalNumber(line.total) ?? 0,
     isLumpSum: Boolean(line.isLumpSum),
     unitPriceLabel: typeof line.unitPriceLabel === 'string' ? line.unitPriceLabel : undefined,
+    catalogItemId: typeof line.catalogItemId === 'string' ? line.catalogItemId : undefined,
+    catalogTemplateKey: typeof line.catalogTemplateKey === 'string' ? line.catalogTemplateKey : undefined,
+    materials: typeof line.materials === 'string' ? line.materials : undefined,
   }
 }
 
