@@ -1,7 +1,8 @@
 import { todayShortQuotationDate } from '@/lib/short-quotation-calculations'
 import type { ShortQuotationContent, ShortQuotationPackage } from '@/lib/short-quotation-types'
 
-export const DEFAULT_SHORT_INTRO_LETTER = `We are genuinely delighted to have the opportunity to work on the interior design of your residence and look forward to transforming your vision into a Aesthetic and thoughtfully designed space.
+export const DEFAULT_SHORT_INTRO_LETTER = `Dear sir ,
+We are genuinely delighted to have the opportunity to work on the interior design of your residence and look forward to transforming your vision into a Aesthetic and thoughtfully designed space.
 We have prepared and submitted a separate estimated costing for each room of your residence, allowing you to clearly understand the proposed budget and scope of work for each individual space.`
 
 export const DEFAULT_SHORT_TERMS = `Quotation Validity: This tentative quotation shall remain valid for 30 (thirty) days from the date of issuance.
