@@ -735,17 +735,25 @@ export function DetailQuotationDocument({
                     ? splitPdfTableLines(priceTextRaw, 18)
                     : splitPdfTableLines(priceTextRaw, 9)
 
+                  const isFinishingElectricalEntry =
+                    entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
+                    entry.floor.name === 'Finishing & Electrical Works'
+
                   let totalTextRaw = ''
                   if (isPkg) {
                     if (line.amount && line.amount > 0) {
-                      totalTextRaw = `${formatDetailTableAmount(line.amount)}\n(Approx)`
+                      if (isFinishingElectricalEntry) {
+                        totalTextRaw = `${formatDetailTableAmount(line.amount)}\n(approx.)`
+                      } else {
+                        totalTextRaw = formatDetailTableAmount(line.amount)
+                      }
                     } else {
                       totalTextRaw = '---'
                     }
                   } else {
                     totalTextRaw = formatDetailTotalCurrency(line)
                     if (line.description?.toLowerCase().includes('electric wiring') && line.amount && line.amount > 0) {
-                      totalTextRaw += '\n(Approx)'
+                      totalTextRaw += '\n(approx.)'
                     }
                   }
                   const totalLines = splitPdfTableLines(totalTextRaw, 9)
