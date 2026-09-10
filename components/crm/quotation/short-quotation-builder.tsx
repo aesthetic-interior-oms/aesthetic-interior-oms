@@ -710,9 +710,10 @@ export function ShortQuotationBuilder({
   }
 
   const sortedFloors = Array.isArray(content?.floors) ? [...content.floors].sort((a, b) => a.sortOrder - b.sortOrder) : []
+  const allRooms = Array.isArray(content?.rooms) ? content.rooms : []
   const taskbarFloorId = activeFloorId ?? sortedFloors.at(-1)?.id ?? null
   const taskbarRoomId = taskbarFloorId
-    ? content.rooms
+    ? allRooms
         .filter((room) => room.floorId === taskbarFloorId)
         .sort((a, b) => a.sortOrder - b.sortOrder)
         .at(-1)?.id ?? null
@@ -1034,7 +1035,7 @@ export function ShortQuotationBuilder({
 
       <div className="print:hidden space-y-4">
         {sortedFloors.map((floor) => {
-          const floorRooms = content.rooms
+          const floorRooms = allRooms
             .filter((room) => room.floorId === floor.id)
             .sort((a, b) => a.sortOrder - b.sortOrder)
           const floorSummary = summary.floors.find((item) => item.floor.id === floor.id)

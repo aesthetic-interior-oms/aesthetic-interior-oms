@@ -1145,14 +1145,15 @@ return (
           const floorAreas = [...(content.areas ?? [])]
             .filter((area) => area.floorId === floor.id)
             .sort((a, b) => a.sortOrder - b.sortOrder)
-          const unassignedLines = content.lineItems.filter((line) => line.sectionId === floor.id && !line.areaId && line.included)
-          const namedAreaGroups = floorAreas.map((area) => ({ area, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.areaId === area.id && line.included) }))
+          const allLineItems = Array.isArray(content.lineItems) ? content.lineItems : []
+          const unassignedLines = allLineItems.filter((line) => line.sectionId === floor.id && !line.areaId && line.included)
+          const namedAreaGroups = floorAreas.map((area) => ({ area, lines: allLineItems.filter((line) => line.sectionId === floor.id && line.areaId === area.id && line.included) }))
           const generalAreaGroup = { area: { id: `general-${floor.id}`, floorId: floor.id, name: 'General Area', sortOrder: 0 }, lines: unassignedLines }
           const areaGroups = isFE
-            ? [{ area: { id: `fe-${floor.id}`, floorId: floor.id, name: '', sortOrder: 0 }, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
+            ? [{ area: { id: `fe-${floor.id}`, floorId: floor.id, name: '', sortOrder: 0 }, lines: allLineItems.filter((line) => line.sectionId === floor.id && line.included) }]
             : floorAreas.length > 0
               ? [generalAreaGroup, ...namedAreaGroups].filter((group) => group.lines.length > 0 || !group.area.id.startsWith('general-'))
-              : [{ ...generalAreaGroup, lines: content.lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
+              : [{ ...generalAreaGroup, lines: allLineItems.filter((line) => line.sectionId === floor.id && line.included) }]
           const floorLineCount = areaGroups.reduce((sum, group) => sum + group.lines.length, 0)
 
           return (
