@@ -577,7 +577,8 @@ export function DetailQuotationDocument({
   const getAreaGroups = (entry: ReturnType<typeof buildDetailFloorSummaries>[number]) => {
     const isFinishingElectrical =
       entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
-      entry.floor.name === 'Finishing & Electrical Works'
+      entry.floor.id === 'finishing-electrical-works-section' ||
+      Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name))
 
     if (isFinishingElectrical) {
       return [{ id: `fe-${entry.floor.id}`, name: '', lines: entry.lines }]
@@ -617,7 +618,8 @@ export function DetailQuotationDocument({
   const summaryFloorEntries = floorSummaries.filter(
     (entry) =>
       entry.floor.sectionType !== 'FINISHING_ELECTRICAL' &&
-      entry.floor.name !== 'Finishing & Electrical Works',
+      entry.floor.id !== 'finishing-electrical-works-section' &&
+      !Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name)),
   )
 
   return (
@@ -736,25 +738,27 @@ export function DetailQuotationDocument({
                     : splitPdfTableLines(priceTextRaw, 9)
 
                   const isFinishingElectricalEntry =
+                    Boolean((line as any).isFinishingElectrical) ||
                     entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
-                    entry.floor.name === 'Finishing & Electrical Works'
+                    entry.floor.id === 'finishing-electrical-works-section' ||
+                    Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name)) ||
+                    Boolean(area.name && /finishing|electrical/i.test(area.name))
 
                   let totalTextRaw = ''
-                  if (isPkg) {
+                  if (isFinishingElectricalEntry) {
                     if (line.amount && line.amount > 0) {
-                      if (isFinishingElectricalEntry) {
-                        totalTextRaw = `${formatDetailTableAmount(line.amount)}\n(approx.)`
-                      } else {
-                        totalTextRaw = formatDetailTableAmount(line.amount)
-                      }
+                      totalTextRaw = `${formatDetailTableAmount(line.amount)}\n(approx.)`
+                    } else {
+                      totalTextRaw = '---'
+                    }
+                  } else if (isPkg) {
+                    if (line.amount && line.amount > 0) {
+                      totalTextRaw = formatDetailTableAmount(line.amount)
                     } else {
                       totalTextRaw = '---'
                     }
                   } else {
                     totalTextRaw = formatDetailTotalCurrency(line)
-                    if (line.description?.toLowerCase().includes('electric wiring') && line.amount && line.amount > 0) {
-                      totalTextRaw += '\n(approx.)'
-                    }
                   }
                   const totalLines = splitPdfTableLines(totalTextRaw, 9)
 
