@@ -67,8 +67,9 @@ export function ShortQuotationItemPicker({
   const [activeTab, setActiveTab] = useState<'catalog' | 'bundle'>('catalog')
 
   const template = useMemo(() => {
-    if (fullTemplates?.length) {
-      return fullTemplates.find((t) => t.key === catalogTemplateKey) || getQuotationTemplate(catalogTemplateKey)
+    if (Array.isArray(fullTemplates) && fullTemplates.length) {
+      const match = fullTemplates.find((t: any) => t.key === catalogTemplateKey && Array.isArray(t.items))
+      if (match) return match
     }
     return getQuotationTemplate(catalogTemplateKey)
   }, [catalogTemplateKey, fullTemplates])

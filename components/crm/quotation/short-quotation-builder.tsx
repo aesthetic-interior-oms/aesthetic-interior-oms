@@ -229,8 +229,9 @@ export function ShortQuotationBuilder({
         try {
           const tmplRes = await fetch('/api/quotation/templates', { cache: 'no-store' })
           const tmplPayload = await tmplRes.json()
-          if (tmplRes.ok && tmplPayload?.success && Array.isArray(tmplPayload.data?.templates)) {
-            setFullTemplates(tmplPayload.data.templates)
+          const loaded = tmplPayload.data?.fullTemplates ?? tmplPayload.data?.templates
+          if (tmplRes.ok && tmplPayload?.success && Array.isArray(loaded)) {
+            setFullTemplates(loaded)
           }
         } catch { /* ignore template fetch errors */ }
         setCanEdit(true)
@@ -246,17 +247,21 @@ export function ShortQuotationBuilder({
         throw new Error(payload?.error ?? 'Failed to load quotation')
       }
 
-      const data = payload.data as DraftResponse
+      const data = payload.data as DraftResponse & { fullTemplates?: Array<Record<string, unknown>> }
       setCanEdit(Boolean(data.canEdit))
 
-      // Load full templates for catalog picker (same endpoint used by detail quotation)
-      try {
-        const tmplRes = await fetch('/api/quotation/templates', { cache: 'no-store' })
-        const tmplPayload = await tmplRes.json()
-        if (tmplRes.ok && tmplPayload?.success && Array.isArray(tmplPayload.data?.templates)) {
-          setFullTemplates(tmplPayload.data.templates)
-        }
-      } catch { /* ignore template fetch errors */ }
+      if (Array.isArray(data.fullTemplates)) {
+        setFullTemplates(data.fullTemplates)
+      } else {
+        try {
+          const tmplRes = await fetch('/api/quotation/templates', { cache: 'no-store' })
+          const tmplPayload = await tmplRes.json()
+          const loaded = tmplPayload.data?.fullTemplates ?? tmplPayload.data?.templates
+          if (tmplRes.ok && tmplPayload?.success && Array.isArray(loaded)) {
+            setFullTemplates(loaded)
+          }
+        } catch { /* ignore template fetch errors */ }
+      }
 
       const draftContent = data.draft?.content
       const defaultContent = data.defaultDraft?.content
@@ -743,12 +748,12 @@ export function ShortQuotationBuilder({
     }
     addSqftLine(taskbarRoomId)
   }
-  const addTaskbarSavedItem = () => {
+  const openTaskbarCatalogPicker = () => {
     if (!taskbarRoomId) {
       toast.error('Add a floor and room first')
       return
     }
-    addLumpSumLine(taskbarRoomId)
+    openPickerForRoom(taskbarRoomId)
   }
 
   return (
@@ -1148,21 +1153,22 @@ export function ShortQuotationBuilder({
               </>
             )}
           </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="gap-1.5"
+            disabled={!canEdit || !taskbarRoomId}
+            onClick={openTaskbarCatalogPicker}
+            title="Add a saved catalog item or room bundle to the current room"
+          >
+            <BookOpen className="h-4 w-4" />
+            Add from Catalog / Bundle
+          </Button>
           {!isPlayground ? (
             <Button type="button" size="sm" variant="outline" asChild>
               <Link href="/quotation-team/my-work">Back to My Work</Link>
             </Button>
-          ) : null}
-          {isPlayground ? (
-            <>
-              <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarRoomId} onClick={addTaskbarSavedItem}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                Add from Saved Item
-              </Button>
-              <Button type="button" size="sm" variant="secondary" disabled={!canEdit || !taskbarRoomId} onClick={addTaskbarCustomItem}>
-                Custom Item
-              </Button>
-            </>
           ) : null}
           <span className="text-xs text-muted-foreground">Ctrl+S saves</span>
         </div>
