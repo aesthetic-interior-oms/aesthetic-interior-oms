@@ -260,15 +260,43 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
               <Text style={styles.grandTotalValue}>{formatCurrency(floor.total)}</Text>
             </View>
             <Text style={styles.inWords}>In Words: {amountInWordsTaka(floor.total)}</Text>
-            {floorIndex === summary.floors.length - 1 && content.footerNotes.length > 0 ? (
-              <View style={{ marginTop: 18 }}>
-                <Text style={styles.sectionTitle}>Notes</Text>
-                {content.footerNotes.map((note, index) => (
-                  <Text key={index} style={{ fontSize: 10, marginTop: 8 }}>
-                    <Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>
-                    {softWrapPdfText(note)}
-                  </Text>
-                ))}
+            {floorIndex === summary.floors.length - 1 && (content.footerNotes.length > 0 || Boolean(content.terms)) ? (
+              <View style={{ marginTop: 14 }}>
+                {content.footerNotes.length > 0 ? (
+                  <View style={{ marginBottom: 10 }}>
+                    <Text style={styles.sectionTitle}>Notes</Text>
+                    {content.footerNotes.map((note, index) => (
+                      <Text key={index} style={{ fontSize: 9, marginTop: 4 }}>
+                        <Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>
+                        {softWrapPdfText(note)}
+                      </Text>
+                    ))}
+                  </View>
+                ) : null}
+
+                {content.terms ? (
+                  <View style={{ marginTop: 6 }}>
+                    <Text style={styles.sectionTitle}>Terms & Conditions</Text>
+                    {content.terms
+                      .split('\n')
+                      .filter((l) => l.trim())
+                      .map((line, index) => {
+                        const colonIndex = line.indexOf(':')
+                        let header = ''
+                        let body = line.trim()
+                        if (colonIndex > 0) {
+                          header = line.slice(0, colonIndex + 1).trim()
+                          body = line.slice(colonIndex + 1).trim()
+                        }
+                        return (
+                          <Text key={index} style={{ fontSize: 8.5, marginTop: 4, lineHeight: 1.4 }}>
+                            {header ? <Text style={[styles.bold, { color: PRIMARY }]}>{header} </Text> : null}
+                            {softWrapPdfText(body)}
+                          </Text>
+                        )
+                      })}
+                  </View>
+                ) : null}
               </View>
             ) : null}
             <FooterFixed content={content} />

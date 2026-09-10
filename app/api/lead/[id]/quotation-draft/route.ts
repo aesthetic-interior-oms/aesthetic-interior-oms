@@ -18,7 +18,12 @@ import {
   listQuotationTemplates,
 } from '@/lib/quotation-templates'
 import { getMergedQuotationTemplates } from '@/lib/quotation-overrides'
-import { buildDefaultShortQuotationContent } from '@/lib/short-quotation-default'
+import {
+  buildDefaultShortQuotationContent,
+  DEFAULT_SHORT_FOOTER_NOTES,
+  DEFAULT_SHORT_INTRO_LETTER,
+  DEFAULT_SHORT_TERMS,
+} from '@/lib/short-quotation-default'
 import {
   buildShortQuotationSummary,
   normalizeShortQuotationContent,
@@ -173,7 +178,9 @@ function toShortQuotationContent(value: unknown): ShortQuotationContent | null {
 
   const footerNotes = Array.isArray(record.footerNotes)
     ? record.footerNotes.filter((note): note is string => typeof note === 'string')
-    : []
+    : DEFAULT_SHORT_FOOTER_NOTES
+
+  const terms = typeof record.terms === 'string' && record.terms.trim() ? record.terms : DEFAULT_SHORT_TERMS
 
   return {
     version: 1,
@@ -185,7 +192,8 @@ function toShortQuotationContent(value: unknown): ShortQuotationContent | null {
     clientName: typeof record.clientName === 'string' ? record.clientName : '',
     clientAddress: typeof record.clientAddress === 'string' ? record.clientAddress : '',
     subject: typeof record.subject === 'string' ? record.subject : '',
-    introLetter: typeof record.introLetter === 'string' ? record.introLetter : '',
+    introLetter: typeof record.introLetter === 'string' && record.introLetter.trim() ? record.introLetter : DEFAULT_SHORT_INTRO_LETTER,
+    terms,
     floors,
     rooms,
     footerNotes,

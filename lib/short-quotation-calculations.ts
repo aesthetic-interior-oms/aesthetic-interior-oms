@@ -1,3 +1,4 @@
+import { DEFAULT_SHORT_TERMS } from '@/lib/short-quotation-default'
 import type {
   ShortQuotationContent,
   ShortQuotationFloorSummary,
@@ -22,11 +23,15 @@ export function normalizeShortLine(line: ShortQuotationLine): ShortQuotationLine
 }
 
 export function normalizeShortQuotationContent(content: ShortQuotationContent): ShortQuotationContent {
+  const floors = Array.isArray(content?.floors) ? content.floors : []
+  const rooms = Array.isArray(content?.rooms) ? content.rooms : []
   return {
     ...content,
-    rooms: content.rooms.map((room) => ({
+    terms: content.terms ?? DEFAULT_SHORT_TERMS,
+    floors,
+    rooms: rooms.map((room) => ({
       ...room,
-      lines: room.lines.map(normalizeShortLine),
+      lines: Array.isArray(room.lines) ? room.lines.map(normalizeShortLine) : [],
     })),
   }
 }

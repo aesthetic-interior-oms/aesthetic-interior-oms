@@ -39,6 +39,7 @@ export type ShortQuotationContent = {
   clientAddress: string
   subject: string
   introLetter: string
+  terms?: string
   floors: ShortQuotationFloor[]
   rooms: ShortQuotationRoom[]
   footerNotes: string[]

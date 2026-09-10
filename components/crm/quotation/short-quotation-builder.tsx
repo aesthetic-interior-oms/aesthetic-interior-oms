@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { searchShortQuotationNames } from '@/lib/short-quotation-names'
 import { ShortQuotationDocument } from '@/components/crm/quotation/pdf/ShortQuotationDocument'
 import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
-import { buildDefaultShortQuotationContent } from '@/lib/short-quotation-default'
+import { buildDefaultShortQuotationContent, DEFAULT_SHORT_TERMS } from '@/lib/short-quotation-default'
 import {
   buildShortQuotationSummary,
   normalizeShortLine,
@@ -921,6 +921,20 @@ export function ShortQuotationBuilder({
                     updateContent((prev) => ({ ...prev, introLetter: event.target.value }))
                   }
                 />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <p className="text-xs font-medium text-muted-foreground">Terms &amp; Conditions</p>
+                <Textarea
+                  rows={6}
+                  value={content.terms ?? DEFAULT_SHORT_TERMS}
+                  disabled={!canEdit}
+                  onChange={(event) =>
+                    updateContent((prev) => ({ ...prev, terms: event.target.value }))
+                  }
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Format each line as &quot;Header Title: Description&quot; for bold headers in preview and PDF.
+                </p>
               </div>
             </div>
           </CollapsibleCard>

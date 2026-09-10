@@ -166,12 +166,46 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
           ))}
           <div className="mt-3 flex justify-end border-t pt-2 text-[10px] font-bold" style={{ borderColor: PRIMARY, color: PRIMARY }}><span className="pr-4">Total for {floorSummary.floor.name}</span><span>{formatCurrency(floorSummary.total)}</span></div>
           <p className="mt-2 text-left text-[8px] font-bold text-neutral-900">In Words: <span>{amountInWordsTaka(floorSummary.total)}</span></p>
-          {floorIndex === summary.floors.length - 1 && content.footerNotes.length > 0 ? (
-            <div className="mt-5">
-              <SectionTitle>Notes</SectionTitle>
-              <div className="mt-3 space-y-2 text-[9px] text-neutral-600">
-                {content.footerNotes.map((note, index) => <p key={index}><span className="font-bold" style={{ color: PRIMARY }}>{index + 1}.</span> {note}</p>)}
-              </div>
+          {floorIndex === summary.floors.length - 1 && (content.footerNotes.length > 0 || Boolean(content.terms)) ? (
+            <div className="mt-5 space-y-4">
+              {content.footerNotes.length > 0 ? (
+                <div>
+                  <SectionTitle>Notes</SectionTitle>
+                  <div className="mt-2 space-y-1.5 text-[9px] text-neutral-600">
+                    {content.footerNotes.map((note, index) => (
+                      <p key={index}>
+                        <span className="font-bold" style={{ color: PRIMARY }}>{index + 1}.</span> {note}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {content.terms ? (
+                <div>
+                  <SectionTitle>Terms & Conditions</SectionTitle>
+                  <div className="mt-2 space-y-2 text-[9px] text-neutral-700 leading-relaxed">
+                    {content.terms
+                      .split('\n')
+                      .filter((l) => l.trim())
+                      .map((line, index) => {
+                        const colonIndex = line.indexOf(':')
+                        let header = ''
+                        let body = line.trim()
+                        if (colonIndex > 0) {
+                          header = line.slice(0, colonIndex + 1).trim()
+                          body = line.slice(colonIndex + 1).trim()
+                        }
+                        return (
+                          <p key={index}>
+                            {header ? <span className="font-bold" style={{ color: PRIMARY }}>{header} </span> : null}
+                            {body}
+                          </p>
+                        )
+                      })}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
           <div className="absolute bottom-6 left-10 right-10"><PageFooter content={content} /></div>

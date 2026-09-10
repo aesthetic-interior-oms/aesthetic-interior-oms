@@ -117,7 +117,22 @@ function buildShortQuotationHtml(content: ShortQuotationContent) {
         ${room.lines.map((line, lineIndex) => `<tr><td class="center">${lineIndex + 1}</td><td>${escapeHtml(line.name)}</td><td class="center">${line.isLumpSum ? 'Package' : (line.quantitySqft != null ? formatAmount(line.quantitySqft) : '-')}</td><td class="center">${line.isLumpSum ? escapeHtml(line.unitPriceLabel?.trim() || 'as per project design') : (line.unitPrice != null ? formatAmount(line.unitPrice) : '-')}</td><td class="right">${formatCurrency(line.total)}</td></tr>`).join('')}
       </tbody></table>`).join('')}`).join('')
   const notes = content.footerNotes.length ? `<h2>Notes</h2><ol>${content.footerNotes.map((note) => `<li>${escapeHtml(note)}</li>`).join('')}</ol>` : ''
-  return pageHtml('Short Quotation', `<h1>Short Quotation</h1><table><tr><td><b>Client Name</b><br>${escapeHtml(content.clientName)}<br><b>Address</b><br>${escapeHtml(content.clientAddress)}</td><td><b>Quotation Date</b><br>${escapeHtml(content.quotationDate)}<br><b>Package Tier</b><br>${escapeHtml(content.packageTier)}</td></tr></table><p><b>Subject:</b> ${escapeHtml(content.subject)}</p><p><b>Dear Sir,</b><br>${escapeHtml(content.introLetter)}</p>${floors}<table><tr class="total"><td>Grand Total</td><td class="right">${formatCurrency(summary.grandTotal)}</td></tr></table>${notes}`)
+  const termsHtml = content.terms
+    ? `<h2>Terms & Conditions</h2><div>${content.terms
+        .split('\n')
+        .filter((l) => l.trim())
+        .map((line) => {
+          const colonIndex = line.indexOf(':')
+          if (colonIndex > 0) {
+            const header = line.slice(0, colonIndex + 1).trim()
+            const body = line.slice(colonIndex + 1).trim()
+            return `<p><b>${escapeHtml(header)}</b> ${escapeHtml(body)}</p>`
+          }
+          return `<p>${escapeHtml(line)}</p>`
+        })
+        .join('')}</div>`
+    : ''
+  return pageHtml('Short Quotation', `<h1>Short Quotation</h1><table><tr><td><b>Client Name</b><br>${escapeHtml(content.clientName)}<br><b>Address</b><br>${escapeHtml(content.clientAddress)}</td><td><b>Quotation Date</b><br>${escapeHtml(content.quotationDate)}<br><b>Package Tier</b><br>${escapeHtml(content.packageTier)}</td></tr></table><p><b>Subject:</b> ${escapeHtml(content.subject)}</p><p><b>Dear Sir,</b><br>${escapeHtml(content.introLetter)}</p>${floors}<table><tr class="total"><td>Grand Total</td><td class="right">${formatCurrency(summary.grandTotal)}</td></tr></table>${notes}${termsHtml}`)
 }
 
 function buildDetailQuotationHtml(input: DetailInput) {
