@@ -51,7 +51,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ success: false, error: 'Project not found' }, { status: 404 })
     }
 
-    const logs = await (prisma as any).agreementValueLog.findMany({
+    const logs = await prisma.agreementValueLog.findMany({
       where: { leadId },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const initialAgreementValue = lead.initialAgreementValue ?? currentBaseValue
 
     const [newLog, updatedLead] = await prisma.$transaction([
-      (prisma as any).agreementValueLog.create({
+      prisma.agreementValueLog.create({
         data: {
           leadId,
           quotationDraftId: quotationDraftId || null,
