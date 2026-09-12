@@ -818,16 +818,29 @@ export default function PCProjectDetailPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between border-t pt-3">
-            <div className="text-xs text-muted-foreground">
-              Total Scope Value:{' '}
-              <strong className="text-sm font-bold text-foreground">
-                ৳
-                {editableItems
-                  .filter((i) => i.included)
-                  .reduce((sum, i) => sum + (i.unit === 'ls' ? i.rate : i.rate * i.quantity), 0)
-                  .toLocaleString()}
-              </strong>
+          <div className="flex flex-wrap items-center justify-between border-t pt-3 gap-2">
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <div>
+                Total Scope Value:{' '}
+                <strong className="text-sm font-bold text-foreground">
+                  ৳
+                  {editableItems
+                    .filter((i) => i.included)
+                    .reduce((sum, i) => sum + (i.unit === 'ls' ? i.rate : i.rate * i.quantity), 0)
+                    .toLocaleString()}
+                </strong>
+              </div>
+              <span className="text-muted-foreground/40">•</span>
+              <div>
+                Total Included Sqft:{' '}
+                <strong className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                  {editableItems
+                    .filter((i) => i.included && (i.unit === 'sqft' || i.unit === 'sft' || !i.unit))
+                    .reduce((sum, i) => sum + (i.quantity || 0), 0)
+                    .toLocaleString()}{' '}
+                  sqft
+                </strong>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Button

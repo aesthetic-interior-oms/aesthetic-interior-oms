@@ -146,6 +146,13 @@ export async function POST(
     const normalizedContent = normalizeQuotationContent(newContentObj)
     const totals = calculateQuotationTotals(normalizedContent)
 
+    // Calculate total sqft from included sqft line items
+    const includedSqftSum = updatedLines
+      .filter((l) => l.included !== false && ((l.unit as string) === 'sqft' || (l.unit as string) === 'sft' || !l.unit))
+      .reduce((sum, l) => sum + (Number(l.quantity) || 0), 0)
+
+    const computedProjectSqft = includedSqftSum > 0 ? includedSqftSum : sourceDraft.projectSqft
+
     const newDraft = await prisma.quotationDraft.create({
       data: {
         leadId,
@@ -153,7 +160,7 @@ export async function POST(
         createdById: user.id,
         updatedById: user.id,
         quotationType: sourceDraft.quotationType || 'STANDARD',
-        projectSqft: sourceDraft.projectSqft,
+        projectSqft: computedProjectSqft,
         content: normalizedContent as any,
         grandTotal: totals.grandTotal,
         status: 'DRAFT',
