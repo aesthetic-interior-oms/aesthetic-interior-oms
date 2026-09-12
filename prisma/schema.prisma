@@ -194,17 +194,21 @@ model DeviceToken {
 }
 
 model AgreementValueLog {
-  id          String   @id @default(cuid())
-  leadId      String
-  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  amount      Float
-  note        String?
-  createdById String
-  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
+  id               String          @id @default(cuid())
+  leadId           String
+  lead             Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  quotationDraftId String?
+  quotationDraft   QuotationDraft? @relation(fields: [quotationDraftId], references: [id], onDelete: SetNull)
+  versionTitle     String?
+  amount           Float
+  note             String?
+  createdById      String
+  createdBy        User            @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt        DateTime        @default(now())
 
   @@index([leadId])
   @@index([createdById])
+  @@index([quotationDraftId])
 }
 
 model LeadPhaseTask {
@@ -330,9 +334,10 @@ model QuotationDraft {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 
-  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  createdBy User  @relation("QuotationDraftCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  updatedBy User? @relation("QuotationDraftUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  lead               Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy          User                @relation("QuotationDraftCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  updatedBy          User?               @relation("QuotationDraftUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  agreementValueLogs AgreementValueLog[]
 
   @@unique([leadId, draftKey])
   @@index([createdById])

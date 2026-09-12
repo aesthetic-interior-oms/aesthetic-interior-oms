@@ -34,6 +34,16 @@ export async function GET(request: NextRequest, context: RouteContext) {
         agreementValue: true,
         initialAgreementValue: true,
         budget: true,
+        quotationDrafts: {
+          orderBy: { updatedAt: 'desc' },
+          select: {
+            id: true,
+            draftKey: true,
+            grandTotal: true,
+            updatedAt: true,
+            content: true,
+          },
+        },
       },
     })
 
@@ -41,7 +51,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ success: false, error: 'Project not found' }, { status: 404 })
     }
 
-    const logs = await prisma.agreementValueLog.findMany({
+    const logs = await (prisma as any).agreementValueLog.findMany({
       where: { leadId },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -57,7 +67,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
     const initialValue = lead.initialAgreementValue ?? lead.agreementValue ?? lead.budget ?? 0
     const currentAgreementValue = lead.agreementValue ?? lead.budget ?? 0
-    const adjustmentTotal = logs.reduce((sum, log) => sum + log.amount, 0)
+    const adjustmentTotal = logs.reduce((sum: number, log: any) => sum + log.amount, 0)
 
     return NextResponse.json({
       success: true,
@@ -66,6 +76,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       currentAgreementValue,
       adjustmentTotal,
       logs,
+      quotationDrafts: lead.quotationDrafts ?? [],
     })
   } catch (error) {
     console.error('Error fetching agreement value logs:', error)
@@ -91,12 +102,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const amount = Number(body?.amount)
+    const rawAmount = Number(body?.amount)
+    const targetAgreementValue = body?.targetAgreementValue != null ? Number(body.targetAgreementValue) : null
     const note = typeof body?.note === 'string' ? body.note.trim() : ''
-
-    if (!Number.isFinite(amount) || amount === 0) {
-      return NextResponse.json({ success: false, error: 'Please provide a valid non-zero adjustment amount' }, { status: 400 })
-    }
+    const quotationDraftId = typeof body?.quotationDraftId === 'string' ? body.quotationDraftId.trim() : null
+    const versionTitle = typeof body?.versionTitle === 'string' ? body.versionTitle.trim() : null
 
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
@@ -113,15 +123,29 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const currentBaseValue = lead.agreementValue ?? lead.budget ?? 0
-    const newAgreementValue = currentBaseValue + amount
+
+    let amount = 0
+    let newAgreementValue = currentBaseValue
+
+    if (targetAgreementValue != null && Number.isFinite(targetAgreementValue) && targetAgreementValue >= 0) {
+      newAgreementValue = targetAgreementValue
+      amount = targetAgreementValue - currentBaseValue
+    } else if (Number.isFinite(rawAmount) && rawAmount !== 0) {
+      amount = rawAmount
+      newAgreementValue = currentBaseValue + amount
+    } else {
+      return NextResponse.json({ success: false, error: 'Please provide a valid adjustment amount or target agreement value' }, { status: 400 })
+    }
 
     // Freeze initialAgreementValue if not set yet
     const initialAgreementValue = lead.initialAgreementValue ?? currentBaseValue
 
     const [newLog, updatedLead] = await prisma.$transaction([
-      prisma.agreementValueLog.create({
+      (prisma as any).agreementValueLog.create({
         data: {
           leadId,
+          quotationDraftId: quotationDraftId || null,
+          versionTitle: versionTitle || null,
           amount,
           note: note || null,
           createdById: authResult.actor.id,

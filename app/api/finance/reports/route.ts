@@ -176,6 +176,7 @@ export async function GET(request: NextRequest) {
                 draftKey: true,
                 grandTotal: true,
                 updatedAt: true,
+                content: true,
               },
               orderBy: { updatedAt: 'desc' },
             },
@@ -211,6 +212,7 @@ export async function GET(request: NextRequest) {
         const agreementValue = lead?.agreementValue ?? lead?.budget ?? null
         const initialAgreementValue = lead?.initialAgreementValue ?? agreementValue
         const agreementLogs = lead?.agreementValueLogs ?? []
+        const quotationDrafts = lead?.quotationDrafts ?? []
         const agreementAdjustmentTotal = agreementLogs.reduce((sum, log) => sum + log.amount, 0)
         const isFiltered = Boolean(startDateStr || endDateStr)
         const totalPaid = isFiltered ? totalInflow : allTimeTotalPaid
@@ -238,6 +240,7 @@ export async function GET(request: NextRequest) {
           initialAgreementValue,
           agreementAdjustmentTotal,
           agreementLogs,
+          quotationDrafts,
           paymentDue,
           profitEstimate: allTimeProfitEstimate,
           isFiltered,

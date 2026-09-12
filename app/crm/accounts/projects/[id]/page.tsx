@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Download, ExternalLink, FileDown, FileText, History, Loader2, MapPin, Minus, Phone, Plus, Send, ShieldCheck, X } from 'lucide-react'
+import { ArrowLeft, Download, ExternalLink, FileDown, FileText, History, Loader2, MapPin, Minus, Phone, Plus, Send, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -82,6 +82,8 @@ export default function ProjectDetailPage() {
   const [adjustAmount, setAdjustAmount] = useState('')
   const [adjustNote, setAdjustNote] = useState('')
   const [adjustSubmitting, setAdjustSubmitting] = useState(false)
+  const [syncDraftId, setSyncDraftId] = useState<string | null>(null)
+  const [syncVersionTitle, setSyncVersionTitle] = useState<string | null>(null)
 
   // Date range filter state
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
@@ -160,6 +162,8 @@ export default function ProjectDetailPage() {
         body: JSON.stringify({
           amount: finalDelta,
           note: adjustNote,
+          quotationDraftId: syncDraftId || undefined,
+          versionTitle: syncVersionTitle || undefined,
         }),
       })
 
@@ -172,6 +176,8 @@ export default function ProjectDetailPage() {
       setAdjustModalOpen(false)
       setAdjustAmount('')
       setAdjustNote('')
+      setSyncDraftId(null)
+      setSyncVersionTitle(null)
       await loadProjectReport(false)
     } catch (err: any) {
       toast.error(err.message || 'Failed to update agreement value')
@@ -1601,6 +1607,67 @@ export default function ProjectDetailPage() {
               <div className="text-sm font-bold text-primary">{agreementValue ? `${agreementValue.toLocaleString()} BDT` : 'N/A'}</div>
             </div>
           </div>
+
+          {/* PC Quotation Versions Sync Section */}
+          {report?.quotationDrafts && report.quotationDrafts.length > 0 ? (
+            <div className="my-3 p-3 bg-muted/20 rounded-lg border border-border">
+              <div className="text-xs font-bold flex items-center justify-between mb-2">
+                <span>PC Quotation Versions & Scope Changes</span>
+                <span className="text-[11px] font-normal text-muted-foreground">Sync revisions directly to Agreement Value</span>
+              </div>
+              <div className="space-y-2">
+                {report.quotationDrafts.map((draft: any, idx: number) => {
+                  const contentObj = (draft.content as Record<string, unknown>) ?? {}
+                  const vTitle = typeof contentObj.versionTitle === 'string' && contentObj.versionTitle ? contentObj.versionTitle : `Version ${idx + 1}`
+                  const baselineTotal = report.quotationDrafts[report.quotationDrafts.length - 1]?.grandTotal || initialAgreementValue || 0
+                  const delta = draft.grandTotal - baselineTotal
+                  const isAlreadySynced = agreementLogs.some((l: any) => l.quotationDraftId === draft.id || l.versionTitle === vTitle)
+
+                  return (
+                    <div key={draft.id} className="flex flex-wrap items-center justify-between gap-2 p-2 bg-background rounded border text-xs">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-[10px] font-bold">
+                          {vTitle}
+                        </Badge>
+                        <span className="font-semibold text-foreground">৳{draft.grandTotal.toLocaleString()} BDT</span>
+                        {delta !== 0 ? (
+                          <span className={`text-[11px] font-medium ${delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                            ({delta > 0 ? `+৳${delta.toLocaleString()}` : `-৳${Math.abs(delta).toLocaleString()}`})
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-muted-foreground">(Baseline)</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {isAlreadySynced ? (
+                          <Badge variant="secondary" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                            ✓ Synced to Agreement
+                          </Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs px-2.5 font-semibold gap-1 text-primary border-primary/40 hover:bg-primary/10"
+                            onClick={() => {
+                              const absDelta = Math.abs(delta)
+                              setAdjustType(delta >= 0 ? 'ADD' : 'DECREASE')
+                              setAdjustAmount(absDelta > 0 ? String(absDelta) : String(draft.grandTotal))
+                              setAdjustNote(`Scope change per PC ${vTitle} (${delta >= 0 ? '+' : '-'}${absDelta.toLocaleString()} BDT)`)
+                              setSyncDraftId(draft.id)
+                              setSyncVersionTitle(vTitle)
+                              setAdjustModalOpen(true)
+                            }}
+                          >
+                            <Sparkles className="h-3 w-3" /> Sync to Agreement
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : null}
 
           <div className="flex justify-end gap-2 my-1">
             <Button
