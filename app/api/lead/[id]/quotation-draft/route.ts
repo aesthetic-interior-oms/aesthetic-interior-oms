@@ -8,6 +8,7 @@ import {
   canEditQuotationDraft,
 } from '@/lib/quotation-auth'
 import { calculateQuotationTotals, normalizeQuotationContent } from '@/lib/quotation-calculations'
+import { getDetailVersionTitle } from '@/lib/detail-quotation-format'
 import { calculateLeadQuotationSqftSummary } from '@/lib/quotation-sqft-calculator'
 import { recalculateQuotationUserPerformance } from '@/lib/quotation-performance'
 import {
@@ -530,9 +531,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
       const c = foundDraft?.content as Record<string, unknown> | undefined
       const title =
-        typeof c?.versionTitle === 'string' && c.versionTitle.trim()
+        typeof c?.versionTitle === 'string' && c.versionTitle.trim() && !c.versionTitle.startsWith('Version ')
           ? c.versionTitle.trim()
-          : `Version ${s}`
+          : getDetailVersionTitle(s)
 
       return {
         slotIndex: s,
@@ -557,7 +558,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         quotationType: 'STANDARD',
         projectSqft,
       })
-      detailContent.versionTitle = `Version ${requestedSlot}`
+      detailContent.versionTitle = getDetailVersionTitle(requestedSlot)
       const detailTotals = calculateQuotationTotals(detailContent)
 
       const mergedTemplates = await getMergedQuotationTemplates()
@@ -750,7 +751,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         const dKey = buildOwnedDraftKey(bKey, authResult.actorUserId)
         const slotContent = {
           ...normalizedContent,
-          versionTitle: (normalizedContent as QuotationDraftContent).versionTitle || `Version ${s}`,
+          versionTitle: getDetailVersionTitle(s),
         }
         return prisma.quotationDraft.upsert({
           where: { leadId_draftKey: { leadId: lead.id, draftKey: dKey } },

@@ -1,4 +1,5 @@
 import { calculateQuotationTotals, normalizeQuotationContent } from '@/lib/quotation-calculations'
+import { getDetailVersionTitle } from '@/lib/detail-quotation-format'
 import { buildShortQuotationSummary, normalizeShortQuotationContent } from '@/lib/short-quotation-calculations'
 import { isShortQuotationContent } from '@/lib/quotation-document'
 import type { QuotationDraftContent } from '@/lib/quotation-types'
@@ -86,10 +87,10 @@ export async function processAgreementAndDiscountSync({
     const rawContent = targetDraft.content as any
     const isShort = isShortQuotationContent(rawContent)
 
-    if (typeof rawContent?.versionTitle === 'string' && rawContent.versionTitle.trim()) {
+    if (typeof rawContent?.versionTitle === 'string' && rawContent.versionTitle.trim() && !rawContent.versionTitle.startsWith('Version ')) {
       versionTitle = rawContent.versionTitle.trim()
     } else if (slotIndex) {
-      versionTitle = `Version ${slotIndex}`
+      versionTitle = getDetailVersionTitle(slotIndex)
     }
 
     // Compute pre-discount subtotal

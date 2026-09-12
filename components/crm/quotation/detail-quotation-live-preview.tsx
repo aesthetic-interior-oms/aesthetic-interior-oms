@@ -156,20 +156,6 @@ export function DetailQuotationLivePreview({
       }
       setPayload(nextPayload)
       
-      // Attempt to persist the download metadata back to the DB
-      if (context === 'lead') {
-        fetch(`/api/lead/${contextId}/quotation-draft?documentType=detail`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            slotIndex,
-            quotationType: payload.quotationType,
-            projectSqft: payload.projectSqft,
-            content: contentForDownload,
-          }),
-        }).catch(console.error)
-      }
-      
       toast.success(`PDF downloaded with quotation code ${quotationCode}`)
     } catch (error) {
       console.error('Failed to generate PDF:', error)

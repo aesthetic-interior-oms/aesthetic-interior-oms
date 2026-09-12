@@ -57,7 +57,7 @@ import {
   buildDetailPreviewUrl,
   publishDetailPreview,
 } from '@/lib/detail-quotation-preview-sync'
-import { withDetailQuotationDefaults } from '@/lib/detail-quotation-format'
+import { withDetailQuotationDefaults, getDetailVersionTitle } from '@/lib/detail-quotation-format'
 import {
   addAreaToFloor,
   addCatalogItemToFloor,
@@ -148,12 +148,13 @@ export function QuotationMaker({
 
   const [slotIndex, setSlotIndex] = useState<number>(1)
   const [availableSlots, setAvailableSlots] = useState<Array<{ slotIndex: number; title: string; grandTotal: number; exists: boolean }>>([
-    { slotIndex: 1, title: 'Version 1', grandTotal: 0, exists: true },
-    { slotIndex: 2, title: 'Version 2', grandTotal: 0, exists: true },
-    { slotIndex: 3, title: 'Version 3', grandTotal: 0, exists: true },
+    { slotIndex: 1, title: getDetailVersionTitle(1), grandTotal: 0, exists: true },
+    { slotIndex: 2, title: getDetailVersionTitle(2), grandTotal: 0, exists: true },
+    { slotIndex: 3, title: getDetailVersionTitle(3), grandTotal: 0, exists: true },
   ])
-  const [editingTitleSlot, setEditingTitleSlot] = useState<number | null>(null)
-  const [editingTitleText, setEditingTitleText] = useState('')
+  const [pendingSlotIndex, setPendingSlotIndex] = useState<number | null>(null)
+  const [unsavedSwitchModalOpen, setUnsavedSwitchModalOpen] = useState(false)
+  const lastSavedSnapshotRef = useRef<string | null>(null)
   const [saveAllConfirmOpen, setSaveAllConfirmOpen] = useState(false)
   const [confirmClientNameInput, setConfirmClientNameInput] = useState('')
   const [importDialogOpen, setImportDialogOpen] = useState(false)
@@ -210,15 +211,20 @@ export function QuotationMaker({
 
         const stored = loadPlaygroundDetailDraft(targetSlot)
         if (stored) {
+          const sqftStr = stored.projectSqft ? String(stored.projectSqft) : ''
           setQuotationType(stored.quotationType)
-          setProjectSqft(stored.projectSqft ? String(stored.projectSqft) : '')
-          setContent(normalizeQuotationContent(withDetailQuotationDefaults(stored.content)))
+          setProjectSqft(sqftStr)
+          const normContent = normalizeQuotationContent(withDetailQuotationDefaults(stored.content))
+          normContent.versionTitle = getDetailVersionTitle(targetSlot)
+          setContent(normContent)
+          lastSavedSnapshotRef.current = JSON.stringify({ content: normContent, projectSqft: sqftStr, quotationType: stored.quotationType })
         } else {
           setQuotationType('STANDARD')
           setProjectSqft('')
           const def = buildDefaultFloorDetailContent()
-          def.versionTitle = `Version ${targetSlot}`
+          def.versionTitle = getDetailVersionTitle(targetSlot)
           setContent(def)
+          lastSavedSnapshotRef.current = JSON.stringify({ content: def, projectSqft: '', quotationType: 'STANDARD' })
         }
         setCanEdit(true)
         return
@@ -237,9 +243,12 @@ export function QuotationMaker({
       if (Array.isArray(data.availableSlots)) {
         const filledSlots = [1, 2, 3].map((sIndex) => {
           const found = data.availableSlots?.find((item) => item.slotIndex === sIndex)
-          return found
-            ? { ...found, exists: true }
-            : { slotIndex: sIndex, title: `Version ${sIndex}`, grandTotal: 0, exists: true }
+          return {
+            slotIndex: sIndex,
+            title: getDetailVersionTitle(sIndex),
+            grandTotal: found?.grandTotal ?? 0,
+            exists: true,
+          }
         })
         setAvailableSlots(filledSlots)
       }
@@ -250,12 +259,12 @@ export function QuotationMaker({
       const qType = source.quotationType
       const validQType = (qType === 'BASIC' || qType === 'STANDARD' || qType === 'PREMIUM' || qType === 'MIXED') ? qType : 'STANDARD'
       setQuotationType(validQType)
-      setProjectSqft(source.projectSqft ? String(source.projectSqft) : '')
+      const sqftStr = source.projectSqft ? String(source.projectSqft) : ''
+      setProjectSqft(sqftStr)
       const normContent = normalizeQuotationContent(withDetailQuotationDefaults(source.content))
-      if (!normContent.versionTitle) {
-        normContent.versionTitle = `Version ${targetSlot}`
-      }
+      normContent.versionTitle = getDetailVersionTitle(targetSlot)
       setContent(normContent)
+      lastSavedSnapshotRef.current = JSON.stringify({ content: normContent, projectSqft: sqftStr, quotationType: validQType })
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to load quotation')
       setContent(null)
@@ -374,6 +383,23 @@ export function QuotationMaker({
     return () => observer.disconnect()
   }, [floors, content?.areas])
 
+  const isDirty = useMemo(() => {
+    if (!lastSavedSnapshotRef.current || !content) return false
+    const currentSnapshot = JSON.stringify({ content, projectSqft, quotationType })
+    return currentSnapshot !== lastSavedSnapshotRef.current
+  }, [content, projectSqft, quotationType])
+
+  const handleSwitchSlot = useCallback((targetSlot: number) => {
+    if (targetSlot === slotIndex) return
+    if (isDirty) {
+      setPendingSlotIndex(targetSlot)
+      setUnsavedSwitchModalOpen(true)
+    } else {
+      setSlotIndex(targetSlot)
+      void loadDraft(targetSlot)
+    }
+  }, [isDirty, slotIndex, loadDraft])
+
   useEffect(() => {
     if (!content || !totals) return
     const timer = window.setTimeout(() => {
@@ -381,6 +407,7 @@ export function QuotationMaker({
         updatedAt: new Date().toISOString(),
         context: previewContext,
         contextId: previewContextId,
+        slotIndex,
         clientName: content.clientName || leadName,
         clientAddress: effectiveClientAddress,
         quotationType,
@@ -390,7 +417,7 @@ export function QuotationMaker({
       })
     }, 250)
     return () => window.clearTimeout(timer)
-  }, [content, totals, quotationType, projectSqft, leadName, effectiveClientAddress, previewContext, previewContextId])
+  }, [content, totals, quotationType, projectSqft, leadName, effectiveClientAddress, previewContext, previewContextId, slotIndex])
 
   const updateLineItem = (lineId: string, patch: Partial<QuotationLineItem>) => {
     setContent((prev) => {
@@ -598,6 +625,8 @@ export function QuotationMaker({
       const projectSqftValue = projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null
       const activeTargetSlots = availableSlots.map((s) => s.slotIndex)
 
+      const savedVersionContent = { ...normalized, versionTitle: getDetailVersionTitle(slotIndex) }
+
       if (isPlayground) {
         if (allSlots) {
           activeTargetSlots.forEach((s) => {
@@ -606,11 +635,14 @@ export function QuotationMaker({
                 quotationType,
                 projectSqft: projectSqftValue,
                 templateKey: FLOOR_DETAIL_TEMPLATE_KEY,
-                content: { ...normalized, versionTitle: availableSlots.find((item) => item.slotIndex === s)?.title || `Version ${s}` },
+                content: { ...normalized, versionTitle: getDetailVersionTitle(s) },
               },
               s,
             )
           })
+          setAvailableSlots((prev) =>
+            prev.map((item) => ({ ...item, grandTotal: totals?.grandTotal ?? item.grandTotal, exists: true }))
+          )
           toast.success('Saved to all versions (playground)')
         } else {
           savePlaygroundDetailDraft(
@@ -618,13 +650,17 @@ export function QuotationMaker({
               quotationType,
               projectSqft: projectSqftValue,
               templateKey: FLOOR_DETAIL_TEMPLATE_KEY,
-              content: normalized,
+              content: savedVersionContent,
             },
             slotIndex,
           )
-          toast.success(`Saved Version ${slotIndex} to browser`)
+          setAvailableSlots((prev) =>
+            prev.map((item) => (item.slotIndex === slotIndex ? { ...item, grandTotal: totals?.grandTotal ?? item.grandTotal, exists: true } : item))
+          )
+          toast.success(`Saved ${getDetailVersionTitle(slotIndex)} version`)
         }
-        setContent(normalized)
+        setContent(savedVersionContent)
+        lastSavedSnapshotRef.current = JSON.stringify({ content: savedVersionContent, projectSqft, quotationType })
         return
       }
 
@@ -638,7 +674,7 @@ export function QuotationMaker({
           targetSlots: activeTargetSlots,
           quotationType,
           projectSqft: projectSqftValue,
-          content: normalized,
+          content: savedVersionContent,
           status: 'DRAFT',
         }),
       })
@@ -646,10 +682,18 @@ export function QuotationMaker({
       if (!response.ok || !payload?.success) {
         throw new Error(payload?.error ?? 'Failed to save quotation')
       }
-      setContent(normalized)
-      toast.success(allSlots ? 'Quotation saved in all versions' : 'Quotation saved')
+      setContent(savedVersionContent)
+      lastSavedSnapshotRef.current = JSON.stringify({ content: savedVersionContent, projectSqft, quotationType })
+      setAvailableSlots((prev) =>
+        prev.map((item) => {
+          if (allSlots || item.slotIndex === slotIndex) {
+            return { ...item, grandTotal: totals?.grandTotal ?? item.grandTotal, exists: true }
+          }
+          return item
+        })
+      )
+      toast.success(allSlots ? 'Quotation saved in all versions' : `Saved ${getDetailVersionTitle(slotIndex)} version`)
       onDraftSaved?.()
-      await loadDraft(slotIndex)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save quotation')
     } finally {
@@ -812,82 +856,24 @@ return (
               <div className="flex flex-wrap items-center gap-2.5">
                 {availableSlots.map((s) => {
                   const isActive = s.slotIndex === slotIndex
-                  const isEditing = editingTitleSlot === s.slotIndex
                   return (
-                    <div
+                    <button
                       key={s.slotIndex}
-                      onClick={() => {
-                        if (s.slotIndex !== slotIndex) {
-                          setSlotIndex(s.slotIndex)
-                          void loadDraft(s.slotIndex)
-                        }
-                      }}
+                      type="button"
+                      onClick={() => handleSwitchSlot(s.slotIndex)}
                       className={`group relative flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition-all cursor-pointer shadow-sm ${
                         isActive
                           ? 'border-amber-600 bg-amber-600 text-white shadow-md ring-2 ring-amber-400/40'
                           : 'border-slate-200 bg-white hover:bg-amber-50 text-slate-800'
                       }`}
                     >
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={editingTitleText}
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => setEditingTitleText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              const trimmed = editingTitleText.trim() || `Version ${s.slotIndex}`
-                              setAvailableSlots((prev) =>
-                                prev.map((item) => (item.slotIndex === s.slotIndex ? { ...item, title: trimmed } : item)),
-                              )
-                              if (s.slotIndex === slotIndex && content) {
-                                setContent({ ...content, versionTitle: trimmed })
-                              }
-                              setEditingTitleSlot(null)
-                            }
-                            if (e.key === 'Escape') setEditingTitleSlot(null)
-                          }}
-                          onBlur={() => {
-                            const trimmed = editingTitleText.trim() || `Version ${s.slotIndex}`
-                            setAvailableSlots((prev) =>
-                              prev.map((item) => (item.slotIndex === s.slotIndex ? { ...item, title: trimmed } : item)),
-                            )
-                            if (s.slotIndex === slotIndex && content) {
-                              setContent({ ...content, versionTitle: trimmed })
-                            }
-                            setEditingTitleSlot(null)
-                          }}
-                          className="h-6 w-32 rounded border px-2 text-sm text-black"
-                        />
-                      ) : (
-                        <span
-                          className="font-semibold text-sm"
-                          onDoubleClick={(e) => {
-                            e.stopPropagation()
-                            setEditingTitleSlot(s.slotIndex)
-                            setEditingTitleText(s.title)
-                          }}
-                        >
-                          {s.title}
+                      <span className="font-semibold text-sm">{s.title}</span>
+                      {s.grandTotal > 0 ? (
+                        <span className={`ml-1 text-xs opacity-90 ${isActive ? 'text-amber-100' : 'text-slate-500'}`}>
+                          ({formatCurrency(s.grandTotal)})
                         </span>
-                      )}
-
-                      {!isEditing && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setEditingTitleSlot(s.slotIndex)
-                            setEditingTitleText(s.title)
-                          }}
-                          className="opacity-70 hover:opacity-100"
-                          title="Double-click or click to rename tab"
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
+                      ) : null}
+                    </button>
                   )
                 })}
               </div>
@@ -1355,6 +1341,65 @@ return (
             >
               <span className="font-semibold">Package item</span>
               <span className="text-xs text-muted-foreground">Fixed total price, no unit price or sqft needed</span>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmation Dialog for Unsaved Version Switch */}
+      <Dialog open={unsavedSwitchModalOpen} onOpenChange={setUnsavedSwitchModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Unsaved Changes in {getDetailVersionTitle(slotIndex)}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2 text-sm text-muted-foreground">
+            <p>
+              You have unsaved changes in the <strong>{getDetailVersionTitle(slotIndex)}</strong> version. What would you like to do before switching to <strong>{pendingSlotIndex ? getDetailVersionTitle(pendingSlotIndex) : 'the selected'}</strong> version?
+            </p>
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setUnsavedSwitchModalOpen(false)
+                setPendingSlotIndex(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                setUnsavedSwitchModalOpen(false)
+                if (pendingSlotIndex !== null) {
+                  const target = pendingSlotIndex
+                  setPendingSlotIndex(null)
+                  setSlotIndex(target)
+                  void loadDraft(target)
+                }
+              }}
+            >
+              Discard & Switch
+            </Button>
+            <Button
+              type="button"
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              disabled={saving}
+              onClick={async () => {
+                setUnsavedSwitchModalOpen(false)
+                if (pendingSlotIndex !== null) {
+                  const target = pendingSlotIndex
+                  setPendingSlotIndex(null)
+                  await saveDraft(false)
+                  setSlotIndex(target)
+                  void loadDraft(target)
+                }
+              }}
+            >
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Save & Switch
             </Button>
           </div>
         </DialogContent>

@@ -25,6 +25,13 @@ export type DetailQuotationLayoutMode = 'split-right' | 'split-left' | 'stacked'
 
 export const DETAIL_QUOTATION_LAYOUT_STORAGE_KEY = 'detail-quotation-layout-mode'
 
+export function getDetailVersionTitle(slotIndex?: number | null): string {
+  if (slotIndex === 1) return 'Premium'
+  if (slotIndex === 2) return 'Platinum'
+  if (slotIndex === 3) return 'Luxury'
+  return slotIndex ? `Version ${slotIndex}` : 'Premium'
+}
+
 export function withDetailQuotationDefaults(
   content: QuotationDraftContent,
 ): QuotationDraftContent {
