@@ -747,8 +747,8 @@ export default function PCProjectDetailPage() {
 
       {/* PC Quotation Product Scope Editor Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="max-w-[96vw] w-[96vw] h-[92vh] max-h-[92vh] flex flex-col overflow-hidden p-4 sm:p-6">
-          <DialogHeader className="border-b pb-2.5 shrink-0">
+        <DialogContent className="max-w-[96vw] w-[96vw] h-[92vh] max-h-[92vh] !grid-cols-1 flex flex-col overflow-hidden !gap-0 p-0">
+          <DialogHeader className="border-b pb-3 shrink-0 px-6 pt-5">
             <DialogTitle className="text-lg font-bold flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <Edit2 className="h-5 w-5 text-primary" />
@@ -760,7 +760,7 @@ export default function PCProjectDetailPage() {
             </p>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto py-2 space-y-3 pr-1">
+          <div className="flex-1 overflow-y-auto py-3 px-6 space-y-3">
             <div className="rounded-md border overflow-hidden">
               <table className="w-full text-xs">
                 <thead>
@@ -785,10 +785,10 @@ export default function PCProjectDetailPage() {
                         </button>
                       </div>
                     </th>
-                    <th className="py-2.5 px-3 text-right w-32 font-semibold">Rate (৳)</th>
-                    <th className="py-2.5 px-3 text-right w-44 font-semibold">Sqft / Qty</th>
-                    <th className="py-2.5 px-3 text-right w-36 font-semibold">Subtotal (৳)</th>
-                    <th className="py-2.5 px-3 text-center w-36 font-semibold">Action</th>
+                    <th className="py-2.5 px-3 text-right w-36 font-semibold">Rate (৳)</th>
+                    <th className="py-2.5 px-3 text-right w-52 font-semibold">Sqft / Qty</th>
+                    <th className="py-2.5 px-3 text-right w-40 font-semibold">Subtotal (৳)</th>
+                    <th className="py-2.5 px-3 text-center w-40 font-semibold">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -855,7 +855,7 @@ export default function PCProjectDetailPage() {
                                     prev.map((it, i) => (i === idx ? { ...it, quantity: nextQty } : it)),
                                   )
                                 }}
-                                className="h-7 w-24 text-right tabular-nums text-xs font-medium px-2"
+                                className="h-8 w-32 text-right tabular-nums text-xs font-medium px-2"
                               />
                               <span className="text-xs font-medium text-muted-foreground">{item.unit}</span>
                             </div>
@@ -887,7 +887,7 @@ export default function PCProjectDetailPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between border-t pt-3 gap-2">
+          <div className="flex flex-wrap items-center justify-between border-t pt-3 pb-5 px-6 gap-2 shrink-0">
             <div className="flex items-center gap-4 text-xs text-muted-foreground">
               <div>
                 Total Scope Value:{' '}
