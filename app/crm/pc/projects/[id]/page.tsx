@@ -719,8 +719,8 @@ export default function PCProjectDetailPage() {
 
       {/* PC Quotation Product Scope Editor Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
-          <DialogHeader className="border-b pb-3">
+        <DialogContent className="max-w-6xl w-[92vw] h-[90vh] max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="border-b pb-3 shrink-0">
             <DialogTitle className="text-lg font-bold flex items-center gap-2">
               <Edit2 className="h-5 w-5 text-primary" />
               <span>Edit Product Scope & Create New Version</span>
@@ -730,16 +730,16 @@ export default function PCProjectDetailPage() {
             </p>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto py-4 space-y-4">
+          <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
             <div className="rounded-md border overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-muted/50 text-left text-xs font-semibold text-muted-foreground border-b">
-                    <th className="py-2.5 px-3">Product Description</th>
-                    <th className="py-2.5 px-3 text-right w-28">Rate (৳)</th>
-                    <th className="py-2.5 px-3 text-right w-36">Sqft / Qty</th>
-                    <th className="py-2.5 px-3 text-right w-32">Subtotal (৳)</th>
-                    <th className="py-2.5 px-3 text-center w-28">Status</th>
+                    <th className="py-3 px-4 font-semibold">Product Description & Materials</th>
+                    <th className="py-3 px-4 text-right w-36 font-semibold">Rate (৳)</th>
+                    <th className="py-3 px-4 text-right w-44 font-semibold">Sqft / Qty</th>
+                    <th className="py-3 px-4 text-right w-40 font-semibold">Subtotal (৳)</th>
+                    <th className="py-3 px-4 text-center w-36 font-semibold">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -753,26 +753,26 @@ export default function PCProjectDetailPage() {
                     return (
                       <tr
                         key={item.id}
-                        className={`align-middle ${
-                          !item.included ? 'bg-destructive/5 opacity-65' : ''
+                        className={`align-top transition-colors ${
+                          !item.included ? 'bg-destructive/5 opacity-60' : 'hover:bg-muted/10'
                         }`}
                       >
-                        <td className="py-2.5 px-3">
-                          <div className="font-medium text-foreground">{item.description}</div>
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-foreground text-sm">{item.description}</div>
                           {item.materials ? (
-                            <div className="text-xs text-muted-foreground truncate max-w-xs">
+                            <div className="mt-1 text-xs text-muted-foreground whitespace-pre-line bg-muted/20 p-2 rounded border border-border/30">
                               {item.materials}
                             </div>
                           ) : null}
                         </td>
-                        <td className="py-2.5 px-3 text-right tabular-nums">
+                        <td className="py-3 px-4 text-right tabular-nums font-medium text-sm">
                           ৳{item.rate.toLocaleString()}
                         </td>
-                        <td className="py-2.5 px-3 text-right">
+                        <td className="py-3 px-4 text-right">
                           {item.unit === 'ls' ? (
                             <span className="text-xs text-muted-foreground font-medium">Lump Sum</span>
                           ) : (
-                            <div className="flex items-center justify-end gap-1">
+                            <div className="flex items-center justify-end gap-1.5">
                               <Input
                                 type="number"
                                 min={0}
@@ -786,28 +786,28 @@ export default function PCProjectDetailPage() {
                                     prev.map((it, i) => (i === idx ? { ...it, quantity: nextQty } : it)),
                                   )
                                 }}
-                                className="h-8 w-24 text-right tabular-nums text-xs"
+                                className="h-9 w-28 text-right tabular-nums text-sm font-medium"
                               />
-                              <span className="text-xs text-muted-foreground">{item.unit}</span>
+                              <span className="text-xs font-semibold text-muted-foreground">{item.unit}</span>
                             </div>
                           )}
                         </td>
-                        <td className="py-2.5 px-3 text-right tabular-nums font-semibold">
+                        <td className="py-3 px-4 text-right tabular-nums font-bold text-sm">
                           ৳{lineAmount.toLocaleString()}
                         </td>
-                        <td className="py-2.5 px-3 text-center">
+                        <td className="py-3 px-4 text-center">
                           <Button
                             type="button"
                             size="sm"
                             variant={item.included ? 'outline' : 'destructive'}
-                            className="h-7 text-xs px-2"
+                            className="h-8 text-xs px-3 font-semibold"
                             onClick={() => {
                               setEditableItems((prev) =>
                                 prev.map((it, i) => (i === idx ? { ...it, included: !it.included } : it)),
                               )
                             }}
                           >
-                            {item.included ? 'Cancel Item' : 'Restore Item'}
+                            {item.included ? 'Cancel Product' : 'Restore Product'}
                           </Button>
                         </td>
                       </tr>
