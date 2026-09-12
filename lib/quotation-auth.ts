@@ -18,7 +18,13 @@ export function isQuotationAdmin(actorDepartments: string[]): boolean {
 }
 
 export function canAccessQuotationDraft(actorDepartments: string[]): boolean {
-  return isQuotationAdmin(actorDepartments) || isQuotationDepartment(actorDepartments) || actorDepartments.includes('ACCOUNTS')
+  return (
+    isQuotationAdmin(actorDepartments) ||
+    isQuotationDepartment(actorDepartments) ||
+    actorDepartments.includes('ACCOUNTS') ||
+    actorDepartments.includes('PROJECT_COORDINATOR') ||
+    actorDepartments.includes('PROJECT_CORDINATOR')
+  )
 }
 
 export function canEditQuotationDraft(input: {
@@ -33,7 +39,12 @@ export function canEditQuotationDraft(input: {
     return false
   }
 
-  if (isQuotationAdmin(input.actorDepartments)) return true
+  if (
+    isQuotationAdmin(input.actorDepartments) ||
+    input.actorDepartments.includes('PROJECT_COORDINATOR') ||
+    input.actorDepartments.includes('PROJECT_CORDINATOR')
+  )
+    return true
 
   if (!isQuotationDepartment(input.actorDepartments)) return false
   if (!input.assignedQuotationUserId) return false
@@ -47,16 +58,20 @@ export function buildQuotationLeadWhere(input: {
   actorUserId: string
   actorDepartments: string[]
 }) {
-  const isAdminOrSrOrAccounts = isQuotationAdmin(input.actorDepartments) || input.actorDepartments.includes('ACCOUNTS')
+  const isAdminOrSrOrAccountsOrPc =
+    isQuotationAdmin(input.actorDepartments) ||
+    input.actorDepartments.includes('ACCOUNTS') ||
+    input.actorDepartments.includes('PROJECT_COORDINATOR') ||
+    input.actorDepartments.includes('PROJECT_CORDINATOR')
   const isQuotation = isQuotationDepartment(input.actorDepartments)
 
-  if (!isAdminOrSrOrAccounts && !isQuotation) {
+  if (!isAdminOrSrOrAccountsOrPc && !isQuotation) {
     return null
   }
 
   return {
     id: input.leadId,
-    ...(isAdminOrSrOrAccounts
+    ...(isAdminOrSrOrAccountsOrPc
       ? {}
       : {
           assignments: {

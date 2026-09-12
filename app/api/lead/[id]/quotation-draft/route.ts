@@ -363,8 +363,17 @@ function matchesBaseDraftKey(draftKey: string, baseDraftKey: string) {
     return (
       draftKey === 'detail' ||
       draftKey === 'detail:slot:1' ||
+      draftKey === 'pc:slot:1' ||
       draftKey.startsWith('detail:owner:') ||
       draftKey.startsWith('detail:slot:1:owner:')
+    )
+  }
+  if (baseDraftKey.startsWith('detail:slot:')) {
+    const slotStr = baseDraftKey.replace('detail:slot:', '')
+    return (
+      draftKey === baseDraftKey ||
+      draftKey === `pc:slot:${slotStr}` ||
+      draftKey.startsWith(`${baseDraftKey}:owner:`)
     )
   }
   return draftKey === baseDraftKey || draftKey.startsWith(`${baseDraftKey}:owner:`)

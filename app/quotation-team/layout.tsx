@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import { MainLayout } from '@/components/layout/mainlayout'
 
+import { normalizeDepartmentName } from '@/lib/department-normalization'
+
 const JR_CRM_DASHBOARD = '/crm/jr/dashboard'
 const ADMIN_DASHBOARD = '/crm/admin/dashboard'
 const SR_CRM_DASHBOARD = '/crm/sr/dashboard'
@@ -42,7 +44,9 @@ export default async function QuotationTeamLayout({
   }
 
   const departmentNames = new Set(
-    user.userDepartments.map((row) => row.department.name.toUpperCase().replace(/\s+/g, '_')),
+    user.userDepartments
+      .map((row) => normalizeDepartmentName(row.department.name))
+      .filter((name): name is string => Boolean(name)),
   )
 
   const isQuotationAllowed =

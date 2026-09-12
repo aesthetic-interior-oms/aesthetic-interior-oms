@@ -21,6 +21,7 @@ import {
   User,
   SquareStack,
   Download,
+  Eye,
   CheckCircle2,
   CheckSquare,
   Square,
@@ -174,6 +175,19 @@ export default function PCProjectDetailPage() {
     if (!selectedDraft) return true
     return isBaselineDraft(selectedDraft.draftKey, selectedDraftIndex)
   }, [selectedDraft, selectedDraftIndex])
+
+  const selectedDraftSlotIndex = useMemo(() => {
+    if (!selectedDraft) return 1
+    if (selectedDraft.draftKey.startsWith('pc:slot:')) {
+      const s = parseInt(selectedDraft.draftKey.replace('pc:slot:', ''), 10)
+      return Number.isFinite(s) ? s : 1
+    }
+    if (selectedDraft.draftKey.startsWith('detail:slot:')) {
+      const s = parseInt(selectedDraft.draftKey.replace('detail:slot:', ''), 10)
+      return Number.isFinite(s) ? s : 1
+    }
+    return 1
+  }, [selectedDraft])
 
   // Calculate Progress Stats
   const progressStats = useMemo(() => {
@@ -605,15 +619,27 @@ export default function PCProjectDetailPage() {
                 </Button>
 
                 {selectedDraft ? (
-                  <Link
-                    href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id })}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    Open PDF Preview
-                  </Link>
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id, slotIndex: selectedDraftSlotIndex })}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md border bg-background px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      Open PDF Preview
+                    </Link>
+
+                    <Link
+                      href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id, slotIndex: selectedDraftSlotIndex, download: true })}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md border bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      Download PDF
+                    </Link>
+                  </div>
                 ) : null}
               </div>
             </div>
