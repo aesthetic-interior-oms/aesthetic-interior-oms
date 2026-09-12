@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Download, ExternalLink, FileDown, FileText, History, Loader2, MapPin, Minus, Phone, Plus, Send, ShieldCheck, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Download, ExternalLink, Eye, FileDown, FileText, History, Loader2, MapPin, Minus, Phone, Plus, Send, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -64,6 +64,15 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 function formatCategory(cat: string) {
   return CATEGORY_LABELS[cat] || cat
+}
+
+function getDraftSlotIndex(draftKey?: string | null): number {
+  if (!draftKey) return 1
+  const pcMatch = draftKey.match(/^pc:slot:(\d+)$/)
+  if (pcMatch) return parseInt(pcMatch[1], 10)
+  const detailMatch = draftKey.match(/^detail:slot:(\d+)$/)
+  if (detailMatch) return parseInt(detailMatch[1], 10)
+  return 1
 }
 
 export default function ProjectDetailPage() {
@@ -1184,17 +1193,17 @@ export default function ProjectDetailPage() {
             </Card>
           </div>
 
-          {/* Saved Quotation Software Document */}
+          {/* Saved Quotation Software Documents & PC Versions */}
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="text-base flex items-center gap-2">
                     <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                    Saved Quotation Software Document
+                    PC Quotation Versions & Agreement Values
                   </CardTitle>
                   <CardDescription>
-                    Access and download the latest quotation document generated for this project.
+                    Access, preview, and download all quotation versions created for this project, and sync revised agreement values.
                   </CardDescription>
                 </div>
                 {report?.project?.quotationType && (
@@ -1204,85 +1213,150 @@ export default function ProjectDetailPage() {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {report?.project?.quotationDrafts && report.project.quotationDrafts.length > 0 ? (
-                <div className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 pb-2">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Latest Saved Draft Total: </span>
-                      <span className="font-semibold text-sm text-foreground">
-                        {report.project.quotationDrafts[0].grandTotal
-                          ? `${report.project.quotationDrafts[0].grandTotal.toLocaleString()} BDT`
-                          : 'Saved Draft Available'}
-                      </span>
+            <CardContent className="space-y-3">
+              {(() => {
+                const drafts = report?.quotationDrafts || report?.project?.quotationDrafts || []
+                if (drafts.length === 0) {
+                  return (
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/80 bg-muted/20 p-3">
+                      <p className="text-xs text-muted-foreground">
+                        Generate or download quotation software PDF preview for this project:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          href={buildDetailPreviewUrl({ context: 'lead', contextId: String(id), download: true })}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button size="sm" variant="default" className="gap-2 text-xs">
+                            <Download className="h-3.5 w-3.5" />
+                            Download Detail Quotation PDF
+                          </Button>
+                        </a>
+                        <a
+                          href={buildShortPreviewUrl({ context: 'lead', contextId: String(id), download: true })}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button size="sm" variant="outline" className="gap-2 text-xs">
+                            <Download className="h-3.5 w-3.5" />
+                            Download Short Quotation PDF
+                          </Button>
+                        </a>
+                      </div>
                     </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      Updated: {new Date(report.project.quotationDrafts[0].updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </div>
-                  </div>
+                  )
+                }
 
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <a
-                      href={buildDetailPreviewUrl({ context: 'lead', contextId: String(id), download: true })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Button size="sm" variant="default" className="gap-2 text-xs">
-                        <Download className="h-3.5 w-3.5" />
-                        Download Detail Quotation PDF
-                      </Button>
-                    </a>
-                    <a
-                      href={buildDetailPreviewUrl({ context: 'lead', contextId: String(id), download: false })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Button size="sm" variant="outline" className="gap-2 text-xs">
-                        <ExternalLink className="h-3.5 w-3.5" />
-                        Preview Detail Quotation
-                      </Button>
-                    </a>
-                    <a
-                      href={buildShortPreviewUrl({ context: 'lead', contextId: String(id), download: true })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Button size="sm" variant="outline" className="gap-2 text-xs border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30">
-                        <Download className="h-3.5 w-3.5" />
-                        Download Short Quotation PDF
-                      </Button>
-                    </a>
+                const baselineDraft = drafts.find((d: any) => getDraftSlotIndex(d.draftKey) === 1) || drafts[drafts.length - 1]
+                const baselineTotal = baselineDraft?.grandTotal || initialAgreementValue || 0
+
+                return (
+                  <div className="space-y-2.5">
+                    {drafts.map((draft: any, idx: number) => {
+                      const slotIndex = getDraftSlotIndex(draft.draftKey)
+                      const contentObj = (draft.content as Record<string, unknown>) ?? {}
+                      const vTitle = typeof contentObj.versionTitle === 'string' && contentObj.versionTitle
+                        ? contentObj.versionTitle
+                        : `Version ${slotIndex}`
+                      const isLatest = idx === 0
+                      const delta = draft.grandTotal - baselineTotal
+                      const isAlreadySynced = agreementLogs.some((l: any) => l.quotationDraftId === draft.id || l.versionTitle === vTitle)
+                      const previewUrl = buildDetailPreviewUrl({ context: 'lead', contextId: String(id), slotIndex, download: false })
+                      const downloadUrl = buildDetailPreviewUrl({ context: 'lead', contextId: String(id), slotIndex, download: true })
+
+                      return (
+                        <div
+                          key={draft.id}
+                          className={`p-3 rounded-lg border text-xs transition-colors ${
+                            isLatest
+                              ? 'border-blue-400/60 bg-blue-50/40 dark:bg-blue-950/20'
+                              : 'border-border bg-card hover:bg-muted/30'
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={isLatest ? 'default' : 'outline'} className="text-xs font-bold">
+                                {vTitle}
+                              </Badge>
+                              {isLatest && (
+                                <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300">
+                                  ★ Latest Version
+                                </Badge>
+                              )}
+                              <span className="font-bold text-sm text-foreground">
+                                ৳{draft.grandTotal.toLocaleString()} BDT
+                              </span>
+                              {delta !== 0 ? (
+                                <span className={`text-xs font-semibold ${delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                  ({delta > 0 ? `+৳${delta.toLocaleString()}` : `-৳${Math.abs(delta).toLocaleString()}`})
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground font-medium">(Baseline)</span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground">
+                              Updated: {new Date(draft.updatedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-2 border-border/50">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
+                                <Button size="sm" variant={isLatest ? 'default' : 'outline'} className="h-7 text-xs gap-1.5 px-2.5 font-semibold">
+                                  <Download className="h-3.5 w-3.5" /> Download PDF ({vTitle})
+                                </Button>
+                              </a>
+                              <a href={previewUrl} target="_blank" rel="noopener noreferrer">
+                                <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 px-2.5">
+                                  <ExternalLink className="h-3.5 w-3.5" /> Preview PDF
+                                </Button>
+                              </a>
+                            </div>
+
+                            <div>
+                              {isAlreadySynced ? (
+                                <Badge variant="secondary" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-300">
+                                  ✓ Synced to Agreement
+                                </Badge>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs px-2.5 font-semibold gap-1 text-primary border-primary/40 hover:bg-primary/10"
+                                  onClick={() => {
+                                    const absDelta = Math.abs(delta)
+                                    setAdjustType(delta >= 0 ? 'ADD' : 'DECREASE')
+                                    setAdjustAmount(absDelta > 0 ? String(absDelta) : String(draft.grandTotal))
+                                    setAdjustNote(`Scope change per PC ${vTitle} (${delta >= 0 ? '+' : '-'}${absDelta.toLocaleString()} BDT)`)
+                                    setSyncDraftId(draft.id)
+                                    setSyncVersionTitle(vTitle)
+                                    setAdjustModalOpen(true)
+                                  }}
+                                >
+                                  <Sparkles className="h-3 w-3" /> Sync to Agreement
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    <div className="pt-1 flex justify-end">
+                      <a
+                        href={buildShortPreviewUrl({ context: 'lead', contextId: String(id), download: true })}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button size="sm" variant="ghost" className="text-xs text-muted-foreground gap-1.5">
+                          <Download className="h-3.5 w-3.5" /> Download Short Quotation PDF
+                        </Button>
+                      </a>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border/80 bg-muted/20 p-3">
-                  <p className="text-xs text-muted-foreground">
-                    Generate or download quotation software PDF preview for this project:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    <a
-                      href={buildDetailPreviewUrl({ context: 'lead', contextId: String(id), download: true })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Button size="sm" variant="default" className="gap-2 text-xs">
-                        <Download className="h-3.5 w-3.5" />
-                        Download Detail Quotation PDF
-                      </Button>
-                    </a>
-                    <a
-                      href={buildShortPreviewUrl({ context: 'lead', contextId: String(id), download: true })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Button size="sm" variant="outline" className="gap-2 text-xs">
-                        <Download className="h-3.5 w-3.5" />
-                        Download Short Quotation PDF
-                      </Button>
-                    </a>
-                  </div>
-                </div>
-              )}
+                )
+              })()}
 
               {/* File Attachments (Uploaded Quotations) */}
               {report?.project?.attachments &&
@@ -1613,15 +1687,19 @@ export default function ProjectDetailPage() {
             <div className="my-3 p-3 bg-muted/20 rounded-lg border border-border">
               <div className="text-xs font-bold flex items-center justify-between mb-2">
                 <span>PC Quotation Versions & Scope Changes</span>
-                <span className="text-[11px] font-normal text-muted-foreground">Sync revisions directly to Agreement Value</span>
+                <span className="text-[11px] font-normal text-muted-foreground">Sync revisions & download PDFs</span>
               </div>
               <div className="space-y-2">
                 {report.quotationDrafts.map((draft: any, idx: number) => {
+                  const slotIndex = getDraftSlotIndex(draft.draftKey)
                   const contentObj = (draft.content as Record<string, unknown>) ?? {}
-                  const vTitle = typeof contentObj.versionTitle === 'string' && contentObj.versionTitle ? contentObj.versionTitle : `Version ${idx + 1}`
-                  const baselineTotal = report.quotationDrafts[report.quotationDrafts.length - 1]?.grandTotal || initialAgreementValue || 0
+                  const vTitle = typeof contentObj.versionTitle === 'string' && contentObj.versionTitle ? contentObj.versionTitle : `Version ${slotIndex}`
+                  const baselineDraft = report.quotationDrafts.find((d: any) => getDraftSlotIndex(d.draftKey) === 1) || report.quotationDrafts[report.quotationDrafts.length - 1]
+                  const baselineTotal = baselineDraft?.grandTotal || initialAgreementValue || 0
                   const delta = draft.grandTotal - baselineTotal
                   const isAlreadySynced = agreementLogs.some((l: any) => l.quotationDraftId === draft.id || l.versionTitle === vTitle)
+                  const previewUrl = buildDetailPreviewUrl({ context: 'lead', contextId: String(id), slotIndex, download: false })
+                  const downloadUrl = buildDetailPreviewUrl({ context: 'lead', contextId: String(id), slotIndex, download: true })
 
                   return (
                     <div key={draft.id} className="flex flex-wrap items-center justify-between gap-2 p-2 bg-background rounded border text-xs">
@@ -1639,15 +1717,25 @@ export default function ProjectDetailPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2">
+                        <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="outline" className="h-6 text-[11px] px-2 gap-1">
+                            <Download className="h-3 w-3" /> PDF
+                          </Button>
+                        </a>
+                        <a href={previewUrl} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="ghost" className="h-6 text-[11px] px-1.5 gap-1 text-muted-foreground">
+                            <ExternalLink className="h-3 w-3" /> Preview
+                          </Button>
+                        </a>
                         {isAlreadySynced ? (
                           <Badge variant="secondary" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
-                            ✓ Synced to Agreement
+                            ✓ Synced
                           </Badge>
                         ) : (
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-7 text-xs px-2.5 font-semibold gap-1 text-primary border-primary/40 hover:bg-primary/10"
+                            className="h-6 text-[11px] px-2 font-semibold gap-1 text-primary border-primary/40 hover:bg-primary/10"
                             onClick={() => {
                               const absDelta = Math.abs(delta)
                               setAdjustType(delta >= 0 ? 'ADD' : 'DECREASE')
