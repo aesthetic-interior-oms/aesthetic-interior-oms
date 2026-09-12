@@ -118,6 +118,8 @@ export default function PCProjectDetailPage() {
       materials?: string
     }>
   >([])
+  const [expandedSpecs, setExpandedSpecs] = useState<Record<string, boolean>>({})
+  const [allSpecsExpanded, setAllSpecsExpanded] = useState(false)
 
   // Delete Version State
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null)
@@ -719,27 +721,48 @@ export default function PCProjectDetailPage() {
 
       {/* PC Quotation Product Scope Editor Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="max-w-6xl w-[92vw] h-[90vh] max-h-[90vh] flex flex-col overflow-hidden">
-          <DialogHeader className="border-b pb-3 shrink-0">
-            <DialogTitle className="text-lg font-bold flex items-center gap-2">
-              <Edit2 className="h-5 w-5 text-primary" />
-              <span>Edit Product Scope & Create New Version</span>
+        <DialogContent className="max-w-[96vw] w-[96vw] h-[92vh] max-h-[92vh] flex flex-col overflow-hidden p-4 sm:p-6">
+          <DialogHeader className="border-b pb-2.5 shrink-0">
+            <DialogTitle className="text-lg font-bold flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Edit2 className="h-5 w-5 text-primary" />
+                <span>Edit Product Scope & Create New Version</span>
+              </div>
             </DialogTitle>
             <p className="text-xs text-muted-foreground">
               Adjust product sqft/qty or cancel products. Saving will create a new version revision (e.g. Version 2, Version 3) while keeping Version 1 baseline protected.
             </p>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+          <div className="flex-1 overflow-y-auto py-2 space-y-3 pr-1">
             <div className="rounded-md border overflow-hidden">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-muted/50 text-left text-xs font-semibold text-muted-foreground border-b">
-                    <th className="py-3 px-4 font-semibold">Product Description & Materials</th>
-                    <th className="py-3 px-4 text-right w-36 font-semibold">Rate (৳)</th>
-                    <th className="py-3 px-4 text-right w-44 font-semibold">Sqft / Qty</th>
-                    <th className="py-3 px-4 text-right w-40 font-semibold">Subtotal (৳)</th>
-                    <th className="py-3 px-4 text-center w-36 font-semibold">Action</th>
+                    <th className="py-2.5 px-3 font-semibold">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Product Description & Materials</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextState = !allSpecsExpanded
+                            setAllSpecsExpanded(nextState)
+                            const updated: Record<string, boolean> = {}
+                            editableItems.forEach((it) => {
+                              if (it.id) updated[it.id] = nextState
+                            })
+                            setExpandedSpecs(updated)
+                          }}
+                          className="text-[11px] font-medium text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded transition-colors"
+                        >
+                          {allSpecsExpanded ? 'Collapse All Specs' : 'Expand All Specs'}
+                        </button>
+                      </div>
+                    </th>
+                    <th className="py-2.5 px-3 text-right w-32 font-semibold">Rate (৳)</th>
+                    <th className="py-2.5 px-3 text-right w-44 font-semibold">Sqft / Qty</th>
+                    <th className="py-2.5 px-3 text-right w-36 font-semibold">Subtotal (৳)</th>
+                    <th className="py-2.5 px-3 text-center w-36 font-semibold">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -749,26 +772,46 @@ export default function PCProjectDetailPage() {
                         ? item.rate
                         : item.rate * item.quantity
                       : 0
+                    const isExpanded = Boolean(expandedSpecs[item.id])
 
                     return (
                       <tr
                         key={item.id}
-                        className={`align-top transition-colors ${
+                        className={`transition-colors ${
                           !item.included ? 'bg-destructive/5 opacity-60' : 'hover:bg-muted/10'
                         }`}
                       >
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-foreground text-sm">{item.description}</div>
+                        <td className="py-2 px-3 align-middle">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="font-semibold text-foreground text-xs">{item.description}</div>
+                            {item.materials ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setExpandedSpecs((prev) => ({ ...prev, [item.id]: !prev[item.id] }))
+                                }
+                                className="text-[10px] font-semibold text-primary hover:underline shrink-0"
+                              >
+                                {isExpanded ? 'Hide specs ▲' : 'Show specs ▼'}
+                              </button>
+                            ) : null}
+                          </div>
                           {item.materials ? (
-                            <div className="mt-1 text-xs text-muted-foreground whitespace-pre-line bg-muted/20 p-2 rounded border border-border/30">
-                              {item.materials}
-                            </div>
+                            isExpanded ? (
+                              <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground whitespace-pre-line bg-muted/30 p-2 rounded border border-border/40">
+                                {item.materials}
+                              </div>
+                            ) : (
+                              <div className="text-[11px] text-muted-foreground/75 truncate max-w-[650px] leading-tight">
+                                {item.materials.replace(/\n+/g, ' ')}
+                              </div>
+                            )
                           ) : null}
                         </td>
-                        <td className="py-3 px-4 text-right tabular-nums font-medium text-sm">
+                        <td className="py-2 px-3 text-right tabular-nums font-medium text-xs align-middle">
                           ৳{item.rate.toLocaleString()}
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-2 px-3 text-right align-middle">
                           {item.unit === 'ls' ? (
                             <span className="text-xs text-muted-foreground font-medium">Lump Sum</span>
                           ) : (
@@ -786,21 +829,21 @@ export default function PCProjectDetailPage() {
                                     prev.map((it, i) => (i === idx ? { ...it, quantity: nextQty } : it)),
                                   )
                                 }}
-                                className="h-9 w-28 text-right tabular-nums text-sm font-medium"
+                                className="h-7 w-24 text-right tabular-nums text-xs font-medium px-2"
                               />
-                              <span className="text-xs font-semibold text-muted-foreground">{item.unit}</span>
+                              <span className="text-xs font-medium text-muted-foreground">{item.unit}</span>
                             </div>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-right tabular-nums font-bold text-sm">
+                        <td className="py-2 px-3 text-right tabular-nums font-bold text-xs align-middle">
                           ৳{lineAmount.toLocaleString()}
                         </td>
-                        <td className="py-3 px-4 text-center">
+                        <td className="py-2 px-3 text-center align-middle">
                           <Button
                             type="button"
                             size="sm"
                             variant={item.included ? 'outline' : 'destructive'}
-                            className="h-8 text-xs px-3 font-semibold"
+                            className="h-7 text-xs px-2.5 font-semibold"
                             onClick={() => {
                               setEditableItems((prev) =>
                                 prev.map((it, i) => (i === idx ? { ...it, included: !it.included } : it)),
