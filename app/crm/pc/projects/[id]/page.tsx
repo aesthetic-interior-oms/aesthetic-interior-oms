@@ -28,9 +28,14 @@ import {
   Edit2,
   Trash2,
   Plus,
+  Minus,
   Lock,
   RotateCcw,
   Sparkles,
+  Search,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
@@ -121,6 +126,8 @@ export default function PCProjectDetailPage() {
   >([])
   const [expandedSpecs, setExpandedSpecs] = useState<Record<string, boolean>>({})
   const [allSpecsExpanded, setAllSpecsExpanded] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'INCLUDED' | 'EXCLUDED'>('ALL')
 
   // Delete Version State
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null)
@@ -265,6 +272,8 @@ export default function PCProjectDetailPage() {
       materials: line.materials,
     }))
 
+    setSearchQuery('')
+    setStatusFilter('ALL')
     setEditableItems(items)
     setEditModalOpen(true)
   }
@@ -747,162 +756,334 @@ export default function PCProjectDetailPage() {
 
       {/* PC Quotation Product Scope Editor Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="max-w-[96vw] w-[96vw] h-[92vh] max-h-[92vh] !grid-cols-1 flex flex-col overflow-hidden !gap-0 p-0">
-          <DialogHeader className="border-b pb-3 shrink-0 px-6 pt-5">
-            <DialogTitle className="text-lg font-bold flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Edit2 className="h-5 w-5 text-primary" />
-                <span>Edit Product Scope & Create New Version</span>
+        <DialogContent className="max-w-[96vw] xl:max-w-7xl w-[96vw] h-[92vh] max-h-[92vh] !grid-cols-1 flex flex-col overflow-hidden !gap-0 p-0 rounded-xl">
+          {/* Modal Header */}
+          <DialogHeader className="border-b shrink-0 px-6 pt-5 pb-4 space-y-3 bg-muted/20">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <Edit2 className="h-5 w-5 text-primary" />
+                  <span>Edit Product Scope & Create New Version</span>
+                </DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Adjust product sqft/qty or cancel items. Saving will create a new protected revision while preserving baseline.
+                </p>
               </div>
-            </DialogTitle>
-            <p className="text-xs text-muted-foreground">
-              Adjust product sqft/qty or cancel products. Saving will create a new version revision (e.g. Version 2, Version 3) while keeping Version 1 baseline protected.
-            </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs gap-1.5"
+                onClick={() => {
+                  const nextState = !allSpecsExpanded
+                  setAllSpecsExpanded(nextState)
+                  const updated: Record<string, boolean> = {}
+                  editableItems.forEach((it) => {
+                    if (it.id) updated[it.id] = nextState
+                  })
+                  setExpandedSpecs(updated)
+                }}
+              >
+                <FileText className="h-3.5 w-3.5" />
+                {allSpecsExpanded ? 'Collapse All Specs' : 'Expand All Specs'}
+              </Button>
+            </div>
+
+            {/* Search & Status Filters Toolbar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3 border-border/60">
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search product description or material specs..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-8 h-9 text-xs bg-background"
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Status Filter Tabs */}
+              <div className="flex items-center gap-1 p-1 bg-muted rounded-lg border border-border/40">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ALL')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                    statusFilter === 'ALL'
+                      ? 'bg-background text-foreground shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  All ({editableItems.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('INCLUDED')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                    statusFilter === 'INCLUDED'
+                      ? 'bg-emerald-500 text-white shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Included ({editableItems.filter((i) => i.included).length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('EXCLUDED')}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                    statusFilter === 'EXCLUDED'
+                      ? 'bg-rose-500 text-white shadow-xs'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  Cancelled ({editableItems.filter((i) => !i.included).length})
+                </button>
+              </div>
+            </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto py-3 px-6 space-y-3">
-            <div className="rounded-md border overflow-hidden">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-muted/50 text-left text-xs font-semibold text-muted-foreground border-b">
-                    <th className="py-2.5 px-3 font-semibold">
-                      <div className="flex items-center justify-between gap-2">
-                        <span>Product Description & Materials</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const nextState = !allSpecsExpanded
-                            setAllSpecsExpanded(nextState)
-                            const updated: Record<string, boolean> = {}
-                            editableItems.forEach((it) => {
-                              if (it.id) updated[it.id] = nextState
-                            })
-                            setExpandedSpecs(updated)
-                          }}
-                          className="text-[11px] font-medium text-primary hover:underline bg-primary/10 px-2 py-0.5 rounded transition-colors"
-                        >
-                          {allSpecsExpanded ? 'Collapse All Specs' : 'Expand All Specs'}
-                        </button>
-                      </div>
-                    </th>
-                    <th className="py-2.5 px-3 text-right w-36 font-semibold">Rate (৳)</th>
-                    <th className="py-2.5 px-3 text-right w-52 font-semibold">Sqft / Qty</th>
-                    <th className="py-2.5 px-3 text-right w-40 font-semibold">Subtotal (৳)</th>
-                    <th className="py-2.5 px-3 text-center w-40 font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {editableItems.map((item, idx) => {
-                    const lineAmount = item.included
-                      ? item.unit === 'ls'
-                        ? item.rate
-                        : item.rate * item.quantity
-                      : 0
-                    const isExpanded = Boolean(expandedSpecs[item.id])
+          {/* Scrollable Body List */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-3">
+            {(() => {
+              const filteredItems = editableItems.filter((item) => {
+                const q = searchQuery.trim().toLowerCase()
+                const matchesQuery =
+                  !q ||
+                  item.description.toLowerCase().includes(q) ||
+                  (item.materials && item.materials.toLowerCase().includes(q))
+                if (!matchesQuery) return false
 
-                    return (
-                      <tr
-                        key={item.id}
-                        className={`transition-colors ${
-                          !item.included ? 'bg-destructive/5 opacity-60' : 'hover:bg-muted/10'
-                        }`}
-                      >
-                        <td className="py-2 px-3 align-middle">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="font-semibold text-foreground text-xs">{item.description}</div>
-                            {item.materials ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setExpandedSpecs((prev) => ({ ...prev, [item.id]: !prev[item.id] }))
-                                }
-                                className="text-[10px] font-semibold text-primary hover:underline shrink-0"
-                              >
-                                {isExpanded ? 'Hide specs ▲' : 'Show specs ▼'}
-                              </button>
-                            ) : null}
+                if (statusFilter === 'INCLUDED') return item.included
+                if (statusFilter === 'EXCLUDED') return !item.included
+                return true
+              })
+
+              if (filteredItems.length === 0) {
+                return (
+                  <div className="text-center py-12 text-muted-foreground text-xs space-y-2">
+                    <p className="font-semibold text-sm text-foreground">No matching products found</p>
+                    <p>Try clearing your search query or filter tab.</p>
+                  </div>
+                )
+              }
+
+              return filteredItems.map((item) => {
+                // Find actual index in original editableItems
+                const realIndex = editableItems.findIndex((it) => it.id === item.id)
+                const idx = realIndex !== -1 ? realIndex : 0
+
+                const lineAmount = item.included
+                  ? item.unit === 'ls'
+                    ? item.rate
+                    : item.rate * item.quantity
+                  : 0
+                const isExpanded = Boolean(expandedSpecs[item.id])
+
+                return (
+                  <div
+                    key={item.id}
+                    className={`p-4 rounded-xl border transition-all ${
+                      item.included
+                        ? 'bg-card border-border shadow-xs hover:border-primary/40'
+                        : 'bg-muted/30 border-dashed border-rose-300/80 dark:border-rose-900/60 opacity-80'
+                    }`}
+                  >
+                    {/* Top Row: Item Index, Description, Inclusion Status, and Rate */}
+                    <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+                      <div className="flex items-start gap-2.5 flex-1 min-w-[280px]">
+                        <Badge
+                          variant="outline"
+                          className="text-[11px] font-bold px-2 py-0.5 mt-0.5 shrink-0 bg-muted"
+                        >
+                          #{String(idx + 1).padStart(2, '0')}
+                        </Badge>
+                        <div>
+                          <div className="font-bold text-sm text-foreground leading-snug">
+                            {item.description}
                           </div>
                           {item.materials ? (
-                            isExpanded ? (
-                              <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground whitespace-pre-line bg-muted/30 p-2 rounded border border-border/40">
-                                {item.materials}
-                              </div>
-                            ) : (
-                              <div className="text-[11px] text-muted-foreground/75 truncate max-w-[650px] leading-tight">
-                                {item.materials.replace(/\n+/g, ' ')}
-                              </div>
-                            )
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedSpecs((prev) => ({ ...prev, [item.id]: !prev[item.id] }))
+                              }
+                              className="text-[11px] font-semibold text-primary hover:underline flex items-center gap-1 mt-1"
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <ChevronUp className="h-3 w-3" /> Hide Specs
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="h-3 w-3" /> Show Material Specs
+                                </>
+                              )}
+                            </button>
                           ) : null}
-                        </td>
-                        <td className="py-2 px-3 text-right tabular-nums font-medium text-xs align-middle">
-                          ৳{item.rate.toLocaleString()}
-                        </td>
-                        <td className="py-2 px-3 text-right align-middle">
-                          {item.unit === 'ls' ? (
-                            <span className="text-xs text-muted-foreground font-medium">Lump Sum</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        {/* Inclusion Status Badge */}
+                        <Badge
+                          variant="outline"
+                          className={`text-xs font-semibold px-2.5 py-0.5 ${
+                            item.included
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-400'
+                              : 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-400'
+                          }`}
+                        >
+                          {item.included ? '✓ Included' : '✕ Cancelled'}
+                        </Badge>
+
+                        {/* Rate info */}
+                        <div className="text-right">
+                          <div className="text-[10px] uppercase font-semibold text-muted-foreground">Rate</div>
+                          <div className="text-xs font-bold text-foreground">
+                            ৳{item.rate.toLocaleString()} <span className="text-[10px] font-normal text-muted-foreground">/ {item.unit}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Expandable Specs Box */}
+                    {item.materials && isExpanded ? (
+                      <div className="my-2.5 text-xs leading-relaxed text-muted-foreground whitespace-pre-line bg-muted/40 p-3 rounded-lg border border-border/60">
+                        {item.materials}
+                      </div>
+                    ) : null}
+
+                    {/* Interactive Controls & Subtotal Row */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3 border-border/50">
+                      {/* Quantity Controller */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-muted-foreground">Quantity / Sqft:</span>
+                        {item.unit === 'ls' ? (
+                          <Badge variant="secondary" className="text-xs font-semibold px-3 py-1">
+                            Lump Sum (Fixed)
+                          </Badge>
+                        ) : (
+                          <div className="flex items-center">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="outline"
+                              className="h-9 w-9 rounded-r-none border-r-0 shrink-0"
+                              disabled={!item.included || item.quantity <= 0}
+                              onClick={() => {
+                                setEditableItems((prev) =>
+                                  prev.map((it, i) =>
+                                    i === idx ? { ...it, quantity: Math.max(0, it.quantity - 1) } : it,
+                                  ),
+                                )
+                              }}
+                            >
+                              <Minus className="h-3.5 w-3.5" />
+                            </Button>
+                            <Input
+                              type="number"
+                              min={0}
+                              step="any"
+                              value={item.quantity}
+                              disabled={!item.included}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value)
+                                const nextQty = Number.isFinite(val) && val >= 0 ? val : 0
+                                setEditableItems((prev) =>
+                                  prev.map((it, i) => (i === idx ? { ...it, quantity: nextQty } : it)),
+                                )
+                              }}
+                              className="h-9 w-24 text-center font-bold text-sm tabular-nums rounded-none border-x-0 bg-background focus-visible:ring-1"
+                            />
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="outline"
+                              className="h-9 w-9 rounded-l-none border-l-0 shrink-0"
+                              disabled={!item.included}
+                              onClick={() => {
+                                setEditableItems((prev) =>
+                                  prev.map((it, i) => (i === idx ? { ...it, quantity: it.quantity + 1 } : it)),
+                                )
+                              }}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                            <span className="ml-2 text-xs font-bold uppercase text-muted-foreground">
+                              {item.unit}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Line Subtotal & Item Action */}
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <div className="text-[10px] uppercase font-semibold text-muted-foreground">Subtotal</div>
+                          <div className={`text-base font-extrabold tabular-nums ${item.included ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
+                            ৳{lineAmount.toLocaleString()} BDT
+                          </div>
+                        </div>
+
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={item.included ? 'outline' : 'default'}
+                          className={`h-9 text-xs px-3 font-semibold gap-1.5 transition-colors ${
+                            item.included
+                              ? 'border-rose-300 text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                              : 'bg-emerald-600 hover:bg-emerald-700 text-white font-bold'
+                          }`}
+                          onClick={() => {
+                            setEditableItems((prev) =>
+                              prev.map((it, i) => (i === idx ? { ...it, included: !it.included } : it)),
+                            )
+                          }}
+                        >
+                          {item.included ? (
+                            <>
+                              <X className="h-3.5 w-3.5" /> Cancel Item
+                            </>
                           ) : (
-                            <div className="flex items-center justify-end gap-1.5">
-                              <Input
-                                type="number"
-                                min={0}
-                                step="any"
-                                value={item.quantity}
-                                disabled={!item.included}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value)
-                                  const nextQty = Number.isFinite(val) && val >= 0 ? val : 0
-                                  setEditableItems((prev) =>
-                                    prev.map((it, i) => (i === idx ? { ...it, quantity: nextQty } : it)),
-                                  )
-                                }}
-                                className="h-8 w-32 text-right tabular-nums text-xs font-medium px-2"
-                              />
-                              <span className="text-xs font-medium text-muted-foreground">{item.unit}</span>
-                            </div>
+                            <>
+                              <Plus className="h-3.5 w-3.5" /> Restore Item
+                            </>
                           )}
-                        </td>
-                        <td className="py-2 px-3 text-right tabular-nums font-bold text-xs align-middle">
-                          ৳{lineAmount.toLocaleString()}
-                        </td>
-                        <td className="py-2 px-3 text-center align-middle">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant={item.included ? 'outline' : 'destructive'}
-                            className="h-7 text-xs px-2.5 font-semibold"
-                            onClick={() => {
-                              setEditableItems((prev) =>
-                                prev.map((it, i) => (i === idx ? { ...it, included: !it.included } : it)),
-                              )
-                            }}
-                          >
-                            {item.included ? 'Cancel Product' : 'Restore Product'}
-                          </Button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            })()}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between border-t pt-3 pb-5 px-6 gap-2 shrink-0">
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          {/* Modal Footer Bar */}
+          <div className="flex flex-wrap items-center justify-between border-t pt-3.5 pb-5 px-6 gap-3 shrink-0 bg-muted/20">
+            <div className="flex items-center gap-4 text-xs">
               <div>
                 Total Scope Value:{' '}
-                <strong className="text-sm font-bold text-foreground">
+                <strong className="text-base font-bold text-foreground ml-1">
                   ৳
                   {editableItems
                     .filter((i) => i.included)
                     .reduce((sum, i) => sum + (i.unit === 'ls' ? i.rate : i.rate * i.quantity), 0)
-                    .toLocaleString()}
+                    .toLocaleString()}{' '}
+                  BDT
                 </strong>
               </div>
               <span className="text-muted-foreground/40">•</span>
               <div>
                 Total Included Sqft:{' '}
-                <strong className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                <strong className="text-base font-bold text-emerald-600 dark:text-emerald-400 ml-1">
                   {editableItems
                     .filter((i) => i.included && (i.unit === 'sqft' || i.unit === 'sft' || !i.unit))
                     .reduce((sum, i) => sum + (i.quantity || 0), 0)
@@ -911,6 +1092,7 @@ export default function PCProjectDetailPage() {
                 </strong>
               </div>
             </div>
+
             <div className="flex items-center gap-2">
               <Button
                 type="button"
@@ -922,7 +1104,7 @@ export default function PCProjectDetailPage() {
               </Button>
               <Button
                 type="button"
-                className="bg-primary text-primary-foreground font-semibold"
+                className="bg-primary text-primary-foreground font-semibold px-4"
                 disabled={savingVersion}
                 onClick={() => void handleSaveNewVersion()}
               >
