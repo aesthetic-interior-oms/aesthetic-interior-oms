@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -14,45 +8,44 @@ datasource db {
 }
 
 model Lead {
-  id         String         @id @default(cuid())
-  name       String
-  phone      String?        @unique
-  email      String?
-  source     String?
-  stage      LeadStage      @default(NEW)
-  subStatus  LeadSubStatus?
-  budget     Float?
-  quotationType String?
-  agreementType String?
-  agreementValue Float?
-  initialAgreementValue Float?
-  agreementSqft  Float?
-  location   String?
-  remarks    String?
-  assignedTo String?
+  id                     String                      @id @default(cuid())
+  name                   String
+  phone                  String?                     @unique
+  email                  String?
+  assignedTo             String?
+  created_at             DateTime                    @default(now())
+  updated_at             DateTime                    @updatedAt
+  budget                 Float?
+  location               String?
+  remarks                String?
+  source                 String?
+  stage                  LeadStage                   @default(NEW)
+  subStatus              LeadSubStatus?
   primaryOwnerDepartment LeadPrimaryOwnerDepartment?
-  primaryOwnerUserId String?
-  accountStatus AccountStatus?
-  created_at DateTime       @default(now())
-  updated_at DateTime       @updatedAt
-
-  assignee      User?               @relation("UserAssignedLeads", fields: [assignedTo], references: [id])
-  primaryOwner  User?               @relation("LeadPrimaryOwner", fields: [primaryOwnerUserId], references: [id], onDelete: SetNull)
-  followUps     FollowUp[]
-  notes         Note[]
-  activities    ActivityLog[]
-  statusHistory LeadStatusHistory[]
-  assignments   LeadAssignment[]
-  visits        Visit[]
-  attachments   LeadAttachment[]
-  cadWorkSubmissions CadWorkSubmission[]
-  quotationDrafts QuotationDraft[]
-  notifications Notification[]
-  phaseTasks    LeadPhaseTask[]
-  jrArchitectRequests LeadJrArchitectRequest[]
-  meetingEvents LeadMeetingEvent[]
-  transactions  Transaction[]
-  agreementValueLogs AgreementValueLog[]
+  primaryOwnerUserId     String?
+  quotationType          String?
+  agreementType          String?
+  agreementValue         Float?
+  accountStatus          AccountStatus?
+  agreementSqft          Float?
+  initialAgreementValue  Float?
+  activities             ActivityLog[]
+  agreementValueLogs     AgreementValueLog[]
+  cadWorkSubmissions     CadWorkSubmission[]
+  followUps              FollowUp[]
+  assignee               User?                       @relation("UserAssignedLeads", fields: [assignedTo], references: [id])
+  primaryOwner           User?                       @relation("LeadPrimaryOwner", fields: [primaryOwnerUserId], references: [id])
+  assignments            LeadAssignment[]
+  attachments            LeadAttachment[]
+  jrArchitectRequests    LeadJrArchitectRequest[]
+  meetingEvents          LeadMeetingEvent[]
+  phaseTasks             LeadPhaseTask[]
+  statusHistory          LeadStatusHistory[]
+  notes                  Note[]
+  notifications          Notification[]
+  quotationDrafts        QuotationDraft[]
+  transactions           Transaction[]
+  visits                 Visit[]
 
   @@index([assignedTo])
   @@index([primaryOwnerUserId])
@@ -66,9 +59,8 @@ model LeadAssignment {
   userId     String
   department LeadAssignmentDepartment
   createdAt  DateTime                 @default(now())
-
-  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lead       Lead                     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user       User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([leadId, department, userId])
   @@index([leadId])
@@ -77,14 +69,14 @@ model LeadAssignment {
 }
 
 model LeadStatusHistory {
-  id          String     @id @default(cuid())
+  id          String    @id @default(cuid())
   leadId      String
-  lead        Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  changedById String
+  changedAt   DateTime  @default(now())
   oldStatus   LeadStage
   newStatus   LeadStage
-  changedById String
-  changedBy   User       @relation(fields: [changedById], references: [id], onDelete: Cascade)
-  changedAt   DateTime   @default(now())
+  changedBy   User      @relation(fields: [changedById], references: [id], onDelete: Cascade)
+  lead        Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([leadId])
   @@index([changedById])
@@ -93,27 +85,27 @@ model LeadStatusHistory {
 model ActivityLog {
   id          String       @id @default(cuid())
   leadId      String
-  lead        Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
   userId      String
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   type        ActivityType
   description String
   createdAt   DateTime     @default(now())
+  lead        Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([leadId])
   @@index([userId])
 }
 
 model FollowUp {
-  id           String         @id @default(cuid())
-  leadId       String
-  lead         Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  assignedToId String
-  assignedTo   User           @relation(fields: [assignedToId], references: [id], onDelete: Cascade)
-  followupDate DateTime
-  status       FollowUpStatus @default(PENDING)
-  notes        String?
-  createdAt    DateTime       @default(now())
+  id            String         @id @default(cuid())
+  leadId        String
+  assignedToId  String
+  followupDate  DateTime
+  status        FollowUpStatus @default(PENDING)
+  notes         String?
+  createdAt     DateTime       @default(now())
+  assignedTo    User           @relation(fields: [assignedToId], references: [id], onDelete: Cascade)
+  lead          Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
   notifications Notification[]
 
   @@index([leadId])
@@ -123,88 +115,86 @@ model FollowUp {
 model Note {
   id        String   @id @default(cuid())
   leadId    String
-  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String
   createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([leadId])
   @@index([userId])
 }
 
 model User {
-  id          String   @id @default(cuid())
-  fullName    String
-  email       String   @unique
-  phone       String
-  isActive    Boolean  @default(true)
-  clerkUserId String?  @unique
-  approvedById String?
-  approvedAt   DateTime?
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-
-  approvedBy   User?               @relation("UserApprover", fields: [approvedById], references: [id], onDelete: SetNull)
-  approvedUsers User[]             @relation("UserApprover")
-  leads           Lead[]              @relation("UserAssignedLeads")
-  primaryOwnedLeads Lead[]            @relation("LeadPrimaryOwner")
-  followUps       FollowUp[]
-  notes           Note[]
-  activities      ActivityLog[]
-  statusChanges   LeadStatusHistory[]
-  userRoles       UserRole[]
-  userDepartments UserDepartment[]
-  leadAssignments LeadAssignment[]
-  visitsAssigned  Visit[]             @relation("VisitAssignee")
-  visitsCreated   Visit[]             @relation("VisitCreator")
-  visitUpdateRequests       VisitUpdateRequest[] @relation("VisitUpdateRequestedBy")
-  resolvedVisitUpdateRequests VisitUpdateRequest[] @relation("VisitUpdateResolvedBy")
-  supportVisits             VisitSupportAssignment[] @relation("VisitSupportMember")
-  supportVisitsAssignedBy   VisitSupportAssignment[] @relation("VisitSupportAssignedBy")
-  supportVisitResults       VisitSupportResult[]
-  phaseTasksAssigned        LeadPhaseTask[]      @relation("LeadPhaseTaskAssignee")
-  phaseTasksCreated         LeadPhaseTask[]      @relation("LeadPhaseTaskCreator")
-  jrArchitectRequests       LeadJrArchitectRequest[] @relation("LeadJrArchitectRequestRequestedBy")
-  jrArchitectReviewedRequests LeadJrArchitectRequest[] @relation("LeadJrArchitectRequestReviewedBy")
-  phaseReviews              LeadPhaseReview[]
-  meetingEventsCreated      LeadMeetingEvent[]
-  cadWorkSubmissions        CadWorkSubmission[] @relation("CadWorkSubmittedBy")
-  quotationDraftsCreated    QuotationDraft[]    @relation("QuotationDraftCreatedBy")
-  quotationDraftsUpdated    QuotationDraft[]    @relation("QuotationDraftUpdatedBy")
-  notifications Notification[]
-  signupNotifications Notification[] @relation("NotificationSubjectUser")
-  transactionsRecorded Transaction[] @relation("TransactionRecorder")
-  transactionsCollected Transaction[] @relation("TransactionCollector")
-  deviceTokens DeviceToken[]
-  jrArchitectPerformances JrArchitectPerformance[]
-  quotationPerformances QuotationUserPerformance[]
-  agreementValueLogs AgreementValueLog[]
+  id                          String                     @id @default(cuid())
+  fullName                    String
+  email                       String                     @unique
+  phone                       String
+  created_at                  DateTime                   @default(now())
+  updated_at                  DateTime                   @updatedAt
+  clerkUserId                 String?                    @unique
+  isActive                    Boolean                    @default(true)
+  approvedById                String?
+  approvedAt                  DateTime?
+  activities                  ActivityLog[]
+  agreementValueLogs          AgreementValueLog[]
+  cadWorkSubmissions          CadWorkSubmission[]        @relation("CadWorkSubmittedBy")
+  deviceTokens                DeviceToken[]
+  followUps                   FollowUp[]
+  jrArchitectPerformances     JrArchitectPerformance[]
+  leads                       Lead[]                     @relation("UserAssignedLeads")
+  primaryOwnedLeads           Lead[]                     @relation("LeadPrimaryOwner")
+  leadAssignments             LeadAssignment[]
+  jrArchitectRequests         LeadJrArchitectRequest[]   @relation("LeadJrArchitectRequestRequestedBy")
+  jrArchitectReviewedRequests LeadJrArchitectRequest[]   @relation("LeadJrArchitectRequestReviewedBy")
+  meetingEventsCreated        LeadMeetingEvent[]
+  phaseReviews                LeadPhaseReview[]
+  phaseTasksAssigned          LeadPhaseTask[]            @relation("LeadPhaseTaskAssignee")
+  phaseTasksCreated           LeadPhaseTask[]            @relation("LeadPhaseTaskCreator")
+  statusChanges               LeadStatusHistory[]
+  notes                       Note[]
+  signupNotifications         Notification[]             @relation("NotificationSubjectUser")
+  notifications               Notification[]
+  quotationDraftsCreated      QuotationDraft[]           @relation("QuotationDraftCreatedBy")
+  quotationDraftsUpdated      QuotationDraft[]           @relation("QuotationDraftUpdatedBy")
+  quotationPerformances       QuotationUserPerformance[]
+  transactionsCollected       Transaction[]              @relation("TransactionCollector")
+  transactionsRecorded        Transaction[]              @relation("TransactionRecorder")
+  approvedBy                  User?                      @relation("UserApprover", fields: [approvedById], references: [id])
+  approvedUsers               User[]                     @relation("UserApprover")
+  userDepartments             UserDepartment[]
+  userRoles                   UserRole[]
+  visitsAssigned              Visit[]                    @relation("VisitAssignee")
+  visitsCreated               Visit[]                    @relation("VisitCreator")
+  supportVisitsAssignedBy     VisitSupportAssignment[]   @relation("VisitSupportAssignedBy")
+  supportVisits               VisitSupportAssignment[]   @relation("VisitSupportMember")
+  supportVisitResults         VisitSupportResult[]
+  visitUpdateRequests         VisitUpdateRequest[]       @relation("VisitUpdateRequestedBy")
+  resolvedVisitUpdateRequests VisitUpdateRequest[]       @relation("VisitUpdateResolvedBy")
 }
 
 model DeviceToken {
   id        String   @id @default(cuid())
   userId    String
   token     String   @unique
-  platform  String   // "android" | "ios"
+  platform  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AgreementValueLog {
   id               String          @id @default(cuid())
   leadId           String
-  lead             Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  quotationDraftId String?
-  quotationDraft   QuotationDraft? @relation(fields: [quotationDraftId], references: [id], onDelete: SetNull)
-  versionTitle     String?
   amount           Float
   note             String?
   createdById      String
-  createdBy        User            @relation(fields: [createdById], references: [id], onDelete: Cascade)
   createdAt        DateTime        @default(now())
+  quotationDraftId String?
+  versionTitle     String?
+  createdBy        User            @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  lead             Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  quotationDraft   QuotationDraft? @relation(fields: [quotationDraftId], references: [id])
 
   @@index([leadId])
   @@index([createdById])
@@ -215,24 +205,23 @@ model LeadPhaseTask {
   id                 String              @id @default(cuid())
   leadId             String
   phaseType          LeadPhaseType
-  workDetails        String?
   assigneeUserId     String
-  startedAt          DateTime            @default(now())
   dueAt              DateTime
   status             LeadPhaseTaskStatus @default(OPEN)
-  completedAt        DateTime?
-  lastSrActionAt     DateTime?
-  sourceVisitId      String?
   currentReviewRound Int                 @default(0)
   createdById        String
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
-
-  lead      Lead              @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  assignee  User              @relation("LeadPhaseTaskAssignee", fields: [assigneeUserId], references: [id], onDelete: Cascade)
-  createdBy User              @relation("LeadPhaseTaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  sourceVisit Visit?          @relation("LeadPhaseTaskSourceVisit", fields: [sourceVisitId], references: [id], onDelete: SetNull)
-  reviews   LeadPhaseReview[]
+  workDetails        String?
+  startedAt          DateTime            @default(now())
+  completedAt        DateTime?
+  lastSrActionAt     DateTime?
+  sourceVisitId      String?
+  reviews            LeadPhaseReview[]
+  assignee           User                @relation("LeadPhaseTaskAssignee", fields: [assigneeUserId], references: [id], onDelete: Cascade)
+  createdBy          User                @relation("LeadPhaseTaskCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  lead               Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  sourceVisit        Visit?              @relation("LeadPhaseTaskSourceVisit", fields: [sourceVisitId], references: [id])
 
   @@index([leadId])
   @@index([assigneeUserId])
@@ -245,18 +234,17 @@ model LeadPhaseTask {
 
 model LeadJrArchitectRequest {
   id            String                       @id @default(cuid())
-  leadId         String
-  requestedById  String
-  status         LeadJrArchitectRequestStatus @default(PENDING)
-  note           String?
-  reviewedById   String?
-  reviewedAt     DateTime?
-  createdAt      DateTime                    @default(now())
-  updatedAt      DateTime                    @updatedAt
-
-  lead         Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  requestedBy  User  @relation("LeadJrArchitectRequestRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
-  reviewedBy   User? @relation("LeadJrArchitectRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  leadId        String
+  requestedById String
+  status        LeadJrArchitectRequestStatus @default(PENDING)
+  note          String?
+  reviewedById  String?
+  reviewedAt    DateTime?
+  createdAt     DateTime                     @default(now())
+  updatedAt     DateTime                     @updatedAt
+  lead          Lead                         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  requestedBy   User                         @relation("LeadJrArchitectRequestRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedBy    User?                        @relation("LeadJrArchitectRequestReviewedBy", fields: [reviewedById], references: [id])
 
   @@index([leadId])
   @@index([requestedById])
@@ -266,15 +254,14 @@ model LeadJrArchitectRequest {
 
 model LeadPhaseReview {
   id           String                  @id @default(cuid())
-  taskId        String
+  taskId       String
   roundNo      Int
   submittedAt  DateTime                @default(now())
   reviewedById String
   decision     LeadPhaseReviewDecision
   comment      String?
-
-  task       LeadPhaseTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  reviewedBy User          @relation(fields: [reviewedById], references: [id], onDelete: Cascade)
+  reviewedBy   User                    @relation(fields: [reviewedById], references: [id], onDelete: Cascade)
+  task         LeadPhaseTask           @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, roundNo])
   @@index([taskId])
@@ -282,7 +269,7 @@ model LeadPhaseReview {
 }
 
 model LeadMeetingEvent {
-  id          String              @id @default(cuid())
+  id          String               @id @default(cuid())
   leadId      String
   type        LeadMeetingEventType
   title       String
@@ -290,11 +277,10 @@ model LeadMeetingEvent {
   startsAt    DateTime
   endsAt      DateTime?
   createdById String
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-
-  lead      Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  createdBy   User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  lead        Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([leadId])
   @@index([type])
@@ -303,17 +289,16 @@ model LeadMeetingEvent {
 }
 
 model CadWorkSubmission {
-  id           String   @id @default(cuid())
-  leadId       String
+  id            String                  @id @default(cuid())
+  leadId        String
   submittedById String
-  note         String?
-  submittedAt  DateTime @default(now())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  lead        Lead                    @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  submittedBy User                    @relation("CadWorkSubmittedBy", fields: [submittedById], references: [id], onDelete: Cascade)
-  files       CadWorkSubmissionFile[]
+  note          String?
+  submittedAt   DateTime                @default(now())
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  lead          Lead                    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  submittedBy   User                    @relation("CadWorkSubmittedBy", fields: [submittedById], references: [id], onDelete: Cascade)
+  files         CadWorkSubmissionFile[]
 
   @@index([leadId])
   @@index([submittedById])
@@ -321,23 +306,22 @@ model CadWorkSubmission {
 }
 
 model QuotationDraft {
-  id            String               @id @default(cuid())
-  leadId        String
-  draftKey      String               @default("detail")
-  createdById   String
-  updatedById   String?
-  quotationType String               @default("STANDARD")
-  projectSqft   Float?
-  content       Json
-  grandTotal    Float                @default(0)
-  status        QuotationDraftStatus @default(DRAFT)
-  createdAt     DateTime             @default(now())
-  updatedAt     DateTime             @updatedAt
-
-  lead               Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  createdBy          User                @relation("QuotationDraftCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  updatedBy          User?               @relation("QuotationDraftUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  id                 String               @id @default(cuid())
+  leadId             String
+  createdById        String
+  updatedById        String?
+  quotationType      String               @default("STANDARD")
+  projectSqft        Float?
+  content            Json
+  grandTotal         Float                @default(0)
+  status             QuotationDraftStatus @default(DRAFT)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  draftKey           String               @default("detail")
   agreementValueLogs AgreementValueLog[]
+  createdBy          User                 @relation("QuotationDraftCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  lead               Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  updatedBy          User?                @relation("QuotationDraftUpdatedBy", fields: [updatedById], references: [id])
 
   @@unique([leadId, draftKey])
   @@index([createdById])
@@ -345,46 +329,44 @@ model QuotationDraft {
 }
 
 model CadWorkSubmissionFile {
-  id          String                @id @default(cuid())
+  id           String                @id @default(cuid())
   submissionId String
-  url         String
-  fileName    String
-  fileType    String
-  cadFileType CadSubmissionFileType
-  sizeBytes   Int?
-  createdAt   DateTime              @default(now())
-
-  submission CadWorkSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  url          String
+  fileName     String
+  fileType     String
+  cadFileType  CadSubmissionFileType
+  sizeBytes    Int?
+  createdAt    DateTime              @default(now())
+  submission   CadWorkSubmission     @relation(fields: [submissionId], references: [id], onDelete: Cascade)
 
   @@index([submissionId])
   @@index([cadFileType])
 }
 
 model Visit {
-  id           String      @id @default(cuid())
-  leadId        String
-  assignedToId  String?
-  scheduledAt   DateTime
-  visitFee      Float       @default(0)
-  status        VisitStatus @default(SCHEDULED)
-  projectSqft   Float?
-  projectStatus ProjectStatus?
-  location      String
-  notes         String?
-  createdById   String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  lead       Lead         @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  assignedTo User?        @relation("VisitAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
-  createdBy  User         @relation("VisitCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  result     VisitResult?
-  cadPhaseTasks LeadPhaseTask[] @relation("LeadPhaseTaskSourceVisit")
-  updateRequests VisitUpdateRequest[]
+  id                 String                   @id @default(cuid())
+  leadId             String
+  assignedToId       String?
+  scheduledAt        DateTime
+  status             VisitStatus              @default(SCHEDULED)
+  location           String
+  notes              String?
+  createdById        String
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  projectSqft        Float?
+  projectStatus      ProjectStatus?
+  visitFee           Float                    @default(0)
+  cadPhaseTasks      LeadPhaseTask[]          @relation("LeadPhaseTaskSourceVisit")
+  notifications      Notification[]
+  visitPayments      Transaction[]            @relation("VisitPayments")
+  assignedTo         User?                    @relation("VisitAssignee", fields: [assignedToId], references: [id])
+  createdBy          User                     @relation("VisitCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  lead               Lead                     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  result             VisitResult?
   supportAssignments VisitSupportAssignment[]
-  supportResults VisitSupportResult[]
-  notifications Notification[]
-  visitPayments Transaction[] @relation("VisitPayments")
+  supportResults     VisitSupportResult[]
+  updateRequests     VisitUpdateRequest[]
 
   @@index([leadId])
   @@index([assignedToId])
@@ -393,19 +375,19 @@ model Visit {
 }
 
 model VisitUpdateRequest {
-  id                 String                   @id @default(cuid())
-  visitId            String
-  visit              Visit                     @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  type               VisitUpdateRequestType
-  status             VisitUpdateRequestStatus  @default(PENDING)
-  reason             String
+  id                  String                   @id @default(cuid())
+  visitId             String
+  type                VisitUpdateRequestType
+  status              VisitUpdateRequestStatus @default(PENDING)
+  reason              String
   requestedScheduleAt DateTime?
-  requestedById      String
-  requestedBy        User                      @relation("VisitUpdateRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
-  resolvedById       String?
-  resolvedBy         User?                     @relation("VisitUpdateResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
-  createdAt          DateTime                  @default(now())
-  resolvedAt         DateTime?
+  requestedById       String
+  resolvedById        String?
+  createdAt           DateTime                 @default(now())
+  resolvedAt          DateTime?
+  requestedBy         User                     @relation("VisitUpdateRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  resolvedBy          User?                    @relation("VisitUpdateResolvedBy", fields: [resolvedById], references: [id])
+  visit               Visit                    @relation(fields: [visitId], references: [id], onDelete: Cascade)
 
   @@index([visitId])
   @@index([status])
@@ -414,34 +396,32 @@ model VisitUpdateRequest {
 }
 
 model VisitResult {
-  id           String       @id @default(cuid())
-  visitId       String       @unique
-  summary      String
-  measurements Json?
-  clientMood   String?
+  id                 String       @id @default(cuid())
+  visitId            String       @unique
+  summary            String
+  measurements       Json?
+  clientMood         String?
+  completedAt        DateTime     @default(now())
   clientPotentiality String?
-  projectType String?
-  clientPersonality String?
-  budgetRange String?
-  timelineUrgency String?
-  stylePreference String?
-  completedAt  DateTime     @default(now())
-
-  visit Visit         @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  files Attachment[]
+  projectType        String?
+  clientPersonality  String?
+  budgetRange        String?
+  timelineUrgency    String?
+  stylePreference    String?
+  files              Attachment[]
+  visit              Visit        @relation(fields: [visitId], references: [id], onDelete: Cascade)
 }
 
 model VisitSupportAssignment {
-  id            String   @id @default(cuid())
-  visitId        String
-  supportUserId  String
-  assignedById   String
-  createdAt      DateTime @default(now())
-
-  visit       Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  supportUser User  @relation("VisitSupportMember", fields: [supportUserId], references: [id], onDelete: Cascade)
-  assignedBy  User  @relation("VisitSupportAssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
-  result      VisitSupportResult?
+  id            String              @id @default(cuid())
+  visitId       String
+  supportUserId String
+  assignedById  String
+  createdAt     DateTime            @default(now())
+  assignedBy    User                @relation("VisitSupportAssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
+  supportUser   User                @relation("VisitSupportMember", fields: [supportUserId], references: [id], onDelete: Cascade)
+  visit         Visit               @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  result        VisitSupportResult?
 
   @@unique([visitId, supportUserId])
   @@index([visitId])
@@ -449,20 +429,19 @@ model VisitSupportAssignment {
 }
 
 model VisitSupportResult {
-  id                  String   @id @default(cuid())
+  id                  String                 @id @default(cuid())
   visitId             String
-  supportAssignmentId String   @unique
+  supportAssignmentId String                 @unique
   supportUserId       String
   clientName          String
   projectArea         String
   projectStatus       String
   extraConcern        String?
-  completedAt         DateTime @default(now())
-
-  visit              Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
-  supportAssignment  VisitSupportAssignment @relation(fields: [supportAssignmentId], references: [id], onDelete: Cascade)
-  supportUser        User @relation(fields: [supportUserId], references: [id], onDelete: Cascade)
-  files              SupportAttachment[]
+  completedAt         DateTime               @default(now())
+  files               SupportAttachment[]
+  supportAssignment   VisitSupportAssignment @relation(fields: [supportAssignmentId], references: [id], onDelete: Cascade)
+  supportUser         User                   @relation(fields: [supportUserId], references: [id], onDelete: Cascade)
+  visit               Visit                  @relation(fields: [visitId], references: [id], onDelete: Cascade)
 
   @@unique([visitId, supportUserId])
   @@index([visitId])
@@ -476,8 +455,7 @@ model Attachment {
   fileType      String
   visitResultId String
   createdAt     DateTime    @default(now())
-
-  visitResult VisitResult @relation(fields: [visitResultId], references: [id], onDelete: Cascade)
+  visitResult   VisitResult @relation(fields: [visitResultId], references: [id], onDelete: Cascade)
 
   @@index([visitResultId])
 }
@@ -485,51 +463,53 @@ model Attachment {
 model LeadAttachment {
   id        String   @id @default(cuid())
   leadId    String
-  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   url       String
   fileName  String
   fileType  String
   category  String
   sizeBytes Int?
   createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([leadId])
   @@index([category])
 }
 
 model SupportAttachment {
-  id                  String   @id @default(cuid())
-  supportResultId     String
-  url                 String
-  fileName            String
-  fileType            String
-  createdAt           DateTime @default(now())
-
-  supportResult VisitSupportResult @relation(fields: [supportResultId], references: [id], onDelete: Cascade)
+  id              String             @id @default(cuid())
+  supportResultId String
+  url             String
+  fileName        String
+  fileType        String
+  createdAt       DateTime           @default(now())
+  supportResult   VisitSupportResult @relation(fields: [supportResultId], references: [id], onDelete: Cascade)
 
   @@index([supportResultId])
 }
 
 model Notification {
-  id           String           @id @default(cuid())
-  userId       String
-  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  leadId       String?
-  lead         Lead?            @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  followUpId   String?
-  followUp     FollowUp?        @relation(fields: [followUpId], references: [id], onDelete: SetNull)
-  visitId      String?
-  visit        Visit?           @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  id            String           @id @default(cuid())
+  userId        String
+  leadId        String?
+  followUpId    String?
+  type          NotificationType
+  title         String
+  message       String
+  scheduledFor  DateTime?
+  isRead        Boolean          @default(false)
+  readAt        DateTime?
+  createdAt     DateTime         @default(now())
+  visitId       String?
   subjectUserId String?
-  subjectUser User?            @relation("NotificationSubjectUser", fields: [subjectUserId], references: [id], onDelete: SetNull)
-  type         NotificationType
-  title        String
-  message      String
-  scheduledFor DateTime?
-  isRead       Boolean          @default(false)
-  readAt       DateTime?
-  createdAt    DateTime         @default(now())
+  followUp      FollowUp?        @relation(fields: [followUpId], references: [id])
+  lead          Lead?            @relation(fields: [leadId], references: [id])
+  subjectUser   User?            @relation("NotificationSubjectUser", fields: [subjectUserId], references: [id])
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visit         Visit?           @relation(fields: [visitId], references: [id])
 
+  @@unique([userId, followUpId, type])
+  @@unique([userId, visitId, type])
+  @@unique([userId, subjectUserId, type])
   @@index([userId])
   @@index([leadId])
   @@index([followUpId])
@@ -537,29 +517,31 @@ model Notification {
   @@index([subjectUserId])
   @@index([isRead])
   @@index([createdAt])
-  @@unique([userId, followUpId, type])
-  @@unique([userId, visitId, type])
-  @@unique([userId, subjectUserId, type])
 }
 
 model FacebookSyncControl {
-  id                      String   @id @default("default")
-  enabled                 Boolean  @default(true)
-  latestEnabled           Boolean  @default(true)
-  latestIntervalMinutes   Int      @default(2)
-  latestBatchLimit        Int      @default(20)
-  backfillEnabled         Boolean  @default(true)
-  backfillIntervalMinutes Int      @default(15)
-  backfillBatchLimit      Int      @default(20)
-  fallbackEnabled         Boolean  @default(true)
-  fallbackIntervalMinutes Int      @default(15)
-  batchLimit              Int      @default(20)
+  id                      String    @id @default("default")
+  enabled                 Boolean   @default(true)
+  fallbackEnabled         Boolean   @default(true)
+  fallbackIntervalMinutes Int       @default(15)
+  batchLimit              Int       @default(20)
   lastSyncAt              DateTime?
   lastSyncStatus          String?
   lastSyncFetched         Int?
   lastSyncCreated         Int?
   lastSyncError           String?
   lastSyncTrigger         String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  incrementalCursor       String?
+  incrementalWatermark    DateTime?
+  jrCrmRoundRobinOffset   Int       @default(0)
+  latestEnabled           Boolean   @default(true)
+  latestIntervalMinutes   Int       @default(2)
+  latestBatchLimit        Int       @default(20)
+  backfillEnabled         Boolean   @default(true)
+  backfillIntervalMinutes Int       @default(15)
+  backfillBatchLimit      Int       @default(20)
   lastLatestSyncAt        DateTime?
   lastLatestSyncStatus    String?
   lastLatestSyncFetched   Int?
@@ -572,19 +554,14 @@ model FacebookSyncControl {
   lastBackfillSyncError   String?
   latestWatermark         DateTime?
   backfillCursor          String?
-  incrementalCursor       String?
-  incrementalWatermark    DateTime?
-  jrCrmRoundRobinOffset   Int      @default(0)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
 }
 
 model InstagramSyncControl {
-  id                      String   @id @default("default")
-  enabled                 Boolean  @default(true)
-  fallbackEnabled         Boolean  @default(true)
-  fallbackIntervalMinutes Int      @default(15)
-  batchLimit              Int      @default(20)
+  id                      String    @id @default("default")
+  enabled                 Boolean   @default(true)
+  fallbackEnabled         Boolean   @default(true)
+  fallbackIntervalMinutes Int       @default(15)
+  batchLimit              Int       @default(20)
   lastSyncAt              DateTime?
   lastSyncStatus          String?
   lastSyncFetched         Int?
@@ -593,31 +570,31 @@ model InstagramSyncControl {
   lastSyncTrigger         String?
   incrementalCursor       String?
   incrementalWatermark    DateTime?
-  jrCrmRoundRobinOffset   Int      @default(0)
-  createdAt               DateTime @default(now())
-  updatedAt               DateTime @updatedAt
+  jrCrmRoundRobinOffset   Int       @default(0)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 }
 
 model WhatsAppWebhookControl {
-  id                          String   @id @default("default")
-  enabled                     Boolean  @default(true)
-  lastWebhookAt               DateTime?
-  lastWebhookStatus           String?
-  lastWebhookError            String?
-  lastProcessedMessages       Int      @default(0)
-  lastCreatedLeads            Int      @default(0)
-  lastSkippedExistingPhone    Int      @default(0)
-  lastSkippedNoPhone          Int      @default(0)
-  lastSkippedDuplicateMessage Int      @default(0)
-  totalWebhookEvents          Int      @default(0)
-  totalProcessedMessages      Int      @default(0)
-  totalCreatedLeads           Int      @default(0)
-  totalSkippedExistingPhone   Int      @default(0)
-  totalSkippedNoPhone         Int      @default(0)
-  totalSkippedDuplicateMessage Int     @default(0)
-  jrCrmRoundRobinOffset       Int      @default(0)
-  createdAt                   DateTime @default(now())
-  updatedAt                   DateTime @updatedAt
+  id                           String    @id @default("default")
+  enabled                      Boolean   @default(true)
+  lastWebhookAt                DateTime?
+  lastWebhookStatus            String?
+  lastWebhookError             String?
+  lastProcessedMessages        Int       @default(0)
+  lastCreatedLeads             Int       @default(0)
+  lastSkippedExistingPhone     Int       @default(0)
+  lastSkippedNoPhone           Int       @default(0)
+  lastSkippedDuplicateMessage  Int       @default(0)
+  totalWebhookEvents           Int       @default(0)
+  totalProcessedMessages       Int       @default(0)
+  totalCreatedLeads            Int       @default(0)
+  totalSkippedExistingPhone    Int       @default(0)
+  totalSkippedNoPhone          Int       @default(0)
+  totalSkippedDuplicateMessage Int       @default(0)
+  jrCrmRoundRobinOffset        Int       @default(0)
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @updatedAt
 }
 
 model WhatsAppProcessedMessage {
@@ -630,40 +607,28 @@ model WhatsAppProcessedMessage {
 }
 
 model VisitWorkflowControl {
-  id                               String   @id @default("default")
-  supportDataEnabled               Boolean  @default(true)
-  weeklySeniorCrmAutomationEnabled Boolean  @default(true)
+  id                               String    @id @default("default")
+  supportDataEnabled               Boolean   @default(true)
+  createdAt                        DateTime  @default(now())
+  updatedAt                        DateTime  @updatedAt
   weeklySeniorCrmUserId            String?
   weeklySeniorCrmWeekStart         DateTime?
-  createdAt                        DateTime @default(now())
-  updatedAt                        DateTime @updatedAt
+  weeklySeniorCrmAutomationEnabled Boolean   @default(true)
 }
 
 model WhatsAppWebhookEvent {
-  id                     String   @id @default(cuid())
-  status                 String
-  source                 String?
-  processedMessages      Int      @default(0)
-  createdLeads           Int      @default(0)
-  skippedExistingPhone   Int      @default(0)
-  skippedNoPhone         Int      @default(0)
-  skippedDuplicateMessage Int     @default(0)
-  error                  String?
-  createdAt              DateTime @default(now())
+  id                      String   @id @default(cuid())
+  status                  String
+  source                  String?
+  processedMessages       Int      @default(0)
+  createdLeads            Int      @default(0)
+  skippedExistingPhone    Int      @default(0)
+  skippedNoPhone          Int      @default(0)
+  skippedDuplicateMessage Int      @default(0)
+  error                   String?
+  createdAt               DateTime @default(now())
 
   @@index([createdAt])
-}
-
-enum LeadAssignmentDepartment {
-  ADMIN
-  SR_CRM
-  JR_CRM
-  QUOTATION
-  VISIT_TEAM
-  JR_ARCHITECT
-  VISUALIZER_3D
-  ACCOUNTS
-  PROJECT_COORDINATOR
 }
 
 model Role {
@@ -684,9 +649,8 @@ model UserRole {
   userId     String
   roleId     String
   created_at DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, roleId])
   @@index([roleId])
@@ -695,34 +659,231 @@ model UserRole {
 model UserDepartment {
   userId       String
   departmentId String
-  created_at   DateTime @default(now())
-
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  created_at   DateTime   @default(now())
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([userId, departmentId])
   @@index([departmentId])
 }
 
+model FinanceAccount {
+  id           String        @id @default(cuid())
+  name         String        @unique
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  transactions Transaction[]
+}
 
+model Transaction {
+  id               String          @id @default(cuid())
+  date             DateTime        @default(now())
+  type             TransactionType
+  particular       String
+  amount           Float
+  recordedById     String
+  leadId           String?
+  category         String
+  serialNo         Int             @default(autoincrement())
+  voucherNo        String?         @unique
+  visitId          String?
+  collectedById    String?
+  financeAccountId String?
+  imageUrl         String?
+  collectedBy      User?           @relation("TransactionCollector", fields: [collectedById], references: [id])
+  financeAccount   FinanceAccount? @relation(fields: [financeAccountId], references: [id])
+  lead             Lead?           @relation(fields: [leadId], references: [id])
+  recordedBy       User            @relation("TransactionRecorder", fields: [recordedById], references: [id])
+  visit            Visit?          @relation("VisitPayments", fields: [visitId], references: [id])
+
+  @@index([leadId])
+  @@index([visitId])
+  @@index([recordedById])
+  @@index([collectedById])
+  @@index([date])
+}
+
+model CashFlowDaily {
+  id          String   @id @default(cuid())
+  date        DateTime @unique @default(now())
+  openingCash Float    @default(0)
+  openingBank Float    @default(0)
+  closingCash Float    @default(0)
+  closingBank Float    @default(0)
+  isClosed    Boolean  @default(false)
+}
+
+model WebsiteProject {
+  id           String                @id @default(cuid())
+  slug         String                @unique
+  title        String
+  ownerName    String?
+  type         String?
+  sqft         String?
+  duration     String?
+  category     String                @default("residential")
+  location     String?
+  thumbnailUrl String
+  description  String
+  details      String?
+  isPublished  Boolean               @default(true)
+  sortOrder    Int                   @default(0)
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  images       WebsiteProjectImage[]
+
+  @@index([isPublished, sortOrder])
+  @@index([category])
+}
+
+model WebsiteProjectImage {
+  id        String         @id @default(cuid())
+  projectId String
+  url       String
+  alt       String?
+  sortOrder Int            @default(0)
+  createdAt DateTime       @default(now())
+  project   WebsiteProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, sortOrder])
+}
+
+model WebsiteVideo {
+  id           String   @id @default(cuid())
+  title        String
+  url          String
+  provider     String   @default("youtube")
+  videoId      String?
+  embedUrl     String
+  thumbnailUrl String?
+  duration     String?
+  isFeatured   Boolean  @default(false)
+  isPublished  Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+
+  @@index([isPublished, isFeatured, sortOrder])
+}
+
+model WebsiteTestimonial {
+  id          String   @id @default(cuid())
+  quote       String
+  author      String
+  project     String
+  image       String
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([isPublished, sortOrder])
+}
+
+model WebsiteTeamMember {
+  id          String   @id @default(cuid())
+  name        String
+  role        String
+  image       String
+  specialty   String?
+  quote       String?
+  isPublished Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([isPublished, sortOrder])
+}
+
+model QuotationTemplateOverride {
+  id           String   @id @default(cuid())
+  templateKey  String
+  itemId       String
+  sectionId    String?
+  description  String?
+  materials    String?
+  unit         String?
+  priceMode    String?
+  basicRate    Float?
+  standardRate Float?
+  premiumRate  Float?
+  rateMin      Float?
+  rateMax      Float?
+  isNewItem    Boolean  @default(false)
+  isDeleted    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([templateKey, itemId])
+  @@index([templateKey])
+}
+
+model JrArchitectPerformance {
+  id               String   @id @default(cuid())
+  userId           String
+  monthYear        String
+  totalWork        Int      @default(0)
+  totalSqft        Float    @default(0)
+  totalTimeMinutes Int      @default(0)
+  performanceScore Float    @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, monthYear])
+  @@index([userId])
+  @@index([monthYear])
+}
+
+model QuotationUserPerformance {
+  id               String   @id @default(cuid())
+  userId           String
+  monthKey         String
+  detailSqft       Float    @default(0)
+  shortSqft        Float    @default(0)
+  totalSqft        Float    @default(0)
+  completedCount   Int      @default(0)
+  avgWorkingHours  Float    @default(0)
+  performanceScore Float    @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, monthKey])
+  @@index([userId])
+  @@index([monthKey])
+}
+
+enum LeadAssignmentDepartment {
+  SR_CRM
+  JR_CRM
+  QUOTATION
+  VISIT_TEAM
+  JR_ARCHITECT
+  VISUALIZER_3D
+  ADMIN
+  ACCOUNTS
+  PROJECT_COORDINATOR
+}
 
 enum LeadStage {
   NEW
+  CONTACT_ATTEMPTED
+  NURTURING
+  VISIT_SCHEDULED
+  CLOSED
   NUMBER_COLLECTED
+  VISIT_COMPLETED
+  VISIT_RESCHEDULED
+  VISIT_CANCELLED
   DISCOVERY
   CAD_PHASE
   QUOTATION_PHASE
   BUDGET_PHASE
-  VISIT_PHASE
   VISUALIZATION_PHASE
   CONVERSION
-  CONTACT_ATTEMPTED
-  NURTURING
-  VISIT_SCHEDULED
-  VISIT_RESCHEDULED
-  VISIT_COMPLETED
-  VISIT_CANCELLED
-  CLOSED
+  VISIT_PHASE
 }
 
 enum LeadSubStatus {
@@ -730,6 +891,11 @@ enum LeadSubStatus {
   NO_ANSWER
   WARM_LEAD
   FUTURE_CLIENT
+  SMALL_BUDGET
+  DEAD_LEAD
+  INVALID
+  NOT_INTERESTED
+  LOST
   FIRST_MEETING_SET
   PROPOSAL_SENT
   LAYOUT_REVISION
@@ -752,23 +918,18 @@ enum LeadSubStatus {
   VISUAL_COMPLETED
   CLIENT_APPROVED
   VISUAL_CORRECTION
+  PROJECT_DROPPED
   VISIT_SCHEDULED
   VISIT_COMPLETED
   VISIT_RESCHEDULED
   VISIT_CANCELLED
-  PROJECT_DROPPED
-  SMALL_BUDGET
-  DEAD_LEAD
-  INVALID
-  NOT_INTERESTED
-  LOST
 }
 
 enum FollowUpStatus {
   PENDING
   DONE
-  LATELY_DONE
   MISSED
+  LATELY_DONE
 }
 
 enum LeadPrimaryOwnerDepartment {
@@ -827,9 +988,9 @@ enum ActivityType {
   STATUS_CHANGE
   NOTE
   FOLLOWUP_SET
+  LEAD_CREATED
   FOLLOWUP_COMPLETED
   VISIT_SCHEDULED
-  LEAD_CREATED
   USER_ASSIGNED
   SR_TAKEOVER
   PHASE_DEADLINE_SET
@@ -883,7 +1044,6 @@ enum TransactionType {
 }
 
 enum ExpenseCategory {
-  // Office Overhead
   OFFICE_RENT
   SALARY
   SALARY_ADVANCE
@@ -897,8 +1057,6 @@ enum ExpenseCategory {
   MOBILE_RECHARGE
   OCTANE_FUEL
   DONATION
-  
-  // Project/Site specific
   BOARD_MATERIAL
   PASTING_BILL
   FARING
@@ -923,140 +1081,7 @@ enum ExpenseCategory {
   FOLDING_DOOR
   GLASS_PROFILE
   CIVIL_WORK
-  
   OTHERS
-}
-
-model FinanceAccount {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  transactions Transaction[]
-}
-
-model Transaction {
-  id          String          @id @default(cuid())
-  serialNo    Int             @default(autoincrement())
-  voucherNo   String?         @unique
-  date        DateTime        @default(now())
-  type        TransactionType
-  category    String
-  particular  String          // Description
-  amount      Float
-  imageUrl    String?         // Vercel Blob URL of attached receipt/image
-  financeAccountId String?
-  financeAccount   FinanceAccount? @relation(fields: [financeAccountId], references: [id], onDelete: SetNull)
-  recordedById String
-  leadId      String?         // Reference to Lead (if site-specific)
-  visitId     String?         // Reference to Visit (for site visit payment)
-  collectedById String?       // Visit team leader who collected the fee from client
-
-  lead        Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  visit       Visit?          @relation("VisitPayments", fields: [visitId], references: [id], onDelete: SetNull)
-  recordedBy  User            @relation("TransactionRecorder", fields: [recordedById], references: [id])
-  collectedBy User?           @relation("TransactionCollector", fields: [collectedById], references: [id])
-
-  @@index([leadId])
-  @@index([visitId])
-  @@index([recordedById])
-  @@index([collectedById])
-  @@index([date])
-}
-
-model CashFlowDaily {
-  id           String   @id @default(cuid())
-  date         DateTime @unique @default(now())
-  openingCash  Float    @default(0)
-  openingBank  Float    @default(0)
-  closingCash  Float    @default(0)
-  closingBank  Float    @default(0)
-  isClosed     Boolean  @default(false)
-}
-
-model WebsiteProject {
-  id          String                @id @default(cuid())
-  slug        String                @unique
-  title       String
-  ownerName   String?
-  type        String?
-  sqft        String?
-  duration    String?
-  category    String                @default("residential")
-  location    String?
-  thumbnailUrl String
-  description String
-  details     String?
-  isPublished Boolean               @default(true)
-  sortOrder   Int                   @default(0)
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  images      WebsiteProjectImage[]
-
-  @@index([isPublished, sortOrder])
-  @@index([category])
-}
-
-model WebsiteProjectImage {
-  id        String         @id @default(cuid())
-  projectId String
-  url       String
-  alt       String?
-  sortOrder Int            @default(0)
-  createdAt DateTime       @default(now())
-
-  project WebsiteProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@index([projectId, sortOrder])
-}
-
-model WebsiteVideo {
-  id           String   @id @default(cuid())
-  title        String
-  url          String
-  provider     String   @default("youtube")
-  videoId      String?
-  embedUrl     String
-  thumbnailUrl String?
-  duration     String?
-  isFeatured   Boolean  @default(false)
-  isPublished  Boolean  @default(true)
-  sortOrder    Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @default(now()) @updatedAt
-
-  @@index([isPublished, isFeatured, sortOrder])
-}
-
-model WebsiteTestimonial {
-  id          String   @id @default(cuid())
-  quote       String
-  author      String
-  project     String
-  image       String
-  isPublished Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
-
-  @@index([isPublished, sortOrder])
-}
-
-model WebsiteTeamMember {
-  id          String   @id @default(cuid())
-  name        String
-  role        String
-  image       String
-  specialty   String?
-  quote       String?
-  isPublished Boolean  @default(true)
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
-
-  @@index([isPublished, sortOrder])
 }
 
 enum AccountStatus {
@@ -1065,64 +1090,3 @@ enum AccountStatus {
   PARTIAL_PAID
   FULL_PAID
 }
-model QuotationTemplateOverride {
-  id            String   @id @default(cuid())
-  templateKey   String
-  itemId        String
-  sectionId     String?
-  description   String?
-  materials     String?
-  unit          String?
-  priceMode     String?
-  basicRate     Float?
-  standardRate  Float?
-  premiumRate   Float?
-  rateMin       Float?
-  rateMax       Float?
-  isNewItem     Boolean  @default(false)
-  isDeleted     Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@unique([templateKey, itemId])
-  @@index([templateKey])
-}
-
-model JrArchitectPerformance {
-  id               String   @id @default(cuid())
-  userId           String
-  monthYear        String   // Format: "YYYY-MM"
-  totalWork        Int      @default(0) // Count of CAD tasks approved
-  totalSqft        Float    @default(0) // Total projectSqft of those tasks
-  totalTimeMinutes Int      @default(0) // Total time from Assign -> Approve
-  performanceScore Float    @default(0) // Score out of 100
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, monthYear])
-  @@index([userId])
-  @@index([monthYear])
-}
-
-model QuotationUserPerformance {
-  id               String   @id @default(cuid())
-  userId           String
-  monthKey         String   // Format: "YYYY-MM"
-  detailSqft       Float    @default(0) // Total projectSqft for detail quotations
-  shortSqft        Float    @default(0) // Total projectSqft for short quotations
-  totalSqft        Float    @default(0) // Combined total projectSqft
-  completedCount   Int      @default(0) // Total completed/approved quotation count
-  avgWorkingHours  Float    @default(0) // Average completion time in hours
-  performanceScore Float    @default(0) // Pre-calculated score out of 100
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, monthKey])
-  @@index([userId])
-  @@index([monthKey])
-}
-

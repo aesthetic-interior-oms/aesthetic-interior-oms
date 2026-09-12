@@ -193,7 +193,13 @@ export async function GET(request: NextRequest) {
             },
             agreementValueLogs: {
               orderBy: { createdAt: 'desc' },
-              include: {
+              select: {
+                id: true,
+                amount: true,
+                note: true,
+                createdAt: true,
+                quotationDraftId: true,
+                versionTitle: true,
                 createdBy: {
                   select: { id: true, fullName: true, email: true },
                 },
