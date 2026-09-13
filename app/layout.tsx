@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteShell } from "@/components/website/ui/site-shell";
 import { siteName, siteUrl } from "@/lib/site";
+import { Analytics } from "@vercel/analytics/next";
 
 const googleSiteVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 
@@ -113,6 +114,7 @@ export default function RootLayout({
           <ThemeProvider defaultTheme="light" storageKey="aesthetic-theme">
             <SiteShell>{children}</SiteShell>
             <Toaster richColors />
+            <Analytics />
           </ThemeProvider>
         </body>
       </html>
