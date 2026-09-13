@@ -424,6 +424,7 @@ export default function SrCrmQuotationPage() {
                       <div>
                         <Link
                           href={`/crm/sr/quotation/${lead.id}`}
+                          prefetch={false}
                           className="font-bold text-foreground hover:underline"
                         >
                           {lead.name}
@@ -474,7 +475,7 @@ export default function SrCrmQuotationPage() {
 
                   <div className="flex items-center justify-between border-t bg-muted/20 px-5 py-3">
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/crm/sr/quotation/${lead.id}`}>
+                      <Link href={`/crm/sr/quotation/${lead.id}`} prefetch={false}>
                         <PenTool className="mr-1.5 h-3.5 w-3.5" />
                         Open Quotation Maker
                       </Link>

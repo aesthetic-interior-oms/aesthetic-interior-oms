@@ -144,6 +144,7 @@ export default function PCProjectsPage() {
                         <TableCell className="font-medium">
                           <Link
                             href={`/crm/pc/projects/${project.id}`}
+                            prefetch={false}
                             className="text-primary hover:underline font-semibold"
                           >
                             {project.name}
@@ -176,6 +177,7 @@ export default function PCProjectsPage() {
                         <TableCell className="text-right">
                           <Link
                             href={`/crm/pc/projects/${project.id}`}
+                            prefetch={false}
                             className="text-xs text-primary hover:underline font-medium"
                             onClick={(e) => e.stopPropagation()}
                           >

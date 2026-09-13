@@ -182,6 +182,7 @@ export default function AccountsProjectsPage() {
                         <TableCell className="font-medium">
                           <Link
                             href={`/crm/accounts/projects/${project.id}`}
+                            prefetch={false}
                             className="text-primary hover:underline font-semibold"
                           >
                             {project.name}
@@ -268,6 +269,7 @@ export default function AccountsProjectsPage() {
                         <CardTitle className="text-base">
                           <Link
                             href={`/crm/accounts/projects/${project.id}`}
+                            prefetch={false}
                             className="text-primary hover:underline font-semibold"
                           >
                             {project.name}
