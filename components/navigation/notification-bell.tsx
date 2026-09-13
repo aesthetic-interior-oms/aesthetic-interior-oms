@@ -89,6 +89,7 @@ export function NotificationBell() {
   const visibleUnreadCountRef = useRef(0)
   const wasHiddenRef = useRef(false)
   const unreadCountRef = useRef(0)
+  const soundEnabledRef = useRef(false)
   const originalTitleRef = useRef<string | null>(null)
 
   const playNotificationSound = useCallback(() => {
@@ -142,7 +143,7 @@ export function NotificationBell() {
       const shouldRingForNew = hasNew && payload.data.unreadCount > 0
 
       if ((shouldRingFromReturn || shouldRingForNew) && payload.data.unreadCount > 0) {
-        if (soundEnabled) {
+        if (soundEnabledRef.current) {
           playNotificationSound()
         }
         const firstUnread = payload.data.items.find((item) => !item.isRead)
@@ -169,11 +170,15 @@ export function NotificationBell() {
     } finally {
       if (showLoading) setLoading(false)
     }
-  }, [soundEnabled, playNotificationSound])
+  }, [playNotificationSound])
 
   useEffect(() => {
     unreadCountRef.current = unreadCount
   }, [unreadCount])
+
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled
+  }, [soundEnabled])
 
   useEffect(() => {
     if (typeof document === 'undefined') return
@@ -195,7 +200,9 @@ export function NotificationBell() {
 
   useEffect(() => {
     const saved = window.localStorage.getItem('crm_notification_sound')
-    setSoundEnabled(saved !== 'off')
+    const enabled = saved !== 'off'
+    soundEnabledRef.current = enabled
+    setSoundEnabled(enabled)
     loadNotifications(true)
 
     const timer = window.setInterval(() => {

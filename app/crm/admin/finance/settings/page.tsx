@@ -156,7 +156,7 @@ export default function FinanceSettingsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <Link href="/crm/admin/finance" className="hover:text-foreground flex items-center gap-1 transition">
+            <Link href="/crm/admin/finance" prefetch={false} className="hover:text-foreground flex items-center gap-1 transition">
               <ChevronLeft className="w-4 h-4" /> Finance Dashboard
             </Link>
           </div>
@@ -164,7 +164,7 @@ export default function FinanceSettingsPage() {
           <p className="text-muted-foreground">Manage your custom income and expense categories.</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/crm/admin/finance/settings/accounts">
+          <Link href="/crm/admin/finance/settings/accounts" prefetch={false}>
             <Button variant="outline" className="gap-2">
               <Wallet className="w-4 h-4" /> Manage Accounts
             </Button>

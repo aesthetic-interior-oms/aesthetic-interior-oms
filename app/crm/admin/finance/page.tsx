@@ -350,6 +350,22 @@ export default function FinanceDashboard() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isProjectPickerOpen) return
+    const timer = window.setTimeout(() => {
+      void loadFinanceLeads(pickerSearch, pickerSrCrmFilter)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [pickerSearch, pickerSrCrmFilter, isProjectPickerOpen])
+
+  useEffect(() => {
+    if (!isVisitPickerOpen) return
+    const timer = window.setTimeout(() => {
+      void loadVisitSearch(visitSearch)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [visitSearch, isVisitPickerOpen])
+
   const activeCategories = type === "OUTFLOW"
     ? [...customCategories.OUTFLOW, ...EXPENSE_CATEGORIES]
     : [...customCategories.INFLOW, ...INCOME_CATEGORIES]
@@ -902,7 +918,6 @@ export default function FinanceDashboard() {
                           value={pickerSearch}
                           onChange={(e) => {
                             setPickerSearch(e.target.value)
-                            loadFinanceLeads(e.target.value, pickerSrCrmFilter)
                           }}
                         />
                       </div>
@@ -911,7 +926,6 @@ export default function FinanceDashboard() {
                           value={pickerSrCrmFilter}
                           onValueChange={(val) => {
                             setPickerSrCrmFilter(val)
-                            loadFinanceLeads(pickerSearch, val)
                           }}
                         >
                           <SelectTrigger className="w-full sm:w-52">
@@ -1053,7 +1067,6 @@ export default function FinanceDashboard() {
                             value={visitSearch}
                             onChange={(e) => {
                               setVisitSearch(e.target.value)
-                              loadVisitSearch(e.target.value)
                             }}
                           />
                         </div>
@@ -1229,7 +1242,7 @@ export default function FinanceDashboard() {
 
       {/* STATS HEADER */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Link href="/crm/admin/finance/settings/accounts">
+        <Link href="/crm/admin/finance/settings/accounts" prefetch={false}>
           <Card className="hover:ring-2 hover:ring-indigo-500/50 transition-all cursor-pointer bg-gradient-to-br from-indigo-500/10 via-indigo-600/5 to-transparent border border-indigo-500/20 backdrop-blur-md h-full">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-indigo-400">Total Net Assets</CardTitle>

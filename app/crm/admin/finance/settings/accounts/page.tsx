@@ -343,7 +343,7 @@ export default function AccountsSettingsPage() {
       {/* Header */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <Link href="/crm/admin/finance/settings" className="hover:text-foreground flex items-center gap-1 transition">
+          <Link href="/crm/admin/finance/settings" prefetch={false} className="hover:text-foreground flex items-center gap-1 transition">
             <ChevronLeft className="w-4 h-4" /> Back to Finance Settings
           </Link>
         </div>

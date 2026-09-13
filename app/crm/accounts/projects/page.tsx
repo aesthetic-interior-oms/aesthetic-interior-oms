@@ -371,6 +371,7 @@ export default function AccountsProjectsPage() {
 
                     <Link
                       href={`/crm/accounts/projects/${project.id}`}
+                      prefetch={false}
                       className="w-full text-center text-xs text-primary hover:underline py-1"
                     >
                       View Ledger →

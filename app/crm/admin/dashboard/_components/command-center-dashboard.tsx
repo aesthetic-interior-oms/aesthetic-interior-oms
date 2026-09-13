@@ -241,7 +241,7 @@ function QueueStatusGrid({ counts }: { counts: CommandCenterDashboardProps['queu
       {queueCards.map((queue) => {
         const Icon = queue.icon
         return (
-          <Link key={queue.title} href={queue.href} className="group rounded-xl focus:outline-none focus:ring-2 focus:ring-ring">
+          <Link key={queue.title} href={queue.href} prefetch={false} className="group rounded-xl focus:outline-none focus:ring-2 focus:ring-ring">
             <Card className="h-full border-border/70 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-3">
@@ -293,6 +293,7 @@ function PriorityActionCard({ priorityActions }: { priorityActions: PriorityActi
               <Link
                 key={action.id}
                 href={action.href}
+                prefetch={false}
                 className="group flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-background p-4 transition hover:border-primary/40 hover:bg-accent/20"
               >
                 <div className="min-w-0">
@@ -327,7 +328,7 @@ function UpcomingMeetingsCard({ upcomingMeetings }: { upcomingMeetings: Upcoming
           Upcoming Meetings
         </CardTitle>
         <Button asChild variant="ghost" size="sm">
-          <Link href="/crm/admin/calendar">Calendar</Link>
+          <Link href="/crm/admin/calendar" prefetch={false}>Calendar</Link>
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -335,7 +336,7 @@ function UpcomingMeetingsCard({ upcomingMeetings }: { upcomingMeetings: Upcoming
           <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">No first or budget meetings scheduled in the next 7 days.</p>
         ) : (
           upcomingMeetings.map((meeting) => (
-            <Link key={meeting.id} href={`/crm/admin/leads/${meeting.lead.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
+            <Link key={meeting.id} href={`/crm/admin/leads/${meeting.lead.id}`} prefetch={false} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-foreground">{meeting.lead.name}</p>
                 <p className="text-xs text-muted-foreground">{formatLabel(meeting.type)} • {formatRelativeTime(meeting.startsAt)}</p>
@@ -358,7 +359,7 @@ function BudgetQuotationWatchCard({ budgetLeads }: { budgetLeads: BudgetLeadItem
           Budget & Quotation Watch
         </CardTitle>
         <Button asChild variant="ghost" size="sm">
-          <Link href={queueLinks.budget}>Open hub</Link>
+          <Link href={queueLinks.budget} prefetch={false}>Open hub</Link>
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -366,7 +367,7 @@ function BudgetQuotationWatchCard({ budgetLeads }: { budgetLeads: BudgetLeadItem
           <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">No active quotation or budget records in queue.</p>
         ) : (
           budgetLeads.map((lead) => (
-            <Link key={lead.id} href={`/crm/admin/leads/${lead.id}`} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
+            <Link key={lead.id} href={`/crm/admin/leads/${lead.id}`} prefetch={false} className="flex items-center justify-between gap-3 rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-foreground">{lead.name}</p>
                 <p className="text-xs text-muted-foreground">{lead.assignments[0]?.user.fullName ?? 'Quotation team'} • {formatMoney(lead.budget)}</p>
@@ -389,7 +390,7 @@ function ReviewSnapshotCard({ reviewSubmissions }: { reviewSubmissions: ReviewSu
           Review Center Snapshot
         </CardTitle>
         <Button asChild variant="ghost" size="sm">
-          <Link href={queueLinks.review}>Review all</Link>
+          <Link href={queueLinks.review} prefetch={false}>Review all</Link>
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -397,7 +398,7 @@ function ReviewSnapshotCard({ reviewSubmissions }: { reviewSubmissions: ReviewSu
           <p className="rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">No CAD submissions are waiting for final approval.</p>
         ) : (
           reviewSubmissions.map((submission) => (
-            <Link key={submission.id} href={queueLinks.review} className="grid gap-3 rounded-xl border border-border/70 p-4 transition hover:border-primary/40 hover:bg-accent/20 sm:grid-cols-[1fr_auto]">
+            <Link key={submission.id} href={queueLinks.review} prefetch={false} className="grid gap-3 rounded-xl border border-border/70 p-4 transition hover:border-primary/40 hover:bg-accent/20 sm:grid-cols-[1fr_auto]">
               <div>
                 <p className="text-sm font-semibold text-foreground">{submission.lead.name}</p>
                 <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
@@ -425,23 +426,23 @@ function DesignFlowCard({ designWatch }: { designWatch: DesignWatch }) {
           Design Flow Watch
         </CardTitle>
         <Button asChild variant="ghost" size="sm">
-          <Link href={queueLinks.design}>Open design queue</Link>
+          <Link href={queueLinks.design} prefetch={false}>Open design queue</Link>
         </Button>
       </CardHeader>
       <CardContent className="grid gap-2 sm:grid-cols-2">
-        <Link href={queueLinks.design} className="rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
+        <Link href={queueLinks.design} prefetch={false} className="rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
           <p className="text-xs text-muted-foreground">Design queue active</p>
           <p className="mt-1 text-xl font-semibold">{designWatch.queueCount}</p>
         </Link>
-        <Link href={queueLinks.design} className="rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
+        <Link href={queueLinks.design} prefetch={false} className="rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
           <p className="text-xs text-muted-foreground">Overdue design queue</p>
           <p className="mt-1 text-xl font-semibold text-destructive">{designWatch.overdueQueueCount}</p>
         </Link>
-        <Link href={queueLinks.review} className="rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
+        <Link href={queueLinks.review} prefetch={false} className="rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
           <p className="text-xs text-muted-foreground">Design waiting review</p>
           <p className="mt-1 text-xl font-semibold">{designWatch.reviewPendingCount}</p>
         </Link>
-        <Link href={queueLinks.review} className="rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
+        <Link href={queueLinks.review} prefetch={false} className="rounded-xl border border-border/70 p-3 transition hover:border-primary/40 hover:bg-accent/20">
           <p className="text-xs text-muted-foreground">Overdue design review</p>
           <p className="mt-1 text-xl font-semibold text-destructive">{designWatch.overdueReviewCount}</p>
         </Link>
@@ -730,7 +731,7 @@ function VisitInsightsSection({ visitInsights }: { visitInsights: VisitInsights 
             Visit Data Watch
           </CardTitle>
           <Button asChild variant="ghost" size="sm">
-            <Link href={queueLinks.visit}>Open visit queue</Link>
+            <Link href={queueLinks.visit} prefetch={false}>Open visit queue</Link>
           </Button>
         </CardHeader>
         <CardContent>
@@ -760,6 +761,7 @@ function VisitPendingRedAlertSection({ items, totalCount }: { items: OverduePend
             <Link
               key={item.id}
               href={`/crm/admin/leads/${item.leadId}`}
+              prefetch={false}
               className="block rounded-xl border border-red-200 bg-background/80 p-4 transition hover:border-red-400 hover:bg-red-50/40 dark:border-red-800 dark:bg-background/40 dark:hover:bg-red-950/40"
             >
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -780,7 +782,7 @@ function VisitPendingRedAlertSection({ items, totalCount }: { items: OverduePend
         )}
         <div>
           <Button asChild variant="destructive" size="sm">
-            <Link href={queueLinks.visit}>Open visit queue</Link>
+            <Link href={queueLinks.visit} prefetch={false}>Open visit queue</Link>
           </Button>
         </div>
       </CardContent>
@@ -799,16 +801,16 @@ function CommandShortcutsCard() {
       </CardHeader>
       <CardContent className="grid gap-2">
         <Button asChild variant="outline" className="justify-between">
-          <Link href="/crm/admin/leads">Leads <ArrowRight className="size-4" /></Link>
+          <Link href="/crm/admin/leads" prefetch={false}>Leads <ArrowRight className="size-4" /></Link>
         </Button>
         <Button asChild variant="outline" className="justify-between">
-          <Link href={queueLinks.visit}>Visit Queue <ArrowRight className="size-4" /></Link>
+          <Link href={queueLinks.visit} prefetch={false}>Visit Queue <ArrowRight className="size-4" /></Link>
         </Button>
         <Button asChild variant="outline" className="justify-between">
-          <Link href={queueLinks.cad}>CAD Queue <ArrowRight className="size-4" /></Link>
+          <Link href={queueLinks.cad} prefetch={false}>CAD Queue <ArrowRight className="size-4" /></Link>
         </Button>
         <Button asChild variant="outline" className="justify-between">
-          <Link href={queueLinks.review}>Review Center <ArrowRight className="size-4" /></Link>
+          <Link href={queueLinks.review} prefetch={false}>Review Center <ArrowRight className="size-4" /></Link>
         </Button>
       </CardContent>
     </Card>

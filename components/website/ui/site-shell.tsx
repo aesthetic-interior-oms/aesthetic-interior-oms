@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Header } from "@/components/website/ui/header";
 import { Footer } from "@/components/website/ui/footer";
+import { Analytics } from "@vercel/analytics/next";
 
 const APP_ROUTES_WITHOUT_WEBSITE_CHROME = [
   "/crm",
@@ -30,6 +31,7 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       <Header />
       {children}
       <Footer />
+      <Analytics />
     </>
   );
 }
