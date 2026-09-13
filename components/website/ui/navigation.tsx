@@ -21,6 +21,7 @@ function NavLink({ href, children, className = "" }: { href: string; children: R
   return (
     <Link
       href={href}
+      prefetch={false}
       className={`${className} ${isActive ? "text-[#a57c00]" : "text-black/80"} transition-colors`}
       aria-current={isActive ? "page" : undefined}
     >
@@ -71,13 +72,13 @@ export function DesktopNavigation() {
                     setDropdownTimeout(t)
                   }}
                 >
-                  <Link href="/services/residential" className="block px-4 py-2 text-sm text-black/80 hover:bg-gray-100">
+                  <Link href="/services/residential" prefetch={false} className="block px-4 py-2 text-sm text-black/80 hover:bg-gray-100">
                     Residential Service
                   </Link>
-                  <Link href="/services/commercial" className="block px-4 py-2 text-sm text-black/80 hover:bg-gray-100">
+                  <Link href="/services/commercial" prefetch={false} className="block px-4 py-2 text-sm text-black/80 hover:bg-gray-100">
                     Commercial Service
                   </Link>
-                  <Link href="/services/architectural" className="block px-4 py-2 text-sm text-black/80 hover:bg-gray-100">
+                  <Link href="/services/architectural" prefetch={false} className="block px-4 py-2 text-sm text-black/80 hover:bg-gray-100">
                     Architectural Design
                   </Link>
                 </div>

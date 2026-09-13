@@ -705,7 +705,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
                               'bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/90',
                           )}
                         >
-                          <Link href={item.href} onClick={closeOnSmallScreens}>
+                          <Link href={item.href} prefetch={false} onClick={closeOnSmallScreens}>
                             <Icon className="w-5 h-5" />
                             {item.label}
                           </Link>

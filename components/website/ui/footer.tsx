@@ -95,7 +95,7 @@ export function Footer() {
         >
           {/* Brand Section */}
           <motion.div variants={itemVariants} className="lg:col-span-1">
-            <Link href="/" className="inline-block group">
+            <Link href="/" prefetch={false} className="inline-block group">
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 transition={{ type: "spring", stiffness: 300 }}
@@ -145,6 +145,7 @@ export function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
+                    prefetch={false}
                     className="text-white/70 text-sm hover:text-[#a57c00] transition-colors inline-flex items-center gap-2 group"
                   >
                     <span className="w-1 h-1 rounded-full bg-[#a57c00]/0 group-hover:bg-[#a57c00] transition-colors" />
@@ -163,6 +164,7 @@ export function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
+                    prefetch={false}
                     className="text-white/70 text-sm hover:text-[#a57c00] transition-colors inline-flex items-center gap-2 group"
                   >
                     <span className="w-1 h-1 rounded-full bg-[#a57c00]/0 group-hover:bg-[#a57c00] transition-colors" />

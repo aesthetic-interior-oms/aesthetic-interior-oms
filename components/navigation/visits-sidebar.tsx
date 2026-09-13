@@ -59,6 +59,7 @@ export function VisitsSidebar() {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={false}
                 onClick={() => setIsOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                   isActive
@@ -77,6 +78,7 @@ export function VisitsSidebar() {
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800 space-y-2">
           <Link
             href="/crm/jr/dashboard"
+            prefetch={false}
             className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-colors text-sm"
           >
             ← Back to CRM
