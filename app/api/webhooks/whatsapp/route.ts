@@ -114,14 +114,14 @@ export async function POST(request: NextRequest) {
       const signatureValid = verifyMetaSignature(rawBody, signatureHeader)
       if (!signatureValid) {
         console.warn('[POST /api/webhooks/whatsapp] meta signature verification failed')
-        return NextResponse.json({ success: false, error: 'Invalid signature' }, { status: 401 })
+        return NextResponse.json({ success: false, error: 'Invalid signature' }, { status: 200 })
       }
     } else if (isWawpPayload) {
       source = 'WAWP'
       const wawpSecretValid = verifyWawpSecret(request)
       if (!wawpSecretValid) {
         console.warn('[POST /api/webhooks/whatsapp] WAWP secret verification failed')
-        return NextResponse.json({ success: false, error: 'Invalid webhook secret' }, { status: 401 })
+        return NextResponse.json({ success: false, error: 'Invalid webhook secret' }, { status: 200 })
       }
     }
 
@@ -144,6 +144,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[POST /api/webhooks/whatsapp] error:', error)
     await recordWhatsAppWebhookError(error instanceof Error ? error.message : 'Unknown webhook error', source)
-    return NextResponse.json({ success: false, error: 'Failed to process whatsapp webhook' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to process whatsapp webhook' }, { status: 200 })
   }
 }

@@ -114,8 +114,10 @@ export default function WhatsAppMonitorPage() {
     void loadMonitor()
 
     const intervalId = window.setInterval(() => {
-      void loadMonitor()
-    }, 20_000)
+      if (document.visibilityState === 'visible') {
+        void loadMonitor()
+      }
+    }, 60_000)
 
     return () => window.clearInterval(intervalId)
   }, [loadMonitor])

@@ -163,6 +163,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, received: true }, { status: 200 })
   } catch (error) {
     console.error('[POST /api/webhooks/facebook] Error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to process facebook webhook' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to process facebook webhook' }, { status: 200 })
   }
 }

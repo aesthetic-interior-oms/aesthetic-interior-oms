@@ -199,8 +199,10 @@ export function NotificationBell() {
     loadNotifications(true)
 
     const timer = window.setInterval(() => {
-      loadNotifications(false)
-    }, 30000)
+      if (document.visibilityState === 'visible') {
+        void loadNotifications(false)
+      }
+    }, 120000)
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
