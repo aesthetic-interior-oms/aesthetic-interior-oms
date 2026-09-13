@@ -139,8 +139,8 @@ export default function PCProjectDetailPage() {
       const data = (await response.json()) as { success: boolean; data?: LeadDetail; error?: string }
       if (data.success && data.data) {
         setLead(data.data)
-        if (!selectedDraftId && data.data.quotationDrafts.length > 0) {
-          setSelectedDraftId(data.data.quotationDrafts[0].id)
+        if (data.data.quotationDrafts.length > 0) {
+          setSelectedDraftId((prev) => prev ?? data.data!.quotationDrafts[0].id)
         }
       } else {
         toast.error(data.error ?? 'Failed to load project')
@@ -150,7 +150,7 @@ export default function PCProjectDetailPage() {
     } finally {
       setLoading(false)
     }
-  }, [leadId, selectedDraftId])
+  }, [leadId])
 
   useEffect(() => {
     void fetchProjectDetail()
