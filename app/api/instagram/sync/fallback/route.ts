@@ -5,16 +5,18 @@ export const runtime = 'nodejs'
 
 function isCronAuthorized(request: NextRequest): boolean {
   const configuredSecret = process.env.IG_SYNC_CRON_SECRET?.trim()
-  if (!configuredSecret) {
-    return true
-  }
-
   const authHeader = request.headers.get('authorization') ?? ''
   const incomingToken = authHeader.startsWith('Bearer ')
     ? authHeader.slice('Bearer '.length).trim()
     : ''
 
-  return incomingToken.length > 0 && incomingToken === configuredSecret
+  if (configuredSecret) {
+    return incomingToken.length > 0 && incomingToken === configuredSecret
+  }
+
+  // Fallback: require Vercel Cron header or authorization header
+  const isVercelCron = request.headers.get('x-vercel-cron') === '1'
+  return isVercelCron || incomingToken.length > 0
 }
 
 export async function GET(request: NextRequest) {
