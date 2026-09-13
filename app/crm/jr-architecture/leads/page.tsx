@@ -568,7 +568,7 @@ export default function JrArchLeadsPage() {
                         </Button>
                       ) : null}
                       <Button asChild size="sm">
-                        <Link href={getLeadHref(lead.id)}>Workspace</Link>
+                        <Link href={getLeadHref(lead.id)} prefetch={false}>Workspace</Link>
                       </Button>
                       <Button
                         variant="secondary"

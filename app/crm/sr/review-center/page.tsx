@@ -679,6 +679,7 @@ export function ReviewCenterView({
                     <div className="min-w-0 space-y-1">
                       <Link
                         href={`${leadBasePath}/${submission.lead.id}`}
+                        prefetch={false}
                         className="truncate text-base font-semibold text-foreground hover:text-primary hover:underline"
                       >
                         {submission.lead.name}
@@ -748,7 +749,7 @@ export function ReviewCenterView({
                         )
                       })()}
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`${leadBasePath}/${submission.lead.id}`}>Open Lead</Link>
+                        <Link href={`${leadBasePath}/${submission.lead.id}`} prefetch={false}>Open Lead</Link>
                       </Button>
                     </div>
                   </div>

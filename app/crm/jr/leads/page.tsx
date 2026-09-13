@@ -951,10 +951,10 @@ export default function LeadsPage() {
                             {formatStageDisplay(lead.stage)}
                           </span>
                           <div className="flex items-center gap-2">
-                            <Link href={getLeadHref(lead.id, { openSchedule: true })}>
+                            <Link href={getLeadHref(lead.id, { openSchedule: true })} prefetch={false}>
                               <Button variant="outline" size="sm">Schedule Visit</Button>
                             </Link>
-                            <Link href={getLeadHref(lead.id)}>
+                            <Link href={getLeadHref(lead.id)} prefetch={false}>
                               <Button variant="outline" size="sm">View</Button>
                             </Link>
                           </div>
@@ -1030,10 +1030,10 @@ export default function LeadsPage() {
                           </td>
                           <td className="py-4 px-4 text-center">
                             <div className="inline-flex items-center justify-center gap-2">
-                              <Link href={getLeadHref(lead.id, { openSchedule: true })}>
+                              <Link href={getLeadHref(lead.id, { openSchedule: true })} prefetch={false}>
                                 <Button variant="outline" size="sm">Schedule Visit</Button>
                               </Link>
-                              <Link href={getLeadHref(lead.id)}>
+                              <Link href={getLeadHref(lead.id)} prefetch={false}>
                                 <Button variant="outline" size="sm">View</Button>
                               </Link>
                             </div>

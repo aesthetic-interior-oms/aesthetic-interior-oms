@@ -129,9 +129,9 @@ export default async function JrArchitectureDashboardPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button asChild><Link href="/crm/jr-architecture/my-work">My Work</Link></Button>
-              <Button asChild variant="outline"><Link href="/crm/jr-architecture/calendar">Calendar</Link></Button>
-              {isLeader ? <Button asChild variant="outline"><Link href="/crm/jr-architecture/cad-phase-queue">CAD Phase Queue</Link></Button> : null}
+              <Button asChild><Link href="/crm/jr-architecture/my-work" prefetch={false}>My Work</Link></Button>
+              <Button asChild variant="outline"><Link href="/crm/jr-architecture/calendar" prefetch={false}>Calendar</Link></Button>
+              {isLeader ? <Button asChild variant="outline"><Link href="/crm/jr-architecture/cad-phase-queue" prefetch={false}>CAD Phase Queue</Link></Button> : null}
             </div>
           </div>
         </div>
@@ -174,9 +174,9 @@ export default async function JrArchitectureDashboardPage() {
             <CardHeader><CardTitle className="text-base">{isLeader ? 'Leader Controls' : 'Quick Links'}</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {isLeader ? <div className="rounded-lg border border-dashed p-3"><p className="text-sm font-semibold">Unassigned CAD tasks</p><p className="mt-1 text-2xl font-semibold">{unassignedCadTaskCount}</p><p className="mt-1 text-xs text-muted-foreground">Use CAD Phase Queue to assign ownership.</p></div> : null}
-              <Button asChild className="w-full" variant="outline"><Link href="/crm/jr-architecture/leads">Lead Workspace</Link></Button>
-              <Button asChild className="w-full" variant="outline"><Link href="/crm/jr-architecture/visits">Visit Inputs</Link></Button>
-              <Button asChild className="w-full" variant="outline"><Link href="/crm/jr-architecture/queue">Requests Queue</Link></Button>
+              <Button asChild className="w-full" variant="outline"><Link href="/crm/jr-architecture/leads" prefetch={false}>Lead Workspace</Link></Button>
+              <Button asChild className="w-full" variant="outline"><Link href="/crm/jr-architecture/visits" prefetch={false}>Visit Inputs</Link></Button>
+              <Button asChild className="w-full" variant="outline"><Link href="/crm/jr-architecture/queue" prefetch={false}>Requests Queue</Link></Button>
             </CardContent>
           </Card>
         </div>

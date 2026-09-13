@@ -943,7 +943,7 @@ export default function SeniorCrmLeadJourneyPage() {
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${stageColors[lead.stage]}`}>
                             {formatStageDisplay(lead.stage)}
                           </span>
-                          <Link href={getLeadHref(lead.id)}>
+                          <Link href={getLeadHref(lead.id)} prefetch={false}>
                             <Button variant="outline" size="sm">View</Button>
                           </Link>
                         </div>
@@ -1017,7 +1017,7 @@ export default function SeniorCrmLeadJourneyPage() {
                             </span>
                           </td>
                           <td className="py-4 px-4 text-center">
-                            <Link href={getLeadHref(lead.id)}>
+                            <Link href={getLeadHref(lead.id)} prefetch={false}>
                               <Button variant="outline" size="sm">View</Button>
                             </Link>
                           </td>
