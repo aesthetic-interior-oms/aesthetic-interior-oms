@@ -15,6 +15,58 @@ async function getDbUser() {
   })
 }
 
+const CATEGORY_LABELS: Record<string, string> = {
+  SITE_VISIT_PAYMENT: "Site Visit Fee",
+  CLIENT_PAYMENT: "Client Payment",
+  PROJECT_ADVANCE: "Project Advance",
+  DESIGN_FEE: "Design Fee",
+  CONSULTANCY_FEE: "Consultancy Fee",
+  BANK_INTEREST: "Bank Interest",
+  OTHER_INCOME: "Other Income",
+  OFFICE_RENT: "Office Rent",
+  SALARY: "Staff Salary",
+  SALARY_ADVANCE: "Salary Advance",
+  BONUS: "Bonus",
+  ELECTRICITY_BILL: "Electricity Bill",
+  WATER_BILL: "Water Bill",
+  INTERNET_BILL: "Internet Bill",
+  FOOD_ALLOWANCE: "Food Allowance",
+  CLIENT_ENTERTAINMENT: "Client Entertainment",
+  PROMOTION: "Marketing & Promotion",
+  MOBILE_RECHARGE: "Mobile Recharge",
+  OCTANE_FUEL: "Octane & Fuel",
+  DONATION: "Donation",
+  BOARD_MATERIAL: "Board Material",
+  PASTING_BILL: "Pasting Bill",
+  FARING: "Faring",
+  HPL: "HPL",
+  LINER: "Liner",
+  LUBER: "Luber",
+  ACRYLIC: "Acrylic",
+  HARDWARE: "Hardware",
+  ELECTRIC_ITEM: "Electric Items",
+  LIGHTING: "Lighting",
+  GLASS: "Glass",
+  TRANSPORT_COST: "Transport & Labor",
+  SITE_EXPENSE: "Site Expense",
+  FACTORY_PAYMENT: "Factory Payment",
+  CARPENTER_PAYMENT: "Carpenter Payment",
+  PAINT_MATERIALS: "Paint Materials",
+  PAINT_PAYMENT: "Paint Payment",
+  CEILING_PAYMENT: "Ceiling Payment",
+  DOOR: "Door Purchase",
+  PLUMBER_PAYMENT: "Plumber Payment",
+  TILES_PURCHASE: "Tiles Purchase",
+  FOLDING_DOOR: "Folding Door",
+  GLASS_PROFILE: "Glass Profile",
+  CIVIL_WORK: "Civil Work",
+  OTHERS: "Other Expenses",
+}
+
+function catLabel(cat: string) {
+  return CATEGORY_LABELS[cat] ?? cat
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getDbUser()
@@ -24,7 +76,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const startDateStr = searchParams.get("startDate")
-    const endDateStr = searchParams.get("endDate")
+    const endDateStr   = searchParams.get("endDate")
 
     const dateFilter: Record<string, Date> = {}
     if (startDateStr) dateFilter.gte = new Date(startDateStr)
@@ -35,72 +87,120 @@ export async function GET(request: NextRequest) {
     }
 
     const where: Record<string, unknown> = {}
-    if (startDateStr || endDateStr) {
-      where.date = dateFilter
-    }
+    if (startDateStr || endDateStr) where.date = dateFilter
 
     const transactions = await prisma.transaction.findMany({
       where,
       include: {
         financeAccount: { select: { id: true, name: true } },
-        lead: { select: { id: true, name: true } },
+        lead:           { select: { id: true, name: true } },
+        recordedBy:     { select: { id: true, fullName: true } },
+        collectedBy:    { select: { id: true, fullName: true } },
       },
       orderBy: { date: "asc" },
     })
 
+    type TxDetail = {
+      id: string
+      date: string
+      particular: string
+      category: string
+      categoryLabel: string
+      amount: number
+      voucherNo: string | null
+      recordedBy: string
+      collectedBy: string | null
+    }
+
     type SummaryRow = {
+      groupKey: string
       accountId: string
       accountName: string
       leadId: string | null
       leadName: string
       amount: number
       txCount: number
+      transactions: TxDetail[]
     }
 
-    const inflowMap = new Map<string, SummaryRow>()
+    type AccountStat = {
+      accountId: string
+      accountName: string
+      inflow: number
+      outflow: number
+    }
+
+    const inflowMap  = new Map<string, SummaryRow>()
     const outflowMap = new Map<string, SummaryRow>()
-    let totalInflow = 0
+    const accountMap = new Map<string, AccountStat>()
+    let totalInflow  = 0
     let totalOutflow = 0
 
     for (const tx of transactions) {
-      const accountId = tx.financeAccountId ?? "no-account"
+      const accountId   = tx.financeAccountId ?? "no-account"
       const accountName = tx.financeAccount?.name ?? "Unknown Account"
-      const leadId = tx.leadId ?? null
-      const leadName = tx.lead?.name ?? "General"
-      const key = `${accountId}__${leadId ?? "null"}`
 
-      if (tx.type === "INFLOW") {
-        const existing = inflowMap.get(key)
-        if (existing) {
-          existing.amount += tx.amount
-          existing.txCount++
-        } else {
-          inflowMap.set(key, { accountId, accountName, leadId, leadName, amount: tx.amount, txCount: 1 })
-        }
-        totalInflow += tx.amount
-      } else {
-        const existing = outflowMap.get(key)
-        if (existing) {
-          existing.amount += tx.amount
-          existing.txCount++
-        } else {
-          outflowMap.set(key, { accountId, accountName, leadId, leadName, amount: tx.amount, txCount: 1 })
-        }
-        totalOutflow += tx.amount
+      // For null-lead transactions, group by category so "Site Visit", "Office Rent" etc show separately
+      const leadId   = tx.leadId ?? null
+      const leadName = tx.lead?.name ?? catLabel(tx.category)
+      // groupKey: if there's a lead, group by lead; if not, group by category
+      const subKey  = leadId ? `lead__${leadId}` : `cat__${tx.category}`
+      const groupKey = `${accountId}__${subKey}`
+
+      const txDetail: TxDetail = {
+        id:            tx.id,
+        date:          tx.date.toISOString(),
+        particular:    tx.particular,
+        category:      tx.category,
+        categoryLabel: catLabel(tx.category),
+        amount:        tx.amount,
+        voucherNo:     tx.voucherNo ?? null,
+        recordedBy:    tx.recordedBy?.fullName ?? "Unknown",
+        collectedBy:   tx.collectedBy?.fullName ?? null,
       }
+
+      // per-account totals
+      const acct = accountMap.get(accountId) ?? { accountId, accountName, inflow: 0, outflow: 0 }
+      if (tx.type === "INFLOW") {
+        acct.inflow += tx.amount
+        totalInflow += tx.amount
+        const row = inflowMap.get(groupKey)
+        if (row) {
+          row.amount += tx.amount
+          row.txCount++
+          row.transactions.push(txDetail)
+        } else {
+          inflowMap.set(groupKey, { groupKey, accountId, accountName, leadId, leadName, amount: tx.amount, txCount: 1, transactions: [txDetail] })
+        }
+      } else {
+        acct.outflow += tx.amount
+        totalOutflow += tx.amount
+        const row = outflowMap.get(groupKey)
+        if (row) {
+          row.amount += tx.amount
+          row.txCount++
+          row.transactions.push(txDetail)
+        } else {
+          outflowMap.set(groupKey, { groupKey, accountId, accountName, leadId, leadName, amount: tx.amount, txCount: 1, transactions: [txDetail] })
+        }
+      }
+      accountMap.set(accountId, acct)
     }
 
-    const inflowRows = Array.from(inflowMap.values()).sort(
-      (a, b) => a.accountName.localeCompare(b.accountName) || a.leadName.localeCompare(b.leadName)
-    )
-    const outflowRows = Array.from(outflowMap.values()).sort(
-      (a, b) => a.accountName.localeCompare(b.accountName) || a.leadName.localeCompare(b.leadName)
+    const sort = (a: SummaryRow, b: SummaryRow) =>
+      a.accountName.localeCompare(b.accountName) || a.leadName.localeCompare(b.leadName)
+
+    const inflowRows  = Array.from(inflowMap.values()).sort(sort)
+    const outflowRows = Array.from(outflowMap.values()).sort(sort)
+    const accountSummary = Array.from(accountMap.values()).sort((a, b) =>
+      a.accountName.localeCompare(b.accountName)
     )
 
     return NextResponse.json({
       success: true,
-      inflow: inflowRows,
+      inflow:  inflowRows,
       outflow: outflowRows,
+      accountSummary,
       totalInflow,
       totalOutflow,
       netBalance: totalInflow - totalOutflow,
