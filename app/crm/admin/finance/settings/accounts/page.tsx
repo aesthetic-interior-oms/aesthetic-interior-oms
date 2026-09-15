@@ -154,12 +154,16 @@ export default function AccountsSettingsPage() {
   }
 
   const handleDeleteAccount = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this account? This cannot be undone.')) return
+    if (!confirm('Are you sure you want to delete this account?')) return
     try {
       const res = await fetch(`/api/finance/accounts/${id}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.success) {
-        toast.success('Account deleted')
+        if (data.disabled) {
+          toast.info(data.message || 'Account disabled to preserve transaction records.')
+        } else {
+          toast.success('Account deleted')
+        }
         fetchAccounts()
       } else {
         toast.error(data.error)

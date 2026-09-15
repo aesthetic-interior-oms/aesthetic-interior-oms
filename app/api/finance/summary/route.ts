@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
       category: string
       categoryLabel: string
       amount: number
+      accountName: string
       voucherNo: string | null
       recordedBy: string
       collectedBy: string | null
@@ -114,8 +115,6 @@ export async function GET(request: NextRequest) {
 
     type SummaryRow = {
       groupKey: string
-      accountId: string
-      accountName: string
       leadId: string | null
       leadName: string
       amount: number
@@ -140,13 +139,10 @@ export async function GET(request: NextRequest) {
       const accountId   = tx.financeAccountId ?? "no-account"
       const accountName = tx.financeAccount?.name ?? "Unknown Account"
 
-      // For null-lead transactions, group by category so "Site Visit", "Office Rent" etc show separately
+      // Group purely by project (leadId), or "Office" if no lead
       const leadId   = tx.leadId ?? null
       const leadName = tx.lead?.name ?? "Office"
-      // For null-lead transactions, group them all as "Office" per account
-      // (category breakdown is visible inside the modal)
-      const subKey   = leadId ? `lead__${leadId}` : `office`
-      const groupKey = `${accountId}__${subKey}`
+      const groupKey = leadId ? `lead__${leadId}` : `office`
 
       const txDetail: TxDetail = {
         id:            tx.id,
@@ -155,13 +151,15 @@ export async function GET(request: NextRequest) {
         category:      tx.category,
         categoryLabel: catLabel(tx.category),
         amount:        tx.amount,
+        accountName,
         voucherNo:     tx.voucherNo ?? null,
         recordedBy:    tx.recordedBy?.fullName ?? "Unknown",
         collectedBy:   tx.collectedBy?.fullName ?? null,
       }
 
-      // per-account totals
+      // per-account totals for Account Situation card
       const acct = accountMap.get(accountId) ?? { accountId, accountName, inflow: 0, outflow: 0 }
+
       if (tx.type === "INFLOW") {
         acct.inflow += tx.amount
         totalInflow += tx.amount
@@ -171,7 +169,7 @@ export async function GET(request: NextRequest) {
           row.txCount++
           row.transactions.push(txDetail)
         } else {
-          inflowMap.set(groupKey, { groupKey, accountId, accountName, leadId, leadName, amount: tx.amount, txCount: 1, transactions: [txDetail] })
+          inflowMap.set(groupKey, { groupKey, leadId, leadName, amount: tx.amount, txCount: 1, transactions: [txDetail] })
         }
       } else {
         acct.outflow += tx.amount
@@ -182,14 +180,18 @@ export async function GET(request: NextRequest) {
           row.txCount++
           row.transactions.push(txDetail)
         } else {
-          outflowMap.set(groupKey, { groupKey, accountId, accountName, leadId, leadName, amount: tx.amount, txCount: 1, transactions: [txDetail] })
+          outflowMap.set(groupKey, { groupKey, leadId, leadName, amount: tx.amount, txCount: 1, transactions: [txDetail] })
         }
       }
       accountMap.set(accountId, acct)
     }
 
-    const sort = (a: SummaryRow, b: SummaryRow) =>
-      a.accountName.localeCompare(b.accountName) || a.leadName.localeCompare(b.leadName)
+    const sort = (a: SummaryRow, b: SummaryRow) => {
+      // Put Office at the bottom or top, rest alphabetical
+      if (a.leadName === "Office") return 1
+      if (b.leadName === "Office") return -1
+      return a.leadName.localeCompare(b.leadName)
+    }
 
     const inflowRows  = Array.from(inflowMap.values()).sort(sort)
     const outflowRows = Array.from(outflowMap.values()).sort(sort)

@@ -33,11 +33,21 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     const count = await prisma.transaction.count({ where: { financeAccountId: id } })
     if (count > 0) {
-      return NextResponse.json({ success: false, error: "Cannot delete account because it has transactions. Please disable it instead." }, { status: 400 })
+      // Instead of failing and breaking historical ledgers, soft-delete (disable) the account
+      const disabled = await prisma.financeAccount.update({
+        where: { id },
+        data: { isActive: false },
+      })
+      return NextResponse.json({
+        success: true,
+        disabled: true,
+        data: disabled,
+        message: `Account disabled because it has ${count} existing transaction(s). Transaction history is preserved.`,
+      })
     }
 
     await prisma.financeAccount.delete({ where: { id } })
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, message: "Account deleted." })
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }

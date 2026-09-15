@@ -24,6 +24,7 @@ type TxDetail = {
   category: string
   categoryLabel: string
   amount: number
+  accountName: string
   voucherNo: string | null
   recordedBy: string
   collectedBy: string | null
@@ -31,8 +32,6 @@ type TxDetail = {
 
 type SummaryRow = {
   groupKey: string
-  accountId: string
-  accountName: string
   leadId: string | null
   leadName: string
   amount: number
@@ -56,7 +55,7 @@ type SummaryData = {
   netBalance: number
 }
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Constants & Helpers ────────────────────────────────────────────────────────
 const MONTHS = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December",
@@ -205,14 +204,14 @@ export default function SummaryPage() {
       doc.text("CASH INFLOW", 14, y); y += 4
       autoTable(doc, {
         startY: y,
-        head: [["Allocated Project", "Account", "Transactions", "Amount (BDT)"]],
+        head: [["Allocated Project", "Transactions", "Amount (BDT)"]],
         body: data.inflow.map(r => [
-          r.leadName, r.accountName,
+          r.leadName,
           String(r.txCount),
           { content: r.amount.toLocaleString(), styles: { halign: "right", textColor: [5,150,105] as [number,number,number], fontStyle: "bold" as const } },
         ]),
         foot: [[
-          { content: "Total Inflow", colSpan: 3, styles: { fontStyle: "bold" as const, halign: "right" as const } },
+          { content: "Total Cash Inflow", colSpan: 2, styles: { fontStyle: "bold" as const, halign: "right" as const } },
           { content: data.totalInflow.toLocaleString(), styles: { halign: "right" as const, fontStyle: "bold" as const, textColor: [5,150,105] as [number,number,number] } },
         ]],
         theme: "grid",
@@ -230,14 +229,14 @@ export default function SummaryPage() {
       doc.text("CASH OUTFLOW", 14, y); y += 4
       autoTable(doc, {
         startY: y,
-        head: [["Account", "Allocated Project", "Transactions", "Amount (BDT)"]],
+        head: [["Allocated Project", "Transactions", "Amount (BDT)"]],
         body: data.outflow.map(r => [
-          r.accountName, r.leadName,
+          r.leadName,
           String(r.txCount),
           { content: r.amount.toLocaleString(), styles: { halign: "right", textColor: [220,38,38] as [number,number,number], fontStyle: "bold" as const } },
         ]),
         foot: [[
-          { content: "Total Outflow", colSpan: 3, styles: { fontStyle: "bold" as const, halign: "right" as const } },
+          { content: "Total Cash Outflow", colSpan: 2, styles: { fontStyle: "bold" as const, halign: "right" as const } },
           { content: data.totalOutflow.toLocaleString(), styles: { halign: "right" as const, fontStyle: "bold" as const, textColor: [220,38,38] as [number,number,number] } },
         ]],
         theme: "grid",
@@ -388,7 +387,7 @@ export default function SummaryPage() {
             {/* ── Inflow & Outflow Tables ── */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
-              {/* Cash Inflow — Allocated Project | Account | Amount */}
+              {/* Cash Inflow — Allocated Project | Amount */}
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -410,7 +409,6 @@ export default function SummaryPage() {
                         <thead>
                           <tr className="border-t border-border bg-muted/30">
                             <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Allocated Project</th>
-                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account</th>
                             <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</th>
                           </tr>
                         </thead>
@@ -422,14 +420,15 @@ export default function SummaryPage() {
                               onClick={() => openModal(row, "inflow")}
                             >
                               <td className="px-4 py-3">
-                                <div className="flex items-center gap-1.5">
-                                  <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                                  <span className="font-medium text-foreground">{row.leadName}</span>
-                                  <span className="text-[11px] text-muted-foreground/60">({row.txCount} tx)</span>
+                                <div className="flex items-center gap-2">
+                                  <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                                  <span className="font-semibold text-foreground">{row.leadName}</span>
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+                                    {row.txCount} tx
+                                  </Badge>
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-muted-foreground">{row.accountName}</td>
-                              <td className="px-4 py-3 text-right font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                              <td className="px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400 tabular-nums text-base">
                                 ৳{fmt(row.amount)}
                               </td>
                             </tr>
@@ -437,7 +436,7 @@ export default function SummaryPage() {
                         </tbody>
                         <tfoot>
                           <tr className="border-t-2 border-border bg-emerald-50 dark:bg-emerald-950/30">
-                            <td className="px-4 py-3 font-bold text-sm" colSpan={2}>Total Cash Inflow</td>
+                            <td className="px-4 py-3 font-bold text-sm">Total Cash Inflow</td>
                             <td className="px-4 py-3 text-right font-bold text-emerald-600 dark:text-emerald-400 text-base tabular-nums">৳{fmt(data.totalInflow)}</td>
                           </tr>
                         </tfoot>
@@ -447,7 +446,7 @@ export default function SummaryPage() {
                 </CardContent>
               </Card>
 
-              {/* Cash Outflow — Account | Allocated Project | Amount */}
+              {/* Cash Outflow — Allocated Project | Amount */}
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -468,7 +467,6 @@ export default function SummaryPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-t border-border bg-muted/30">
-                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account</th>
                             <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Allocated Project</th>
                             <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</th>
                           </tr>
@@ -480,15 +478,16 @@ export default function SummaryPage() {
                               className="hover:bg-muted/50 transition-colors cursor-pointer"
                               onClick={() => openModal(row, "outflow")}
                             >
-                              <td className="px-4 py-3 text-muted-foreground">{row.accountName}</td>
                               <td className="px-4 py-3">
-                                <div className="flex items-center gap-1.5">
-                                  <div className="h-1.5 w-1.5 rounded-full bg-rose-500 shrink-0" />
-                                  <span className="font-medium text-foreground">{row.leadName}</span>
-                                  <span className="text-[11px] text-muted-foreground/60">({row.txCount} tx)</span>
+                                <div className="flex items-center gap-2">
+                                  <div className="h-2 w-2 rounded-full bg-rose-500 shrink-0" />
+                                  <span className="font-semibold text-foreground">{row.leadName}</span>
+                                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+                                    {row.txCount} tx
+                                  </Badge>
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-right font-semibold text-rose-600 dark:text-rose-400 tabular-nums">
+                              <td className="px-4 py-3 text-right font-bold text-rose-600 dark:text-rose-400 tabular-nums text-base">
                                 ৳{fmt(row.amount)}
                               </td>
                             </tr>
@@ -496,7 +495,7 @@ export default function SummaryPage() {
                         </tbody>
                         <tfoot>
                           <tr className="border-t-2 border-border bg-rose-50 dark:bg-rose-950/30">
-                            <td className="px-4 py-3 font-bold text-sm" colSpan={2}>Total Cash Outflow</td>
+                            <td className="px-4 py-3 font-bold text-sm">Total Cash Outflow</td>
                             <td className="px-4 py-3 text-right font-bold text-rose-600 dark:text-rose-400 text-base tabular-nums">৳{fmt(data.totalOutflow)}</td>
                           </tr>
                         </tfoot>
@@ -543,62 +542,68 @@ export default function SummaryPage() {
           {modalRow && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <div className={`h-6 w-6 rounded-full flex items-center justify-center shrink-0 ${modalType === "inflow" ? "bg-emerald-100 dark:bg-emerald-900/50" : "bg-rose-100 dark:bg-rose-900/50"}`}>
+                <DialogTitle className="flex items-center gap-2 text-lg">
+                  <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${modalType === "inflow" ? "bg-emerald-100 dark:bg-emerald-900/50" : "bg-rose-100 dark:bg-rose-900/50"}`}>
                     {modalType === "inflow"
-                      ? <ArrowUpRight className="h-3.5 w-3.5 text-emerald-600" />
-                      : <ArrowDownRight className="h-3.5 w-3.5 text-rose-600" />}
+                      ? <ArrowUpRight className="h-4 w-4 text-emerald-600" />
+                      : <ArrowDownRight className="h-4 w-4 text-rose-600" />}
                   </div>
                   <span>{modalRow.leadName}</span>
-                  <span className="text-muted-foreground font-normal text-sm">— {modalRow.accountName}</span>
+                  <Badge variant="outline" className="ml-2 font-normal text-xs">
+                    {modalRow.txCount} {modalRow.txCount === 1 ? "transaction" : "transactions"}
+                  </Badge>
                 </DialogTitle>
               </DialogHeader>
 
-              {/* Modal summary */}
-              <div className="flex items-center gap-4 py-2 border-b border-border">
+              {/* Modal summary header */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/40 border border-border my-2">
                 <div>
-                  <p className="text-xs text-muted-foreground">Total</p>
-                  <p className={`text-xl font-bold tabular-nums ${modalType === "inflow" ? "text-emerald-600" : "text-rose-600"}`}>
+                  <p className="text-xs text-muted-foreground font-medium">Total Amount ({modalType === "inflow" ? "Inflow" : "Outflow"})</p>
+                  <p className={`text-2xl font-extrabold tabular-nums ${modalType === "inflow" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                     ৳{fmt(modalRow.amount)}
                   </p>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Transactions</p>
-                  <p className="text-xl font-bold">{modalRow.txCount}</p>
+                <div className="text-right">
+                  <p className="text-xs text-muted-foreground">Period</p>
+                  <p className="text-xs font-semibold">{periodLabel}</p>
                 </div>
               </div>
 
               {/* Transactions table */}
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-border bg-muted/30">
-                      <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Date</th>
-                      <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Particulars</th>
-                      <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Category</th>
-                      <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Voucher</th>
-                      <th className="text-right px-3 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</th>
+                    <tr className="border-b border-border bg-muted/40 text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                      <th className="px-3.5 py-2.5 text-left">Date</th>
+                      <th className="px-3.5 py-2.5 text-left">Particulars</th>
+                      <th className="px-3.5 py-2.5 text-left">Account</th>
+                      <th className="px-3.5 py-2.5 text-left">Category</th>
+                      <th className="px-3.5 py-2.5 text-left">Voucher</th>
+                      <th className="px-3.5 py-2.5 text-right">Amount</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {modalRow.transactions.map(tx => (
-                      <tr key={tx.id} className="hover:bg-muted/40 transition-colors">
-                        <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">{fmtDate(tx.date)}</td>
-                        <td className="px-3 py-2.5 font-medium text-foreground max-w-[200px]">
-                          <div className="truncate">{tx.particular}</div>
+                      <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-3.5 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{fmtDate(tx.date)}</td>
+                        <td className="px-3.5 py-2.5 font-medium text-foreground max-w-[220px]">
+                          <div className="truncate" title={tx.particular}>{tx.particular}</div>
                           {tx.collectedBy && (
-                            <div className="text-[11px] text-muted-foreground">by {tx.collectedBy}</div>
+                            <div className="text-[11px] text-muted-foreground">Collector: {tx.collectedBy}</div>
                           )}
                         </td>
-                        <td className="px-3 py-2.5">
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-normal">
+                        <td className="px-3.5 py-2.5 font-semibold text-xs text-foreground">
+                          {tx.accountName}
+                        </td>
+                        <td className="px-3.5 py-2.5">
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 font-normal">
                             {tx.categoryLabel}
                           </Badge>
                         </td>
-                        <td className="px-3 py-2.5 text-[11px] text-muted-foreground font-mono">
+                        <td className="px-3.5 py-2.5 text-xs text-muted-foreground font-mono">
                           {tx.voucherNo ?? "—"}
                         </td>
-                        <td className={`px-3 py-2.5 text-right font-semibold tabular-nums ${modalType === "inflow" ? "text-emerald-600" : "text-rose-600"}`}>
+                        <td className={`px-3.5 py-2.5 text-right font-bold tabular-nums ${modalType === "inflow" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                           ৳{fmt(tx.amount)}
                         </td>
                       </tr>
@@ -606,8 +611,8 @@ export default function SummaryPage() {
                   </tbody>
                   <tfoot>
                     <tr className={`border-t-2 border-border ${modalType === "inflow" ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-rose-50 dark:bg-rose-950/30"}`}>
-                      <td className="px-3 py-2.5 font-bold text-sm" colSpan={4}>Total</td>
-                      <td className={`px-3 py-2.5 text-right font-bold tabular-nums ${modalType === "inflow" ? "text-emerald-600" : "text-rose-600"}`}>
+                      <td className="px-3.5 py-2.5 font-bold text-sm" colSpan={5}>Total</td>
+                      <td className={`px-3.5 py-2.5 text-right font-bold tabular-nums text-base ${modalType === "inflow" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                         ৳{fmt(modalRow.amount)}
                       </td>
                     </tr>
