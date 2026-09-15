@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import {
   TrendingUp, TrendingDown, X, Loader2, ArrowUpRight, ArrowDownRight,
-  FileDown, Wallet, History, ArrowRightLeft,
+  FileDown, Wallet, History,
 } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -178,6 +178,25 @@ export default function SummaryPage() {
     return `${from} – ${to}`
   }, [dateRange])
 
+  // Filter Monthly Balance History to ONLY show month(s) covered by the date range
+  const displayMonthlyHistory = useMemo(() => {
+    if (!data?.monthlyHistory) return []
+    if (!dateRange?.from) return data.monthlyHistory
+
+    const fromMonth = dateRange.from.getMonth()
+    const fromYear  = dateRange.from.getFullYear()
+    const toMonth   = dateRange.to ? dateRange.to.getMonth() : fromMonth
+    const toYear    = dateRange.to ? dateRange.to.getFullYear() : fromYear
+
+    const startDate = new Date(fromYear, fromMonth, 1)
+    const endDate   = new Date(toYear, toMonth, 1)
+
+    return data.monthlyHistory.filter(m => {
+      const mDate = new Date(m.year, m.month, 1)
+      return mDate >= startDate && mDate <= endDate
+    })
+  }, [data?.monthlyHistory, dateRange])
+
   // ── PDF Download ─────────────────────────────────────────────────────────
   const handleDownloadPDF = async () => {
     if (!data) return
@@ -228,15 +247,15 @@ export default function SummaryPage() {
       y = (doc as any).lastAutoTable.finalY + 10
     }
 
-    // Monthly Balance History
-    if (data.monthlyHistory.length > 0) {
+    // Monthly Balance History (Filtered for selected date range)
+    if (displayMonthlyHistory.length > 0) {
       if (y > 230) { doc.addPage(); y = 20 }
       doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 41, 59)
       doc.text("MONTHLY BALANCE HISTORY", 14, y); y += 4
       autoTable(doc, {
         startY: y,
         head: [["Month", "Opening Balance", "Inflow", "Outflow", "Net Change", "Closing Balance"]],
-        body: data.monthlyHistory.map(m => [
+        body: displayMonthlyHistory.map(m => [
           m.monthLabel,
           m.openingBalance.toLocaleString(),
           m.inflow.toLocaleString(),
@@ -422,8 +441,8 @@ export default function SummaryPage() {
               </Card>
             </div>
 
-            {/* ── Monthly Balance History Ledger ── */}
-            {data.monthlyHistory.length > 0 && (
+            {/* ── Monthly Balance History Ledger (Filtered for selected date range) ── */}
+            {displayMonthlyHistory.length > 0 && (
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center justify-between text-base">
@@ -431,7 +450,7 @@ export default function SummaryPage() {
                       <History className="h-4 w-4 text-primary" />
                       Monthly Balance History
                       <span className="text-xs font-normal text-muted-foreground">
-                        — Opening balance carries forward from previous month&apos;s closing
+                        — Opening balance carries forward from previous month&apos;s closing ({periodLabel})
                       </span>
                     </div>
                   </CardTitle>
@@ -450,7 +469,7 @@ export default function SummaryPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {data.monthlyHistory.map((m) => {
+                        {displayMonthlyHistory.map((m) => {
                           const isSelected = selectedMonth === String(m.month) && isFiltered
                           return (
                             <tr
