@@ -93,6 +93,7 @@ export default function ProjectDetailPage() {
   const [adjustSubmitting, setAdjustSubmitting] = useState(false)
   const [syncDraftId, setSyncDraftId] = useState<string | null>(null)
   const [syncVersionTitle, setSyncVersionTitle] = useState<string | null>(null)
+  const [syncTargetValue, setSyncTargetValue] = useState<number | null>(null)
 
   // Date range filter state
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
@@ -169,6 +170,7 @@ export default function ProjectDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          targetAgreementValue: syncTargetValue ?? undefined,
           amount: finalDelta,
           note: adjustNote,
           quotationDraftId: syncDraftId || undefined,
@@ -187,6 +189,7 @@ export default function ProjectDetailPage() {
       setAdjustNote('')
       setSyncDraftId(null)
       setSyncVersionTitle(null)
+      setSyncTargetValue(null)
       await loadProjectReport(false)
     } catch (err: any) {
       toast.error(err.message || 'Failed to update agreement value')
@@ -1690,14 +1693,13 @@ export default function ProjectDetailPage() {
                 <span className="text-[11px] font-normal text-muted-foreground">Sync revisions & download PDFs</span>
               </div>
               <div className="space-y-2">
-                {report.quotationDrafts.map((draft: any, idx: number) => {
+                {report.quotationDrafts.map((draft: any) => {
                   const slotIndex = getDraftSlotIndex(draft.draftKey)
                   const contentObj = (draft.content as Record<string, unknown>) ?? {}
                   const vTitle = typeof contentObj.versionTitle === 'string' && contentObj.versionTitle ? contentObj.versionTitle : `Version ${slotIndex}`
-                  const baselineDraft = report.quotationDrafts.find((d: any) => getDraftSlotIndex(d.draftKey) === 1) || report.quotationDrafts[report.quotationDrafts.length - 1]
-                  const baselineTotal = baselineDraft?.grandTotal || initialAgreementValue || 0
-                  const delta = draft.grandTotal - baselineTotal
-                  const isAlreadySynced = agreementLogs.some((l: any) => l.quotationDraftId === draft.id || l.versionTitle === vTitle)
+                  const currentAgr = agreementValue ?? 0
+                  const diff = draft.grandTotal - currentAgr
+                  const isMatchesCurrent = draft.grandTotal === currentAgr
                   const previewUrl = buildDetailPreviewUrl({ context: 'lead', contextId: String(id), slotIndex, download: false })
                   const downloadUrl = buildDetailPreviewUrl({ context: 'lead', contextId: String(id), slotIndex, download: true })
 
@@ -1708,12 +1710,12 @@ export default function ProjectDetailPage() {
                           {vTitle}
                         </Badge>
                         <span className="font-semibold text-foreground">৳{draft.grandTotal.toLocaleString()} BDT</span>
-                        {delta !== 0 ? (
-                          <span className={`text-[11px] font-medium ${delta > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                            ({delta > 0 ? `+৳${delta.toLocaleString()}` : `-৳${Math.abs(delta).toLocaleString()}`})
+                        {!isMatchesCurrent ? (
+                          <span className={`text-[11px] font-medium ${diff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                            ({diff > 0 ? `+৳${diff.toLocaleString()} vs Current` : `-৳${Math.abs(diff).toLocaleString()} vs Current`})
                           </span>
                         ) : (
-                          <span className="text-[11px] text-muted-foreground">(Baseline)</span>
+                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">(Current Active Agreement)</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
@@ -1727,7 +1729,7 @@ export default function ProjectDetailPage() {
                             <ExternalLink className="h-3 w-3" /> Preview
                           </Button>
                         </a>
-                        {isAlreadySynced ? (
+                        {isMatchesCurrent ? (
                           <Badge variant="secondary" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                             ✓ Synced
                           </Badge>
@@ -1737,10 +1739,11 @@ export default function ProjectDetailPage() {
                             variant="outline"
                             className="h-6 text-[11px] px-2 font-semibold gap-1 text-primary border-primary/40 hover:bg-primary/10"
                             onClick={() => {
-                              const absDelta = Math.abs(delta)
-                              setAdjustType(delta >= 0 ? 'ADD' : 'DECREASE')
-                              setAdjustAmount(absDelta > 0 ? String(absDelta) : String(draft.grandTotal))
-                              setAdjustNote(`Scope change per PC ${vTitle} (${delta >= 0 ? '+' : '-'}${absDelta.toLocaleString()} BDT)`)
+                              const absDiff = Math.abs(diff)
+                              setAdjustType(diff >= 0 ? 'ADD' : 'DECREASE')
+                              setAdjustAmount(absDiff > 0 ? String(absDiff) : String(draft.grandTotal))
+                              setSyncTargetValue(draft.grandTotal)
+                              setAdjustNote(`Sync PC ${vTitle}: Agreement Value updated from ৳${currentAgr.toLocaleString()} to ৳${draft.grandTotal.toLocaleString()}`)
                               setSyncDraftId(draft.id)
                               setSyncVersionTitle(vTitle)
                               setAdjustModalOpen(true)
@@ -1766,6 +1769,7 @@ export default function ProjectDetailPage() {
                 setAdjustType('ADD')
                 setAdjustAmount('')
                 setAdjustNote('')
+                setSyncTargetValue(null)
                 setAdjustModalOpen(true)
               }}
             >
@@ -1779,6 +1783,7 @@ export default function ProjectDetailPage() {
                 setAdjustType('DECREASE')
                 setAdjustAmount('')
                 setAdjustNote('')
+                setSyncTargetValue(null)
                 setAdjustModalOpen(true)
               }}
             >
