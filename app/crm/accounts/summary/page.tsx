@@ -217,16 +217,9 @@ export default function SummaryPage() {
     doc.text(`Period: ${periodLabel}`, pageW - 14, 24, { align: "right" })
     doc.text(`Generated: ${today2}`, pageW - 14, 29, { align: "right" })
 
-    // Summary box
-    let y = 40
-    doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 41, 59)
-    doc.text(`Opening Balance (Period Start) : ${data.openingBalance.toLocaleString()} BDT`, 14, y); y += 5.5
-    doc.text(`Total Cash Inflow               : ${data.totalInflow.toLocaleString()} BDT`, 14, y); y += 5.5
-    doc.text(`Total Cash Outflow              : ${data.totalOutflow.toLocaleString()} BDT`, 14, y); y += 5.5
-    doc.text(`Net Cash Flow for Period         : ${data.netBalance >= 0 ? "+" : ""}${data.netBalance.toLocaleString()} BDT`, 14, y); y += 5.5
-    doc.text(`Closing Balance (Period End)   : ${data.closingBalance.toLocaleString()} BDT`, 14, y); y += 10
+    let y = 38
 
-    // Account situation
+    // Account situation table
     if (data.accountSummary.length > 0) {
       doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 41, 59)
       doc.text("ACCOUNT SITUATION", 14, y); y += 4
@@ -317,7 +310,51 @@ export default function SummaryPage() {
         bodyStyles: { fontSize: 8 },
         footStyles: { fillColor: [255,241,242], fontSize: 8.5 },
       })
+      y = (doc as any).lastAutoTable.finalY + 10
     }
+
+    // ── End of Document: Financial Summary Stat Box with Equation ─────────────
+    if (y > 200) { doc.addPage(); y = 20 }
+
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "bold")
+    doc.setTextColor(30, 41, 59)
+    doc.text("PERIOD FINANCIAL SUMMARY & EQUATION", 14, y)
+
+    const summaryRows = [
+      ["Opening Balance (Period Start)", `${data.openingBalance.toLocaleString()} BDT`],
+      ["Total Cash Inflow (+)", `+${data.totalInflow.toLocaleString()} BDT`],
+      ["Total Cash Outflow (-)", `-${data.totalOutflow.toLocaleString()} BDT`],
+      ["Net Cash Flow for Period", `${data.netBalance >= 0 ? "+" : ""}${data.netBalance.toLocaleString()} BDT`],
+      ["Closing Balance (Period End)", `${data.closingBalance.toLocaleString()} BDT`],
+    ]
+
+    const formulaText = `Equation: Closing Balance = Opening (${data.openingBalance.toLocaleString()} BDT) + Inflow (${data.totalInflow.toLocaleString()} BDT) - Outflow (${data.totalOutflow.toLocaleString()} BDT) = ${data.closingBalance.toLocaleString()} BDT`
+
+    autoTable(doc, {
+      startY: y + 4,
+      head: [["Financial Metric", "Amount (BDT)"]],
+      body: summaryRows,
+      foot: [
+        [{ content: formulaText, colSpan: 2, styles: { fontStyle: "bold" as const, halign: "center" as const, textColor: [30, 41, 59], fillColor: [241, 245, 249] } }]
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
+      bodyStyles: { fontSize: 8.5 },
+      footStyles: { fontSize: 8, cellPadding: 4 },
+      columnStyles: {
+        0: { cellWidth: 110, fontStyle: "bold" },
+        1: { cellWidth: 70, halign: "right", fontStyle: "bold" },
+      },
+      didParseCell: (dataCell: any) => {
+        if (dataCell.section === "body") {
+          if (dataCell.row.index === 1) dataCell.cell.styles.textColor = [5, 150, 105]
+          if (dataCell.row.index === 2) dataCell.cell.styles.textColor = [220, 38, 38]
+          if (dataCell.row.index === 3) dataCell.cell.styles.textColor = data.netBalance >= 0 ? [5, 150, 105] : [220, 38, 38]
+          if (dataCell.row.index === 4) dataCell.cell.styles.textColor = [15, 23, 42]
+        }
+      }
+    })
 
     doc.save(`cash-flow-summary-${periodLabel.replace(/[^a-zA-Z0-9]/g, "-")}.pdf`)
   }
