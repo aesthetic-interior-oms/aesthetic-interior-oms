@@ -539,7 +539,7 @@ export default function SummaryPage() {
 
       {/* ── Transaction Detail Modal ── */}
       <Dialog open={!!modalRow} onOpenChange={open => { if (!open) setModalRow(null) }}>
-        <DialogContent className="max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl w-full max-h-[92vh] overflow-y-auto">
           {modalRow && (
             <>
               <DialogHeader>

@@ -142,9 +142,10 @@ export async function GET(request: NextRequest) {
 
       // For null-lead transactions, group by category so "Site Visit", "Office Rent" etc show separately
       const leadId   = tx.leadId ?? null
-      const leadName = tx.lead?.name ?? catLabel(tx.category)
-      // groupKey: if there's a lead, group by lead; if not, group by category
-      const subKey  = leadId ? `lead__${leadId}` : `cat__${tx.category}`
+      const leadName = tx.lead?.name ?? "Office"
+      // For null-lead transactions, group them all as "Office" per account
+      // (category breakdown is visible inside the modal)
+      const subKey   = leadId ? `lead__${leadId}` : `office`
       const groupKey = `${accountId}__${subKey}`
 
       const txDetail: TxDetail = {
