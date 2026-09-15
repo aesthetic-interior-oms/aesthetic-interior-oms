@@ -197,7 +197,7 @@ export default function SummaryPage() {
     })
   }, [data?.monthlyHistory, dateRange])
 
-  // ── PDF Download ─────────────────────────────────────────────────────────
+  // ── Main Page PDF Download ────────────────────────────────────────────────
   const handleDownloadPDF = async () => {
     if (!data) return
     const { default: jsPDF }     = await import("jspdf")
@@ -357,6 +357,84 @@ export default function SummaryPage() {
     })
 
     doc.save(`cash-flow-summary-${periodLabel.replace(/[^a-zA-Z0-9]/g, "-")}.pdf`)
+  }
+
+  // ── Modal Specific PDF Download ───────────────────────────────────────────
+  const handleDownloadModalPDF = async () => {
+    if (!modalRow) return
+    const { default: jsPDF }     = await import("jspdf")
+    const { default: autoTable } = await import("jspdf-autotable")
+    const doc   = new jsPDF({ orientation: "portrait" })
+    const pageW = doc.internal.pageSize.getWidth()
+    const today2 = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+
+    // Logo
+    const logoImg = new Image(); logoImg.src = "/Logo/HeaderLogo.png"
+    await new Promise(r => { logoImg.onload = r; logoImg.onerror = r })
+    doc.addImage(logoImg, "PNG", 14, 14, 43.2, 8)
+
+    const titleText = `${modalRow.leadName.toUpperCase()} — CASH ${modalType.toUpperCase()} STATEMENT`
+
+    doc.setFontSize(11); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 41, 59)
+    doc.text(titleText, pageW - 14, 18, { align: "right" })
+    doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 116, 139)
+    doc.text(`Period: ${periodLabel}`, pageW - 14, 24, { align: "right" })
+    doc.text(`Generated: ${today2}`, pageW - 14, 29, { align: "right" })
+
+    let y = 38
+
+    // Stat banner box
+    doc.setFillColor(248, 250, 252)
+    doc.setDrawColor(226, 232, 240)
+    doc.setLineWidth(0.4)
+    doc.roundedRect(14, y, pageW - 28, 10, 1.5, 1.5, "FD")
+
+    const color: [number, number, number] = modalType === "inflow" ? [5, 150, 105] : [220, 38, 38]
+
+    doc.setFontSize(8.5); doc.setFont("helvetica", "bold")
+    doc.setTextColor(30, 41, 59)
+    doc.text(`Total Amount (${modalType === "inflow" ? "Inflow" : "Outflow"}):`, 18, y + 6.5)
+    doc.setFontSize(9.5)
+    doc.setTextColor(...color)
+    doc.text(`${modalRow.amount.toLocaleString()} BDT`, 80, y + 6.5)
+
+    doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(100, 116, 139)
+    doc.text(`Transactions: ${modalRow.txCount}`, pageW - 20, y + 6.5, { align: "right" })
+
+    y += 16
+
+    // Transactions table
+    autoTable(doc, {
+      startY: y,
+      head: [["Date", "Particulars", "Account", "Category", "Voucher", "Amount (BDT)"]],
+      body: modalRow.transactions.map(tx => [
+        fmtDate(tx.date),
+        tx.particular + (tx.collectedBy ? ` (Collector: ${tx.collectedBy})` : ""),
+        tx.accountName,
+        tx.categoryLabel,
+        tx.voucherNo || "—",
+        { content: tx.amount.toLocaleString(), styles: { halign: "right" as const, fontStyle: "bold" as const, textColor: color } }
+      ]),
+      foot: [[
+        { content: "Total Amount", colSpan: 5, styles: { fontStyle: "bold" as const, halign: "right" as const } },
+        { content: `${modalRow.amount.toLocaleString()} BDT`, styles: { halign: "right" as const, fontStyle: "bold" as const, textColor: color } }
+      ]],
+      theme: "grid",
+      headStyles: { fillColor: modalType === "inflow" ? [5, 150, 105] : [220, 38, 38], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8 },
+      bodyStyles: { fontSize: 8 },
+      footStyles: { fillColor: modalType === "inflow" ? [240, 253, 244] : [255, 241, 242], fontSize: 8.5 },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: "auto" },
+        2: { cellWidth: 32 },
+        3: { cellWidth: 32 },
+        4: { cellWidth: 22 },
+        5: { cellWidth: 30, halign: "right" },
+      }
+    })
+
+    const safeName = modalRow.leadName.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase()
+    doc.save(`statement-${safeName}-${modalType}-${periodLabel.replace(/[^a-zA-Z0-9]/g, "-")}.pdf`)
   }
 
   // ── Modal open helpers ────────────────────────────────────────────────────
@@ -749,17 +827,29 @@ export default function SummaryPage() {
           {modalRow && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-lg">
-                  <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${modalType === "inflow" ? "bg-emerald-100 dark:bg-emerald-900/50" : "bg-rose-100 dark:bg-rose-900/50"}`}>
-                    {modalType === "inflow"
-                      ? <ArrowUpRight className="h-4 w-4 text-emerald-600" />
-                      : <ArrowDownRight className="h-4 w-4 text-rose-600" />}
-                  </div>
-                  <span>{modalRow.leadName}</span>
-                  <Badge variant="outline" className="ml-2 font-normal text-xs">
-                    {modalRow.txCount} {modalRow.txCount === 1 ? "transaction" : "transactions"}
-                  </Badge>
-                </DialogTitle>
+                <div className="flex items-center justify-between gap-4 w-full pr-6">
+                  <DialogTitle className="flex items-center gap-2 text-lg">
+                    <div className={`h-7 w-7 rounded-full flex items-center justify-center shrink-0 ${modalType === "inflow" ? "bg-emerald-100 dark:bg-emerald-900/50" : "bg-rose-100 dark:bg-rose-900/50"}`}>
+                      {modalType === "inflow"
+                        ? <ArrowUpRight className="h-4 w-4 text-emerald-600" />
+                        : <ArrowDownRight className="h-4 w-4 text-rose-600" />}
+                    </div>
+                    <span>{modalRow.leadName}</span>
+                    <Badge variant="outline" className="ml-2 font-normal text-xs">
+                      {modalRow.txCount} {modalRow.txCount === 1 ? "transaction" : "transactions"}
+                    </Badge>
+                  </DialogTitle>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1.5 text-xs shrink-0"
+                    onClick={() => void handleDownloadModalPDF()}
+                  >
+                    <FileDown className="w-3.5 h-3.5 text-primary" />
+                    Download PDF
+                  </Button>
+                </div>
               </DialogHeader>
 
               {/* Modal summary header */}
