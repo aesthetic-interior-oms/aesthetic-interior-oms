@@ -181,6 +181,30 @@ export async function POST(request: NextRequest) {
       if (visit) resolvedLeadId = visit.leadId
     }
 
+    // Validate available account balance for OUTFLOW transactions
+    if (type === TransactionType.OUTFLOW) {
+      const account = await prisma.financeAccount.findUnique({
+        where: { id: financeAccountId },
+        select: { name: true }
+      })
+      const agg = await prisma.transaction.groupBy({
+        by: ["type"],
+        where: { financeAccountId },
+        _sum: { amount: true }
+      })
+      let currentBalance = 0
+      for (const g of agg) {
+        if (g.type === TransactionType.INFLOW) currentBalance += g._sum.amount ?? 0
+        else currentBalance -= g._sum.amount ?? 0
+      }
+      if (currentBalance - amount < 0) {
+        return NextResponse.json({
+          success: false,
+          error: `Insufficient balance in "${account?.name ?? "Account"}". Current balance is ${currentBalance.toLocaleString()} BDT, which is insufficient for an outflow of ${amount.toLocaleString()} BDT. Please add an opening balance or inflow first.`
+        }, { status: 400 })
+      }
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const transaction = await tx.transaction.create({
         data: {

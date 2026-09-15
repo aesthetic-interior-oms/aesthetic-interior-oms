@@ -34,6 +34,38 @@ export async function PATCH(
     const body = await request.json()
     const { type, category, particular, amount, financeAccountId, leadId, date } = body
 
+    const existingTx = await prisma.transaction.findUnique({ where: { id } })
+    if (!existingTx) {
+      return NextResponse.json({ success: false, error: "Transaction not found" }, { status: 404 })
+    }
+
+    const targetType = type !== undefined ? type : existingTx.type
+    const targetAccId = financeAccountId !== undefined ? financeAccountId : existingTx.financeAccountId
+    const targetAmount = amount !== undefined ? amount : existingTx.amount
+
+    if (targetType === "OUTFLOW" && targetAccId) {
+      const account = await prisma.financeAccount.findUnique({
+        where: { id: targetAccId },
+        select: { name: true }
+      })
+      const agg = await prisma.transaction.groupBy({
+        by: ["type"],
+        where: { financeAccountId: targetAccId, NOT: { id } },
+        _sum: { amount: true }
+      })
+      let currentBalance = 0
+      for (const g of agg) {
+        if (g.type === "INFLOW") currentBalance += g._sum.amount ?? 0
+        else currentBalance -= g._sum.amount ?? 0
+      }
+      if (currentBalance - targetAmount < 0) {
+        return NextResponse.json({
+          success: false,
+          error: `Insufficient balance in "${account?.name ?? "Account"}". Available balance is ${currentBalance.toLocaleString()} BDT, which is insufficient for an outflow of ${targetAmount.toLocaleString()} BDT.`
+        }, { status: 400 })
+      }
+    }
+
     const updateData: Record<string, any> = {}
     if (type !== undefined) updateData.type = type
     if (category !== undefined) updateData.category = category

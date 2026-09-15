@@ -17,7 +17,15 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { toast } from "sonner"
 import {
   PlusCircle,
@@ -28,6 +36,9 @@ import {
   Eye,
   Loader2,
   FileDown,
+  Pencil,
+  AlertTriangle,
+  ArrowUpRight,
 } from "lucide-react"
 
 type FinanceAccount = {
@@ -47,6 +58,8 @@ type Transaction = {
   category: string
   particular: string
   amount: number
+  financeAccountId?: string
+  leadId?: string | null
   lead?: { name: string } | null
   recordedBy?: { fullName: string } | null
 }
@@ -76,12 +89,27 @@ export default function AccountsSettingsPage() {
   const [isCreating, setIsCreating] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Transactions modal state
+  // Statement modal state
   const [selectedAccount, setSelectedAccount] = useState<FinanceAccount | null>(null)
   const [accountTxs, setAccountTxs] = useState<Transaction[]>([])
   const [txLoading, setTxLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedMonth, setSelectedMonth] = useState(getDefaultMonth())
+
+  // Edit Transaction state
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null)
+  const [editAmount, setEditAmount] = useState("")
+  const [editParticular, setEditParticular] = useState("")
+  const [editCategory, setEditCategory] = useState("")
+  const [editType, setEditType] = useState("INFLOW")
+  const [editAccountId, setEditAccountId] = useState("")
+  const [isSavingEdit, setIsSavingEdit] = useState(false)
+
+  // Fix Negative Balance modal state
+  const [fixModalAccount, setFixModalAccount] = useState<FinanceAccount | null>(null)
+  const [fixAmount, setFixAmount] = useState("")
+  const [fixParticular, setFixParticular] = useState("")
+  const [isFixing, setIsFixing] = useState(false)
 
   const fetchAccounts = async () => {
     try {
@@ -104,7 +132,6 @@ export default function AccountsSettingsPage() {
 
     setIsCreating(true)
     try {
-      // 1. Create the account
       const res = await fetch('/api/finance/accounts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -118,7 +145,6 @@ export default function AccountsSettingsPage() {
 
       const newAccount: FinanceAccount = data.data
 
-      // 2. If opening balance > 0, create an INFLOW transaction for it
       const balanceAmount = parseFloat(openingBalance)
       if (balanceAmount > 0) {
         const txRes = await fetch('/api/finance/transactions', {
@@ -135,9 +161,9 @@ export default function AccountsSettingsPage() {
         })
         const txData = await txRes.json()
         if (!txData.success) {
-          toast.warning('Account created but opening balance transaction failed: ' + txData.error)
+          toast.warning('Account created but opening balance failed: ' + txData.error)
         } else {
-          toast.success(`Account "${trimmed}" created with opening balance of ${balanceAmount.toLocaleString()} BDT!`)
+          toast.success(`Account "${trimmed}" created with balance of ৳${balanceAmount.toLocaleString()}!`)
         }
       } else {
         toast.success('Account created!')
@@ -196,7 +222,6 @@ export default function AccountsSettingsPage() {
     setTxLoading(true)
     setAccountTxs([])
     try {
-      // Build date range for the selected month
       const [year, m] = month.split('-')
       const startDate = new Date(parseInt(year), parseInt(m) - 1, 1).toISOString()
       const endDate = new Date(parseInt(year), parseInt(m), 0, 23, 59, 59, 999).toISOString()
@@ -221,12 +246,120 @@ export default function AccountsSettingsPage() {
     fetchModalTransactions(acc, selectedMonth)
   }
 
-  // Re-fetch when month changes inside modal
   useEffect(() => {
     if (modalOpen && selectedAccount) {
       fetchModalTransactions(selectedAccount, selectedMonth)
     }
   }, [selectedMonth])
+
+  // Delete individual transaction
+  const handleDeleteTransaction = async (txId: string) => {
+    if (!confirm('Are you sure you want to delete this transaction?')) return
+    try {
+      const res = await fetch(`/api/finance/transactions/${txId}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Transaction deleted')
+        if (selectedAccount) fetchModalTransactions(selectedAccount, selectedMonth)
+        fetchAccounts()
+      } else {
+        toast.error(data.error)
+      }
+    } catch {
+      toast.error('Failed to delete transaction')
+    }
+  }
+
+  // Start editing transaction
+  const openEditTxModal = (tx: Transaction) => {
+    setEditingTx(tx)
+    setEditAmount(String(tx.amount))
+    setEditParticular(tx.particular)
+    setEditCategory(tx.category)
+    setEditType(tx.type)
+    setEditAccountId(tx.financeAccountId || selectedAccount?.id || "")
+  }
+
+  const handleSaveTransactionEdit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingTx) return
+    const numAmount = parseFloat(editAmount)
+    if (isNaN(numAmount) || numAmount <= 0) return toast.error('Valid amount is required')
+
+    setIsSavingEdit(true)
+    try {
+      const res = await fetch(`/api/finance/transactions/${editingTx.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: numAmount,
+          particular: editParticular,
+          category: editCategory,
+          type: editType,
+          financeAccountId: editAccountId,
+        })
+      })
+      const data = await res.json()
+      if (!data.success) {
+        toast.error(data.error)
+        return
+      }
+      toast.success('Transaction updated successfully!')
+      setEditingTx(null)
+      if (selectedAccount) fetchModalTransactions(selectedAccount, selectedMonth)
+      fetchAccounts()
+    } catch {
+      toast.error('Failed to update transaction')
+    } finally {
+      setIsSavingEdit(false)
+    }
+  }
+
+  // Handle Quick Fix Negative Balance
+  const openFixBalanceModal = (acc: FinanceAccount) => {
+    setFixModalAccount(acc)
+    const neededAmount = Math.abs(acc.balance)
+    setFixAmount(String(neededAmount))
+    setFixParticular(`Opening balance / Deposit to reconcile ${acc.name}`)
+  }
+
+  const handleSaveFixBalance = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!fixModalAccount) return
+    const numAmount = parseFloat(fixAmount)
+    if (isNaN(numAmount) || numAmount <= 0) return toast.error('Valid amount is required')
+
+    setIsFixing(true)
+    try {
+      const res = await fetch('/api/finance/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'INFLOW',
+          category: 'OPENING_BALANCE',
+          particular: fixParticular,
+          amount: numAmount,
+          financeAccountId: fixModalAccount.id,
+          date: new Date().toISOString(),
+        })
+      })
+      const data = await res.json()
+      if (!data.success) {
+        toast.error(data.error)
+        return
+      }
+      toast.success(`Inflow of ৳${numAmount.toLocaleString()} added to ${fixModalAccount.name}!`)
+      setFixModalAccount(null)
+      fetchAccounts()
+      if (selectedAccount?.id === fixModalAccount.id) {
+        fetchModalTransactions(selectedAccount, selectedMonth)
+      }
+    } catch {
+      toast.error('Failed to add inflow')
+    } finally {
+      setIsFixing(false)
+    }
+  }
 
   const totalInflow = accountTxs.filter(t => t.type === 'INFLOW').reduce((s, t) => s + t.amount, 0)
   const totalOutflow = accountTxs.filter(t => t.type === 'OUTFLOW').reduce((s, t) => s + t.amount, 0)
@@ -241,36 +374,23 @@ export default function AccountsSettingsPage() {
     const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
     const monthLabel = new Date(selectedMonth + '-01').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
 
-    // Logo
     const logoImg = new Image()
     logoImg.src = "/Logo/HeaderLogo.png"
     await new Promise((resolve) => { logoImg.onload = resolve; logoImg.onerror = resolve })
     doc.addImage(logoImg, "PNG", 14, 8, 43.2, 8)
 
-    // Title right
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(30, 41, 59)
+    doc.setFontSize(12); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 41, 59)
     doc.text('ACCOUNT STATEMENT', pageW - 14, 13, { align: 'right' })
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'normal')
-    doc.setTextColor(100, 116, 139)
+    doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(100, 116, 139)
     doc.text(`${selectedAccount.name}  ·  ${monthLabel}  ·  Generated: ${today}`, pageW - 14, 19, { align: 'right' })
 
-    // Summary bar
-    doc.setFillColor(248, 250, 252)
-    doc.setDrawColor(226, 232, 240)
-    doc.setLineWidth(0.4)
+    doc.setFillColor(248, 250, 252); doc.setDrawColor(226, 232, 240); doc.setLineWidth(0.4)
     doc.roundedRect(14, 22, pageW - 28, 8, 1.5, 1.5, 'FD')
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(5, 150, 105)
-    doc.text(`INFLOW: ${totalInflow.toLocaleString()} BDT`, 20, 27.5)
-    doc.setTextColor(220, 38, 38)
-    doc.text(`OUTFLOW: ${totalOutflow.toLocaleString()} BDT`, 100, 27.5)
+    doc.setFontSize(7.5); doc.setFont('helvetica', 'bold')
+    doc.setTextColor(5, 150, 105); doc.text(`INFLOW: ${totalInflow.toLocaleString()} BDT`, 20, 27.5)
+    doc.setTextColor(220, 38, 38); doc.text(`OUTFLOW: ${totalOutflow.toLocaleString()} BDT`, 100, 27.5)
     const netColor: [number, number, number] = balance >= 0 ? [5, 150, 105] : [220, 38, 38]
-    doc.setTextColor(...netColor)
-    doc.text(`NET BALANCE: ${balance.toLocaleString()} BDT`, 200, 27.5)
+    doc.setTextColor(...netColor); doc.text(`NET BALANCE: ${balance.toLocaleString()} BDT`, 200, 27.5)
 
     const bodyRows = accountTxs.map((tx) => {
       const isInflow = tx.type === 'INFLOW'
@@ -298,21 +418,8 @@ export default function AccountsSettingsPage() {
       head: [['Voucher', 'Date', 'Type', 'Category', 'Particulars', 'Project', 'Recorder', 'Inflow', 'Outflow']],
       body: bodyRows as any[],
       theme: 'grid',
-      headStyles: {
-        fillColor: [255, 255, 255],
-        textColor: [0, 0, 0],
-        fontStyle: 'bold',
-        fontSize: 8,
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1,
-      },
-      bodyStyles: {
-        fillColor: [255, 255, 255],
-        textColor: [0, 0, 0],
-        fontSize: 7.5,
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1,
-      },
+      headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'bold', fontSize: 8, lineColor: [200, 200, 200], lineWidth: 0.1 },
+      bodyStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontSize: 7.5, lineColor: [200, 200, 200], lineWidth: 0.1 },
       foot: [
         [
           { content: 'Total Inflow', colSpan: 7, styles: { halign: 'right', fontStyle: 'bold', textColor: [0, 0, 0] } },
@@ -330,13 +437,7 @@ export default function AccountsSettingsPage() {
           { content: balance < 0 ? Math.abs(balance).toLocaleString() : '—', styles: { halign: 'right', textColor: [0, 0, 0], fontStyle: 'bold' } },
         ],
       ],
-      footStyles: {
-        fillColor: [248, 250, 252],
-        textColor: [0, 0, 0],
-        fontSize: 8,
-        lineColor: [200, 200, 200],
-        lineWidth: 0.1,
-      },
+      footStyles: { fillColor: [248, 250, 252], textColor: [0, 0, 0], fontSize: 8, lineColor: [200, 200, 200], lineWidth: 0.1 },
     })
 
     doc.save(`${selectedAccount.name.replace(/[^a-zA-Z0-9]/g, '-')}-${selectedMonth}-statement.pdf`)
@@ -352,7 +453,7 @@ export default function AccountsSettingsPage() {
           </Link>
         </div>
         <h1 className="text-3xl font-bold tracking-tight">Manage Accounts</h1>
-        <p className="text-muted-foreground">Create, enable/disable accounts and review their transaction history.</p>
+        <p className="text-muted-foreground">Create, manage balances, edit/delete transactions, and review account statements.</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -360,7 +461,7 @@ export default function AccountsSettingsPage() {
         <Card className="md:col-span-1 h-fit border border-border">
           <CardHeader>
             <CardTitle>Add New Account</CardTitle>
-            <CardDescription>Accounts appear in the transaction log form as a payment method. An opening balance creates an initial INFLOW transaction.</CardDescription>
+            <CardDescription>Accounts appear in the transaction log as payment methods. An opening balance creates an initial INFLOW transaction.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAddAccount} className="space-y-4">
@@ -382,7 +483,7 @@ export default function AccountsSettingsPage() {
                   value={openingBalance}
                   onChange={(e) => setOpeningBalance(e.target.value)}
                 />
-                <p className="text-[11px] text-muted-foreground">If entered, this amount will be logged as an &quot;Opening Balance&quot; inflow transaction for this account.</p>
+                <p className="text-[11px] text-muted-foreground">Logged as an &quot;Opening Balance&quot; inflow transaction for this account.</p>
               </div>
               <Button type="submit" className="w-full gap-2" disabled={isCreating}>
                 {isCreating ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlusCircle className="w-4 h-4" />}
@@ -396,7 +497,7 @@ export default function AccountsSettingsPage() {
         <Card className="md:col-span-2 border border-border">
           <CardHeader>
             <CardTitle>Current Accounts</CardTitle>
-            <CardDescription>Click &quot;View&quot; to inspect transactions linked to that account.</CardDescription>
+            <CardDescription>Accounts must have sufficient positive balance before outflow expenses can be logged.</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -409,56 +510,76 @@ export default function AccountsSettingsPage() {
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2">
-                {accounts.map((acc) => (
-                  <div
-                    key={acc.id}
-                    className={`flex items-center justify-between p-3 rounded-lg border bg-card transition ${!acc.isActive ? 'opacity-60 grayscale' : ''}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded bg-muted/60 text-muted-foreground shrink-0">
-                        {acc.name.toLowerCase().includes('bank') || acc.name.toLowerCase().includes('ebl') || acc.name.toLowerCase().includes('dutch') || acc.name.toLowerCase().includes('dbbl')
-                          ? <Landmark className="w-4 h-4" />
-                          : <Banknote className="w-4 h-4" />
-                        }
+                {accounts.map((acc) => {
+                  const isNegative = acc.balance < 0
+                  return (
+                    <div
+                      key={acc.id}
+                      className={`flex flex-col justify-between p-3.5 rounded-lg border bg-card transition gap-2 ${isNegative ? 'border-rose-300 bg-rose-50/20 dark:bg-rose-950/20' : ''} ${!acc.isActive ? 'opacity-60 grayscale' : ''}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded shrink-0 ${isNegative ? 'bg-rose-100 text-rose-600 dark:bg-rose-900/40' : 'bg-muted/60 text-muted-foreground'}`}>
+                            {acc.name.toLowerCase().includes('bank') || acc.name.toLowerCase().includes('ebl') || acc.name.toLowerCase().includes('dutch') || acc.name.toLowerCase().includes('dbbl')
+                              ? <Landmark className="w-4 h-4" />
+                              : <Banknote className="w-4 h-4" />
+                            }
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-sm">{acc.name}</span>
+                            <span className={`text-xs font-extrabold tabular-nums ${isNegative ? 'text-rose-600 dark:text-rose-400 flex items-center gap-1' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                              {isNegative && <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
+                              ৳{acc.balance.toLocaleString()}
+                            </span>
+                            {!acc.isActive && (
+                              <Badge variant="destructive" className="text-[10px] w-fit py-0 px-1 h-4 mt-0.5">Disabled</Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2 gap-1 text-xs"
+                            onClick={() => viewTransactions(acc)}
+                          >
+                            <Eye className="w-3.5 h-3.5" /> View
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-8 px-2 text-xs"
+                            onClick={() => toggleStatus(acc.id, acc.isActive)}
+                          >
+                            {acc.isActive ? 'Disable' : 'Enable'}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive hover:bg-destructive/10 h-8 w-8"
+                            onClick={() => handleDeleteAccount(acc.id)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-sm">{acc.name}</span>
-                        <span className={`text-xs font-bold ${acc.balance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                          {acc.balance.toLocaleString()} BDT
-                        </span>
-                        {!acc.isActive && (
-                          <Badge variant="destructive" className="text-[10px] w-fit py-0 px-1 h-4 mt-0.5">Disabled</Badge>
-                        )}
-                      </div>
+
+                      {/* Quick Fix Button for negative balance accounts */}
+                      {isNegative && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full h-7 text-xs border-amber-400 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 hover:bg-amber-100 gap-1 mt-1"
+                          onClick={() => openFixBalanceModal(acc)}
+                        >
+                          <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600" />
+                          Fix Balance / Add Opening Balance (+৳{Math.abs(acc.balance).toLocaleString()})
+                        </Button>
+                      )}
                     </div>
-                    <div className="flex gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 px-2 gap-1 text-xs"
-                        onClick={() => viewTransactions(acc)}
-                      >
-                        <Eye className="w-3.5 h-3.5" /> View
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="h-8 px-2 text-xs"
-                        onClick={() => toggleStatus(acc.id, acc.isActive)}
-                      >
-                        {acc.isActive ? 'Disable' : 'Enable'}
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive hover:bg-destructive/10 h-8 w-8"
-                        onClick={() => handleDeleteAccount(acc.id)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>
@@ -498,16 +619,16 @@ export default function AccountsSettingsPage() {
               <div className="grid grid-cols-3 gap-3 mt-2">
                 <div className="rounded-lg border p-3">
                   <div className="text-xs text-muted-foreground">Total Inflow</div>
-                  <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{totalInflow.toLocaleString()} BDT</div>
+                  <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">৳{totalInflow.toLocaleString()}</div>
                 </div>
                 <div className="rounded-lg border p-3">
                   <div className="text-xs text-muted-foreground">Total Outflow</div>
-                  <div className="text-lg font-bold text-rose-500">{totalOutflow.toLocaleString()} BDT</div>
+                  <div className="text-lg font-bold text-rose-500">৳{totalOutflow.toLocaleString()}</div>
                 </div>
                 <div className="rounded-lg border p-3 bg-muted/30">
                   <div className="text-xs text-muted-foreground">Net Balance</div>
                   <div className={`text-lg font-bold ${balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
-                    {balance.toLocaleString()} BDT
+                    ৳{balance.toLocaleString()}
                   </div>
                 </div>
               </div>
@@ -523,11 +644,12 @@ export default function AccountsSettingsPage() {
                         <th className="p-3">Date</th>
                         <th className="p-3">Type</th>
                         <th className="p-3">Category</th>
-                        <th className="p-3 max-w-[200px]">Particulars</th>
+                        <th className="p-3 max-w-[180px]">Particulars</th>
                         <th className="p-3">Project</th>
                         <th className="p-3">Recorder</th>
                         <th className="p-3 text-right text-emerald-600 dark:text-emerald-400">Inflow</th>
                         <th className="p-3 text-right text-rose-500">Outflow</th>
+                        <th className="p-3 text-center">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -546,14 +668,36 @@ export default function AccountsSettingsPage() {
                             </Badge>
                           </td>
                           <td className="p-3 text-xs">{CATEGORY_LABELS[tx.category] || tx.category}</td>
-                          <td className="p-3 text-sm max-w-[200px] truncate font-medium" title={tx.particular}>{tx.particular}</td>
+                          <td className="p-3 text-sm max-w-[180px] truncate font-medium" title={tx.particular}>{tx.particular}</td>
                           <td className="p-3 text-xs text-muted-foreground">{tx.lead?.name || 'Office / Overhead'}</td>
                           <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{tx.recordedBy?.fullName || '—'}</td>
                           <td className="p-3 text-right font-bold tabular-nums text-sm text-emerald-600 dark:text-emerald-400">
-                            {tx.type === 'INFLOW' ? tx.amount.toLocaleString() : '—'}
+                            {tx.type === 'INFLOW' ? `৳${tx.amount.toLocaleString()}` : '—'}
                           </td>
                           <td className="p-3 text-right font-bold tabular-nums text-sm text-rose-500">
-                            {tx.type === 'OUTFLOW' ? tx.amount.toLocaleString() : '—'}
+                            {tx.type === 'OUTFLOW' ? `৳${tx.amount.toLocaleString()}` : '—'}
+                          </td>
+                          <td className="p-3 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                title="Edit Transaction"
+                                onClick={() => openEditTxModal(tx)}
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                                title="Delete Transaction"
+                                onClick={() => handleDeleteTransaction(tx.id)}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -561,25 +705,135 @@ export default function AccountsSettingsPage() {
                     <tfoot className="border-t-2 border-border bg-muted/50">
                       <tr>
                         <td colSpan={7} className="p-3 text-right font-bold text-sm">Total Inflow</td>
-                        <td className="p-3 text-right font-bold tabular-nums text-sm text-emerald-600 dark:text-emerald-400">{totalInflow.toLocaleString()}</td>
-                        <td className="p-3 text-right text-muted-foreground">—</td>
+                        <td className="p-3 text-right font-bold tabular-nums text-sm text-emerald-600 dark:text-emerald-400">৳{totalInflow.toLocaleString()}</td>
+                        <td className="p-3 text-right text-muted-foreground" colSpan={2}>—</td>
                       </tr>
                       <tr className="border-t border-border">
                         <td colSpan={7} className="p-3 text-right font-bold text-sm">Total Outflow</td>
                         <td className="p-3 text-right text-muted-foreground">—</td>
-                        <td className="p-3 text-right font-bold tabular-nums text-sm text-rose-500">{totalOutflow.toLocaleString()}</td>
+                        <td className="p-3 text-right font-bold tabular-nums text-sm text-rose-500">৳{totalOutflow.toLocaleString()}</td>
+                        <td></td>
                       </tr>
                       <tr className="border-t border-border">
                         <td colSpan={7} className="p-3 text-right font-bold text-sm">Net Balance</td>
                         <td colSpan={2} className={`p-3 text-right font-bold tabular-nums text-sm ${balance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`}>
-                          {balance.toLocaleString()} BDT
+                          ৳{balance.toLocaleString()}
                         </td>
+                        <td></td>
                       </tr>
                     </tfoot>
                   </table>
                 </div>
               )}
             </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Transaction Modal */}
+      <Dialog open={!!editingTx} onOpenChange={(open) => { if (!open) setEditingTx(null) }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Transaction</DialogTitle>
+          </DialogHeader>
+          {editingTx && (
+            <form onSubmit={handleSaveTransactionEdit} className="space-y-4 py-2">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold">Transaction Type</label>
+                <Select value={editType} onValueChange={setEditType}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INFLOW">INFLOW (Money Received)</SelectItem>
+                    <SelectItem value="OUTFLOW">OUTFLOW (Expense / Payment)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold">Amount (BDT)</label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={editAmount}
+                  onChange={(e) => setEditAmount(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold">Particulars / Description</label>
+                <Input
+                  value={editParticular}
+                  onChange={(e) => setEditParticular(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold">Account</label>
+                <Select value={editAccountId} onValueChange={setEditAccountId}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {accounts.map(a => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" onClick={() => setEditingTx(null)}>Cancel</Button>
+                <Button type="submit" disabled={isSavingEdit}>
+                  {isSavingEdit ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null} Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Quick Fix Negative Balance Modal */}
+      <Dialog open={!!fixModalAccount} onOpenChange={(open) => { if (!open) setFixModalAccount(null) }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowUpRight className="w-5 h-5 text-emerald-600" />
+              Fix Balance — {fixModalAccount?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {fixModalAccount && (
+            <form onSubmit={handleSaveFixBalance} className="space-y-4 py-2">
+              <p className="text-xs text-muted-foreground">
+                Account current balance is <strong className="text-rose-600">৳{fixModalAccount.balance.toLocaleString()}</strong>. Log an opening balance or deposit inflow to bring it to positive.
+              </p>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold">Inflow Amount (BDT)</label>
+                <Input
+                  type="number"
+                  min={1}
+                  value={fixAmount}
+                  onChange={(e) => setFixAmount(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold">Particulars</label>
+                <Input
+                  value={fixParticular}
+                  onChange={(e) => setFixParticular(e.target.value)}
+                  required
+                />
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button type="button" variant="outline" onClick={() => setFixModalAccount(null)}>Cancel</Button>
+                <Button type="submit" disabled={isFixing} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  {isFixing ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null} Add Inflow Deposit
+                </Button>
+              </DialogFooter>
+            </form>
           )}
         </DialogContent>
       </Dialog>
