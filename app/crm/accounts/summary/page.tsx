@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import {
   TrendingUp, TrendingDown, X, Loader2, ArrowUpRight, ArrowDownRight,
-  FileDown, Wallet,
+  FileDown, Wallet, History, ArrowRightLeft,
 } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -42,17 +42,33 @@ type SummaryRow = {
 type AccountStat = {
   accountId: string
   accountName: string
+  openingBalance: number
   inflow: number
   outflow: number
+  closingBalance: number
+}
+
+type MonthlyHistoryRow = {
+  year: number
+  month: number
+  monthLabel: string
+  openingBalance: number
+  inflow: number
+  outflow: number
+  netChange: number
+  closingBalance: number
 }
 
 type SummaryData = {
   inflow: SummaryRow[]
   outflow: SummaryRow[]
   accountSummary: AccountStat[]
+  monthlyHistory: MonthlyHistoryRow[]
+  openingBalance: number
   totalInflow: number
   totalOutflow: number
   netBalance: number
+  closingBalance: number
 }
 
 // ── Constants & Helpers ────────────────────────────────────────────────────────
@@ -63,6 +79,13 @@ const MONTHS = [
 
 function fmt(n: number) {
   return Math.abs(n).toLocaleString("en-BD", { maximumFractionDigits: 0 })
+}
+
+function fmtSigned(n: number) {
+  const formatted = fmt(n)
+  if (n > 0) return `+৳${formatted}`
+  if (n < 0) return `-৳${formatted}`
+  return `৳0`
 }
 
 function fmtDate(iso: string) {
@@ -96,7 +119,11 @@ export default function SummaryPage() {
 
   const applyMonth = (m: string, y: string) => {
     const mi = parseInt(m, 10), yi = parseInt(y, 10)
-    if (!isNaN(mi) && !isNaN(yi)) setDateRange(getMonthRange(yi, mi))
+    if (!isNaN(mi) && !isNaN(yi)) {
+      setSelectedMonth(String(mi))
+      setSelectedYear(String(yi))
+      setDateRange(getMonthRange(yi, mi))
+    }
   }
 
   const setPreset = (p: "TODAY"|"THIS_MONTH"|"LAST_7"|"LAST_30"|"ALL") => {
@@ -174,9 +201,11 @@ export default function SummaryPage() {
     // Summary box
     let y = 40
     doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 41, 59)
-    doc.text(`Total Cash Inflow : ${data.totalInflow.toLocaleString()} BDT`, 14, y); y += 6
-    doc.text(`Total Cash Outflow: ${data.totalOutflow.toLocaleString()} BDT`, 14, y); y += 6
-    doc.text(`Net Balance       : ${data.netBalance >= 0 ? "+" : ""}${data.netBalance.toLocaleString()} BDT`, 14, y); y += 10
+    doc.text(`Opening Balance (Period Start) : ${data.openingBalance.toLocaleString()} BDT`, 14, y); y += 5.5
+    doc.text(`Total Cash Inflow               : ${data.totalInflow.toLocaleString()} BDT`, 14, y); y += 5.5
+    doc.text(`Total Cash Outflow              : ${data.totalOutflow.toLocaleString()} BDT`, 14, y); y += 5.5
+    doc.text(`Net Cash Flow for Period         : ${data.netBalance >= 0 ? "+" : ""}${data.netBalance.toLocaleString()} BDT`, 14, y); y += 5.5
+    doc.text(`Closing Balance (Period End)   : ${data.closingBalance.toLocaleString()} BDT`, 14, y); y += 10
 
     // Account situation
     if (data.accountSummary.length > 0) {
@@ -184,12 +213,13 @@ export default function SummaryPage() {
       doc.text("ACCOUNT SITUATION", 14, y); y += 4
       autoTable(doc, {
         startY: y,
-        head: [["Account", "Inflow (BDT)", "Outflow (BDT)", "Net (BDT)"]],
+        head: [["Account", "Opening (BDT)", "Inflow (BDT)", "Outflow (BDT)", "Closing (BDT)"]],
         body: data.accountSummary.map(a => [
           a.accountName,
+          a.openingBalance.toLocaleString(),
           { content: a.inflow.toLocaleString(), styles: { halign: "right", textColor: [5,150,105] as [number,number,number] } },
           { content: a.outflow.toLocaleString(), styles: { halign: "right", textColor: [220,38,38] as [number,number,number] } },
-          { content: (a.inflow - a.outflow >= 0 ? "+" : "") + (a.inflow - a.outflow).toLocaleString(), styles: { halign: "right", fontStyle: "bold" as const } },
+          { content: a.closingBalance.toLocaleString(), styles: { halign: "right", fontStyle: "bold" as const } },
         ]),
         theme: "grid",
         headStyles: { fillColor: [15,23,42], textColor: [255,255,255], fontStyle: "bold", fontSize: 8 },
@@ -198,8 +228,32 @@ export default function SummaryPage() {
       y = (doc as any).lastAutoTable.finalY + 10
     }
 
+    // Monthly Balance History
+    if (data.monthlyHistory.length > 0) {
+      if (y > 230) { doc.addPage(); y = 20 }
+      doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 41, 59)
+      doc.text("MONTHLY BALANCE HISTORY", 14, y); y += 4
+      autoTable(doc, {
+        startY: y,
+        head: [["Month", "Opening Balance", "Inflow", "Outflow", "Net Change", "Closing Balance"]],
+        body: data.monthlyHistory.map(m => [
+          m.monthLabel,
+          m.openingBalance.toLocaleString(),
+          m.inflow.toLocaleString(),
+          m.outflow.toLocaleString(),
+          (m.netChange >= 0 ? "+" : "") + m.netChange.toLocaleString(),
+          { content: m.closingBalance.toLocaleString(), styles: { fontStyle: "bold" as const } },
+        ]),
+        theme: "grid",
+        headStyles: { fillColor: [30,41,59], textColor: [255,255,255], fontStyle: "bold", fontSize: 8 },
+        bodyStyles: { fontSize: 8 },
+      })
+      y = (doc as any).lastAutoTable.finalY + 10
+    }
+
     // Cash Inflow table
     if (data.inflow.length > 0) {
+      if (y > 230) { doc.addPage(); y = 20 }
       doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 41, 59)
       doc.text("CASH INFLOW", 14, y); y += 4
       autoTable(doc, {
@@ -314,33 +368,126 @@ export default function SummaryPage() {
 
         {!loading && data && (
           <>
-            {/* ── 3 Stat Cards ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Card>
+            {/* ── 4 Top Financial Metric Cards ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="border-border">
                 <CardContent className="pt-5">
-                  <div className="text-xs text-muted-foreground mb-1">Total Cash Inflow</div>
-                  <div className="text-2xl font-bold text-emerald-500">৳{fmt(data.totalInflow)}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-5">
-                  <div className="text-xs text-muted-foreground mb-1">Total Cash Outflow</div>
-                  <div className="text-2xl font-bold text-rose-500">৳{fmt(data.totalOutflow)}</div>
-                </CardContent>
-              </Card>
-              <Card className="bg-muted">
-                <CardContent className="pt-5">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="text-xs text-muted-foreground">Net Balance</div>
-                    {!netPositive && <Badge variant="destructive" className="h-4 text-[10px] px-1.5 py-0">LOSS</Badge>}
+                  <div className="text-xs text-muted-foreground mb-1 flex items-center justify-between">
+                    <span>Opening Balance</span>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">Period Start</Badge>
                   </div>
-                  <div className={`text-2xl font-bold flex items-center gap-1.5 ${netPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                    {netPositive ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-                    {netPositive ? "+" : "-"}৳{fmt(data.netBalance)}
+                  <div className={`text-2xl font-bold tabular-nums ${data.openingBalance >= 0 ? "text-foreground" : "text-rose-500"}`}>
+                    ৳{fmt(data.openingBalance)}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1 truncate">Prior closing balance</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardContent className="pt-5">
+                  <div className="text-xs text-muted-foreground mb-1">Cash Inflow</div>
+                  <div className="text-2xl font-bold text-emerald-500 tabular-nums">
+                    +৳{fmt(data.totalInflow)}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Total received in period</p>
+                </CardContent>
+              </Card>
+
+              <Card className="border-border">
+                <CardContent className="pt-5">
+                  <div className="text-xs text-muted-foreground mb-1">Cash Outflow</div>
+                  <div className="text-2xl font-bold text-rose-500 tabular-nums">
+                    -৳{fmt(data.totalOutflow)}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">Total spent in period</p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-primary/5 border-primary/20">
+                <CardContent className="pt-5">
+                  <div className="text-xs text-muted-foreground mb-1 flex items-center justify-between">
+                    <span className="font-semibold text-foreground">Closing Balance</span>
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-semibold bg-primary/10 text-primary border-0">Period End</Badge>
+                  </div>
+                  <div className={`text-2xl font-extrabold tabular-nums ${data.closingBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
+                    ৳{fmt(data.closingBalance)}
+                  </div>
+                  <div className="text-[11px] font-medium mt-1 flex items-center gap-1">
+                    <span className="text-muted-foreground">Net change:</span>
+                    <span className={netPositive ? "text-emerald-600 font-bold" : "text-rose-600 font-bold"}>
+                      {fmtSigned(data.netBalance)}
+                    </span>
                   </div>
                 </CardContent>
               </Card>
             </div>
+
+            {/* ── Monthly Balance History Ledger ── */}
+            {data.monthlyHistory.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-base">
+                    <div className="flex items-center gap-2">
+                      <History className="h-4 w-4 text-primary" />
+                      Monthly Balance History
+                      <span className="text-xs font-normal text-muted-foreground">
+                        — Opening balance carries forward from previous month&apos;s closing
+                      </span>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-t border-border bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          <th className="text-left px-4 py-2.5">Month</th>
+                          <th className="text-right px-4 py-2.5">Opening Balance</th>
+                          <th className="text-right px-4 py-2.5 text-emerald-600 dark:text-emerald-400">Inflow</th>
+                          <th className="text-right px-4 py-2.5 text-rose-500">Outflow</th>
+                          <th className="text-right px-4 py-2.5">Net Change</th>
+                          <th className="text-right px-4 py-2.5">Closing Balance</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {data.monthlyHistory.map((m) => {
+                          const isSelected = selectedMonth === String(m.month) && isFiltered
+                          return (
+                            <tr
+                              key={m.monthLabel}
+                              className={`hover:bg-muted/50 transition-colors cursor-pointer ${isSelected ? "bg-primary/5 font-semibold" : ""}`}
+                              onClick={() => applyMonth(String(m.month), String(m.year))}
+                            >
+                              <td className="px-4 py-3 font-medium text-foreground">
+                                <div className="flex items-center gap-2">
+                                  <span>{m.monthLabel}</span>
+                                  {isSelected && <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">Selected</Badge>}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">
+                                ৳{fmt(m.openingBalance)}
+                              </td>
+                              <td className="px-4 py-3 text-right text-emerald-600 dark:text-emerald-400 font-medium tabular-nums">
+                                +৳{fmt(m.inflow)}
+                              </td>
+                              <td className="px-4 py-3 text-right text-rose-500 font-medium tabular-nums">
+                                -৳{fmt(m.outflow)}
+                              </td>
+                              <td className={`px-4 py-3 text-right font-medium tabular-nums ${m.netChange >= 0 ? "text-emerald-600" : "text-rose-500"}`}>
+                                {fmtSigned(m.netChange)}
+                              </td>
+                              <td className="px-4 py-3 text-right font-bold text-foreground tabular-nums">
+                                ৳{fmt(m.closingBalance)}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* ── Account Situation ── */}
             {data.accountSummary.length > 0 && (
@@ -358,21 +505,22 @@ export default function SummaryPage() {
                       <thead>
                         <tr className="border-t border-border bg-muted/30">
                           <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Opening</th>
                           <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Inflow</th>
                           <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Outflow</th>
-                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Net</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Closing</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
                         {data.accountSummary.map(acct => {
-                          const net = acct.inflow - acct.outflow
                           return (
                             <tr key={acct.accountId} className="hover:bg-muted/40 transition-colors">
                               <td className="px-4 py-3 font-semibold text-foreground">{acct.accountName}</td>
-                              <td className="px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">৳{fmt(acct.inflow)}</td>
-                              <td className="px-4 py-3 text-right font-medium text-rose-600 dark:text-rose-400 tabular-nums">৳{fmt(acct.outflow)}</td>
-                              <td className={`px-4 py-3 text-right font-bold tabular-nums ${net >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                                {net >= 0 ? "+" : "-"}৳{fmt(net)}
+                              <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">৳{fmt(acct.openingBalance)}</td>
+                              <td className="px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">+৳{fmt(acct.inflow)}</td>
+                              <td className="px-4 py-3 text-right font-medium text-rose-600 dark:text-rose-400 tabular-nums">-৳{fmt(acct.outflow)}</td>
+                              <td className={`px-4 py-3 text-right font-bold tabular-nums ${acct.closingBalance >= 0 ? "text-foreground" : "text-rose-600"}`}>
+                                ৳{fmt(acct.closingBalance)}
                               </td>
                             </tr>
                           )
@@ -506,27 +654,30 @@ export default function SummaryPage() {
               </Card>
             </div>
 
-            {/* ── Net Balance Banner ── */}
+            {/* ── Net Balance Summary Banner ── */}
             <Card className={`border-2 ${netPositive ? "border-emerald-400 dark:border-emerald-700" : "border-rose-400 dark:border-rose-700"}`}>
               <CardContent className="py-5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground font-medium mb-1">Net Balance — {periodLabel}</p>
-                    <div className={`flex items-center gap-2 ${netPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
-                      {netPositive ? <TrendingUp className="h-6 w-6" /> : <TrendingDown className="h-6 w-6" />}
-                      <span className="text-3xl font-extrabold tracking-tight tabular-nums">
-                        {netPositive ? "+" : "-"}৳{fmt(data.netBalance)}
-                      </span>
+                    <p className="text-sm text-muted-foreground font-medium mb-1">Period Financial Formula — {periodLabel}</p>
+                    <div className="flex items-center gap-2 text-sm font-semibold flex-wrap">
+                      <span className="text-muted-foreground">Opening (৳{fmt(data.openingBalance)})</span>
+                      <span>+</span>
+                      <span className="text-emerald-600">Inflow (৳{fmt(data.totalInflow)})</span>
+                      <span>-</span>
+                      <span className="text-rose-600">Outflow (৳{fmt(data.totalOutflow)})</span>
+                      <span>=</span>
+                      <span className="text-lg font-bold text-foreground">Closing (৳{fmt(data.closingBalance)})</span>
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-5 py-3 text-center">
-                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide mb-0.5">Inflow</p>
-                      <p className="text-lg font-bold text-emerald-600 tabular-nums">৳{fmt(data.totalInflow)}</p>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide mb-0.5">Period Inflow</p>
+                      <p className="text-lg font-bold text-emerald-600 tabular-nums">+৳{fmt(data.totalInflow)}</p>
                     </div>
                     <div className="rounded-lg bg-rose-50 dark:bg-rose-950/40 px-5 py-3 text-center">
-                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide mb-0.5">Outflow</p>
-                      <p className="text-lg font-bold text-rose-600 tabular-nums">৳{fmt(data.totalOutflow)}</p>
+                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide mb-0.5">Period Outflow</p>
+                      <p className="text-lg font-bold text-rose-600 tabular-nums">-৳{fmt(data.totalOutflow)}</p>
                     </div>
                   </div>
                 </div>

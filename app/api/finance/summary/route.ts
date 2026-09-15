@@ -78,19 +78,65 @@ export async function GET(request: NextRequest) {
     const startDateStr = searchParams.get("startDate")
     const endDateStr   = searchParams.get("endDate")
 
-    const dateFilter: Record<string, Date> = {}
-    if (startDateStr) dateFilter.gte = new Date(startDateStr)
+    let startDate: Date | null = null
+    let endDate: Date | null = null
+
+    if (startDateStr) {
+      startDate = new Date(startDateStr)
+    }
     if (endDateStr) {
       const end = new Date(endDateStr)
       end.setHours(23, 59, 59, 999)
-      dateFilter.lte = end
+      endDate = end
     }
 
-    const where: Record<string, unknown> = {}
-    if (startDateStr || endDateStr) where.date = dateFilter
+    // 1. Fetch ALL finance accounts
+    const allAccounts = await prisma.financeAccount.findMany({
+      orderBy: { name: "asc" }
+    })
+    const accountMap = new Map<string, { id: string; name: string }>()
+    for (const a of allAccounts) {
+      accountMap.set(a.id, { id: a.id, name: a.name })
+    }
+
+    // 2. Compute Prior Balances (transactions before startDate)
+    const priorAccountOpening = new Map<string, number>()
+    let globalOpeningBalance = 0
+
+    if (startDate) {
+      const priorTransactions = await prisma.transaction.groupBy({
+        by: ["financeAccountId", "type"],
+        where: {
+          date: { lt: startDate }
+        },
+        _sum: { amount: true }
+      })
+
+      for (const group of priorTransactions) {
+        const accId = group.financeAccountId ?? "no-account"
+        const sum = group._sum.amount ?? 0
+        const currentVal = priorAccountOpening.get(accId) ?? 0
+        if (group.type === "INFLOW") {
+          priorAccountOpening.set(accId, currentVal + sum)
+          globalOpeningBalance += sum
+        } else {
+          priorAccountOpening.set(accId, currentVal - sum)
+          globalOpeningBalance -= sum
+        }
+      }
+    }
+
+    // 3. Fetch Period Transactions
+    const periodWhere: Record<string, unknown> = {}
+    if (startDate || endDate) {
+      const dateFilter: Record<string, Date> = {}
+      if (startDate) dateFilter.gte = startDate
+      if (endDate) dateFilter.lte = endDate
+      periodWhere.date = dateFilter
+    }
 
     const transactions = await prisma.transaction.findMany({
-      where,
+      where: periodWhere,
       include: {
         financeAccount: { select: { id: true, name: true } },
         lead:           { select: { id: true, name: true } },
@@ -125,13 +171,29 @@ export async function GET(request: NextRequest) {
     type AccountStat = {
       accountId: string
       accountName: string
+      openingBalance: number
       inflow: number
       outflow: number
+      closingBalance: number
     }
 
     const inflowMap  = new Map<string, SummaryRow>()
     const outflowMap = new Map<string, SummaryRow>()
-    const accountMap = new Map<string, AccountStat>()
+    
+    // Initialize account situation map with opening balances
+    const accountSituationMap = new Map<string, AccountStat>()
+    for (const acc of allAccounts) {
+      const opening = priorAccountOpening.get(acc.id) ?? 0
+      accountSituationMap.set(acc.id, {
+        accountId: acc.id,
+        accountName: acc.name,
+        openingBalance: opening,
+        inflow: 0,
+        outflow: 0,
+        closingBalance: opening,
+      })
+    }
+
     let totalInflow  = 0
     let totalOutflow = 0
 
@@ -139,7 +201,6 @@ export async function GET(request: NextRequest) {
       const accountId   = tx.financeAccountId ?? "no-account"
       const accountName = tx.financeAccount?.name ?? "Unknown Account"
 
-      // Group purely by project (leadId), or "Office" if no lead
       const leadId   = tx.leadId ?? null
       const leadName = tx.lead?.name ?? "Office"
       const groupKey = leadId ? `lead__${leadId}` : `office`
@@ -157,8 +218,18 @@ export async function GET(request: NextRequest) {
         collectedBy:   tx.collectedBy?.fullName ?? null,
       }
 
-      // per-account totals for Account Situation card
-      const acct = accountMap.get(accountId) ?? { accountId, accountName, inflow: 0, outflow: 0 }
+      let acct = accountSituationMap.get(accountId)
+      if (!acct) {
+        const opening = priorAccountOpening.get(accountId) ?? 0
+        acct = {
+          accountId,
+          accountName,
+          openingBalance: opening,
+          inflow: 0,
+          outflow: 0,
+          closingBalance: opening,
+        }
+      }
 
       if (tx.type === "INFLOW") {
         acct.inflow += tx.amount
@@ -183,30 +254,118 @@ export async function GET(request: NextRequest) {
           outflowMap.set(groupKey, { groupKey, leadId, leadName, amount: tx.amount, txCount: 1, transactions: [txDetail] })
         }
       }
-      accountMap.set(accountId, acct)
+
+      acct.closingBalance = acct.openingBalance + acct.inflow - acct.outflow
+      accountSituationMap.set(accountId, acct)
     }
 
-    const sort = (a: SummaryRow, b: SummaryRow) => {
-      // Put Office at the bottom or top, rest alphabetical
+    const sortRows = (a: SummaryRow, b: SummaryRow) => {
       if (a.leadName === "Office") return 1
       if (b.leadName === "Office") return -1
       return a.leadName.localeCompare(b.leadName)
     }
 
-    const inflowRows  = Array.from(inflowMap.values()).sort(sort)
-    const outflowRows = Array.from(outflowMap.values()).sort(sort)
-    const accountSummary = Array.from(accountMap.values()).sort((a, b) =>
+    const inflowRows  = Array.from(inflowMap.values()).sort(sortRows)
+    const outflowRows = Array.from(outflowMap.values()).sort(sortRows)
+    const accountSummary = Array.from(accountSituationMap.values()).sort((a, b) =>
       a.accountName.localeCompare(b.accountName)
     )
 
+    const closingBalance = globalOpeningBalance + totalInflow - totalOutflow
+
+    // 4. Build Monthly History (Last 12 months up to current month)
+    type MonthlyHistoryRow = {
+      year: number
+      month: number
+      monthLabel: string
+      openingBalance: number
+      inflow: number
+      outflow: number
+      netChange: number
+      closingBalance: number
+    }
+
+    const monthlyHistory: MonthlyHistoryRow[] = []
+    const now = new Date()
+    const targetYear = startDate ? startDate.getFullYear() : now.getFullYear()
+
+    // Query all transactions to build monthly breakdown for target year
+    const yearStart = new Date(targetYear, 0, 1)
+    const yearEnd = new Date(targetYear, 11, 31, 23, 59, 59, 999)
+
+    // Pre-year opening balance
+    const preYearAgg = await prisma.transaction.groupBy({
+      by: ["type"],
+      where: { date: { lt: yearStart } },
+      _sum: { amount: true }
+    })
+    let runningBalance = 0
+    for (const g of preYearAgg) {
+      const sum = g._sum.amount ?? 0
+      if (g.type === "INFLOW") runningBalance += sum
+      else runningBalance -= sum
+    }
+
+    const yearTransactions = await prisma.transaction.findMany({
+      where: {
+        date: { gte: yearStart, lte: yearEnd }
+      },
+      select: {
+        date: true,
+        type: true,
+        amount: true,
+      },
+      orderBy: { date: "asc" }
+    })
+
+    // Group transactions by month index (0..11)
+    const monthlyTotals = Array.from({ length: 12 }, () => ({ inflow: 0, outflow: 0 }))
+    for (const tx of yearTransactions) {
+      const m = tx.date.getMonth()
+      if (tx.type === "INFLOW") monthlyTotals[m].inflow += tx.amount
+      else monthlyTotals[m].outflow += tx.amount
+    }
+
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ]
+
+    for (let m = 0; m < 12; m++) {
+      // Don't show future months if in current year
+      if (targetYear === now.getFullYear() && m > now.getMonth()) break
+
+      const monthOpening = runningBalance
+      const inflow = monthlyTotals[m].inflow
+      const outflow = monthlyTotals[m].outflow
+      const netChange = inflow - outflow
+      const monthClosing = monthOpening + netChange
+
+      monthlyHistory.push({
+        year: targetYear,
+        month: m,
+        monthLabel: `${monthNames[m]} ${targetYear}`,
+        openingBalance: monthOpening,
+        inflow,
+        outflow,
+        netChange,
+        closingBalance: monthClosing,
+      })
+
+      runningBalance = monthClosing
+    }
+
     return NextResponse.json({
       success: true,
-      inflow:  inflowRows,
+      inflow: inflowRows,
       outflow: outflowRows,
       accountSummary,
+      monthlyHistory,
+      openingBalance: globalOpeningBalance,
       totalInflow,
       totalOutflow,
       netBalance: totalInflow - totalOutflow,
+      closingBalance,
     })
   } catch (error: unknown) {
     console.error("[GET /api/finance/summary] failed", error)
