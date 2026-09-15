@@ -14,6 +14,9 @@ import { logActivity, logLeadSubStatusChanged } from '@/lib/activity-log-service
 const STARTABLE_SUBSTATUSES = new Set<LeadSubStatus>([
   LeadSubStatus.QUOTATION_ASSIGNED,
   LeadSubStatus.QUOTATION_CORRECTION,
+  LeadSubStatus.CLIENT_CONFIRMED,
+  LeadSubStatus.CLIENT_PARTIALLY_PAID,
+  LeadSubStatus.CLIENT_FULL_PAID,
 ])
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> }
@@ -50,8 +53,10 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       const lead = await tx.lead.findFirst({
         where: {
           id: leadId,
-          stage: LeadStage.QUOTATION_PHASE,
-          subStatus: { in: Array.from(STARTABLE_SUBSTATUSES) },
+          OR: [
+            { subStatus: { in: Array.from(STARTABLE_SUBSTATUSES) } },
+            { stage: LeadStage.CONVERSION },
+          ],
           ...(isAdminOrSr
             ? {}
             : {

@@ -44,7 +44,6 @@ export async function GET(request: Request) {
               some: {
                 department: LeadAssignmentDepartment.QUOTATION,
                 userId: authResult.actorUserId,
-                ...(monthRange ? { createdAt: monthRange } : {}),
               },
             },
           },
@@ -57,11 +56,6 @@ export async function GET(request: Request) {
             },
           },
         ],
-        ...(!monthRange && !includeHistory
-          ? {
-              stage: { notIn: [LeadStage.CONVERSION] },
-            }
-          : {}),
       },
       select: {
         id: true,
@@ -170,11 +164,12 @@ export async function GET(request: Request) {
         shortPackagesCount: sqftSummary.shortPackagesCount,
         attachments: lead.attachments,
         canStart:
-          lead.stage === LeadStage.QUOTATION_PHASE &&
-          (lead.subStatus === LeadSubStatus.QUOTATION_ASSIGNED ||
-            lead.subStatus === LeadSubStatus.QUOTATION_CORRECTION),
+          (lead.stage as string) === LeadStage.CONVERSION ||
+          lead.subStatus === LeadSubStatus.QUOTATION_ASSIGNED ||
+          lead.subStatus === LeadSubStatus.QUOTATION_CORRECTION,
         canSubmit:
-          lead.stage === LeadStage.QUOTATION_PHASE && lead.subStatus === LeadSubStatus.QUOTATION_WORKING,
+          lead.subStatus === LeadSubStatus.QUOTATION_WORKING ||
+          (lead.stage as string) === LeadStage.CONVERSION,
       }
     })
 

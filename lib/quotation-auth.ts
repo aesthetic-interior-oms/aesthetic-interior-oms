@@ -34,11 +34,6 @@ export function canEditQuotationDraft(input: {
   assignedQuotationUserId: string | null
   leadStage?: LeadStage | null
 }): boolean {
-  // Quotation editing is locked once the lead reaches CONVERSION stage
-  if (input.leadStage === LeadStage.CONVERSION) {
-    return false
-  }
-
   if (
     isQuotationAdmin(input.actorDepartments) ||
     input.actorDepartments.includes('PROJECT_COORDINATOR') ||
@@ -49,7 +44,7 @@ export function canEditQuotationDraft(input: {
   if (!isQuotationDepartment(input.actorDepartments)) return false
   if (!input.assignedQuotationUserId) return false
 
-  // Once assigned to a lead, quotation team member can edit until CONVERSION stage without needing reassignment
+  // Once assigned to a lead, quotation team member can edit drafts for that lead
   return input.assignedQuotationUserId === input.actorUserId
 }
 
