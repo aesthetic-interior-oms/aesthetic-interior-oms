@@ -22,17 +22,20 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     })
 
     const data = agreements.map((ag) => {
-      const totalPaid = ag.payments.reduce((s, p) => s + p.amount, 0)
+      const totalPaid = ag.payments ? ag.payments.reduce((s, p) => s + (p.amount || 0), 0) : 0
+      const agreementValue = ag.agreementValue || 0
       return {
         ...ag,
+        lead: ag.lead ?? { id: ag.leadId, name: "Unknown Project", stage: "N/A", location: null },
         totalPaid,
-        balance: ag.agreementValue - totalPaid,
-        paidPercent: ag.agreementValue > 0 ? (totalPaid / ag.agreementValue) * 100 : 0,
+        balance: agreementValue - totalPaid,
+        paidPercent: agreementValue > 0 ? (totalPaid / agreementValue) * 100 : 0,
       }
     })
 
     return NextResponse.json({ success: true, data })
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error("[GET /api/vendors/[id]/projects] Error:", error)
+    return NextResponse.json({ success: false, error: error.message || "Internal server error" }, { status: 500 })
   }
 }
