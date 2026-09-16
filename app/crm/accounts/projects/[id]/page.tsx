@@ -13,6 +13,7 @@ import { DateRangePicker, type DateRange } from '@/components/ui/date-range-pick
 import { toast } from '@/components/ui/sonner'
 import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
 import { buildShortPreviewUrl } from '@/lib/short-quotation-preview-sync'
+import ProjectVendorsTab from '@/components/vendors/project-vendors-tab'
 
 const CATEGORY_LABELS: Record<string, string> = {
   CLIENT_DEPOSIT: 'Client Deposit',
@@ -152,6 +153,7 @@ export default function ProjectDetailPage() {
   const initialAgreementValue = report?.initialAgreementValue ?? agreementValue
   const agreementLogs = report?.agreementLogs ?? []
   const agreementAdjustmentTotal = report?.agreementAdjustmentTotal ?? 0
+  const latestSyncedLog = agreementLogs.find((l: any) => l.quotationDraftId || l.versionTitle)
 
   const handleSaveAgreementAdjustment = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -1264,7 +1266,11 @@ export default function ProjectDetailPage() {
                         : `Version ${slotIndex}`
                       const isLatest = idx === 0
                       const delta = draft.grandTotal - baselineTotal
-                      const isAlreadySynced = agreementLogs.some((l: any) => l.quotationDraftId === draft.id || l.versionTitle === vTitle)
+
+                      const isCurrentSynced = latestSyncedLog
+                        ? (latestSyncedLog.quotationDraftId === draft.id || latestSyncedLog.versionTitle === vTitle)
+                        : (draft.grandTotal === (agreementValue ?? 0))
+
                       const previewUrl = buildDetailPreviewUrl({ context: 'lead', contextId: String(id), slotIndex, download: false })
                       const downloadUrl = buildDetailPreviewUrl({ context: 'lead', contextId: String(id), slotIndex, download: true })
 
@@ -1318,8 +1324,8 @@ export default function ProjectDetailPage() {
                             </div>
 
                             <div>
-                              {isAlreadySynced ? (
-                                <Badge variant="secondary" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border-emerald-300">
+                              {isCurrentSynced ? (
+                                <Badge variant="secondary" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-300 font-bold px-2 py-0.5">
                                   ✓ Synced to Agreement
                                 </Badge>
                               ) : (
@@ -1328,10 +1334,13 @@ export default function ProjectDetailPage() {
                                   variant="outline"
                                   className="h-7 text-xs px-2.5 font-semibold gap-1 text-primary border-primary/40 hover:bg-primary/10"
                                   onClick={() => {
-                                    const absDelta = Math.abs(delta)
-                                    setAdjustType(delta >= 0 ? 'ADD' : 'DECREASE')
-                                    setAdjustAmount(absDelta > 0 ? String(absDelta) : String(draft.grandTotal))
-                                    setAdjustNote(`Scope change per PC ${vTitle} (${delta >= 0 ? '+' : '-'}${absDelta.toLocaleString()} BDT)`)
+                                    const currentAgr = agreementValue ?? 0
+                                    const diff = draft.grandTotal - currentAgr
+                                    const absDiff = Math.abs(diff)
+                                    setAdjustType(diff >= 0 ? 'ADD' : 'DECREASE')
+                                    setAdjustAmount(absDiff > 0 ? String(absDiff) : String(draft.grandTotal))
+                                    setSyncTargetValue(draft.grandTotal)
+                                    setAdjustNote(`Sync PC ${vTitle}: Agreement Value updated from ৳${currentAgr.toLocaleString()} to ৳${draft.grandTotal.toLocaleString()}`)
                                     setSyncDraftId(draft.id)
                                     setSyncVersionTitle(vTitle)
                                     setAdjustModalOpen(true)
@@ -1394,6 +1403,9 @@ export default function ProjectDetailPage() {
                 )}
             </CardContent>
           </Card>
+
+          {/* Vendor & Accounts Payable Section */}
+          {id && <ProjectVendorsTab leadId={id} />}
 
           {/* Category Breakdown */}
           {Object.keys(activeCategoryTotals).length > 0 && (
@@ -1699,7 +1711,11 @@ export default function ProjectDetailPage() {
                   const vTitle = typeof contentObj.versionTitle === 'string' && contentObj.versionTitle ? contentObj.versionTitle : `Version ${slotIndex}`
                   const currentAgr = agreementValue ?? 0
                   const diff = draft.grandTotal - currentAgr
-                  const isMatchesCurrent = draft.grandTotal === currentAgr
+
+                  const isCurrentSynced = latestSyncedLog
+                    ? (latestSyncedLog.quotationDraftId === draft.id || latestSyncedLog.versionTitle === vTitle)
+                    : (draft.grandTotal === currentAgr)
+
                   const previewUrl = buildDetailPreviewUrl({ context: 'lead', contextId: String(id), slotIndex, download: false })
                   const downloadUrl = buildDetailPreviewUrl({ context: 'lead', contextId: String(id), slotIndex, download: true })
 
@@ -1710,7 +1726,7 @@ export default function ProjectDetailPage() {
                           {vTitle}
                         </Badge>
                         <span className="font-semibold text-foreground">৳{draft.grandTotal.toLocaleString()} BDT</span>
-                        {!isMatchesCurrent ? (
+                        {!isCurrentSynced ? (
                           <span className={`text-[11px] font-medium ${diff > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                             ({diff > 0 ? `+৳${diff.toLocaleString()} vs Current` : `-৳${Math.abs(diff).toLocaleString()} vs Current`})
                           </span>
@@ -1729,8 +1745,8 @@ export default function ProjectDetailPage() {
                             <ExternalLink className="h-3 w-3" /> Preview
                           </Button>
                         </a>
-                        {isMatchesCurrent ? (
-                          <Badge variant="secondary" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                        {isCurrentSynced ? (
+                          <Badge variant="secondary" className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-300 font-bold px-2 py-0.5">
                             ✓ Synced
                           </Badge>
                         ) : (

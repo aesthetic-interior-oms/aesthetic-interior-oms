@@ -157,6 +157,7 @@ export async function GET(request: NextRequest) {
       voucherNo: string | null
       recordedBy: string
       collectedBy: string | null
+      imageUrl: string | null
     }
 
     type SummaryRow = {
@@ -216,6 +217,7 @@ export async function GET(request: NextRequest) {
         voucherNo:     tx.voucherNo ?? null,
         recordedBy:    tx.recordedBy?.fullName ?? "Unknown",
         collectedBy:   tx.collectedBy?.fullName ?? null,
+        imageUrl:      tx.imageUrl ?? null,
       }
 
       let acct = accountSituationMap.get(accountId)

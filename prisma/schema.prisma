@@ -46,6 +46,7 @@ model Lead {
   quotationDrafts        QuotationDraft[]
   transactions           Transaction[]
   visits                 Visit[]
+  vendorAgreements       VendorAgreement[]
 
   @@index([assignedTo])
   @@index([primaryOwnerUserId])
@@ -696,6 +697,7 @@ model Transaction {
   lead             Lead?           @relation(fields: [leadId], references: [id])
   recordedBy       User            @relation("TransactionRecorder", fields: [recordedById], references: [id])
   visit            Visit?          @relation("VisitPayments", fields: [visitId], references: [id])
+  vendorPayment    VendorPayment?
 
   @@index([leadId])
   @@index([visitId])
@@ -1090,3 +1092,138 @@ enum AccountStatus {
   PARTIAL_PAID
   FULL_PAID
 }
+
+enum VendorStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum VendorType {
+  SUPPLIER
+  CONTRACTOR
+  PAINTER
+  CARPENTER
+  SERVICE_PROVIDER
+  FREELANCER
+  OTHER
+}
+
+enum VendorWorkStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  WORK_DONE
+  CLOSED
+}
+
+enum VendorPaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+  MOBILE_BANKING
+}
+
+model Vendor {
+  id                String            @id @default(cuid())
+  vendorId          String            @unique
+  vendorCompanyName String?
+  vendorName        String
+  status            VendorStatus      @default(ACTIVE)
+  vendorType        VendorType
+
+  // Financial & Payment Info
+  bankName          String?
+  routingNumber     String?
+  accountNumber     String?
+
+  // Contact & Address
+  primaryEmail      String?
+  primaryPhone      String?
+  billingAddress    String?
+
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  agreements        VendorAgreement[]
+
+  @@index([status])
+  @@index([vendorType])
+}
+
+model VendorAgreement {
+  id                String                    @id @default(cuid())
+  vendorId          String
+  leadId            String
+  agreementValue    Float
+  workScope         String?
+  workStatus        VendorWorkStatus          @default(NOT_STARTED)
+  retentionPercent  Float                     @default(0)
+  retentionReleased Boolean                   @default(false)
+  notes             String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  vendor            Vendor                    @relation(fields: [vendorId], references: [id])
+  lead              Lead                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  revisions         VendorAgreementRevision[]
+  milestones        VendorPaymentMilestone[]
+  payments          VendorPayment[]
+
+  @@unique([vendorId, leadId])
+  @@index([vendorId])
+  @@index([leadId])
+  @@index([workStatus])
+}
+
+model VendorAgreementRevision {
+  id            String          @id @default(cuid())
+  agreementId   String
+  oldValue      Float
+  newValue      Float
+  changeReason  String
+  changedAt     DateTime        @default(now())
+
+  agreement     VendorAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+
+  @@index([agreementId])
+}
+
+model VendorPaymentMilestone {
+  id          String          @id @default(cuid())
+  agreementId String
+  title       String
+  amount      Float
+  dueDate     DateTime?
+  isPaid      Boolean         @default(false)
+  paidAt      DateTime?
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  agreement   VendorAgreement @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  payments    VendorPayment[]
+
+  @@index([agreementId])
+  @@index([isPaid])
+}
+
+model VendorPayment {
+  id            String                  @id @default(cuid())
+  agreementId   String
+  milestoneId   String?
+  amount        Float
+  paymentDate   DateTime                @default(now())
+  paymentMethod VendorPaymentMethod     @default(CASH)
+  voucherNo     String?                 @unique
+  note          String?
+  transactionId String?                 @unique
+  createdAt     DateTime                @default(now())
+
+  agreement     VendorAgreement         @relation(fields: [agreementId], references: [id], onDelete: Cascade)
+  milestone     VendorPaymentMilestone? @relation(fields: [milestoneId], references: [id])
+  transaction   Transaction?            @relation(fields: [transactionId], references: [id])
+
+  @@index([agreementId])
+  @@index([milestoneId])
+  @@index([paymentDate])
+}
+

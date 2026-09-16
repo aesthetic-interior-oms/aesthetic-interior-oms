@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import {
   TrendingUp, TrendingDown, X, Loader2, ArrowUpRight, ArrowDownRight,
-  FileDown, Wallet, History, Scale,
+  FileDown, Wallet, History, Scale, Paperclip,
 } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -28,6 +28,7 @@ type TxDetail = {
   voucherNo: string | null
   recordedBy: string
   collectedBy: string | null
+  imageUrl?: string | null
 }
 
 type SummaryRow = {
@@ -1018,7 +1019,7 @@ export default function SummaryPage() {
 
       {/* ── Transaction Detail Modal ── */}
       <Dialog open={!!modalRow} onOpenChange={open => { if (!open) setModalRow(null) }}>
-        <DialogContent className="max-w-5xl w-full max-h-[92vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl w-full max-h-[92vh] overflow-y-auto">
           {modalRow && (
             <>
               <DialogHeader>
@@ -1071,6 +1072,7 @@ export default function SummaryPage() {
                       <th className="px-3.5 py-2.5 text-left">Account</th>
                       <th className="px-3.5 py-2.5 text-left">Category</th>
                       <th className="px-3.5 py-2.5 text-left">Voucher</th>
+                      <th className="px-3.5 py-2.5 text-center">Attachment</th>
                       <th className="px-3.5 py-2.5 text-right">Amount</th>
                     </tr>
                   </thead>
@@ -1078,7 +1080,7 @@ export default function SummaryPage() {
                     {modalRow.transactions.map(tx => (
                       <tr key={tx.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-3.5 py-2.5 text-xs text-muted-foreground whitespace-nowrap">{fmtDate(tx.date)}</td>
-                        <td className="px-3.5 py-2.5 font-medium text-foreground max-w-[220px]">
+                        <td className="px-3.5 py-2.5 font-medium text-foreground max-w-[240px]">
                           <div className="truncate" title={tx.particular}>{tx.particular}</div>
                           {tx.collectedBy && (
                             <div className="text-[11px] text-muted-foreground">Collector: {tx.collectedBy}</div>
@@ -1095,6 +1097,21 @@ export default function SummaryPage() {
                         <td className="px-3.5 py-2.5 text-xs text-muted-foreground font-mono">
                           {tx.voucherNo ?? "—"}
                         </td>
+                        <td className="px-3.5 py-2.5 text-center">
+                          {tx.imageUrl ? (
+                            <a
+                              href={tx.imageUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-semibold bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-2 py-0.5 rounded transition-colors hover:underline"
+                            >
+                              <Paperclip className="h-3 w-3" />
+                              View Attachment
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </td>
                         <td className={`px-3.5 py-2.5 text-right font-bold tabular-nums ${modalType === "inflow" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                           ৳{fmt(tx.amount)}
                         </td>
@@ -1103,7 +1120,7 @@ export default function SummaryPage() {
                   </tbody>
                   <tfoot>
                     <tr className={`border-t-2 border-border ${modalType === "inflow" ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-rose-50 dark:bg-rose-950/30"}`}>
-                      <td className="px-3.5 py-2.5 font-bold text-sm" colSpan={5}>Total</td>
+                      <td className="px-3.5 py-2.5 font-bold text-sm" colSpan={6}>Total</td>
                       <td className={`px-3.5 py-2.5 text-right font-bold tabular-nums text-base ${modalType === "inflow" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                         ৳{fmt(modalRow.amount)}
                       </td>
