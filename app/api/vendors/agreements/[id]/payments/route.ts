@@ -4,6 +4,28 @@ import { auth } from "@clerk/nextjs/server"
 import { VENDOR_TYPE_TO_EXPENSE_CATEGORY } from "@/lib/vendor-utils"
 import { VendorPaymentMethod } from "@/generated/prisma/client"
 
+// Helper to resolve database User.id from Clerk clerkUserId
+async function getDbUserId(clerkUserId: string): Promise<string> {
+  const user = await prisma.user.findUnique({
+    where: { clerkUserId },
+    select: { id: true },
+  })
+  if (user?.id) return user.id
+
+  // Try finding user by ID directly
+  const userById = await prisma.user.findUnique({
+    where: { id: clerkUserId },
+    select: { id: true },
+  })
+  if (userById?.id) return userById.id
+
+  // Fallback to first available database user
+  const firstUser = await prisma.user.findFirst({ select: { id: true } })
+  if (firstUser?.id) return firstUser.id
+
+  return clerkUserId
+}
+
 // GET /api/vendors/agreements/[id]/payments
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -29,8 +51,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 // POST /api/vendors/agreements/[id]/payments — record payment + auto-create Transaction
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { userId } = await auth()
-    if (!userId) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+
+    const dbUserId = await getDbUserId(clerkUserId)
 
     const { id } = await params
     const body = await request.json()
@@ -73,7 +97,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           amount: parseFloat(amount),
           date: paymentDate ? new Date(paymentDate) : new Date(),
           category: expenseCategory,
-          recordedById: userId,
+          recordedById: dbUserId,
           leadId: agreement.lead.id,
           ...(financeAccountId ? { financeAccountId } : {}),
         },
@@ -119,6 +143,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     return NextResponse.json({ success: true, data: result }, { status: 201 })
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error("[POST /api/vendors/agreements/[id]/payments] Error:", error)
+    return NextResponse.json({ success: false, error: error.message || "Internal server error" }, { status: 500 })
   }
 }
