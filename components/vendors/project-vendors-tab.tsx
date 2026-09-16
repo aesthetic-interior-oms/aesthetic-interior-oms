@@ -48,7 +48,9 @@ import {
   AlertCircle,
   ChevronRight,
   ShieldCheck,
+  Download,
 } from "lucide-react"
+import { downloadVendorPaymentReceiptPDF } from "@/lib/vendor-receipt-pdf"
 
 // Types
 type Vendor = {
@@ -103,6 +105,7 @@ type VendorAgreement = {
   paidPercent: number
   retentionHeld: number
   vendor: Vendor
+  lead: { id: string; name: string }
   milestones: Milestone[]
   payments: Payment[]
   revisions: Revision[]
@@ -281,8 +284,26 @@ export default function ProjectVendorsTab({ leadId }: { leadId: string }) {
         }),
       })
       const json = await res.json()
-      if (!json.success) { toast.error(json.error ?? "Failed to record payment"); return }
       toast.success("Vendor payment recorded & expense logged!")
+
+      // Automatically download Payment Receipt PDF
+      try {
+        void downloadVendorPaymentReceiptPDF({
+          voucherNo: json.data?.transaction?.voucherNo || json.data?.id,
+          paymentDate: paymentForm.paymentDate,
+          amount: parseFloat(paymentForm.amount),
+          paymentMethod: paymentForm.paymentMethod,
+          note: paymentForm.note,
+          vendor: paymentAgreement.vendor,
+          project: { name: paymentAgreement.lead.name },
+          agreement: {
+            agreementValue: paymentAgreement.agreementValue,
+            totalPaid: paymentAgreement.totalPaid + parseFloat(paymentForm.amount),
+            balance: paymentAgreement.agreementValue - (paymentAgreement.totalPaid + parseFloat(paymentForm.amount)),
+          },
+        })
+      } catch {}
+
       setPaymentAgreement(null)
       setPaymentForm({
         amount: "",
@@ -976,14 +997,40 @@ export default function ProjectVendorsTab({ leadId }: { leadId: string }) {
                           {p.note && <p className="text-muted-foreground mt-1 italic">{p.note}</p>}
                         </div>
 
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDeletePayment(p.id)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Download Payment Receipt PDF"
+                            className="h-7 w-7 text-primary hover:bg-primary/10"
+                            onClick={() => {
+                              void downloadVendorPaymentReceiptPDF({
+                                voucherNo: p.transaction?.voucherNo || p.id,
+                                paymentDate: p.paymentDate,
+                                amount: p.amount,
+                                paymentMethod: p.paymentMethod,
+                                note: p.note,
+                                vendor: detailAgreement.vendor,
+                                project: { name: detailAgreement.lead.name },
+                                agreement: {
+                                  agreementValue: detailAgreement.agreementValue,
+                                  totalPaid: detailAgreement.totalPaid,
+                                  balance: detailAgreement.balance,
+                                },
+                              })
+                            }}
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeletePayment(p.id)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>

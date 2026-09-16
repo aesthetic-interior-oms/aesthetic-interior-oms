@@ -45,6 +45,7 @@ import {
   CreditCard,
   ShieldCheck,
 } from "lucide-react"
+import { downloadVendorPaymentReceiptPDF } from "@/lib/vendor-receipt-pdf"
 
 type VendorDashboardEntry = {
   vendor: {
@@ -200,8 +201,28 @@ export default function VendorDashboardPage() {
         }),
       })
       const json = await res.json()
-      if (!json.success) { toast.error(json.error ?? "Failed to record payment"); return }
       toast.success("Vendor payment recorded & expense logged!")
+
+      // Automatically download Payment Receipt PDF
+      if (selectedVendorEntry) {
+        try {
+          void downloadVendorPaymentReceiptPDF({
+            voucherNo: json.data?.transaction?.voucherNo || json.data?.id,
+            paymentDate: paymentForm.paymentDate,
+            amount: parseFloat(paymentForm.amount),
+            paymentMethod: paymentForm.paymentMethod,
+            note: paymentForm.note,
+            vendor: selectedVendorEntry.vendor,
+            project: { name: paymentAgreement.lead.name },
+            agreement: {
+              agreementValue: paymentAgreement.agreementValue,
+              totalPaid: paymentAgreement.totalPaid + parseFloat(paymentForm.amount),
+              balance: paymentAgreement.agreementValue - (paymentAgreement.totalPaid + parseFloat(paymentForm.amount)),
+            },
+          })
+        } catch {}
+      }
+
       const currentVendorId = selectedVendorEntry?.vendor.id
       setPaymentAgreement(null)
       setPaymentForm({
@@ -432,7 +453,7 @@ export default function VendorDashboardPage() {
                         {ag.lead.location && <p className="text-xs text-muted-foreground">{ag.lead.location}</p>}
                         {ag.workScope && <p className="text-xs text-primary font-medium mt-0.5">Scope: {ag.workScope}</p>}
                       </div>
-                      <Link href={`/crm/admin/leads/${ag.lead.id}`} target="_blank">
+                      <Link href={`/crm/accounts/projects/${ag.lead.id}`} target="_blank">
                         <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
                           Open Project <ExternalLink className="w-3 h-3" />
                         </Button>
