@@ -26,6 +26,7 @@ import { fetchMeCached } from '@/lib/client-me'
 import { FacebookMessagesDialog } from '@/components/crm/shared/facebook-messages-dialog'
 import { uploadDirectBlobFile } from '@/lib/client-blob-upload'
 import { DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE, DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
+import ProjectVendorsTab from '@/components/vendors/project-vendors-tab'
 
 type LeadDetails = {
   id: string
@@ -973,6 +974,9 @@ export default function LeadDetailPage() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Vendors & Accounts Payable Section */}
+                      {leadId && <ProjectVendorsTab leadId={leadId} />}
 
                       <div className="space-y-2">
                         <h3 className="text-md font-bold">Category-wise Spending Breakdown</h3>

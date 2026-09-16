@@ -432,7 +432,7 @@ export default function VendorDashboardPage() {
                         {ag.lead.location && <p className="text-xs text-muted-foreground">{ag.lead.location}</p>}
                         {ag.workScope && <p className="text-xs text-primary font-medium mt-0.5">Scope: {ag.workScope}</p>}
                       </div>
-                      <Link href={`/crm/accounts/projects/${ag.lead.id}`} target="_blank">
+                      <Link href={`/crm/admin/leads/${ag.lead.id}`} target="_blank">
                         <Button size="sm" variant="outline" className="h-7 text-xs gap-1">
                           Open Project <ExternalLink className="w-3 h-3" />
                         </Button>
