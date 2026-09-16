@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Label } from "@/components/ui/label"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +21,13 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { toast } from "sonner"
 import {
   Users,
@@ -34,6 +42,8 @@ import {
   Building2,
   ChevronRight,
   TrendingUp,
+  CreditCard,
+  ShieldCheck,
 } from "lucide-react"
 
 type VendorDashboardEntry = {
@@ -75,8 +85,14 @@ type ProjectAgreementDetail = {
   }
 }
 
+type FinanceAccount = {
+  id: string
+  name: string
+}
+
 export default function VendorDashboardPage() {
   const [dashboardData, setDashboardData] = useState<VendorDashboardEntry[]>([])
+  const [financeAccounts, setFinanceAccounts] = useState<FinanceAccount[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
 
@@ -85,13 +101,30 @@ export default function VendorDashboardPage() {
   const [vendorProjects, setVendorProjects] = useState<ProjectAgreementDetail[]>([])
   const [projectsLoading, setProjectsLoading] = useState(false)
 
+  // Payment Modal
+  const [paymentAgreement, setPaymentAgreement] = useState<ProjectAgreementDetail | null>(null)
+  const [paymentForm, setPaymentForm] = useState({
+    amount: "",
+    paymentMethod: "CASH",
+    financeAccountId: "",
+    note: "",
+    paymentDate: new Date().toISOString().split("T")[0],
+  })
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false)
+
   const fetchDashboard = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch("/api/vendors/dashboard")
-      const json = await res.json()
-      if (json.success) setDashboardData(json.data)
-      else toast.error(json.error ?? "Failed to load dashboard")
+      const [dashRes, accRes] = await Promise.all([
+        fetch("/api/vendors/dashboard"),
+        fetch("/api/finance/accounts"),
+      ])
+      const [dashJson, accJson] = await Promise.all([dashRes.json(), accRes.json()])
+
+      if (dashJson.success) setDashboardData(dashJson.data)
+      else toast.error(dashJson.error ?? "Failed to load dashboard")
+
+      if (accJson.success) setFinanceAccounts(accJson.data)
     } catch {
       toast.error("Failed to load vendor dashboard")
     } finally {
@@ -115,6 +148,74 @@ export default function VendorDashboardPage() {
       toast.error("Failed to load vendor projects")
     } finally {
       setProjectsLoading(false)
+    }
+  }
+
+  const reloadCurrentVendorProjects = async (vendorId: string) => {
+    try {
+      const res = await fetch(`/api/vendors/${vendorId}/projects`)
+      const json = await res.json()
+      if (json.success) setVendorProjects(json.data)
+      fetchDashboard()
+    } catch {}
+  }
+
+  // Toggle Retention Release
+  const handleToggleRetention = async (ag: ProjectAgreementDetail) => {
+    try {
+      const res = await fetch(`/api/vendors/agreements/${ag.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retentionReleased: !ag.retentionReleased }),
+      })
+      const json = await res.json()
+      if (!json.success) { toast.error(json.error ?? "Failed to update retention"); return }
+      toast.success(ag.retentionReleased ? "Retention reset to held" : "Retention marked as released!")
+      if (selectedVendorEntry) reloadCurrentVendorProjects(selectedVendorEntry.vendor.id)
+    } catch {
+      toast.error("Failed to update retention")
+    }
+  }
+
+  // Submit Payment
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!paymentAgreement) return
+    if (!paymentForm.amount || parseFloat(paymentForm.amount) <= 0) {
+      toast.error("Please enter a valid payment amount")
+      return
+    }
+
+    setPaymentSubmitting(true)
+    try {
+      const res = await fetch(`/api/vendors/agreements/${paymentAgreement.id}/payments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: parseFloat(paymentForm.amount),
+          paymentMethod: paymentForm.paymentMethod,
+          financeAccountId: paymentForm.financeAccountId || null,
+          note: paymentForm.note,
+          paymentDate: paymentForm.paymentDate,
+        }),
+      })
+      const json = await res.json()
+      if (!json.success) { toast.error(json.error ?? "Failed to record payment"); return }
+      toast.success("Vendor payment recorded & expense logged!")
+      const currentVendorId = selectedVendorEntry?.vendor.id
+      setPaymentAgreement(null)
+      setPaymentForm({
+        amount: "",
+        paymentMethod: "CASH",
+        financeAccountId: "",
+        note: "",
+        paymentDate: new Date().toISOString().split("T")[0],
+      })
+      if (currentVendorId) reloadCurrentVendorProjects(currentVendorId)
+    } catch {
+      toast.error("Something went wrong")
+    } finally {
+      setPaymentSubmitting(false)
     }
   }
 
@@ -200,7 +301,7 @@ export default function VendorDashboardPage() {
         <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/50">
           <div>
             <CardTitle>Vendor Summary</CardTitle>
-            <CardDescription>Click any vendor to view their breakdown per project.</CardDescription>
+            <CardDescription>Click any vendor to record payments or manage retention per project.</CardDescription>
           </div>
           <div className="relative w-full sm:w-72">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -289,7 +390,7 @@ export default function VendorDashboardPage() {
                           onClick={() => openVendorProjects(item)}
                           className="h-7 px-2 gap-1 text-xs"
                         >
-                          View Projects <ChevronRight className="w-3.5 h-3.5" />
+                          View Projects & Pay <ChevronRight className="w-3.5 h-3.5" />
                         </Button>
                       </td>
                     </tr>
@@ -316,6 +417,10 @@ export default function VendorDashboardPage() {
             <div className="flex items-center justify-center py-12 text-muted-foreground gap-2">
               <Loader2 className="w-5 h-5 animate-spin" /> Loading project agreements...
             </div>
+          ) : vendorProjects.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              No project agreements found for this vendor.
+            </div>
           ) : (
             <div className="space-y-4">
               {vendorProjects.map((ag) => (
@@ -334,7 +439,7 @@ export default function VendorDashboardPage() {
                       </Link>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-3 p-2.5 rounded bg-muted/30 border border-border/40 text-xs">
+                    <div className="grid grid-cols-4 gap-3 p-2.5 rounded bg-muted/30 border border-border/40 text-xs">
                       <div>
                         <span className="text-muted-foreground">Contract Value</span>
                         <p className="font-bold text-sm mt-0.5">৳{ag.agreementValue.toLocaleString("en-BD")}</p>
@@ -351,6 +456,42 @@ export default function VendorDashboardPage() {
                           ৳{ag.balance.toLocaleString("en-BD")}
                         </p>
                       </div>
+                      <div>
+                        <span className="text-muted-foreground">Retention ({ag.retentionPercent}%)</span>
+                        <button
+                          onClick={() => handleToggleRetention(ag)}
+                          className={`text-xs font-bold mt-0.5 flex items-center gap-1 hover:underline ${
+                            ag.retentionReleased ? "text-emerald-600" : "text-amber-600"
+                          }`}
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          {ag.retentionReleased ? "Released" : "Held (Click to Release)"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setPaymentAgreement(ag)
+                          setPaymentForm((f) => ({ ...f, amount: ag.balance > 0 ? String(ag.balance) : "" }))
+                        }}
+                        className="gap-1.5 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                      >
+                        <CreditCard className="w-3.5 h-3.5" /> Record Payment
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleToggleRetention(ag)}
+                        className="gap-1.5 h-8 text-xs"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        {ag.retentionReleased ? "Re-hold Retention" : "Release Retention"}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -361,6 +502,90 @@ export default function VendorDashboardPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedVendorEntry(null)}>Close</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Record Payment Modal ── */}
+      <Dialog open={!!paymentAgreement} onOpenChange={(open) => { if (!open) setPaymentAgreement(null) }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Record Payment for {selectedVendorEntry?.vendor.vendorName}</DialogTitle>
+            <DialogDescription>
+              Project: {paymentAgreement?.lead.name}. Automatically logs expense under project ledger.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePaymentSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Amount (BDT) <span className="text-destructive">*</span></Label>
+              <Input
+                type="number"
+                placeholder="e.g. 50000"
+                value={paymentForm.amount}
+                onChange={(e) => setPaymentForm((f) => ({ ...f, amount: e.target.value }))}
+              />
+              {paymentAgreement && (
+                <p className="text-xs text-muted-foreground">
+                  Current Balance Owed: <strong>৳{paymentAgreement.balance.toLocaleString("en-BD")}</strong>
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select value={paymentForm.paymentMethod} onValueChange={(v) => setPaymentForm((f) => ({ ...f, paymentMethod: v }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CASH">Cash</SelectItem>
+                    <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                    <SelectItem value="CHEQUE">Cheque</SelectItem>
+                    <SelectItem value="MOBILE_BANKING">Mobile Banking</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Payment Date</Label>
+                <Input
+                  type="date"
+                  value={paymentForm.paymentDate}
+                  onChange={(e) => setPaymentForm((f) => ({ ...f, paymentDate: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {/* Optional Finance Account link */}
+            {financeAccounts.length > 0 && (
+              <div className="space-y-2">
+                <Label>Pay From Account <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                <Select value={paymentForm.financeAccountId} onValueChange={(v) => setPaymentForm((f) => ({ ...f, financeAccountId: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                  <SelectContent>
+                    {financeAccounts.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Note / Voucher Ref</Label>
+              <Input
+                placeholder="e.g. Part payment for stage 1"
+                value={paymentForm.note}
+                onChange={(e) => setPaymentForm((f) => ({ ...f, note: e.target.value }))}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setPaymentAgreement(null)}>Cancel</Button>
+              <Button type="submit" disabled={paymentSubmitting} className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+                {paymentSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                Confirm & Record Payment
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
