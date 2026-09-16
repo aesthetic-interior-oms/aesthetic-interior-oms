@@ -370,21 +370,13 @@ export default function SummaryPage() {
       ["TOTAL ALLOCATION (C + D)", `${totalOutflowAndClosingAllocation.toLocaleString()} BDT`],
     ]
 
-    const balancedCheck = totalAvailableInflow === totalOutflowAndClosingAllocation
-      ? `✓ EQUATION BALANCED: Total Available Cash (${totalAvailableInflow.toLocaleString()} BDT) = Total Allocation (${totalOutflowAndClosingAllocation.toLocaleString()} BDT)`
-      : `⚠️ UNBALANCED: Total Available (${totalAvailableInflow.toLocaleString()} BDT) ≠ Total Allocation (${totalOutflowAndClosingAllocation.toLocaleString()} BDT)`
-
     autoTable(doc, {
       startY: y + 4,
       head: [["Financial Ledger Metric", "Amount (BDT)"]],
       body: summaryRows,
-      foot: [
-        [{ content: balancedCheck, colSpan: 2, styles: { fontStyle: "bold" as const, halign: "center" as const, textColor: [5, 150, 105], fillColor: [240, 253, 244] } }]
-      ],
       theme: "grid",
       headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold", fontSize: 8.5 },
       bodyStyles: { fontSize: 8.5 },
-      footStyles: { fontSize: 8.5, cellPadding: 4 },
       columnStyles: {
         0: { cellWidth: 110, fontStyle: "bold" },
         1: { cellWidth: 70, halign: "right", fontStyle: "bold" },
@@ -400,6 +392,58 @@ export default function SummaryPage() {
         }
       }
     })
+
+    const finalTableY = (doc as any).lastAutoTable.finalY + 8
+    let notifyY = finalTableY
+    if (notifyY > 260) { doc.addPage(); notifyY = 20 }
+
+    // ── Standalone Notification Banner Callout Box ──
+    const isBalanced = totalAvailableInflow === totalOutflowAndClosingAllocation
+    const boxHeight = 15
+    const boxW = pageW - 28
+
+    if (isBalanced) {
+      doc.setFillColor(236, 253, 245) // Emerald 50
+      doc.setDrawColor(167, 243, 208) // Emerald 200
+    } else {
+      doc.setFillColor(254, 242, 242) // Rose 50
+      doc.setDrawColor(254, 202, 202) // Rose 200
+    }
+
+    doc.setLineWidth(0.5)
+    doc.roundedRect(14, notifyY, boxW, boxHeight, 2, 2, "FD")
+
+    if (isBalanced) {
+      doc.setFontSize(9.5)
+      doc.setFont("helvetica", "bold")
+      doc.setTextColor(4, 120, 87) // Emerald 700
+      doc.text("✓ EQUATION BALANCED & RECONCILED", pageW / 2, notifyY + 5.5, { align: "center" })
+
+      doc.setFontSize(8)
+      doc.setFont("helvetica", "bold")
+      doc.setTextColor(30, 41, 59)
+      doc.text(
+        `Total Available Cash (${totalAvailableInflow.toLocaleString()} BDT)  =  Total Allocation (${totalOutflowAndClosingAllocation.toLocaleString()} BDT)`,
+        pageW / 2,
+        notifyY + 11,
+        { align: "center" }
+      )
+    } else {
+      doc.setFontSize(9.5)
+      doc.setFont("helvetica", "bold")
+      doc.setTextColor(185, 28, 28) // Rose 700
+      doc.text("⚠️ UNBALANCED CASH FLOW LEDGER", pageW / 2, notifyY + 5.5, { align: "center" })
+
+      doc.setFontSize(8)
+      doc.setFont("helvetica", "bold")
+      doc.setTextColor(30, 41, 59)
+      doc.text(
+        `Total Available Cash (${totalAvailableInflow.toLocaleString()} BDT)  ≠  Total Allocation (${totalOutflowAndClosingAllocation.toLocaleString()} BDT)`,
+        pageW / 2,
+        notifyY + 11,
+        { align: "center" }
+      )
+    }
 
     doc.save(`cash-flow-summary-${periodLabel.replace(/[^a-zA-Z0-9]/g, "-")}.pdf`)
   }
