@@ -43,6 +43,7 @@ import {
   Building,
   FileText,
   PieChart,
+  Users,
   Calendar,
   Briefcase,
   Search,
@@ -751,7 +752,14 @@ export default function FinanceDashboard() {
           <p className="text-muted-foreground mt-1">Manage cash flow, project budgets, and office overheads.</p>
         </div>
 
-        {/* LOG TRANSACTION TRIGGER */}
+        <div className="flex items-center gap-2">
+          <Link href="/crm/admin/finance/vendors" prefetch={false}>
+            <Button size="lg" variant="outline" className="gap-2">
+              <Users className="w-5 h-5 text-primary" /> Vendor AP Dashboard
+            </Button>
+          </Link>
+
+          {/* LOG TRANSACTION TRIGGER */}
         <Dialog open={isLogOpen} onOpenChange={(open) => {
           setIsLogOpen(open)
           if (!open) {
@@ -1238,6 +1246,7 @@ export default function FinanceDashboard() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* STATS HEADER */}

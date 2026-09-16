@@ -110,6 +110,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/admin/finance',
         },
         {
+          icon: Users,
+          label: 'Vendors (AP)',
+          href: '/crm/admin/finance/vendors',
+        },
+        {
           icon: BarChart3,
           label: 'Summary',
           href: '/crm/accounts/summary',
