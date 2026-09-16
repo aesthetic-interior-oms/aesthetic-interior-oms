@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import {
   TrendingUp, TrendingDown, X, Loader2, ArrowUpRight, ArrowDownRight,
-  FileDown, Wallet, History,
+  FileDown, Wallet, History, Scale,
 } from "lucide-react"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -197,6 +197,17 @@ export default function SummaryPage() {
     })
   }, [data?.monthlyHistory, dateRange])
 
+  // Computed Totals for Balanced Ledger Accounting
+  const totalAvailableInflow = useMemo(() => {
+    if (!data) return 0
+    return data.openingBalance + data.totalInflow
+  }, [data])
+
+  const totalOutflowAndClosingAllocation = useMemo(() => {
+    if (!data) return 0
+    return data.totalOutflow + data.closingBalance
+  }, [data])
+
   // ── Main Page PDF Download ────────────────────────────────────────────────
   const handleDownloadPDF = async () => {
     if (!data) return
@@ -288,27 +299,39 @@ export default function SummaryPage() {
       y = (doc as any).lastAutoTable.finalY + 10
     }
 
-    // Cash Outflow table
-    if (data.outflow.length > 0) {
-      if (y > 230) { doc.addPage(); y = 20 }
+    // Cash Outflow & Closing Allocation table
+    if (data.outflow.length > 0 || data.accountSummary.length > 0) {
+      if (y > 200) { doc.addPage(); y = 20 }
       doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(30, 41, 59)
-      doc.text("CASH OUTFLOW", 14, y); y += 4
-      autoTable(doc, {
-        startY: y,
-        head: [["Allocated Project", "Transactions", "Amount (BDT)"]],
-        body: data.outflow.map(r => [
+      doc.text("CASH OUTFLOW & CLOSING BALANCE ALLOCATION", 14, y); y += 4
+
+      const outflowBody: any[] = [
+        ...data.outflow.map(r => [
           r.leadName,
           String(r.txCount),
-          { content: r.amount.toLocaleString(), styles: { halign: "right", textColor: [220,38,38] as [number,number,number], fontStyle: "bold" as const } },
+          { content: r.amount.toLocaleString(), styles: { halign: "right", textColor: [220,38,38] as [number,number,number], fontStyle: "bold" as const } }
         ]),
+        [{ content: "SUBTOTAL OUTFLOW", colSpan: 2, styles: { fontStyle: "bold", fillColor: [254,242,242] } }, { content: data.totalOutflow.toLocaleString(), styles: { halign: "right", fontStyle: "bold", textColor: [220,38,38] } }],
+        ...data.accountSummary.map(a => [
+          `Closing: ${a.accountName}`,
+          "Account Balance",
+          { content: a.closingBalance.toLocaleString(), styles: { halign: "right", fontStyle: "bold" as const } }
+        ]),
+        [{ content: "SUBTOTAL CLOSING BALANCE", colSpan: 2, styles: { fontStyle: "bold", fillColor: [241,245,249] } }, { content: data.closingBalance.toLocaleString(), styles: { halign: "right", fontStyle: "bold" } }],
+      ]
+
+      autoTable(doc, {
+        startY: y,
+        head: [["Allocation / Project / Account", "Details", "Amount (BDT)"]],
+        body: outflowBody,
         foot: [[
-          { content: "Total Cash Outflow", colSpan: 2, styles: { fontStyle: "bold" as const, halign: "right" as const } },
-          { content: data.totalOutflow.toLocaleString(), styles: { halign: "right" as const, fontStyle: "bold" as const, textColor: [220,38,38] as [number,number,number] } },
+          { content: "TOTAL ALLOCATION (Outflow + Closing)", colSpan: 2, styles: { fontStyle: "bold" as const, halign: "right" as const } },
+          { content: totalOutflowAndClosingAllocation.toLocaleString(), styles: { halign: "right" as const, fontStyle: "bold" as const, textColor: [30,41,59] as [number,number,number] } },
         ]],
         theme: "grid",
         headStyles: { fillColor: [220,38,38], textColor: [255,255,255], fontStyle: "bold", fontSize: 8 },
         bodyStyles: { fontSize: 8 },
-        footStyles: { fillColor: [255,241,242], fontSize: 8.5 },
+        footStyles: { fillColor: [241,245,249], fontSize: 8.5 },
       })
       y = (doc as any).lastAutoTable.finalY + 10
     }
@@ -319,7 +342,7 @@ export default function SummaryPage() {
     doc.setFontSize(10)
     doc.setFont("helvetica", "bold")
     doc.setTextColor(30, 41, 59)
-    doc.text("PERIOD FINANCIAL SUMMARY & EQUATION", 14, y)
+    doc.text("BALANCED PERIOD RECONCILIATION & FORMULA", 14, y)
 
     const summaryRows = [
       ["Opening Balance (Period Start)", `${data.openingBalance.toLocaleString()} BDT`],
@@ -327,9 +350,10 @@ export default function SummaryPage() {
       ["Total Cash Outflow (-)", `-${data.totalOutflow.toLocaleString()} BDT`],
       ["Net Cash Flow for Period", `${data.netBalance >= 0 ? "+" : ""}${data.netBalance.toLocaleString()} BDT`],
       ["Closing Balance (Period End)", `${data.closingBalance.toLocaleString()} BDT`],
+      ["Total Allocation (Outflow + Closing)", `${totalOutflowAndClosingAllocation.toLocaleString()} BDT`],
     ]
 
-    const formulaText = `Equation: Closing Balance = Opening (${data.openingBalance.toLocaleString()} BDT) + Inflow (${data.totalInflow.toLocaleString()} BDT) - Outflow (${data.totalOutflow.toLocaleString()} BDT) = ${data.closingBalance.toLocaleString()} BDT`
+    const formulaText = `Equation: Total Inflow (${totalAvailableInflow.toLocaleString()} BDT) = Outflow (${data.totalOutflow.toLocaleString()} BDT) + Closing (${data.closingBalance.toLocaleString()} BDT) = Total Allocation (${totalOutflowAndClosingAllocation.toLocaleString()} BDT)`
 
     autoTable(doc, {
       startY: y + 4,
@@ -352,6 +376,7 @@ export default function SummaryPage() {
           if (dataCell.row.index === 2) dataCell.cell.styles.textColor = [220, 38, 38]
           if (dataCell.row.index === 3) dataCell.cell.styles.textColor = data.netBalance >= 0 ? [5, 150, 105] : [220, 38, 38]
           if (dataCell.row.index === 4) dataCell.cell.styles.textColor = [15, 23, 42]
+          if (dataCell.row.index === 5) dataCell.cell.styles.textColor = [5, 150, 105]
         }
       }
     })
@@ -623,7 +648,7 @@ export default function SummaryPage() {
               </Card>
             )}
 
-            {/* ── Account Situation ── */}
+            {/* ── Account Situation Table ── */}
             {data.accountSummary.length > 0 && (
               <Card>
                 <CardHeader className="pb-3">
@@ -666,31 +691,31 @@ export default function SummaryPage() {
               </Card>
             )}
 
-            {/* ── Inflow & Outflow Tables ── */}
+            {/* ── Balanced Inflow & Outflow Allocation Tables (Side by Side) ── */}
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
-              {/* Cash Inflow — Allocated Project | Amount */}
-              <Card>
-                <CardHeader className="pb-3">
+              {/* Cash Inflow — Left Table */}
+              <Card className="border-border shadow-sm">
+                <CardHeader className="pb-3 bg-emerald-50/30 dark:bg-emerald-950/20 border-b border-border">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <div className="h-7 w-7 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center shrink-0">
                       <ArrowUpRight className="h-4 w-4 text-emerald-600" />
                     </div>
-                    Cash Inflow
-                    <Badge className="ml-auto bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300 border-0">
-                      ৳{fmt(data.totalInflow)}
+                    <span>Cash Inflow & Available Funds</span>
+                    <Badge className="ml-auto bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300 border-0 font-bold">
+                      Total Inflow: ৳{fmt(data.totalInflow)}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                  {data.inflow.length === 0 ? (
+                  {data.inflow.length === 0 && data.openingBalance === 0 ? (
                     <div className="py-12 text-center text-sm text-muted-foreground">No inflow transactions for this period.</div>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-t border-border bg-muted/30">
-                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Allocated Project</th>
+                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Allocated Project / Source</th>
                             <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</th>
                           </tr>
                         </thead>
@@ -728,39 +753,51 @@ export default function SummaryPage() {
                 </CardContent>
               </Card>
 
-              {/* Cash Outflow — Allocated Project | Amount */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <div className="h-7 w-7 rounded-full bg-rose-100 dark:bg-rose-900/50 flex items-center justify-center shrink-0">
-                      <ArrowDownRight className="h-4 w-4 text-rose-600" />
+              {/* Cash Outflow & Closing Allocation — Right Table */}
+              <Card className="border-border shadow-sm">
+                <CardHeader className="pb-3 bg-rose-50/30 dark:bg-rose-950/20 border-b border-border">
+                  <CardTitle className="flex items-center justify-between gap-2 text-base flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <div className="h-7 w-7 rounded-full bg-rose-100 dark:bg-rose-900/50 flex items-center justify-center shrink-0">
+                        <ArrowDownRight className="h-4 w-4 text-rose-600" />
+                      </div>
+                      <span>Cash Outflow & Closing Allocation</span>
                     </div>
-                    Cash Outflow
-                    <Badge className="ml-auto bg-rose-100 text-rose-700 dark:bg-rose-900 dark:text-rose-300 border-0">
-                      ৳{fmt(data.totalOutflow)}
+                    {/* Total Allocation Badge (Total Outflow + Closing Balance) */}
+                    <Badge className="bg-primary/10 text-primary border-primary/20 font-bold text-xs py-1 px-2.5">
+                      Total Allocation: ৳{fmt(totalOutflowAndClosingAllocation)}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                  {data.outflow.length === 0 ? (
-                    <div className="py-12 text-center text-sm text-muted-foreground">No outflow transactions for this period.</div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-t border-border bg-muted/30">
-                            <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Allocated Project</th>
-                            <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</th>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-t border-border bg-muted/30">
+                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Allocated Project / Account</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {/* Section Header 1: Cash Outflows */}
+                        <tr className="bg-rose-50/40 dark:bg-rose-950/30">
+                          <td colSpan={2} className="px-4 py-1.5 text-[11px] font-bold text-rose-700 dark:text-rose-300 uppercase tracking-wider">
+                            Cash Outflows (Expenses & Payments)
+                          </td>
+                        </tr>
+
+                        {data.outflow.length === 0 ? (
+                          <tr>
+                            <td colSpan={2} className="px-4 py-4 text-center text-xs text-muted-foreground">No outflow transactions for this period.</td>
                           </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {data.outflow.map((row) => (
+                        ) : (
+                          data.outflow.map((row) => (
                             <tr
                               key={row.groupKey}
                               className="hover:bg-muted/50 transition-colors cursor-pointer"
                               onClick={() => openModal(row, "outflow")}
                             >
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-2.5">
                                 <div className="flex items-center gap-2">
                                   <div className="h-2 w-2 rounded-full bg-rose-500 shrink-0" />
                                   <span className="font-semibold text-foreground">{row.leadName}</span>
@@ -769,49 +806,90 @@ export default function SummaryPage() {
                                   </Badge>
                                 </div>
                               </td>
-                              <td className="px-4 py-3 text-right font-bold text-rose-600 dark:text-rose-400 tabular-nums text-base">
+                              <td className="px-4 py-2.5 text-right font-bold text-rose-600 dark:text-rose-400 tabular-nums text-sm">
                                 ৳{fmt(row.amount)}
                               </td>
                             </tr>
-                          ))}
-                        </tbody>
-                        <tfoot>
-                          <tr className="border-t-2 border-border bg-rose-50 dark:bg-rose-950/30">
-                            <td className="px-4 py-3 font-bold text-sm">Total Cash Outflow</td>
-                            <td className="px-4 py-3 text-right font-bold text-rose-600 dark:text-rose-400 text-base tabular-nums">৳{fmt(data.totalOutflow)}</td>
+                          ))
+                        )}
+
+                        {/* Subtotal Cash Outflow */}
+                        <tr className="bg-rose-50/60 dark:bg-rose-950/40 font-bold border-t border-border">
+                          <td className="px-4 py-2 text-xs text-rose-800 dark:text-rose-200">Total Cash Outflow</td>
+                          <td className="px-4 py-2 text-right text-xs text-rose-600 dark:text-rose-400 tabular-nums">৳{fmt(data.totalOutflow)}</td>
+                        </tr>
+
+                        {/* Section Header 2: Closing Balances By Account */}
+                        <tr className="bg-muted/50 border-t border-border">
+                          <td colSpan={2} className="px-4 py-1.5 text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                            Closing Balances Remaining (By Account)
+                          </td>
+                        </tr>
+
+                        {data.accountSummary.map((acct) => (
+                          <tr key={`closing-${acct.accountId}`} className="hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-2 text-xs pl-6">
+                              <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-1.5 rounded-full bg-primary/60 shrink-0" />
+                                <span className="font-medium text-foreground">{acct.accountName}</span>
+                                <span className="text-[10px] text-muted-foreground">(Closing)</span>
+                              </div>
+                            </td>
+                            <td className={`px-4 py-2 text-right font-semibold tabular-nums text-xs ${acct.closingBalance >= 0 ? "text-foreground" : "text-rose-600"}`}>
+                              ৳{fmt(acct.closingBalance)}
+                            </td>
                           </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-                  )}
+                        ))}
+
+                        {/* Subtotal Closing Balance */}
+                        <tr className="bg-muted/60 font-bold border-t border-border">
+                          <td className="px-4 py-2 text-xs text-foreground">Total Closing Balance</td>
+                          <td className="px-4 py-2 text-right text-xs text-foreground tabular-nums">৳{fmt(data.closingBalance)}</td>
+                        </tr>
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-border bg-primary/10">
+                          <td className="px-4 py-3 font-extrabold text-sm text-foreground">
+                            Total Allocation <span className="text-xs font-normal text-muted-foreground">(Outflow + Closing Balance)</span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-extrabold text-primary text-base tabular-nums">
+                            ৳{fmt(totalOutflowAndClosingAllocation)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* ── Net Balance Summary Banner ── */}
-            <Card className={`border-2 ${netPositive ? "border-emerald-400 dark:border-emerald-700" : "border-rose-400 dark:border-rose-700"}`}>
+            {/* ── Net Balance & Balanced Equation Banner ── */}
+            <Card className="border-2 border-primary/30 shadow-sm bg-card">
               <CardContent className="py-5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
-                    <p className="text-sm text-muted-foreground font-medium mb-1">Period Financial Formula — {periodLabel}</p>
-                    <div className="flex items-center gap-2 text-sm font-semibold flex-wrap">
-                      <span className="text-muted-foreground">Opening (৳{fmt(data.openingBalance)})</span>
-                      <span>+</span>
-                      <span className="text-emerald-600">Inflow (৳{fmt(data.totalInflow)})</span>
-                      <span>-</span>
-                      <span className="text-rose-600">Outflow (৳{fmt(data.totalOutflow)})</span>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Scale className="h-4 w-4 text-primary" />
+                      <p className="text-sm text-foreground font-bold">Balanced Cash Flow Equation — {periodLabel}</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm font-medium flex-wrap text-muted-foreground mt-1">
+                      <span>Total Cash Inflow (<strong className="text-emerald-600">৳{fmt(data.totalInflow)}</strong>)</span>
                       <span>=</span>
-                      <span className="text-lg font-bold text-foreground">Closing (৳{fmt(data.closingBalance)})</span>
+                      <span>Total Outflow (<strong className="text-rose-600">৳{fmt(data.totalOutflow)}</strong>)</span>
+                      <span>+</span>
+                      <span>Closing Balance (<strong className="text-foreground">৳{fmt(data.closingBalance)}</strong>)</span>
+                      <span>=</span>
+                      <span className="text-base font-extrabold text-primary">Total Allocation (৳{fmt(totalOutflowAndClosingAllocation)})</span>
                     </div>
                   </div>
-                  <div className="flex gap-3">
-                    <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-5 py-3 text-center">
-                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide mb-0.5">Period Inflow</p>
-                      <p className="text-lg font-bold text-emerald-600 tabular-nums">+৳{fmt(data.totalInflow)}</p>
+                  <div className="flex gap-3 shrink-0">
+                    <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/40 px-4 py-2.5 text-center">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Total Inflow</p>
+                      <p className="text-base font-bold text-emerald-600 tabular-nums">৳{fmt(data.totalInflow)}</p>
                     </div>
-                    <div className="rounded-lg bg-rose-50 dark:bg-rose-950/40 px-5 py-3 text-center">
-                      <p className="text-[11px] text-muted-foreground uppercase tracking-wide mb-0.5">Period Outflow</p>
-                      <p className="text-lg font-bold text-rose-600 tabular-nums">-৳{fmt(data.totalOutflow)}</p>
+                    <div className="rounded-lg bg-primary/10 px-4 py-2.5 text-center border border-primary/20">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Total Allocation</p>
+                      <p className="text-base font-extrabold text-primary tabular-nums">৳{fmt(totalOutflowAndClosingAllocation)}</p>
                     </div>
                   </div>
                 </div>
