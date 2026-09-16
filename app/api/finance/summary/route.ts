@@ -90,10 +90,43 @@ export async function GET(request: NextRequest) {
       endDate = end
     }
 
-    // 1. Fetch ALL finance accounts
-    const allAccounts = await prisma.financeAccount.findMany({
-      orderBy: { name: "asc" }
-    })
+    // 1. Fetch ALL finance accounts and AP / AR server aggregations in parallel
+    const [
+      allAccounts,
+      vendorAgreementsAgg,
+      vendorPaymentsAgg,
+      clientAgreementsAgg,
+      clientInflowAgg,
+    ] = await Promise.all([
+      prisma.financeAccount.findMany({ orderBy: { name: "asc" } }),
+
+      // Vendor AP Aggregates (Server calculated)
+      prisma.vendorAgreement.aggregate({
+        _sum: { agreementValue: true },
+      }),
+      prisma.vendorPayment.aggregate({
+        _sum: { amount: true },
+      }),
+
+      // Client AR Aggregates (Server calculated)
+      prisma.lead.aggregate({
+        where: { agreementValue: { not: null, gt: 0 } },
+        _sum: { agreementValue: true },
+      }),
+      prisma.transaction.aggregate({
+        where: { leadId: { not: null }, type: "INFLOW" },
+        _sum: { amount: true },
+      }),
+    ])
+
+    const totalVendorContracts = vendorAgreementsAgg._sum.agreementValue ?? 0
+    const totalVendorPaid = vendorPaymentsAgg._sum.amount ?? 0
+    const totalAP = Math.max(0, totalVendorContracts - totalVendorPaid)
+
+    const totalProjectAgreements = clientAgreementsAgg._sum.agreementValue ?? 0
+    const totalClientCollected = clientInflowAgg._sum.amount ?? 0
+    const totalAR = Math.max(0, totalProjectAgreements - totalClientCollected)
+
     const accountMap = new Map<string, { id: string; name: string }>()
     for (const a of allAccounts) {
       accountMap.set(a.id, { id: a.id, name: a.name })
@@ -275,7 +308,7 @@ export async function GET(request: NextRequest) {
 
     const closingBalance = globalOpeningBalance + totalInflow - totalOutflow
 
-    // 4. Build Monthly History (Last 12 months up to current month)
+    // 4. Build Monthly History
     type MonthlyHistoryRow = {
       year: number
       month: number
@@ -291,11 +324,9 @@ export async function GET(request: NextRequest) {
     const now = new Date()
     const targetYear = startDate ? startDate.getFullYear() : now.getFullYear()
 
-    // Query all transactions to build monthly breakdown for target year
     const yearStart = new Date(targetYear, 0, 1)
     const yearEnd = new Date(targetYear, 11, 31, 23, 59, 59, 999)
 
-    // Pre-year opening balance
     const preYearAgg = await prisma.transaction.groupBy({
       by: ["type"],
       where: { date: { lt: yearStart } },
@@ -320,7 +351,6 @@ export async function GET(request: NextRequest) {
       orderBy: { date: "asc" }
     })
 
-    // Group transactions by month index (0..11)
     const monthlyTotals = Array.from({ length: 12 }, () => ({ inflow: 0, outflow: 0 }))
     for (const tx of yearTransactions) {
       const m = tx.date.getMonth()
@@ -334,7 +364,6 @@ export async function GET(request: NextRequest) {
     ]
 
     for (let m = 0; m < 12; m++) {
-      // Don't show future months if in current year
       if (targetYear === now.getFullYear() && m > now.getMonth()) break
 
       const monthOpening = runningBalance
@@ -368,6 +397,13 @@ export async function GET(request: NextRequest) {
       totalOutflow,
       netBalance: totalInflow - totalOutflow,
       closingBalance,
+      // Accounts Payable & Receivable (Server pre-computed)
+      totalAP,
+      totalAR,
+      totalProjectAgreements,
+      totalClientCollected,
+      totalVendorContracts,
+      totalVendorPaid,
     })
   } catch (error: unknown) {
     console.error("[GET /api/finance/summary] failed", error)

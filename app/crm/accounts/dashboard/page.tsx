@@ -29,6 +29,12 @@ import {
   Calendar,
   Building2,
   RefreshCw,
+  Users,
+  HandCoins,
+  FileText,
+  Clock,
+  ChevronRight,
+  ShieldCheck,
 } from "lucide-react"
 
 type MonthlyHistoryRow = {
@@ -61,6 +67,13 @@ type SummaryData = {
   totalOutflow: number
   netBalance: number
   closingBalance: number
+  // AP & AR pre-computed server metrics
+  totalAP?: number
+  totalAR?: number
+  totalProjectAgreements?: number
+  totalClientCollected?: number
+  totalVendorContracts?: number
+  totalVendorPaid?: number
 }
 
 function fmt(n: number) {
@@ -89,7 +102,6 @@ export default function AccountsDashboardPage() {
     setLoading(true)
     setError(null)
     try {
-      // Get current month date range
       const start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString()
       const end = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999).toISOString()
       const res = await fetch(`/api/finance/summary?startDate=${start}&endDate=${end}`)
@@ -129,7 +141,7 @@ export default function AccountsDashboardPage() {
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-1">
-            Accounts department overview, cash movements, and monthly balance history ledger.
+            Accounts department overview, cash movements, Accounts Payable (AP), and Accounts Receivable (AR).
           </p>
         </div>
 
@@ -145,9 +157,9 @@ export default function AccountsDashboardPage() {
             </Link>
           </Button>
           <Button size="sm" variant="secondary" asChild className="gap-1.5 text-xs">
-            <Link href="/crm/admin/finance">
-              <ClipboardList className="h-3.5 w-3.5" />
-              Finance Log
+            <Link href="/crm/admin/finance/vendors">
+              <Users className="h-3.5 w-3.5" />
+              Vendor AP Dashboard
             </Link>
           </Button>
         </div>
@@ -170,7 +182,86 @@ export default function AccountsDashboardPage() {
 
       {!loading && data && (
         <>
-          {/* ── 4 Top KPI Cards ── */}
+          {/* ── Accounts Receivable & Accounts Payable Banner Block ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Accounts Receivable Card */}
+            <Card className="border border-blue-500/20 bg-gradient-to-br from-blue-500/10 via-blue-600/5 to-transparent">
+              <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                      <HandCoins className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-foreground">Accounts Receivable (AR)</h3>
+                      <p className="text-xs text-muted-foreground">Client payments due across projects</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-xs font-semibold border-blue-300 text-blue-700 dark:border-blue-700 dark:text-blue-300">
+                    Client Outstanding
+                  </Badge>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 tabular-nums">
+                    ৳{fmt(data.totalAR ?? 0)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    ৳{fmt(data.totalClientCollected ?? 0)} collected out of ৳{fmt(data.totalProjectAgreements ?? 0)} contracted value
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-blue-500/20 flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Collection Rate: {data.totalProjectAgreements && data.totalProjectAgreements > 0 ? Math.round(((data.totalClientCollected ?? 0) / data.totalProjectAgreements) * 100) : 0}%
+                  </span>
+                  <Link href="/crm/accounts/projects" className="text-xs font-semibold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                    View Projects <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Accounts Payable Card */}
+            <Card className="border border-amber-500/20 bg-gradient-to-br from-amber-500/10 via-amber-600/5 to-transparent">
+              <CardContent className="p-5 flex flex-col justify-between h-full space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-base text-foreground">Accounts Payable (AP)</h3>
+                      <p className="text-xs text-muted-foreground">Vendor balances owed across sites</p>
+                    </div>
+                  </div>
+                  <Badge variant="outline" className="text-xs font-semibold border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-300">
+                    Vendor Owed
+                  </Badge>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-3xl font-extrabold text-amber-600 dark:text-amber-400 tabular-nums">
+                    ৳{fmt(data.totalAP ?? 0)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    ৳{fmt(data.totalVendorPaid ?? 0)} paid out of ৳{fmt(data.totalVendorContracts ?? 0)} total vendor contracts
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Disbursement Rate: {data.totalVendorContracts && data.totalVendorContracts > 0 ? Math.round(((data.totalVendorPaid ?? 0) / data.totalVendorContracts) * 100) : 0}%
+                  </span>
+                  <Link href="/crm/admin/finance/vendors" className="text-xs font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1">
+                    Vendor AP Dashboard <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ── 4 Top Cash Flow KPI Cards ── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="border-border">
               <CardContent className="pt-5">
@@ -251,80 +342,50 @@ export default function AccountsDashboardPage() {
                     </CardDescription>
                   </div>
                 </div>
-
-                <Button size="sm" variant="outline" asChild className="text-xs h-8 gap-1.5">
-                  <Link href="/crm/accounts/summary">
-                    <BarChart3 className="h-3.5 w-3.5" />
-                    Full Summary View
-                  </Link>
-                </Button>
               </div>
             </CardHeader>
             <CardContent className="p-0">
               {data.monthlyHistory.length === 0 ? (
-                <div className="py-10 text-center text-sm text-muted-foreground">
+                <div className="p-6 text-center text-sm text-muted-foreground">
                   No monthly history recorded yet.
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                        <th className="text-left px-4 py-3">Month</th>
-                        <th className="text-right px-4 py-3">Opening Balance</th>
-                        <th className="text-right px-4 py-3 text-emerald-600 dark:text-emerald-400">Inflow</th>
-                        <th className="text-right px-4 py-3 text-rose-500">Outflow</th>
-                        <th className="text-right px-4 py-3">Net Change</th>
-                        <th className="text-right px-4 py-3 font-bold">Closing Balance</th>
-                        <th className="text-center px-4 py-3">Action</th>
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-muted/40 uppercase tracking-wider text-muted-foreground font-semibold border-b border-border">
+                      <tr>
+                        <th className="p-3">Month</th>
+                        <th className="p-3 text-right">Opening Balance</th>
+                        <th className="p-3 text-right text-emerald-600 dark:text-emerald-400">Inflow</th>
+                        <th className="p-3 text-right text-rose-600 dark:text-rose-400">Outflow</th>
+                        <th className="p-3 text-right">Net Change</th>
+                        <th className="p-3 text-right font-bold">Closing Balance</th>
+                        <th className="p-3 text-center">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-border">
-                      {data.monthlyHistory.map((m) => {
-                        const isCurrentMonth = m.month === today.getMonth() && m.year === today.getFullYear()
-                        return (
-                          <tr
-                            key={m.monthLabel}
-                            className={`hover:bg-muted/40 transition-colors ${isCurrentMonth ? "bg-primary/5 font-semibold" : ""}`}
-                          >
-                            <td className="px-4 py-3.5 font-medium text-foreground">
-                              <div className="flex items-center gap-2">
-                                <span>{m.monthLabel}</span>
-                                {isCurrentMonth && (
-                                  <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">
-                                    Current Month
-                                  </Badge>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3.5 text-right text-muted-foreground tabular-nums">
-                              ৳{fmt(m.openingBalance)}
-                            </td>
-                            <td className="px-4 py-3.5 text-right text-emerald-600 dark:text-emerald-400 font-semibold tabular-nums">
-                              +৳{fmt(m.inflow)}
-                            </td>
-                            <td className="px-4 py-3.5 text-right text-rose-500 font-semibold tabular-nums">
-                              -৳{fmt(m.outflow)}
-                            </td>
-                            <td className={`px-4 py-3.5 text-right font-semibold tabular-nums ${m.netChange >= 0 ? "text-emerald-600" : "text-rose-500"}`}>
-                              {fmtSigned(m.netChange)}
-                            </td>
-                            <td className="px-4 py-3.5 text-right font-bold text-foreground tabular-nums text-base">
-                              ৳{fmt(m.closingBalance)}
-                            </td>
-                            <td className="px-4 py-3.5 text-center">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 text-xs px-2.5 hover:bg-primary/10 hover:text-primary"
-                                onClick={() => navigateToMonthSummary(m.year, m.month)}
-                              >
-                                View Summary
-                              </Button>
-                            </td>
-                          </tr>
-                        )
-                      })}
+                    <tbody className="divide-y divide-border/60">
+                      {data.monthlyHistory.map((row) => (
+                        <tr key={`${row.year}-${row.month}`} className="hover:bg-muted/30 transition">
+                          <td className="p-3 font-semibold text-foreground">{row.monthLabel}</td>
+                          <td className="p-3 text-right font-mono">৳{fmt(row.openingBalance)}</td>
+                          <td className="p-3 text-right font-mono text-emerald-600 dark:text-emerald-400">+৳{fmt(row.inflow)}</td>
+                          <td className="p-3 text-right font-mono text-rose-600 dark:text-rose-400">-৳{fmt(row.outflow)}</td>
+                          <td className={`p-3 text-right font-mono font-semibold ${row.netChange >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                            {fmtSigned(row.netChange)}
+                          </td>
+                          <td className="p-3 text-right font-mono font-bold text-foreground">৳{fmt(row.closingBalance)}</td>
+                          <td className="p-3 text-center">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-[11px] gap-1"
+                              onClick={() => navigateToMonthSummary(row.year, row.month)}
+                            >
+                              View Ledger
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -332,126 +393,36 @@ export default function AccountsDashboardPage() {
             </CardContent>
           </Card>
 
-          {/* ── Account Situation Table & Quick Navigation ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Account Situation */}
-            <Card className="lg:col-span-2 border-border">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-muted-foreground" />
-                    <CardTitle className="text-base font-bold">Account Situation</CardTitle>
-                  </div>
-                  <Button size="sm" variant="ghost" asChild className="h-7 text-xs">
-                    <Link href="/crm/admin/finance/settings/accounts">
-                      <Settings className="h-3.5 w-3.5 mr-1" />
-                      Manage Accounts
-                    </Link>
-                  </Button>
+          {/* ── Cash & Bank Account Distribution ── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="md:col-span-3 border-border">
+              <CardHeader className="pb-3 border-b border-border/50">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  Cash & Bank Account Valuation
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Live closing balance per finance account
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {data.accountSummary.map((acc) => (
+                    <div key={acc.accountId} className="p-4 rounded-lg border border-border bg-muted/20 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-sm truncate">{acc.accountName}</span>
+                        <Badge variant="outline" className="text-[10px]">Active</Badge>
+                      </div>
+                      <div className={`text-xl font-bold tabular-nums ${acc.closingBalance >= 0 ? "text-foreground" : "text-rose-500"}`}>
+                        ৳{fmt(acc.closingBalance)}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground flex justify-between pt-1 border-t border-border/50">
+                        <span className="text-emerald-600">+৳{fmt(acc.inflow)}</span>
+                        <span className="text-rose-500">-৳{fmt(acc.outflow)}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                {data.accountSummary.length === 0 ? (
-                  <div className="py-8 text-center text-sm text-muted-foreground">
-                    No accounts found.
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-t border-border bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                          <th className="text-left px-4 py-2.5">Account</th>
-                          <th className="text-right px-4 py-2.5">Opening</th>
-                          <th className="text-right px-4 py-2.5">Inflow</th>
-                          <th className="text-right px-4 py-2.5">Outflow</th>
-                          <th className="text-right px-4 py-2.5">Closing</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {data.accountSummary.map(acct => (
-                          <tr key={acct.accountId} className="hover:bg-muted/40 transition-colors">
-                            <td className="px-4 py-3 font-semibold text-foreground">{acct.accountName}</td>
-                            <td className="px-4 py-3 text-right text-muted-foreground tabular-nums">৳{fmt(acct.openingBalance)}</td>
-                            <td className="px-4 py-3 text-right font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">+৳{fmt(acct.inflow)}</td>
-                            <td className="px-4 py-3 text-right font-medium text-rose-600 dark:text-rose-400 tabular-nums">-৳{fmt(acct.outflow)}</td>
-                            <td className={`px-4 py-3 text-right font-bold tabular-nums ${acct.closingBalance >= 0 ? "text-foreground" : "text-rose-600"}`}>
-                              ৳{fmt(acct.closingBalance)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Quick Links */}
-            <Card className="border-border">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base font-bold">Quick Navigation</CardTitle>
-                <CardDescription className="text-xs">Accounts department tools & portals</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <Link
-                  href="/crm/accounts/summary"
-                  className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded bg-primary/10 text-primary">
-                      <BarChart3 className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">Cash Flow Summary</div>
-                      <div className="text-[11px] text-muted-foreground">Inflow/outflow breakdown</div>
-                    </div>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/crm/accounts/projects"
-                  className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40">
-                      <FolderKanban className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">Projects Ledger</div>
-                      <div className="text-[11px] text-muted-foreground">Client payments & site expenses</div>
-                    </div>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/crm/accounts/overheads"
-                  className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded bg-amber-50 text-amber-600 dark:bg-amber-950/40">
-                      <Receipt className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">Overheads</div>
-                      <div className="text-[11px] text-muted-foreground">Office expenses & bills</div>
-                    </div>
-                  </div>
-                </Link>
-
-                <Link
-                  href="/crm/admin/finance/settings/accounts"
-                  className="flex items-center justify-between p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded bg-purple-50 text-purple-600 dark:bg-purple-950/40">
-                      <Settings className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">Manage Accounts</div>
-                      <div className="text-[11px] text-muted-foreground">Bank & Cash accounts</div>
-                    </div>
-                  </div>
-                </Link>
               </CardContent>
             </Card>
           </div>
