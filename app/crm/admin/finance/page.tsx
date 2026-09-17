@@ -882,7 +882,7 @@ export default function FinanceDashboard() {
               <PlusCircle className="w-5 h-5" /> Log Transaction
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md bg-card border border-border">
+          <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto bg-card border border-border">
             <DialogHeader>
               <DialogTitle>{editingTxId ? "Edit Transaction" : "Log New Transaction"}</DialogTitle>
             </DialogHeader>
@@ -990,164 +990,166 @@ export default function FinanceDashboard() {
                   </Dialog>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-semibold">Project/Client Allocation (Optional)</label>
-                {/* Project Picker Trigger Button */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between h-auto min-h-10 px-3 py-2"
-                  onClick={() => {
-                    setIsProjectPickerOpen(true)
-                    loadFinanceLeads(pickerSearch, pickerSrCrmFilter)
-                  }}
-                >
-                  <span className="flex items-center gap-2 text-left">
-                    {leadId === "none" ? (
-                      <span className="text-muted-foreground">Office (Overhead / General)</span>
-                    ) : (
-                      <span>{financeLeads.find((l) => l.id === leadId)?.name ?? leads.find((l: any) => l.id === leadId)?.name ?? leadId}</span>
-                    )}
-                  </span>
-                  <Search className="w-4 h-4 text-muted-foreground" />
-                </Button>
-
-                {/* Project Picker Dialog */}
-                <Dialog open={isProjectPickerOpen} onOpenChange={setIsProjectPickerOpen}>
-                  <DialogContent className="max-w-[95vw] md:max-w-4xl lg:max-w-5xl bg-card border border-border flex flex-col h-[85vh] md:h-[75vh]">
-                    <DialogHeader className="shrink-0">
-                      <DialogTitle>Select Project / Client Allocation</DialogTitle>
-                    </DialogHeader>
-
-                    {/* Search + Filter bar */}
-                    <div className="flex flex-col gap-2 sm:flex-row shrink-0 pt-1">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          className="pl-9"
-                          placeholder="Search by name, location, phone..."
-                          value={pickerSearch}
-                          onChange={(e) => {
-                            setPickerSearch(e.target.value)
-                          }}
-                        />
-                      </div>
-                      {srCrmOptions.length > 0 && (
-                        <Select
-                          value={pickerSrCrmFilter}
-                          onValueChange={(val) => {
-                            setPickerSrCrmFilter(val)
-                          }}
-                        >
-                          <SelectTrigger className="w-full sm:w-52">
-                            <SelectValue placeholder="Filter by Sr. CRM" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Sr. CRM</SelectItem>
-                            {srCrmOptions.map((sr) => (
-                              <SelectItem key={sr.id} value={sr.id}>{sr.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
-
-                    {/* Cards grid */}
-                    <div className="flex-1 overflow-y-auto min-h-0 pr-1">
-                      {financeLeadsLoading ? (
-                        <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Loading projects...</div>
+              {category !== "VENDOR_PAYMENT" && (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold">Project/Client Allocation (Optional)</label>
+                  {/* Project Picker Trigger Button */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between h-auto min-h-10 px-3 py-2"
+                    onClick={() => {
+                      setIsProjectPickerOpen(true)
+                      loadFinanceLeads(pickerSearch, pickerSrCrmFilter)
+                    }}
+                  >
+                    <span className="flex items-center gap-2 text-left">
+                      {leadId === "none" ? (
+                        <span className="text-muted-foreground">Office (Overhead / General)</span>
                       ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
-                          {/* Office / General overhead card */}
-                          <button
-                            type="button"
-                            onClick={() => { setLeadId("none"); setIsProjectPickerOpen(false) }}
-                            className={`group text-left rounded-xl border-2 p-4 transition-all duration-200 hover:shadow-md ${
-                              leadId === "none"
-                                ? "border-primary bg-primary/5"
-                                : "border-border bg-card hover:border-primary/50"
-                            }`}
-                          >
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="p-2 rounded-lg bg-muted">
-                                <Building className="w-5 h-5 text-muted-foreground" />
-                              </div>
-                              {leadId === "none" && (
-                                <Badge className="text-[10px] bg-primary text-primary-foreground">Selected</Badge>
-                              )}
-                            </div>
-                            <p className="font-semibold text-sm text-foreground">Office / General Overhead</p>
-                            <p className="text-xs text-muted-foreground mt-1">Not project-specific</p>
-                          </button>
+                        <span>{financeLeads.find((l) => l.id === leadId)?.name ?? leads.find((l: any) => l.id === leadId)?.name ?? leadId}</span>
+                      )}
+                    </span>
+                    <Search className="w-4 h-4 text-muted-foreground" />
+                  </Button>
 
-                          {financeLeads.map((lead) => (
+                  {/* Project Picker Dialog */}
+                  <Dialog open={isProjectPickerOpen} onOpenChange={setIsProjectPickerOpen}>
+                    <DialogContent className="max-w-[95vw] md:max-w-4xl lg:max-w-5xl bg-card border border-border flex flex-col h-[85vh] md:h-[75vh]">
+                      <DialogHeader className="shrink-0">
+                        <DialogTitle>Select Project / Client Allocation</DialogTitle>
+                      </DialogHeader>
+
+                      {/* Search + Filter bar */}
+                      <div className="flex flex-col gap-2 sm:flex-row shrink-0 pt-1">
+                        <div className="relative flex-1">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            className="pl-9"
+                            placeholder="Search by name, location, phone..."
+                            value={pickerSearch}
+                            onChange={(e) => {
+                              setPickerSearch(e.target.value)
+                            }}
+                          />
+                        </div>
+                        {srCrmOptions.length > 0 && (
+                          <Select
+                            value={pickerSrCrmFilter}
+                            onValueChange={(val) => {
+                              setPickerSrCrmFilter(val)
+                            }}
+                          >
+                            <SelectTrigger className="w-full sm:w-52">
+                              <SelectValue placeholder="Filter by Sr. CRM" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Sr. CRM</SelectItem>
+                              {srCrmOptions.map((sr) => (
+                                <SelectItem key={sr.id} value={sr.id}>{sr.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+
+                      {/* Cards grid */}
+                      <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+                        {financeLeadsLoading ? (
+                          <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Loading projects...</div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pb-4">
+                            {/* Office / General overhead card */}
                             <button
-                              key={lead.id}
                               type="button"
-                              onClick={() => { setLeadId(lead.id); setIsProjectPickerOpen(false) }}
+                              onClick={() => { setLeadId("none"); setIsProjectPickerOpen(false) }}
                               className={`group text-left rounded-xl border-2 p-4 transition-all duration-200 hover:shadow-md ${
-                                leadId === lead.id
+                                leadId === "none"
                                   ? "border-primary bg-primary/5"
                                   : "border-border bg-card hover:border-primary/50"
                               }`}
                             >
                               <div className="flex items-start justify-between mb-3">
-                                <Badge
-                                  variant="secondary"
-                                  className={`text-[10px] font-semibold ${
-                                    lead.stage === "CONVERSION" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200" :
-                                    lead.stage === "QUOTATION_PHASE" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200" :
-                                    lead.stage === "BUDGET_PHASE" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200" :
-                                    lead.stage === "VISUALIZATION_PHASE" ? "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200" :
-                                    lead.stage === "CLOSED" ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" :
-                                    ""
-                                  }`}
-                                >
-                                  {lead.stage === "QUOTATION_PHASE" ? "Quotation" :
-                                   lead.stage === "BUDGET_PHASE" ? "Budget" :
-                                   lead.stage === "VISUALIZATION_PHASE" ? "Visualization" :
-                                   lead.stage === "CONVERSION" ? "Conversion" :
-                                   lead.stage === "CLOSED" ? "Closed" : lead.stage}
-                                </Badge>
-                                {leadId === lead.id && (
+                                <div className="p-2 rounded-lg bg-muted">
+                                  <Building className="w-5 h-5 text-muted-foreground" />
+                                </div>
+                                {leadId === "none" && (
                                   <Badge className="text-[10px] bg-primary text-primary-foreground">Selected</Badge>
                                 )}
                               </div>
-                              <p className="font-semibold text-sm text-foreground leading-snug mb-2">{lead.name}</p>
-                              <div className="space-y-1">
-                                {lead.location && (
-                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <MapPin className="w-3 h-3 shrink-0" />
-                                    <span className="truncate">{lead.location}</span>
-                                  </p>
-                                )}
-                                {lead.phone && (
-                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <Phone className="w-3 h-3 shrink-0" />
-                                    {lead.phone}
-                                  </p>
-                                )}
-                                {lead.srCrm && (
-                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                    <User className="w-3 h-3 shrink-0" />
-                                    {lead.srCrm}
-                                  </p>
-                                )}
-                              </div>
+                              <p className="font-semibold text-sm text-foreground">Office / General Overhead</p>
+                              <p className="text-xs text-muted-foreground mt-1">Not project-specific</p>
                             </button>
-                          ))}
 
-                          {!financeLeadsLoading && financeLeads.length === 0 && (
-                            <div className="col-span-full text-center py-10 text-sm text-muted-foreground">
-                              No projects found matching your search.
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
+                            {financeLeads.map((lead) => (
+                              <button
+                                key={lead.id}
+                                type="button"
+                                onClick={() => { setLeadId(lead.id); setIsProjectPickerOpen(false) }}
+                                className={`group text-left rounded-xl border-2 p-4 transition-all duration-200 hover:shadow-md ${
+                                  leadId === lead.id
+                                    ? "border-primary bg-primary/5"
+                                    : "border-border bg-card hover:border-primary/50"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between mb-3">
+                                  <Badge
+                                    variant="secondary"
+                                    className={`text-[10px] font-semibold ${
+                                      lead.stage === "CONVERSION" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200" :
+                                      lead.stage === "QUOTATION_PHASE" ? "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200" :
+                                      lead.stage === "BUDGET_PHASE" ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200" :
+                                      lead.stage === "VISUALIZATION_PHASE" ? "bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-200" :
+                                      lead.stage === "CLOSED" ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300" :
+                                      ""
+                                    }`}
+                                  >
+                                    {lead.stage === "QUOTATION_PHASE" ? "Quotation" :
+                                     lead.stage === "BUDGET_PHASE" ? "Budget" :
+                                     lead.stage === "VISUALIZATION_PHASE" ? "Visualization" :
+                                     lead.stage === "CONVERSION" ? "Conversion" :
+                                     lead.stage === "CLOSED" ? "Closed" : lead.stage}
+                                  </Badge>
+                                  {leadId === lead.id && (
+                                    <Badge className="text-[10px] bg-primary text-primary-foreground">Selected</Badge>
+                                  )}
+                                </div>
+                                <p className="font-semibold text-sm text-foreground leading-snug mb-2">{lead.name}</p>
+                                <div className="space-y-1">
+                                  {lead.location && (
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <MapPin className="w-3 h-3 shrink-0" />
+                                      <span className="truncate">{lead.location}</span>
+                                    </p>
+                                  )}
+                                  {lead.phone && (
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <Phone className="w-3 h-3 shrink-0" />
+                                      {lead.phone}
+                                    </p>
+                                  )}
+                                  {lead.srCrm && (
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                      <User className="w-3 h-3 shrink-0" />
+                                      {lead.srCrm}
+                                    </p>
+                                  )}
+                                </div>
+                              </button>
+                            ))}
+
+                            {!financeLeadsLoading && financeLeads.length === 0 && (
+                              <div className="col-span-full text-center py-10 text-sm text-muted-foreground">
+                                No projects found matching your search.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              )}
 
               {category === "SITE_VISIT_PAYMENT" && (
                 <>
@@ -1255,114 +1257,97 @@ export default function FinanceDashboard() {
 
               {/* ── VENDOR PAYMENT inline picker ─────────────────────── */}
               {category === "VENDOR_PAYMENT" && (
-                <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
-                  <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5" /> Vendor Payment
+                <div className="space-y-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs">
+                  <p className="font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5" /> Vendor Payment Details
                   </p>
 
                   {/* Step 1 — Pick Vendor */}
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold">1. Select Vendor</label>
+                    <label className="font-medium text-muted-foreground">1. Select Vendor</label>
                     {vendorListLoading ? (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                      <div className="flex items-center gap-2 text-muted-foreground py-1">
                         <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading vendors...
                       </div>
                     ) : (
-                      <>
-                        <div className="relative">
-                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                          <Input
-                            className="pl-8 h-8 text-xs"
-                            placeholder="Search vendor..."
-                            value={vendorSearchQuery}
-                            onChange={(e) => setVendorSearchQuery(e.target.value)}
-                          />
-                        </div>
-                        <Select
-                          value={selectedVendorId}
-                          onValueChange={(v) => {
-                            setSelectedVendorId(v)
-                            setSelectedAgreementId("")
-                            void loadVendorAgreements(v)
-                          }}
-                        >
-                          <SelectTrigger className="h-9 text-xs">
-                            <SelectValue placeholder="Choose a vendor..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {vendorList
-                              .filter((v) =>
-                                !vendorSearchQuery ||
-                                v.vendorName.toLowerCase().includes(vendorSearchQuery.toLowerCase()) ||
-                                (v.vendorCompanyName ?? "").toLowerCase().includes(vendorSearchQuery.toLowerCase()) ||
-                                v.vendorId.toLowerCase().includes(vendorSearchQuery.toLowerCase())
-                              )
-                              .map((v) => (
-                                <SelectItem key={v.id} value={v.id}>
-                                  <span className="font-medium">{v.vendorName}</span>
-                                  {v.vendorCompanyName && (
-                                    <span className="text-muted-foreground ml-1 text-[11px]">— {v.vendorCompanyName}</span>
-                                  )}
-                                  <span className="text-muted-foreground ml-1 text-[11px] font-mono">[{v.vendorId}]</span>
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                      </>
+                      <Select
+                        value={selectedVendorId}
+                        onValueChange={(v) => {
+                          setSelectedVendorId(v)
+                          setSelectedAgreementId("")
+                          void loadVendorAgreements(v)
+                        }}
+                      >
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Choose a vendor..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {vendorList.map((v) => (
+                            <SelectItem key={v.id} value={v.id}>
+                              {v.vendorName} {v.vendorCompanyName ? `(${v.vendorCompanyName})` : ''} [{v.vendorId}]
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
                   </div>
 
                   {/* Step 2 — Pick Project Agreement */}
                   {selectedVendorId && (
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold">2. Select Project Agreement</label>
+                      <label className="font-medium text-muted-foreground">2. Select Project Agreement</label>
                       {vendorAgreementsLoading ? (
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                        <div className="flex items-center gap-2 text-muted-foreground py-1">
                           <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading agreements...
                         </div>
                       ) : vendorAgreements.length === 0 ? (
-                        <p className="text-xs text-muted-foreground py-2">No project agreements found for this vendor.</p>
+                        <p className="text-muted-foreground py-1">No project agreements found for this vendor.</p>
                       ) : (
-                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                          {vendorAgreements.map((ag) => (
-                            <button
-                              key={ag.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedAgreementId(ag.id)
-                                setLeadId(ag.lead?.id ?? "none")
-                                if (ag.balance > 0 && !amount) setAmount(String(ag.balance))
-                              }}
-                              className={`w-full text-left rounded-lg border px-3 py-2 text-xs transition-all ${
-                                selectedAgreementId === ag.id
-                                  ? "border-primary bg-primary/5"
-                                  : "border-border hover:border-primary/40 bg-card"
-                              }`}
-                            >
-                              <div className="flex justify-between items-center">
-                                <span className="font-semibold text-foreground">{ag.lead?.name ?? "Unknown Project"}</span>
-                                {selectedAgreementId === ag.id && (
-                                  <Badge className="text-[10px] bg-primary text-primary-foreground">Selected</Badge>
-                                )}
-                              </div>
-                              <div className="flex gap-3 mt-1 text-[11px] text-muted-foreground">
-                                <span>Contract: <strong>৳{(ag.agreementValue ?? 0).toLocaleString()}</strong></span>
-                                <span>Paid: <strong className="text-emerald-600">৳{(ag.totalPaid ?? 0).toLocaleString()}</strong></span>
-                                <span>Balance: <strong className="text-amber-600">৳{(ag.balance ?? 0).toLocaleString()}</strong></span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
+                        <Select
+                          value={selectedAgreementId}
+                          onValueChange={(agId) => {
+                            setSelectedAgreementId(agId)
+                            const ag = vendorAgreements.find((a) => a.id === agId)
+                            if (ag) {
+                              setLeadId(ag.lead?.id ?? "none")
+                              if (ag.balance > 0 && !amount) setAmount(String(ag.balance))
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Choose project agreement..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vendorAgreements.map((ag) => (
+                              <SelectItem key={ag.id} value={ag.id}>
+                                {ag.lead?.name ?? "Unknown Project"} — Due: ৳{(ag.balance ?? 0).toLocaleString()}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       )}
                     </div>
                   )}
 
+                  {/* Compact Agreement Summary */}
+                  {selectedAgreementId && (() => {
+                    const selectedAg = vendorAgreements.find((a) => a.id === selectedAgreementId)
+                    if (!selectedAg) return null
+                    return (
+                      <div className="flex justify-between items-center bg-background/80 rounded px-2.5 py-1.5 border border-border text-[11px] text-muted-foreground">
+                        <span>Contract: <strong className="text-foreground">৳{(selectedAg.agreementValue ?? 0).toLocaleString()}</strong></span>
+                        <span>Paid: <strong className="text-emerald-600">৳{(selectedAg.totalPaid ?? 0).toLocaleString()}</strong></span>
+                        <span>Due: <strong className="text-amber-600">৳{(selectedAg.balance ?? 0).toLocaleString()}</strong></span>
+                      </div>
+                    )
+                  })()}
+
                   {/* Step 3 — Payment Method */}
                   {selectedAgreementId && (
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold">3. Payment Method</label>
+                      <label className="font-medium text-muted-foreground">3. Payment Method</label>
                       <Select value={vendorPaymentMethod} onValueChange={setVendorPaymentMethod}>
-                        <SelectTrigger className="h-9 text-xs">
+                        <SelectTrigger className="h-8 text-xs">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -1377,7 +1362,7 @@ export default function FinanceDashboard() {
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold">Amount (BDT)</label>
                   <Input
@@ -1400,13 +1385,15 @@ export default function FinanceDashboard() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold">Particulars / Description</label>
+                <label className="text-xs font-semibold">
+                  Particulars / Description {category === "VENDOR_PAYMENT" ? "(Optional Note)" : ""}
+                </label>
                 <Textarea
-                  placeholder="Details of the payment (e.g. Chowkath purchase, Eid Bonus)"
+                  placeholder={category === "VENDOR_PAYMENT" ? "Optional note (e.g. Stage 1 payment)" : "Details of the payment (e.g. Chowkath purchase, Eid Bonus)"}
                   value={particular}
                   onChange={(e) => setParticular(e.target.value)}
                   rows={2}
-                  required
+                  required={category !== "VENDOR_PAYMENT"}
                 />
               </div>
 
