@@ -81,63 +81,90 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   // ── 1. Top Section: Logo (Left Side) & Company Contact Info (Right Side) ────
   let y = margin + 0.04
 
-  // Left Side: Icon Logo ONLY (No text)
+  // Left Side: HeaderLogo.png ONLY (Maintaining Exact Real Aspect Ratio)
   try {
     const logoImg = new Image()
-    logoImg.src = "/android-chrome-512x512.png"
+    logoImg.src = "/Logo/HeaderLogo.png"
     await new Promise((resolve) => {
       logoImg.onload = resolve
       logoImg.onerror = resolve
     })
-    doc.addImage(logoImg, "PNG", margin + 0.08, y + 0.01, 0.38, 0.38)
+
+    const nw = logoImg.naturalWidth || logoImg.width || 300
+    const nh = logoImg.naturalHeight || logoImg.height || 100
+    const aspect = nw / nh
+    const maxH = 0.38
+    const maxW = 1.6
+    let logoW = maxH * aspect
+    let logoH = maxH
+    if (logoW > maxW) {
+      logoW = maxW
+      logoH = logoW / aspect
+    }
+
+    doc.addImage(logoImg, "PNG", margin + 0.08, y + 0.01, logoW, logoH)
   } catch {
-    // Left Side: Logo ONLY (no text)
+    // Left Side: HeaderLogo.png ONLY (no fallback text)
   }
 
-  // Company Contact Info: Starts from the same left alignment next to the emblem logo
+  // Right Side: Company Details Block (Uniform left alignment, Email line width)
   const rightX = pageW - margin - 0.08
-  const headerTextX = margin + 0.52
-  const maxTextW = rightX - headerTextX - 0.07
-
   doc.setFont("helvetica", "normal")
   doc.setFontSize(4.5)
   doc.setTextColor(71, 85, 105)
 
-  let curY = y + 0.04
-
-  // Phone numbers (aligned to the same left column)
-  const phone1 = "01329694660"
-  if (icons.phone) {
-    doc.addImage(icons.phone, "PNG", headerTextX, curY - 0.038, 0.048, 0.048)
-  }
-  doc.text(phone1, headerTextX + 0.065, curY)
-  curY += 0.05
-  doc.text("01329694661", headerTextX + 0.065, curY)
-  curY += 0.05
-  doc.text("01329694662", headerTextX + 0.065, curY)
-
-  // Email with Base64 PNG icon (starts from same left alignment)
-  curY += 0.05
   const emailStr = "aestheticinteriorstudio@gmail.com"
-  if (icons.email) {
-    doc.addImage(icons.email, "PNG", headerTextX, curY - 0.038, 0.048, 0.048)
-  }
-  doc.text(emailStr, headerTextX + 0.065, curY)
+  const emailTextW = doc.getTextWidth(emailStr)
 
-  // Address with Base64 PNG icon (starts from same left alignment, wraps to next line if needed)
-  curY += 0.05
-  const addressStr = "3rd floor, 183 East Senpara Parbata, Begum Rokeya Sarani, Mirpur 10, Dhaka"
-  if (icons.location) {
-    doc.addImage(icons.location, "PNG", headerTextX, curY - 0.038, 0.048, 0.048)
+  // Black Circle Badge dimensions
+  const badgeDiameter = 0.075
+  const badgeRadius = badgeDiameter / 2
+  const iconDim = 0.045
+  const badgeGap = 0.03
+
+  // Section Width equals total Email line width (badge + gap + emailTextW)
+  const sectionW = badgeDiameter + badgeGap + emailTextW
+  const startX = rightX - sectionW
+  const textX = startX + badgeDiameter + badgeGap
+  const badgeCenterX = startX + badgeRadius
+
+  let curY = y + 0.03
+
+  // Helper to draw black circle badge with white icon inside
+  const drawBadgeIcon = (iconPng: string, centerY: number) => {
+    doc.setFillColor(0, 0, 0)
+    doc.circle(badgeCenterX, centerY, badgeRadius, "F")
+    if (iconPng) {
+      doc.addImage(iconPng, "PNG", badgeCenterX - iconDim / 2, centerY - iconDim / 2, iconDim, iconDim)
+    }
   }
-  const splitAddress = doc.splitTextToSize(addressStr, maxTextW)
-  doc.text(splitAddress, headerTextX + 0.065, curY)
+
+  // 1. Phone numbers row
+  const phoneStr = "01329694660, 01329694661, 01329694662"
+  drawBadgeIcon(icons.whitePhone, curY - 0.015)
+  doc.text(phoneStr, textX, curY)
+
+  // 2. Email row (Spacious vertical gap)
+  curY += 0.07
+  drawBadgeIcon(icons.whiteEmail, curY - 0.015)
+  doc.text(emailStr, textX, curY)
+
+  // 3. Address row (Wrapped into 2 lines, icon badge centered vertically across lines)
+  curY += 0.07
+  const addressStr = "3rd floor, 183 East Senpara Parbata, Begum Rokeya Sarani, Mirpur 10, Dhaka"
+  const splitAddress = doc.splitTextToSize(addressStr, emailTextW)
+  const lineHeight = 0.05
+  const totalTextH = (splitAddress.length - 1) * lineHeight
+  const addrBadgeCenterY = curY - 0.015 + totalTextH / 2
+
+  drawBadgeIcon(icons.whiteLocation, addrBadgeCenterY)
+  doc.text(splitAddress, textX, curY)
 
   // Divider Line below Header
-  y = margin + 0.46
+  y = Math.max(margin + 0.46, curY + totalTextH + 0.04)
   doc.setDrawColor(226, 232, 240)
   doc.setLineWidth(0.006)
-  doc.line(margin + 0.08, y, pageW - margin - 0.08, y)
+  doc.line(margin + 0.08, y, rightX, y)
 
   // ── 2. Sub-Header Row: Receipt No (Left), MONEY RECEIPT (Center), Date (Right) ─────
   y += 0.06
@@ -373,21 +400,21 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   const fbStr = "aestheticinteriorofficial"
   const divider = "   |   "
 
-  const iconDim = 0.046
-  const iconGap = 0.02
+  const footerIconDim = 0.046
+  const footerIconGap = 0.02
   const divWidth = doc.getTextWidth(divider)
 
-  const wWeb = (icons.globe ? iconDim + iconGap : 0) + doc.getTextWidth(webStr)
-  const wIg = (icons.instagram ? iconDim + iconGap : 0) + doc.getTextWidth(igStr)
-  const wFb = (icons.facebook ? iconDim + iconGap : 0) + doc.getTextWidth(fbStr)
+  const wWeb = (icons.globe ? footerIconDim + footerIconGap : 0) + doc.getTextWidth(webStr)
+  const wIg = (icons.instagram ? footerIconDim + footerIconGap : 0) + doc.getTextWidth(igStr)
+  const wFb = (icons.facebook ? footerIconDim + footerIconGap : 0) + doc.getTextWidth(fbStr)
 
   const totalFooterWidth = wWeb + divWidth + wIg + divWidth + wFb
   let currentX = (pageW - totalFooterWidth) / 2
 
   // Web Item
   if (icons.globe) {
-    doc.addImage(icons.globe, "PNG", currentX, footerY - 0.036, iconDim, iconDim)
-    currentX += iconDim + iconGap
+    doc.addImage(icons.globe, "PNG", currentX, footerY - 0.036, footerIconDim, footerIconDim)
+    currentX += footerIconDim + footerIconGap
   }
   doc.text(webStr, currentX, footerY)
   currentX += doc.getTextWidth(webStr)
@@ -398,8 +425,8 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
 
   // Instagram Item
   if (icons.instagram) {
-    doc.addImage(icons.instagram, "PNG", currentX, footerY - 0.036, iconDim, iconDim)
-    currentX += iconDim + iconGap
+    doc.addImage(icons.instagram, "PNG", currentX, footerY - 0.036, footerIconDim, footerIconDim)
+    currentX += footerIconDim + footerIconGap
   }
   doc.text(igStr, currentX, footerY)
   currentX += doc.getTextWidth(igStr)
@@ -410,10 +437,12 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
 
   // Facebook Item
   if (icons.facebook) {
-    doc.addImage(icons.facebook, "PNG", currentX, footerY - 0.036, iconDim, iconDim)
-    currentX += iconDim + iconGap
+    doc.addImage(icons.facebook, "PNG", currentX, footerY - 0.036, footerIconDim, footerIconDim)
+    currentX += footerIconDim + footerIconGap
   }
   doc.text(fbStr, currentX, footerY)
+
+
 
   // Save File
   const filename = `money-receipt-${receiptNum.replace(/[^A-Za-z0-9_-]/g, "")}.pdf`
