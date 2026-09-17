@@ -1,4 +1,5 @@
 import { amountInWordsTaka } from "@/lib/number-to-words"
+import { loadPdfIcons } from "@/lib/pdf-icons"
 
 export type MoneyReceiptData = {
   receiptNo?: string | null
@@ -22,6 +23,7 @@ export type MoneyReceiptData = {
  */
 export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   const { default: jsPDF } = await import("jspdf")
+  const icons = await loadPdfIcons()
 
   // 6.0 inches x 2.75 inches in landscape mode
   const doc = new jsPDF({
@@ -52,10 +54,34 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.setLineWidth(0.012)
   doc.roundedRect(margin, margin, contentW, pageH - margin * 2, 0.05, 0.05, "S")
 
-  // ── 1. Top Section: Logo (Left Side) & Company Contact Info (Right Side) ────
-  let y = margin + 0.06
+  // ── Background Watermark Logo ──────────────────────────────────────────────
+  try {
+    const watermarkImg = new Image()
+    watermarkImg.src = "/android-chrome-512x512.png"
+    await new Promise((resolve) => {
+      watermarkImg.onload = resolve
+      watermarkImg.onerror = resolve
+    })
 
-  // Left Side: Logo ONLY
+    if ((doc as any).GState) {
+      doc.setGState(new (doc as any).GState({ opacity: 0.07 }))
+    }
+    const wmSize = 1.6
+    const wmX = (pageW - wmSize) / 2
+    const wmY = (pageH - wmSize) / 2
+    doc.addImage(watermarkImg, "PNG", wmX, wmY, wmSize, wmSize)
+
+    if ((doc as any).GState) {
+      doc.setGState(new (doc as any).GState({ opacity: 1.0 }))
+    }
+  } catch (err) {
+    console.warn("Watermark image load failed:", err)
+  }
+
+  // ── 1. Top Section: Logo (Left Side) & Company Contact Info (Right Side) ────
+  let y = margin + 0.04
+
+  // Left Side: Logo ONLY (Maintaining Exact Real Aspect Ratio)
   try {
     const logoImg = new Image()
     logoImg.src = "/Logo/HeaderLogo.png"
@@ -63,15 +89,25 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
       logoImg.onload = resolve
       logoImg.onerror = resolve
     })
-    doc.addImage(logoImg, "PNG", margin + 0.08, y + 0.02, 1.5, 0.35)
+    
+    const nw = logoImg.naturalWidth || logoImg.width || 300
+    const nh = logoImg.naturalHeight || logoImg.height || 100
+    const aspect = nw / nh
+    const maxH = 0.36
+    const maxW = 1.6
+    let logoW = maxH * aspect
+    let logoH = maxH
+    if (logoW > maxW) {
+      logoW = maxW
+      logoH = logoW / aspect
+    }
+
+    doc.addImage(logoImg, "PNG", margin + 0.08, y + 0.01, logoW, logoH)
   } catch {
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(9)
-    doc.setTextColor(30, 41, 59)
-    doc.text("AESTHETIC INTERIOR STUDIO", margin + 0.08, y + 0.18)
+    // Left Side: Logo ONLY (no text)
   }
 
-  // Right Side: Company Details with Icons (One phone number per line, small font 4.5pt)
+  // Right Side: Company Details with Base64 PNG Icons (One phone number per line, 4.5pt)
   const rightX = pageW - margin - 0.08
   doc.setFont("helvetica", "bold")
   doc.setFontSize(6.5)
@@ -82,31 +118,46 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.setFontSize(4.5)
   doc.setTextColor(71, 85, 105)
   
-  // Phone numbers (one per line with phone icon symbol)
-  doc.text("📞 01329694660", rightX, y + 0.11, { align: "right" })
+  // Phone numbers (one per line, with phone icon)
+  const phone1 = "01329694660"
+  const phone1Width = doc.getTextWidth(phone1)
+  if (icons.phone) {
+    doc.addImage(icons.phone, "PNG", rightX - phone1Width - 0.065, y + 0.068, 0.048, 0.048)
+  }
+  doc.text(phone1, rightX, y + 0.11, { align: "right" })
   doc.text("01329694661", rightX, y + 0.16, { align: "right" })
   doc.text("01329694662", rightX, y + 0.21, { align: "right" })
   
-  // Email with icon
-  doc.text("✉️ aestheticinteriorstudio@gmail.com", rightX, y + 0.26, { align: "right" })
+  // Email with Base64 PNG icon
+  const emailStr = "aestheticinteriorstudio@gmail.com"
+  const emailWidth = doc.getTextWidth(emailStr)
+  if (icons.email) {
+    doc.addImage(icons.email, "PNG", rightX - emailWidth - 0.065, y + 0.218, 0.048, 0.048)
+  }
+  doc.text(emailStr, rightX, y + 0.26, { align: "right" })
   
-  // Address with icon
-  doc.text("📍 3rd floor, 183 East Senpara Parbata, Begum Rokeya Sarani, Mirpur 10, Dhaka", rightX, y + 0.31, { align: "right" })
+  // Address with Base64 PNG icon
+  const addressStr = "3rd floor, 183 East Senpara Parbata, Begum Rokeya Sarani, Mirpur 10, Dhaka"
+  const addressWidth = doc.getTextWidth(addressStr)
+  if (icons.location) {
+    doc.addImage(icons.location, "PNG", rightX - addressWidth - 0.065, y + 0.268, 0.048, 0.048)
+  }
+  doc.text(addressStr, rightX, y + 0.31, { align: "right" })
 
   // Divider Line below Header
-  y = margin + 0.46
+  y = margin + 0.44
   doc.setDrawColor(226, 232, 240)
   doc.setLineWidth(0.006)
   doc.line(margin + 0.08, y, rightX, y)
 
   // ── 2. Sub-Header Row: Receipt No (Left), MONEY RECEIPT (Center), Date (Right) ─────
-  y += 0.08
+  y += 0.06
 
   // Left: Receipt No (decreased font size)
   doc.setFont("helvetica", "bold")
   doc.setFontSize(5.5)
   doc.setTextColor(30, 41, 59)
-  doc.text(`Receipt No: ${receiptNum}`, margin + 0.08, y + 0.1)
+  doc.text(`Receipt No: ${receiptNum}`, margin + 0.08, y + 0.11)
 
   // Center: MONEY RECEIPT title banner (Black background & White text)
   const titleW = 1.3
@@ -124,10 +175,10 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.setFont("helvetica", "bold")
   doc.setFontSize(5.5)
   doc.setTextColor(30, 41, 59)
-  doc.text(`Date: ${dateFormatted}`, rightX, y + 0.1, { align: "right" })
+  doc.text(`Date: ${dateFormatted}`, rightX, y + 0.11, { align: "right" })
 
-  // ── 3. Row Spacing & Body Content Lines ───────────────────────────────────────
-  y += 0.24 // Row gap after sub-header
+  // ── 3. Row Spacing & Body Content Lines (Consistent 0.15" Spacing) ─────────────
+  y += 0.24 // Consistent row gap after sub-header
 
   doc.setFontSize(6.5)
   doc.setTextColor(51, 65, 85)
@@ -141,8 +192,8 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.setDrawColor(226, 232, 240)
   doc.line(margin + 1.1, y + 0.02, rightX, y + 0.02)
 
-  // Row 2: Amount in Words (Immediately after Received From!)
-  y += 0.14
+  // Row 2: Amount in Words (Consistent 0.15" gap)
+  y += 0.15
   doc.setFont("helvetica", "bold")
   doc.setTextColor(51, 65, 85)
   doc.text("Amount in Words:", margin + 0.08, y)
@@ -152,8 +203,8 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.text(wordsText, margin + 1.1, y)
   doc.line(margin + 1.1, y + 0.02, rightX, y + 0.02)
 
-  // Row 3: Payment Method and its details
-  y += 0.14
+  // Row 3: Payment Method and its details (Consistent 0.15" gap)
+  y += 0.15
   doc.setFont("helvetica", "bold")
   doc.setTextColor(51, 65, 85)
 
@@ -209,8 +260,8 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
     doc.text(data.referenceNo || data.voucherNo || "—", margin + 3.0, y)
   }
 
-  // Row 4: Purpose on Left, Contact No. on Right
-  y += 0.14
+  // Row 4: Purpose on Left, Contact No. on Right (Consistent 0.15" gap)
+  y += 0.15
   doc.setFont("helvetica", "bold")
   doc.setTextColor(51, 65, 85)
 
@@ -245,7 +296,32 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   // Signatures
   const sigY = y + 0.18
 
-  // Center-Right Signature: Received By
+  // Center-Right Signature: Received By Image
+  try {
+    const accSigImg = new Image()
+    accSigImg.src = "/signature/Accounts Signature.jpeg"
+    await new Promise((resolve) => {
+      accSigImg.onload = resolve
+      accSigImg.onerror = resolve
+    })
+    const nw = accSigImg.naturalWidth || accSigImg.width || 200
+    const nh = accSigImg.naturalHeight || accSigImg.height || 100
+    const aspect = nw / nh
+    const maxH = 0.22
+    const maxW = 1.1
+    let sigW = maxH * aspect
+    let sigH = maxH
+    if (sigW > maxW) {
+      sigW = maxW
+      sigH = sigW / aspect
+    }
+    const sigX = margin + 2.85 - sigW / 2
+    doc.addImage(accSigImg, "JPEG", sigX, sigY - sigH - 0.01, sigW, sigH)
+  } catch (err) {
+    console.warn("Accounts signature load failed:", err)
+  }
+
+  // Received By Line & Label
   doc.setDrawColor(148, 163, 184)
   doc.setLineWidth(0.006)
   doc.line(margin + 2.2, sigY, margin + 3.5, sigY)
@@ -254,23 +330,93 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.setTextColor(100, 116, 139)
   doc.text("Received By", margin + 2.85, sigY + 0.08, { align: "center" })
 
-  // Right Signature: Authorized Signature
+  // Right Signature: Authorized Signature Image
+  try {
+    const authSigImg = new Image()
+    authSigImg.src = "/signature/Authorized Signature.jpeg"
+    await new Promise((resolve) => {
+      authSigImg.onload = resolve
+      authSigImg.onerror = resolve
+    })
+    const nw = authSigImg.naturalWidth || authSigImg.width || 200
+    const nh = authSigImg.naturalHeight || authSigImg.height || 100
+    const aspect = nw / nh
+    const maxH = 0.22
+    const maxW = 1.2
+    let sigW = maxH * aspect
+    let sigH = maxH
+    if (sigW > maxW) {
+      sigW = maxW
+      sigH = sigW / aspect
+    }
+    const sigX = rightX - 0.7 - sigW / 2
+    doc.addImage(authSigImg, "JPEG", sigX, sigY - sigH - 0.01, sigW, sigH)
+  } catch (err) {
+    console.warn("Authorized signature load failed:", err)
+  }
+
+  // Authorized Signature Line & Label
   doc.line(rightX - 1.4, sigY, rightX, sigY)
   doc.text("Authorized Signature", rightX - 0.7, sigY + 0.08, { align: "center" })
 
-  // ── 5. Footer Bar (No fill background, Pure Black text with icons) ─────────
-  const footerY = pageH - margin - 0.12
+  // ── 5. Footer Bar (Clean Bottom Bar with Base64 PNG icons) ───────────────
+  const footerY = pageH - margin - 0.10
 
-  // Pure Black Text with Icons for Social & Web Links
+  // Optional thin top divider for footer
+  doc.setDrawColor(241, 245, 249)
+  doc.setLineWidth(0.005)
+  doc.line(margin + 0.08, footerY - 0.08, rightX, footerY - 0.08)
+
   doc.setFontSize(5)
   doc.setFont("helvetica", "bold")
   doc.setTextColor(0, 0, 0) // Pure Black text
-  doc.text(
-    "🌐 aestheticinteriorbd.com   |   📸 aesthetic.interior.studio   |   📘 aestheticinteriorofficial",
-    pageW / 2,
-    footerY,
-    { align: "center" }
-  )
+
+  const webStr = "aestheticinteriorbd.com"
+  const igStr = "aesthetic.interior.studio"
+  const fbStr = "aestheticinteriorofficial"
+  const divider = "   |   "
+
+  const iconDim = 0.046
+  const iconGap = 0.02
+  const divWidth = doc.getTextWidth(divider)
+
+  const wWeb = (icons.globe ? iconDim + iconGap : 0) + doc.getTextWidth(webStr)
+  const wIg = (icons.instagram ? iconDim + iconGap : 0) + doc.getTextWidth(igStr)
+  const wFb = (icons.facebook ? iconDim + iconGap : 0) + doc.getTextWidth(fbStr)
+
+  const totalFooterWidth = wWeb + divWidth + wIg + divWidth + wFb
+  let currentX = (pageW - totalFooterWidth) / 2
+
+  // Web Item
+  if (icons.globe) {
+    doc.addImage(icons.globe, "PNG", currentX, footerY - 0.036, iconDim, iconDim)
+    currentX += iconDim + iconGap
+  }
+  doc.text(webStr, currentX, footerY)
+  currentX += doc.getTextWidth(webStr)
+
+  // Divider 1
+  doc.text(divider, currentX, footerY)
+  currentX += divWidth
+
+  // Instagram Item
+  if (icons.instagram) {
+    doc.addImage(icons.instagram, "PNG", currentX, footerY - 0.036, iconDim, iconDim)
+    currentX += iconDim + iconGap
+  }
+  doc.text(igStr, currentX, footerY)
+  currentX += doc.getTextWidth(igStr)
+
+  // Divider 2
+  doc.text(divider, currentX, footerY)
+  currentX += divWidth
+
+  // Facebook Item
+  if (icons.facebook) {
+    doc.addImage(icons.facebook, "PNG", currentX, footerY - 0.036, iconDim, iconDim)
+    currentX += iconDim + iconGap
+  }
+  doc.text(fbStr, currentX, footerY)
 
   // Save File
   const filename = `money-receipt-${receiptNum.replace(/[^A-Za-z0-9_-]/g, "")}.pdf`
