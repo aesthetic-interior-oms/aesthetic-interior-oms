@@ -2,7 +2,7 @@ import { todayShortQuotationDate } from '@/lib/short-quotation-calculations'
 import type { QuotationDraftContent, QuotationLineItem, QuotationSection } from '@/lib/quotation-types'
 
 export const DEFAULT_DETAIL_INTRO_LETTER = `Dear Sir,
-Yours sincerely, I am interested in working on the interior of your Flat. So, the details of my work are described below.`
+We are delighted to partner with you on transforming your residence into an aesthetic, thoughtfully designed space. Separate cost estimates have been provided for each room to give you a clear breakdown of the budget and scope.`
 
 export const DEFAULT_DETAIL_SUBJECT = 'Quotation for interior decoration work'
 export const DEFAULT_DETAIL_SUMMARY_SUBJECT = 'Quotation for interior decoration work'
