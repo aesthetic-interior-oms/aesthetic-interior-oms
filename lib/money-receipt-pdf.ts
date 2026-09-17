@@ -52,10 +52,10 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.setLineWidth(0.012)
   doc.roundedRect(margin, margin, contentW, pageH - margin * 2, 0.05, 0.05, "S")
 
-  // ── 1. Top Section: Logo & Phone (Left), Contact & Address (Right) ─────────
+  // ── 1. Top Section: Logo (Left Side) & Company Contact Info (Right Side) ────
   let y = margin + 0.06
 
-  // Left Column: Logo + Phone Numbers (1 per line)
+  // Left Side: Logo ONLY
   try {
     const logoImg = new Image()
     logoImg.src = "/Logo/HeaderLogo.png"
@@ -63,66 +63,76 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
       logoImg.onload = resolve
       logoImg.onerror = resolve
     })
-    doc.addImage(logoImg, "PNG", margin + 0.08, y, 1.3, 0.28)
+    doc.addImage(logoImg, "PNG", margin + 0.08, y + 0.02, 1.5, 0.35)
   } catch {
     doc.setFont("helvetica", "bold")
-    doc.setFontSize(8.5)
+    doc.setFontSize(9)
     doc.setTextColor(30, 41, 59)
-    doc.text("AESTHETIC INTERIOR STUDIO", margin + 0.08, y + 0.12)
+    doc.text("AESTHETIC INTERIOR STUDIO", margin + 0.08, y + 0.18)
   }
 
-  // Left Side Phone Numbers
-  doc.setFont("helvetica", "normal")
-  doc.setFontSize(4.5)
-  doc.setTextColor(71, 85, 105)
-  doc.text("Ph: 01329694660", margin + 0.08, y + 0.32)
-  doc.text("     01329694661", margin + 0.08, y + 0.37)
-  doc.text("     01329694662", margin + 0.08, y + 0.42)
-
-  // Right Side: Company Details
+  // Right Side: Company Details with Icons (One phone number per line, small font 4.5pt)
   const rightX = pageW - margin - 0.08
   doc.setFont("helvetica", "bold")
   doc.setFontSize(6.5)
   doc.setTextColor(30, 41, 59)
-  doc.text("Aesthetic Interior Studio", rightX, y + 0.08, { align: "right" })
+  doc.text("Aesthetic Interior Studio", rightX, y + 0.05, { align: "right" })
 
   doc.setFont("helvetica", "normal")
   doc.setFontSize(4.5)
   doc.setTextColor(71, 85, 105)
-  doc.text("Email: aestheticinteriorstudio@gmail.com", rightX, y + 0.15, { align: "right" })
-  doc.text("3rd floor, 183 East Senpara Parbata,", rightX, y + 0.21, { align: "right" })
-  doc.text("Begum Rokeya Sarani, Mirpur 10, Dhaka", rightX, y + 0.27, { align: "right" })
+  
+  // Phone numbers (one per line with phone icon symbol)
+  doc.text("📞 01329694660", rightX, y + 0.11, { align: "right" })
+  doc.text("01329694661", rightX, y + 0.16, { align: "right" })
+  doc.text("01329694662", rightX, y + 0.21, { align: "right" })
+  
+  // Email with icon
+  doc.text("✉️ aestheticinteriorstudio@gmail.com", rightX, y + 0.26, { align: "right" })
+  
+  // Address with icon
+  doc.text("📍 3rd floor, 183 East Senpara Parbata, Begum Rokeya Sarani, Mirpur 10, Dhaka", rightX, y + 0.31, { align: "right" })
 
   // Divider Line below Header
-  y = margin + 0.48
+  y = margin + 0.46
   doc.setDrawColor(226, 232, 240)
   doc.setLineWidth(0.006)
   doc.line(margin + 0.08, y, rightX, y)
 
   // ── 2. Sub-Header Row: Receipt No (Left), MONEY RECEIPT (Center), Date (Right) ─────
-  y += 0.12
+  y += 0.08
+
+  // Left: Receipt No (decreased font size)
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(6.5)
+  doc.setFontSize(5.5)
   doc.setTextColor(30, 41, 59)
+  doc.text(`Receipt No: ${receiptNum}`, margin + 0.08, y + 0.1)
 
-  // Left: Receipt No
-  doc.text(`Receipt No: ${receiptNum}`, margin + 0.08, y)
+  // Center: MONEY RECEIPT title banner (Black background & White text)
+  const titleW = 1.3
+  const titleH = 0.16
+  const titleX = pageW / 2 - titleW / 2
+  doc.setFillColor(0, 0, 0) // Black background
+  doc.roundedRect(titleX, y, titleW, titleH, 0.03, 0.03, "F")
 
-  // Center: MONEY RECEIPT title
-  doc.setFontSize(8)
-  doc.text("MONEY RECEIPT", pageW / 2, y, { align: "center" })
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(7)
+  doc.setTextColor(255, 255, 255) // White text
+  doc.text("MONEY RECEIPT", pageW / 2, y + 0.11, { align: "center" })
 
-  // Right: Date
-  doc.setFontSize(6.5)
-  doc.text(`Date: ${dateFormatted}`, rightX, y + 0.01, { align: "right" })
+  // Right: Date (decreased font size)
+  doc.setFont("helvetica", "bold")
+  doc.setFontSize(5.5)
+  doc.setTextColor(30, 41, 59)
+  doc.text(`Date: ${dateFormatted}`, rightX, y + 0.1, { align: "right" })
 
-  // ── 3. Row Gap & Body Content Lines ───────────────────────────────────────
-  y += 0.18 // Row gap
+  // ── 3. Row Spacing & Body Content Lines ───────────────────────────────────────
+  y += 0.24 // Row gap after sub-header
 
   doc.setFontSize(6.5)
   doc.setTextColor(51, 65, 85)
 
-  // Line 1: Received From
+  // Row 1: Received From (Client Name)
   doc.setFont("helvetica", "bold")
   doc.text("Received From:", margin + 0.08, y)
   doc.setFont("helvetica", "normal")
@@ -131,17 +141,7 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.setDrawColor(226, 232, 240)
   doc.line(margin + 1.1, y + 0.02, rightX, y + 0.02)
 
-  // Line 2: Contact No.
-  y += 0.14
-  doc.setFont("helvetica", "bold")
-  doc.setTextColor(51, 65, 85)
-  doc.text("Contact No.:", margin + 0.08, y)
-  doc.setFont("helvetica", "normal")
-  doc.setTextColor(15, 23, 42)
-  doc.text(data.payerPhone || "—", margin + 1.1, y)
-  doc.line(margin + 1.1, y + 0.02, rightX, y + 0.02)
-
-  // Line 3: Amount in Words (Immediately after Received From & Contact No)
+  // Row 2: Amount in Words (Immediately after Received From!)
   y += 0.14
   doc.setFont("helvetica", "bold")
   doc.setTextColor(51, 65, 85)
@@ -152,7 +152,7 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.text(wordsText, margin + 1.1, y)
   doc.line(margin + 1.1, y + 0.02, rightX, y + 0.02)
 
-  // Line 4: Dynamic Payment Method Details
+  // Row 3: Payment Method and its details
   y += 0.14
   doc.setFont("helvetica", "bold")
   doc.setTextColor(51, 65, 85)
@@ -160,7 +160,7 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   const methodUpper = (data.paymentMethod || "CASH").toUpperCase().replace(/_/g, " ")
 
   if (methodUpper.includes("CHECK") || methodUpper.includes("CHEQUE")) {
-    // Cheque payment format: Check No, Bank, Date
+    // Cheque payment format: Check No., Bank, Date
     doc.text("Payment Method:", margin + 0.08, y)
     doc.setFont("helvetica", "normal")
     doc.text("Cheque", margin + 1.0, y)
@@ -209,62 +209,66 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
     doc.text(data.referenceNo || data.voucherNo || "—", margin + 3.0, y)
   }
 
-  // Line 5: Purpose of Payment
+  // Row 4: Purpose on Left, Contact No. on Right
   y += 0.14
   doc.setFont("helvetica", "bold")
   doc.setTextColor(51, 65, 85)
+
+  // Left: Purpose for
   doc.text("Purpose / For:", margin + 0.08, y)
   doc.setFont("helvetica", "normal")
   doc.setTextColor(15, 23, 42)
-  doc.text(data.purpose || "Interior Decoration Services / Project Payment", margin + 1.0, y)
-  doc.line(margin + 1.0, y + 0.02, rightX, y + 0.02)
+  doc.text(data.purpose || "Interior Decoration Services / Project Payment", margin + 0.95, y)
+
+  // Right: Contact No.
+  doc.setFont("helvetica", "bold")
+  doc.setTextColor(51, 65, 85)
+  doc.text("Contact No.:", margin + 3.8, y)
+  doc.setFont("helvetica", "normal")
+  doc.setTextColor(15, 23, 42)
+  doc.text(data.payerPhone || "—", margin + 4.5, y)
 
   // ── 4. Amount Box (Bottom Left) & Signatures (Right) ─────────────────────
   y += 0.18
 
   // Amount Box (Bottom Left)
   doc.setFillColor(241, 245, 249)
-  doc.setDrawColor(30, 41, 59)
+  doc.setDrawColor(0, 0, 0)
   doc.setLineWidth(0.01)
   doc.roundedRect(margin + 0.08, y, 1.6, 0.22, 0.03, 0.03, "FD")
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(7.5)
-  doc.setTextColor(15, 23, 42)
+  doc.setTextColor(0, 0, 0)
   doc.text(`BDT  ${data.amount.toLocaleString("en-BD")}/-`, margin + 0.88, y + 0.14, { align: "center" })
 
   // Signatures
   const sigY = y + 0.18
 
-  // Center-Right: Payer Signature
+  // Center-Right Signature: Received By
   doc.setDrawColor(148, 163, 184)
   doc.setLineWidth(0.006)
   doc.line(margin + 2.2, sigY, margin + 3.5, sigY)
   doc.setFontSize(5.5)
   doc.setFont("helvetica", "normal")
   doc.setTextColor(100, 116, 139)
-  doc.text("Payer / Client Signature", margin + 2.85, sigY + 0.08, { align: "center" })
+  doc.text("Received By", margin + 2.85, sigY + 0.08, { align: "center" })
 
-  // Right: Received By (Authorized Signature / Seal)
+  // Right Signature: Authorized Signature
   doc.line(rightX - 1.4, sigY, rightX, sigY)
-  doc.text("Received By (Authorized Seal & Sign)", rightX - 0.7, sigY + 0.08, { align: "center" })
+  doc.text("Authorized Signature", rightX - 0.7, sigY + 0.08, { align: "center" })
 
-  // ── 5. Olive Footer Bar (Full Width at Bottom) ───────────────────────────
-  const footerH = 0.18
-  const footerY = pageH - margin - footerH
+  // ── 5. Footer Bar (No fill background, Pure Black text with icons) ─────────
+  const footerY = pageH - margin - 0.12
 
-  // Olive Background Fill
-  doc.setFillColor(85, 107, 47) // Olive color (#556B2F)
-  doc.roundedRect(margin, footerY, contentW, footerH, 0.03, 0.03, "F")
-
-  // White Footer Text with Social Links
+  // Pure Black Text with Icons for Social & Web Links
   doc.setFontSize(5)
   doc.setFont("helvetica", "bold")
-  doc.setTextColor(255, 255, 255)
+  doc.setTextColor(0, 0, 0) // Pure Black text
   doc.text(
-    "Website: aestheticinteriorbd.com   |   Instagram: aesthetic.interior.studio   |   Facebook: aestheticinteriorofficial",
+    "🌐 aestheticinteriorbd.com   |   📸 aesthetic.interior.studio   |   📘 aestheticinteriorofficial",
     pageW / 2,
-    footerY + 0.11,
+    footerY,
     { align: "center" }
   )
 
