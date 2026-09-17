@@ -165,14 +165,11 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   drawBadgeIcon(icons.whiteLocation, addrBadgeCenterY)
   doc.text(splitAddress, textX, curY)
 
-  // Divider Line below Header
+  // Divider Line below Header removed
   y = Math.max(margin + 0.46, curY + totalTextH + 0.04)
-  doc.setDrawColor(226, 232, 240)
-  doc.setLineWidth(0.006)
-  doc.line(margin + 0.08, y, rightX, y)
 
   // ── 2. Sub-Header Row: Receipt No (Left), MONEY RECEIPT (Center), Date (Right) ─────
-  y += 0.06
+  y += 0.12
 
   // Left: Receipt No (decreased font size)
   doc.setFont("helvetica", "bold")
