@@ -87,6 +87,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     // Build transaction particular
     const particular = `Vendor Payment – ${agreement.vendor.vendorName} (${agreement.vendor.vendorType.replace(/_/g, " ")})`
 
+    // Safely validate financeAccountId exists in FinanceAccount table
+    let validFinanceAccountId: string | null = null
+    if (financeAccountId && typeof financeAccountId === "string") {
+      const accExists = await prisma.financeAccount.findUnique({
+        where: { id: financeAccountId },
+        select: { id: true },
+      })
+      if (accExists) {
+        validFinanceAccountId = accExists.id
+      }
+    }
+
     // Use prisma.$transaction to create both records atomically
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create the finance Transaction (OUTFLOW)
@@ -99,7 +111,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           category: expenseCategory,
           recordedById: dbUserId,
           leadId: agreement.lead.id,
-          ...(financeAccountId ? { financeAccountId } : {}),
+          ...(validFinanceAccountId ? { financeAccountId: validFinanceAccountId } : {}),
         },
       })
 

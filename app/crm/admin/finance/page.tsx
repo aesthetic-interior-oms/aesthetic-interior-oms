@@ -203,7 +203,7 @@ export default function FinanceDashboard() {
   })
   const [particular, setParticular] = useState("")
   const [amount, setAmount] = useState("")
-  const [account, setAccount] = useState<string>("CASH")
+  const [account, setAccount] = useState<string>("")
   const [leadId, setLeadId] = useState<string>("none")
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
 
@@ -226,7 +226,6 @@ export default function FinanceDashboard() {
   const [vendorAgreements, setVendorAgreements] = useState<any[]>([])
   const [vendorAgreementsLoading, setVendorAgreementsLoading] = useState(false)
   const [selectedAgreementId, setSelectedAgreementId] = useState<string>("")
-  const [vendorPaymentMethod, setVendorPaymentMethod] = useState<string>("CASH")
   const [vendorSearchQuery, setVendorSearchQuery] = useState<string>("")
 
   // Project Picker Dialog States
@@ -279,9 +278,10 @@ export default function FinanceDashboard() {
       const res = await fetch('/api/finance/accounts')
       const data = await res.json()
       if (data.success) {
-        setAccounts(data.data.filter((a: any) => a.isActive))
-        if (data.data.length > 0 && !account) {
-          setAccount(data.data[0].id)
+        const activeAccs = data.data.filter((a: any) => a.isActive)
+        setAccounts(activeAccs)
+        if (activeAccs.length > 0) {
+          setAccount((prev) => (prev && prev !== "CASH" ? prev : activeAccs[0].id))
         }
       }
     } catch (e) {
@@ -501,7 +501,6 @@ export default function FinanceDashboard() {
           body: JSON.stringify({
             amount: parseFloat(amount),
             paymentDate: date,
-            paymentMethod: vendorPaymentMethod,
             financeAccountId: account || null,
             note: particular || null,
           }),
@@ -514,7 +513,6 @@ export default function FinanceDashboard() {
           setSelectedVendorId("")
           setVendorAgreements([])
           setSelectedAgreementId("")
-          setVendorPaymentMethod("CASH")
           setVendorSearchQuery("")
           loadData()
         } else {
@@ -631,7 +629,6 @@ export default function FinanceDashboard() {
     setSelectedVendorId("")
     setVendorAgreements([])
     setSelectedAgreementId("")
-    setVendorPaymentMethod("CASH")
     setVendorSearchQuery("")
   }
 
@@ -1342,23 +1339,6 @@ export default function FinanceDashboard() {
                     )
                   })()}
 
-                  {/* Step 3 — Payment Method */}
-                  {selectedAgreementId && (
-                    <div className="space-y-1">
-                      <label className="font-medium text-muted-foreground">3. Payment Method</label>
-                      <Select value={vendorPaymentMethod} onValueChange={setVendorPaymentMethod}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CASH">Cash</SelectItem>
-                          <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
-                          <SelectItem value="CHEQUE">Cheque</SelectItem>
-                          <SelectItem value="MOBILE_BANKING">Mobile Banking</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
                 </div>
               )}
 
