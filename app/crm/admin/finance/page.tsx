@@ -79,6 +79,7 @@ type TransactionCategory = {
 }
 
 const EXPENSE_CATEGORIES: TransactionCategory[] = [
+  { key: "VENDOR_PAYMENT", label: "Vendor Payment", icon: Users },
   { key: "OFFICE_RENT", label: "Office Rent", icon: Building },
   { key: "SALARY", label: "Staff Salary", icon: HandCoins },
   { key: "SALARY_ADVANCE", label: "Salary Advance", icon: HandCoins },
@@ -218,6 +219,16 @@ export default function FinanceDashboard() {
   const [collectedById, setCollectedById] = useState<string | null>(null)
   const [visitTeamMembers, setVisitTeamMembers] = useState<{ id: string; fullName: string }[]>([])
 
+  // Vendor Payment Picker States (for VENDOR_PAYMENT category)
+  const [vendorList, setVendorList] = useState<any[]>([])
+  const [vendorListLoading, setVendorListLoading] = useState(false)
+  const [selectedVendorId, setSelectedVendorId] = useState<string>("")
+  const [vendorAgreements, setVendorAgreements] = useState<any[]>([])
+  const [vendorAgreementsLoading, setVendorAgreementsLoading] = useState(false)
+  const [selectedAgreementId, setSelectedAgreementId] = useState<string>("")
+  const [vendorPaymentMethod, setVendorPaymentMethod] = useState<string>("CASH")
+  const [vendorSearchQuery, setVendorSearchQuery] = useState<string>("")
+
   // Project Picker Dialog States
   const [isProjectPickerOpen, setIsProjectPickerOpen] = useState(false)
   const [financeLeads, setFinanceLeads] = useState<any[]>([])
@@ -332,6 +343,33 @@ export default function FinanceDashboard() {
     }
   }
 
+  const loadVendors = async () => {
+    setVendorListLoading(true)
+    try {
+      const res = await fetch("/api/vendors")
+      const data = await res.json()
+      if (data.success) setVendorList(data.data ?? [])
+    } catch {
+      toast.error("Failed to load vendors")
+    } finally {
+      setVendorListLoading(false)
+    }
+  }
+
+  const loadVendorAgreements = async (vendorId: string) => {
+    if (!vendorId) { setVendorAgreements([]); return }
+    setVendorAgreementsLoading(true)
+    try {
+      const res = await fetch(`/api/vendors/${vendorId}/projects`)
+      const data = await res.json()
+      if (data.success) setVendorAgreements(data.data ?? [])
+    } catch {
+      toast.error("Failed to load vendor agreements")
+    } finally {
+      setVendorAgreementsLoading(false)
+    }
+  }
+
   useEffect(() => {
     void loadJournalData(datePreset, customStart, customEnd)
     void loadVisitTeamMembers()
@@ -389,12 +427,25 @@ export default function FinanceDashboard() {
     setType(nextType)
     setCategory(nextType === "OUTFLOW" ? EXPENSE_CATEGORIES[0].key : INCOME_CATEGORIES[0].key)
     setCategorySearch("")
+    // Reset vendor picker state when switching type
+    setSelectedVendorId("")
+    setVendorAgreements([])
+    setSelectedAgreementId("")
+    setVendorSearchQuery("")
   }
 
   const handleSelectCategory = (nextCategory: string) => {
     setCategory(nextCategory)
     setIsCategoryOpen(false)
     setCategorySearch("")
+    // Load vendors list when VENDOR_PAYMENT is selected
+    if (nextCategory === "VENDOR_PAYMENT") {
+      setSelectedVendorId("")
+      setVendorAgreements([])
+      setSelectedAgreementId("")
+      setVendorSearchQuery("")
+      void loadVendors()
+    }
   }
 
   const handleAddCategory = () => {
@@ -431,6 +482,53 @@ export default function FinanceDashboard() {
 
   const handleCreateTransaction = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // ── Special path: VENDOR_PAYMENT ─────────────────────────────────────────
+    if (category === "VENDOR_PAYMENT") {
+      if (!selectedAgreementId) {
+        toast.error("Please select a vendor project / agreement")
+        return
+      }
+      if (!amount || parseFloat(amount) <= 0) {
+        toast.error("Please enter a valid amount")
+        return
+      }
+      try {
+        setIsUploading(true)
+        const res = await fetch(`/api/vendors/agreements/${selectedAgreementId}/payments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: parseFloat(amount),
+            paymentDate: date,
+            paymentMethod: vendorPaymentMethod,
+            financeAccountId: account || null,
+            note: particular || null,
+          }),
+        })
+        const data = await res.json()
+        if (data.success) {
+          toast.success("Vendor payment recorded & logged!")
+          setIsLogOpen(false)
+          resetForm()
+          setSelectedVendorId("")
+          setVendorAgreements([])
+          setSelectedAgreementId("")
+          setVendorPaymentMethod("CASH")
+          setVendorSearchQuery("")
+          loadData()
+        } else {
+          toast.error(data.error || "Failed to record vendor payment")
+        }
+      } catch (err: any) {
+        toast.error("Error: " + err.message)
+      } finally {
+        setIsUploading(false)
+      }
+      return
+    }
+    // ── Normal path ───────────────────────────────────────────────────────────
+
     if (!particular || !amount) {
       toast.error("Please fill in all required fields")
       return
@@ -530,6 +628,11 @@ export default function FinanceDashboard() {
     setAmount("")
     setImageFile(null)
     setPreviewUrl(null)
+    setSelectedVendorId("")
+    setVendorAgreements([])
+    setSelectedAgreementId("")
+    setVendorPaymentMethod("CASH")
+    setVendorSearchQuery("")
   }
 
   // Client-side search filter only (type/date filters go to the API)
@@ -1148,6 +1251,130 @@ export default function FinanceDashboard() {
                     </Select>
                   </div>
                 </>
+              )}
+
+              {/* ── VENDOR PAYMENT inline picker ─────────────────────── */}
+              {category === "VENDOR_PAYMENT" && (
+                <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                  <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5" /> Vendor Payment
+                  </p>
+
+                  {/* Step 1 — Pick Vendor */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold">1. Select Vendor</label>
+                    {vendorListLoading ? (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading vendors...
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                          <Input
+                            className="pl-8 h-8 text-xs"
+                            placeholder="Search vendor..."
+                            value={vendorSearchQuery}
+                            onChange={(e) => setVendorSearchQuery(e.target.value)}
+                          />
+                        </div>
+                        <Select
+                          value={selectedVendorId}
+                          onValueChange={(v) => {
+                            setSelectedVendorId(v)
+                            setSelectedAgreementId("")
+                            void loadVendorAgreements(v)
+                          }}
+                        >
+                          <SelectTrigger className="h-9 text-xs">
+                            <SelectValue placeholder="Choose a vendor..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {vendorList
+                              .filter((v) =>
+                                !vendorSearchQuery ||
+                                v.vendorName.toLowerCase().includes(vendorSearchQuery.toLowerCase()) ||
+                                (v.vendorCompanyName ?? "").toLowerCase().includes(vendorSearchQuery.toLowerCase()) ||
+                                v.vendorId.toLowerCase().includes(vendorSearchQuery.toLowerCase())
+                              )
+                              .map((v) => (
+                                <SelectItem key={v.id} value={v.id}>
+                                  <span className="font-medium">{v.vendorName}</span>
+                                  {v.vendorCompanyName && (
+                                    <span className="text-muted-foreground ml-1 text-[11px]">— {v.vendorCompanyName}</span>
+                                  )}
+                                  <span className="text-muted-foreground ml-1 text-[11px] font-mono">[{v.vendorId}]</span>
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Step 2 — Pick Project Agreement */}
+                  {selectedVendorId && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">2. Select Project Agreement</label>
+                      {vendorAgreementsLoading ? (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading agreements...
+                        </div>
+                      ) : vendorAgreements.length === 0 ? (
+                        <p className="text-xs text-muted-foreground py-2">No project agreements found for this vendor.</p>
+                      ) : (
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                          {vendorAgreements.map((ag) => (
+                            <button
+                              key={ag.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedAgreementId(ag.id)
+                                setLeadId(ag.lead?.id ?? "none")
+                                if (ag.balance > 0 && !amount) setAmount(String(ag.balance))
+                              }}
+                              className={`w-full text-left rounded-lg border px-3 py-2 text-xs transition-all ${
+                                selectedAgreementId === ag.id
+                                  ? "border-primary bg-primary/5"
+                                  : "border-border hover:border-primary/40 bg-card"
+                              }`}
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="font-semibold text-foreground">{ag.lead?.name ?? "Unknown Project"}</span>
+                                {selectedAgreementId === ag.id && (
+                                  <Badge className="text-[10px] bg-primary text-primary-foreground">Selected</Badge>
+                                )}
+                              </div>
+                              <div className="flex gap-3 mt-1 text-[11px] text-muted-foreground">
+                                <span>Contract: <strong>৳{(ag.agreementValue ?? 0).toLocaleString()}</strong></span>
+                                <span>Paid: <strong className="text-emerald-600">৳{(ag.totalPaid ?? 0).toLocaleString()}</strong></span>
+                                <span>Balance: <strong className="text-amber-600">৳{(ag.balance ?? 0).toLocaleString()}</strong></span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Step 3 — Payment Method */}
+                  {selectedAgreementId && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold">3. Payment Method</label>
+                      <Select value={vendorPaymentMethod} onValueChange={setVendorPaymentMethod}>
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CASH">Cash</SelectItem>
+                          <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                          <SelectItem value="CHEQUE">Cheque</SelectItem>
+                          <SelectItem value="MOBILE_BANKING">Mobile Banking</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
               )}
 
               <div className="grid grid-cols-3 gap-2">
