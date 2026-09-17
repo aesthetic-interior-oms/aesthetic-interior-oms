@@ -139,13 +139,18 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
     }
   }
 
-  // 1. Phone numbers row
-  const phoneStr = "01329694660, 01329694661, 01329694662"
-  drawBadgeIcon(icons.whitePhone, curY - 0.015)
-  doc.text(phoneStr, textX, curY)
+  // 1. Phone numbers — 3 separate lines, badge centered across all 3
+  const phoneLines = ["01329694660", "01329694661", "01329694662"]
+  const phoneLineH = 0.05
+  const phoneTotalH = (phoneLines.length - 1) * phoneLineH
+  const phoneBadgeCenterY = curY - 0.015 + phoneTotalH / 2
+  drawBadgeIcon(icons.whitePhone, phoneBadgeCenterY)
+  phoneLines.forEach((num, i) => {
+    doc.text(num, textX, curY + i * phoneLineH)
+  })
 
-  // 2. Email row (Spacious vertical gap)
-  curY += 0.07
+  // 2. Email row (advance past all 3 phone lines + gap)
+  curY += phoneTotalH + 0.07
   drawBadgeIcon(icons.whiteEmail, curY - 0.015)
   doc.text(emailStr, textX, curY)
 
