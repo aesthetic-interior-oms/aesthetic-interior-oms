@@ -14,6 +14,7 @@ import { toast } from '@/components/ui/sonner'
 import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
 import { buildShortPreviewUrl } from '@/lib/short-quotation-preview-sync'
 import ProjectVendorsTab from '@/components/vendors/project-vendors-tab'
+import { downloadMoneyReceiptPDF } from '@/lib/money-receipt-pdf'
 
 const CATEGORY_LABELS: Record<string, string> = {
   CLIENT_DEPOSIT: 'Client Deposit',
@@ -98,6 +99,22 @@ export default function ProjectDetailPage() {
 
   // Date range filter state
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined)
+
+  const handleDownloadReceipt = (tx: any) => {
+    void downloadMoneyReceiptPDF({
+      receiptNo: tx.voucherNo ? `MR-${tx.voucherNo}` : `MR-${tx.serialNo || tx.id.slice(-6).toUpperCase()}`,
+      voucherNo: tx.voucherNo,
+      serialNo: tx.serialNo,
+      date: tx.date,
+      payerName: report?.lead?.name || tx.particular,
+      payerPhone: report?.lead?.phone || null,
+      payerAddress: report?.lead?.location || null,
+      paymentMethod: tx.category === 'SITE_VISIT_PAYMENT' ? 'CASH' : 'BANK_TRANSFER',
+      referenceNo: tx.voucherNo || (tx.serialNo ? `VCH-${tx.serialNo}` : undefined),
+      purpose: formatCategory(tx.category) || tx.particular,
+      amount: tx.amount,
+    })
+  }
 
   const loadProjectReport = useCallback(async (showLoading = true) => {
     if (!id) return
@@ -1459,6 +1476,7 @@ export default function ProjectDetailPage() {
                       <th className="p-3">Account</th>
                       <th className="p-3">Recorder</th>
                       <th className="p-3 text-center">Image</th>
+                      <th className="p-3 text-center">Receipt</th>
                       <th 
                         className="p-3 text-right text-emerald-600 dark:text-emerald-400 cursor-pointer hover:underline"
                         onClick={() => setModalFilter({ type: 'INFLOW' })}
@@ -1476,7 +1494,7 @@ export default function ProjectDetailPage() {
                   <tbody className="divide-y divide-border">
                     {filteredTransactionsByDate.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                        <td colSpan={9} className="p-8 text-center text-muted-foreground">
                           No transaction logs found for this project in the selected period.
                         </td>
                       </tr>
@@ -1513,6 +1531,22 @@ export default function ProjectDetailPage() {
                               <span className="text-muted-foreground/50">—</span>
                             )}
                           </td>
+                          <td className="p-3 text-xs text-center">
+                            {tx.type === 'INFLOW' ? (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 text-xs gap-1 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                onClick={() => handleDownloadReceipt(tx)}
+                                title="Download Money Receipt"
+                              >
+                                <FileDown className="w-3.5 h-3.5" />
+                                Receipt
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground/50">—</span>
+                            )}
+                          </td>
                           <td className="p-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
                             {tx.type === 'INFLOW' ? `${tx.amount.toLocaleString()} BDT` : '-'}
                           </td>
@@ -1526,14 +1560,14 @@ export default function ProjectDetailPage() {
                   {filteredTransactionsByDate.length > 0 && (
                     <tfoot className="border-t-2 border-border bg-muted/50">
                       <tr className="cursor-pointer hover:bg-muted/80 transition-colors" onClick={() => setModalFilter({ type: 'INFLOW' })}>
-                        <td colSpan={6} className="p-3 font-bold text-sm text-right">Total Inflow</td>
+                        <td colSpan={7} className="p-3 font-bold text-sm text-right">Total Inflow</td>
                         <td className="p-3 text-right font-bold tabular-nums text-emerald-600 dark:text-emerald-400 text-sm">
                           {activeTotalInflow.toLocaleString()} BDT
                         </td>
                         <td className="p-3 text-right text-muted-foreground">-</td>
                       </tr>
                       <tr className="border-t border-border cursor-pointer hover:bg-muted/80 transition-colors" onClick={() => setModalFilter({ type: 'OUTFLOW' })}>
-                        <td colSpan={6} className="p-3 font-bold text-sm text-right">Total Outflow</td>
+                        <td colSpan={7} className="p-3 font-bold text-sm text-right">Total Outflow</td>
                         <td className="p-3 text-right text-muted-foreground">-</td>
                         <td className="p-3 text-right font-bold tabular-nums text-rose-500 text-sm">
                           {activeTotalOutflow.toLocaleString()} BDT
@@ -1541,7 +1575,7 @@ export default function ProjectDetailPage() {
                       </tr>
                       {displayProfit !== null && (
                         <tr className="border-t-2 border-border">
-                          <td colSpan={6} className="p-3 font-bold text-sm text-right">
+                          <td colSpan={7} className="p-3 font-bold text-sm text-right">
                             {displayProfit >= 0 ? 'Total Profit' : 'Total Loss'}
                           </td>
                           <td colSpan={2} className={`p-3 text-right font-bold tabular-nums text-sm ${displayProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>

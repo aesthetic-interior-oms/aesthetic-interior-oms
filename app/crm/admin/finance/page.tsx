@@ -67,6 +67,7 @@ import {
   Trash2,
 } from "lucide-react"
 import { uploadDirectBlobFile } from "@/lib/client-blob-upload"
+import { downloadMoneyReceiptPDF } from "@/lib/money-receipt-pdf"
 
 // Category display mapping
 type TransactionCategoryType = "OUTFLOW" | "INFLOW"
@@ -635,11 +636,35 @@ export default function FinanceDashboard() {
   // Client-side search filter only (type/date filters go to the API)
   const filteredTransactions = transactions.filter((tx) => {
     if (!searchTerm) return true
+    const q = searchTerm.toLowerCase().trim()
+    const vNum = (tx.voucherNo || "").toLowerCase()
+    const sNum = String(tx.serialNo || "")
     return (
-      tx.particular.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (tx.lead?.name || "").toLowerCase().includes(searchTerm.toLowerCase())
+      tx.particular.toLowerCase().includes(q) ||
+      (tx.lead?.name || "").toLowerCase().includes(q) ||
+      vNum.includes(q) ||
+      sNum.includes(q) ||
+      `mr-${vNum}`.includes(q) ||
+      `mr-${sNum}`.includes(q) ||
+      `vch-${sNum}`.includes(q)
     )
   })
+
+  const handleDownloadMoneyReceipt = (tx: any) => {
+    void downloadMoneyReceiptPDF({
+      receiptNo: tx.voucherNo ? `MR-${tx.voucherNo}` : `MR-${tx.serialNo || tx.id.slice(-6).toUpperCase()}`,
+      voucherNo: tx.voucherNo,
+      serialNo: tx.serialNo,
+      date: tx.date,
+      payerName: tx.lead?.name || tx.particular,
+      payerPhone: tx.lead?.phone || null,
+      payerAddress: tx.lead?.location || null,
+      paymentMethod: tx.category === "SITE_VISIT_PAYMENT" ? "CASH" : "BANK_TRANSFER",
+      referenceNo: tx.voucherNo || (tx.serialNo ? `VCH-${tx.serialNo}` : undefined),
+      purpose: CATEGORY_LABELS[tx.category] || tx.particular,
+      amount: tx.amount,
+    })
+  }
 
   const totalInflow = filteredTransactions
     .filter((tx) => tx.type === "INFLOW")
@@ -1760,6 +1785,17 @@ export default function FinanceDashboard() {
                                       <Trash2 className="w-3 h-3" />
                                       {isDeletingThis ? "Deleting..." : "Delete"}
                                     </Button>
+                                    {tx.type === "INFLOW" && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 text-xs gap-1.5 border-emerald-500/50 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                        onClick={(e) => { e.stopPropagation(); handleDownloadMoneyReceipt(tx) }}
+                                      >
+                                        <FileDown className="w-3.5 h-3.5" />
+                                        Money Receipt PDF
+                                      </Button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
