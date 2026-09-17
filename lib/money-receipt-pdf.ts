@@ -81,74 +81,63 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   // ── 1. Top Section: Logo (Left Side) & Company Contact Info (Right Side) ────
   let y = margin + 0.04
 
-  // Left Side: Logo ONLY (Maintaining Exact Real Aspect Ratio)
+  // Left Side: Icon Logo ONLY (No text)
   try {
     const logoImg = new Image()
-    logoImg.src = "/Logo/HeaderLogo.png"
+    logoImg.src = "/android-chrome-512x512.png"
     await new Promise((resolve) => {
       logoImg.onload = resolve
       logoImg.onerror = resolve
     })
-    
-    const nw = logoImg.naturalWidth || logoImg.width || 300
-    const nh = logoImg.naturalHeight || logoImg.height || 100
-    const aspect = nw / nh
-    const maxH = 0.36
-    const maxW = 1.6
-    let logoW = maxH * aspect
-    let logoH = maxH
-    if (logoW > maxW) {
-      logoW = maxW
-      logoH = logoW / aspect
-    }
-
-    doc.addImage(logoImg, "PNG", margin + 0.08, y + 0.01, logoW, logoH)
+    doc.addImage(logoImg, "PNG", margin + 0.08, y + 0.01, 0.38, 0.38)
   } catch {
     // Left Side: Logo ONLY (no text)
   }
 
-  // Right Side: Company Details with Base64 PNG Icons (One phone number per line, 4.5pt)
+  // Company Contact Info: Starts from the same left alignment next to the emblem logo
   const rightX = pageW - margin - 0.08
-  doc.setFont("helvetica", "bold")
-  doc.setFontSize(6.5)
-  doc.setTextColor(30, 41, 59)
-  doc.text("Aesthetic Interior Studio", rightX, y + 0.05, { align: "right" })
+  const headerTextX = margin + 0.52
+  const maxTextW = rightX - headerTextX - 0.07
 
   doc.setFont("helvetica", "normal")
   doc.setFontSize(4.5)
   doc.setTextColor(71, 85, 105)
-  
-  // Phone numbers (one per line, with phone icon)
+
+  let curY = y + 0.04
+
+  // Phone numbers (aligned to the same left column)
   const phone1 = "01329694660"
-  const phone1Width = doc.getTextWidth(phone1)
   if (icons.phone) {
-    doc.addImage(icons.phone, "PNG", rightX - phone1Width - 0.065, y + 0.068, 0.048, 0.048)
+    doc.addImage(icons.phone, "PNG", headerTextX, curY - 0.038, 0.048, 0.048)
   }
-  doc.text(phone1, rightX, y + 0.11, { align: "right" })
-  doc.text("01329694661", rightX, y + 0.16, { align: "right" })
-  doc.text("01329694662", rightX, y + 0.21, { align: "right" })
-  
-  // Email with Base64 PNG icon
+  doc.text(phone1, headerTextX + 0.065, curY)
+  curY += 0.05
+  doc.text("01329694661", headerTextX + 0.065, curY)
+  curY += 0.05
+  doc.text("01329694662", headerTextX + 0.065, curY)
+
+  // Email with Base64 PNG icon (starts from same left alignment)
+  curY += 0.05
   const emailStr = "aestheticinteriorstudio@gmail.com"
-  const emailWidth = doc.getTextWidth(emailStr)
   if (icons.email) {
-    doc.addImage(icons.email, "PNG", rightX - emailWidth - 0.065, y + 0.218, 0.048, 0.048)
+    doc.addImage(icons.email, "PNG", headerTextX, curY - 0.038, 0.048, 0.048)
   }
-  doc.text(emailStr, rightX, y + 0.26, { align: "right" })
-  
-  // Address with Base64 PNG icon
+  doc.text(emailStr, headerTextX + 0.065, curY)
+
+  // Address with Base64 PNG icon (starts from same left alignment, wraps to next line if needed)
+  curY += 0.05
   const addressStr = "3rd floor, 183 East Senpara Parbata, Begum Rokeya Sarani, Mirpur 10, Dhaka"
-  const addressWidth = doc.getTextWidth(addressStr)
   if (icons.location) {
-    doc.addImage(icons.location, "PNG", rightX - addressWidth - 0.065, y + 0.268, 0.048, 0.048)
+    doc.addImage(icons.location, "PNG", headerTextX, curY - 0.038, 0.048, 0.048)
   }
-  doc.text(addressStr, rightX, y + 0.31, { align: "right" })
+  const splitAddress = doc.splitTextToSize(addressStr, maxTextW)
+  doc.text(splitAddress, headerTextX + 0.065, curY)
 
   // Divider Line below Header
-  y = margin + 0.44
+  y = margin + 0.46
   doc.setDrawColor(226, 232, 240)
   doc.setLineWidth(0.006)
-  doc.line(margin + 0.08, y, rightX, y)
+  doc.line(margin + 0.08, y, pageW - margin - 0.08, y)
 
   // ── 2. Sub-Header Row: Receipt No (Left), MONEY RECEIPT (Center), Date (Right) ─────
   y += 0.06
@@ -177,8 +166,8 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.setTextColor(30, 41, 59)
   doc.text(`Date: ${dateFormatted}`, rightX, y + 0.11, { align: "right" })
 
-  // ── 3. Row Spacing & Body Content Lines (Consistent 0.15" Spacing) ─────────────
-  y += 0.24 // Consistent row gap after sub-header
+  // ── 3. Row Spacing & Body Content Lines (Generous Vertical Spacing) ─────────────
+  y += 0.30 // Gap after sub-header row
 
   doc.setFontSize(6.5)
   doc.setTextColor(51, 65, 85)
@@ -192,8 +181,8 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.setDrawColor(226, 232, 240)
   doc.line(margin + 1.1, y + 0.02, rightX, y + 0.02)
 
-  // Row 2: Amount in Words (Consistent 0.15" gap)
-  y += 0.15
+  // Row 2: Amount in Words (Generous 0.18" gap)
+  y += 0.18
   doc.setFont("helvetica", "bold")
   doc.setTextColor(51, 65, 85)
   doc.text("Amount in Words:", margin + 0.08, y)
@@ -203,8 +192,8 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.text(wordsText, margin + 1.1, y)
   doc.line(margin + 1.1, y + 0.02, rightX, y + 0.02)
 
-  // Row 3: Payment Method and its details (Consistent 0.15" gap)
-  y += 0.15
+  // Row 3: Payment Method and its details (Generous 0.18" gap)
+  y += 0.18
   doc.setFont("helvetica", "bold")
   doc.setTextColor(51, 65, 85)
 
@@ -260,8 +249,12 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
     doc.text(data.referenceNo || data.voucherNo || "—", margin + 3.0, y)
   }
 
-  // Row 4: Purpose on Left, Contact No. on Right (Consistent 0.15" gap)
-  y += 0.15
+  // Row 3 Horizontal Line
+  doc.setDrawColor(226, 232, 240)
+  doc.line(margin + 1.1, y + 0.02, rightX, y + 0.02)
+
+  // Row 4: Purpose on Left, Contact No. on Right (Generous 0.18" gap)
+  y += 0.18
   doc.setFont("helvetica", "bold")
   doc.setTextColor(51, 65, 85)
 
@@ -270,6 +263,8 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.setFont("helvetica", "normal")
   doc.setTextColor(15, 23, 42)
   doc.text(data.purpose || "Interior Decoration Services / Project Payment", margin + 0.95, y)
+  doc.setDrawColor(226, 232, 240)
+  doc.line(margin + 0.95, y + 0.02, margin + 3.65, y + 0.02)
 
   // Right: Contact No.
   doc.setFont("helvetica", "bold")
@@ -278,9 +273,11 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.setFont("helvetica", "normal")
   doc.setTextColor(15, 23, 42)
   doc.text(data.payerPhone || "—", margin + 4.5, y)
+  doc.setDrawColor(226, 232, 240)
+  doc.line(margin + 4.5, y + 0.02, rightX, y + 0.02)
 
   // ── 4. Amount Box (Bottom Left) & Signatures (Right) ─────────────────────
-  y += 0.18
+  y += 0.22
 
   // Amount Box (Bottom Left)
   doc.setFillColor(241, 245, 249)
@@ -296,10 +293,10 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   // Signatures
   const sigY = y + 0.18
 
-  // Center-Right Signature: Received By Image
+  // Center-Right Signature: Received By Image (PNG format)
   try {
     const accSigImg = new Image()
-    accSigImg.src = "/signature/Accounts Signature.jpeg"
+    accSigImg.src = "/signature/Accounts_Signature.png"
     await new Promise((resolve) => {
       accSigImg.onload = resolve
       accSigImg.onerror = resolve
@@ -316,7 +313,7 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
       sigH = sigW / aspect
     }
     const sigX = margin + 2.85 - sigW / 2
-    doc.addImage(accSigImg, "JPEG", sigX, sigY - sigH - 0.01, sigW, sigH)
+    doc.addImage(accSigImg, "PNG", sigX, sigY - sigH - 0.01, sigW, sigH)
   } catch (err) {
     console.warn("Accounts signature load failed:", err)
   }
@@ -330,10 +327,10 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
   doc.setTextColor(100, 116, 139)
   doc.text("Received By", margin + 2.85, sigY + 0.08, { align: "center" })
 
-  // Right Signature: Authorized Signature Image
+  // Right Signature: Authorized Signature Image (PNG format)
   try {
     const authSigImg = new Image()
-    authSigImg.src = "/signature/Authorized Signature.jpeg"
+    authSigImg.src = "/signature/Authorized_Signature.png"
     await new Promise((resolve) => {
       authSigImg.onload = resolve
       authSigImg.onerror = resolve
@@ -350,7 +347,7 @@ export async function downloadMoneyReceiptPDF(data: MoneyReceiptData) {
       sigH = sigW / aspect
     }
     const sigX = rightX - 0.7 - sigW / 2
-    doc.addImage(authSigImg, "JPEG", sigX, sigY - sigH - 0.01, sigW, sigH)
+    doc.addImage(authSigImg, "PNG", sigX, sigY - sigH - 0.01, sigW, sigH)
   } catch (err) {
     console.warn("Authorized signature load failed:", err)
   }
