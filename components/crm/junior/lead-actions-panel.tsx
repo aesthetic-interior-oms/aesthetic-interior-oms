@@ -58,6 +58,7 @@ type ScheduledVisitCard = {
   id: string
   scheduledAt: string
   location: string
+  visitType?: string | null
   visitFee?: number | null
   projectSqft?: number | null
   projectStatus?: string | null
@@ -69,6 +70,7 @@ type LeadVisitRecord = {
   id: string
   scheduledAt: string
   status: string
+  visitType?: string | null
   location: string
   visitFee?: number | null
   projectSqft?: number | null
@@ -264,9 +266,11 @@ export function LeadActionsPanel({
   const [selectedQuotationUserId, setSelectedQuotationUserId] = useState('')
   const [visitOpen, setVisitOpen] = useState(false)
   const [visitTeamUsers, setVisitTeamUsers] = useState<VisitTeamUser[]>([])
+  const [sdcUsers, setSdcUsers] = useState<VisitTeamUser[]>([])
   const [visitTeamLoading, setVisitTeamLoading] = useState(false)
   const [visitTeamError, setVisitTeamError] = useState<string | null>(null)
   const [visitTeamUserId, setVisitTeamUserId] = useState('')
+  const [visitType, setVisitType] = useState('INITIAL_VISIT')
   const [seniorCrmUserId, setSeniorCrmUserId] = useState('')
   const [seniorCrmUsers, setSeniorCrmUsers] = useState<VisitTeamUser[]>([])
   const [visitScheduledAt, setVisitScheduledAt] = useState('')
@@ -433,6 +437,11 @@ export function LeadActionsPanel({
   }, [originalStage, originalSubStatus, quotationSubStatusFlow, stage, subStatus])
   const requiresQuotationSelection = stage === 'QUOTATION_PHASE' && subStatus === 'QUOTATION_ASSIGNED'
 
+  // When PARTIAL_WORK_VISIT is selected, only SDC members can be assigned as visit team member
+  const activeVisitMembers = useMemo(
+    () => (visitType === 'PARTIAL_WORK_VISIT' ? sdcUsers : visitTeamUsers),
+    [visitType, sdcUsers, visitTeamUsers],
+  )
 
   const getVisitStatusLabel = (value: string) => {
     if (value === 'SCHEDULED') return 'PENDING'
@@ -547,6 +556,7 @@ export function LeadActionsPanel({
       .then((data) => {
         if (data.success && Array.isArray(data.data?.visitTeamMembers)) {
           setVisitTeamUsers(data.data.visitTeamMembers)
+          setSdcUsers(Array.isArray(data.data?.specialistDesignConsultantsMembers) ? data.data.specialistDesignConsultantsMembers : [])
           setSeniorCrmUsers(Array.isArray(data.data?.seniorCrmMembers) ? data.data.seniorCrmMembers : [])
           setSeniorCrmUserId((current) => current || data.data?.weeklySeniorCrm?.current?.id || '')
           if (!locationTouchedRef.current && !locationPrefilledRef.current && data.data?.defaultLocation) {
@@ -626,6 +636,7 @@ export function LeadActionsPanel({
               id: latestVisit.id,
               scheduledAt: latestVisit.scheduledAt,
               location: latestVisit.location,
+              visitType: latestVisit.visitType ?? null,
               visitFee: latestVisit.visitFee ?? 0,
               projectSqft: latestVisit.projectSqft ?? null,
               projectStatus: latestVisit.projectStatus ?? null,
@@ -1145,6 +1156,7 @@ export function LeadActionsPanel({
           body: JSON.stringify({
             visitTeamUserId,
             seniorCrmUserId: seniorCrmUserId || undefined,
+            visitType,
             scheduledAt: scheduledIso,
             location: visitLocation.trim(),
             visitFee: visitFee.trim() ? Number(visitFee) : 0,
@@ -1167,6 +1179,7 @@ export function LeadActionsPanel({
             id: createdVisit.id,
             scheduledAt: createdVisit.scheduledAt,
             location: createdVisit.location,
+            visitType: createdVisit.visitType ?? visitType,
             visitFee: createdVisit.visitFee ?? 0,
             projectSqft: createdVisit.projectSqft ?? null,
             projectStatus: createdVisit.projectStatus ?? null,
@@ -1300,6 +1313,7 @@ export function LeadActionsPanel({
         body: JSON.stringify({
           visitTeamUserId,
           seniorCrmUserId: seniorCrmUserId || undefined,
+          visitType,
           scheduledAt: scheduledIso,
           location: visitLocation.trim(),
           visitFee: visitFee.trim() ? Number(visitFee) : 0,
@@ -1335,6 +1349,7 @@ export function LeadActionsPanel({
           id: createdVisit.id,
           scheduledAt: createdVisit.scheduledAt,
           location: createdVisit.location,
+          visitType: createdVisit.visitType ?? visitType,
           visitFee: createdVisit.visitFee ?? 0,
           projectSqft: createdVisit.projectSqft ?? null,
           projectStatus: createdVisit.projectStatus ?? null,
@@ -2001,21 +2016,23 @@ export function LeadActionsPanel({
                       <Select
                         value={visitTeamUserId}
                         onValueChange={setVisitTeamUserId}
-                        disabled={visitTeamLoading || visitTeamUsers.length === 0}
+                        disabled={visitTeamLoading || activeVisitMembers.length === 0}
                       >
                         <SelectTrigger>
                           <SelectValue
                             placeholder={
                               visitTeamLoading
                                 ? 'Loading team...'
-                                : visitTeamUsers.length === 0
-                                  ? 'No visit team members'
+                                : activeVisitMembers.length === 0
+                                  ? visitType === 'PARTIAL_WORK_VISIT'
+                                    ? 'No SDC members available'
+                                    : 'No visit team members'
                                   : 'Select member'
                             }
                           />
                         </SelectTrigger>
                         <SelectContent>
-                          {visitTeamUsers.map((user) => (
+                          {activeVisitMembers.map((user) => (
                             <SelectItem key={user.id} value={user.id}>
                               {user.fullName} ({user.email})
                             </SelectItem>
@@ -2986,25 +3003,44 @@ export function LeadActionsPanel({
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Visit team member</Label>
+              <Label>Visit Type</Label>
+              <Select value={visitType} onValueChange={(val) => { setVisitType(val); setVisitTeamUserId('') }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select visit type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="INITIAL_VISIT">Initial Visit</SelectItem>
+                  <SelectItem value="MEP_VISIT">MEP Visit</SelectItem>
+                  <SelectItem value="PARTIAL_WORK_VISIT">Partial Work Visit</SelectItem>
+                  <SelectItem value="SECONDARY_VISIT">Secondary Visit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>
+                {visitType === 'PARTIAL_WORK_VISIT' ? 'Specialist Design Consultant' : 'Visit team member'}
+              </Label>
               <Select
                 value={visitTeamUserId}
                 onValueChange={setVisitTeamUserId}
-                disabled={visitTeamLoading || visitTeamUsers.length === 0}
+                disabled={visitTeamLoading || activeVisitMembers.length === 0}
               >
                 <SelectTrigger>
                   <SelectValue
                     placeholder={
                       visitTeamLoading
                         ? 'Loading team...'
-                        : visitTeamUsers.length === 0
-                          ? 'No visit team members'
+                        : activeVisitMembers.length === 0
+                          ? visitType === 'PARTIAL_WORK_VISIT'
+                            ? 'No SDC members available'
+                            : 'No visit team members'
                           : 'Select member'
                     }
                   />
                 </SelectTrigger>
                 <SelectContent>
-                  {visitTeamUsers.map((user) => (
+                  {activeVisitMembers.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.fullName} ({user.email})
                     </SelectItem>

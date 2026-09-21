@@ -34,6 +34,7 @@ type CreateLeadPayload = {
   scheduleVisit?: boolean
   visit?: {
     visitTeamUserId?: string
+    visitType?: string
     scheduledAt?: string
     notes?: string
     visitFee?: number
@@ -79,6 +80,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
   const [scheduleVisit, setScheduleVisit] = useState(false)
   const [visitForm, setVisitForm] = useState({
     visitTeamUserId: '',
+    visitType: 'INITIAL_VISIT',
     scheduledAt: '',
     notes: '',
     visitFee: '',
@@ -87,6 +89,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
     seniorCrmUserId: '',
   })
   const [visitTeamUsers, setVisitTeamUsers] = useState<JrCrmUser[]>([])
+  const [sdcUsers, setSdcUsers] = useState<JrCrmUser[]>([])
   const [srCrmUsers, setSrCrmUsers] = useState<JrCrmUser[]>([])
   const [visitLoading, setVisitLoading] = useState(false)
   const [visitError, setVisitError] = useState<string | null>(null)
@@ -157,16 +160,18 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
         if (active) setJrCrmLoading(false)
       })
 
-    // also fetch visit team and sr crm users lazily
+    // also fetch visit team, sr crm, and SDC users lazily
     ;(async () => {
       try {
         setVisitLoading(true)
-        const [vtRes, srRes] = await Promise.all([
+        const [vtRes, srRes, sdcRes] = await Promise.all([
           fetch('/api/department/available/VISIT_TEAM').then((r) => r.json()),
           fetch('/api/department/available/SR_CRM').then((r) => r.json()),
+          fetch('/api/department/available/SPECIALIST_DESIGN_CONSULTANTS').then((r) => r.json()),
         ])
         if (vtRes?.success && Array.isArray(vtRes.users)) setVisitTeamUsers(vtRes.users)
         if (srRes?.success && Array.isArray(srRes.users)) setSrCrmUsers(srRes.users)
+        if (sdcRes?.success && Array.isArray(sdcRes.users)) setSdcUsers(sdcRes.users)
       } catch (err) {
         console.error('Error loading visit team users:', err)
         setVisitError('Failed to load visit team users')
@@ -224,6 +229,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
       }
       payload.visit = {
         visitTeamUserId: visitForm.visitTeamUserId || undefined,
+        visitType: visitForm.visitType || 'INITIAL_VISIT',
         scheduledAt: visitForm.scheduledAt || undefined,
         notes: visitForm.notes || undefined,
         visitFee: visitForm.visitFee ? Number(visitForm.visitFee) : undefined,
@@ -265,7 +271,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
         jrCrmUserId: currentUserId && isJuniorCrm && !isAdmin ? currentUserId : '',
       })
       setScheduleVisit(false)
-      setVisitForm({ visitTeamUserId: '', scheduledAt: '', notes: '', visitFee: '', projectSqft: '', projectStatus: '', seniorCrmUserId: '' })
+      setVisitForm({ visitTeamUserId: '', visitType: 'INITIAL_VISIT', scheduledAt: '', notes: '', visitFee: '', projectSqft: '', projectStatus: '', seniorCrmUserId: '' })
       if (onCreated) onCreated()
     } else {
       setError(data.error || 'Failed to create lead')
@@ -436,7 +442,27 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
               )}
 
               <div className="space-y-2">
-                <label htmlFor="visitTeamUserId" className="text-sm font-medium text-foreground">Visit Team</label>
+                <label htmlFor="visitType" className="text-sm font-medium text-foreground">Visit Type *</label>
+                <select
+                  id="visitType"
+                  name="visitType"
+                  value={visitForm.visitType}
+                  onChange={(e) => {
+                    setVisitForm({ ...visitForm, visitType: e.target.value, visitTeamUserId: '' })
+                  }}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md bg-background text-foreground text-sm"
+                >
+                  <option value="INITIAL_VISIT">Initial Visit</option>
+                  <option value="MEP_VISIT">MEP Visit</option>
+                  <option value="PARTIAL_WORK_VISIT">Partial Work Visit</option>
+                  <option value="SECONDARY_VISIT">Secondary Visit</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="visitTeamUserId" className="text-sm font-medium text-foreground">
+                  {visitForm.visitType === 'PARTIAL_WORK_VISIT' ? 'Specialist Design Consultant' : 'Visit Team'}
+                </label>
                 <select
                   id="visitTeamUserId"
                   name="visitTeamUserId"
@@ -445,8 +471,12 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
                   disabled={visitLoading}
                   className="w-full px-3 py-2 border border-gray-200 rounded-md bg-background text-foreground text-sm"
                 >
-                  <option value="">Select visit team member</option>
-                  {visitTeamUsers.map((u) => (
+                  <option value="">
+                    {visitForm.visitType === 'PARTIAL_WORK_VISIT'
+                      ? 'Select SDC member'
+                      : 'Select visit team member'}
+                  </option>
+                  {(visitForm.visitType === 'PARTIAL_WORK_VISIT' ? sdcUsers : visitTeamUsers).map((u) => (
                     <option key={u.id} value={u.id}>{u.fullName} ({u.email})</option>
                   ))}
                 </select>

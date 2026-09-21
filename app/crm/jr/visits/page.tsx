@@ -65,6 +65,7 @@ import {
   clientMoodOptions,
   clientPersonalityOptions,
   clientPotentialityOptions,
+  formatVisitTypeLabel,
   projectTypeOptions,
   stylePreferenceOptions,
   urgencyOptions,
@@ -75,6 +76,7 @@ type VisitRecord = {
   leadId: string
   scheduledAt: string
   location: string
+  visitType?: string | null
   visitFee: number | null
   feeIsPaid?: boolean
   feeIsPartiallyPaid?: boolean

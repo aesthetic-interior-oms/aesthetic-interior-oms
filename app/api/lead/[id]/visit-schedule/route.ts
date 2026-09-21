@@ -6,6 +6,7 @@ import {
   LeadStage,
   NotificationType,
   ProjectStatus,
+  VisitType,
 } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
 import {
@@ -24,6 +25,7 @@ type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 type ScheduleVisitBody = {
   visitTeamUserId?: unknown;
   seniorCrmUserId?: unknown;
+  visitType?: unknown;
   scheduledAt?: unknown;
   location?: unknown;
   notes?: unknown;
@@ -32,6 +34,14 @@ type ScheduleVisitBody = {
   projectStatus?: unknown;
   visitFee?: unknown;
 };
+
+function toVisitType(value: unknown): VisitType {
+  if (typeof value !== 'string') return VisitType.INITIAL_VISIT;
+  const normalized = value.trim().toUpperCase();
+  return Object.values(VisitType).includes(normalized as VisitType)
+    ? (normalized as VisitType)
+    : VisitType.INITIAL_VISIT;
+}
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
   const resolvedParams = await context.params;
@@ -93,14 +103,17 @@ async function validateVisitAssignee(userId: string) {
   }
 
   const isAllowedDepartment = visitAssignee.userDepartments.some(
-    ({ department }) => department.name === 'VISIT_TEAM' || department.name === 'SR_CRM'
+    ({ department }) =>
+      department.name === 'VISIT_TEAM' ||
+      department.name === 'SR_CRM' ||
+      department.name === 'SPECIALIST_DESIGN_CONSULTANTS'
   );
 
   if (!isAllowedDepartment) {
     return {
       ok: false as const,
       response: NextResponse.json(
-        { success: false, error: 'User must be mapped to VISIT_TEAM or SR_CRM department' },
+        { success: false, error: 'User must be mapped to VISIT_TEAM, SR_CRM, or SPECIALIST_DESIGN_CONSULTANTS department' },
         { status: 400 }
       ),
     };
@@ -121,7 +134,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       return NextResponse.json({ success: false, error: 'Invalid lead id' }, { status: 400 });
     }
 
-    const [lead, visitTeamDepartment, srCrmDepartment] = await Promise.all([
+    const [lead, visitTeamDepartment, srCrmDepartment, sdcDepartment] = await Promise.all([
       prisma.lead.findUnique({
         where: { id: leadId },
         select: { id: true, name: true, location: true, stage: true },
@@ -174,6 +187,30 @@ export async function GET(_request: NextRequest, context: RouteContext) {
           },
         },
       }),
+      prisma.department.findUnique({
+        where: { name: 'SPECIALIST_DESIGN_CONSULTANTS' },
+        select: {
+          id: true,
+          name: true,
+          userDepartments: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  email: true,
+                  phone: true,
+                },
+              },
+            },
+            orderBy: {
+              user: {
+                fullName: 'asc',
+              },
+            },
+          },
+        },
+      }),
     ]);
 
     if (!lead) {
@@ -182,6 +219,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
     const visitMembers = (visitTeamDepartment?.userDepartments ?? []).map((row) => row.user);
     const srMembers = (srCrmDepartment?.userDepartments ?? []).map((row) => row.user);
+    const sdcMembers = (sdcDepartment?.userDepartments ?? []).map((row) => row.user);
     const uniqueById = new Map<string, (typeof visitMembers)[number]>();
     for (const member of [...visitMembers, ...srMembers]) {
       if (!uniqueById.has(member.id)) {
@@ -199,6 +237,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         visitTeamMembers: members,
         visitAssigneeMembers: members,
         seniorCrmMembers: srMembers,
+        specialistDesignConsultantsMembers: sdcMembers,
         weeklySeniorCrm: weekly,
       },
     });
@@ -231,6 +270,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     // console.log('[POST] Request body received:', JSON.stringify(body, null, 2));
     const visitTeamUserId = toOptionalString(body.visitTeamUserId);
     const seniorCrmUserId = toOptionalString(body.seniorCrmUserId);
+    const visitType = toVisitType(body.visitType);
     const notes = toOptionalString(body.notes);
     const reason = toOptionalString(body.reason) ?? 'Visit has been scheduled.';
     const projectSqft = toOptionalNumber(body.projectSqft);
@@ -358,6 +398,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           assignedToId: visitTeamUserId,
           createdById: actorUserId,
           scheduledAt: parsedScheduledAt,
+          visitType,
           visitFee: visitFee ?? 0,
           projectSqft,
           projectStatus,

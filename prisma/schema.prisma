@@ -347,12 +347,20 @@ model CadWorkSubmissionFile {
   @@index([cadFileType])
 }
 
+enum VisitType {
+  INITIAL_VISIT
+  MEP_VISIT
+  PARTIAL_WORK_VISIT
+  SECONDARY_VISIT
+}
+
 model Visit {
   id                 String                   @id @default(cuid())
   leadId             String
   assignedToId       String?
   scheduledAt        DateTime
   status             VisitStatus              @default(SCHEDULED)
+  visitType          VisitType                @default(INITIAL_VISIT)
   location           String
   notes              String?
   createdById        String

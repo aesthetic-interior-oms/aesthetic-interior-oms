@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireDatabaseRoles } from '@/lib/authz';
-import { LeadAssignmentDepartment, VisitStatus } from '@/generated/prisma/client';
+import { LeadAssignmentDepartment, VisitStatus, VisitType } from '@/generated/prisma/client';
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles';
 import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles';
 
@@ -77,6 +77,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const visitTypeParam = toOptionalString(request.nextUrl.searchParams.get('visitType'));
+
     if (statusParam && !status) {
       return NextResponse.json({ success: false, error: 'Invalid visit status filter' }, { status: 400 });
     }
@@ -117,6 +119,9 @@ export async function GET(request: NextRequest) {
                     ],
                   }),
         ...(status ? { status } : {}),
+        ...(visitTypeParam && Object.values(VisitType).includes(visitTypeParam as VisitType)
+          ? { visitType: visitTypeParam as VisitType }
+          : {}),
       },
       select: {
         id: true,
@@ -125,6 +130,7 @@ export async function GET(request: NextRequest) {
         scheduledAt: true,
         visitFee: true,
         status: true,
+        visitType: true,
         projectSqft: true,
         projectStatus: true,
         location: true,

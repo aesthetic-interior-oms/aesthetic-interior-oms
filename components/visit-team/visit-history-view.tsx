@@ -26,12 +26,15 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
+import { formatVisitTypeLabel } from '@/lib/visit-result-options'
+
 type VisitStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'RESCHEDULED'
 
 type VisitRecord = {
   id: string
   scheduledAt: string
   location: string
+  visitType?: string | null
   notes: string | null
   status: VisitStatus
   projectSqft?: number | null
@@ -196,6 +199,9 @@ function VisitRecordCard({
             <div className="min-w-0 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="truncate text-base font-semibold text-foreground">{visit.lead.name}</p>
+                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                  {formatVisitTypeLabel(visit.visitType)}
+                </Badge>
                 <Badge variant="outline" className={getStatusBadgeClass(visit.status)}>
                   {formatVisitStatusLabel(visit.status)}
                 </Badge>

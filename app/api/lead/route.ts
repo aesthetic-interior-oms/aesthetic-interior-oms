@@ -8,6 +8,7 @@ import {
   ActivityType,
   NotificationType,
   ProjectStatus,
+  VisitType,
   Prisma,
 } from '@/generated/prisma/client';
 import { NextRequest, NextResponse } from 'next/server';
@@ -154,6 +155,7 @@ type CreateLeadBody = {
 type CreateLeadVisitBody = {
   visitTeamUserId?: unknown;
   seniorCrmUserId?: unknown;
+  visitType?: unknown;
   notes?: unknown;
   reason?: unknown;
   projectSqft?: unknown;
@@ -162,6 +164,14 @@ type CreateLeadVisitBody = {
   scheduledAt?: unknown;
   location?: unknown;
 };
+
+function toVisitType(value: unknown): VisitType {
+  if (typeof value !== 'string') return VisitType.INITIAL_VISIT;
+  const normalized = value.trim().toUpperCase();
+  return Object.values(VisitType).includes(normalized as VisitType)
+    ? (normalized as VisitType)
+    : VisitType.INITIAL_VISIT;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -812,6 +822,7 @@ export async function POST(request: NextRequest) {
           const visitBody: CreateLeadVisitBody = isRecord(body.visit) ? body.visit : {};
           const visitTeamUserId = toOptionalString(visitBody.visitTeamUserId);
           const seniorCrmUserId = toOptionalString(visitBody.seniorCrmUserId);
+          const visitType = toVisitType(visitBody.visitType);
           const notes = toOptionalString(visitBody.notes);
           const reason = toOptionalString(visitBody.reason) ?? 'Visit has been scheduled.';
           const projectSqft = toOptionalNumber(visitBody.projectSqft);
@@ -883,6 +894,7 @@ export async function POST(request: NextRequest) {
               assignedToId: visitTeamUserId,
               createdById: authResult.actorUserId,
               scheduledAt: parsedScheduledAt,
+              visitType,
               visitFee: visitFee ?? 0,
               projectSqft,
               projectStatus,

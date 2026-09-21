@@ -70,3 +70,17 @@ export const stylePreferenceOptions: VisitResultOption[] = [
   { value: 'MINIMALIST', label: 'Minimalist' },
   { value: 'LUXURY', label: 'Luxury' },
 ]
+
+export const visitTypeOptions: VisitResultOption[] = [
+  { value: 'INITIAL_VISIT', label: 'Initial Visit', description: 'First site inspection visit' },
+  { value: 'MEP_VISIT', label: 'MEP Visit', description: 'Mechanical, Electrical & Plumbing assessment visit' },
+  { value: 'PARTIAL_WORK_VISIT', label: 'Partial Work Visit', description: 'Inspection for partial or phase-wise work' },
+  { value: 'SECONDARY_VISIT', label: 'Secondary Visit', description: 'Follow-up or secondary site visit' },
+]
+
+export function formatVisitTypeLabel(type?: string | null): string {
+  if (!type) return 'Initial Visit'
+  const match = visitTypeOptions.find((opt) => opt.value === type)
+  if (match) return match.label
+  return type.replace(/_/g, ' ')
+}

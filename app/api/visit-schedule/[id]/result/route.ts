@@ -731,6 +731,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
             select: {
               id: true,
               status: true,
+              visitType: true,
               leadId: true,
             },
           },
