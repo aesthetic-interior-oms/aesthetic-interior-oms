@@ -846,16 +846,30 @@ export function DetailQuotationDocument({
 
         <View style={{ marginTop: 10 }}>
           {content.notes ? (
-            <View>
+            <View style={{ marginBottom: 8 }}>
               <Text style={styles.termTitle}>Notes</Text>
-              <Text style={styles.termContent}>{content.notes}</Text>
+              {content.notes
+                .split('\n')
+                .filter((line) => line.trim().length > 0)
+                .map((line, index) => (
+                  <Text key={index} style={[styles.termContent, { marginTop: index > 0 ? 2 : 0 }]}>
+                    {softWrapPdfText(line.trim())}
+                  </Text>
+                ))}
             </View>
           ) : null}
 
           {content.terms ? (
-            <View>
+            <View style={{ marginBottom: 8 }}>
               <Text style={styles.termTitle}>Terms &amp; Conditions</Text>
-              <Text style={styles.termContent}>{content.terms}</Text>
+              {content.terms
+                .split('\n')
+                .filter((line) => line.trim().length > 0)
+                .map((line, index) => (
+                  <Text key={index} style={[styles.termContent, { marginTop: index > 0 ? 2 : 0 }]}>
+                    {softWrapPdfText(line.trim())}
+                  </Text>
+                ))}
             </View>
           ) : null}
 
@@ -864,7 +878,14 @@ export function DetailQuotationDocument({
               {content.paymentTerms ? (
                 <View>
                   <Text style={styles.termTitle}>Mode of Payment</Text>
-                  <Text style={styles.termContent}>{content.paymentTerms}</Text>
+                  {content.paymentTerms
+                    .split('\n')
+                    .filter((line) => line.trim().length > 0)
+                    .map((line, index) => (
+                      <Text key={index} style={[styles.termContent, { marginTop: index > 0 ? 2 : 0 }]}>
+                        {softWrapPdfText(line.trim())}
+                      </Text>
+                    ))}
                 </View>
               ) : null}
             </View>
@@ -872,7 +893,14 @@ export function DetailQuotationDocument({
               {content.durationNotes ? (
                 <View>
                   <Text style={styles.termTitle}>Duration of Work</Text>
-                  <Text style={styles.termContent}>{content.durationNotes}</Text>
+                  {content.durationNotes
+                    .split('\n')
+                    .filter((line) => line.trim().length > 0)
+                    .map((line, index) => (
+                      <Text key={index} style={[styles.termContent, { marginTop: index > 0 ? 2 : 0 }]}>
+                        {softWrapPdfText(line.trim())}
+                      </Text>
+                    ))}
                 </View>
               ) : null}
             </View>
@@ -880,12 +908,12 @@ export function DetailQuotationDocument({
 
           {content.drawingDesign ? (
             <Text style={[styles.termContent, { color: '#d32f2f', fontWeight: 'bold', marginTop: 10 }]}>
-              {content.drawingDesign}
+              {softWrapPdfText(content.drawingDesign)}
             </Text>
           ) : null}
         </View>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 60 }}>
+        <View wrap={false} style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 30 }}>
           <View>
             <View style={styles.sigLine} />
             <Text style={[styles.metaText, styles.bold, { marginTop: 4 }]}>Customer Approval</Text>

@@ -412,7 +412,7 @@ export function DetailQuotationPreview({
       ))}
 
       {/* ── TERMS PAGE ───────────────────────────────── */}
-      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-[7px] pt-6 pb-14 box-border shadow-md flex flex-col overflow-hidden">
+      <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] h-auto px-[7px] pt-6 pb-14 box-border shadow-md flex flex-col">
         <WatermarkBackground />
         <PageHeader
           date={normalized.quotationDate ?? ''}

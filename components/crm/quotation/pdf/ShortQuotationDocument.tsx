@@ -297,10 +297,12 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
                 <View style={{ marginBottom: 10 }}>
                   <Text style={styles.sectionTitle}>Notes</Text>
                   {content.footerNotes.map((note, index) => (
-                    <Text key={index} style={{ fontSize: 9, marginTop: 4 }}>
-                      <Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>
-                      {softWrapPdfText(note)}
-                    </Text>
+                    <View key={index} style={{ marginTop: 4 }}>
+                      <Text style={{ fontSize: 9, lineHeight: 1.4, color: '#333' }}>
+                        <Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>
+                        {softWrapPdfText(note)}
+                      </Text>
+                    </View>
                   ))}
                 </View>
               </View>
