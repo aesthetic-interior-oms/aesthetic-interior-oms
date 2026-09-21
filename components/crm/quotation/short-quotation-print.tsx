@@ -127,6 +127,32 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
           <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>{formatCurrency(summary.grandTotal)}</span>
         </div>
         <p className="mt-2 text-left text-[8px] font-bold text-neutral-900">In Words: <span>{amountInWordsTaka(summary.grandTotal)}</span></p>
+
+        {content.terms ? (
+          <div className="mt-4">
+            <SectionTitle>Terms & Conditions</SectionTitle>
+            <div className="mt-2 space-y-1.5 text-[9px] text-neutral-700 leading-relaxed">
+              {content.terms
+                .split('\n')
+                .filter((l) => l.trim())
+                .map((line, index) => {
+                  const colonIndex = line.indexOf(':')
+                  let header = ''
+                  let body = line.trim()
+                  if (colonIndex > 0) {
+                    header = line.slice(0, colonIndex + 1).trim()
+                    body = line.slice(colonIndex + 1).trim()
+                  }
+                  return (
+                    <p key={index}>
+                      {header ? <span className="font-bold" style={{ color: PRIMARY }}>{header} </span> : null}
+                      {body}
+                    </p>
+                  )
+                })}
+            </div>
+          </div>
+        ) : null}
         <div className="absolute bottom-6 left-10 right-10"><PageFooter content={content} /></div>
       </section>
 
@@ -170,52 +196,22 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
         </section>
       ))}
 
-      {content.footerNotes.length > 0 || Boolean(content.terms) ? (
+      {content.footerNotes.length > 0 ? (
         <section className="relative bg-white mx-auto w-[210mm] min-h-[297mm] px-10 pt-8 pb-20 box-border shadow-md print:shadow-none print:m-0 break-after-page flex flex-col">
           <PageHeader content={content} />
 
           <div className="mt-5 space-y-4">
-            {content.footerNotes.length > 0 ? (
-              <div>
-                <SectionTitle>Notes</SectionTitle>
-                <div className="mt-2 space-y-1.5 text-[9px] text-neutral-600">
-                  {content.footerNotes.map((note, index) => {
-                    const cleanNote = note.replace(/^\d+\.\s*/, '').trim()
-                    return (
-                      <p key={index}>
-                        <span className="font-bold" style={{ color: PRIMARY }}>{index + 1}.</span> {cleanNote}
-                      </p>
-                    )
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            {content.terms ? (
-              <div>
-                <SectionTitle>Terms & Conditions</SectionTitle>
-                <div className="mt-2 space-y-2 text-[9px] text-neutral-700 leading-relaxed">
-                  {content.terms
-                    .split('\n')
-                    .filter((l) => l.trim())
-                    .map((line, index) => {
-                      const colonIndex = line.indexOf(':')
-                      let header = ''
-                      let body = line.trim()
-                      if (colonIndex > 0) {
-                        header = line.slice(0, colonIndex + 1).trim()
-                        body = line.slice(colonIndex + 1).trim()
-                      }
-                      return (
-                        <p key={index}>
-                          {header ? <span className="font-bold" style={{ color: PRIMARY }}>{header} </span> : null}
-                          {body}
-                        </p>
-                      )
-                    })}
-                </div>
-              </div>
-            ) : null}
+            <SectionTitle>Notes</SectionTitle>
+            <div className="mt-2 space-y-1.5 text-[9px] text-neutral-600">
+              {content.footerNotes.map((note, index) => {
+                const cleanNote = note.replace(/^\d+\.\s*/, '').trim()
+                return (
+                  <p key={index}>
+                    <span className="font-bold" style={{ color: PRIMARY }}>{index + 1}.</span> {cleanNote}
+                  </p>
+                )
+              })}
+            </div>
           </div>
 
           <div className="absolute bottom-6 left-10 right-10"><PageFooter content={content} /></div>
