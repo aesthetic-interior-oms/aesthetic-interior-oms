@@ -4,7 +4,11 @@ import prisma from '@/lib/prisma'
 import { getMonthlyVisitTeamPerformance } from '@/lib/visit-performance'
 import { normalizeMonthKey } from '@/lib/quotation-performance'
 
-const VISIT_DASHBOARD_DEPARTMENTS = new Set(['ADMIN', 'VISIT_TEAM'])
+const VISIT_DASHBOARD_DEPARTMENTS = new Set([
+  'ADMIN',
+  'VISIT_TEAM',
+  'SPECIALIST_DESIGN_CONSULTANTS',
+])
 
 export async function GET(request: NextRequest) {
   try {

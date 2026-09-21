@@ -6,6 +6,7 @@ export const STANDARD_DEPARTMENTS = [
   { name: 'JR_CRM', description: 'Junior CRM department' },
   { name: 'QUOTATION', description: 'Quotation department' },
   { name: 'VISIT_TEAM', description: 'Visit team department' },
+  { name: 'SPECIALIST_DESIGN_CONSULTANTS', description: 'Specialist Design Consultants department (partial visit team)' },
   { name: 'JR_ARCHITECT', description: 'Junior Architect department' },
   { name: 'VISUALIZER_3D', description: '3D Visualizer department' },
   { name: 'ACCOUNTS', description: 'Accounts and finance department' },

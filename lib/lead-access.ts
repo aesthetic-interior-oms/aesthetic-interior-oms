@@ -30,7 +30,9 @@ export function buildScopedLeadWhere(input: {
 }): Prisma.LeadWhereInput {
   const scopedDepartments = scopedAssignmentDepartments(input.actorDepartments)
   const isAdmin = input.actorDepartments.includes('ADMIN')
-  const isVisitTeam = input.actorDepartments.includes('VISIT_TEAM')
+  const isVisitTeam =
+    input.actorDepartments.includes('VISIT_TEAM') ||
+    input.actorDepartments.includes('SPECIALIST_DESIGN_CONSULTANTS')
   const isJrArchitectLeader =
     input.actorDepartments.includes('JR_ARCHITECT') &&
     hasJrArchitectureLeadershipRole(input.actorRoles)

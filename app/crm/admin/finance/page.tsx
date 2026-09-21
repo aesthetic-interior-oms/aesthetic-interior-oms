@@ -65,6 +65,7 @@ import {
   FileDown,
   Pencil,
   Trash2,
+  Warehouse,
 } from "lucide-react"
 import { uploadDirectBlobFile } from "@/lib/client-blob-upload"
 import { downloadMoneyReceiptPDF } from "@/lib/money-receipt-pdf"
@@ -878,6 +879,11 @@ export default function FinanceDashboard() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Link href="/crm/admin/finance/stock" prefetch={false}>
+            <Button size="lg" variant="outline" className="gap-2">
+              <Warehouse className="w-5 h-5 text-emerald-600" /> Stock & Office Goods
+            </Button>
+          </Link>
           <Link href="/crm/admin/finance/vendors" prefetch={false}>
             <Button size="lg" variant="outline" className="gap-2">
               <Users className="w-5 h-5 text-primary" /> Vendor AP Dashboard

@@ -301,6 +301,50 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
+  'Specialist Design Consultants': [
+    {
+      id: 'sdc-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        { icon: Home, label: 'Dashboard', href: '/visit-team/visit-dashboard' },
+      ],
+    },
+    {
+      id: 'sdc-workflow',
+      label: 'Visits',
+      defaultOpen: true,
+      items: [
+        {
+          icon: ClipboardList,
+          label: 'Partial Visits',
+          href: '/visit-team/supported-visits',
+        },
+      ],
+    },
+  ],
+  'SPECIALIST_DESIGN_CONSULTANTS': [
+    {
+      id: 'sdc-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        { icon: Home, label: 'Dashboard', href: '/visit-team/visit-dashboard' },
+      ],
+    },
+    {
+      id: 'sdc-workflow',
+      label: 'Visits',
+      defaultOpen: true,
+      items: [
+        {
+          icon: ClipboardList,
+          label: 'Partial Visits',
+          href: '/visit-team/supported-visits',
+        },
+      ],
+    },
+  ],
   'Jr Architect': [
     {
       id: 'jr-arch-overview',
@@ -557,9 +601,15 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
   // true for any route that lives under /visits
   const isVisits = pathname.startsWith('/visit-team')
 
+  const isSpecialistDesignConsultants =
+    role === 'Specialist Design Consultants' ||
+    role === 'SPECIALIST_DESIGN_CONSULTANTS'
+
   const groups = useMemo(() => {
     const baseGroups = isVisits
-      ? navigationGroups['Visit Team']
+      ? isSpecialistDesignConsultants
+        ? navigationGroups['Specialist Design Consultants']
+        : navigationGroups['Visit Team']
       : navigationGroups[role as keyof typeof navigationGroups] || []
 
     if (!isVisits) {

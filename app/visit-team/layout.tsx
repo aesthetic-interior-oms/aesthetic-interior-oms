@@ -48,11 +48,15 @@ export default async function VisitsLayout({
 
   const isVisitAllowed =
     departmentNames.has("VISIT_TEAM") ||
+    departmentNames.has("SPECIALIST_DESIGN_CONSULTANTS") ||
     departmentNames.has("ADMIN") ||
     departmentNames.has("PROJECT_COORDINATOR");
 
   if (isVisitAllowed) {
-    return <MainLayout role="Visit Team">{children}</MainLayout>;
+    const role = departmentNames.has("SPECIALIST_DESIGN_CONSULTANTS") && !departmentNames.has("VISIT_TEAM")
+      ? "Specialist Design Consultants"
+      : "Visit Team";
+    return <MainLayout role={role}>{children}</MainLayout>;
   }
 
   if (departmentNames.has("PROJECT_COORDINATOR")) {

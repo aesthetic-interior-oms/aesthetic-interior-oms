@@ -34,6 +34,7 @@ const DEPARTMENT_ROUTES: Record<string, string> = {
   QUOTATION_TEAM: "/quotation-team/dashboard",
   SR_CRM: "/crm/sr/dashboard",
   VISIT_TEAM: "/visit-team/visit-dashboard",
+  SPECIALIST_DESIGN_CONSULTANTS: "/visit-team/visit-dashboard",
   FINANCE: "/crm/admin/finance",
   ACCOUNTS: "/crm/admin/finance",
   PROJECT_COORDINATOR: "/crm/pc/dashboard",

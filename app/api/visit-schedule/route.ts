@@ -43,7 +43,9 @@ export async function GET(request: NextRequest) {
       (actor?.userDepartments ?? []).map((row) => row.department.name),
     );
     const isAdmin = departmentNames.has('ADMIN');
-    const isVisitTeam = departmentNames.has('VISIT_TEAM');
+    const isVisitTeam =
+      departmentNames.has('VISIT_TEAM') ||
+      departmentNames.has('SPECIALIST_DESIGN_CONSULTANTS');
     const isJuniorCrm = departmentNames.has('JR_CRM');
     const isSeniorCrm = departmentNames.has('SR_CRM');
     const isVisitTeamLeader = hasVisitTeamLeadershipRole(authResult.actorRoles);

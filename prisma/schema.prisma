@@ -47,6 +47,7 @@ model Lead {
   transactions           Transaction[]
   visits                 Visit[]
   vendorAgreements       VendorAgreement[]
+  stockMovements         StockMovement[]
 
   @@index([assignedTo])
   @@index([primaryOwnerUserId])
@@ -172,6 +173,8 @@ model User {
   supportVisitResults         VisitSupportResult[]
   visitUpdateRequests         VisitUpdateRequest[]       @relation("VisitUpdateRequestedBy")
   resolvedVisitUpdateRequests VisitUpdateRequest[]       @relation("VisitUpdateResolvedBy")
+  stockMovements              StockMovement[]
+  stockReceived               StockMovement[]            @relation("StockMovementRecipient")
 }
 
 model DeviceToken {
@@ -698,6 +701,7 @@ model Transaction {
   recordedBy       User            @relation("TransactionRecorder", fields: [recordedById], references: [id])
   visit            Visit?          @relation("VisitPayments", fields: [visitId], references: [id])
   vendorPayment    VendorPayment?
+  stockMovements   StockMovement[]
 
   @@index([leadId])
   @@index([visitId])
@@ -1144,6 +1148,8 @@ model Vendor {
   updatedAt         DateTime          @updatedAt
 
   agreements        VendorAgreement[]
+  stockItems        StockItem[]
+  stockMovements    StockMovement[]
 
   @@index([status])
   @@index([vendorType])
@@ -1226,4 +1232,89 @@ model VendorPayment {
   @@index([milestoneId])
   @@index([paymentDate])
 }
+
+enum StockCategory {
+  STATIONERY_OFFICE
+  PANTRY_HYGIENE
+  IT_EQUIPMENT
+  BOARD
+  LAMINATE_HPL
+  HARDWARE
+  FITTINGS
+  PAINT_FINISHES
+  LIGHTING_ELECTRICAL
+  GLASS_MIRROR
+  RAW_MATERIALS
+  TOOLS_CONSUMABLES
+  OTHER
+}
+
+enum StockMovementType {
+  STOCK_IN
+  DEPARTMENT_ISSUE
+  STAFF_ISSUE
+  PROJECT_ISSUE
+  PROJECT_RETURN
+  VENDOR_RETURN
+  ADJUSTMENT
+}
+
+model StockItem {
+  id                   String          @id @default(cuid())
+  sku                  String          @unique
+  name                 String
+  category             StockCategory   @default(OTHER)
+  unit                 String          @default("pcs")
+  currentStock         Float           @default(0)
+  minStockAlert        Float           @default(5)
+  unitCostPrice        Float           @default(0)
+  standardSellingPrice Float?
+  vendorId             String?
+  location             String?
+  description          String?
+  isActive             Boolean         @default(true)
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  vendor               Vendor?         @relation(fields: [vendorId], references: [id])
+  movements            StockMovement[]
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model StockMovement {
+  id              String            @id @default(cuid())
+  stockItemId     String
+  type            StockMovementType
+  quantity        Float
+  unitCost        Float
+  totalValue      Float
+  referenceNo     String?
+  leadId          String?
+  vendorId        String?
+  transactionId   String?
+  department      String?
+  recipientUserId String?
+  createdById     String
+  notes           String?
+  createdAt       DateTime          @default(now())
+
+  stockItem       StockItem         @relation(fields: [stockItemId], references: [id], onDelete: Cascade)
+  lead            Lead?             @relation(fields: [leadId], references: [id])
+  vendor          Vendor?           @relation(fields: [vendorId], references: [id])
+  transaction     Transaction?      @relation(fields: [transactionId], references: [id])
+  createdBy       User              @relation(fields: [createdById], references: [id])
+  recipientUser   User?             @relation("StockMovementRecipient", fields: [recipientUserId], references: [id])
+
+  @@index([stockItemId])
+  @@index([type])
+  @@index([leadId])
+  @@index([vendorId])
+  @@index([department])
+  @@index([recipientUserId])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
 
