@@ -199,40 +199,9 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
         <View style={styles.grandTotalRow}><Text style={styles.grandTotalLabel}>GRAND TOTAL</Text><Text style={styles.grandTotalValue}>{formatCurrency(summary.grandTotal)}</Text></View>
         <Text style={styles.inWords}>In Words: {amountInWordsTaka(summary.grandTotal)}</Text>
 
-        {content.terms ? (
-          <View style={{ marginTop: 16 }}>
-            <Text style={styles.sectionTitle}>Terms &amp; Conditions</Text>
-            {content.terms
-              .split('\n')
-              .filter((l) => l.trim())
-              .map((line, index) => {
-                const colonIndex = line.indexOf(':')
-                let header = ''
-                let body = line.trim()
-                if (colonIndex > 0) {
-                  header = line.slice(0, colonIndex + 1).trim()
-                  body = line.slice(colonIndex + 1).trim()
-                }
-                return (
-                  <View key={index} style={{ marginTop: 8 }}>
-                    {header ? (
-                      <Text style={{ fontSize: 10, fontWeight: 'bold', color: PRIMARY, marginBottom: 2 }}>
-                        {header}
-                      </Text>
-                    ) : null}
-                    <Text style={{ fontSize: 8.5, lineHeight: 1.5, color: '#333' }}>
-                      {softWrapPdfText(body)}
-                    </Text>
-                  </View>
-                )
-              })}
-          </View>
-        ) : null}
-
-
         <FooterFixed content={content} />
       </Page>
-        {summary.floors.map((floor, floorIndex) => (
+        {summary.floors.map((floor) => (
           <Page key={floor.floor.id} size="A4" style={styles.page}>
             <WatermarkBackground />
             <GlobalHeader content={content} showDate={false} />
@@ -292,24 +261,65 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
               <Text style={styles.grandTotalValue}>{formatCurrency(floor.total)}</Text>
             </View>
             <Text style={styles.inWords}>In Words: {amountInWordsTaka(floor.total)}</Text>
-            {floorIndex === summary.floors.length - 1 && content.footerNotes.length > 0 ? (
-              <View style={{ marginTop: 14 }}>
-                <View style={{ marginBottom: 10 }}>
-                  <Text style={styles.sectionTitle}>Notes</Text>
-                  {content.footerNotes.map((note, index) => (
-                    <View key={index} style={{ marginTop: 4 }}>
-                      <Text style={{ fontSize: 9, lineHeight: 1.4, color: '#333' }}>
-                        <Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>
-                        {softWrapPdfText(note)}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ) : null}
             <FooterFixed content={content} />
           </Page>
         ))}
+
+        {content.footerNotes.length > 0 || content.terms ? (
+          <Page size="A4" style={styles.page}>
+            <WatermarkBackground />
+            <GlobalHeader content={content} showDate={false} />
+
+            {content.footerNotes.length > 0 ? (
+              <View style={{ marginTop: 10 }}>
+                <Text style={styles.sectionTitle}>Notes</Text>
+                {content.footerNotes.map((note, index) => {
+                  const cleanNote = note.replace(/^\d+\.\s*/, '').trim()
+                  return (
+                    <View key={index} style={{ marginTop: 6 }}>
+                      <Text style={{ fontSize: 9, lineHeight: 1.5, color: '#333' }}>
+                        <Text style={[styles.bold, { color: PRIMARY }]}>{index + 1}. </Text>
+                        {softWrapPdfText(cleanNote)}
+                      </Text>
+                    </View>
+                  )
+                })}
+              </View>
+            ) : null}
+
+            {content.terms ? (
+              <View style={{ marginTop: 16 }}>
+                <Text style={styles.sectionTitle}>Terms &amp; Conditions</Text>
+                {content.terms
+                  .split('\n')
+                  .filter((l) => l.trim())
+                  .map((line, index) => {
+                    const colonIndex = line.indexOf(':')
+                    let header = ''
+                    let body = line.trim()
+                    if (colonIndex > 0) {
+                      header = line.slice(0, colonIndex + 1).trim()
+                      body = line.slice(colonIndex + 1).trim()
+                    }
+                    return (
+                      <View key={index} style={{ marginTop: 8 }}>
+                        {header ? (
+                          <Text style={{ fontSize: 10, fontWeight: 'bold', color: PRIMARY, marginBottom: 2 }}>
+                            {header}
+                          </Text>
+                        ) : null}
+                        <Text style={{ fontSize: 8.5, lineHeight: 1.5, color: '#333' }}>
+                          {softWrapPdfText(body)}
+                        </Text>
+                      </View>
+                    )
+                  })}
+              </View>
+            ) : null}
+
+            <FooterFixed content={content} />
+          </Page>
+        ) : null}
     </Document>
   )
 }
