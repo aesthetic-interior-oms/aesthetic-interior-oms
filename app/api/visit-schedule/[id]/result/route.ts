@@ -367,10 +367,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const departments = new Set((actor?.userDepartments ?? []).map((row) => row.department.name))
     const isVisitTeam = departments.has('VISIT_TEAM')
     const isAdmin = departments.has('ADMIN')
+    const isSdc = departments.has('SPECIALIST_DESIGN_CONSULTANTS')
 
-    if (!isVisitTeam && !isAdmin) {
+    if (!isVisitTeam && !isAdmin && !isSdc) {
       return NextResponse.json(
-        { success: false, error: 'Only visit team can submit visit results' },
+        { success: false, error: 'Only visit team or SDC can submit visit results' },
         { status: 403 },
       )
     }
@@ -399,6 +400,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const leadClientName = toOptionalString(getField('leadClientName'))
     const leadLocation = toOptionalString(getField('leadLocation'))
     const parsedSupportProjectArea = toOptionalNumber(supportProjectArea)
+    const nextFollowUpAtRaw = toOptionalString(getField('nextFollowUpAt') ?? getField('nextFollowup'))
+    const nextFollowUpAt = nextFollowUpAtRaw ? new Date(nextFollowUpAtRaw) : null
+    const parsedBudget = toOptionalNumber(toOptionalString(getField('budget')))
 
     if (getField('projectStatus') !== null && getField('projectStatus') !== undefined && !projectStatus) {
       return NextResponse.json(
@@ -590,7 +594,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         }
       }
 
-      if (isVisitTeam && !isAdmin && !isAssignedLeader) {
+      if ((isVisitTeam || isSdc) && !isAdmin && !isSdc && !isAssignedLeader) {
         throw new Error('NOT_ASSIGNED')
       }
       if (!summary) {
@@ -632,8 +636,28 @@ export async function POST(request: NextRequest, context: RouteContext) {
         },
       })
 
+      const leadUpdateData: Prisma.LeadUpdateInput = {}
       if (leadClientName && leadClientName !== visit.lead.name) {
-        await tx.lead.update({ where: { id: visit.leadId }, data: { name: leadClientName } })
+        leadUpdateData.name = leadClientName
+      }
+      if (parsedBudget !== null && Number.isFinite(parsedBudget)) {
+        leadUpdateData.budget = parsedBudget
+      }
+      if (Object.keys(leadUpdateData).length > 0) {
+        await tx.lead.update({ where: { id: visit.leadId }, data: leadUpdateData })
+      }
+
+      if (nextFollowUpAt && !Number.isNaN(nextFollowUpAt.getTime())) {
+        await autoCompletePendingFollowups(tx, { leadId: visit.leadId, userId: authResult.actorUserId, action: 'visit completion' })
+        await tx.followUp.create({
+          data: {
+            leadId: visit.leadId,
+            assignedToId: authResult.actorUserId,
+            followupDate: nextFollowUpAt,
+            status: 'PENDING',
+            notes: `Scheduled during visit completion. ${summary ?? ''}`.trim(),
+          },
+        })
       }
 
       if (note) {

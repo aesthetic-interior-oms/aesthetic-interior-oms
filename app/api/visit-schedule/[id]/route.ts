@@ -243,11 +243,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         body.status === undefined &&
         body.projectStatus === undefined &&
         body.visitFee === undefined;
+      const isSdc = departmentNames.has('SPECIALIST_DESIGN_CONSULTANTS');
       const isVisitTeamLeader = hasVisitTeamLeadershipRole(authResult.actorRoles);
       if (
         !isAdmin &&
         !isJuniorCrm &&
         !isVisitTeam &&
+        !isSdc &&
         !((isSeniorCrm || isJrArchitect) && isProjectSqftOnlyUpdate)
       ) {
         throw new Error('FORBIDDEN');

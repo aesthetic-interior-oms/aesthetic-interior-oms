@@ -296,7 +296,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
         {
           icon: ClipboardList,
           label: 'My Supports',
-          href: '/visit-team/supported-visits',
+          href: '/visit-team/partial-visits',
         },
       ],
     },
@@ -318,7 +318,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
         {
           icon: ClipboardList,
           label: 'Partial Visits',
-          href: '/visit-team/supported-visits',
+          href: '/visit-team/partial-visits',
         },
       ],
     },
@@ -340,7 +340,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
         {
           icon: ClipboardList,
           label: 'Partial Visits',
-          href: '/visit-team/supported-visits',
+          href: '/visit-team/partial-visits',
         },
       ],
     },
