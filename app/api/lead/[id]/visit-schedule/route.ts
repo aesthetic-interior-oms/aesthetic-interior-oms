@@ -458,7 +458,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
         },
       });
 
-      const targetSeniorCrmUserId = seniorCrmUserId ?? (weekly.automationEnabled ? weekly.current?.id : null) ?? null;
+      const targetSeniorCrmUserId = visitType === 'PARTIAL_WORK_VISIT'
+        ? null
+        : (seniorCrmUserId ?? (weekly.automationEnabled ? weekly.current?.id : null) ?? null);
       if (targetSeniorCrmUserId) {
         const existingSrAssignment = await tx.leadAssignment.findFirst({
           where: { leadId, department: LeadAssignmentDepartment.SR_CRM },

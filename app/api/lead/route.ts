@@ -867,7 +867,12 @@ export async function POST(request: NextRequest) {
           ]);
 
           if (!visitAssignee) throw new Error('VISIT_ASSIGNEE_NOT_FOUND');
-          const isAllowed = (visitAssignee.userDepartments ?? []).some((d) => d.department.name === 'VISIT_TEAM' || d.department.name === 'SR_CRM');
+          const isAllowed = (visitAssignee.userDepartments ?? []).some(
+            (d) =>
+              d.department.name === 'VISIT_TEAM' ||
+              d.department.name === 'SR_CRM' ||
+              d.department.name === 'SPECIALIST_DESIGN_CONSULTANTS',
+          );
           if (!isAllowed) throw new Error('VISIT_ASSIGNEE_INVALID_DEPT');
 
           const latestVisitHasResult = Boolean(latestVisit?.result?.id);
@@ -934,7 +939,9 @@ export async function POST(request: NextRequest) {
           }
 
           const existingVisitTeamAssignment = await tx.leadAssignment.findFirst({ where: { leadId: newLead.id, department: LeadAssignmentDepartment.VISIT_TEAM } });
-          const targetSeniorCrmUserId = seniorCrmUserId ?? (weekly.automationEnabled ? weekly.current?.id : null) ?? null;
+          const targetSeniorCrmUserId = visitType === 'PARTIAL_WORK_VISIT'
+            ? null
+            : (seniorCrmUserId ?? (weekly.automationEnabled ? weekly.current?.id : null) ?? null);
           if (targetSeniorCrmUserId) {
             const existingSrAssignment = await tx.leadAssignment.findFirst({ where: { leadId: newLead.id, department: LeadAssignmentDepartment.SR_CRM } });
             if (existingSrAssignment) {

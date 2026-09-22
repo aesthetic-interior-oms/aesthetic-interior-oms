@@ -1155,7 +1155,7 @@ export function LeadActionsPanel({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             visitTeamUserId,
-            seniorCrmUserId: seniorCrmUserId || undefined,
+            seniorCrmUserId: visitType === 'PARTIAL_WORK_VISIT' ? undefined : (seniorCrmUserId || undefined),
             visitType,
             scheduledAt: scheduledIso,
             location: visitLocation.trim(),
@@ -1312,7 +1312,7 @@ export function LeadActionsPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           visitTeamUserId,
-          seniorCrmUserId: seniorCrmUserId || undefined,
+          seniorCrmUserId: visitType === 'PARTIAL_WORK_VISIT' ? undefined : (seniorCrmUserId || undefined),
           visitType,
           scheduledAt: scheduledIso,
           location: visitLocation.trim(),
@@ -2041,13 +2041,15 @@ export function LeadActionsPanel({
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Senior CRM</Label>
-                      <Select value={seniorCrmUserId} onValueChange={setSeniorCrmUserId} disabled={!canSelectSeniorCrm || seniorCrmUsers.length === 0}>
-                        <SelectTrigger><SelectValue placeholder={seniorCrmUsers.length ? 'Select senior CRM' : 'No Senior CRM users'} /></SelectTrigger>
-                        <SelectContent>{seniorCrmUsers.map((user) => (<SelectItem key={user.id} value={user.id}>{user.fullName}</SelectItem>))}</SelectContent>
-                      </Select>
-                    </div>
+                    {visitType !== 'PARTIAL_WORK_VISIT' && (
+                      <div className="space-y-2">
+                        <Label>Senior CRM</Label>
+                        <Select value={seniorCrmUserId} onValueChange={setSeniorCrmUserId} disabled={!canSelectSeniorCrm || seniorCrmUsers.length === 0}>
+                          <SelectTrigger><SelectValue placeholder={seniorCrmUsers.length ? 'Select senior CRM' : 'No Senior CRM users'} /></SelectTrigger>
+                          <SelectContent>{seniorCrmUsers.map((user) => (<SelectItem key={user.id} value={user.id}>{user.fullName}</SelectItem>))}</SelectContent>
+                        </Select>
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Label>Scheduled date & time</Label>
@@ -3060,29 +3062,31 @@ export function LeadActionsPanel({
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Senior CRM</Label>
-              <Select
-                value={seniorCrmUserId}
-                onValueChange={setSeniorCrmUserId}
-                disabled={!canSelectSeniorCrm || seniorCrmUsers.length === 0}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      seniorCrmUsers.length > 0 ? 'Select senior CRM' : 'No Senior CRM users'
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {seniorCrmUsers.map((user) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.fullName} ({user.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {visitType !== 'PARTIAL_WORK_VISIT' && (
+              <div className="space-y-2">
+                <Label>Senior CRM</Label>
+                <Select
+                  value={seniorCrmUserId}
+                  onValueChange={setSeniorCrmUserId}
+                  disabled={!canSelectSeniorCrm || seniorCrmUsers.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        seniorCrmUsers.length > 0 ? 'Select senior CRM' : 'No Senior CRM users'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {seniorCrmUsers.map((user) => (
+                      <SelectItem key={user.id} value={user.id}>
+                        {user.fullName} ({user.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Lead / Visit Location</Label>

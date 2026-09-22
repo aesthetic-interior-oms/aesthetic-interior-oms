@@ -235,7 +235,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
         visitFee: visitForm.visitFee ? Number(visitForm.visitFee) : undefined,
         projectSqft: visitForm.projectSqft ? Number(visitForm.projectSqft) : undefined,
         projectStatus: visitForm.projectStatus || undefined,
-        seniorCrmUserId: visitForm.seniorCrmUserId || undefined,
+        seniorCrmUserId: visitForm.visitType === 'PARTIAL_WORK_VISIT' ? undefined : (visitForm.seniorCrmUserId || undefined),
       }
     }
     let data: { success?: boolean; error?: string } = {}
@@ -520,15 +520,17 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label htmlFor="seniorCrmUserId" className="text-sm font-medium text-foreground">Senior CRM (optional)</label>
-                <select id="seniorCrmUserId" name="seniorCrmUserId" value={visitForm.seniorCrmUserId} onChange={handleVisitChange} className="w-full px-3 py-2 border border-gray-200 rounded-md bg-background text-foreground text-sm">
-                  <option value="">Auto-assign</option>
-                  {srCrmUsers.map((u) => (
-                    <option key={u.id} value={u.id}>{u.fullName} ({u.email})</option>
-                  ))}
-                </select>
-              </div>
+              {visitForm.visitType !== 'PARTIAL_WORK_VISIT' && (
+                <div className="space-y-2">
+                  <label htmlFor="seniorCrmUserId" className="text-sm font-medium text-foreground">Senior CRM (optional)</label>
+                  <select id="seniorCrmUserId" name="seniorCrmUserId" value={visitForm.seniorCrmUserId} onChange={handleVisitChange} className="w-full px-3 py-2 border border-gray-200 rounded-md bg-background text-foreground text-sm">
+                    <option value="">Auto-assign</option>
+                    {srCrmUsers.map((u) => (
+                      <option key={u.id} value={u.id}>{u.fullName} ({u.email})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
