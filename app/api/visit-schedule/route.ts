@@ -145,7 +145,11 @@ export async function GET(request: NextRequest) {
             phone: true,
             location: true,
             assignments: {
-              where: { department: LeadAssignmentDepartment.SR_CRM },
+              where: {
+                department: {
+                  in: [LeadAssignmentDepartment.SR_CRM, LeadAssignmentDepartment.QUOTATION],
+                },
+              },
               select: {
                 id: true,
                 department: true,

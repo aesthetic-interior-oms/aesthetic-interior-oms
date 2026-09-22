@@ -1,12 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Card, CardContent } from '@/components/ui/card'
-import { Calendar, MapPin, Clock, User, Search, Loader2, AlertCircle, CheckCircle2, Ban } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Calendar, MapPin, Clock, User, Search, Loader2, AlertCircle, CheckCircle2, Ban, ExternalLink, FileText, LayoutGrid, TableIcon } from 'lucide-react'
 
 /* ────────────────── Types ────────────────── */
 type VisitStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'RESCHEDULED'
@@ -26,6 +29,10 @@ type PartialVisitRecord = {
     name: string
     phone: string
     location: string | null
+    assignments?: Array<{
+      department: string
+      user: { id: string; fullName: string; email: string }
+    }>
   }
   assignedTo: {
     id: string
@@ -81,6 +88,14 @@ function getStatusConfig(status: VisitStatus) {
   }
 }
 
+function getQuotationAssignee(visit: PartialVisitRecord) {
+  return visit.lead.assignments?.find((assignment) => assignment.department === 'QUOTATION')?.user.fullName ?? 'Not assigned'
+}
+
+function formatProjectSize(value: number | null | undefined) {
+  return value == null ? 'Not specified' : `${value.toLocaleString()} sqft`
+}
+
 /* ────────────────── Component ────────────────── */
 export default function PartialVisitsPage() {
   const [visits, setVisits] = useState<PartialVisitRecord[]>([])
@@ -88,6 +103,7 @@ export default function PartialVisitsPage() {
   const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
 
   useEffect(() => {
     setLoading(true)
@@ -105,7 +121,7 @@ export default function PartialVisitsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const filtered = visits.filter((v) => {
+  const filtered = useMemo(() => visits.filter((v) => {
     const matchesSearch =
       !search ||
       v.lead.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -113,7 +129,12 @@ export default function PartialVisitsPage() {
       (v.assignedTo?.fullName ?? '').toLowerCase().includes(search.toLowerCase())
     const matchesStatus = statusFilter === 'ALL' || v.status === statusFilter
     return matchesSearch && matchesStatus
-  })
+  }), [search, statusFilter, visits])
+
+  const sortedVisits = useMemo(
+    () => filtered.slice().sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()),
+    [filtered],
+  )
 
   const upcoming = filtered.filter((v) => v.status === 'SCHEDULED' || v.status === 'RESCHEDULED')
   const completed = filtered.filter((v) => v.status === 'COMPLETED')
@@ -127,7 +148,7 @@ export default function PartialVisitsPage() {
       />
 
       {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -149,6 +170,26 @@ export default function PartialVisitsPage() {
             <SelectItem value="CANCELLED">Cancelled</SelectItem>
           </SelectContent>
         </Select>
+        <div className="flex rounded-lg border bg-muted/30 p-1 lg:ml-auto" role="group" aria-label="Choose visit display">
+          <Button
+            size="sm"
+            variant={viewMode === 'card' ? 'default' : 'ghost'}
+            onClick={() => setViewMode('card')}
+            aria-pressed={viewMode === 'card'}
+          >
+            <LayoutGrid className="h-4 w-4" />
+            Cards
+          </Button>
+          <Button
+            size="sm"
+            variant={viewMode === 'table' ? 'default' : 'ghost'}
+            onClick={() => setViewMode('table')}
+            aria-pressed={viewMode === 'table'}
+          >
+            <TableIcon className="h-4 w-4" />
+            Table
+          </Button>
+        </div>
       </div>
 
       {/* Summary strip */}
@@ -192,17 +233,74 @@ export default function PartialVisitsPage() {
         </div>
       )}
 
-      {/* Visit cards */}
+      {/* Visit views */}
       {!loading && !error && filtered.length > 0 && (
+        viewMode === 'table' ? (
+          <Card className="overflow-hidden border shadow-sm">
+            <CardContent className="p-0">
+              <Table className="min-w-[960px] table-fixed">
+                <TableHeader className="bg-muted/40">
+                  <TableRow>
+                    <TableHead className="w-[20%] px-4">Lead Name</TableHead>
+                    <TableHead className="w-[23%]">Address</TableHead>
+                    <TableHead className="w-[15%]">Visit date</TableHead>
+                    <TableHead className="w-[13%]">Project size</TableHead>
+                    <TableHead className="w-[17%]">Quotation</TableHead>
+                    <TableHead className="w-[12%] px-4 text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedVisits.map((visit) => {
+                    const statusCfg = getStatusConfig(visit.status)
+                    const StatusIcon = statusCfg.icon
+                    return (
+                      <TableRow key={visit.id}>
+                        <TableCell className="px-4">
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold">{visit.lead.name}</p>
+                            <p className="truncate text-xs text-muted-foreground">{visit.lead.phone}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="truncate text-muted-foreground" title={visit.location || visit.lead.location || 'Not specified'}>
+                          {visit.location || visit.lead.location || 'Not specified'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="space-y-1">
+                            <p className="text-sm">{formatDate(visit.scheduledAt)}</p>
+                            <Badge variant="outline" className={`gap-1 text-[10px] ${statusCfg.className}`}>
+                              <StatusIcon className="h-3 w-3" />
+                              {statusCfg.label}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">{formatProjectSize(visit.projectSqft)}</TableCell>
+                        <TableCell>
+                          <div className="flex min-w-0 items-center gap-2" title={getQuotationAssignee(visit)}>
+                            <FileText className="h-4 w-4 shrink-0 text-primary" />
+                            <span className="truncate text-sm">{getQuotationAssignee(visit)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4 text-right">
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/visit-team/leads/${visit.lead.id}`}>
+                              Open <ExternalLink className="h-3.5 w-3.5" />
+                            </Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered
-            .slice()
-            .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())
-            .map((visit) => {
+          {sortedVisits.map((visit) => {
               const statusCfg = getStatusConfig(visit.status)
               const StatusIcon = statusCfg.icon
               return (
-                <Card key={visit.id} className="overflow-hidden border shadow-sm hover:shadow-md transition-shadow">
+                <Card key={visit.id} className="group overflow-hidden border shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg">
                   {/* Coloured top bar */}
                   <div
                     className={`h-1 w-full ${
@@ -215,12 +313,12 @@ export default function PartialVisitsPage() {
                             : 'bg-blue-500'
                     }`}
                   />
-                  <CardContent className="p-4 space-y-3">
+                  <CardContent className="space-y-4 p-5">
                     {/* Header row */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-semibold text-sm truncate">{visit.lead.name}</p>
-                        <p className="text-xs text-muted-foreground truncate">{visit.lead.phone}</p>
+                        <p className="truncate text-base font-semibold">{visit.lead.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">{visit.lead.phone}</p>
                       </div>
                       <Badge
                         variant="outline"
@@ -232,14 +330,14 @@ export default function PartialVisitsPage() {
                     </div>
 
                     {/* Meta rows */}
-                    <div className="space-y-1.5 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar className="h-3.5 w-3.5 shrink-0" />
+                    <div className="grid gap-3 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
+                      <div className="flex items-start gap-2">
+                        <Calendar className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                         <span>{formatDate(visit.scheduledAt)}</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{visit.location}</span>
+                      <div className="flex items-start gap-2">
+                        <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span className="line-clamp-2">{visit.location || visit.lead.location || 'Address not specified'}</span>
                       </div>
                       {visit.assignedTo && (
                         <div className="flex items-center gap-1.5">
@@ -257,33 +355,27 @@ export default function PartialVisitsPage() {
                     )}
 
                     {/* Footer stats */}
-                    {(visit.visitFee != null || visit.projectSqft != null) && (
-                      <div className="flex gap-4 pt-1 border-t">
-                        {visit.visitFee != null && (
-                          <div>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Fee</p>
-                            <p className="text-xs font-medium">৳{visit.visitFee.toLocaleString()}</p>
-                          </div>
-                        )}
-                        {visit.projectSqft != null && (
-                          <div>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Sqft</p>
-                            <p className="text-xs font-medium">{visit.projectSqft.toLocaleString()}</p>
-                          </div>
-                        )}
-                        {visit.projectStatus && (
-                          <div>
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Project</p>
-                            <p className="text-xs font-medium">{visit.projectStatus.replace(/_/g, ' ')}</p>
-                          </div>
-                        )}
+                    <div className="grid grid-cols-2 gap-3 border-t pt-3">
+                      <div>
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Project size</p>
+                        <p className="mt-1 text-sm font-semibold">{formatProjectSize(visit.projectSqft)}</p>
                       </div>
-                    )}
+                      <div>
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Quotation</p>
+                        <p className="mt-1 truncate text-sm font-semibold" title={getQuotationAssignee(visit)}>{getQuotationAssignee(visit)}</p>
+                      </div>
+                    </div>
+                    <Button asChild className="w-full" size="sm" variant="outline">
+                      <Link href={`/visit-team/leads/${visit.lead.id}`}>
+                        Open lead <ExternalLink className="h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
                   </CardContent>
                 </Card>
               )
             })}
         </div>
+        )
       )}
     </div>
   )
