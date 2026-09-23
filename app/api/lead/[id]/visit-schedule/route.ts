@@ -80,45 +80,28 @@ function hasValue(value: unknown): boolean {
   return true;
 }
 
-async function validateVisitAssignee(userId: string) {
+async function validateVisitAssignee(userId: string, visitType: VisitType) {
   const visitAssignee = await prisma.user.findUnique({
     where: { id: userId },
-    select: {
-      id: true,
-      fullName: true,
-      userDepartments: {
-        select: {
-          department: {
-            select: { name: true },
-          },
-        },
-      },
-    },
+    select: { id: true, fullName: true, userDepartments: { select: { department: { select: { name: true } } } } },
   });
-
-  // console.log('[validateVisitTeamUser] User found:', visitTeamUser);
-
   if (!visitAssignee) {
     return { ok: false as const, response: NextResponse.json({ success: false, error: 'Visit assignee user not found' }, { status: 404 }) };
   }
-
-  const isAllowedDepartment = visitAssignee.userDepartments.some(
-    ({ department }) =>
-      department.name === 'VISIT_TEAM' ||
-      department.name === 'SR_CRM' ||
-      department.name === 'SPECIALIST_DESIGN_CONSULTANTS'
-  );
-
-  if (!isAllowedDepartment) {
+  const departments = new Set(visitAssignee.userDepartments.map(({ department }) => department.name));
+  const isPartialVisit = visitType === VisitType.PARTIAL_WORK_VISIT;
+  const isAllowed = isPartialVisit
+    ? departments.has('SPECIALIST_DESIGN_CONSULTANTS')
+    : departments.has('VISIT_TEAM') || departments.has('SR_CRM');
+  if (!isAllowed) {
     return {
       ok: false as const,
       response: NextResponse.json(
-        { success: false, error: 'User must be mapped to VISIT_TEAM, SR_CRM, or SPECIALIST_DESIGN_CONSULTANTS department' },
-        { status: 400 }
+        { success: false, error: isPartialVisit ? 'Partial visits must be assigned to a Specialist Design Consultant' : 'Normal visits must be assigned to a Visit Team or SR CRM member' },
+        { status: 400 },
       ),
     };
   }
-
   return { ok: true as const, visitAssignee };
 }
 
@@ -317,7 +300,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         where: { id: leadId },
         select: { id: true, name: true, stage: true, subStatus: true, location: true },
       }),
-      validateVisitAssignee(visitTeamUserId),
+      validateVisitAssignee(visitTeamUserId, visitType),
       prisma.visit.findFirst({
         where: { leadId },
         orderBy: { createdAt: 'desc' },
@@ -451,11 +434,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
         });
       }
 
+      const visitAssignmentDepartment = visitType === VisitType.PARTIAL_WORK_VISIT
+        ? LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS
+        : LeadAssignmentDepartment.VISIT_TEAM;
       const existingVisitTeamAssignment = await tx.leadAssignment.findFirst({
-        where: {
-          leadId,
-          department: LeadAssignmentDepartment.VISIT_TEAM,
-        },
+        where: { leadId, department: visitAssignmentDepartment },
       });
 
       const targetSeniorCrmUserId = visitType === 'PARTIAL_WORK_VISIT'
@@ -491,7 +474,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           data: {
             leadId,
             userId: visitTeamUserId,
-            department: LeadAssignmentDepartment.VISIT_TEAM,
+            department: visitAssignmentDepartment,
           },
         });
       }

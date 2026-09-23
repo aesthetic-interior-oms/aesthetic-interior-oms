@@ -317,6 +317,7 @@ export function VisitsPageView({
   const [listDateRange, setListDateRange] = useState<DateRange | undefined>(undefined)
   const [listMemberFilter, setListMemberFilter] = useState('ALL')
   const [srCrmFilter, setSrCrmFilter] = useState('ALL')
+  const [visitTypeFilter, setVisitTypeFilter] = useState('ALL')
   const [listViewMode, setListViewMode] = useState<'table' | 'card'>(() => (visitTeamView ? 'card' : 'table'))
   const listDetailsRef = useRef<HTMLDivElement | null>(null)
 
@@ -529,6 +530,7 @@ export function VisitsPageView({
 
   const filteredVisits = useMemo(() => {
     return visits.filter((visit) => {
+      if (visitTypeFilter !== 'ALL' && visit.visitType !== visitTypeFilter) return false
       const assignment = getSeniorCrmAssignment(visit)
       if (srCrmFilter === 'UNASSIGNED' && assignment?.user?.id) return false
       if (srCrmFilter !== 'ALL' && srCrmFilter !== 'UNASSIGNED' && assignment?.user?.id !== srCrmFilter) {
@@ -542,7 +544,7 @@ export function VisitsPageView({
       const phoneMatch = numericSearch ? leadPhone.includes(numericSearch) : false
       return nameMatch || phoneMatch
     })
-  }, [visits, normalizedSearch, numericSearch, srCrmFilter])
+  }, [visits, normalizedSearch, numericSearch, srCrmFilter, visitTypeFilter])
 
   const listMemberOptions = useMemo(() => {
     const membersMap = new Map<string, string>()
@@ -905,15 +907,17 @@ export function VisitsPageView({
     setAssignReason('Visit assignment updated.')
     setAssignError(null)
     setAssignOpen(true)
-    if (assignMembers.length > 0) return
     setAssignLoadingMembers(true)
     try {
-      const response = await fetch('/api/department/available/VISIT_TEAM', {
+      const assigneeDepartment = visit.visitType === 'PARTIAL_WORK_VISIT'
+        ? 'SPECIALIST_DESIGN_CONSULTANTS'
+        : 'VISIT_TEAM'
+      const response = await fetch(`/api/department/available/${assigneeDepartment}`, {
         cache: 'no-store',
       })
       const payload = await response.json()
       if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'Failed to load visit team members')
+        throw new Error(payload?.error || 'Failed to load eligible visit members')
       }
       const members = Array.isArray(payload.users) ? payload.users : []
       setAssignMembers(
@@ -1475,6 +1479,8 @@ export function VisitsPageView({
     )
   }
 
+  const assigningPartialVisit = visits.find((visit) => visit.id === assignVisitId)?.visitType === 'PARTIAL_WORK_VISIT'
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-background">
       <CrmPageHeader
@@ -2020,6 +2026,21 @@ export function VisitsPageView({
                         </SelectContent>
                       </Select>
                     </div>
+                    {!visitTeamView ? (
+                      <div className="space-y-1">
+                        <Label htmlFor="list-visit-type-filter">Visit Type</Label>
+                        <Select value={visitTypeFilter} onValueChange={setVisitTypeFilter}>
+                          <SelectTrigger id="list-visit-type-filter"><SelectValue placeholder="All visit types" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ALL">All visit types</SelectItem>
+                            <SelectItem value="INITIAL_VISIT">Initial visits</SelectItem>
+                            <SelectItem value="PARTIAL_WORK_VISIT">Partial visits</SelectItem>
+                            <SelectItem value="MEP_VISIT">MEP visits</SelectItem>
+                            <SelectItem value="SECONDARY_VISIT">Secondary visits</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ) : null}
                     {visitTeamView ? (
                       <div className="flex justify-end md:items-end">
                         <Button
@@ -2032,6 +2053,7 @@ export function VisitsPageView({
                             setListDateTo('')
                             setListDateRange(undefined)
                             setSrCrmFilter('ALL')
+                            setVisitTypeFilter('ALL')
                           }}
                         >
                           Reset Filters
@@ -2070,6 +2092,7 @@ export function VisitsPageView({
                           setListDateRange(undefined)
                           setListMemberFilter('ALL')
                           setSrCrmFilter('ALL')
+                          setVisitTypeFilter('ALL')
                         }}
                       >
                         Reset Filters
@@ -2142,6 +2165,7 @@ export function VisitsPageView({
                 setListDateTo('')
                 setListDateRange(undefined)
                 setSrCrmFilter('ALL')
+                setVisitTypeFilter('ALL')
               }}>
                 Reset Filters
               </Button>
@@ -2829,14 +2853,14 @@ export function VisitsPageView({
       <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Assign Visit Member</DialogTitle>
+            <DialogTitle>Assign {assigningPartialVisit ? 'Specialist Design Consultant' : 'Visit Team Member'}</DialogTitle>
             <DialogDescription>
-              Assign or reassign this visit to a Visit Team member.
+              {assigningPartialVisit ? 'Partial visits can only be assigned to Specialist Design Consultants.' : 'Assign or reassign this visit to a Visit Team member.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Visit Team Member</Label>
+              <Label>{assigningPartialVisit ? 'Specialist Design Consultant' : 'Visit Team Member'}</Label>
               <select
                 value={assignMemberId}
                 onChange={(event) => setAssignMemberId(event.target.value)}

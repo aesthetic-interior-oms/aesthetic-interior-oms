@@ -867,12 +867,13 @@ export async function POST(request: NextRequest) {
           ]);
 
           if (!visitAssignee) throw new Error('VISIT_ASSIGNEE_NOT_FOUND');
-          const isAllowed = (visitAssignee.userDepartments ?? []).some(
-            (d) =>
-              d.department.name === 'VISIT_TEAM' ||
-              d.department.name === 'SR_CRM' ||
-              d.department.name === 'SPECIALIST_DESIGN_CONSULTANTS',
+          const assigneeDepartments = new Set(
+            (visitAssignee.userDepartments ?? []).map((row) => row.department.name),
           );
+          const isPartialVisit = visitType === VisitType.PARTIAL_WORK_VISIT;
+          const isAllowed = isPartialVisit
+            ? assigneeDepartments.has('SPECIALIST_DESIGN_CONSULTANTS')
+            : assigneeDepartments.has('VISIT_TEAM') || assigneeDepartments.has('SR_CRM');
           if (!isAllowed) throw new Error('VISIT_ASSIGNEE_INVALID_DEPT');
 
           const latestVisitHasResult = Boolean(latestVisit?.result?.id);
@@ -938,7 +939,8 @@ export async function POST(request: NextRequest) {
             });
           }
 
-          const existingVisitTeamAssignment = await tx.leadAssignment.findFirst({ where: { leadId: newLead.id, department: LeadAssignmentDepartment.VISIT_TEAM } });
+          const visitAssignmentDepartment = visitType === VisitType.PARTIAL_WORK_VISIT ? LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS : LeadAssignmentDepartment.VISIT_TEAM;
+          const existingVisitTeamAssignment = await tx.leadAssignment.findFirst({ where: { leadId: newLead.id, department: visitAssignmentDepartment } });
           const targetSeniorCrmUserId = visitType === 'PARTIAL_WORK_VISIT'
             ? null
             : (seniorCrmUserId ?? (weekly.automationEnabled ? weekly.current?.id : null) ?? null);
@@ -954,7 +956,7 @@ export async function POST(request: NextRequest) {
           if (existingVisitTeamAssignment) {
             await tx.leadAssignment.update({ where: { id: existingVisitTeamAssignment.id }, data: { userId: visitTeamUserId } });
           } else {
-            await tx.leadAssignment.create({ data: { leadId: newLead.id, userId: visitTeamUserId, department: LeadAssignmentDepartment.VISIT_TEAM } });
+            await tx.leadAssignment.create({ data: { leadId: newLead.id, userId: visitTeamUserId, department: visitAssignmentDepartment } });
           }
 
           if (notes) {
