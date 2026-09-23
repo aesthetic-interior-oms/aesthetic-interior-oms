@@ -43,16 +43,16 @@ export async function GET(request: NextRequest) {
       (actor?.userDepartments ?? []).map((row) => row.department.name),
     );
     const isAdmin = departmentNames.has('ADMIN');
-    const isVisitTeam =
-      departmentNames.has('VISIT_TEAM') ||
-      departmentNames.has('SPECIALIST_DESIGN_CONSULTANTS');
+    const isSpecialistDesignConsultant = departmentNames.has('SPECIALIST_DESIGN_CONSULTANTS');
+    const isVisitTeam = departmentNames.has('VISIT_TEAM');
+    const isVisitDepartment = isVisitTeam || isSpecialistDesignConsultant;
     const isJuniorCrm = departmentNames.has('JR_CRM');
     const isSeniorCrm = departmentNames.has('SR_CRM');
     const isVisitTeamLeader = hasVisitTeamLeadershipRole(authResult.actorRoles);
     const isJrArchitect = departmentNames.has('JR_ARCHITECT');
     const isJrArchitectLeader = isJrArchitect && hasJrArchitectureLeaderRole(authResult.actorRoles);
 
-    if (!isAdmin && !isVisitTeam && !isJuniorCrm && !isSeniorCrm && !isJrArchitectLeader) {
+    if (!isAdmin && !isVisitDepartment && !isJuniorCrm && !isSeniorCrm && !isJrArchitectLeader) {
       return NextResponse.json(
         { success: false, error: 'Not authorized to view visit schedules' },
         { status: 403 },
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     const statusParam = toOptionalString(request.nextUrl.searchParams.get('status'));
     const status = toVisitStatus(statusParam);
     const requiresVisitTeamLeader = scope === 'all' && accessContext === 'queue';
-    const isGlobalVisitDashboardScope = scope === 'dashboard' && (isAdmin || isVisitTeam);
+    const isGlobalVisitDashboardScope = scope === 'dashboard' && (isAdmin || (isVisitTeam && !isSpecialistDesignConsultant));
     const shouldRestrictToSeniorCrmLeads =
       isSeniorCrm && (scope === 'sr-assigned' || (!isAdmin && !isJuniorCrm && !isVisitTeam));
     if (isVisitTeam && requiresVisitTeamLeader && !isVisitTeamLeader) {
@@ -104,7 +104,7 @@ export async function GET(request: NextRequest) {
             ? assignedToId
               ? { assignedToId }
               : {}
-            : scope === 'all'
+            : scope === 'all' && !isSpecialistDesignConsultant
               ? assignedToId
                 ? { assignedToId }
                 : {}
@@ -119,9 +119,13 @@ export async function GET(request: NextRequest) {
                     ],
                   }),
         ...(status ? { status } : {}),
-        ...(visitTypeParam && Object.values(VisitType).includes(visitTypeParam as VisitType)
-          ? { visitType: visitTypeParam as VisitType }
-          : {}),
+        ...(isSpecialistDesignConsultant
+          ? { visitType: VisitType.PARTIAL_WORK_VISIT }
+          : isVisitTeam && !isAdmin
+            ? { visitType: { not: VisitType.PARTIAL_WORK_VISIT } }
+            : visitTypeParam && Object.values(VisitType).includes(visitTypeParam as VisitType)
+              ? { visitType: visitTypeParam as VisitType }
+              : {}),
       },
       select: {
         id: true,

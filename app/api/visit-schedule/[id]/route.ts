@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { ActivityType, LeadAssignmentDepartment, LeadStage, LeadSubStatus, NotificationType, Prisma, ProjectStatus, VisitStatus } from '@/generated/prisma/client';
+import { ActivityType, LeadAssignmentDepartment, LeadStage, LeadSubStatus, NotificationType, Prisma, ProjectStatus, VisitStatus, VisitType } from '@/generated/prisma/client';
 import { requireDatabaseRoles } from '@/lib/authz';
 import { logActivity, logLeadStageChanged } from '@/lib/activity-log-service';
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
@@ -65,31 +65,14 @@ function hasValue(value: unknown): boolean {
   return true;
 }
 
-async function ensureVisitTeamUser(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      fullName: true,
-      userDepartments: {
-        select: {
-          department: {
-            select: { name: true },
-          },
-        },
-      },
-    },
-  });
-
-  if (!user) {
-    return { ok: false as const, error: 'Visit team user not found', status: 404 };
-  }
-
-  const isVisitMember = user.userDepartments.some((ud) => ud.department.name === 'VISIT_TEAM');
-  if (!isVisitMember) {
-    return { ok: false as const, error: 'User is not mapped to VISIT_TEAM department', status: 400 };
-  }
-
+async function ensureVisitAssignee(userId: string, visitType: VisitType) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, fullName: true, userDepartments: { select: { department: { select: { name: true } } } } } });
+  if (!user) return { ok: false as const, error: 'Visit assignee not found', status: 404 };
+  const departments = new Set(user.userDepartments.map((row) => row.department.name));
+  const isAllowed = visitType === VisitType.PARTIAL_WORK_VISIT
+    ? departments.has('SPECIALIST_DESIGN_CONSULTANTS')
+    : departments.has('VISIT_TEAM') || departments.has('SR_CRM');
+  if (!isAllowed) return { ok: false as const, error: visitType === VisitType.PARTIAL_WORK_VISIT ? 'Partial visits must be assigned to a Specialist Design Consultant' : 'Normal visits must be assigned to a Visit Team or SR CRM member', status: 400 };
   return { ok: true as const, user };
 }
 
@@ -207,13 +190,6 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       );
     }
 
-    if (visitTeamUserId) {
-      const check = await ensureVisitTeamUser(visitTeamUserId);
-      if (!check.ok) {
-        return NextResponse.json({ success: false, error: check.error }, { status: check.status });
-      }
-    }
-
     let reassignedUserId: string | null = null;
     let leadName = '';
 
@@ -269,6 +245,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       });
       if (!existing) {
         throw new Error('NOT_FOUND');
+      }
+      if (visitTeamUserId) {
+        const check = await ensureVisitAssignee(visitTeamUserId, existing.visitType);
+        if (!check.ok) throw new Error(check.error);
       }
       if (
         statusInput &&
@@ -341,11 +321,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
 
       if (visitTeamUserId) {
+        const assignmentDepartment = existing.visitType === VisitType.PARTIAL_WORK_VISIT
+          ? LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS
+          : LeadAssignmentDepartment.VISIT_TEAM;
         const existingVisitTeamAssignment = await tx.leadAssignment.findFirst({
-          where: {
-            leadId: visit.leadId,
-            department: LeadAssignmentDepartment.VISIT_TEAM,
-          },
+          where: { leadId: visit.leadId, department: assignmentDepartment },
         });
 
         if (existingVisitTeamAssignment) {
@@ -358,7 +338,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             data: {
               leadId: visit.leadId,
               userId: visitTeamUserId,
-              department: LeadAssignmentDepartment.VISIT_TEAM,
+              department: assignmentDepartment,
             },
           });
         }
