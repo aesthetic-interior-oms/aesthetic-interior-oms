@@ -35,6 +35,7 @@ import {
   Clock,
   ChevronRight,
   ShieldCheck,
+  Package,
 } from "lucide-react"
 
 type MonthlyHistoryRow = {
@@ -160,6 +161,12 @@ export default function AccountsDashboardPage() {
             <Link href="/crm/admin/finance/vendors">
               <Users className="h-3.5 w-3.5" />
               Vendor AP Dashboard
+            </Link>
+          </Button>
+          <Button size="sm" variant="outline" asChild className="gap-1.5 text-xs border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950">
+            <Link href="/crm/accounts/stocks">
+              <Package className="h-3.5 w-3.5" />
+              Stocks & Office Goods
             </Link>
           </Button>
         </div>

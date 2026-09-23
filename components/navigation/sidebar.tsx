@@ -20,6 +20,7 @@ import {
   FlaskConical,
   FileText,
   BarChart3,
+  Package,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -516,6 +517,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/admin/finance/vendors',
         },
         {
+          icon: Package,
+          label: 'Stocks & Office Goods',
+          href: '/crm/accounts/stocks',
+        },
+        {
           icon: BarChart3,
           label: 'Summary',
           href: '/crm/accounts/summary',
@@ -569,6 +575,82 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
+  Human_Resources: [
+    {
+      id: 'hr-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/hr/dashboard',
+        },
+        {
+          icon: Package,
+          label: 'Stocks',
+          href: '/crm/hr/stocks',
+        },
+      ],
+    },
+  ],
+  HUMAN_RESOURCES: [
+    {
+      id: 'hr-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/hr/dashboard',
+        },
+        {
+          icon: Package,
+          label: 'Stocks',
+          href: '/crm/hr/stocks',
+        },
+      ],
+    },
+  ],
+  'Human Resources': [
+    {
+      id: 'hr-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/hr/dashboard',
+        },
+        {
+          icon: Package,
+          label: 'Stocks',
+          href: '/crm/hr/stocks',
+        },
+      ],
+    },
+  ],
+  HR: [
+    {
+      id: 'hr-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/hr/dashboard',
+        },
+        {
+          icon: Package,
+          label: 'Stocks',
+          href: '/crm/hr/stocks',
+        },
+      ],
+    },
+  ],
 }
 
 export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
@@ -610,7 +692,10 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
       ? isSpecialistDesignConsultants
         ? navigationGroups['Specialist Design Consultants']
         : navigationGroups['Visit Team']
-      : navigationGroups[role as keyof typeof navigationGroups] || []
+      : navigationGroups[role as keyof typeof navigationGroups] ||
+        (role && (role.toUpperCase().includes('HR') || role.toUpperCase().includes('HUMAN'))
+          ? navigationGroups['Human_Resources']
+          : [])
 
     if (!isVisits) {
       if (role !== 'Jr Architect') return baseGroups
