@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
 import {
   ChevronLeft,
@@ -49,6 +50,8 @@ import {
   Box,
   Pencil,
   Trash2,
+  LayoutGrid,
+  Table as TableIcon,
 } from "lucide-react"
 
 type StockCategory =
@@ -153,6 +156,7 @@ export default function HRStocksPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("ALL")
   const [showLowStockOnly, setShowLowStockOnly] = useState(false)
+  const [viewMode, setViewMode] = useState<"card" | "table">("card")
 
   // Dialog States
   const [isAddItemOpen, setIsAddItemOpen] = useState(false)
@@ -222,7 +226,7 @@ export default function HRStocksPage() {
       const res = await fetch("/api/finance/stock/items", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newItem),
+        body: JSON.stringify({ ...newItem, initialStock: newItem.currentStock }),
       })
 
       const data = await res.json()
@@ -489,6 +493,25 @@ export default function HRStocksPage() {
         </div>
       </div>
 
+      {/* Stock-out reminders */}
+      {!loading && items.filter((item) => item.currentStock <= item.minStockAlert).length > 0 ? (
+        <Card className="border-amber-300 bg-amber-50/70 shadow-sm dark:border-amber-800 dark:bg-amber-950/20">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <div>
+                <p className="font-semibold text-amber-950 dark:text-amber-100">Stock-out reminder</p>
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  {items.filter((item) => item.currentStock === 0).length > 0 ? `${items.filter((item) => item.currentStock === 0).length} item(s) are out of stock. ` : ''}
+                  {items.filter((item) => item.currentStock > 0 && item.currentStock <= item.minStockAlert).length} item(s) have reached their minimum level. Please restock before issuing more.
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" className="border-amber-300 bg-background" onClick={() => setShowLowStockOnly(true)}>Review items</Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {/* Filter Toolbar */}
       <Card className="p-4 border border-border shadow-sm">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -564,6 +587,12 @@ export default function HRStocksPage() {
               </Button>
             </Card>
           ) : (
+            <>
+              <div className="flex items-center justify-end gap-1">
+                <Button variant={viewMode === "card" ? "secondary" : "ghost"} size="sm" className="h-8 gap-1.5" onClick={() => setViewMode("card")} aria-label="Card view"><LayoutGrid className="h-4 w-4" /> Cards</Button>
+                <Button variant={viewMode === "table" ? "secondary" : "ghost"} size="sm" className="h-8 gap-1.5" onClick={() => setViewMode("table")} aria-label="Table view"><TableIcon className="h-4 w-4" /> Table</Button>
+              </div>
+              {viewMode === "card" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredItems.map((item) => {
                 const isLowStock = item.currentStock <= item.minStockAlert
@@ -646,6 +675,22 @@ export default function HRStocksPage() {
                 )
               })}
             </div>
+              ) : (
+                <Card className="overflow-hidden border border-border shadow-sm">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader><TableRow><TableHead>Item</TableHead><TableHead>Category</TableHead><TableHead>Location</TableHead><TableHead>Available</TableHead><TableHead>Reminder level</TableHead><TableHead>Value</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
+                      <TableBody>{filteredItems.map((item) => {
+                        const isLowStock = item.currentStock <= item.minStockAlert
+                        return <TableRow key={item.id} className={isLowStock ? "bg-amber-50/60 dark:bg-amber-950/10" : undefined}>
+                          <TableCell><p className="font-medium">{item.name}</p><p className="font-mono text-xs text-muted-foreground">{item.sku}</p></TableCell><TableCell className="text-sm">{CATEGORY_LABELS[item.category] || item.category}</TableCell><TableCell className="text-sm text-muted-foreground">{item.location || '—'}</TableCell><TableCell><Badge className={isLowStock ? "bg-amber-500 text-white" : "bg-emerald-600 text-white"}>{item.currentStock} {item.unit}</Badge></TableCell><TableCell className="text-sm">{item.minStockAlert} {item.unit}</TableCell><TableCell className="text-sm">৳{(item.currentStock * item.unitCostPrice).toLocaleString()}</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => { setSelectedItemForMove(item); setIsMovementOpen(true) }}>Issue / Stock In</Button></TableCell>
+                        </TableRow>
+                      })}</TableBody>
+                    </Table>
+                  </div>
+                </Card>
+              )}
+            </>
           )}
         </TabsContent>
 
