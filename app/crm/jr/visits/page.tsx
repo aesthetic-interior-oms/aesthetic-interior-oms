@@ -228,7 +228,7 @@ function getVisitScheduleListUrl(visitScope: NonNullable<VisitsPageProps['visitS
 export function VisitsPageView({
   forceAssignedOnly = false,
   leadHrefPrefix = '/crm/jr/leads',
-  restrictToCreator = true,
+  restrictToCreator = false,
   allowCompleteVisit = false,
   blurUnassignedVisitDetails = false,
   visitScope = 'default',
