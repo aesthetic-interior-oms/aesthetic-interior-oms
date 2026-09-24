@@ -486,6 +486,14 @@ export default function PartialVisitLeadDetailPage() {
                   {stageLabel(lead.subStatus)}
                 </Badge>
               )}
+              <Button
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 shadow-sm"
+                onClick={openPartialQuotation}
+              >
+                <FileText className="h-4 w-4" />
+                Partial Quotation Builder
+              </Button>
               <Link
                 href={`/crm/admin/leads/${lead.id}`}
                 target="_blank"

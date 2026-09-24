@@ -713,15 +713,27 @@ export default function PartialVisitsPage() {
                         </Button>
                       </>
                     ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="w-full h-8 text-xs gap-1.5"
-                        onClick={() => openViewResultModal(visit)}
-                      >
-                        <FileText className="h-3.5 w-3.5 text-primary" />
-                        View Details & Result
-                      </Button>
+                      <div className="flex w-full items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1 h-8 text-xs gap-1.5"
+                          onClick={() => openViewResultModal(visit)}
+                        >
+                          <FileText className="h-3.5 w-3.5 text-primary" />
+                          Result
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="flex-1 h-8 text-xs gap-1.5"
+                          asChild
+                        >
+                          <Link href={`/visit-team/partial-visits/${visit.lead.id}`}>
+                            View Lead Details
+                          </Link>
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardContent>
@@ -806,15 +818,27 @@ export default function PartialVisitsPage() {
                             </Button>
                           </>
                         ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs px-2.5 gap-1"
-                            onClick={() => openViewResultModal(visit)}
-                          >
-                            <FileText className="h-3 w-3 text-primary" />
-                            Result
-                          </Button>
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs px-2.5 gap-1"
+                              onClick={() => openViewResultModal(visit)}
+                            >
+                              <FileText className="h-3 w-3 text-primary" />
+                              Result
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-7 text-xs px-2.5"
+                              asChild
+                            >
+                              <Link href={`/visit-team/partial-visits/${visit.lead.id}`}>
+                                Details
+                              </Link>
+                            </Button>
+                          </>
                         )}
                       </div>
                     </TableCell>

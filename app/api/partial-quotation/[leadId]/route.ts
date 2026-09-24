@@ -69,13 +69,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const lead = await tx.lead.findUnique({ where: { id: leadId }, select: { stage: true, subStatus: true } })
       if (!lead) throw new Error('NOT_FOUND')
       if (action === 'start') {
-        if (lead.stage !== LeadStage.PARTIAL_VISIT_PHASE || lead.subStatus !== LeadSubStatus.VISIT_COMPLETED) throw new Error('NOT_READY')
-        await tx.lead.update({ where: { id: leadId }, data: { stage: LeadStage.PARTIAL_QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_ASSIGNED } })
-        await logLeadStageChanged(tx, { leadId, userId: authResult.actorUserId, from: lead.stage, to: LeadStage.PARTIAL_QUOTATION_PHASE, reason: 'Partial quotation started by the completing consultant.' })
+        if (lead.stage !== LeadStage.PARTIAL_VISIT_PHASE || (lead.subStatus !== LeadSubStatus.VISIT_COMPLETED && lead.subStatus !== LeadSubStatus.QUOTATION_ASSIGNED && lead.subStatus !== LeadSubStatus.QUOTATION_WORKING)) throw new Error('NOT_READY')
+        await tx.lead.update({ where: { id: leadId }, data: { subStatus: LeadSubStatus.QUOTATION_ASSIGNED } })
         await logLeadSubStatusChanged(tx, { leadId, userId: authResult.actorUserId, from: lead.subStatus, to: LeadSubStatus.QUOTATION_ASSIGNED, reason: 'Partial quotation assigned to completing consultant.' })
         return { started: true }
       }
-      if (lead.stage !== LeadStage.PARTIAL_QUOTATION_PHASE) throw new Error('NOT_READY')
+      if (lead.stage !== LeadStage.PARTIAL_VISIT_PHASE) throw new Error('NOT_READY')
       const currentLines = lines ?? []
       const grandTotal = currentLines.reduce((total, item) => total + item.total, 0)
       const status = action === 'submit' ? QuotationDraftStatus.FINALIZED : QuotationDraftStatus.DRAFT

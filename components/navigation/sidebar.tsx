@@ -138,6 +138,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
       defaultOpen: true,
       items: [
         { icon: Calendar, label: 'Visits', href: '/crm/admin/visits' },
+        { icon: ClipboardList, label: 'Partial Visits', href: '/visit-team/partial-visits' },
         { icon: ClipboardList, label: 'Visit Queue', href: '/crm/admin/queue' },
         {
           icon: ClipboardList,
