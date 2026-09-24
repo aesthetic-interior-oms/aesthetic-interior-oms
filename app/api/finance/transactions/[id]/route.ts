@@ -124,8 +124,51 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: "Missing transaction ID" }, { status: 400 })
     }
 
-    await prisma.transaction.delete({
+    const transaction = await prisma.transaction.findUnique({
       where: { id },
+      select: {
+        id: true,
+        vendorPayment: {
+          select: { id: true, milestoneId: true },
+        },
+      },
+    })
+    if (!transaction) {
+      return NextResponse.json({ success: false, error: "Transaction not found" }, { status: 404 })
+    }
+
+    await prisma.$transaction(async (tx) => {
+      const vendorPayment = transaction.vendorPayment
+
+      // Vendor payments are included in Accounts Payable totals. Delete the linked
+      // payment together with its finance transaction so a removed transaction is
+      // never still shown as paid to the vendor.
+      if (vendorPayment) {
+        await tx.vendorPayment.delete({ where: { id: vendorPayment.id } })
+
+        if (vendorPayment.milestoneId) {
+          const remainingPayments = await tx.vendorPayment.aggregate({
+            where: { milestoneId: vendorPayment.milestoneId },
+            _sum: { amount: true },
+          })
+          const milestone = await tx.vendorPaymentMilestone.findUnique({
+            where: { id: vendorPayment.milestoneId },
+          })
+
+          if (
+            milestone &&
+            (remainingPayments._sum.amount ?? 0) < milestone.amount &&
+            milestone.isPaid
+          ) {
+            await tx.vendorPaymentMilestone.update({
+              where: { id: milestone.id },
+              data: { isPaid: false, paidAt: null },
+            })
+          }
+        }
+      }
+
+      await tx.transaction.delete({ where: { id: transaction.id } })
     })
 
     return NextResponse.json({ success: true })
