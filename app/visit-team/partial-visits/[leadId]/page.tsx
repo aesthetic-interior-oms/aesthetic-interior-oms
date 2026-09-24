@@ -405,6 +405,21 @@ export default function PartialVisitLeadDetailPage() {
     }
   }
 
+  const openPartialQuotation = async () => {
+    try {
+      const res = await fetch(`/api/partial-quotation/${leadId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start' }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error || 'Unable to start partial quotation')
+      router.push(`/visit-team/partial-visits/${leadId}/quotation`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to start partial quotation')
+    }
+  }
+
   /* ── Render ── */
   if (loading) {
     return (
@@ -653,15 +668,29 @@ export default function PartialVisitLeadDetailPage() {
                           </Button>
                         </>
                       ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-xs gap-1.5"
-                          onClick={() => openViewResultModal(visit)}
-                        >
-                          <FileText className="h-3.5 w-3.5 text-primary" />
-                          View Result
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs gap-1.5"
+                            onClick={() => openViewResultModal(visit)}
+                          >
+                            <FileText className="h-3.5 w-3.5 text-primary" />
+                            View Result
+                          </Button>
+                          {visit.status === 'COMPLETED' ? (
+                            <Button
+                              size="sm"
+                              className="h-8 bg-indigo-600 text-xs hover:bg-indigo-700"
+                              onClick={openPartialQuotation}
+                            >
+                              <FileText className="mr-1 h-3.5 w-3.5" />
+                              {lead.subStatus === 'QUOTATION_ASSIGNED' || lead.subStatus === 'QUOTATION_WORKING' || lead.subStatus === 'QUOTATION_COMPLETED'
+                                ? 'Open Partial Quotation'
+                                : 'Create Partial Quotation'}
+                            </Button>
+                          ) : null}
+                        </>
                       )}
                     </div>
                   </CardContent>
