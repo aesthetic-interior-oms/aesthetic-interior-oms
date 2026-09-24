@@ -1619,22 +1619,39 @@ export function VisitsPageView({
           </div>
           ) : null}
           {!visitTeamView ? (
-          <div className="w-full md:w-72">
-            <Label htmlFor="sr-crm-filter" className="sr-only">SR CRM Filter</Label>
-            <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
-              <SelectTrigger id="sr-crm-filter" className="bg-card">
-                <SelectValue placeholder="Filter by SR CRM" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All SR CRM</SelectItem>
-                <SelectItem value="UNASSIGNED">Unassigned SR CRM</SelectItem>
-                {srCrmOptions.map((member) => (
-                  <SelectItem key={member.id} value={member.id}>
-                    {member.fullName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="w-full sm:w-56">
+              <Label htmlFor="visit-type-filter" className="sr-only">Visit Type Filter</Label>
+              <Select value={visitTypeFilter} onValueChange={setVisitTypeFilter}>
+                <SelectTrigger id="visit-type-filter" className="bg-card">
+                  <SelectValue placeholder="Filter by visit type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Visit Types</SelectItem>
+                  <SelectItem value="INITIAL_VISIT">Initial Visit</SelectItem>
+                  <SelectItem value="MEP_VISIT">MEP Visit</SelectItem>
+                  <SelectItem value="SECONDARY_VISIT">Secondary Visit</SelectItem>
+                  <SelectItem value="PARTIAL_WORK_VISIT">Partial Work Visit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="w-full sm:w-56">
+              <Label htmlFor="sr-crm-filter" className="sr-only">SR CRM Filter</Label>
+              <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
+                <SelectTrigger id="sr-crm-filter" className="bg-card">
+                  <SelectValue placeholder="Filter by SR CRM" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All SR CRM</SelectItem>
+                  <SelectItem value="UNASSIGNED">Unassigned SR CRM</SelectItem>
+                  {srCrmOptions.map((member) => (
+                    <SelectItem key={member.id} value={member.id}>
+                      {member.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           ) : null}
         </div>
