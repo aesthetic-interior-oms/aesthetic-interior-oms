@@ -356,6 +356,7 @@ export function LeadActionsPanel({
         'VISUAL_CORRECTION',
       ],
       VISIT_PHASE: ['VISIT_SCHEDULED', 'VISIT_COMPLETED', 'VISIT_RESCHEDULED', 'VISIT_CANCELLED'],
+      PARTIAL_VISIT_PHASE: ['VISIT_SCHEDULED', 'VISIT_COMPLETED', 'VISIT_RESCHEDULED', 'VISIT_CANCELLED'],
       CONTACT_ATTEMPTED: ['NO_ANSWER'],
       NURTURING: ['WARM_LEAD', 'FUTURE_CLIENT'],
       CLOSED: ['PROJECT_DROPPED', 'REJECTED_OFFER', 'SMALL_BUDGET', 'INVALID', 'NOT_INTERESTED', 'LOST', 'DEAD_LEAD'],
@@ -365,13 +366,13 @@ export function LeadActionsPanel({
 
   const subStatusOptions = stageSubStatusMap[stage] ?? []
   const jrCrmEnabledStages = useMemo(
-    () => new Set(['NEW', 'NUMBER_COLLECTED', 'CONTACT_ATTEMPTED', 'NURTURING', 'VISIT_PHASE']),
+    () => new Set(['NEW', 'NUMBER_COLLECTED', 'CONTACT_ATTEMPTED', 'NURTURING', 'VISIT_PHASE', 'PARTIAL_VISIT_PHASE']),
     [],
   )
   const isJrCrmStageAllowed = !restrictStagesForJrCrm || jrCrmEnabledStages.has(stage)
   const isJrCrmVisitSubStatusAllowed =
     !restrictStagesForJrCrm ||
-    stage !== 'VISIT_PHASE' ||
+    (stage !== 'VISIT_PHASE' && stage !== 'PARTIAL_VISIT_PHASE') ||
     subStatus === null ||
     subStatus === '' ||
     subStatus === 'VISIT_SCHEDULED'
@@ -382,6 +383,7 @@ export function LeadActionsPanel({
     CONTACT_ATTEMPTED: 2,
     NURTURING: 3,
     VISIT_PHASE: 4,
+    PARTIAL_VISIT_PHASE: 4.5,
     CAD_PHASE: 5,
     DISCOVERY: 6,
     QUOTATION_PHASE: 7,
@@ -395,6 +397,7 @@ export function LeadActionsPanel({
   const isForwardMove = selectedStageRank > originalStageRank
   const stageLockedAfterVisitScheduled =
     restrictStagesForJrCrm &&
+    originalStage !== 'PARTIAL_VISIT_PHASE' &&
     (originalStageRank >= stageOrder.VISIT_PHASE || localVisitStageLock)
   const hasStageChanged = stage !== originalStage || (subStatus ?? null) !== (originalSubStatus ?? null)
   const requiresPhoneForNumberCollected =
@@ -1826,6 +1829,7 @@ export function LeadActionsPanel({
                 Nurturing
               </SelectItem>
               <SelectItem value="VISIT_PHASE">Visit Phase</SelectItem>
+              <SelectItem value="PARTIAL_VISIT_PHASE">Partial Visit Phase</SelectItem>
               <SelectItem value="CAD_PHASE" disabled={restrictStagesForJrCrm}>CAD Phase</SelectItem>
               <SelectItem value="DISCOVERY" disabled={restrictStagesForJrCrm}>Consulting Phase</SelectItem>
               <SelectItem value="QUOTATION_PHASE" disabled={restrictStagesForJrCrm}>Quotation Phase</SelectItem>

@@ -892,7 +892,8 @@ export async function POST(request: NextRequest) {
           if (conflict) throw new Error('VISIT_CONFLICT');
 
           // update lead stage
-          await tx.lead.update({ where: { id: newLead.id }, data: { stage: LeadStage.VISIT_PHASE, subStatus: LeadSubStatus.VISIT_SCHEDULED, location: locationToUse } });
+          const targetStage = visitType === 'PARTIAL_WORK_VISIT' ? LeadStage.PARTIAL_VISIT_PHASE : LeadStage.VISIT_PHASE;
+          await tx.lead.update({ where: { id: newLead.id }, data: { stage: targetStage, subStatus: LeadSubStatus.VISIT_SCHEDULED, location: locationToUse, assignedTo: visitTeamUserId } });
 
           const visit = await tx.visit.create({
             data: {
@@ -963,7 +964,7 @@ export async function POST(request: NextRequest) {
             await tx.note.create({ data: { leadId: newLead.id, userId: authResult.actorUserId, content: notes } });
           }
 
-          await logLeadStageChanged(tx, { leadId: newLead.id, userId: authResult.actorUserId, from: newLead.stage, to: LeadStage.VISIT_PHASE, reason });
+          await logLeadStageChanged(tx, { leadId: newLead.id, userId: authResult.actorUserId, from: newLead.stage, to: targetStage, reason });
           await logActivity(tx, { leadId: newLead.id, userId: authResult.actorUserId, type: ActivityType.VISIT_SCHEDULED, description: `Visit ${visit.id} scheduled at ${parsedScheduledAt.toISOString()} and assigned to ${visitAssignee.fullName}. Reason: ${reason}` });
           await logUserAssigned(tx, { leadId: newLead.id, userId: authResult.actorUserId, leadName: `${visitAssignee.fullName} assigned as visit lead` });
           await autoCompletePendingFollowups(tx, { leadId: newLead.id, userId: authResult.actorUserId, action: 'visit scheduled' });

@@ -434,6 +434,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           id: true,
           leadId: true,
           assignedToId: true,
+          visitType: true,
           supportAssignments: {
             include: {
               result: { select: { id: true } },
@@ -710,11 +711,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
         })
       }
 
-      if (visit.lead.stage !== LeadStage.VISIT_PHASE || visit.lead.subStatus !== LeadSubStatus.VISIT_COMPLETED) {
+      const targetStage =
+        visit.visitType === 'PARTIAL_WORK_VISIT' || visit.lead.stage === LeadStage.PARTIAL_VISIT_PHASE
+          ? LeadStage.PARTIAL_VISIT_PHASE
+          : LeadStage.VISIT_PHASE;
+
+      if (visit.lead.stage !== targetStage || visit.lead.subStatus !== LeadSubStatus.VISIT_COMPLETED) {
         await tx.lead.update({
           where: { id: visit.leadId },
           data: {
-            stage: LeadStage.VISIT_PHASE,
+            stage: targetStage,
             subStatus: LeadSubStatus.VISIT_COMPLETED,
           },
         })
@@ -723,7 +729,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           leadId: visit.leadId,
           userId: authResult.actorUserId,
           from: visit.lead.stage,
-          to: LeadStage.VISIT_PHASE,
+          to: targetStage,
           reason: 'Visit result submitted',
         })
       }

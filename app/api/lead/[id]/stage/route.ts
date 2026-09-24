@@ -299,7 +299,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         );
       }
     }
-    if (nextStage === LeadStage.VISIT_PHASE && nextSubStatus === LeadSubStatus.VISIT_COMPLETED) {
+    if ((nextStage === LeadStage.VISIT_PHASE || nextStage === LeadStage.PARTIAL_VISIT_PHASE) && nextSubStatus === LeadSubStatus.VISIT_COMPLETED) {
       return NextResponse.json(
         {
           success: false,

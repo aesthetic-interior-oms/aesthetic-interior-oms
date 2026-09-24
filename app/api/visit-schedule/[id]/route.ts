@@ -76,11 +76,13 @@ async function ensureVisitAssignee(userId: string, visitType: VisitType) {
   return { ok: true as const, user };
 }
 
-function leadWorkflowFromVisitStatus(status: VisitStatus): { stage: LeadStage; subStatus: LeadSubStatus } | null {
-  if (status === VisitStatus.SCHEDULED) return { stage: LeadStage.VISIT_PHASE, subStatus: LeadSubStatus.VISIT_SCHEDULED };
-  if (status === VisitStatus.COMPLETED) return { stage: LeadStage.VISIT_PHASE, subStatus: LeadSubStatus.VISIT_COMPLETED };
-  if (status === VisitStatus.RESCHEDULED) return { stage: LeadStage.VISIT_PHASE, subStatus: LeadSubStatus.VISIT_RESCHEDULED };
-  if (status === VisitStatus.CANCELLED) return { stage: LeadStage.VISIT_PHASE, subStatus: LeadSubStatus.VISIT_CANCELLED };
+function leadWorkflowFromVisitStatus(status: VisitStatus, currentStage?: LeadStage, visitType?: VisitType): { stage: LeadStage; subStatus: LeadSubStatus } | null {
+  const isPartial = currentStage === LeadStage.PARTIAL_VISIT_PHASE || visitType === VisitType.PARTIAL_WORK_VISIT;
+  const stage = isPartial ? LeadStage.PARTIAL_VISIT_PHASE : LeadStage.VISIT_PHASE;
+  if (status === VisitStatus.SCHEDULED) return { stage, subStatus: LeadSubStatus.VISIT_SCHEDULED };
+  if (status === VisitStatus.COMPLETED) return { stage, subStatus: LeadSubStatus.VISIT_COMPLETED };
+  if (status === VisitStatus.RESCHEDULED) return { stage, subStatus: LeadSubStatus.VISIT_RESCHEDULED };
+  if (status === VisitStatus.CANCELLED) return { stage, subStatus: LeadSubStatus.VISIT_CANCELLED };
   return null;
 }
 
@@ -354,7 +356,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         });
       }
 
-      const nextLeadWorkflow = statusInput ? leadWorkflowFromVisitStatus(statusInput) : null;
+      const nextLeadWorkflow = statusInput ? leadWorkflowFromVisitStatus(statusInput, existing.lead.stage, existing.visitType) : null;
       if (
         nextLeadWorkflow &&
         (existing.lead.stage !== nextLeadWorkflow.stage || existing.lead.subStatus !== nextLeadWorkflow.subStatus)

@@ -84,6 +84,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             leadId: true,
             assignedToId: true,
             status: true,
+            visitType: true,
             lead: {
               select: {
                 stage: true,
@@ -124,21 +125,26 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         ) {
           throw new Error('VISIT_COMPLETED_LOCKED')
         }
+        const targetStage =
+          existing.visit.visitType === 'PARTIAL_WORK_VISIT' || existing.visit.lead.stage === LeadStage.PARTIAL_VISIT_PHASE
+            ? LeadStage.PARTIAL_VISIT_PHASE
+            : LeadStage.VISIT_PHASE;
+
         if (existing.type === VisitUpdateRequestType.CANCEL) {
           await tx.visit.update({
             where: { id: visitId },
             data: { status: VisitStatus.CANCELLED },
           })
-          if (existing.visit.lead.stage !== LeadStage.VISIT_PHASE || existing.visit.lead.subStatus !== LeadSubStatus.VISIT_CANCELLED) {
+          if (existing.visit.lead.stage !== targetStage || existing.visit.lead.subStatus !== LeadSubStatus.VISIT_CANCELLED) {
             await tx.lead.update({
               where: { id: existing.visit.leadId },
-              data: { stage: LeadStage.VISIT_PHASE, subStatus: LeadSubStatus.VISIT_CANCELLED },
+              data: { stage: targetStage, subStatus: LeadSubStatus.VISIT_CANCELLED },
             })
             await logLeadStageChanged(tx, {
               leadId: existing.visit.leadId,
               userId: actorUserId,
               from: existing.visit.lead.stage,
-              to: LeadStage.VISIT_PHASE,
+              to: targetStage,
               reason: 'Visit cancel request approved',
             })
           }
@@ -170,16 +176,16 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
               scheduledAt: resolvedScheduleAt,
             },
           })
-          if (existing.visit.lead.stage !== LeadStage.VISIT_PHASE || existing.visit.lead.subStatus !== LeadSubStatus.VISIT_RESCHEDULED) {
+          if (existing.visit.lead.stage !== targetStage || existing.visit.lead.subStatus !== LeadSubStatus.VISIT_RESCHEDULED) {
             await tx.lead.update({
               where: { id: existing.visit.leadId },
-              data: { stage: LeadStage.VISIT_PHASE, subStatus: LeadSubStatus.VISIT_RESCHEDULED },
+              data: { stage: targetStage, subStatus: LeadSubStatus.VISIT_RESCHEDULED },
             })
             await logLeadStageChanged(tx, {
               leadId: existing.visit.leadId,
               userId: actorUserId,
               from: existing.visit.lead.stage,
-              to: LeadStage.VISIT_PHASE,
+              to: targetStage,
               reason: 'Visit reschedule request approved',
             })
           }

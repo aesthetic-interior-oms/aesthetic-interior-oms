@@ -63,6 +63,10 @@ export function buildScopedLeadWhere(input: {
     })
   }
 
+  accessClauses.push({
+    assignedTo: input.actorUserId,
+  })
+
   if (isJrArchitectLeader) {
     accessClauses.push({
       stage: { in: [LeadStage.CAD_PHASE, LeadStage.DISCOVERY, LeadStage.QUOTATION_PHASE, LeadStage.BUDGET_PHASE] },

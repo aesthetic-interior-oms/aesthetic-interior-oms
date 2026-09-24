@@ -364,13 +364,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
         throw new Error('VISIT_CONFLICT');
       }
 
-      // console.log('[POST] Transaction started');
+      const targetStage = visitType === 'PARTIAL_WORK_VISIT' ? LeadStage.PARTIAL_VISIT_PHASE : LeadStage.VISIT_PHASE;
       const leadAfterStageUpdate = await tx.lead.update({
         where: { id: leadId },
         data: {
-          stage: LeadStage.VISIT_PHASE,
+          stage: targetStage,
           subStatus: LeadSubStatus.VISIT_SCHEDULED,
           location: locationToUse,
+          assignedTo: visitTeamUserId,
         },
       });
       // console.log('[POST] Lead stage updated to VISIT_PHASE/VISIT_SCHEDULED');
@@ -490,13 +491,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
         });
       }
 
-      if (lead.stage !== LeadStage.VISIT_PHASE || lead.subStatus !== LeadSubStatus.VISIT_SCHEDULED) {
+      if (lead.stage !== targetStage || lead.subStatus !== LeadSubStatus.VISIT_SCHEDULED) {
         // console.log('[POST] Logging lead stage change');
         await logLeadStageChanged(tx, {
           leadId,
           userId: actorUserId,
           from: lead.stage,
-          to: LeadStage.VISIT_PHASE,
+          to: targetStage,
           reason,
         });
       }

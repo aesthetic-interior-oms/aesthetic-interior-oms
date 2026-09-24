@@ -899,6 +899,7 @@ enum LeadStage {
   VISUALIZATION_PHASE
   CONVERSION
   VISIT_PHASE
+  PARTIAL_VISIT_PHASE
 }
 
 enum LeadSubStatus {
