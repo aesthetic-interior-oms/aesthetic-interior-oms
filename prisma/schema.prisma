@@ -44,6 +44,7 @@ model Lead {
   notes                  Note[]
   notifications          Notification[]
   quotationDrafts        QuotationDraft[]
+  partialQuotationDraft  PartialQuotationDraft?
   transactions           Transaction[]
   visits                 Visit[]
   vendorAgreements       VendorAgreement[]
@@ -159,6 +160,8 @@ model User {
   notifications               Notification[]
   quotationDraftsCreated      QuotationDraft[]           @relation("QuotationDraftCreatedBy")
   quotationDraftsUpdated      QuotationDraft[]           @relation("QuotationDraftUpdatedBy")
+  partialQuotationDraftsCreated PartialQuotationDraft[]  @relation("PartialQuotationDraftCreatedBy")
+  partialQuotationDraftsUpdated PartialQuotationDraft[]  @relation("PartialQuotationDraftUpdatedBy")
   quotationPerformances       QuotationUserPerformance[]
   transactionsCollected       Transaction[]              @relation("TransactionCollector")
   transactionsRecorded        Transaction[]              @relation("TransactionRecorder")
@@ -328,6 +331,24 @@ model QuotationDraft {
   updatedBy          User?                @relation("QuotationDraftUpdatedBy", fields: [updatedById], references: [id])
 
   @@unique([leadId, draftKey])
+  @@index([createdById])
+  @@index([status])
+}
+
+model PartialQuotationDraft {
+  id          String                @id @default(cuid())
+  leadId      String                @unique
+  createdById String
+  updatedById String?
+  content     Json
+  grandTotal  Float                 @default(0)
+  status      QuotationDraftStatus  @default(DRAFT)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  createdBy   User                  @relation("PartialQuotationDraftCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  updatedBy   User?                 @relation("PartialQuotationDraftUpdatedBy", fields: [updatedById], references: [id])
+  lead        Lead                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
   @@index([createdById])
   @@index([status])
 }
@@ -900,6 +921,7 @@ enum LeadStage {
   CONVERSION
   VISIT_PHASE
   PARTIAL_VISIT_PHASE
+  PARTIAL_QUOTATION_PHASE
 }
 
 enum LeadSubStatus {
@@ -1326,5 +1348,3 @@ model StockMovement {
   @@index([createdById])
   @@index([createdAt])
 }
-
-

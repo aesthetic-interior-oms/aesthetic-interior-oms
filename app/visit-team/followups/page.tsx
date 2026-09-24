@@ -15,6 +15,17 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { fetchMeCached } from "@/lib/client-me";
 
 type FollowUp = {
@@ -47,6 +58,13 @@ export default function SpecialistFollowupsPage() {
   const [followups, setFollowups] = useState<FollowUp[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [selectedFollowup, setSelectedFollowup] = useState<FollowUp | null>(null);
+  const [completionType, setCompletionType] = useState<"next" | "closed">("next");
+  const [remarks, setRemarks] = useState("");
+  const [nextFollowupDate, setNextFollowupDate] = useState("");
+  const [completing, setCompleting] = useState(false);
+  const [completionError, setCompletionError] = useState<string | null>(null);
 
   const loadFollowups = useCallback(async () => {
     setLoading(true);
@@ -54,6 +72,7 @@ export default function SpecialistFollowupsPage() {
     try {
       const me = await fetchMeCached();
       if (!me.id) throw new Error("Could not identify your user account.");
+      setCurrentUserId(me.id);
       const from = new Date(
         month.getFullYear(),
         month.getMonth(),
@@ -96,6 +115,93 @@ export default function SpecialistFollowupsPage() {
   useEffect(() => {
     loadFollowups();
   }, [loadFollowups]);
+
+  const openCompleteModal = (followup: FollowUp) => {
+    setSelectedFollowup(followup);
+    setCompletionType("next");
+    setRemarks("");
+    setNextFollowupDate("");
+    setCompletionError(null);
+  };
+
+  const handleComplete = async () => {
+    if (!selectedFollowup || !currentUserId) return;
+
+    const trimmedRemarks = remarks.trim();
+    if (!trimmedRemarks) {
+      setCompletionError("Remarks are required to complete a follow-up.");
+      return;
+    }
+    if (completionType === "next" && !nextFollowupDate) {
+      setCompletionError("Please select the next follow-up date and time.");
+      return;
+    }
+
+    setCompleting(true);
+    setCompletionError(null);
+    const completedStatus = selectedFollowup.status === "MISSED" ? "LATELY_DONE" : "DONE";
+
+    try {
+      const completeResponse = await fetch(
+        `/api/followup/${selectedFollowup.lead.id}/${selectedFollowup.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: completedStatus,
+            notes: trimmedRemarks,
+            userId: currentUserId,
+          }),
+        },
+      );
+      const completeData = await completeResponse.json();
+      if (!completeResponse.ok || !completeData.success) {
+        throw new Error(completeData.error || "Unable to complete the follow-up.");
+      }
+
+      if (completionType === "closed") {
+        const closeResponse = await fetch(`/api/lead/${selectedFollowup.lead.id}/stage`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            stage: "CLOSED",
+            subStatus: "PROJECT_DROPPED",
+            reason: trimmedRemarks,
+          }),
+        });
+        const closeData = await closeResponse.json();
+        if (!closeResponse.ok || !closeData.success) {
+          throw new Error(closeData.error || "Unable to close the lead.");
+        }
+      } else {
+        const nextResponse = await fetch(`/api/followup/${selectedFollowup.lead.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assignedToId: currentUserId,
+            followupDate: new Date(nextFollowupDate).toISOString(),
+            notes: trimmedRemarks,
+            userId: currentUserId,
+          }),
+        });
+        const nextData = await nextResponse.json();
+        if (!nextResponse.ok || !nextData.success) {
+          throw new Error(nextData.error || "Unable to schedule the next follow-up.");
+        }
+      }
+
+      setSelectedFollowup(null);
+      await loadFollowups();
+    } catch (completionError) {
+      setCompletionError(
+        completionError instanceof Error
+          ? completionError.message
+          : "Unable to complete the follow-up.",
+      );
+    } finally {
+      setCompleting(false);
+    }
+  };
 
   const groupedFollowups = useMemo(() => {
     const grouped = new Map<string, FollowUp[]>();
@@ -271,12 +377,101 @@ export default function SpecialistFollowupsPage() {
                       {followup.notes}
                     </p>
                   ) : null}
+                  {followup.status === "PENDING" || followup.status === "MISSED" ? (
+                    <Button
+                      className="mt-3 w-full"
+                      size="sm"
+                      onClick={() => openCompleteModal(followup)}
+                    >
+                      Complete follow-up
+                    </Button>
+                  ) : null}
                 </div>
               ))
             )}
           </CardContent>
         </Card>
       </div>
+
+      <Dialog
+        open={selectedFollowup !== null}
+        onOpenChange={(open) => !open && !completing && setSelectedFollowup(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete follow-up</DialogTitle>
+            <DialogDescription>
+              Choose whether to schedule another follow-up or close this lead as cancelled.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={completionType === "next" ? "default" : "outline"}
+                onClick={() => setCompletionType("next")}
+                disabled={completing}
+              >
+                Create next follow-up
+              </Button>
+              <Button
+                type="button"
+                variant={completionType === "closed" ? "destructive" : "outline"}
+                onClick={() => setCompletionType("closed")}
+                disabled={completing}
+              >
+                Close lead
+              </Button>
+            </div>
+
+            {completionType === "next" ? (
+              <div className="space-y-2">
+                <Label htmlFor="next-followup-date">Next follow-up date and time</Label>
+                <Input
+                  id="next-followup-date"
+                  type="datetime-local"
+                  value={nextFollowupDate}
+                  onChange={(event) => setNextFollowupDate(event.target.value)}
+                  disabled={completing}
+                />
+              </div>
+            ) : (
+              <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+                This will mark the lead as closed (project dropped). No new follow-up will be created.
+              </p>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="completion-remarks">Remarks</Label>
+              <Textarea
+                id="completion-remarks"
+                value={remarks}
+                onChange={(event) => setRemarks(event.target.value)}
+                placeholder="Add the outcome or reason for closing the lead..."
+                rows={4}
+                disabled={completing}
+              />
+            </div>
+            {completionError ? <p className="text-sm text-destructive">{completionError}</p> : null}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSelectedFollowup(null)}
+              disabled={completing}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={completionType === "closed" ? "destructive" : "default"}
+              onClick={handleComplete}
+              disabled={completing}
+            >
+              {completing ? "Saving..." : completionType === "closed" ? "Close lead" : "Complete & schedule"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
