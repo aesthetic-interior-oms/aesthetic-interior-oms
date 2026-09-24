@@ -642,7 +642,7 @@ export default function PartialVisitsPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1 min-w-0">
                       <Link
-                        href={`/crm/admin/leads/${visit.lead.id}`}
+                        href={`/visit-team/partial-visits/${visit.lead.id}`}
                         className="font-bold text-base text-foreground hover:text-primary transition line-clamp-1 flex items-center gap-1.5"
                       >
                         {visit.lead.name}
@@ -753,7 +753,7 @@ export default function PartialVisitsPage() {
                   <TableRow key={visit.id} className="hover:bg-muted/30">
                     <TableCell className="font-medium">
                       <Link
-                        href={`/crm/admin/leads/${visit.lead.id}`}
+                        href={`/visit-team/partial-visits/${visit.lead.id}`}
                         className="hover:text-primary transition font-bold block"
                       >
                         {visit.lead.name}
