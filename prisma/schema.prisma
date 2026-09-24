@@ -1258,7 +1258,9 @@ model VendorPayment {
 
   agreement     VendorAgreement         @relation(fields: [agreementId], references: [id], onDelete: Cascade)
   milestone     VendorPaymentMilestone? @relation(fields: [milestoneId], references: [id])
-  transaction   Transaction?            @relation(fields: [transactionId], references: [id])
+  // A vendor payment only exists as the accounting record for its transaction.
+  // Removing that transaction must not leave the payment counted as paid in AP.
+  transaction   Transaction?            @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@index([agreementId])
   @@index([milestoneId])
