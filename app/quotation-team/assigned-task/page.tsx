@@ -220,10 +220,6 @@ export default function QuotationAssignedTaskPage() {
   const submitQuotationWork = async () => {
     if (!submitLead) return;
     const validAttachments = submitAttachments.filter((item) => item.file);
-    if (validAttachments.length === 0) {
-      toast.error("Please add at least one attachment");
-      return;
-    }
     const invalidFiles = validAttachments.filter((item) => item.file?.type && item.file.type !== "application/pdf");
     if (invalidFiles.length > 0) {
       toast.error("Please upload PDF files only for quotation submissions");
@@ -750,7 +746,7 @@ export default function QuotationAssignedTaskPage() {
                       </select>
                     ) : null}
                     <Input type="file" accept="application/pdf,.pdf" onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, file: event.target.files?.[0] ?? null } : item))} />
-                    {submitAttachments.length > 1 ? <Button type="button" variant="outline" size="sm" onClick={() => setSubmitAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}>Remove</Button> : null}
+                    <Button type="button" variant="outline" size="sm" onClick={() => setSubmitAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}>Remove</Button>
                   </div>
                 ))}
                 <Button type="button" variant="secondary" onClick={() => setSubmitAttachments((prev) => [...prev, { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }])}>Add Attachment</Button>

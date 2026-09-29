@@ -307,10 +307,7 @@ export default function JrArchLeadsPage() {
   }, [])
 
   const removeSubmissionRow = useCallback((rowId: string) => {
-    setSubmissionRows((prev) => {
-      if (prev.length <= 1) return prev
-      return prev.filter((row) => row.id !== rowId)
-    })
+    setSubmissionRows((prev) => prev.filter((row) => row.id !== rowId))
   }, [])
 
   const handleSubmitWork = useCallback(async () => {
@@ -322,11 +319,7 @@ export default function JrArchLeadsPage() {
       return
     }
 
-    const rowsWithFiles = submissionRows.filter((row) => row.file)
-    if (submissionRows.length > 0 && rowsWithFiles.length !== submissionRows.length) {
-      toast.error('Please select a file for every row, or remove empty rows')
-      return
-    }
+    const rowsWithFiles = submissionRows.filter((row) => Boolean(row.file))
 
     const oversizeRow = rowsWithFiles.find((row) => row.file && row.file.size > DIRECT_BLOB_UPLOAD_MAX_BYTES)
     if (oversizeRow?.file) {
@@ -732,7 +725,6 @@ export default function JrArchLeadsPage() {
                       variant="ghost"
                       size="icon"
                       onClick={() => removeSubmissionRow(row.id)}
-                      disabled={submissionRows.length === 1}
                       title="Remove file row"
                     >
                       <X className="h-4 w-4" />

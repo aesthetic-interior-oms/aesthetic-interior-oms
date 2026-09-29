@@ -137,10 +137,6 @@ export default function QuotationTeamMyWorkPage() {
   const submitQuotationWork = async () => {
     if (!submitLead) return;
     const validAttachments = submitAttachments.filter((item) => item.file);
-    if (validAttachments.length === 0) {
-      toast.error("Please add at least one attachment");
-      return;
-    }
     const parsedBudgets = validAttachments.map((item) => Number(item.budget.trim().replace(/,/g, "")));
     if (parsedBudgets.some((value) => !Number.isFinite(value) || value <= 0)) {
       toast.error("Please enter a valid budget amount for each attachment");
@@ -355,7 +351,7 @@ export default function QuotationTeamMyWorkPage() {
                   </select>
                   <Input type="text" inputMode="decimal" placeholder="e.g. 300000" value={attachment.budget} onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, budget: event.target.value } : item))} />
                   <Input type="file" onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, file: event.target.files?.[0] ?? null } : item))} />
-                  {submitAttachments.length > 1 ? <Button type="button" variant="outline" size="sm" onClick={() => setSubmitAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}>Remove</Button> : null}
+                  <Button type="button" variant="outline" size="sm" onClick={() => setSubmitAttachments((prev) => prev.filter((item) => item.id !== attachment.id))}>Remove</Button>
                 </div>
               ))}
               <Button type="button" variant="secondary" onClick={() => setSubmitAttachments((prev) => [...prev, { id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" }])}>Add Attachment</Button>

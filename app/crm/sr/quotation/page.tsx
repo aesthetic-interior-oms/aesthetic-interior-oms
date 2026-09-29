@@ -202,10 +202,7 @@ export default function SrCrmQuotationPage() {
   };
 
   const handleRemoveAttachmentRow = (id: string) => {
-    setSubmitAttachments((prev) => {
-      if (prev.length <= 1) return prev;
-      return prev.filter((item) => item.id !== id);
-    });
+    setSubmitAttachments((prev) => prev.filter((item) => item.id !== id));
   };
 
   const handleOpenSubmitModal = (lead: TaskLead) => {
@@ -633,16 +630,14 @@ export default function SrCrmQuotationPage() {
                     onChange={(e) => void handleUploadFile(idx, e.target.files?.[0] ?? null)}
                     className="h-8 max-w-xs text-xs"
                   />
-                  {submitAttachments.length > 1 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveAttachmentRow(att.id)}
-                    >
-                      Remove
-                    </Button>
-                  ) : null}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveAttachmentRow(att.id)}
+                  >
+                    Remove
+                  </Button>
                 </div>
               ))}
             </div>
