@@ -1,10 +1,10 @@
 import { Storage } from '@google-cloud/storage'
 
 function getGCSCredentials() {
-  const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL || process.env.GCP_CLIENT_EMAIL
-  const privateKey = (process.env.GOOGLE_PRIVATE_KEY || process.env.GCP_PRIVATE_KEY)?.replace(/\\n/g, '\n')
-  const projectId = process.env.GOOGLE_PROJECT_ID || process.env.GCP_PROJECT_ID || 'vaulted-bus-495308-q0'
-  const bucketName = process.env.GOOGLE_STORAGE_BUCKET || process.env.GCP_STORAGE_BUCKET || 'aesthetic-crm-storage'
+  const clientEmail = process.env.GCS_CLIENT_EMAIL
+  const privateKey = process.env.GCS_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  const projectId = process.env.GCS_PROJECT_ID || 'weighty-yew-413809'
+  const bucketName = process.env.GCS_BUCKET_NAME || 'aesthetic-crm-storage'
 
   if (!clientEmail || !privateKey) {
     return null
