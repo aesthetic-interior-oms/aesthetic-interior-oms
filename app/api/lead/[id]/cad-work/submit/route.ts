@@ -373,6 +373,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       throw new Error('WORK_NOT_STARTED')
     }
 
+    const totalFilesToUpload = directUploadedFiles ? directUploadedFiles.length : files.length
     const { uploadedFiles, failedUploads } = directUploadedFiles
       ? { uploadedFiles: directUploadedFiles, failedUploads: [] }
       : await uploadCadFilesToBlob({
@@ -380,7 +381,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           files,
           cadFileTypes,
         })
-    if (uploadedFiles.length === 0) {
+    if (totalFilesToUpload > 0 && uploadedFiles.length === 0) {
       throw new Error('CAD_UPLOAD_FAILED')
     }
 
