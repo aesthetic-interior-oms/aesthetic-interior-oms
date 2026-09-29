@@ -261,9 +261,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
       const uploadedFiles = Array.isArray(body.files)
         ? body.files.map((item) => toUploadedCadFileMeta(item)).filter((item): item is UploadedCadFileMeta => Boolean(item))
         : []
-      if (uploadedFiles.length === 0) {
-        return NextResponse.json({ success: false, error: 'At least one direct-uploaded file is required' }, { status: 400 })
-      }
       for (const uploaded of uploadedFiles) {
         if (uploaded.sizeBytes > MAX_CAD_SUBMISSION_FILE_SIZE_BYTES) {
           return NextResponse.json(
@@ -291,11 +288,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
         .map((entry) => toOptionalString(entry))
         .filter((entry): entry is string => Boolean(entry))
 
-      if (files.length === 0) {
-        return NextResponse.json({ success: false, error: 'At least one file is required' }, { status: 400 })
-      }
-
-      if (cadFileTypesRaw.length !== files.length) {
+      if (files.length > 0 && cadFileTypesRaw.length !== files.length) {
         return NextResponse.json(
           { success: false, error: 'Each uploaded file must include a selected CAD file type' },
           { status: 400 },
@@ -423,27 +416,29 @@ export async function POST(request: NextRequest, context: RouteContext) {
           },
         })
 
-        await tx.cadWorkSubmissionFile.createMany({
-          data: uploadedFiles.map((uploaded) => ({
-            submissionId: submission.id,
-            url: uploaded.url,
-            fileName: uploaded.fileName,
-            fileType: uploaded.fileType,
-            cadFileType: uploaded.cadFileType,
-            sizeBytes: uploaded.sizeBytes,
-          })),
-        })
+        if (uploadedFiles.length > 0) {
+          await tx.cadWorkSubmissionFile.createMany({
+            data: uploadedFiles.map((uploaded) => ({
+              submissionId: submission.id,
+              url: uploaded.url,
+              fileName: uploaded.fileName,
+              fileType: uploaded.fileType,
+              cadFileType: uploaded.cadFileType,
+              sizeBytes: uploaded.sizeBytes,
+            })),
+          })
 
-        await tx.leadAttachment.createMany({
-          data: uploadedFiles.map((uploaded) => ({
-            leadId: scopedLead.id,
-            url: uploaded.url,
-            fileName: uploaded.fileName,
-            fileType: uploaded.fileType,
-            category: toLeadAttachmentCategory(uploaded.fileType),
-            sizeBytes: uploaded.sizeBytes,
-          })),
-        })
+          await tx.leadAttachment.createMany({
+            data: uploadedFiles.map((uploaded) => ({
+              leadId: scopedLead.id,
+              url: uploaded.url,
+              fileName: uploaded.fileName,
+              fileType: uploaded.fileType,
+              category: toLeadAttachmentCategory(uploaded.fileType),
+              sizeBytes: uploaded.sizeBytes,
+            })),
+          })
+        }
 
         const now = new Date()
 

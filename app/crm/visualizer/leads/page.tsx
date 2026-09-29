@@ -323,11 +323,7 @@ export default function JrArchLeadsPage() {
     }
 
     const rowsWithFiles = submissionRows.filter((row) => row.file)
-    if (rowsWithFiles.length === 0) {
-      toast.error('Please upload at least one file before submitting work')
-      return
-    }
-    if (rowsWithFiles.length !== submissionRows.length) {
+    if (submissionRows.length > 0 && rowsWithFiles.length !== submissionRows.length) {
       toast.error('Please select a file for every row, or remove empty rows')
       return
     }
