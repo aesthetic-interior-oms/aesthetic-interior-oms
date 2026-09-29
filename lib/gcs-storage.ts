@@ -4,7 +4,7 @@ function getGCSCredentials() {
   const clientEmail = process.env.GCS_CLIENT_EMAIL
   const privateKey = process.env.GCS_PRIVATE_KEY?.replace(/\\n/g, '\n')
   const projectId = process.env.GCS_PROJECT_ID || 'weighty-yew-413809'
-  const bucketName = process.env.GCS_BUCKET_NAME || 'aesthetic-crm-storage'
+  const bucketName = process.env.GCS_BUCKET_NAME || 'aesthetic-interior-database-storage'
 
   if (!clientEmail || !privateKey) {
     return null
@@ -108,7 +108,7 @@ export async function checkGCSConnection(): Promise<GCSStatusResult> {
       configured: false,
       connected: false,
       projectId: process.env.GCS_PROJECT_ID || 'weighty-yew-413809',
-      bucketName: process.env.GCS_BUCKET_NAME || 'aesthetic-crm-storage',
+      bucketName: process.env.GCS_BUCKET_NAME || 'aesthetic-interior-database-storage',
       clientEmailConfigured: Boolean(process.env.GCS_CLIENT_EMAIL?.trim()),
       privateKeyConfigured: Boolean(process.env.GCS_PRIVATE_KEY?.trim()),
       error: 'Missing GCS_CLIENT_EMAIL or GCS_PRIVATE_KEY environment variables',

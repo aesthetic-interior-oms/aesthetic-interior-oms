@@ -662,7 +662,7 @@ export function IntegrationSettings() {
         <CardContent className="space-y-4">
           <div className="rounded-lg border border-border p-4 text-sm space-y-1">
             <p><span className="font-medium">Project ID:</span> {gcsStatus?.projectId ?? 'weighty-yew-413809'}</p>
-            <p><span className="font-medium">Bucket:</span> {gcsStatus?.bucketName ?? 'aesthetic-crm-storage'}</p>
+            <p><span className="font-medium">Bucket:</span> {gcsStatus?.bucketName ?? 'aesthetic-interior-database-storage'}</p>
             <p><span className="font-medium">Client Email:</span> {gcsStatus?.clientEmailConfigured ? 'Configured' : 'Missing'}</p>
             <p><span className="font-medium">Private Key:</span> {gcsStatus?.privateKeyConfigured ? 'Configured' : 'Missing'}</p>
           </div>
