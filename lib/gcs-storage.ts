@@ -90,3 +90,56 @@ export async function uploadToGCS(
     sizeBytes,
   }
 }
+
+export type GCSStatusResult = {
+  configured: boolean
+  connected: boolean
+  projectId: string
+  bucketName: string
+  clientEmailConfigured: boolean
+  privateKeyConfigured: boolean
+  error?: string
+}
+
+export async function checkGCSConnection(): Promise<GCSStatusResult> {
+  const creds = getGCSCredentials()
+  if (!creds) {
+    return {
+      configured: false,
+      connected: false,
+      projectId: process.env.GCS_PROJECT_ID || 'weighty-yew-413809',
+      bucketName: process.env.GCS_BUCKET_NAME || 'aesthetic-crm-storage',
+      clientEmailConfigured: Boolean(process.env.GCS_CLIENT_EMAIL?.trim()),
+      privateKeyConfigured: Boolean(process.env.GCS_PRIVATE_KEY?.trim()),
+      error: 'Missing GCS_CLIENT_EMAIL or GCS_PRIVATE_KEY environment variables',
+    }
+  }
+
+  try {
+    const storage = getGCSStorage()
+    if (!storage) {
+      throw new Error('Failed to initialize Storage client')
+    }
+
+    const [exists] = await storage.bucket(creds.bucketName).exists()
+    return {
+      configured: true,
+      connected: exists,
+      projectId: creds.projectId,
+      bucketName: creds.bucketName,
+      clientEmailConfigured: true,
+      privateKeyConfigured: true,
+      error: exists ? undefined : `Bucket "${creds.bucketName}" does not exist or account lacks permission`,
+    }
+  } catch (err) {
+    return {
+      configured: true,
+      connected: false,
+      projectId: creds.projectId,
+      bucketName: creds.bucketName,
+      clientEmailConfigured: true,
+      privateKeyConfigured: true,
+      error: err instanceof Error ? err.message : 'Failed to connect to Google Cloud Storage',
+    }
+  }
+}

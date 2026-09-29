@@ -153,6 +153,20 @@ type SyncResponse = {
   error?: string
 }
 
+type GCSStatusResponse = {
+  success: boolean
+  data?: {
+    configured: boolean
+    connected: boolean
+    projectId: string
+    bucketName: string
+    clientEmailConfigured: boolean
+    privateKeyConfigured: boolean
+    error?: string
+  }
+  error?: string
+}
+
 const INTERVAL_OPTIONS = [5, 10, 15, 30, 60, 120, 240, 720, 1440]
 
 function formatDate(value: string | null): string {
@@ -193,6 +207,10 @@ export function IntegrationSettings() {
   const [instagramStatusError, setInstagramStatusError] = useState<string | null>(null)
   const [whatsAppStatusMessage, setWhatsAppStatusMessage] = useState<string | null>(null)
   const [whatsAppStatusError, setWhatsAppStatusError] = useState<string | null>(null)
+  const [gcsStatusMessage, setGcsStatusMessage] = useState<string | null>(null)
+  const [gcsStatusError, setGcsStatusError] = useState<string | null>(null)
+  const [checkingGcs, setCheckingGcs] = useState(false)
+  const [gcsStatus, setGcsStatus] = useState<GCSStatusResponse['data'] | null>(null)
 
   const [config, setConfig] = useState<FacebookConfig | null>(null)
   const [syncControl, setSyncControl] = useState<SyncControl | null>(null)
@@ -295,11 +313,38 @@ export function IntegrationSettings() {
     }
   }, [hydrateInstagramForm])
 
+  const checkGCSConnection = useCallback(async () => {
+    setCheckingGcs(true)
+    setGcsStatusError(null)
+    setGcsStatusMessage(null)
+    try {
+      const response = await fetch('/api/gcs/status', { cache: 'no-store' })
+      const payload = (await response.json()) as GCSStatusResponse
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.error ?? 'Failed to check Google Cloud Storage connection')
+      }
+      setGcsStatus(payload.data)
+      if (!payload.data.configured) {
+        setGcsStatusError('GCS credentials missing. Set GCS_CLIENT_EMAIL and GCS_PRIVATE_KEY in environment variables.')
+      } else if (!payload.data.connected) {
+        setGcsStatusError(payload.data.error ?? 'Cannot connect to GCS bucket. Check permissions and bucket name.')
+      } else {
+        setGcsStatusMessage(`Connected to Google Cloud Storage (Bucket: ${payload.data.bucketName})`)
+      }
+    } catch (error) {
+      setGcsStatusError(error instanceof Error ? error.message : 'Failed to check GCS connection')
+    } finally {
+      setCheckingGcs(false)
+    }
+  }, [])
+
   useEffect(() => {
     void loadSettings()
     void loadInstagramSettings()
     void loadWhatsAppSettings()
-  }, [loadInstagramSettings, loadSettings, loadWhatsAppSettings])
+    void checkGCSConnection()
+  }, [checkGCSConnection, loadInstagramSettings, loadSettings, loadWhatsAppSettings])
+
 
 
   const hasUnsavedChanges = useMemo(() => {
@@ -600,6 +645,36 @@ export function IntegrationSettings() {
 
   return (
     <div className="space-y-6">
+      <Card className="border-border">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Google Cloud Storage Connection</CardTitle>
+              <CardDescription>
+                Check and maintain OMS file upload connection to Google Cloud Storage (GCS).
+              </CardDescription>
+            </div>
+            <Badge className={gcsStatus?.connected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}>
+              {gcsStatus?.connected ? 'Connected' : gcsStatus?.configured ? 'Config Error' : 'Not Configured'}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border border-border p-4 text-sm space-y-1">
+            <p><span className="font-medium">Project ID:</span> {gcsStatus?.projectId ?? 'weighty-yew-413809'}</p>
+            <p><span className="font-medium">Bucket:</span> {gcsStatus?.bucketName ?? 'aesthetic-crm-storage'}</p>
+            <p><span className="font-medium">Client Email:</span> {gcsStatus?.clientEmailConfigured ? 'Configured' : 'Missing'}</p>
+            <p><span className="font-medium">Private Key:</span> {gcsStatus?.privateKeyConfigured ? 'Configured' : 'Missing'}</p>
+          </div>
+          {gcsStatusMessage ? <p className="text-sm text-green-700 font-medium">{gcsStatusMessage}</p> : null}
+          {gcsStatusError ? <p className="text-sm text-red-700 font-medium">{gcsStatusError}</p> : null}
+          <Button onClick={checkGCSConnection} disabled={checkingGcs} variant="outline">
+            <RefreshCw className={`mr-2 h-4 w-4 ${checkingGcs ? 'animate-spin' : ''}`} />
+            Check GCS Connection
+          </Button>
+        </CardContent>
+      </Card>
+
 
       <Card className="border-border">
         <CardHeader>
