@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
+import { getSmartDownloadUrl } from '@/lib/download-utils'
 import {
   CheckCircle2,
   CircleAlert,
@@ -231,8 +232,8 @@ function isImageFile(file: ReviewFile): boolean {
   return file.fileType.toLowerCase().startsWith('image/')
 }
 
-function getDownloadUrl(url: string): string {
-  return url.includes('?') ? `${url}&download=1` : `${url}?download=1`
+function getDownloadUrl(url: string, fileName?: string): string {
+  return getSmartDownloadUrl(url, fileName)
 }
 
 function formatMonth(value: string | null | undefined): string {
@@ -284,7 +285,7 @@ function FilePreviewCard({ file }: { file: ReviewFile }) {
           {formatCadSubmissionFileType(file.cadFileType)}
         </span>
         <a
-          href={getDownloadUrl(file.url)}
+          href={getDownloadUrl(file.url, file.fileName)}
           target="_blank"
           rel="noopener noreferrer"
           className="absolute right-1 top-1 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-background/90 text-foreground opacity-0 shadow transition group-hover:opacity-100"
@@ -314,7 +315,7 @@ function FilePreviewCard({ file }: { file: ReviewFile }) {
           <p className="truncate text-xs font-medium text-foreground">{file.fileName}</p>
         </div>
         <a
-          href={getDownloadUrl(file.url)}
+          href={getDownloadUrl(file.url, file.fileName)}
           target="_blank"
           rel="noopener noreferrer"
           className="z-20 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground opacity-0 transition group-hover:opacity-100"

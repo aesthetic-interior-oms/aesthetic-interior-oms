@@ -5,6 +5,7 @@ import type { ComponentType } from 'react'
 import Link from 'next/link'
 import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
 import { buildShortPreviewUrl } from '@/lib/short-quotation-preview-sync'
+import { getSmartDownloadUrl } from '@/lib/download-utils'
 import {
   CalendarClock,
   CheckCircle2,
@@ -382,7 +383,7 @@ function LeadFilesSection({ lead }: { lead: LeadRecord }) {
             {jrArchitectFiles.map((file) => (
               <a
                 key={file.id}
-                href={file.url}
+                href={getSmartDownloadUrl(file.url, file.fileName)}
                 target="_blank"
                 rel="noopener noreferrer"
                 download
@@ -449,7 +450,7 @@ function LeadFilesSection({ lead }: { lead: LeadRecord }) {
             {quotationFiles.map((file) => (
               <a
                 key={file.id}
-                href={file.url}
+                href={getSmartDownloadUrl(file.url, file.fileName)}
                 target="_blank"
                 rel="noopener noreferrer"
                 download
