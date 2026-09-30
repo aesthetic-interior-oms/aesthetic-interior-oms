@@ -12,6 +12,9 @@ export type ClientGCSUploadContext =
   | 'visit-support-result'
   | 'lead-attachment'
   | 'transaction-receipt'
+  | 'website-project'
+  | 'website-team'
+  | 'website-testimonial'
 
 export type UploadedGCSFileMeta = {
   url: string

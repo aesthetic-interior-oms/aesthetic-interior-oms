@@ -1,5 +1,3 @@
-import { randomUUID } from 'crypto'
-import { head, put } from '@vercel/blob'
 import { NextRequest, NextResponse } from 'next/server'
 import { ActivityType, LeadStage, LeadSubStatus, Prisma, ProjectStatus } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
@@ -7,25 +5,9 @@ import { requireDatabaseRoles } from '@/lib/authz'
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete'
 import { logActivity, logLeadStageChanged } from '@/lib/activity-log-service'
 import { getVisitWorkflowControlState } from '@/lib/visit-workflow-control'
+import { uploadToGCS } from '@/lib/gcs-storage'
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> }
-const BLOB_UPLOAD_MAX_ATTEMPTS = 3
-const BLOB_UPLOAD_RETRY_DELAY_MS = 350
-const EXTENSION_CONTENT_TYPE_MAP: Record<string, string> = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-  gif: 'image/gif',
-  heic: 'image/heic',
-  heif: 'image/heif',
-  pdf: 'application/pdf',
-  doc: 'application/msword',
-  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  txt: 'text/plain',
-  mp4: 'video/mp4',
-  mov: 'video/quicktime',
-}
 
 async function resolveVisitId(context: RouteContext): Promise<string | null> {
   const resolvedParams = await context.params
@@ -41,59 +23,6 @@ function toOptionalString(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
-}
-
-function sanitizeFileName(fileName: string): string {
-  return fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
-}
-
-function getFileExtension(fileName: string): string {
-  const safeName = (fileName || '').trim().toLowerCase()
-  const dotIndex = safeName.lastIndexOf('.')
-  if (dotIndex === -1 || dotIndex === safeName.length - 1) return ''
-  return safeName.slice(dotIndex + 1)
-}
-
-async function uploadFileToBlob(
-  keyPrefix: string,
-  file: File,
-): Promise<{ url: string; fileName: string; fileType: string }> {
-  const safeName = sanitizeFileName(file.name || 'attachment')
-  const storedFileName = `${Date.now()}-${randomUUID()}-${safeName}`
-  const extension = getFileExtension(file.name || '')
-  const fileType = file.type || EXTENSION_CONTENT_TYPE_MAP[extension] || 'application/octet-stream'
-  const blob = await put(`${keyPrefix}/${storedFileName}`, file, {
-    access: 'public',
-    contentType: fileType,
-  })
-
-  return {
-    url: blob.url,
-    fileName: file.name || safeName,
-    fileType,
-  }
-}
-
-function waitMs(duration: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, duration))
-}
-
-async function uploadFileToBlobWithRetry(
-  keyPrefix: string,
-  file: File,
-): Promise<{ url: string; fileName: string; fileType: string }> {
-  let lastError: unknown = null
-  for (let attempt = 1; attempt <= BLOB_UPLOAD_MAX_ATTEMPTS; attempt += 1) {
-    try {
-      return await uploadFileToBlob(keyPrefix, file)
-    } catch (error) {
-      lastError = error
-      if (attempt < BLOB_UPLOAD_MAX_ATTEMPTS) {
-        await waitMs(BLOB_UPLOAD_RETRY_DELAY_MS * attempt)
-      }
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error('Upload failed')
 }
 
 type UploadedFileMeta = {
@@ -119,7 +48,11 @@ function toUploadedFileMeta(value: unknown): UploadedFileMeta | null {
   return { url, fileName, fileType, sizeBytes }
 }
 
-async function uploadFilesToBlob(
+function resolveAttachmentReadUrl(url: string): string {
+  return url
+}
+
+async function uploadFilesToGCS(
   keyPrefix: string,
   files: File[],
 ): Promise<{ uploadedFiles: UploadedFileMeta[]; failedUploads: FailedUploadMeta[] }> {
@@ -127,52 +60,27 @@ async function uploadFilesToBlob(
     return { uploadedFiles: [], failedUploads: [] }
   }
 
-  const settled = await Promise.allSettled(
-    files.map((file) => uploadFileToBlobWithRetry(keyPrefix, file)),
-  )
-
   const uploadedFiles: UploadedFileMeta[] = []
   const failedUploads: FailedUploadMeta[] = []
 
-  settled.forEach((result, index) => {
-    const inputFile = files[index]
-    if (result.status === 'fulfilled') {
-      uploadedFiles.push({
-        ...result.value,
-        sizeBytes: inputFile.size,
+  for (const file of files) {
+    try {
+      const res = await uploadToGCS(file, keyPrefix)
+      uploadedFiles.push(res)
+    } catch (error) {
+      failedUploads.push({
+        fileName: file.name || 'file',
+        reason: error instanceof Error ? error.message : 'GCS upload failed',
       })
-      return
     }
-
-    const reason =
-      result.reason instanceof Error
-        ? result.reason.message
-        : 'Temporary upload failure'
-    failedUploads.push({
-      fileName: inputFile.name || `file-${index + 1}`,
-      reason,
-    })
-  })
+  }
 
   return { uploadedFiles, failedUploads }
 }
 
-async function resolveAttachmentReadUrl(url: string): Promise<string> {
-  if (!url.includes('.private.blob.vercel-storage.com')) return url
-  try {
-    const blobMeta = await head(url)
-    return blobMeta.downloadUrl || url
-  } catch {
-    return url
-  }
-}
-
-
 function isVideoFile(file: File): boolean {
   return file.type.startsWith('video/')
 }
-
-import { uploadToGCS } from '@/lib/gcs-storage'
 
 function getLeadAttachmentCategory(fileType: string): 'MEDIA' | 'FILE' {
   if (fileType.startsWith('image/') || fileType.startsWith('video/')) {
@@ -473,7 +381,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
         const { uploadedFiles: uploadedSupportFiles, failedUploads } = directUploadedFiles
           ? { uploadedFiles: directUploadedFiles, failedUploads: [] }
-          : await uploadFilesToBlob(
+          : await uploadFilesToGCS(
               `visit-support-results/${visitId}`,
               files,
             )
@@ -606,24 +514,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
       const { uploadedFiles: uploadedLeadFiles, failedUploads } = directUploadedFiles
         ? { uploadedFiles: directUploadedFiles, failedUploads: [] }
-        : await uploadFilesToBlob(
+        : await uploadFilesToGCS(
             `visit-results/${visitId}`,
             nonVideoFiles,
           )
       for (const videoFile of allVideoFiles) {
         try {
-          // Attempt GCS upload first, fallback to Vercel Blob
-          let uploadedVideo: { url: string; fileName: string; fileType: string; sizeBytes: number }
-          try {
-            uploadedVideo = await uploadToGCS(videoFile, `visit-results/${visitId}`)
-          } catch {
-            const blobRes = await uploadFilesToBlob(`visit-results/${visitId}`, [videoFile])
-            if (blobRes.uploadedFiles.length > 0) {
-              uploadedVideo = blobRes.uploadedFiles[0]
-            } else {
-              throw new Error('Video upload failed')
-            }
-          }
+          const uploadedVideo = await uploadToGCS(videoFile, `visit-results/${visitId}`)
           uploadedLeadFiles.push(uploadedVideo)
         } catch {
           failedUploads.push({ fileName: videoFile.name || 'video', reason: 'Video upload failed' })

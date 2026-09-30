@@ -128,6 +128,12 @@ function resolveGCSFolder(context: string, ownerId: string): string {
       return `lead-attachments/${ownerId}`
     case 'transaction-receipt':
       return `transaction-receipts/${ownerId}`
+    case 'website-project':
+      return `website-projects/${ownerId}`
+    case 'website-team':
+      return `website-team/${ownerId}`
+    case 'website-testimonial':
+      return `website-testimonials/${ownerId}`
     default:
       return `attachments/${ownerId}`
   }

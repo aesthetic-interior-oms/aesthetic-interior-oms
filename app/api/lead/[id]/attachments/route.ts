@@ -1,9 +1,8 @@
-import { randomUUID } from 'crypto'
-import { head, put } from '@vercel/blob'
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
+import { uploadToGCS } from '@/lib/gcs-storage'
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> }
 
@@ -53,19 +52,6 @@ function getCategory(fileType: string): 'MEDIA' | 'FILE' {
   return 'FILE'
 }
 
-async function resolveAttachmentReadUrl(url: string): Promise<string> {
-  if (!url.includes('.private.blob.vercel-storage.com')) {
-    return url
-  }
-
-  try {
-    const blobMeta = await head(url)
-    return blobMeta.downloadUrl || url
-  } catch {
-    return url
-  }
-}
-
 export async function GET(_request: NextRequest, context: RouteContext) {
   const leadId = await resolveLeadId(context)
 
@@ -79,17 +65,10 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       orderBy: { createdAt: 'desc' },
     })
 
-    const withReadableUrls = await Promise.all(
-      attachments.map(async (item) => ({
-        ...item,
-        url: await resolveAttachmentReadUrl(item.url),
-      })),
-    )
-
     return NextResponse.json({
       success: true,
-      data: withReadableUrls,
-      count: withReadableUrls.length,
+      data: attachments,
+      count: attachments.length,
     })
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021') {
@@ -155,25 +134,18 @@ export async function POST(request: NextRequest, context: RouteContext) {
         )
       }
 
-      const safeName = sanitizeFileName(fileEntry.name || 'attachment')
-      const storedFileName = `${Date.now()}-${randomUUID()}-${safeName}`
-      const fileType = fileEntry.type || 'application/octet-stream'
-      const blob = await put(`leads/${leadId}/${storedFileName}`, fileEntry, {
-        access: 'public',
-        contentType: fileType,
-      })
+      const gcsResult = await uploadToGCS(fileEntry, `lead-attachments/${leadId}`)
       uploadedAttachment = {
-        url: blob.url,
-        fileName: fileEntry.name || safeName,
-        fileType,
-        sizeBytes: fileEntry.size,
+        url: gcsResult.url,
+        fileName: gcsResult.fileName,
+        fileType: gcsResult.fileType,
+        sizeBytes: gcsResult.sizeBytes,
       }
     }
 
     const attachment = await prisma.leadAttachment.create({
       data: {
         leadId,
-        // Store a browser-openable URL.
         url: uploadedAttachment.url,
         fileName: uploadedAttachment.fileName,
         fileType: uploadedAttachment.fileType,
@@ -194,15 +166,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021') {
       return NextResponse.json(
         { success: false, error: 'Attachments table is not ready yet. Please run migrations.' },
-        { status: 503 },
-      )
-    }
-    if (error instanceof Error && error.message.includes('BLOB_READ_WRITE_TOKEN')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Blob storage is not configured. Set BLOB_READ_WRITE_TOKEN in environment variables.',
-        },
         { status: 503 },
       )
     }
