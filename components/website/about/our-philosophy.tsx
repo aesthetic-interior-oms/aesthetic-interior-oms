@@ -2,12 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { Palette, Scale, Leaf, Sparkles } from "lucide-react"
-import { Noto_Serif_Bengali } from "next/font/google"
-
-const notoSerifBengali = Noto_Serif_Bengali({
-  subsets: ["bengali"],
-  weight: ["400", "500", "600"],
-})
+import { notoSerifBengali } from "@/lib/fonts"
 
 const philosophyCards = [
  {

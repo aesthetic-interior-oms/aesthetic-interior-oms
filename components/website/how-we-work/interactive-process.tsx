@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
-import { Noto_Serif_Bengali } from "next/font/google"
+import { notoSerifBengali } from "@/lib/fonts"
 import {
     MessageSquare,
     Users,
@@ -31,10 +31,7 @@ const iconMap = {
     home: Home,
 }
 
-const notoSerifBengali = Noto_Serif_Bengali({
-    subsets: ["bengali"],
-    weight: ["400", "500", "600"],
-})
+
 
 const hasBangla = (text: string) => /[\u0980-\u09FF]/.test(text)
 

@@ -3,13 +3,8 @@
 import { Quote } from "lucide-react"
 import { useEffect, useRef } from "react"
 import Image from "next/image"
-import { Noto_Serif_Bengali } from "next/font/google"
+import { notoSerifBengali } from "@/lib/fonts"
 import type { WebsiteTestimonial } from "@/lib/website-testimonials"
-
-const notoSerifBengali = Noto_Serif_Bengali({
-  subsets: ["bengali"],
-  weight: ["400", "500", "600"],
-})
 
 export function TestimonialsSection({ testimonials }: { testimonials: WebsiteTestimonial[] }) {
   const scrollRef = useRef<HTMLDivElement>(null)
