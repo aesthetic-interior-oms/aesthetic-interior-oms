@@ -211,6 +211,8 @@ export function IntegrationSettings() {
   const [gcsStatusError, setGcsStatusError] = useState<string | null>(null)
   const [checkingGcs, setCheckingGcs] = useState(false)
   const [gcsStatus, setGcsStatus] = useState<GCSStatusResponse['data'] | null>(null)
+  const [testingGcsUpload, setTestingGcsUpload] = useState(false)
+  const [gcsTestUploadResult, setGcsTestUploadResult] = useState<string | null>(null)
 
   const [config, setConfig] = useState<FacebookConfig | null>(null)
   const [syncControl, setSyncControl] = useState<SyncControl | null>(null)
@@ -335,6 +337,23 @@ export function IntegrationSettings() {
       setGcsStatusError(error instanceof Error ? error.message : 'Failed to check GCS connection')
     } finally {
       setCheckingGcs(false)
+    }
+  }, [])
+
+  const testGCSUpload = useCallback(async () => {
+    setTestingGcsUpload(true)
+    setGcsTestUploadResult(null)
+    try {
+      const response = await fetch('/api/gcs/test-upload', { method: 'POST', cache: 'no-store' })
+      const payload = await response.json() as { success: boolean; error?: string; data?: { file: { url: string } } }
+      if (!response.ok || !payload.success) {
+        throw new Error(payload.error ?? 'Test upload failed')
+      }
+      setGcsTestUploadResult(`✅ Upload successful! File URL: ${payload.data?.file.url ?? ''}`)
+    } catch (error) {
+      setGcsTestUploadResult(`❌ ${error instanceof Error ? error.message : 'Test upload failed'}`)
+    } finally {
+      setTestingGcsUpload(false)
     }
   }, [])
 
@@ -668,10 +687,21 @@ export function IntegrationSettings() {
           </div>
           {gcsStatusMessage ? <p className="text-sm text-green-700 font-medium">{gcsStatusMessage}</p> : null}
           {gcsStatusError ? <p className="text-sm text-red-700 font-medium">{gcsStatusError}</p> : null}
-          <Button onClick={checkGCSConnection} disabled={checkingGcs} variant="outline">
-            <RefreshCw className={`mr-2 h-4 w-4 ${checkingGcs ? 'animate-spin' : ''}`} />
-            Check GCS Connection
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={checkGCSConnection} disabled={checkingGcs} variant="outline">
+              <RefreshCw className={`mr-2 h-4 w-4 ${checkingGcs ? 'animate-spin' : ''}`} />
+              Check GCS Connection
+            </Button>
+            <Button onClick={testGCSUpload} disabled={testingGcsUpload || !gcsStatus?.connected} variant="outline">
+              <CheckCircle2 className={`mr-2 h-4 w-4 ${testingGcsUpload ? 'animate-spin' : ''}`} />
+              Test File Upload
+            </Button>
+          </div>
+          {gcsTestUploadResult ? (
+            <p className={`text-sm mt-1 break-all font-medium ${gcsTestUploadResult.startsWith('✅') ? 'text-green-700' : 'text-red-700'}`}>
+              {gcsTestUploadResult}
+            </p>
+          ) : null}
         </CardContent>
       </Card>
 
