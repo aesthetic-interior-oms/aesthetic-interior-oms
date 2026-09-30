@@ -17,7 +17,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from '@/components/ui/sonner'
-import { uploadDirectBlobFile, type UploadedBlobFileMeta } from '@/lib/client-blob-upload'
+import { uploadDirectGCSFile, type UploadedGCSFileMeta } from '@/lib/client-gcs-upload'
 import { VISUALIZER_WORK_UPLOAD_LIMIT_MESSAGE } from '@/lib/upload-limits'
 import {
   Dialog,
@@ -157,9 +157,9 @@ export default function VisualizerAssignedTaskPage() {
     setBusyId(submitLead.id)
     try {
       setUploadingFiles(true)
-      const uploadedFiles: UploadedBlobFileMeta[] = []
+      const uploadedFiles: UploadedGCSFileMeta[] = []
       for (const file of submitFiles) {
-        const uploaded = await uploadDirectBlobFile({
+        const uploaded = await uploadDirectGCSFile({
           file,
           context: 'visualizer-work',
           ownerId: submitLead.id,

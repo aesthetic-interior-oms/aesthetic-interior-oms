@@ -43,7 +43,7 @@ import {
   type CadSubmissionFileTypeValue,
   formatCadSubmissionFileType,
 } from '@/lib/cad-work'
-import { uploadDirectBlobFile, type UploadedBlobFileMeta } from '@/lib/client-blob-upload'
+import { uploadDirectGCSFile, type UploadedGCSFileMeta } from '@/lib/client-gcs-upload'
 import { DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE, DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
 
 const PAGE_SIZE = 20
@@ -331,14 +331,13 @@ export default function JrArchLeadsPage() {
 
     try {
       setSubmittingWork(true)
-      const uploadedFiles: Array<UploadedBlobFileMeta & { cadFileType: CadSubmissionFileTypeValue }> = []
+      const uploadedFiles: Array<UploadedGCSFileMeta & { cadFileType: CadSubmissionFileTypeValue }> = []
       for (const row of rowsWithFiles) {
         if (!row.file) continue
-        const uploaded = await uploadDirectBlobFile({
+        const uploaded = await uploadDirectGCSFile({
           file: row.file,
           context: 'cad-work',
           ownerId: submitWorkLead.id,
-          cadFileType: row.cadFileType,
         })
         uploadedFiles.push({ ...uploaded, cadFileType: row.cadFileType })
       }
