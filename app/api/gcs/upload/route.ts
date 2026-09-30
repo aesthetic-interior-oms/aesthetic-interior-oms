@@ -122,6 +122,8 @@ function resolveGCSFolder(context: string, ownerId: string): string {
       return `visualizer-work-submissions/${ownerId}`
     case 'visit-result':
       return `visit-results/${ownerId}`
+    case 'visit-support-result':
+      return `visit-support-results/${ownerId}`
     case 'lead-attachment':
       return `lead-attachments/${ownerId}`
     case 'transaction-receipt':

@@ -24,7 +24,7 @@ import { LeadActionsPanel } from '@/components/crm/junior/lead-actions-panel'
 import { SrCommandPanel } from '@/components/crm/senior/sr-command-panel'
 import { fetchMeCached } from '@/lib/client-me'
 import { FacebookMessagesDialog } from '@/components/crm/shared/facebook-messages-dialog'
-import { uploadDirectBlobFile } from '@/lib/client-blob-upload'
+import { uploadDirectGCSFile } from '@/lib/client-gcs-upload'
 import { DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE, DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
 
 type LeadDetails = {
@@ -548,7 +548,7 @@ export default function LeadDetailPage() {
     setAddAttachmentError(null)
 
     try {
-      const uploadedFile = await uploadDirectBlobFile({
+      const uploadedFile = await uploadDirectGCSFile({
         file: attachmentFile,
         context: 'lead-attachment',
         ownerId: leadId,

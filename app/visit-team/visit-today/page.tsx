@@ -39,7 +39,7 @@ import {
   stylePreferenceOptions,
   urgencyOptions,
 } from '@/lib/visit-result-options'
-import { uploadDirectBlobFile, type UploadedBlobFileMeta } from '@/lib/client-blob-upload'
+import { uploadDirectGCSFile, type UploadedGCSFileMeta } from '@/lib/client-gcs-upload'
 import { DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE, DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
 
 type VisitRecord = {
@@ -862,9 +862,9 @@ export default function VisitTodayPage() {
     setCompleteError(null)
     setUploadingFileNames(selectedUploadFiles.map((file) => file.name))
     try {
-      const uploadedFiles: UploadedBlobFileMeta[] = []
+      const uploadedFiles: UploadedGCSFileMeta[] = []
       for (const file of selectedUploadFiles) {
-        const uploaded = await uploadDirectBlobFile({
+        const uploaded = await uploadDirectGCSFile({
           file,
           context: completeRole === 'SUPPORT' ? 'visit-support-result' : 'visit-result',
           ownerId: completeVisit.id,

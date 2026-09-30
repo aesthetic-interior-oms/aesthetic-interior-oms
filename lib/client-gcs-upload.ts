@@ -9,6 +9,7 @@ export type ClientGCSUploadContext =
   | 'quotation-work'
   | 'visualizer-work'
   | 'visit-result'
+  | 'visit-support-result'
   | 'lead-attachment'
   | 'transaction-receipt'
 
