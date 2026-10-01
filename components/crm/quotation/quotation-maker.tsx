@@ -500,8 +500,15 @@ export function QuotationMaker({
   }
 
   const removeFloor = (floorId: string) => {
-    if (!window.confirm('Remove this floor and all its items?')) return
+    const itemCount = content?.lineItems.filter((line) => line.sectionId === floorId).length ?? 0
+    if (itemCount > 0 && !window.confirm(`This floor contains ${itemCount} item(s). Delete the floor and all of its items?`)) return
     setContent((prev) => (prev ? removeFloorFromContent(prev, floorId) : prev))
+  }
+
+  const removeArea = (areaId: string) => {
+    const itemCount = content?.lineItems.filter((line) => line.areaId === areaId).length ?? 0
+    if (itemCount > 0 && !window.confirm(`This area contains ${itemCount} item(s). Delete the area and all of its items?`)) return
+    setContent((prev) => (prev ? removeAreaFromContent(prev, areaId) : prev))
   }
 
   const addCustomLine = (floorId: string, areaId: string | undefined, type: 'regular' | 'package' = 'regular') => {
@@ -1181,7 +1188,14 @@ return (
                           <Plus className="mr-1 h-3.5 w-3.5" /> Add Item
                         </Button>
                       )}
-                      <Button type="button" size="icon" variant="ghost" onClick={() => removeFloor(floor.id)}>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => removeFloor(floor.id)}
+                        aria-label={`Delete ${floor.name || 'floor'}`}
+                        title="Delete floor and its items"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -1214,7 +1228,18 @@ return (
                             <Button type="button" size="sm" variant="ghost" onClick={() => { setCustomTypeFloorId(floor.id); setCustomTypeAreaId(area.id.startsWith('general-') ? null : area.id) }}>
                               Custom item
                             </Button>
-                            {!area.id.startsWith('general-') ? <Button type="button" size="icon" variant="ghost" onClick={() => setContent((prev) => (prev ? removeAreaFromContent(prev, area.id) : prev))}><Trash2 className="h-4 w-4" /></Button> : null}
+                            {!area.id.startsWith('general-') ? (
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => removeArea(area.id)}
+                                aria-label={`Delete ${area.name || 'area'}`}
+                                title="Delete area and its items"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : null}
                           </div>
                         ) : null}
                       </div>

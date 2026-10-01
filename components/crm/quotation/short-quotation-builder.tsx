@@ -164,7 +164,7 @@ export function ShortQuotationBuilder({
   const [fullTemplates, setFullTemplates] = useState<Array<Record<string, unknown>>>([])
   const catalogs = useMemo(() => {
     if (fullTemplates.length) {
-      return fullTemplates.map((t: any) => ({ key: t.key as string, name: t.name as string }))
+      return fullTemplates.map((template) => ({ key: template.key as string, name: template.name as string }))
     }
     return listQuotationTemplates().map((t) => ({ key: t.key, name: t.name }))
   }, [fullTemplates])
@@ -499,6 +499,42 @@ export function ShortQuotationBuilder({
     })
   }
 
+  const removeFloor = (floorId: string) => {
+    const itemCount = content?.rooms
+      .filter((room) => room.floorId === floorId)
+      .reduce((count, room) => count + room.lines.length, 0) ?? 0
+    if (itemCount > 0 && !window.confirm(`This floor contains ${itemCount} item(s). Delete the floor and all of its items?`)) return
+
+    updateContent((prev) => ({
+      ...prev,
+      floors: prev.floors
+        .filter((floor) => floor.id !== floorId)
+        .map((floor, index) => ({ ...floor, sortOrder: index + 1 })),
+      rooms: prev.rooms.filter((room) => room.floorId !== floorId),
+    }))
+  }
+
+  const removeRoom = (roomId: string) => {
+    const itemCount = content?.rooms.find((room) => room.id === roomId)?.lines.length ?? 0
+    if (itemCount > 0 && !window.confirm(`This room contains ${itemCount} item(s). Delete the room and all of its items?`)) return
+
+    updateContent((prev) => {
+      const room = prev.rooms.find((item) => item.id === roomId)
+      if (!room) return prev
+
+      const remainingRooms = prev.rooms.filter((item) => item.id !== roomId)
+      let sortOrder = 0
+      return {
+        ...prev,
+        rooms: remainingRooms.map((item) => {
+          if (item.floorId !== room.floorId) return item
+          sortOrder += 1
+          return { ...item, sortOrder }
+        }),
+      }
+    })
+  }
+
   const addSqftLine = (roomId: string) => {
     updateContent((prev) => ({
       ...prev,
@@ -741,13 +777,6 @@ export function ShortQuotationBuilder({
       return
     }
     addRoom(taskbarFloorId)
-  }
-  const addTaskbarCustomItem = () => {
-    if (!taskbarRoomId) {
-      toast.error('Add a floor and room first')
-      return
-    }
-    addSqftLine(taskbarRoomId)
   }
   const openTaskbarCatalogPicker = () => {
     if (!taskbarRoomId) {
@@ -1089,6 +1118,17 @@ export function ShortQuotationBuilder({
                   >
                     Add Room
                   </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    disabled={!canEdit}
+                    onClick={() => removeFloor(floor.id)}
+                    aria-label={`Delete ${floor.name || 'floor'}`}
+                    title="Delete floor and its rooms"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -1118,6 +1158,7 @@ export function ShortQuotationBuilder({
                               updateContent={updateContent}
                               addSqftLine={addSqftLine}
                               addLumpSumLine={addLumpSumLine}
+                              removeRoom={removeRoom}
                               openPickerForRoom={openPickerForRoom}
                               reorderRoomLines={reorderRoomLines}
                               updateLine={updateLine}
@@ -1234,6 +1275,7 @@ type SortableRoomCardProps = {
   updateContent: (updater: (prev: ShortQuotationContent) => ShortQuotationContent) => void
   addSqftLine: (roomId: string) => void
   addLumpSumLine: (roomId: string) => void
+  removeRoom: (roomId: string) => void
   openPickerForRoom: (roomId: string) => void
   reorderRoomLines: (roomId: string, event: DragEndEvent) => void
   updateLine: (roomId: string, lineId: string, patch: Partial<ShortQuotationLine>) => void
@@ -1249,6 +1291,7 @@ function SortableRoomCard({
   updateContent,
   addSqftLine,
   addLumpSumLine,
+  removeRoom,
   openPickerForRoom,
   reorderRoomLines,
   updateLine,
@@ -1295,9 +1338,23 @@ function SortableRoomCard({
             }
           />
         </div>
-        <span className="text-sm font-medium">
-          Room Total: {formatAmount(roomSummary?.total ?? 0)}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-sm font-medium">
+            Room Total: {formatAmount(roomSummary?.total ?? 0)}
+          </span>
+          {canEdit ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={() => removeRoom(room.id)}
+              aria-label={`Delete ${room.name || 'room'}`}
+              title="Delete room and its items"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <div className="overflow-x-auto">
