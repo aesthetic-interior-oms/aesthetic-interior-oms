@@ -18,6 +18,7 @@ import {
 import { ensureSeniorCrmAssignment } from "@/lib/lead-handoff";
 import { sendPushToUser } from "@/lib/fcm-service";
 import { recalculateQuotationUserPerformance } from "@/lib/quotation-performance";
+import { isGCSUploadUrl } from "@/lib/gcs-storage";
 
 type RouteContext = { params: { id: string } | Promise<{ id: string }> };
 
@@ -62,7 +63,7 @@ function toUploadedQuotationFileMeta(
     typeof record.sizeBytes === "number" && Number.isFinite(record.sizeBytes)
       ? record.sizeBytes
       : 0;
-  if (!url || !fileName || sizeBytes <= 0) return null;
+  if (!url || !fileName || sizeBytes <= 0 || !isGCSUploadUrl(url, "quotation-work-submissions")) return null;
   return { url, fileName, fileType, sizeBytes };
 }
 
@@ -87,7 +88,7 @@ function toQuotationType(value: unknown): "PREMIUM" | "STANDARD" | "BASIC" | "MI
     normalized === "PLATINUM" ||
     normalized === "LUXURY"
   ) {
-    return normalized as any;
+    return normalized as "PREMIUM" | "STANDARD" | "BASIC" | "MIXED" | "PLATINUM" | "LUXURY";
   }
   return null;
 }
@@ -111,11 +112,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const note = toOptionalString(body.note);
     const budget = toOptionalNumber(body.budget);
     const quotationType = toQuotationType(body.quotationType);
-    const uploadedFiles = Array.isArray(body.files)
-      ? body.files
-          .map((item) => toUploadedQuotationFileMeta(item))
-          .filter((item): item is UploadedQuotationFileMeta => Boolean(item))
-      : [];
+    const requestedFiles = Array.isArray(body.files) ? body.files : [];
+    const uploadedFiles = requestedFiles
+      .map((item) => toUploadedQuotationFileMeta(item))
+      .filter((item): item is UploadedQuotationFileMeta => Boolean(item));
+
+    if (uploadedFiles.length !== requestedFiles.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Each quotation file must be uploaded to Google Cloud Storage before submission",
+        },
+        { status: 400 },
+      );
+    }
 
     const actorDepartments = new Set(authResult.actor.userDepartments ?? []);
     const isAdminOrSr =

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, FileText, Loader2, MapPin, UserRound, Sparkles, ClipboardList, PenTool, CheckCircle, RotateCcw, CalendarClock, RefreshCw, X, Filter } from "lucide-react";
+import { Download, FileText, Loader2, MapPin, UserRound, Sparkles, ClipboardList, PenTool, CheckCircle, RotateCcw, CalendarClock, RefreshCw, X } from "lucide-react";
 import { CrmPageHeader } from "@/components/crm/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { uploadDirectBlobFile, type UploadedBlobFileMeta } from "@/lib/client-blob-upload";
+import { uploadDirectGCSFile, type UploadedGCSFileMeta } from "@/lib/client-gcs-upload";
 import {
   Dialog,
   DialogContent,
@@ -228,16 +228,14 @@ export default function QuotationAssignedTaskPage() {
     setBusyId(submitLead.id);
     try {
       setUploadingFiles(true);
-      const uploadedFiles: UploadedBlobFileMeta[] = [];
+      const uploadedFiles: UploadedGCSFileMeta[] = [];
       for (const attachment of validAttachments) {
         const file = attachment.file;
         if (!file) continue;
-        const quotationFileType = attachment.documentType === "SHORT" ? attachment.packageType : "DETAIL";
-        const uploaded = await uploadDirectBlobFile({
+        const uploaded = await uploadDirectGCSFile({
           file,
           context: "quotation-work",
           ownerId: submitLead.id,
-          quotationFileType,
         });
         uploadedFiles.push({
           ...uploaded,
@@ -751,7 +749,7 @@ export default function QuotationAssignedTaskPage() {
                 ))}
                 <Button type="button" variant="secondary" onClick={() => setSubmitAttachments((prev) => [...prev, { id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }])}>Add Attachment</Button>
               </div>
-              <p className="text-xs text-muted-foreground"><span className="font-bold">PDF files only</span></p>
+              <p className="text-xs text-muted-foreground"><span className="font-bold">PDF files only.</span> Files are uploaded to Google Cloud Storage before this quotation is submitted for review.</p>
               {submitAttachments.some((item) => item.file) ? (
                 <ul className="space-y-1 text-xs text-muted-foreground">
                   {submitAttachments.filter((item) => item.file).map((item) => (

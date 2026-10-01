@@ -39,6 +39,85 @@ export type GCSUploadResult = {
   sizeBytes: number
 }
 
+type GCSUrlParts = {
+  bucketName: string
+  objectName: string
+}
+
+function getGCSUrlParts(url: string): GCSUrlParts | null {
+  try {
+    const parsed = new URL(url)
+    const pathSegments = parsed.pathname.split('/').filter(Boolean)
+    let bucketName: string | undefined
+    let objectSegments: string[] = []
+
+    if (parsed.hostname === 'storage.googleapis.com' || parsed.hostname === 'storage.cloud.google.com') {
+      bucketName = pathSegments[0]
+      objectSegments = pathSegments.slice(1)
+    } else if (parsed.hostname.endsWith('.storage.googleapis.com')) {
+      bucketName = parsed.hostname.slice(0, -'.storage.googleapis.com'.length)
+      objectSegments = pathSegments
+    } else {
+      return null
+    }
+
+    const objectName = decodeURIComponent(objectSegments.join('/'))
+    return bucketName && objectName ? { bucketName, objectName } : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Returns whether a public URL belongs to this application's configured GCS
+ * bucket and, optionally, to a specific object-prefix folder.
+ */
+export function isGCSUploadUrl(url: string, folder?: string): boolean {
+  const parts = getGCSUrlParts(url)
+  const bucketName = getGCSCredentials()?.bucketName || 'aesthetic-interior-database-storage'
+  const normalizedFolder = folder?.replace(/^\/+|\/+$/g, '')
+
+  return Boolean(
+    parts &&
+      parts.bucketName === bucketName &&
+      (!normalizedFolder || parts.objectName.startsWith(`${normalizedFolder}/`)),
+  )
+}
+
+/**
+ * Reads an object through the configured service account. This keeps downloads
+ * working when the GCS bucket is private, rather than relying on anonymous
+ * access to the public storage.googleapis.com URL.
+ */
+export async function downloadFromGCSUrl(url: string): Promise<{
+  buffer: Buffer
+  contentType: string
+}> {
+  if (!isGCSUploadUrl(url)) {
+    throw new Error('The requested file is not stored in the configured Google Cloud Storage bucket')
+  }
+
+  const storage = getGCSStorage()
+  const creds = getGCSCredentials()
+  if (!storage || !creds) {
+    throw new Error('Google Cloud Storage credentials not configured')
+  }
+
+  const parts = getGCSUrlParts(url)
+  if (!parts) {
+    throw new Error('Invalid Google Cloud Storage object path')
+  }
+
+  const file = storage.bucket(creds.bucketName).file(parts.objectName)
+  const [metadata] = await file.getMetadata()
+  const [buffer] = await file.download()
+
+  return {
+    buffer,
+    contentType: metadata.contentType || 'application/octet-stream',
+  }
+}
+
 /**
  * Upload a File or Buffer to Google Cloud Storage.
  * Returns public URL and metadata.
