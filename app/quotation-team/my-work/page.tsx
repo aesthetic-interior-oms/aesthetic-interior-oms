@@ -49,7 +49,7 @@ function formatLabel(value: string | null | undefined) {
 }
 
 export default function QuotationTeamMyWorkPage() {
-  type QuotationFileType = "PREMIUM" | "STANDARD" | "BASIC" | "MIXED";
+  type QuotationFileType = "PREMIUM" | "STANDARD" | "BASIC" | "MIXED" | "PLATINUM" | "LUXURY";
   type AttachmentInput = { id: string; file: File | null; quotationType: QuotationFileType; budget: string };
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -344,10 +344,10 @@ export default function QuotationTeamMyWorkPage() {
                     value={attachment.quotationType}
                     onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, quotationType: event.target.value as QuotationFileType } : item))}
                   >
+                    <option value="MIXED">Mix</option>
                     <option value="PREMIUM">Premium</option>
-                    <option value="STANDARD">Standard</option>
-                    <option value="BASIC">Basic</option>
-                    <option value="MIXED">Mixed</option>
+                    <option value="PLATINUM">Platinum</option>
+                    <option value="LUXURY">Luxury</option>
                   </select>
                   <Input type="text" inputMode="decimal" placeholder="e.g. 300000" value={attachment.budget} onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, budget: event.target.value } : item))} />
                   <Input type="file" onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, file: event.target.files?.[0] ?? null } : item))} />

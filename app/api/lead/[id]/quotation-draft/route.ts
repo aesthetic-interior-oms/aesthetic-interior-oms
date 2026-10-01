@@ -85,8 +85,16 @@ function toOptionalNumber(value: unknown): number | null {
 function toQuotationType(value: unknown): QuotationFileType | null {
   if (typeof value !== 'string') return null
   const normalized = value.trim().toUpperCase()
-  if (normalized === 'PREMIUM' || normalized === 'STANDARD' || normalized === 'BASIC' || normalized === 'MIXED') {
-    return normalized
+  if (normalized === 'MIX') return 'MIXED'
+  if (
+    normalized === 'PREMIUM' ||
+    normalized === 'STANDARD' ||
+    normalized === 'BASIC' ||
+    normalized === 'MIXED' ||
+    normalized === 'PLATINUM' ||
+    normalized === 'LUXURY'
+  ) {
+    return normalized as QuotationFileType
   }
   return null
 }

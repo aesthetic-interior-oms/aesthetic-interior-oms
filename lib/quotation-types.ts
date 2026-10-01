@@ -1,6 +1,6 @@
 export type QuotationUnit = 'sqft' | 'nos' | 'ls' | 'rmt' | 'rft'
 
-export type QuotationFileType = 'PREMIUM' | 'STANDARD' | 'BASIC' | 'MIXED'
+export type QuotationFileType = 'PREMIUM' | 'STANDARD' | 'BASIC' | 'MIXED' | 'PLATINUM' | 'LUXURY'
 
 export type QuotationPriceMode = 'fixed' | 'range' | 'on-request'
 

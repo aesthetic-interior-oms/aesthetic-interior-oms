@@ -71,7 +71,7 @@ function formatLabel(value: string | null | undefined) {
 }
 
 export default function SrCrmQuotationPage() {
-  type QuotationPackageType = "PREMIUM" | "STANDARD" | "BASIC" | "MIXED";
+  type QuotationPackageType = "PREMIUM" | "STANDARD" | "BASIC" | "MIXED" | "PLATINUM" | "LUXURY";
   type AttachmentDocumentType = "SHORT" | "DETAIL";
   type AttachmentInput = {
     id: string;

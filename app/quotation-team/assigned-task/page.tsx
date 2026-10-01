@@ -88,7 +88,7 @@ function getRecentMonthsList() {
 }
 
 export default function QuotationAssignedTaskPage() {
-  type QuotationPackageType = "PREMIUM" | "STANDARD" | "BASIC" | "MIXED";
+  type QuotationPackageType = "PREMIUM" | "STANDARD" | "BASIC" | "MIXED" | "PLATINUM" | "LUXURY";
   type AttachmentDocumentType = "SHORT" | "DETAIL";
   type AttachmentInput = {
     id: string;
@@ -739,10 +739,10 @@ export default function QuotationAssignedTaskPage() {
                         value={attachment.packageType}
                         onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, packageType: event.target.value as QuotationPackageType } : item))}
                       >
-                        <option value="PREMIUM">Premium</option>
-                        <option value="STANDARD">Standard</option>
-                        <option value="BASIC">Basic</option>
                         <option value="MIXED">Mix</option>
+                        <option value="PREMIUM">Premium</option>
+                        <option value="PLATINUM">Platinum</option>
+                        <option value="LUXURY">Luxury</option>
                       </select>
                     ) : null}
                     <Input type="file" accept="application/pdf,.pdf" onChange={(event) => setSubmitAttachments((prev) => prev.map((item) => item.id === attachment.id ? { ...item, file: event.target.files?.[0] ?? null } : item))} />

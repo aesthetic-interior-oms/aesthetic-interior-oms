@@ -14,7 +14,7 @@ type UploadDirectBlobInput = {
   context: ClientBlobUploadContext
   ownerId: string
   cadFileType?: string
-  quotationFileType?: 'PREMIUM' | 'STANDARD' | 'BASIC' | 'MIXED' | 'DETAIL'
+  quotationFileType?: 'PREMIUM' | 'STANDARD' | 'BASIC' | 'MIXED' | 'PLATINUM' | 'LUXURY' | 'DETAIL'
   onProgress?: (percentage: number) => void
 }
 
