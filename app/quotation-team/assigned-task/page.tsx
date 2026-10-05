@@ -504,19 +504,7 @@ export default function QuotationAssignedTaskPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
-          {monthGroups.map(([monthKey, monthLeads]) => (
-              <section key={monthKey} className="space-y-3">
-                <div className="flex items-center gap-3 pt-2">
-                  <div className="h-px flex-1 bg-border/60" />
-                  <h2 className="rounded-full border border-border/70 bg-card px-4 py-1.5 text-sm font-bold tracking-wide shadow-sm">
-                    {monthKey === "NO_VISIT_DATE"
-                      ? "No Visit Date"
-                      : new Date(`${monthKey}-01T00:00:00`).toLocaleString("en-US", { month: "long", year: "numeric" })}
-                  </h2>
-                  <Badge variant="secondary">{monthLeads.length} {monthLeads.length === 1 ? "task" : "tasks"}</Badge>
-                  <div className="h-px flex-1 bg-border/60" />
-                </div>
-                {monthLeads.map((lead) => (
+          {leads.map((lead) => (
                         <tr key={lead.id} className="hover:bg-muted/30">
                           <td className="px-4 py-3">
                             <Link href={`/quotation-team/leads/${lead.id}`} className="font-semibold hover:text-primary hover:underline">{lead.name}</Link>
@@ -539,7 +527,7 @@ export default function QuotationAssignedTaskPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-xs">
-                            {lead.latestFirstMeeting?.startsAt ? new Date(lead.latestFirstMeeting.startsAt).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' }) : "Not set"}
+                            {lead.visitDate ? new Date(lead.visitDate).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' }) : "Not set"}
                           </td>
                           <td className="px-4 py-3 text-xs">
                             <div className="flex flex-col gap-1">
@@ -579,7 +567,19 @@ export default function QuotationAssignedTaskPage() {
               </div>
             ) : (
           <div className="space-y-3">
-            {filteredLeads.map((lead) => (
+            {monthGroups.map(([monthKey, monthLeads]) => (
+              <section key={monthKey} className="space-y-3">
+                <div className="flex items-center gap-3 pt-2">
+                  <div className="h-px flex-1 bg-border/60" />
+                  <h2 className="rounded-full border border-border/70 bg-card px-4 py-1.5 text-sm font-bold tracking-wide shadow-sm">
+                    {monthKey === "NO_VISIT_DATE"
+                      ? "No Visit Date"
+                      : new Date(`${monthKey}-01T00:00:00`).toLocaleString("en-US", { month: "long", year: "numeric" })}
+                  </h2>
+                  <Badge variant="secondary">{monthLeads.length} {monthLeads.length === 1 ? "task" : "tasks"}</Badge>
+                  <div className="h-px flex-1 bg-border/60" />
+                </div>
+                {monthLeads.map((lead) => (
               <Card
                 key={lead.id}
                 className={`overflow-hidden shadow-sm transition hover:shadow-md border ${
@@ -713,6 +713,8 @@ export default function QuotationAssignedTaskPage() {
                   </div>
                 </CardContent>
               </Card>
+                ))}
+              </section>
                 ))}
               </section>
             ))}
