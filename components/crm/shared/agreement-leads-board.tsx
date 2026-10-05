@@ -8,7 +8,6 @@ import { DetailQuotationDocument } from '@/components/crm/quotation/pdf/DetailQu
 import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
 import { withDetailQuotationDefaults } from '@/lib/detail-quotation-format'
 import { calculateQuotationTotals } from '@/lib/quotation-calculations'
-import type { QuotationFileType } from '@/lib/quotation-types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -115,15 +114,6 @@ export function AgreementLeadsBoard({
 
       const content = withDetailQuotationDefaults(source.content)
       const totals = calculateQuotationTotals(content)
-      const quotationType = (
-        source.quotationType === 'BASIC' ||
-        source.quotationType === 'STANDARD' ||
-        source.quotationType === 'PREMIUM' ||
-        source.quotationType === 'MIXED' ||
-        source.quotationType === 'PLATINUM' ||
-        source.quotationType === 'LUXURY'
-      ) ? source.quotationType as QuotationFileType : 'STANDARD'
-
       const downloadedAt = new Date().toISOString()
       const quotationCode = `DQ-AGR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${lead.id.slice(-6).toUpperCase()}`
       const contentForDownload = {
@@ -149,7 +139,6 @@ export function AgreementLeadsBoard({
         `Detail_Quotation_Agreement_${safeClientName}_${quotationCode}.pdf`,
       )
 
-      void quotationType
       toast.success('Agreement Detail Quotation PDF downloaded')
     } catch (error) {
       console.error('Failed to download agreement detail quotation:', error)
