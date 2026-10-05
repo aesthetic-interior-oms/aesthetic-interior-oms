@@ -1,4 +1,4 @@
-import { LeadAssignmentDepartment, LeadStage, LeadSubStatus, Prisma } from '@/generated/prisma/client'
+import { LeadAssignmentDepartment, LeadStage, Prisma } from '@/generated/prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
