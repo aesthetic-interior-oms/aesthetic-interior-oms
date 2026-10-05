@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma'
 import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/prisma/client'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { calculateLeadQuotationSqftSummary } from '@/lib/quotation-sqft-calculator'
-import { getMonthDateRange, normalizeMonthKey } from '@/lib/quotation-performance'
+import { normalizeMonthKey } from '@/lib/quotation-performance'
 
 export async function GET(request: Request) {
   try {
