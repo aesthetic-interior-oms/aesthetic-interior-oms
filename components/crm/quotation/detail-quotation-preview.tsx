@@ -336,7 +336,6 @@ export function DetailQuotationPreview({
               const isPkg = isPackageLine(line)
               const rawLabel = line.unitPriceLabel?.trim()
               const pkgLabel = rawLabel && rawLabel !== 'as per project design' ? rawLabel : '--'
-              const hasAmount = Boolean(line.amount && line.amount > 0)
               return (
                 <div
                   key={line.id}
@@ -348,20 +347,12 @@ export function DetailQuotationPreview({
                   </span>
                   <span className="w-[18%] border-r border-[#d7d7d7] px-1.5 py-2 leading-snug">{line.description}</span>
                   <span className="w-[42%] border-r border-[#d7d7d7] px-1.5 py-2">{formatMaterialText(line.materials)}</span>
-                  {isPkg ? (
-                    <span className="w-[20%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
-                      {pkgLabel}
-                    </span>
-                  ) : (
-                    <>
-                      <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
-                        {formatDetailQtyCell(line)}
-                      </span>
-                      <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
-                        {formatDetailUnitPriceCell(line)}
-                      </span>
-                    </>
-                  )}
+                  <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
+                    {isPkg ? 'Package' : formatDetailQtyCell(line)}
+                  </span>
+                  <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2 break-words whitespace-pre-wrap">
+                    {isPkg ? pkgLabel : formatDetailUnitPriceCell(line)}
+                  </span>
                   <span className="w-[12%] text-center font-bold px-1.5 py-2" style={{ color: PRIMARY }}>
                     {isPkg ? (
                       hasAmount ? (
