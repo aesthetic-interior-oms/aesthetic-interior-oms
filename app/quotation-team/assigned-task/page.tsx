@@ -29,6 +29,8 @@ type TaskLead = {
   stage: string;
   subStatus: string | null;
   updatedAt: string;
+  visitDate: string | null;
+  visitMonthKey: string | null;
   latestFirstMeeting: {
     id: string;
     title: string;
@@ -107,10 +109,12 @@ export default function QuotationAssignedTaskPage() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
   const availableMonths = useMemo(() => getRecentMonthsList(), []);
-  const [selectedMonth, setSelectedMonth] = useState(availableMonths[0]?.value ?? "");
-  const selectedMonthLabel = availableMonths.find((month) => month.value === selectedMonth)?.label ?? selectedMonth;
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const selectedMonthLabel = selectedMonth
+    ? availableMonths.find((month) => month.value === selectedMonth)?.label ?? selectedMonth
+    : "All Visit Months";
 
-  const loadTasks = useCallback(async (monthKey: string) => {
+  const loadTasks = useCallback(async (monthKey = "") => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -181,6 +185,23 @@ export default function QuotationAssignedTaskPage() {
     }
     return leads;
   }, [leads, selectedStatFilter]);
+
+  const monthGroups = useMemo(() => {
+    const groups = new Map<string, TaskLead[]>();
+    const noVisit: TaskLead[] = [];
+    for (const lead of filteredLeads) {
+      if (!lead.visitMonthKey) {
+        noVisit.push(lead);
+        continue;
+      }
+      const group = groups.get(lead.visitMonthKey) ?? [];
+      group.push(lead);
+      groups.set(lead.visitMonthKey, group);
+    }
+    const sorted = [...groups.entries()].sort(([a], [b]) => b.localeCompare(a));
+    if (noVisit.length) sorted.push(["NO_VISIT_DATE", noVisit]);
+    return sorted;
+  }, [filteredLeads]);
 
 
   const canShowLeadAttachments = (lead: TaskLead) =>
@@ -483,7 +504,19 @@ export default function QuotationAssignedTaskPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
-                      {filteredLeads.map((lead) => (
+          {monthGroups.map(([monthKey, monthLeads]) => (
+              <section key={monthKey} className="space-y-3">
+                <div className="flex items-center gap-3 pt-2">
+                  <div className="h-px flex-1 bg-border/60" />
+                  <h2 className="rounded-full border border-border/70 bg-card px-4 py-1.5 text-sm font-bold tracking-wide shadow-sm">
+                    {monthKey === "NO_VISIT_DATE"
+                      ? "No Visit Date"
+                      : new Date(`${monthKey}-01T00:00:00`).toLocaleString("en-US", { month: "long", year: "numeric" })}
+                  </h2>
+                  <Badge variant="secondary">{monthLeads.length} {monthLeads.length === 1 ? "task" : "tasks"}</Badge>
+                  <div className="h-px flex-1 bg-border/60" />
+                </div>
+                {monthLeads.map((lead) => (
                         <tr key={lead.id} className="hover:bg-muted/30">
                           <td className="px-4 py-3">
                             <Link href={`/quotation-team/leads/${lead.id}`} className="font-semibold hover:text-primary hover:underline">{lead.name}</Link>
@@ -670,16 +703,18 @@ export default function QuotationAssignedTaskPage() {
                     )}
                     <span className="inline-flex items-center gap-1">
                       <CalendarClock className="h-4 w-4 shrink-0 text-primary/70" />
-                      Quotation Date:
+                      Visit Date:
                       <span className="font-medium text-foreground">
-                        {lead.updatedAt
-                          ? new Date(lead.updatedAt).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })
+                        {lead.visitDate
+                          ? new Date(lead.visitDate).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })
                           : "Not set"}
                       </span>
                     </span>
                   </div>
                 </CardContent>
               </Card>
+                ))}
+              </section>
             ))}
           </div>
           )}
