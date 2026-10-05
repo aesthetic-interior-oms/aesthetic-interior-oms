@@ -288,6 +288,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Conversion & Payment',
           href: '/crm/sr/conversion-payment',
         },
+        {
+          icon: FileText,
+          label: 'Agreement Leads',
+          href: '/crm/sr/agreement-leads',
+        },
       ],
     },
   ],
