@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { uploadToGCS } from '@/lib/gcs-storage'
+import { uploadToGCS, generateGCSSignedUploadUrl } from '@/lib/gcs-storage'
 import {
   ALLOWED_CAD_UPLOAD_EXTENSIONS,
   ALLOWED_CAD_UPLOAD_MIME_TYPES,
@@ -13,16 +13,15 @@ import {
 /**
  * POST /api/gcs/upload
  *
- * Receives a single file (multipart/form-data) from the browser client
- * and uploads it to Google Cloud Storage.
+ * Supports two modes:
+ * 1. application/json (Signed URL request):
+ *    Body: { fileName, fileType, sizeBytes, context, ownerId }
+ *    Generates a GCS V4 Signed Upload URL for direct browser-to-GCS upload.
+ *    This completely bypasses Vercel's 4.5MB Serverless Function payload limit.
  *
- * Expected form fields:
- *   file     - the File blob
- *   context  - e.g. "cad-work", "quotation-work", "visualizer-work"
- *   ownerId  - leadId / orderId used for folder namespacing
- *
- * Returns:
- *   { success: true, data: { url, fileName, fileType, sizeBytes } }
+ * 2. multipart/form-data (Direct Proxy upload fallback):
+ *    Form fields: file, context, ownerId
+ *    Directly buffers and uploads small files to Google Cloud Storage.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -30,9 +29,81 @@ export async function POST(request: NextRequest) {
     if (!authResult.ok) return authResult.response
 
     const contentType = request.headers.get('content-type') ?? ''
+
+    // Mode 1: JSON request to generate a direct-to-GCS Signed Upload URL
+    if (contentType.includes('application/json')) {
+      const body = await request.json()
+      const {
+        fileName,
+        fileType,
+        sizeBytes,
+        context = 'attachments',
+        ownerId = 'unknown',
+      } = body as {
+        fileName?: string
+        fileType?: string
+        sizeBytes?: number
+        context?: string
+        ownerId?: string
+      }
+
+      if (!fileName?.trim()) {
+        return NextResponse.json({ success: false, error: 'File name is required' }, { status: 400 })
+      }
+
+      // Validate size and type for CAD uploads
+      if (context === 'cad-work') {
+        if (sizeBytes && sizeBytes > MAX_CAD_SUBMISSION_FILE_SIZE_BYTES) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `File "${fileName}" exceeds the ${Math.floor(MAX_CAD_SUBMISSION_FILE_SIZE_BYTES / (1024 * 1024))}MB limit`,
+            },
+            { status: 400 },
+          )
+        }
+
+        const fType = (fileType || '').trim().toLowerCase()
+        const extension = getCadFileExtension(fileName || '')
+        const isAllowed =
+          (fType && ALLOWED_CAD_UPLOAD_MIME_TYPES.has(fType)) ||
+          ALLOWED_CAD_UPLOAD_EXTENSIONS.has(extension)
+
+        if (!isAllowed) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `File "${fileName}" type "${fileType || 'unknown'}" is not allowed for CAD uploads`,
+            },
+            { status: 400 },
+          )
+        }
+      }
+
+      const folder = resolveGCSFolder(context, ownerId)
+      const resolvedFileType =
+        fileType ||
+        CAD_EXTENSION_CONTENT_TYPE_MAP[getCadFileExtension(fileName || '')] ||
+        'application/octet-stream'
+
+      const safeName =
+        context === 'cad-work'
+          ? sanitizeCadFileName(fileName || 'cad-file')
+          : fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
+
+      const signedData = await generateGCSSignedUploadUrl({
+        fileName: safeName,
+        fileType: resolvedFileType,
+        folder,
+      })
+
+      return NextResponse.json({ success: true, data: signedData }, { status: 200 })
+    }
+
+    // Mode 2: Multipart Form Data upload (fallback for small files <= 4.5MB)
     if (!contentType.includes('multipart/form-data')) {
       return NextResponse.json(
-        { success: false, error: 'Expected multipart/form-data' },
+        { success: false, error: 'Expected application/json or multipart/form-data' },
         { status: 400 },
       )
     }
@@ -112,6 +183,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function GET() {
+  return NextResponse.json(
+    { success: false, error: 'Method GET not allowed. Use POST to upload files or request a signed upload URL.' },
+    { status: 405 },
+  )
+}
+
 function resolveGCSFolder(context: string, ownerId: string): string {
   switch (context) {
     case 'cad-work':
@@ -142,6 +220,7 @@ function resolveGCSFolder(context: string, ownerId: string): string {
 export async function OPTIONS() {
   return new Response(null, {
     status: 204,
-    headers: { Allow: 'POST, OPTIONS' },
+    headers: { Allow: 'POST, OPTIONS, GET' },
   })
 }
+

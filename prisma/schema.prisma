@@ -49,6 +49,7 @@ model Lead {
   visits                 Visit[]
   vendorAgreements       VendorAgreement[]
   stockMovements         StockMovement[]
+  materialRequisitions   MaterialRequisition[]
 
   @@index([assignedTo])
   @@index([primaryOwnerUserId])
@@ -178,6 +179,7 @@ model User {
   resolvedVisitUpdateRequests VisitUpdateRequest[]       @relation("VisitUpdateResolvedBy")
   stockMovements              StockMovement[]
   stockReceived               StockMovement[]            @relation("StockMovementRecipient")
+  materialRequisitionsCreated MaterialRequisition[]      @relation("MaterialRequisitionCreatedBy")
 }
 
 model DeviceToken {
@@ -329,6 +331,7 @@ model QuotationDraft {
   createdBy          User                 @relation("QuotationDraftCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   lead               Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
   updatedBy          User?                @relation("QuotationDraftUpdatedBy", fields: [updatedById], references: [id])
+  materialRequisitions MaterialRequisition[]
 
   @@unique([leadId, draftKey])
   @@index([createdById])
@@ -901,6 +904,8 @@ enum LeadAssignmentDepartment {
   ADMIN
   ACCOUNTS
   PROJECT_COORDINATOR
+  PROCUREMENT
+  BOQ
 }
 
 enum LeadStage {
@@ -1310,8 +1315,9 @@ model StockItem {
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
-  vendor               Vendor?         @relation(fields: [vendorId], references: [id])
+  vendor               Vendor?                  @relation(fields: [vendorId], references: [id])
   movements            StockMovement[]
+  requisitionItems     MaterialRequisitionItem[]
 
   @@index([category])
   @@index([isActive])
@@ -1350,3 +1356,67 @@ model StockMovement {
   @@index([createdById])
   @@index([createdAt])
 }
+
+enum RequisitionWorkCategory {
+  CEILING
+  WALL_PANELING
+  CABINETS_CLOSETS
+  FURNITURE
+  ACCESSORIES
+  ELECTRICAL_WORK
+  PAINT
+  APPLIANCES
+}
+
+enum RequisitionStatus {
+  DRAFT
+  SUBMITTED
+  IN_PROCUREMENT
+  FULFILLED
+}
+
+model MaterialRequisition {
+  id               String                    @id @default(cuid())
+  leadId           String
+  quotationDraftId String?
+  requisitionNo    String                    @unique
+  status           RequisitionStatus         @default(DRAFT)
+  createdById      String
+  notes            String?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  lead             Lead                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  quotationDraft   QuotationDraft?           @relation(fields: [quotationDraftId], references: [id])
+  createdBy        User                      @relation("MaterialRequisitionCreatedBy", fields: [createdById], references: [id])
+  items            MaterialRequisitionItem[]
+
+  @@index([leadId])
+  @@index([quotationDraftId])
+  @@index([status])
+}
+
+model MaterialRequisitionItem {
+  id                  String                  @id @default(cuid())
+  requisitionId       String
+  quotationLineItemId String?
+  stockItemId         String?
+  workCategory        RequisitionWorkCategory @default(CABINETS_CLOSETS)
+  materialName        String
+  specifications      String?
+  variantAttributes   Json?
+  netQuantity         Float                   @default(1)
+  wastagePercent      Float                   @default(0)
+  finalQuantity       Float                   @default(1)
+  unit                String                  @default("Pcs")
+  productionPhase     String?
+  remarks             String?
+
+  requisition         MaterialRequisition     @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  stockItem           StockItem?              @relation(fields: [stockItemId], references: [id])
+
+  @@index([requisitionId])
+  @@index([stockItemId])
+  @@index([workCategory])
+}
+

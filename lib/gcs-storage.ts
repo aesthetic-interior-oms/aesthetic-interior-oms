@@ -170,6 +170,57 @@ export async function uploadToGCS(
   }
 }
 
+export type GCSSignedUploadUrlResult = {
+  uploadUrl: string
+  publicUrl: string
+  fileName: string
+  fileType: string
+}
+
+/**
+ * Generate a V4 Signed Upload URL for direct browser-to-GCS upload.
+ * Bypasses serverless function payload size limits.
+ */
+export async function generateGCSSignedUploadUrl({
+  fileName,
+  fileType,
+  folder = 'attachments',
+}: {
+  fileName: string
+  fileType: string
+  folder?: string
+}): Promise<GCSSignedUploadUrlResult> {
+  const storage = getGCSStorage()
+  if (!storage) {
+    throw new Error('Google Cloud Storage credentials not configured')
+  }
+
+  const creds = getGCSCredentials()!
+  const bucket = storage.bucket(creds.bucketName)
+
+  const safeName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_')
+  const destination = `${folder}/${Date.now()}-${crypto.randomUUID()}-${safeName}`
+  const fileRef = bucket.file(destination)
+
+  const resolvedFileType = fileType || 'application/octet-stream'
+
+  const [uploadUrl] = await fileRef.getSignedUrl({
+    version: 'v4',
+    action: 'write',
+    expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+    contentType: resolvedFileType,
+  })
+
+  const publicUrl = `https://storage.googleapis.com/${creds.bucketName}/${destination}`
+
+  return {
+    uploadUrl,
+    publicUrl,
+    fileName,
+    fileType: resolvedFileType,
+  }
+}
+
 export type GCSStatusResult = {
   configured: boolean
   connected: boolean

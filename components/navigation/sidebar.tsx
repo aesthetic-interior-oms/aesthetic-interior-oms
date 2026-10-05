@@ -194,6 +194,23 @@ const navigationGroups: Record<string, NavGroup[]> = {
         },
       ],
     },
+    {
+      id: 'admin-boq',
+      label: 'BOQ Department',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'BOQ Dashboard',
+          href: '/crm/boq/dashboard',
+        },
+        {
+          icon: ListTodo,
+          label: 'BOQ Assigned Tasks',
+          href: '/crm/boq/assigned-task',
+        },
+      ],
+    },
   ],
   'Senior CRM': [
     {
@@ -650,6 +667,84 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: Package,
           label: 'Stocks',
           href: '/crm/hr/stocks',
+        },
+      ],
+    },
+  ],
+  BOQ: [
+    {
+      id: 'boq-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/boq/dashboard',
+        },
+      ],
+    },
+    {
+      id: 'boq-workflow',
+      label: 'Workflow',
+      defaultOpen: true,
+      items: [
+        {
+          icon: ListTodo,
+          label: 'Assigned Task',
+          href: '/crm/boq/assigned-task',
+        },
+      ],
+    },
+  ],
+  'BOQ Team': [
+    {
+      id: 'boq-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/boq/dashboard',
+        },
+      ],
+    },
+    {
+      id: 'boq-workflow',
+      label: 'Workflow',
+      defaultOpen: true,
+      items: [
+        {
+          icon: ListTodo,
+          label: 'Assigned Task',
+          href: '/crm/boq/assigned-task',
+        },
+      ],
+    },
+  ],
+  'BOQ Department': [
+    {
+      id: 'boq-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/boq/dashboard',
+        },
+      ],
+    },
+    {
+      id: 'boq-workflow',
+      label: 'Workflow',
+      defaultOpen: true,
+      items: [
+        {
+          icon: ListTodo,
+          label: 'Assigned Task',
+          href: '/crm/boq/assigned-task',
         },
       ],
     },

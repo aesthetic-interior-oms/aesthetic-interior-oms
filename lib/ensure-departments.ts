@@ -11,6 +11,8 @@ export const STANDARD_DEPARTMENTS = [
   { name: 'VISUALIZER_3D', description: '3D Visualizer department' },
   { name: 'ACCOUNTS', description: 'Accounts and finance department' },
   { name: 'PROJECT_COORDINATOR', description: 'Project Coordinator department' },
+  { name: 'PROCUREMENT', description: 'Procurement department (material purchase, vendor management & delivery)' },
+  { name: 'BOQ', description: 'BOQ department (material requisitions chart & quantity takeoff based on quotation)' },
 ] as const
 
 export async function ensureStandardDepartmentsExist() {
