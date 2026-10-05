@@ -161,6 +161,16 @@ export async function getBoqAssignedTasks() {
 
 export async function getLeadRequisitionData(leadId: string) {
   try {
+    const authResult = await requireDatabaseRoles([])
+    if (!authResult.ok) return null
+    const actorIsAdmin = authResult.actor.userDepartments.includes('ADMIN')
+    if (!actorIsAdmin) {
+      const assigned = await prisma.leadAssignment.findFirst({
+        where: { leadId, department: 'BOQ', userId: authResult.actorUserId },
+        select: { id: true },
+      })
+      if (!assigned) return null
+    }
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       include: {
@@ -229,6 +239,17 @@ export async function saveMaterialRequisition(input: {
   items: RequisitionItemInput[]
 }) {
   try {
+    const authResult = await requireDatabaseRoles([])
+    if (!authResult.ok) return { success: false, error: 'Unauthorized' }
+    const actorIsAdmin = authResult.actor.userDepartments.includes('ADMIN')
+    if (!actorIsAdmin) {
+      const assigned = await prisma.leadAssignment.findFirst({
+        where: { leadId: input.leadId, department: 'BOQ', userId: authResult.actorUserId },
+        select: { id: true },
+      })
+      if (!assigned) return { success: false, error: 'This project is not assigned to you.' }
+    }
+
     const requisitionNo = `REQ-${Date.now().toString().slice(-6)}`
 
     // Check if requisition exists for lead
