@@ -40,8 +40,6 @@ export async function GET(request: NextRequest) {
         }
       : null
 
-    // Match the existing Conversion & Payment visibility rule:
-    // Senior CRM members see their assigned leads; Admin sees all.
     const srScope: Prisma.LeadWhereInput =
       isSeniorCrm && !isAdmin
         ? {
@@ -77,6 +75,7 @@ export async function GET(request: NextRequest) {
         agreementType: true,
         agreementValue: true,
         initialAgreementValue: true,
+        accountStatus: true,
         updated_at: true,
         quotationDrafts: {
           orderBy: { updatedAt: 'desc' },
@@ -91,12 +90,14 @@ export async function GET(request: NextRequest) {
         },
         assignments: {
           where: {
-            department: LeadAssignmentDepartment.SR_CRM,
+            department: { in: [LeadAssignmentDepartment.SR_CRM, LeadAssignmentDepartment.BOQ] },
             user: { isActive: true },
           },
           orderBy: { createdAt: 'desc' },
-          take: 1,
+          take: 2,
           select: {
+            id: true,
+            department: true,
             user: { select: { id: true, fullName: true, email: true } },
           },
         },
@@ -131,12 +132,14 @@ export async function GET(request: NextRequest) {
         stage: lead.stage,
         subStatus: lead.subStatus,
         agreementType: lead.agreementType,
+        accountStatus: lead.accountStatus,
         originalQuotationTotal,
         discountApplied,
         settledAgreementValue,
         updatedAt: lead.updated_at.toISOString(),
         detailQuotationAvailable: Boolean(detailDraft),
-        srCrm: lead.assignments[0]?.user ?? null,
+        srCrm: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.SR_CRM)?.user ?? null,
+        boqAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.BOQ)?.user ?? null,
       }
     })
 
