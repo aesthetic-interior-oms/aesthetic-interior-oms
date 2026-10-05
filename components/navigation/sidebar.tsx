@@ -173,6 +173,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/admin/review-center',
         },
         {
+          icon: FileText,
+          label: 'Agreement Leads',
+          href: '/crm/admin/agreement-leads',
+        },
+        {
           icon: CalendarClock,
           label: 'Senior Calendar',
           href: '/crm/admin/calendar',
