@@ -715,8 +715,6 @@ export default function QuotationAssignedTaskPage() {
               </Card>
                 ))}
               </section>
-                ))}
-              </section>
             ))}
           </div>
           )}
