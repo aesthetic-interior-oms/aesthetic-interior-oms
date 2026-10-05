@@ -1,7 +1,8 @@
 'use server'
 
 import prisma from '@/lib/prisma'
-import { RequisitionWorkCategory, RequisitionStatus } from '@/generated/prisma/client'
+import { RequisitionWorkCategory, RequisitionStatus, LeadSubStatus } from '@/generated/prisma/client'
+import { requireDatabaseRoles } from '@/lib/authz'
 
 
 export type RequisitionItemInput = {
@@ -89,30 +90,28 @@ export async function getBoqDashboardStats() {
 
 export async function getBoqAssignedTasks() {
   try {
+    const authResult = await requireDatabaseRoles([])
+    if (!authResult.ok) return []
+    const currentUserId = authResult.actorUserId
     // Get leads that have a QuotationDraft or are assigned to BOQ department
     const leads = await prisma.lead.findMany({
       where: {
-        OR: [
-          {
-            quotationDrafts: {
-              some: {
-                draftKey: 'detail',
-              },
-            },
+        assignments: {
+          some: {
+            department: 'BOQ',
+            userId: currentUserId,
           },
-          {
-            assignments: {
-              some: {
-                department: 'BOQ',
-              },
-            },
-          },
-        ],
+        },
       },
       orderBy: { updated_at: 'desc' },
       include: {
         assignee: {
           select: { id: true, fullName: true, email: true },
+        },
+        assignments: {
+          where: { department: 'BOQ', userId: currentUserId },
+          take: 1,
+          include: { user: { select: { id: true, fullName: true, email: true } } },
         },
         quotationDrafts: {
           where: { draftKey: 'detail' },
@@ -145,6 +144,7 @@ export async function getBoqAssignedTasks() {
         location: lead.location || 'N/A',
         stage: lead.stage,
         assigneeName: lead.assignee?.fullName || 'Unassigned',
+        boqAssignee: lead.assignments[0]?.user ?? null,
         quotationStatus: quotation?.status || 'NO_QUOTATION',
         quotationTotal: quotation?.grandTotal || 0,
         requisitionStatus: requisition?.status || 'NOT_STARTED',
@@ -266,6 +266,14 @@ export async function saveMaterialRequisition(input: {
       })
       requisitionId = newReq.id
     }
+
+    const nextSubStatus = input.status === RequisitionStatus.SUBMITTED
+      ? LeadSubStatus.BOQ_COMPLETED
+      : LeadSubStatus.BOQ_WORKING
+    await prisma.lead.update({
+      where: { id: input.leadId },
+      data: { subStatus: nextSubStatus },
+    })
 
     // Insert line items
     if (requisitionId && input.items.length > 0) {
