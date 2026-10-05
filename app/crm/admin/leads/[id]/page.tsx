@@ -1115,6 +1115,7 @@ export default function LeadDetailPage() {
           />
         </div>
       </div>
+    </div>
 
       <Dialog open={addLeadDetailsOpen} onOpenChange={handleAddLeadDetailsOpenChange}>
         <DialogContent>
