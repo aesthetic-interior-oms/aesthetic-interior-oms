@@ -195,11 +195,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         where: { id: leadId },
         select: { accountStatus: true, subStatus: true, assignments: { where: { department: 'BOQ' }, select: { id: true }, take: 1 } },
       })
-      const paid = eligibleLead?.accountStatus === 'PARTIAL_PAID' || eligibleLead?.accountStatus === 'FULL_PAID'
       const alreadyInBoqFlow = ['BOQ_ASSIGNED', 'BOQ_WORKING', 'BOQ_COMPLETED', 'BOQ_CORRECTION'].includes(String(eligibleLead?.subStatus))
-      if (!paid || (!alreadyInBoqFlow && eligibleLead?.subStatus !== 'QUOTATION_APPROVED')) {
+      if (!alreadyInBoqFlow && eligibleLead?.subStatus !== 'QUOTATION_APPROVED') {
         return NextResponse.json(
-          { success: false, error: 'BOQ can only be assigned after Partial Paid/Full Paid and an approved detail quotation.' },
+          { success: false, error: 'BOQ can only be assigned after the detail quotation is approved.' },
           { status: 400 },
         )
       }
