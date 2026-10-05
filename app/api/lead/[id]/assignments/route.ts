@@ -193,10 +193,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (department === 'BOQ') {
       const eligibleLead = await prisma.lead.findUnique({
         where: { id: leadId },
-        select: { accountStatus: true, subStatus: true },
+        select: { accountStatus: true, subStatus: true, assignments: { where: { department: 'BOQ' }, select: { id: true }, take: 1 } },
       })
       const paid = eligibleLead?.accountStatus === 'PARTIAL_PAID' || eligibleLead?.accountStatus === 'FULL_PAID'
-      if (!paid || eligibleLead?.subStatus !== 'QUOTATION_APPROVED') {
+      const alreadyInBoqFlow = ['BOQ_ASSIGNED', 'BOQ_WORKING', 'BOQ_COMPLETED', 'BOQ_CORRECTION'].includes(String(eligibleLead?.subStatus))
+      if (!paid || (!alreadyInBoqFlow && eligibleLead?.subStatus !== 'QUOTATION_APPROVED')) {
         return NextResponse.json(
           { success: false, error: 'BOQ can only be assigned after Partial Paid/Full Paid and an approved detail quotation.' },
           { status: 400 },
