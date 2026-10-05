@@ -27,6 +27,7 @@ import { FacebookMessagesDialog } from '@/components/crm/shared/facebook-message
 import { uploadDirectBlobFile } from '@/lib/client-blob-upload'
 import { DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE, DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
 import ProjectVendorsTab from '@/components/vendors/project-vendors-tab'
+import { BoqDepartmentAssignmentPanel } from '@/components/crm/admin/boq-department-assignment-panel'
 
 type LeadDetails = {
   id: string
@@ -1050,6 +1051,16 @@ export default function LeadDetailPage() {
 
         {/* Action Panel - Sidebar */}
         <div className="lg:col-span-1">
+          <BoqDepartmentAssignmentPanel
+            leadId={leadId}
+            accountStatus={lead.accountStatus}
+            subStatus={subStatus}
+            assignments={assignments}
+            canManage={canManageAssignments}
+            onRefresh={refreshAssignments}
+          />
+
+          <div className="mt-4">
           <LeadActionsPanel
             leadId={leadId}
             leadLocation={lead.location}
