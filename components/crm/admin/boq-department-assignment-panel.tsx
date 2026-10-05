@@ -38,8 +38,9 @@ export function BoqDepartmentAssignmentPanel({ leadId, accountStatus, subStatus,
     [assignments, status],
   )
   const effectiveSubStatus = status?.subStatus ?? subStatus
-  const eligible = (accountStatus === 'PARTIAL_PAID' || accountStatus === 'FULL_PAID') &&
-    (effectiveSubStatus === 'QUOTATION_APPROVED' || ['BOQ_ASSIGNED', 'BOQ_WORKING', 'BOQ_COMPLETED', 'BOQ_CORRECTION'].includes(String(effectiveSubStatus)))
+  const eligible =
+    effectiveSubStatus === 'QUOTATION_APPROVED' ||
+    ['BOQ_ASSIGNED', 'BOQ_WORKING', 'BOQ_COMPLETED', 'BOQ_CORRECTION'].includes(String(effectiveSubStatus))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -95,7 +96,7 @@ export function BoqDepartmentAssignmentPanel({ leadId, accountStatus, subStatus,
       <CardContent className="space-y-4">
         {!eligible ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-            BOQ assignment unlocks after <b>Partial Paid / Full Paid</b> and <b>Quotation Approved</b>.
+            BOQ assignment unlocks after <b>Quotation Approved</b>.
           </div>
         ) : null}
 
