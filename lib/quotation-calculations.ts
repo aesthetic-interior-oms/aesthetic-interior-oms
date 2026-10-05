@@ -54,7 +54,11 @@ export function calculateQuotationTotals(content: QuotationDraftContent): Quotat
   const manualDiscount = Number.isFinite(content.discountAmount)
     ? Math.max(0, content.discountAmount)
     : 0
-  const discountAmount = Math.min(subtotal, Math.max(discountFromPercent, manualDiscount))
+  // When a manual discount amount is explicitly set (> 0), strictly prioritize it.
+  // Otherwise, use the percentage discount calculation.
+  const discountAmount = manualDiscount > 0
+    ? Math.min(subtotal, manualDiscount)
+    : Math.min(subtotal, discountFromPercent)
 
   const taxableAmount = Math.max(0, subtotal - discountAmount)
   const taxPercent = Number.isFinite(content.taxPercent) ? Math.max(0, content.taxPercent) : 0

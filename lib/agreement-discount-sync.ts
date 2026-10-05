@@ -82,6 +82,7 @@ export async function processAgreementAndDiscountSync({
   let quotationGrandTotal: number | null = targetDraft?.grandTotal ?? null
   let quotationUpdated = false
   let versionTitle: string | null = null
+  let discountApplied = 0
 
   if (targetDraft) {
     const rawContent = targetDraft.content as any
@@ -120,6 +121,7 @@ export async function processAgreementAndDiscountSync({
       calculatedDiscountAmount = Math.max(0, subTotal - settledAgreementValue)
       calculatedDiscountPercent = subTotal > 0 ? Number(((calculatedDiscountAmount / subTotal) * 100).toFixed(2)) : 0
     }
+    discountApplied = calculatedDiscountAmount
 
     // Default settled agreement value to quotation subtotal - discount if not explicitly set
     if (settledAgreementValue === null) {
@@ -155,7 +157,7 @@ export async function processAgreementAndDiscountSync({
         const updatedContent: QuotationDraftContent = {
           ...detailContent,
           discountAmount: finalDiscount,
-          discountPercent: calculatedDiscountPercent || detailContent.discountPercent || 0,
+          discountPercent: discountType === 'PERCENTAGE' ? calculatedDiscountPercent : 0,
         }
         const totals = calculateQuotationTotals(updatedContent)
         const newGrandTotal = totals.grandTotal
@@ -178,7 +180,7 @@ export async function processAgreementAndDiscountSync({
           leadId,
           userId: actorUserId,
           type: 'NOTE',
-          description: `Discount of ৳ ${finalDiscount.toLocaleString()} (${calculatedDiscountPercent > 0 ? `${calculatedDiscountPercent}%` : 'fixed'}) applied to ${versionTitle || 'Quotation'}. Agreement value settled at ৳ ${settledAgreementValue?.toLocaleString()}.`,
+          description: `Discount of ৳ ${finalDiscount.toLocaleString()} (${discountType === 'PERCENTAGE' && calculatedDiscountPercent > 0 ? `${calculatedDiscountPercent}%` : 'fixed'}) applied to ${versionTitle || 'Quotation'}. Agreement value settled at ৳ ${settledAgreementValue?.toLocaleString()}.`,
         },
       })
     }
@@ -187,7 +189,7 @@ export async function processAgreementAndDiscountSync({
   return {
     settledAgreementValue,
     quotationGrandTotal,
-    discountApplied: discountAmountInput || 0,
+    discountApplied,
     quotationUpdated,
     targetDraftKey: targetDraft?.draftKey ?? null,
     versionTitle,
