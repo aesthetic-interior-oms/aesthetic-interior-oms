@@ -249,7 +249,6 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
                   <Text style={styles.roomTitleText}>{softWrapPdfText(room.room.name)}</Text>
                 </View>
                 {room.lines.map((line, index) => {
-                  const isMergedLumpSum = line.isLumpSum && (!line.total || line.total <= 0)
                   return (
                     <View key={line.id} style={[styles.tRow, index % 2 === 1 ? styles.tRowAlt : {}]}>
                       <Text style={[styles.tdCol, styles.wSl]}>
@@ -259,14 +258,14 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
                       <View style={[styles.tdCol, styles.wQty]}>
                         {line.isLumpSum ? <Text style={styles.packageBadge}>Package</Text> : <Text>{formatAmount(line.quantitySqft ?? 0)}</Text>}
                       </View>
-                      {isMergedLumpSum ? (
+                      {line.isLumpSum ? (
                         <Text style={[styles.tdCol, { width: '32%', textAlign: 'center', fontSize: 8 }]}>
                           {softWrapPdfText(line.unitPriceLabel?.trim() || 'as per project design')}
                         </Text>
                       ) : (
                         <>
-                          <Text style={[styles.tdCol, styles.wPrice, line.isLumpSum ? { fontSize: 8, textAlign: 'center' } : {}]}>
-                            {line.isLumpSum ? softWrapPdfText(line.unitPriceLabel?.trim() || 'as per project design') : formatAmount(line.unitPrice ?? 0)}
+                          <Text style={[styles.tdCol, styles.wPrice]}>
+                            {formatAmount(line.unitPrice ?? 0)}
                           </Text>
                           <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>
                             {formatAmount(line.total)}
