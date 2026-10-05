@@ -1,5 +1,8 @@
+'use server'
+
 import prisma from '@/lib/prisma'
 import { RequisitionWorkCategory, RequisitionStatus } from '@/generated/prisma/client'
+
 
 export type RequisitionItemInput = {
   id?: string

@@ -4,7 +4,16 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChevronDown, Lock, Info } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { ChevronDown, Lock, Info, Trash2, AlertTriangle } from 'lucide-react'
 
 type UserRole = string
 
@@ -121,6 +130,40 @@ export function RolePermissions() {
   const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
   const [rolePermissions, setRolePermissions] = useState<RolePermissionMap[]>([])
+
+  // Delete Department state
+  const [deletingDept, setDeletingDept] = useState<Department | null>(null)
+  const [confirmName, setConfirmName] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const handleDeleteDepartment = async () => {
+    if (!deletingDept || confirmName.trim() !== deletingDept.name.trim()) return
+
+    setIsDeleting(true)
+    setDeleteError(null)
+
+    try {
+      const response = await fetch(`/api/department?id=${deletingDept.id}`, {
+        method: 'DELETE',
+      })
+      const result = await response.json()
+
+      if (result.success) {
+        setDepartments((prev) => prev.filter((d) => d.id !== deletingDept.id))
+        setRolePermissions((prev) => prev.filter((r) => r.role !== deletingDept.name))
+        setDeletingDept(null)
+        setConfirmName('')
+      } else {
+        setDeleteError(result.error || 'Failed to delete department')
+      }
+    } catch (err) {
+      setDeleteError('Network error while deleting department')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
 
   useEffect(() => {
     const fetchDepartments = async () => {
@@ -268,15 +311,102 @@ export function RolePermissions() {
                   </div>
                 )}
 
-                <div className="border-t border-border pt-6 flex gap-2">
-                  <Button size="sm" variant="outline">Edit Permissions</Button>
-                  <Button size="sm" variant="outline">View Users</Button>
+                <div className="border-t border-border pt-6 flex flex-wrap gap-2 justify-between items-center">
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline">Edit Permissions</Button>
+                    <Button size="sm" variant="outline">View Users</Button>
+                  </div>
+                  {roleData.role !== 'ADMIN' && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        const dept = departments.find((d) => d.name === roleData.role)
+                        if (dept) {
+                          setDeletingDept(dept)
+                          setConfirmName('')
+                          setDeleteError(null)
+                        }
+                      }}
+                      className="flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Department
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             )}
           </Card>
         ))}
       </div>
+
+      {/* Delete Department Warning & Confirmation Dialog */}
+      <Dialog open={!!deletingDept} onOpenChange={(open) => !open && setDeletingDept(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5 text-destructive flex-shrink-0" />
+              Delete Department &quot;{deletingDept?.name}&quot;
+            </DialogTitle>
+            <DialogDescription className="pt-2 space-y-3">
+              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs space-y-1">
+                <p className="font-semibold">⚠️ Warning: Irreversible Action!</p>
+                <p>
+                  Deleting this department will permanently remove it from system configuration.
+                </p>
+                {deletingDept && deletingDept._count.userDepartments > 0 && (
+                  <p className="font-bold pt-1">
+                    {deletingDept._count.userDepartments} active user(s) are currently assigned to this department.
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2 pt-1 text-left">
+                <label className="text-xs font-semibold text-foreground">
+                  To confirm deletion, type the exact department name{' '}
+                  <span className="font-mono font-bold select-all underline text-destructive">
+                    {deletingDept?.name}
+                  </span>{' '}
+                  below:
+                </label>
+                <Input
+                  value={confirmName}
+                  onChange={(e) => setConfirmName(e.target.value)}
+                  placeholder={deletingDept?.name}
+                  className="text-sm font-mono"
+                  autoFocus
+                />
+              </div>
+
+              {deleteError && (
+                <p className="text-xs text-destructive font-medium">{deleteError}</p>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeletingDept(null)
+                setConfirmName('')
+                setDeleteError(null)
+              }}
+              disabled={isDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteDepartment}
+              disabled={isDeleting || confirmName.trim() !== deletingDept?.name.trim()}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Department'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
+

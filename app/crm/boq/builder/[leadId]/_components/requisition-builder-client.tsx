@@ -18,7 +18,17 @@ import {
   HelpCircle,
 } from 'lucide-react'
 import { saveMaterialRequisition, RequisitionItemInput } from '@/lib/boq-service'
-import { RequisitionWorkCategory } from '@/generated/prisma/client'
+
+export type RequisitionWorkCategory =
+  | 'CEILING'
+  | 'WALL_PANELING'
+  | 'CABINETS_CLOSETS'
+  | 'FURNITURE'
+  | 'ACCESSORIES'
+  | 'ELECTRICAL_WORK'
+  | 'PAINT'
+  | 'APPLIANCES'
+
 
 const WORK_CATEGORIES: { key: RequisitionWorkCategory; label: string }[] = [
   { key: 'CABINETS_CLOSETS', label: 'Cabinets / Closets' },
