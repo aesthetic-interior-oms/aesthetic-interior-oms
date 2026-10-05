@@ -336,6 +336,7 @@ export function DetailQuotationPreview({
               const isPkg = isPackageLine(line)
               const rawLabel = line.unitPriceLabel?.trim()
               const pkgLabel = rawLabel && rawLabel !== 'as per project design' ? rawLabel : '--'
+              const hasAmount = typeof line.amount === 'number' && line.amount > 0
               return (
                 <div
                   key={line.id}
