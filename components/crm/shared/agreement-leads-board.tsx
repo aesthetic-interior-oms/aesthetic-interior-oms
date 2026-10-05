@@ -61,9 +61,8 @@ function formatAgreementType(value: string | null) {
 
 function boqEligible(lead: AgreementLead) {
   return (
-    (lead.accountStatus === 'PARTIAL_PAID' || lead.accountStatus === 'FULL_PAID') &&
-    (lead.subStatus === 'QUOTATION_APPROVED' ||
-      ['BOQ_ASSIGNED', 'BOQ_WORKING', 'BOQ_COMPLETED', 'BOQ_CORRECTION'].includes(String(lead.subStatus)))
+    lead.subStatus === 'QUOTATION_APPROVED' ||
+    ['BOQ_ASSIGNED', 'BOQ_WORKING', 'BOQ_COMPLETED', 'BOQ_CORRECTION'].includes(String(lead.subStatus))
   )
 }
 
@@ -308,7 +307,7 @@ export function AgreementLeadsBoard({
                         </Select>
                         {!eligible ? (
                           <div className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
-                            Requires paid + quotation approved
+                            Requires quotation approved
                           </div>
                         ) : null}
                       </TableCell>
