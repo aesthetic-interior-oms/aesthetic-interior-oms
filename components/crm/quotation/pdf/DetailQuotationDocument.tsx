@@ -808,20 +808,12 @@ export function DetailQuotationDocument({
                         <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>{isFirstMaterialRow ? slNumber : ''}</Text>
                         <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>{nameText ? softWrapPdfText(nameText) : ''}</Text>
                         <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}><SingleMaterialLine text={matText} isFirstRowAndEmpty={isFirstMaterialRow && !line.materials?.trim()} /></View>
-                        {isPkg ? (
-                          <Text style={[styles.tdCol, { width: '22%', textAlign: 'center', fontSize: 9 }, rowCellStyle]}>
-                            {priceText ? softWrapPdfText(priceText) : ''}
-                          </Text>
-                        ) : (
-                          <>
-                            <Text style={[styles.tdCol, styles.wQty, rowCellStyle, { fontSize: 9 }]}>
-                              {isFirstMaterialRow ? formatDetailQtyCell(line) : ''}
-                            </Text>
-                            <Text style={[styles.tdCol, styles.wPrice, rowCellStyle, { fontSize: 9 }]}>
-                              {priceText ? softWrapPdfText(priceText) : ''}
-                            </Text>
-                          </>
-                        )}
+                        <Text style={[styles.tdCol, styles.wQty, rowCellStyle, { fontSize: 9 }]}>
+                          {isFirstMaterialRow ? (isPkg ? 'Package' : formatDetailQtyCell(line)) : ''}
+                        </Text>
+                        <Text style={[styles.tdCol, styles.wPrice, rowCellStyle, { fontSize: 9 }]}>
+                          {isFirstMaterialRow ? (priceText ? softWrapPdfText(priceText) : '') : ''}
+                        </Text>
                         <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>
                           {totalText ? softWrapPdfText(totalText) : ''}
                         </Text>
