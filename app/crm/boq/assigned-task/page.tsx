@@ -27,8 +27,8 @@ export default async function BoqAssignedTasksPage() {
             BOQ Assigned Tasks
           </h1>
           <p className="text-sm text-muted-foreground">
-            Select a project to create or update its Material Requisition Chart
-            based on its Approved Detail Quotation
+            Only projects personally assigned to you by Admin are shown here.
+            Create or update the Material Requisition Chart from the approved Detail Quotation
           </p>
         </div>
       </div>
@@ -49,9 +49,9 @@ export default async function BoqAssignedTasksPage() {
                 No Assigned Tasks Found
               </h3>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                No projects currently have approved detail quotations waiting
-                for BOQ takeoff. Once a detail quotation is approved, it will
-                appear here automatically.
+                No projects are currently assigned to you for BOQ work.
+                Admin assigns a BOQ member after the payment and quotation-approval
+                conditions are satisfied.
               </p>
             </div>
           ) : (
@@ -85,6 +85,11 @@ export default async function BoqAssignedTasksPage() {
                       Quotation Total: ৳
                       {task.quotationTotal.toLocaleString('en-IN')}
                     </span>
+                    {task.boqAssignee ? (
+                      <span className="flex items-center gap-1">
+                        BOQ: {task.boqAssignee.fullName}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
 
