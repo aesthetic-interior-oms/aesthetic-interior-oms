@@ -564,6 +564,7 @@ export function DetailQuotationDocument({
   clientAddress,
   content,
   totals,
+  agreementSummary,
 }: {
   clientName: string
   clientAddress: string | null
