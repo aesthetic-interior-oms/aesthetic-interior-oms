@@ -19,6 +19,7 @@ const VALID_DEPARTMENTS = [
   'ACCOUNTS',
   'PROJECT_COORDINATOR',
   'BOQ',
+  'PROCUREMENT',
 ] as const;
 
 function resolveDepartmentAliases(departmentName: string): string[] {
@@ -33,35 +34,37 @@ function resolveDepartmentAliases(departmentName: string): string[] {
 
 // GET - Fetch all users in a specific department (by name)
 // Returns dropdown-ready list of all department members
+// Next.js 15: params is always a Promise — destructure and await properly
 export async function GET(
   request: NextRequest,
-  context?: { params: { name: string } | Promise<{ name: string }> }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
-    // console.log('[DEPT-API] Context:', context);
     let nameParam: string | undefined;
 
-    // Handle both sync and async params (different Next.js versions)
-    if (context?.params) {
-      // console.log('[DEPT-API] Params type:', typeof context.params);
-      if (context.params instanceof Promise) {
-        const resolvedParams = await context.params;
-        nameParam = resolvedParams.name;
-        // console.log('[DEPT-API] Resolved async params:', resolvedParams);
-      } else {
-        nameParam = context.params.name;
-        // console.log('[DEPT-API] Sync params:', context.params);
+    // 1. Primary: await the route params (Next.js 15 standard)
+    try {
+      const resolved = await params;
+      nameParam = resolved?.name;
+    } catch {
+      // params resolution failed — fall through to URL fallback
+    }
+
+    // 2. Fallback: extract from actual URL pathname
+    if (!nameParam || nameParam === '[name]') {
+      const pathSegments = request.nextUrl.pathname.split('/');
+      const segment = pathSegments[pathSegments.length - 1];
+      // Only use the segment if it's not a template literal placeholder
+      if (segment && segment !== '[name]') {
+        nameParam = segment;
       }
     }
 
-    // Fallback: extract from URL pathname if params not available
-    if (!nameParam) {
-      const pathSegments = request.nextUrl.pathname.split('/');
-      nameParam = pathSegments[pathSegments.length - 1];
-      // console.log('[DEPT-API] Extracted from URL:', nameParam, 'Path:', request.nextUrl.pathname);
+    // 3. Last resort: Next.js internally passes dynamic segment as ?nxtPname
+    if (!nameParam || nameParam === '[name]') {
+      const nxtPname = request.nextUrl.searchParams.get('nxtPname');
+      if (nxtPname) nameParam = nxtPname;
     }
-
-    // console.log('[DEPT-API] nameParam:', nameParam);
 
     if (!nameParam) {
       return NextResponse.json(
@@ -71,15 +74,12 @@ export async function GET(
     }
 
     const departmentName = normalizeDepartmentName(nameParam) ?? '';
-    // console.log('[DEPT-API] departmentName:', departmentName);
 
-   
-
-   if (!VALID_DEPARTMENTS.includes(departmentName as (typeof VALID_DEPARTMENTS)[number])) {
+    if (!VALID_DEPARTMENTS.includes(departmentName as (typeof VALID_DEPARTMENTS)[number])) {
       return NextResponse.json(
         {
           success: false,
-         error: `Invalid department. Must be one of: ${VALID_DEPARTMENTS.join(', ')}`,
+          error: `Invalid department. Must be one of: ${VALID_DEPARTMENTS.join(', ')}`,
         },
         { status: 400 }
       );
