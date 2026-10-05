@@ -141,6 +141,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       'VISIT_TEAM',
       'JR_ARCHITECT',
       'VISUALIZER_3D',
+      'BOQ',
       'ACCOUNTS',
     ];
     debugLog('🔎 [POST /api/lead/[id]/assignments] - Validating department');
@@ -187,6 +188,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         { success: false, error: 'User not found' },
         { status: 404 }
       );
+    }
+
+    if (department === 'BOQ') {
+      const eligibleLead = await prisma.lead.findUnique({
+        where: { id: leadId },
+        select: { accountStatus: true, subStatus: true },
+      })
+      const paid = eligibleLead?.accountStatus === 'PARTIAL_PAID' || eligibleLead?.accountStatus === 'FULL_PAID'
+      if (!paid || eligibleLead?.subStatus !== 'QUOTATION_APPROVED') {
+        return NextResponse.json(
+          { success: false, error: 'BOQ can only be assigned after Partial Paid/Full Paid and an approved detail quotation.' },
+          { status: 400 },
+        )
+      }
     }
 
     const userDepartmentNames = new Set(
@@ -273,6 +288,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         }
       }
 
+      if (department === 'BOQ') {
+        await tx.lead.update({
+          where: { id: leadId },
+          data: { subStatus: 'BOQ_ASSIGNED' },
+        })
+      }
+
       if (department === 'SR_CRM') {
         await tx.lead.update({
           where: { id: leadId },
@@ -299,6 +321,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
       return result;
     });
+
+    if (department === 'BOQ') {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: user.id,
+            leadId: lead.id,
+            type: 'LEAD_ASSIGNED_TO_YOU',
+            title: isUpdate ? 'BOQ assignment updated' : 'New BOQ assignment',
+            message: lead.name + ' has been assigned to you for BOQ work.',
+            scheduledFor: new Date(),
+          },
+        })
+        await sendPushToUser(
+          user.id,
+          isUpdate ? 'BOQ assignment updated' : 'New BOQ assignment',
+          lead.name + ' has been assigned to you for BOQ work.',
+          { type: 'BOQ_ASSIGNED', leadId: lead.id },
+        )
+      } catch (notificationError) {
+        console.error('[POST /api/lead/[id]/assignments] Failed to notify BOQ user:', notificationError)
+      }
+    }
 
     if (hasVisitsToReassign) {
       try {
