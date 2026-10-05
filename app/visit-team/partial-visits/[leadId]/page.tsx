@@ -405,19 +405,8 @@ export default function PartialVisitLeadDetailPage() {
     }
   }
 
-  const openPartialQuotation = async () => {
-    try {
-      const res = await fetch(`/api/partial-quotation/${leadId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start' }),
-      })
-      const data = await res.json()
-      if (!res.ok || !data.success) throw new Error(data.error || 'Unable to start partial quotation')
-      router.push(`/visit-team/partial-visits/${leadId}/quotation`)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Unable to start partial quotation')
-    }
+  const openPartialQuotation = () => {
+    router.push(`/visit-team/partial-visits/${leadId}/quotation`)
   }
 
   /* ── Render ── */
