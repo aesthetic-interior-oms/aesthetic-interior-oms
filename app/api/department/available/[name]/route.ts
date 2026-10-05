@@ -18,6 +18,7 @@ const VALID_DEPARTMENTS = [
   'VISUALIZER_3D',
   'ACCOUNTS',
   'PROJECT_COORDINATOR',
+  'BOQ',
 ] as const;
 
 function resolveDepartmentAliases(departmentName: string): string[] {
