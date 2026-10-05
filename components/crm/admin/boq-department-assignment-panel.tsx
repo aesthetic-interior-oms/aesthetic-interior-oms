@@ -37,7 +37,9 @@ export function BoqDepartmentAssignmentPanel({ leadId, accountStatus, subStatus,
     () => assignments.find((item) => item.department === 'BOQ') ?? status?.assignment ?? null,
     [assignments, status],
   )
-  const eligible = (accountStatus === 'PARTIAL_PAID' || accountStatus === 'FULL_PAID') && subStatus === 'QUOTATION_APPROVED'
+  const effectiveSubStatus = status?.subStatus ?? subStatus
+  const eligible = (accountStatus === 'PARTIAL_PAID' || accountStatus === 'FULL_PAID') &&
+    (effectiveSubStatus === 'QUOTATION_APPROVED' || ['BOQ_ASSIGNED', 'BOQ_WORKING', 'BOQ_COMPLETED', 'BOQ_CORRECTION'].includes(String(effectiveSubStatus)))
 
   const load = useCallback(async () => {
     setLoading(true)
