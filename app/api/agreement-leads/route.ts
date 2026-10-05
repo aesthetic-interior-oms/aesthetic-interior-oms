@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
             user: { isActive: true },
           },
           orderBy: { createdAt: 'desc' },
-          take: 2,
+          take: 10,
           select: {
             id: true,
             department: true,

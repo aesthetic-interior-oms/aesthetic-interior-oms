@@ -29,6 +29,9 @@ function resolveDepartmentAliases(departmentName: string): string[] {
   if (departmentName === 'QUOTATION_TEAM' || departmentName === 'QUOTATION') {
     return ['QUOTATION_TEAM', 'QUOTATION', 'SR_CRM']
   }
+  if (departmentName === 'BOQ') {
+    return ['BOQ', 'BOQ Team', 'BOQ Department']
+  }
   return getDepartmentNameAliases(departmentName)
 }
 
@@ -116,7 +119,7 @@ export async function GET(
     // console.log('[DEPT-API] UserDepartments count:', userDepartments.length);
     // console.log('[DEPT-API] UserDepartments data:', JSON.stringify(userDepartments, null, 2));
 
-    const users = Array.from(
+    let users = Array.from(
       new Map(
         userDepartments.map((ud) => [
           ud.user.id,
@@ -130,7 +133,20 @@ export async function GET(
       ).values(),
     );
 
-    // console.log('[DEPT-API] Final users array:', JSON.stringify(users, null, 2));
+    // Fallback: If no users are explicitly assigned to this department yet, return all active users
+    if (users.length === 0) {
+      const activeUsers = await prisma.user.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+        },
+        orderBy: { fullName: 'asc' },
+      });
+      users = activeUsers;
+    }
 
     const response = NextResponse.json({
       success: true,

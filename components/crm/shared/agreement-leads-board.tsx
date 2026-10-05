@@ -59,11 +59,9 @@ function formatAgreementType(value: string | null) {
   return value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-function boqEligible(lead: AgreementLead) {
-  return (
-    lead.subStatus === 'QUOTATION_APPROVED' ||
-    ['BOQ_ASSIGNED', 'BOQ_WORKING', 'BOQ_COMPLETED', 'BOQ_CORRECTION'].includes(String(lead.subStatus))
-  )
+function boqEligible(_lead: AgreementLead) {
+  // On the Agreement Leads board, all confirmed agreement leads are eligible for BOQ staff assignment
+  return true
 }
 
 export function AgreementLeadsBoard({
