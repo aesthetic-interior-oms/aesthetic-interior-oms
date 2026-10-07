@@ -297,7 +297,9 @@ export function DetailQuotationPreview({
                 <span className="w-[8%] text-center font-bold border-r border-[#d7d7d7] px-1.5 py-2">
                   {String(index + 1).padStart(2, '0')}
                 </span>
-                <span className="w-[70%] border-r border-[#d7d7d7] px-1.5 py-2">{entry.floor.name}</span>
+                <span className="w-[70%] border-r border-[#d7d7d7] px-1.5 py-2">
+                  {isFE ? entry.floor.name.toUpperCase() : entry.floor.name}
+                </span>
                 <span className="w-[22%] text-right font-bold px-1.5 py-2">
                   {formatDetailAmount(entry.total)}{isFE ? ' (approx.)' : ''}
                 </span>
@@ -306,9 +308,9 @@ export function DetailQuotationPreview({
           })}
         </div>
 
-        {/* Grand Total */}
+        {/* Total */}
         <div className="flex justify-end items-center border-t pt-2 mt-2" style={{ borderColor: PRIMARY }}>
-          <span className="text-[10px] font-bold pr-4 uppercase" style={{ color: PRIMARY }}>GRAND TOTAL ({formatDetailAmount(totalSqft)} SQFT)</span>
+          <span className="text-[10px] font-bold pr-4 uppercase" style={{ color: PRIMARY }}>TOTAL ({formatDetailAmount(totalSqft)} SQFT)</span>
           <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>
             {formatDetailAmount(totals.grandTotal)}
           </span>

@@ -673,7 +673,9 @@ export function DetailQuotationDocument({
               <View key={entry.floor.id}>
                 <View style={[styles.tRow, styles.summaryFloorRow]}>
                   <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
-                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text>
+                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.bold]}>
+                    {softWrapPdfText(isFESection ? entry.floor.name.toUpperCase() : entry.floor.name)}
+                  </Text>
                   <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>
                     {formatDetailTableAmount(entry.total)}{isFESection ? ' (approx.)' : ''}
                   </Text>
@@ -700,7 +702,9 @@ export function DetailQuotationDocument({
                     return (
                       <View key={`${entry.floor.id}-${area.id}`} style={styles.tRow}>
                         <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl]} />
-                        <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.summaryAreaName]}>{softWrapPdfText(area.name)}</Text>
+                        <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.summaryAreaName]}>
+                          {softWrapPdfText(isFEArea ? area.name.toUpperCase() : area.name)}
+                        </Text>
                         <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>
                           {formatDetailTableAmount(areaTotal)}{isFEArea ? ' (approx.)' : ''}
                         </Text>
@@ -715,7 +719,7 @@ export function DetailQuotationDocument({
         {agreementSummary ? (
           <>
             <View style={styles.grandTotalRow}>
-              <Text style={styles.grandTotalLabel}>GRAND TOTAL</Text>
+              <Text style={styles.grandTotalLabel}>TOTAL</Text>
               <Text style={styles.grandTotalValue}>{formatDetailCurrency(agreementSummary.originalQuotationTotal)}</Text>
             </View>
             <View style={styles.grandTotalRow}>
@@ -723,7 +727,7 @@ export function DetailQuotationDocument({
               <Text style={styles.grandTotalValue}>{formatDetailCurrency(agreementSummary.honoredAmount)}</Text>
             </View>
             <View style={styles.grandTotalRow}>
-              <Text style={styles.grandTotalLabel}>TOTAL AMOUNT</Text>
+              <Text style={styles.grandTotalLabel}>GRAND TOTAL</Text>
               <Text style={styles.grandTotalValue}>{formatDetailCurrency(agreementSummary.totalAmount)}</Text>
             </View>
             <Text style={styles.inWords}>In Words: {amountInWordsTaka(agreementSummary.totalAmount)}</Text>
@@ -731,7 +735,7 @@ export function DetailQuotationDocument({
         ) : (
           <>
             <View style={styles.grandTotalRow}>
-              <Text style={styles.grandTotalLabel}>GRAND TOTAL</Text>
+              <Text style={styles.grandTotalLabel}>TOTAL</Text>
               <Text style={styles.grandTotalValue}>{formatDetailCurrency(totals.grandTotal)}</Text>
             </View>
             <Text style={styles.inWords}>In Words: {amountInWordsTaka(totals.grandTotal)}</Text>
@@ -884,9 +888,6 @@ export function DetailQuotationDocument({
               <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>
                 <Text style={styles.grandTotalLabel}>
                   TOTAL FOR {softWrapPdfText(entry.floor.name).toUpperCase()}
-                  {entry.floor.sectionType !== 'FINISHING_ELECTRICAL' && entry.floor.name !== 'Finishing & Electrical Works'
-                    ? ` (${formatDetailAmount(getDetailFloorSqft(entry))} SQFT)`
-                    : ''}
                 </Text>
                 <Text style={styles.grandTotalValue}>
                   {formatDetailCurrency(entry.total)}
