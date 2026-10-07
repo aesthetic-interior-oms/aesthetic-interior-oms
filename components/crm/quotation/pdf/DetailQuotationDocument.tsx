@@ -797,10 +797,10 @@ export function DetailQuotationDocument({
                     Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name)) ||
                     Boolean(area.name && /finishing|electrical/i.test(area.name))
 
-                  // FE case 3: total entered directly (no rate or no qty) → merge Qty/UP cols → "Package"
+                  // FE case 3: total entered directly (amount > 0) AND no rate or no qty → merge Qty/UP cols → "Package"
                   const feRate = Number.isFinite((line as any).rate) ? (line as any).rate : 0
                   const feQty = Number.isFinite((line as any).quantity) ? (line as any).quantity : 0
-                  const isFEPackageMode = isFinishingElectricalEntry && !(feRate > 0 && feQty > 0)
+                  const isFEPackageMode = isFinishingElectricalEntry && (line.amount > 0) && !(feRate > 0 && feQty > 0)
                   // FE case 4: both rate AND qty → show normally (no merge)
                   const isFENormalMode = isFinishingElectricalEntry && feRate > 0 && feQty > 0
 

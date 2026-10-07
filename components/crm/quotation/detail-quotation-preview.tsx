@@ -363,10 +363,10 @@ export function DetailQuotationPreview({
                 entry.floor.id === 'finishing-electrical-works-section' ||
                 Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name))
 
-              // FE case 3: no rate or no qty → "Package" merged column (total entered directly)
+              // FE case 3: total entered directly (amount > 0) AND no rate or no qty → "Package" merged column
               const feRate = Number.isFinite(line.rate) ? line.rate : 0
               const feQty = Number.isFinite(line.quantity) ? line.quantity : 0
-              const isFEPackageMode = isFinishingElectricalEntry && !(feRate > 0 && feQty > 0)
+              const isFEPackageMode = isFinishingElectricalEntry && (line.amount > 0) && !(feRate > 0 && feQty > 0)
 
               return (
                 <div
