@@ -425,15 +425,23 @@ export function QuotationMaker({
       const nextItems = prev.lineItems.map((line) => {
         if (line.id !== lineId) return line
         const updated = { ...line, ...patch }
-        // For package lines (unit 'ls') or finishing/electrical lines, preserve the amount as-is (user sets it directly)
+        const r = Number.isFinite(updated.rate) ? Math.max(0, updated.rate) : 0
+        const q = Number.isFinite(updated.quantity) ? Math.max(0, updated.quantity) : 0
         const isPackage = updated.unit === 'ls'
         const isFinishingElectrical = Boolean(updated.isFinishingElectrical)
-        return {
-          ...updated,
-          amount: isPackage || isFinishingElectrical
-            ? (Number.isFinite(updated.amount) ? Math.max(0, updated.amount) : 0)
-            : calculateLineAmount(updated.rate, updated.quantity),
+        let amount: number
+        if (isFinishingElectrical) {
+          // Case 4: both rate AND qty given → auto-calculate
+          // Cases 1, 2, 3: preserve manually entered total
+          amount = r > 0 && q > 0
+            ? calculateLineAmount(r, q)
+            : (Number.isFinite(updated.amount) ? Math.max(0, updated.amount) : 0)
+        } else if (isPackage) {
+          amount = Number.isFinite(updated.amount) ? Math.max(0, updated.amount) : 0
+        } else {
+          amount = calculateLineAmount(updated.rate, updated.quantity)
         }
+        return { ...updated, amount }
       })
       return normalizeQuotationContent({ ...prev, lineItems: nextItems })
     })
@@ -1632,12 +1640,19 @@ function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem
         </>
       )}
       <td className="px-3 py-2 text-right font-medium max-w-[150px]">
-        {(isPkg || line.isCustom || line.isFinishingElectrical) && canEdit ? (
-          <Input type="text" inputMode="decimal" className="text-right"
-            value={line.amount > 0 ? String(line.amount) : ''}
-            placeholder="Total"
-            onChange={(e) => updateLineItem(line.id, { amount: Number(e.target.value.replace(/,/g, '')) || 0 })} />
-        ) : <span className="break-all">{fmt(line.amount)}</span>}
+        {(() => {
+          const isFE = Boolean(line.isFinishingElectrical)
+          // FE case 4: both rate AND qty present → auto-calculated, not editable
+          const isFEAutoCalc = isFE && line.rate > 0 && line.quantity > 0
+          // Total is editable for: package lines, or FE lines where total is manually entered (cases 1/2/3)
+          const canEditTotal = canEdit && (isPkg || (isFE && !isFEAutoCalc))
+          return canEditTotal ? (
+            <Input type="text" inputMode="decimal" className="text-right"
+              value={line.amount > 0 ? String(line.amount) : ''}
+              placeholder="Total"
+              onChange={(e) => updateLineItem(line.id, { amount: Number(e.target.value.replace(/,/g, '')) || 0 })} />
+          ) : <span className="break-all">{fmt(line.amount)}</span>
+        })()}
       </td>
       <td className="px-3 py-2">
         {canEdit && (

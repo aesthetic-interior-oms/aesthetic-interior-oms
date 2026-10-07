@@ -9,19 +9,23 @@ export function calculateLineAmount(rate: number, quantity: number): number {
 export function normalizeLineItem(line: QuotationLineItem): QuotationLineItem {
   const rate = Number.isFinite(line.rate) ? Math.max(0, line.rate) : 0
   const quantity = Number.isFinite(line.quantity) ? Math.max(0, line.quantity) : 0
-  // For package lines (unit 'ls', or zero qty with a fixed amount), or finishing/electrical lines,
-  // preserve the manually set amount as-is
-  const isPackage = line.unit === 'ls' || (quantity <= 0 && line.amount > 0)
+  const isPackage = line.unit === 'ls'
   const isFinishingElectrical = Boolean((line as any).isFinishingElectrical)
-  const amount = isPackage || isFinishingElectrical
-    ? (Number.isFinite(line.amount) ? Math.max(0, line.amount) : 0)
-    : calculateLineAmount(rate, quantity)
-  return {
-    ...line,
-    rate,
-    quantity,
-    amount,
+
+  let amount: number
+  if (isFinishingElectrical) {
+    // Case 4: both rate AND qty → auto-calculate
+    // Cases 1, 2, 3: preserve whatever was manually entered
+    amount = rate > 0 && quantity > 0
+      ? calculateLineAmount(rate, quantity)
+      : (Number.isFinite(line.amount) ? Math.max(0, line.amount) : 0)
+  } else if (isPackage) {
+    amount = Number.isFinite(line.amount) ? Math.max(0, line.amount) : 0
+  } else {
+    amount = calculateLineAmount(rate, quantity)
   }
+
+  return { ...line, rate, quantity, amount }
 }
 
 export function normalizeQuotationContent(content: QuotationDraftContent): QuotationDraftContent {

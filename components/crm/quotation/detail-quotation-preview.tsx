@@ -363,6 +363,11 @@ export function DetailQuotationPreview({
                 entry.floor.id === 'finishing-electrical-works-section' ||
                 Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name))
 
+              // FE case 3: no rate or no qty → "Package" merged column (total entered directly)
+              const feRate = Number.isFinite(line.rate) ? line.rate : 0
+              const feQty = Number.isFinite(line.quantity) ? line.quantity : 0
+              const isFEPackageMode = isFinishingElectricalEntry && !(feRate > 0 && feQty > 0)
+
               return (
                 <div
                   key={line.id}
@@ -374,11 +379,13 @@ export function DetailQuotationPreview({
                   </span>
                   <span className="w-[18%] border-r border-[#d7d7d7] px-1.5 py-2 leading-snug">{line.description}</span>
                   <span className="w-[42%] border-r border-[#d7d7d7] px-1.5 py-2">{formatMaterialText(line.materials)}</span>
-                  {isFinishingElectricalEntry ? (
+                  {isFEPackageMode ? (
+                    // Case 3: merge Qty/UP → "Package"
                     <span className="w-[20%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2 font-medium">
                       Package
                     </span>
                   ) : (
+                    // Cases 1, 2, 4: show Qty/SFT and Unit Price separately
                     <>
                       <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
                         {isPkg ? 'Package' : formatDetailQtyCell(line)}

@@ -797,6 +797,13 @@ export function DetailQuotationDocument({
                     Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name)) ||
                     Boolean(area.name && /finishing|electrical/i.test(area.name))
 
+                  // FE case 3: total entered directly (no rate or no qty) → merge Qty/UP cols → "Package"
+                  const feRate = Number.isFinite((line as any).rate) ? (line as any).rate : 0
+                  const feQty = Number.isFinite((line as any).quantity) ? (line as any).quantity : 0
+                  const isFEPackageMode = isFinishingElectricalEntry && !(feRate > 0 && feQty > 0)
+                  // FE case 4: both rate AND qty → show normally (no merge)
+                  const isFENormalMode = isFinishingElectricalEntry && feRate > 0 && feQty > 0
+
                   let totalTextRaw = ''
                   if (isFinishingElectricalEntry) {
                     if (line.amount && line.amount > 0) {
@@ -835,11 +842,13 @@ export function DetailQuotationDocument({
                         <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>{isFirstMaterialRow ? slNumber : ''}</Text>
                         <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>{nameText ? softWrapPdfText(nameText) : ''}</Text>
                         <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}><SingleMaterialLine text={matText} isFirstRowAndEmpty={isFirstMaterialRow && !line.materials?.trim()} /></View>
-                        {isFinishingElectricalEntry ? (
+                        {isFEPackageMode ? (
+                          // Case 3: merge Qty/UP into single "Package" cell
                           <Text style={[styles.tdCol, { width: '22%', textAlign: 'center' }, rowCellStyle, { fontSize: 9 }]}>
                             {isFirstMaterialRow ? 'Package' : ''}
                           </Text>
                         ) : (
+                          // Cases 1, 2, 4: show Qty/SFT and Unit Price columns separately
                           <>
                             <Text style={[styles.tdCol, styles.wQty, rowCellStyle, { fontSize: 9 }]}>
                               {isFirstMaterialRow ? (isPkg ? 'Package' : formatDetailQtyCell(line)) : ''}
