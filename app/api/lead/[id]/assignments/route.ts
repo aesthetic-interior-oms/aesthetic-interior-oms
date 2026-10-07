@@ -9,6 +9,7 @@ import {
   LeadPrimaryOwnerDepartment,
   VisitStatus,
 } from '@/generated/prisma/client';
+import { normalizeDepartmentName } from '@/lib/department-normalization';
 
 export const runtime = 'nodejs';
 export const preferredRegion = 'sin1';
@@ -28,7 +29,7 @@ const BOQ_FLOW_SUBSTATUSES = new Set([
 ]);
 
 const DEPARTMENT_MEMBERSHIP_ALIASES: Partial<Record<LeadAssignmentDepartment, string[]>> = {
-  BOQ: ['BOQ', 'BOQ Team', 'BOQ Department'],
+  BOQ: ['BOQ', 'BOQ Team', 'BOQ Department', 'BOQ_TEAM', 'BOQ_DEPARTMENT'],
 };
 
 type AssignmentBody = {
@@ -111,9 +112,20 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     debugLog('🔵 [POST /api/lead/[id]/assignments] - Request received');
     
-    const authResult = await requireDatabaseRoles(['admin']);
+    const authResult = await requireDatabaseRoles([]);
     if (!authResult.ok) {
       return authResult.response;
+    }
+    const actorDepartments = new Set(authResult.actor.userDepartments ?? []);
+    const actorRoles = new Set(authResult.actorRoles.map((r) => r.trim().toLowerCase()));
+    const isAdmin = actorDepartments.has('ADMIN') || actorRoles.has('admin');
+    const isSeniorCrm = actorDepartments.has('SR_CRM');
+
+    if (!isAdmin && !isSeniorCrm) {
+      return NextResponse.json(
+        { success: false, error: 'Only ADMIN or SR_CRM users can assign leads' },
+        { status: 403 }
+      );
     }
     debugLog('✅ [POST /api/lead/[id]/assignments] - Auth passed');
     const actorUserId = authResult.ok ? authResult.actorUserId : null;
@@ -225,10 +237,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     const userDepartmentNames = new Set(
-      (user.userDepartments ?? []).map((row) => row.department.name),
+      (user.userDepartments ?? []).map((row) => normalizeDepartmentName(row.department.name) ?? row.department.name),
     );
+    const normalizedDept = normalizeDepartmentName(department) ?? department;
     const allowedDepartmentNames = DEPARTMENT_MEMBERSHIP_ALIASES[department as LeadAssignmentDepartment] ?? [department];
-    if (!allowedDepartmentNames.some((name) => userDepartmentNames.has(name))) {
+    const normalizedAllowed = new Set([
+      normalizedDept,
+      ...allowedDepartmentNames.map((n) => normalizeDepartmentName(n) ?? n),
+    ]);
+    if (!Array.from(userDepartmentNames).some((name) => normalizedAllowed.has(name))) {
       return NextResponse.json(
         { success: false, error: `User is not mapped to ${department} department` },
         { status: 400 },
@@ -282,6 +299,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         });
       }
 
+      // Cleanup any duplicate assignments for same lead & department
+      await tx.leadAssignment.deleteMany({
+        where: {
+          leadId,
+          department: department as LeadAssignmentDepartment,
+          id: { not: result.id },
+        },
+      });
+
       if (department === 'VISIT_TEAM') {
         const visitsToReassign = await tx.visit.findMany({
           where: {
@@ -310,10 +336,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
 
       if (department === 'BOQ') {
-        await tx.lead.update({
-          where: { id: leadId },
-          data: { subStatus: 'BOQ_ASSIGNED' },
-        })
+        const keepSubStatus = ['BOQ_WORKING', 'BOQ_COMPLETED'].includes(String(lead.subStatus));
+        if (!keepSubStatus) {
+          await tx.lead.update({
+            where: { id: leadId },
+            data: { subStatus: 'BOQ_ASSIGNED' },
+          });
+        }
       }
 
       if (department === 'SR_CRM') {

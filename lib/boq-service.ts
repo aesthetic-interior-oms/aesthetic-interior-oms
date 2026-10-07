@@ -1,7 +1,7 @@
 'use server'
 
 import prisma from '@/lib/prisma'
-import { RequisitionWorkCategory, RequisitionStatus, LeadSubStatus } from '@/generated/prisma/client'
+import { RequisitionWorkCategory, RequisitionStatus, LeadSubStatus, LeadAssignmentDepartment } from '@/generated/prisma/client'
 import { requireDatabaseRoles } from '@/lib/authz'
 
 
@@ -93,28 +93,41 @@ export async function getBoqAssignedTasks() {
     const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) return []
     const currentUserId = authResult.actorUserId
-    // Get leads that have a QuotationDraft or are assigned to BOQ department
+    const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+    const actorRoles = new Set(authResult.actorRoles.map((r) => r.trim().toLowerCase()))
+    const isAdmin = actorDepartments.has('ADMIN') || actorRoles.has('admin')
+
     const leads = await prisma.lead.findMany({
-      where: {
-        assignments: {
-          some: {
-            department: 'BOQ',
-            userId: currentUserId,
+      where: isAdmin
+        ? {
+            assignments: {
+              some: {
+                department: LeadAssignmentDepartment.BOQ,
+              },
+            },
+          }
+        : {
+            assignments: {
+              some: {
+                department: LeadAssignmentDepartment.BOQ,
+                userId: currentUserId,
+              },
+            },
           },
-        },
-      },
       orderBy: { updated_at: 'desc' },
       include: {
         assignee: {
           select: { id: true, fullName: true, email: true },
         },
         assignments: {
-          where: { department: 'BOQ', userId: currentUserId },
+          where: { department: LeadAssignmentDepartment.BOQ },
+          orderBy: { createdAt: 'desc' },
           take: 1,
           include: { user: { select: { id: true, fullName: true, email: true } } },
         },
         quotationDrafts: {
-          where: { draftKey: 'detail' },
+          where: { draftKey: { startsWith: 'detail' } },
+          orderBy: { updatedAt: 'desc' },
           take: 1,
           select: {
             id: true,
@@ -163,10 +176,12 @@ export async function getLeadRequisitionData(leadId: string) {
   try {
     const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) return null
-    const actorIsAdmin = authResult.actor.userDepartments.includes('ADMIN')
+    const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+    const actorRoles = new Set(authResult.actorRoles.map((r) => r.trim().toLowerCase()))
+    const actorIsAdmin = actorDepartments.has('ADMIN') || actorRoles.has('admin')
     if (!actorIsAdmin) {
       const assigned = await prisma.leadAssignment.findFirst({
-        where: { leadId, department: 'BOQ', userId: authResult.actorUserId },
+        where: { leadId, department: LeadAssignmentDepartment.BOQ, userId: authResult.actorUserId },
         select: { id: true },
       })
       if (!assigned) return null
@@ -175,7 +190,8 @@ export async function getLeadRequisitionData(leadId: string) {
       where: { id: leadId },
       include: {
         quotationDrafts: {
-          where: { draftKey: 'detail' },
+          where: { draftKey: { startsWith: 'detail' } },
+          orderBy: { updatedAt: 'desc' },
           take: 1,
         },
         materialRequisitions: {
@@ -241,10 +257,12 @@ export async function saveMaterialRequisition(input: {
   try {
     const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) return { success: false, error: 'Unauthorized' }
-    const actorIsAdmin = authResult.actor.userDepartments.includes('ADMIN')
+    const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+    const actorRoles = new Set(authResult.actorRoles.map((r) => r.trim().toLowerCase()))
+    const actorIsAdmin = actorDepartments.has('ADMIN') || actorRoles.has('admin')
     if (!actorIsAdmin) {
       const assigned = await prisma.leadAssignment.findFirst({
-        where: { leadId: input.leadId, department: 'BOQ', userId: authResult.actorUserId },
+        where: { leadId: input.leadId, department: LeadAssignmentDepartment.BOQ, userId: authResult.actorUserId },
         select: { id: true },
       })
       if (!assigned) return { success: false, error: 'This project is not assigned to you.' }

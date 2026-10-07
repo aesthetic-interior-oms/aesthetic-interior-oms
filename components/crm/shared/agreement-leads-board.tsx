@@ -81,6 +81,7 @@ export function AgreementLeadsBoard({
   const [staffLoading, setStaffLoading] = useState(true)
   const [savingBoqId, setSavingBoqId] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [assignError, setAssignError] = useState<Record<string, string>>({})
 
   const loadLeads = useCallback(async () => {
     setLoading(true)
@@ -140,6 +141,7 @@ export function AgreementLeadsBoard({
     if (!userId || !boqEligible(lead)) return
 
     setSavingBoqId(lead.id)
+    setAssignError((prev) => ({ ...prev, [lead.id]: '' }))
     try {
       const response = await fetch(`/api/lead/${lead.id}/assignments`, {
         method: 'POST',
@@ -148,7 +150,9 @@ export function AgreementLeadsBoard({
       })
       const payload = await response.json()
       if (!response.ok || !payload.success) {
-        throw new Error(payload.error ?? 'Failed to assign BOQ staff')
+        const errMsg = payload.error ?? 'Failed to assign BOQ staff'
+        setAssignError((prev) => ({ ...prev, [lead.id]: errMsg }))
+        throw new Error(errMsg)
       }
       toast.success(lead.boqAssignee ? 'BOQ staff reassigned successfully.' : 'BOQ staff assigned successfully.')
       await loadLeads()
@@ -291,26 +295,41 @@ export function AgreementLeadsBoard({
                         <div className="mb-1 text-xs text-muted-foreground">
                           {lead.boqAssignee ? `Current: ${lead.boqAssignee.fullName}` : 'Not assigned'}
                         </div>
-                        <Select
-                          value={selectedUserId}
-                          onValueChange={(value) => setSelectedBoq((current) => ({ ...current, [lead.id]: value }))}
-                          disabled={!eligible || staffLoading || saving}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Select BOQ staff" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {staff.map((user) => (
-                              <SelectItem key={user.id} value={user.id}>{user.fullName}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        {staff.length === 0 && !staffLoading ? (
+                          <div className="text-[11px] text-red-600 dark:text-red-400">
+                            No BOQ staff found. Add users to the BOQ department first.
+                          </div>
+                        ) : (
+                          <Select
+                            value={selectedUserId}
+                            onValueChange={(value) => {
+                              setSelectedBoq((current) => ({ ...current, [lead.id]: value }))
+                              setAssignError((prev) => ({ ...prev, [lead.id]: '' }))
+                            }}
+                            disabled={!eligible || staffLoading || saving}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Select BOQ staff" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {staff.map((user) => (
+                                <SelectItem key={user.id} value={user.id}>{user.fullName}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                         {!eligible ? (
                           <div className="mt-1 text-[11px] text-amber-700 dark:text-amber-300">
                             Requires quotation approved
                           </div>
                         ) : null}
+                        {assignError[lead.id] ? (
+                          <div className="mt-1 text-[11px] text-red-600 dark:text-red-400">
+                            {assignError[lead.id]}
+                          </div>
+                        ) : null}
                       </TableCell>
+
                       <TableCell className="min-w-[250px] text-right">
                         <div className="flex flex-col items-end gap-2">
                           <Button

@@ -1,13 +1,26 @@
 import prisma from '@/lib/prisma'
 import { NextResponse } from 'next/server'
 import { requireDatabaseRoles } from '@/lib/authz'
+import { LeadAssignmentDepartment } from '@/generated/prisma/client'
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authResult = await requireDatabaseRoles(['admin'])
+  const authResult = await requireDatabaseRoles([])
   if (!authResult.ok) return authResult.response
+
+  const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+  const actorRoles = new Set(authResult.actorRoles.map((r) => r.trim().toLowerCase()))
+  const canAccess =
+    actorDepartments.has('ADMIN') ||
+    actorDepartments.has('SR_CRM') ||
+    actorDepartments.has('BOQ') ||
+    actorRoles.has('admin')
+
+  if (!canAccess) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 })
+  }
 
   const { id } = await params
   const lead = await prisma.lead.findUnique({
@@ -16,7 +29,7 @@ export async function GET(
       accountStatus: true,
       subStatus: true,
       quotationDrafts: {
-        where: { draftKey: 'detail' },
+        where: { draftKey: { startsWith: 'detail' } },
         orderBy: { updatedAt: 'desc' },
         take: 1,
         select: { id: true, status: true },
@@ -27,7 +40,8 @@ export async function GET(
         select: { status: true, _count: { select: { items: true } } },
       },
       assignments: {
-        where: { department: 'BOQ' },
+        where: { department: LeadAssignmentDepartment.BOQ },
+        orderBy: { createdAt: 'desc' },
         take: 1,
         include: { user: { select: { id: true, fullName: true, email: true } } },
       },

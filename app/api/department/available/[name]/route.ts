@@ -30,7 +30,7 @@ function resolveDepartmentAliases(departmentName: string): string[] {
     return ['QUOTATION_TEAM', 'QUOTATION', 'SR_CRM']
   }
   if (departmentName === 'BOQ') {
-    return ['BOQ', 'BOQ Team', 'BOQ Department']
+    return ['BOQ', 'BOQ Team', 'BOQ Department', 'BOQ_TEAM', 'BOQ_DEPARTMENT']
   }
   return getDepartmentNameAliases(departmentName)
 }
@@ -90,13 +90,17 @@ export async function GET(
 
     const departmentNames = resolveDepartmentAliases(departmentName)
 
-    // Fetch all users in this department (including compatible aliases)
+    // Fetch all active users in this department (including compatible aliases)
     const userDepartments = await prisma.userDepartment.findMany({
       where: {
         department: {
           name: {
             in: departmentNames,
+            mode: 'insensitive',
           },
+        },
+        user: {
+          isActive: true,
         },
       },
       include: {
@@ -106,6 +110,7 @@ export async function GET(
             fullName: true,
             email: true,
             phone: true,
+            isActive: true,
           },
         },
       },
@@ -132,21 +137,6 @@ export async function GET(
         ]),
       ).values(),
     );
-
-    // Fallback: If no users are explicitly assigned to this department yet, return all active users
-    if (users.length === 0) {
-      const activeUsers = await prisma.user.findMany({
-        where: { isActive: true },
-        select: {
-          id: true,
-          fullName: true,
-          email: true,
-          phone: true,
-        },
-        orderBy: { fullName: 'asc' },
-      });
-      users = activeUsers;
-    }
 
     const response = NextResponse.json({
       success: true,

@@ -74,7 +74,6 @@ export async function GET(request: NextRequest) {
         subStatus: true,
         agreementType: true,
         agreementValue: true,
-        initialAgreementValue: true,
         accountStatus: true,
         updated_at: true,
         quotationDrafts: {
