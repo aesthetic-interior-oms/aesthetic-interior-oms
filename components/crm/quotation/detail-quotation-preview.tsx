@@ -240,6 +240,17 @@ export function DetailQuotationPreview({
     .trim()
   const totalSqft = getDetailTotalSqft(floorSummaries)
 
+  const summaryFloorEntries = floorSummaries.filter((entry) => {
+    const isFE =
+      entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
+      entry.floor.id === 'finishing-electrical-works-section' ||
+      Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name))
+    if (isFE) {
+      return entry.total > 0
+    }
+    return true
+  })
+
   return (
     <div className={`detail-quotation-preview w-full bg-neutral-100 ${className ?? ''}`}>
       {/* ── SUMMARY PAGE ─────────────────────────────── */}
@@ -271,19 +282,28 @@ export function DetailQuotationPreview({
         />
 
         <div>
-          {floorSummaries.map((entry, index) => (
-            <div
-              key={entry.floor.id}
-              className="flex text-[9px] border-b border-[#d7d7d7]"
-              style={{ backgroundColor: index % 2 === 1 ? '#fefdf9' : '#ffffff' }}
-            >
-              <span className="w-[8%] text-center font-bold border-r border-[#d7d7d7] px-1.5 py-2">
-                {String(index + 1).padStart(2, '0')}
-              </span>
-              <span className="w-[70%] border-r border-[#d7d7d7] px-1.5 py-2">{entry.floor.name}</span>
-              <span className="w-[22%] text-right font-bold px-1.5 py-2">{formatDetailAmount(entry.total)}</span>
-            </div>
-          ))}
+          {summaryFloorEntries.map((entry, index) => {
+            const isFE =
+              entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
+              entry.floor.id === 'finishing-electrical-works-section' ||
+              Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name))
+
+            return (
+              <div
+                key={entry.floor.id}
+                className="flex text-[9px] border-b border-[#d7d7d7]"
+                style={{ backgroundColor: index % 2 === 1 ? '#fefdf9' : '#ffffff' }}
+              >
+                <span className="w-[8%] text-center font-bold border-r border-[#d7d7d7] px-1.5 py-2">
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <span className="w-[70%] border-r border-[#d7d7d7] px-1.5 py-2">{entry.floor.name}</span>
+                <span className="w-[22%] text-right font-bold px-1.5 py-2">
+                  {formatDetailAmount(entry.total)}{isFE ? ' (approx.)' : ''}
+                </span>
+              </div>
+            )
+          })}
         </div>
 
         {/* Grand Total */}
@@ -337,6 +357,12 @@ export function DetailQuotationPreview({
               const rawLabel = line.unitPriceLabel?.trim()
               const pkgLabel = rawLabel && rawLabel !== 'as per project design' ? rawLabel : '--'
               const hasAmount = typeof line.amount === 'number' && line.amount > 0
+              const isFinishingElectricalEntry =
+                Boolean((line as any).isFinishingElectrical) ||
+                entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
+                entry.floor.id === 'finishing-electrical-works-section' ||
+                Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name))
+
               return (
                 <div
                   key={line.id}
@@ -348,14 +374,31 @@ export function DetailQuotationPreview({
                   </span>
                   <span className="w-[18%] border-r border-[#d7d7d7] px-1.5 py-2 leading-snug">{line.description}</span>
                   <span className="w-[42%] border-r border-[#d7d7d7] px-1.5 py-2">{formatMaterialText(line.materials)}</span>
-                  <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
-                    {isPkg ? 'Package' : formatDetailQtyCell(line)}
-                  </span>
-                  <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2 break-words whitespace-pre-wrap">
-                    {isPkg ? pkgLabel : formatDetailUnitPriceCell(line)}
-                  </span>
+                  {isFinishingElectricalEntry ? (
+                    <span className="w-[20%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2 font-medium">
+                      Package
+                    </span>
+                  ) : (
+                    <>
+                      <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2">
+                        {isPkg ? 'Package' : formatDetailQtyCell(line)}
+                      </span>
+                      <span className="w-[10%] text-center text-neutral-600 border-r border-[#d7d7d7] px-1.5 py-2 break-words whitespace-pre-wrap">
+                        {isPkg ? pkgLabel : formatDetailUnitPriceCell(line)}
+                      </span>
+                    </>
+                  )}
                   <span className="w-[12%] text-center font-bold px-1.5 py-2" style={{ color: PRIMARY }}>
-                    {isPkg ? (
+                    {isFinishingElectricalEntry ? (
+                      hasAmount ? (
+                        <>
+                          {formatDetailAmount(line.amount)}
+                          <span className="block text-[7px] font-normal text-neutral-500">(approx.)</span>
+                        </>
+                      ) : (
+                        '---'
+                      )
+                    ) : isPkg ? (
                       hasAmount ? (
                         <>
                           {formatDetailAmount(line.amount)}
@@ -379,11 +422,12 @@ export function DetailQuotationPreview({
           </div>
 
           {/* Floor Total */}
-          {entry.floor.sectionType !== 'FINISHING_ELECTRICAL' && entry.floor.name !== 'Finishing & Electrical Works' && (
+          {entry.total > 0 && (
             <>
               <div className="flex justify-end items-center border-t pt-2 mt-2" style={{ borderColor: PRIMARY }}>
                 <span className="text-[10px] font-bold pr-4 uppercase" style={{ color: PRIMARY }}>
                   TOTAL FOR {entry.floor.name}
+                  {entry.floor.sectionType === 'FINISHING_ELECTRICAL' || entry.floor.name === 'Finishing & Electrical Works' ? ' (approx.)' : ''}
                 </span>
                 <span className="text-[10px] font-bold" style={{ color: PRIMARY }}>
                   {formatDetailAmount(entry.total)}

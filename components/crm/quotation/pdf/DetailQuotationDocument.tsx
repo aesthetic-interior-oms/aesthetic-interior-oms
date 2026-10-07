@@ -620,13 +620,17 @@ export function DetailQuotationDocument({
     })
   })
 
-  // Filter out Finishing & Electrical Works from the Project Summary list
-  const summaryFloorEntries = floorSummaries.filter(
-    (entry) =>
-      entry.floor.sectionType !== 'FINISHING_ELECTRICAL' &&
-      entry.floor.id !== 'finishing-electrical-works-section' &&
-      !Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name)),
-  )
+  // Filter out Finishing & Electrical Works from the Project Summary list ONLY if it has no total (total <= 0)
+  const summaryFloorEntries = floorSummaries.filter((entry) => {
+    const isFE =
+      entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
+      entry.floor.id === 'finishing-electrical-works-section' ||
+      Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name))
+    if (isFE) {
+      return entry.total > 0
+    }
+    return true
+  })
 
   return (
     <Document>
@@ -659,30 +663,53 @@ export function DetailQuotationDocument({
             <Text style={[styles.thCol, styles.summaryThCol, styles.wSumName]}>Description</Text>
             <Text style={[styles.thCol, styles.summaryThCol, styles.wSumTotal, styles.thColLast]}>Amount ({BDT_SYMBOL})</Text>
           </View>
-          {summaryFloorEntries.map((entry, index) => (
-            <View key={entry.floor.id}>
-              <View style={[styles.tRow, styles.summaryFloorRow]}>
-                <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
-                <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text>
-                <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>{formatDetailTableAmount(entry.total)}</Text>
+          {summaryFloorEntries.map((entry, index) => {
+            const isFESection =
+              entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
+              entry.floor.id === 'finishing-electrical-works-section' ||
+              Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name))
+
+            return (
+              <View key={entry.floor.id}>
+                <View style={[styles.tRow, styles.summaryFloorRow]}>
+                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
+                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.bold]}>{softWrapPdfText(entry.floor.name)}</Text>
+                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>
+                    {formatDetailTableAmount(entry.total)}{isFESection ? ' (approx.)' : ''}
+                  </Text>
+                </View>
+                {getAreaGroups(entry)
+                  .filter((area) => {
+                    const isFEArea =
+                      area.name === 'Finishing & Electrical Works' ||
+                      area.name === 'Finishing & Electrical' ||
+                      Boolean(area.name?.toLowerCase().includes('finishing')) ||
+                      Boolean(area.name?.toLowerCase().includes('electrical'))
+                    if (isFEArea) {
+                      return getDetailAreaTotal(area.lines) > 0
+                    }
+                    return true
+                  })
+                  .map((area) => {
+                    const isFEArea =
+                      area.name === 'Finishing & Electrical Works' ||
+                      area.name === 'Finishing & Electrical' ||
+                      Boolean(area.name?.toLowerCase().includes('finishing')) ||
+                      Boolean(area.name?.toLowerCase().includes('electrical'))
+                    const areaTotal = getDetailAreaTotal(area.lines)
+                    return (
+                      <View key={`${entry.floor.id}-${area.id}`} style={styles.tRow}>
+                        <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl]} />
+                        <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.summaryAreaName]}>{softWrapPdfText(area.name)}</Text>
+                        <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>
+                          {formatDetailTableAmount(areaTotal)}{isFEArea ? ' (approx.)' : ''}
+                        </Text>
+                      </View>
+                    )
+                  })}
               </View>
-              {getAreaGroups(entry)
-                .filter(
-                  (area) =>
-                    area.name !== 'Finishing & Electrical Works' &&
-                    area.name !== 'Finishing & Electrical' &&
-                    !area.name?.toLowerCase().includes('finishing') &&
-                    !area.name?.toLowerCase().includes('electrical'),
-                )
-                .map((area) => (
-                  <View key={`${entry.floor.id}-${area.id}`} style={styles.tRow}>
-                    <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl]} />
-                    <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.summaryAreaName]}>{softWrapPdfText(area.name)}</Text>
-                    <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>{formatDetailTableAmount(getDetailAreaTotal(area.lines))}</Text>
-                  </View>
-                ))}
-            </View>
-          ))}
+            )
+          })}
         </View>
 
         {agreementSummary ? (
@@ -808,12 +835,20 @@ export function DetailQuotationDocument({
                         <Text style={[styles.tdCol, styles.wSl, styles.bold, rowCellStyle]}>{isFirstMaterialRow ? slNumber : ''}</Text>
                         <Text wrap={false} style={[styles.tdCol, styles.wName, rowCellStyle]}>{nameText ? softWrapPdfText(nameText) : ''}</Text>
                         <View style={[styles.tdCol, styles.wMats, styles.matCell, rowCellStyle]}><SingleMaterialLine text={matText} isFirstRowAndEmpty={isFirstMaterialRow && !line.materials?.trim()} /></View>
-                        <Text style={[styles.tdCol, styles.wQty, rowCellStyle, { fontSize: 9 }]}>
-                          {isFirstMaterialRow ? (isPkg ? 'Package' : formatDetailQtyCell(line)) : ''}
-                        </Text>
-                        <Text style={[styles.tdCol, styles.wPrice, rowCellStyle, { fontSize: 9 }]}>
-                          {isFirstMaterialRow ? (priceText ? softWrapPdfText(priceText) : '') : ''}
-                        </Text>
+                        {isFinishingElectricalEntry ? (
+                          <Text style={[styles.tdCol, { width: '22%', textAlign: 'center' }, rowCellStyle, { fontSize: 9 }]}>
+                            {isFirstMaterialRow ? 'Package' : ''}
+                          </Text>
+                        ) : (
+                          <>
+                            <Text style={[styles.tdCol, styles.wQty, rowCellStyle, { fontSize: 9 }]}>
+                              {isFirstMaterialRow ? (isPkg ? 'Package' : formatDetailQtyCell(line)) : ''}
+                            </Text>
+                            <Text style={[styles.tdCol, styles.wPrice, rowCellStyle, { fontSize: 9 }]}>
+                              {isFirstMaterialRow ? (priceText ? softWrapPdfText(priceText) : '') : ''}
+                            </Text>
+                          </>
+                        )}
                         <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>
                           {totalText ? softWrapPdfText(totalText) : ''}
                         </Text>
@@ -835,11 +870,19 @@ export function DetailQuotationDocument({
             ))}
           </View>
 
-          {entry.floor.sectionType !== 'FINISHING_ELECTRICAL' && entry.floor.name !== 'Finishing & Electrical Works' ? (
+          {entry.total > 0 ? (
             <>
               <View style={[styles.grandTotalRow, { marginTop: 15 }]} wrap={false}>
-                <Text style={styles.grandTotalLabel}>TOTAL FOR {softWrapPdfText(entry.floor.name).toUpperCase()} ({formatDetailAmount(getDetailFloorSqft(entry))} SQFT)</Text>
-                <Text style={styles.grandTotalValue}>{formatDetailCurrency(entry.total)}</Text>
+                <Text style={styles.grandTotalLabel}>
+                  TOTAL FOR {softWrapPdfText(entry.floor.name).toUpperCase()}
+                  {entry.floor.sectionType !== 'FINISHING_ELECTRICAL' && entry.floor.name !== 'Finishing & Electrical Works'
+                    ? ` (${formatDetailAmount(getDetailFloorSqft(entry))} SQFT)`
+                    : ''}
+                </Text>
+                <Text style={styles.grandTotalValue}>
+                  {formatDetailCurrency(entry.total)}
+                  {entry.floor.sectionType === 'FINISHING_ELECTRICAL' || entry.floor.name === 'Finishing & Electrical Works' ? ' (approx.)' : ''}
+                </Text>
               </View>
               <Text style={styles.inWords}>In Words: {amountInWordsTaka(entry.total)}</Text>
             </>
