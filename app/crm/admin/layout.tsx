@@ -8,6 +8,7 @@ const CRM_DASHBOARD = "/crm/jr/dashboard";
 const SR_CRM_DASHBOARD = "/crm/sr/dashboard";
 const VISIT_DASHBOARD = "/visit-team/visit-dashboard";
 const PC_DASHBOARD = "/crm/pc/dashboard";
+const BOQ_DASHBOARD = "/crm/boq/dashboard";
 
 export const runtime = "nodejs";
 export const preferredRegion = "sin1";
@@ -72,6 +73,10 @@ export default async function AdminLayout({
 
   if (departmentNames.has("PROJECT_COORDINATOR")) {
     redirect(PC_DASHBOARD);
+  }
+
+  if (departmentNames.has("BOQ")) {
+    redirect(BOQ_DASHBOARD);
   }
 
   redirect("/");

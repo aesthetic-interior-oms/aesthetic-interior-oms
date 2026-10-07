@@ -38,6 +38,7 @@ const DEPARTMENT_ROUTES: Record<string, string> = {
   FINANCE: "/crm/admin/finance",
   ACCOUNTS: "/crm/admin/finance",
   PROJECT_COORDINATOR: "/crm/pc/dashboard",
+  BOQ: "/crm/boq/dashboard",
   HUMAN_RESOURCES: "/crm/hr/dashboard",
   HUMAN_RESOURCE: "/crm/hr/dashboard",
   Human_Resources: "/crm/hr/dashboard",
