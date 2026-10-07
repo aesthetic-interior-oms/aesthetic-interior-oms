@@ -17,6 +17,18 @@ const debugLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') {
     // console.log(...args);
   }
+  void args;
+};
+
+const BOQ_FLOW_SUBSTATUSES = new Set([
+  'BOQ_ASSIGNED',
+  'BOQ_WORKING',
+  'BOQ_COMPLETED',
+  'BOQ_CORRECTION',
+]);
+
+const DEPARTMENT_MEMBERSHIP_ALIASES: Partial<Record<LeadAssignmentDepartment, string[]>> = {
+  BOQ: ['BOQ', 'BOQ Team', 'BOQ Department'],
 };
 
 type AssignmentBody = {
@@ -157,7 +169,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     debugLog('🔎 [POST /api/lead/[id]/assignments] - Checking lead and user');
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        stage: true,
+        subStatus: true,
+        agreementType: true,
+        accountStatus: true,
+      },
     });
     debugLog('📊 [POST /api/lead/[id]/assignments] - Lead lookup result:', lead);
 
@@ -191,14 +210,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
 
     if (department === 'BOQ') {
-      const eligibleLead = await prisma.lead.findUnique({
-        where: { id: leadId },
-        select: { accountStatus: true, subStatus: true, assignments: { where: { department: 'BOQ' }, select: { id: true }, take: 1 } },
-      })
-      const alreadyInBoqFlow = ['BOQ_ASSIGNED', 'BOQ_WORKING', 'BOQ_COMPLETED', 'BOQ_CORRECTION'].includes(String(eligibleLead?.subStatus))
-      if (!alreadyInBoqFlow && eligibleLead?.subStatus !== 'QUOTATION_APPROVED') {
+      const alreadyInBoqFlow = BOQ_FLOW_SUBSTATUSES.has(String(lead.subStatus));
+      const confirmedAgreementLead =
+        lead.stage === 'CONVERSION' ||
+        lead.agreementType !== null ||
+        lead.accountStatus !== null;
+
+      if (!alreadyInBoqFlow && lead.subStatus !== 'QUOTATION_APPROVED' && !confirmedAgreementLead) {
         return NextResponse.json(
-          { success: false, error: 'BOQ can only be assigned after the detail quotation is approved.' },
+          { success: false, error: 'BOQ can only be assigned after quotation approval or agreement confirmation.' },
           { status: 400 },
         )
       }
@@ -207,7 +227,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const userDepartmentNames = new Set(
       (user.userDepartments ?? []).map((row) => row.department.name),
     );
-    if (!userDepartmentNames.has(department)) {
+    const allowedDepartmentNames = DEPARTMENT_MEMBERSHIP_ALIASES[department as LeadAssignmentDepartment] ?? [department];
+    if (!allowedDepartmentNames.some((name) => userDepartmentNames.has(name))) {
       return NextResponse.json(
         { success: false, error: `User is not mapped to ${department} department` },
         { status: 400 },
