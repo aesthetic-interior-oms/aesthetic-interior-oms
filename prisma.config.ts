@@ -3,6 +3,23 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
+function getDatasourceUrl(): string | undefined {
+  const raw = process.env["DIRECT_DATABASE_URL"] ?? process.env["DATABASE_URL"];
+  if (!raw) return undefined;
+  try {
+    const url = new URL(raw);
+    if (!url.searchParams.has("connect_timeout")) {
+      url.searchParams.set("connect_timeout", "30");
+    }
+    if (!url.searchParams.has("pool_timeout")) {
+      url.searchParams.set("pool_timeout", "30");
+    }
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
@@ -10,6 +27,7 @@ export default defineConfig({
     seed: "tsx prisma/seed.ts",
   },
   datasource: {
-    url: process.env["DIRECT_DATABASE_URL"] ?? process.env["DATABASE_URL"],
+    url: getDatasourceUrl(),
   },
 });
+
