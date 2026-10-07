@@ -1,0 +1,18 @@
+______________________________________________________BOQ concept ________________________________________________________________
+
+1. in the BOQ assigned task i want to create a requisition builder
+from that lead quotation user will start to create the requisition over there
+so the requisition builder have to be proper and it needs to maintain the quotation 
+
+as i want per quotation there user will create requisition
+as quotation have separate columns 
+
+and there can be a extra column 
+when user will not be able to sit any data in any quotation column then he will put it in the extra  column 
+
+did you understand ? then explain to first what feature you need to add 
+
+
+___________________________________________________________________________________________
+
+2. 
