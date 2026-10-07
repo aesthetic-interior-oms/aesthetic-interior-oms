@@ -29,27 +29,53 @@ export async function GET(request: Request) {
     const includeHistory = searchParams.get('includeHistory') === '1'
     const requestedMonth = searchParams.get('month')
     const monthKey = requestedMonth ? normalizeMonthKey(requestedMonth) : null
+    const isAdminOrSrCrm =
+      actorDepartments.has('ADMIN') ||
+      actorDepartments.has('SR_CRM') ||
+      actorDepartments.has('PROJECT_COORDINATOR')
 
-    const leads = await prisma.lead.findMany({
-      where: {
-        OR: [
-          {
+    const whereCondition: any = includeHistory
+      ? {
+          OR: [
+            {
+              assignments: {
+                some: {
+                  department: LeadAssignmentDepartment.QUOTATION,
+                  userId: authResult.actorUserId,
+                },
+              },
+            },
+            {
+              quotationDrafts: {
+                some: {
+                  OR: [
+                    { createdById: authResult.actorUserId },
+                    { updatedById: authResult.actorUserId },
+                  ],
+                },
+              },
+            },
+          ],
+        }
+      : isAdminOrSrCrm
+        ? {
+            assignments: {
+              some: {
+                department: LeadAssignmentDepartment.QUOTATION,
+              },
+            },
+          }
+        : {
             assignments: {
               some: {
                 department: LeadAssignmentDepartment.QUOTATION,
                 userId: authResult.actorUserId,
               },
             },
-          },
-          {
-            quotationDrafts: {
-              some: {
-                OR: [{ createdById: authResult.actorUserId }, { updatedById: authResult.actorUserId }],
-              },
-            },
-          },
-        ],
-      },
+          }
+
+    const leads = await prisma.lead.findMany({
+      where: whereCondition,
       select: {
         id: true,
         name: true,
