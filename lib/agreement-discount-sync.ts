@@ -149,6 +149,7 @@ export async function processAgreementAndDiscountSync({
             content: updatedContent as any,
             grandTotal: newGrandTotal,
             updatedById: actorUserId,
+            status: 'FINALIZED',
           },
         })
         quotationGrandTotal = newGrandTotal
@@ -170,11 +171,19 @@ export async function processAgreementAndDiscountSync({
             content: updatedContent as any,
             grandTotal: newGrandTotal,
             updatedById: actorUserId,
+            status: 'FINALIZED',
           },
         })
         quotationGrandTotal = newGrandTotal
         settledAgreementValue = newGrandTotal
         quotationUpdated = true
+      }
+
+      if (targetDraft.status !== 'FINALIZED') {
+        await tx.quotationDraft.update({
+          where: { id: targetDraft.id },
+          data: { status: 'FINALIZED' },
+        })
       }
 
       await tx.activityLog.create({

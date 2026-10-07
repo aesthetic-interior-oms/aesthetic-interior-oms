@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
             quotationType: true,
             grandTotal: true,
             content: true,
+            status: true,
             updatedAt: true,
           },
         },
@@ -105,9 +106,17 @@ export async function GET(request: NextRequest) {
     })
 
     const data = leads.map((lead) => {
-      const detailDraft = lead.quotationDrafts.find((draft) => {
-        return isDetailQuotationContent(draft.content)
-      }) ?? null
+      const detailDraft =
+        lead.quotationDrafts.find((draft) => draft.status === 'FINALIZED' && isDetailQuotationContent(draft.content)) ||
+        lead.quotationDrafts.find((draft) => isDetailQuotationContent(draft.content)) ||
+        null
+
+      let slotIndex = 1
+      if (detailDraft?.draftKey) {
+        if (detailDraft.draftKey.includes('slot:2')) slotIndex = 2
+        else if (detailDraft.draftKey.includes('slot:3')) slotIndex = 3
+        else slotIndex = 1
+      }
 
       let originalQuotationTotal = detailDraft?.grandTotal ?? 0
       let discountApplied = 0
@@ -133,6 +142,7 @@ export async function GET(request: NextRequest) {
         subStatus: lead.subStatus,
         agreementType: lead.agreementType,
         accountStatus: lead.accountStatus,
+        slotIndex,
         originalQuotationTotal,
         discountApplied,
         settledAgreementValue,

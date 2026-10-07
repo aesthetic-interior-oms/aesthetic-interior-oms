@@ -34,6 +34,7 @@ type AgreementLead = {
   subStatus: string | null
   agreementType: string | null
   accountStatus: string | null
+  slotIndex?: number
   originalQuotationTotal: number
   discountApplied: number
   settledAgreementValue: number | null
@@ -161,8 +162,9 @@ export function AgreementLeadsBoard({
   const downloadDetailQuotation = async (lead: AgreementLead) => {
     setDownloadingId(lead.id)
     try {
+      const slot = lead.slotIndex ?? 1
       const response = await fetch(
-        `/api/lead/${lead.id}/quotation-draft?documentType=detail&slot=1`,
+        `/api/lead/${lead.id}/quotation-draft?documentType=detail&slot=${slot}`,
         { cache: 'no-store' },
       )
       const payload = await response.json()
