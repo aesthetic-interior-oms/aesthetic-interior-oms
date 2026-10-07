@@ -123,8 +123,10 @@ export async function processAgreementAndDiscountSync({
     }
     discountApplied = calculatedDiscountAmount
 
-    // Default settled agreement value to quotation subtotal - discount if not explicitly set
-    if (settledAgreementValue === null) {
+    // Settled agreement value MUST be subtotal minus discount amount whenever discount is provided
+    if (calculatedDiscountAmount > 0) {
+      settledAgreementValue = Math.max(0, subTotal - calculatedDiscountAmount)
+    } else if (settledAgreementValue === null) {
       settledAgreementValue = Math.max(0, subTotal - calculatedDiscountAmount)
     }
 

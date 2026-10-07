@@ -525,7 +525,9 @@ export function CadPhaseQueueBoard({
   const [discountAmount, setDiscountAmount] = useState<number | ''>('')
   const [discountType, setDiscountType] = useState<'FIXED' | 'PERCENTAGE'>('FIXED')
   const [discountPercent, setDiscountPercent] = useState<number | ''>('')
-  const [quotationVersions, setQuotationVersions] = useState<Array<{ slotIndex: number; title: string; grandTotal: number; exists: boolean }>>([])
+  const [quotationVersions, setQuotationVersions] = useState<
+    Array<{ slotIndex: number; title: string; subtotal?: number; grandTotal: number; discountAmount?: number; exists: boolean }>
+  >([])
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number>(1)
   const [isDirectAgreementConfirm, setIsDirectAgreementConfirm] = useState(false)
   const [quotationMembers, setQuotationMembers] = useState<DepartmentUser[]>([])
@@ -587,8 +589,11 @@ export function CadPhaseQueueBoard({
             setQuotationVersions(slots)
             if (slots.length > 0) {
               setSelectedSlotIndex(slots[0].slotIndex)
-              if (agreementValue === '') {
-                setAgreementValue(slots[0].grandTotal)
+              const baseValue = (slots[0].subtotal && slots[0].subtotal > 0) ? slots[0].subtotal : slots[0].grandTotal
+              setAgreementValue(baseValue)
+              if (slots[0].discountAmount && slots[0].discountAmount > 0) {
+                setDiscountType('FIXED')
+                setDiscountAmount(slots[0].discountAmount)
               }
             }
           }
@@ -2706,8 +2711,16 @@ export function CadPhaseQueueBoard({
                             const idx = Number(val)
                             setSelectedSlotIndex(idx)
                             const target = quotationVersions.find((s) => s.slotIndex === idx)
-                            if (target && target.grandTotal > 0) {
-                              setAgreementValue(target.grandTotal)
+                            if (target) {
+                              const baseValue = (target.subtotal && target.subtotal > 0) ? target.subtotal : target.grandTotal
+                              setAgreementValue(baseValue)
+                              if (target.discountAmount && target.discountAmount > 0) {
+                                setDiscountType('FIXED')
+                                setDiscountAmount(target.discountAmount)
+                              } else {
+                                setDiscountAmount('')
+                                setDiscountPercent('')
+                              }
                             }
                           }}
                         >
@@ -2715,11 +2728,14 @@ export function CadPhaseQueueBoard({
                             <SelectValue placeholder="Select quotation version" />
                           </SelectTrigger>
                           <SelectContent>
-                            {quotationVersions.map((v) => (
-                              <SelectItem key={v.slotIndex} value={String(v.slotIndex)}>
-                                {v.title} — ৳{v.grandTotal.toLocaleString()}
-                              </SelectItem>
-                            ))}
+                            {quotationVersions.map((v) => {
+                              const displayVal = (v.subtotal && v.subtotal > 0) ? v.subtotal : v.grandTotal
+                              return (
+                                <SelectItem key={v.slotIndex} value={String(v.slotIndex)}>
+                                  {v.title} — ৳{displayVal.toLocaleString()}
+                                </SelectItem>
+                              )
+                            })}
                           </SelectContent>
                         </Select>
                       </div>
@@ -2727,10 +2743,10 @@ export function CadPhaseQueueBoard({
 
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <Label>Agreement Value (BDT)</Label>
+                        <Label>Quotation Total (BDT)</Label>
                         {completeMeetingLead?.budget ? (
                           <span className="text-xs text-muted-foreground">
-                            Quotation Total: ৳{completeMeetingLead.budget.toLocaleString()}
+                            Base: ৳{(agreementValue !== '' ? Number(agreementValue) : completeMeetingLead.budget).toLocaleString()}
                           </span>
                         ) : null}
                       </div>
@@ -2747,7 +2763,7 @@ export function CadPhaseQueueBoard({
                         value={agreementValue}
                       />
                       <p className="text-[11px] text-muted-foreground">
-                        Agreement value is based on quotation total. Use discount below to adjust.
+                        Original quotation total before discount. Adding a discount below decreases the final settled price.
                       </p>
                     </div>
 
@@ -2796,7 +2812,7 @@ export function CadPhaseQueueBoard({
                           Settled Agreement Value: ৳
                           {(() => {
                             const selectedVer = quotationVersions.find((v) => v.slotIndex === selectedSlotIndex)
-                            const base = agreementValue !== '' ? Number(agreementValue) : (selectedVer?.grandTotal || completeMeetingLead?.budget || 0)
+                            const base = agreementValue !== '' ? Number(agreementValue) : ((selectedVer?.subtotal || selectedVer?.grandTotal) || completeMeetingLead?.budget || 0)
                             const disc = discountType === 'FIXED' ? Number(discountAmount || 0) : Math.round((base * Number(discountPercent || 0)) / 100)
                             return Math.max(0, base - disc).toLocaleString()
                           })()}{' '}

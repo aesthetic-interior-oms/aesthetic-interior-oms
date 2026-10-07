@@ -559,10 +559,21 @@ export async function GET(request: NextRequest, context: RouteContext) {
           ? c.versionTitle.trim()
           : getDetailVersionTitle(s)
 
+      let subtotal = foundDraft?.grandTotal ?? 0
+      let discountAmount = 0
+      if (foundDraft && isDetailQuotationContent(foundDraft.content)) {
+        const norm = normalizeQuotationContent(foundDraft.content as QuotationDraftContent)
+        const totals = calculateQuotationTotals(norm)
+        subtotal = totals.subtotal
+        discountAmount = totals.discountAmount
+      }
+
       return {
         slotIndex: s,
         exists: Boolean(foundDraft),
         title,
+        subtotal,
+        discountAmount,
         grandTotal: foundDraft?.grandTotal ?? 0,
         updatedAt: foundDraft?.updatedAt?.toISOString() ?? null,
       }
