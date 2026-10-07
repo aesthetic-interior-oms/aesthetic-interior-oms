@@ -404,7 +404,7 @@ function pickVisibleDraftsForUser<
     draftKey: string
     updatedAt: Date
   },
->(drafts: T[], ownerUserId: string): T[] {
+>(drafts: T[], _ownerUserId: string): T[] {
   const baseKeys = [
     'detail',
     'detail:slot:2',
@@ -419,10 +419,7 @@ function pickVisibleDraftsForUser<
     const matches = drafts
       .filter((draft) => matchesBaseDraftKey(draft.draftKey, baseKey))
       .sort((first, second) => second.updatedAt.getTime() - first.updatedAt.getTime())
-    const owned = matches.find((draft) => isOwnedDraftKey(draft.draftKey, ownerUserId))
-    const base = matches.find((draft) => draft.draftKey === baseKey)
-    const fallback = matches[0]
-    const selected = owned ?? base ?? fallback
+    const selected = matches[0]
 
     if (selected) {
       picked.set(selected.id, selected)
@@ -539,19 +536,19 @@ export async function GET(request: NextRequest, context: RouteContext) {
       : null
     const savedDrafts = lead.quotationDrafts ?? []
     const visibleDrafts = pickVisibleDraftsForUser(savedDrafts, authResult.actorUserId)
-    const selectedDraft = requestedDraftKey
-      ? savedDrafts.find((draft) => draft.draftKey === buildOwnedDraftKey(requestedDraftKey, authResult.actorUserId))
-        ?? savedDrafts.find((draft) => draft.draftKey === requestedDraftKey)
-        ?? savedDrafts.find((draft) => matchesBaseDraftKey(draft.draftKey, requestedDraftKey))
-        ?? null
-      : visibleDrafts[0] ?? null
+    const matchingRequestedDrafts = requestedDraftKey
+      ? savedDrafts
+          .filter((draft) => matchesBaseDraftKey(draft.draftKey, requestedDraftKey))
+          .sort((first, second) => second.updatedAt.getTime() - first.updatedAt.getTime())
+      : []
+    const selectedDraft = matchingRequestedDrafts[0] ?? visibleDrafts[0] ?? null
 
     const availableSlots = [1, 2, 3].map((s) => {
       const bKey = s === 1 ? 'detail' : `detail:slot:${s}`
-      const foundDraft =
-        savedDrafts.find((d) => d.draftKey === buildOwnedDraftKey(bKey, authResult.actorUserId)) ||
-        savedDrafts.find((d) => d.draftKey === bKey) ||
-        savedDrafts.find((d) => matchesBaseDraftKey(d.draftKey, bKey))
+      const matches = savedDrafts
+        .filter((d) => matchesBaseDraftKey(d.draftKey, bKey))
+        .sort((first, second) => second.updatedAt.getTime() - first.updatedAt.getTime())
+      const foundDraft = matches[0]
 
       const c = foundDraft?.content as Record<string, unknown> | undefined
       const title =
@@ -781,14 +778,14 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
     if (!isShort && saveAllSlots) {
       const targetSlots = targetSlotsInput.length > 0 ? targetSlotsInput : [1, 2, 3]
-      const upsertPromises = targetSlots.map((s: number) => {
+      const upsertPromises = targetSlots.flatMap((s: number) => {
         const bKey = s === 1 ? 'detail' : `detail:slot:${s}`
         const dKey = buildOwnedDraftKey(bKey, authResult.actorUserId)
         const slotContent = {
           ...normalizedContent,
           versionTitle: getDetailVersionTitle(s),
         }
-        return prisma.quotationDraft.upsert({
+        const ownedUpsert = prisma.quotationDraft.upsert({
           where: { leadId_draftKey: { leadId: lead.id, draftKey: dKey } },
           create: {
             leadId: lead.id,
@@ -810,11 +807,37 @@ export async function PUT(request: NextRequest, context: RouteContext) {
             status,
           },
         })
+        // Also sync the shared base key so other roles always read the latest version
+        const baseUpsert = prisma.quotationDraft.upsert({
+          where: { leadId_draftKey: { leadId: lead.id, draftKey: bKey } },
+          create: {
+            leadId: lead.id,
+            draftKey: bKey,
+            createdById: authResult.actorUserId,
+            updatedById: authResult.actorUserId,
+            quotationType: storedQuotationType,
+            projectSqft: resolvedProjectSqft,
+            content: slotContent,
+            grandTotal,
+            status,
+          },
+          update: {
+            updatedById: authResult.actorUserId,
+            quotationType: storedQuotationType,
+            projectSqft: resolvedProjectSqft,
+            content: slotContent,
+            grandTotal,
+            status,
+          },
+        })
+        return [ownedUpsert, baseUpsert]
       })
 
       const results = await Promise.all(upsertPromises)
+      // Owned drafts are at even indices (0, 2, 4…); pick the primary slot's owned draft
       const primaryIndex = targetSlots.indexOf(requestedSlot)
-      const savedDraft = results[primaryIndex >= 0 ? primaryIndex : 0]
+      const ownedResultIndex = (primaryIndex >= 0 ? primaryIndex : 0) * 2
+      const savedDraft = results[ownedResultIndex]
 
       if (grandTotal > 0) {
         await prisma.lead.update({
@@ -865,6 +888,34 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         status,
       },
     })
+
+    // Sync the shared base key so other roles (Admin, SR CRM, Accounts) always read the latest version
+    if (draftKey !== baseDraftKey) {
+      await prisma.quotationDraft.upsert({
+        where: { leadId_draftKey: { leadId: lead.id, draftKey: baseDraftKey } },
+        create: {
+          leadId: lead.id,
+          draftKey: baseDraftKey,
+          createdById: authResult.actorUserId,
+          updatedById: authResult.actorUserId,
+          quotationType: storedQuotationType,
+          projectSqft: resolvedProjectSqft,
+          content: normalizedContent,
+          grandTotal,
+          status,
+        },
+        update: {
+          updatedById: authResult.actorUserId,
+          quotationType: storedQuotationType,
+          projectSqft: resolvedProjectSqft,
+          content: normalizedContent,
+          grandTotal,
+          status,
+        },
+      }).catch((err) => {
+        console.error('[lead/:id/quotation-draft][PUT] baseDraftKey sync error:', err)
+      })
+    }
 
     if (grandTotal > 0) {
       await prisma.lead.update({
