@@ -24,13 +24,25 @@ const VALID_DEPARTMENTS = [
 
 function resolveDepartmentAliases(departmentName: string): string[] {
   if (departmentName === '3D_VISUALIZER' || departmentName === 'VISUALIZER_3D') {
-    return ['3D_VISUALIZER', 'VISUALIZER_3D']
+    return ['3D_VISUALIZER', 'VISUALIZER_3D', '3d_visualizer', 'visualizer_3d']
   }
   if (departmentName === 'QUOTATION_TEAM' || departmentName === 'QUOTATION') {
-    return ['QUOTATION_TEAM', 'QUOTATION', 'SR_CRM']
+    return ['QUOTATION_TEAM', 'QUOTATION', 'SR_CRM', 'quotation_team', 'quotation']
   }
   if (departmentName === 'BOQ') {
-    return ['BOQ', 'BOQ Team', 'BOQ Department', 'BOQ_TEAM', 'BOQ_DEPARTMENT']
+    return [
+      'BOQ',
+      'BOQ Team',
+      'BOQ Department',
+      'BOQ_TEAM',
+      'BOQ_DEPARTMENT',
+      'boq',
+      'boq team',
+      'boq department',
+      'Boq',
+      'Boq Team',
+      'Boq Department',
+    ]
   }
   return getDepartmentNameAliases(departmentName)
 }
@@ -96,7 +108,6 @@ export async function GET(
         department: {
           name: {
             in: departmentNames,
-            mode: 'insensitive',
           },
         },
         user: {
