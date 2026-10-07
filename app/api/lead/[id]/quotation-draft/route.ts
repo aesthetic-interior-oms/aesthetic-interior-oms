@@ -226,6 +226,7 @@ function toDetailQuotationContent(value: unknown): QuotationDraftContent | null 
         id: section.id,
         name: section.name,
         sortOrder: typeof section.sortOrder === 'number' ? section.sortOrder : 0,
+        ...(typeof section.sectionType === 'string' ? { sectionType: section.sectionType as any } : {}),
       } satisfies QuotationSection
     })
     .filter((item): item is QuotationSection => Boolean(item))
@@ -278,6 +279,12 @@ function toDetailQuotationContent(value: unknown): QuotationDraftContent | null 
       }
       if (typeof line.templateId === 'string' && line.templateId.trim()) {
         parsed.templateId = line.templateId.trim()
+      }
+      if (typeof line.catalogTemplateKey === 'string' && line.catalogTemplateKey.trim()) {
+        parsed.catalogTemplateKey = line.catalogTemplateKey.trim()
+      }
+      if (line.isFinishingElectrical === true) {
+        parsed.isFinishingElectrical = true
       }
       const serialNo = toOptionalNumber(line.serialNo)
       if (serialNo !== null) parsed.serialNo = serialNo
