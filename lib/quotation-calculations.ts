@@ -9,9 +9,11 @@ export function calculateLineAmount(rate: number, quantity: number): number {
 export function normalizeLineItem(line: QuotationLineItem): QuotationLineItem {
   const rate = Number.isFinite(line.rate) ? Math.max(0, line.rate) : 0
   const quantity = Number.isFinite(line.quantity) ? Math.max(0, line.quantity) : 0
-  // For package lines (unit 'ls', or zero qty with a fixed amount), preserve the manually set amount
+  // For package lines (unit 'ls', or zero qty with a fixed amount), or finishing/electrical lines,
+  // preserve the manually set amount as-is
   const isPackage = line.unit === 'ls' || (quantity <= 0 && line.amount > 0)
-  const amount = isPackage
+  const isFinishingElectrical = Boolean((line as any).isFinishingElectrical)
+  const amount = isPackage || isFinishingElectrical
     ? (Number.isFinite(line.amount) ? Math.max(0, line.amount) : 0)
     : calculateLineAmount(rate, quantity)
   return {

@@ -425,11 +425,12 @@ export function QuotationMaker({
       const nextItems = prev.lineItems.map((line) => {
         if (line.id !== lineId) return line
         const updated = { ...line, ...patch }
-        // For package lines (unit 'ls'), preserve the amount as-is (user sets it directly)
+        // For package lines (unit 'ls') or finishing/electrical lines, preserve the amount as-is (user sets it directly)
         const isPackage = updated.unit === 'ls'
+        const isFinishingElectrical = Boolean(updated.isFinishingElectrical)
         return {
           ...updated,
-          amount: isPackage
+          amount: isPackage || isFinishingElectrical
             ? (Number.isFinite(updated.amount) ? Math.max(0, updated.amount) : 0)
             : calculateLineAmount(updated.rate, updated.quantity),
         }
