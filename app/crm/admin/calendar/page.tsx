@@ -1,6 +1,6 @@
 'use client'
 
-import { SeniorCrmMeetingsView } from '@/app/crm/sr/meetings/page'
+import { SeniorCrmMeetingsView } from '@/app/crm/sr/meetings/view'
 
 export default function AdminSeniorCalendarPage() {
   return (

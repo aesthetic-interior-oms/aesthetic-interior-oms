@@ -1,6 +1,6 @@
 'use client'
 
-import { ReviewCenterView } from '@/app/crm/sr/review-center/page'
+import { ReviewCenterView } from '@/app/crm/sr/review-center/view'
 
 export default function AdminReviewCenterPage() {
   return (

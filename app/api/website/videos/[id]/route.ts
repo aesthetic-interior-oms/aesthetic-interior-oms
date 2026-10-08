@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { requireDatabaseRoles } from '@/lib/authz'
 import prisma from '@/lib/prisma'
-import { getWebsiteVideos } from '@/lib/website-videos'
-import { normalizeVideoPayload } from '../route'
-
-type VideoPayload = { title?: string; url?: string; thumbnailUrl?: string; duration?: string; isFeatured?: boolean; isPublished?: boolean; sortOrder?: number }
+import { getWebsiteVideos, normalizeVideoPayload, type VideoPayload } from '@/lib/website-videos'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authResult = await requireDatabaseRoles(['ADMIN'])

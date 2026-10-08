@@ -1,6 +1,6 @@
 'use client'
 
-import { VisitsPageView } from '@/app/crm/jr/visits/page'
+import { VisitsPageView } from '@/app/crm/jr/visits/view'
 
 export default function AdminVisitsPage() {
   return (

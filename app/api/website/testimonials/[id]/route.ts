@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { requireDatabaseRoles } from '@/lib/authz'
 import prisma from '@/lib/prisma'
-import { getWebsiteTestimonials } from '@/lib/website-testimonials'
-import { normalizeTestimonialPayload } from '../route'
-
-type TestimonialPayload = { quote?: string; author?: string; project?: string; image?: string; isPublished?: boolean; sortOrder?: number }
+import { getWebsiteTestimonials, normalizeTestimonialPayload, type TestimonialPayload } from '@/lib/website-testimonials'
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const authResult = await requireDatabaseRoles(['ADMIN'])

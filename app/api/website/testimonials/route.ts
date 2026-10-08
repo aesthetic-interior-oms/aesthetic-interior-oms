@@ -3,21 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'crypto'
 import { requireDatabaseRoles } from '@/lib/authz'
 import prisma from '@/lib/prisma'
-import { getWebsiteTestimonials } from '@/lib/website-testimonials'
-
-type TestimonialPayload = { quote?: string; author?: string; project?: string; image?: string; isPublished?: boolean; sortOrder?: number }
-
-export function normalizeTestimonialPayload(payload: TestimonialPayload) {
-  const quote = payload.quote?.trim()
-  const author = payload.author?.trim()
-  const project = payload.project?.trim()
-  const image = payload.image?.trim()
-  if (!quote) throw new Error('Testimonial quote is required')
-  if (!author) throw new Error('Client name is required')
-  if (!project) throw new Error('Project label is required')
-  if (!image) throw new Error('Image URL is required')
-  return { quote, author, project, image, isPublished: payload.isPublished !== false, sortOrder: Number.isFinite(payload.sortOrder) ? Number(payload.sortOrder) : 0 }
-}
+import { getWebsiteTestimonials, normalizeTestimonialPayload, type TestimonialPayload } from '@/lib/website-testimonials'
 
 export async function GET(request: NextRequest) {
   const authResult = await requireDatabaseRoles(['ADMIN'])
