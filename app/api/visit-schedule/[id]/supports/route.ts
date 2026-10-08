@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 type CreateSupportBody = {
   supportUserId?: unknown

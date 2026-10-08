@@ -8,7 +8,7 @@ const debugLog = (...args: unknown[]) => {
   }
 };
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> };
+type RouteContext = { params: Promise<{ id: string }> };
 
 type UpdateDepartmentBody = {
   name?: unknown;

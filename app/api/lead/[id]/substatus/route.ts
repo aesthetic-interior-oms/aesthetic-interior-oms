@@ -16,7 +16,7 @@ import { canManagePrimaryLeadFlow } from '@/lib/lead-workflow-auth';
 import { ensurePhaseTaskForSubStatus } from '@/lib/lead-phase-task';
 import { createSrCadReviewTodosForCadStart } from '@/lib/sr-cad-todo';
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> };
+type RouteContext = { params: Promise<{ id: string }> };
 
 type UpdateLeadSubStatusBody = {
   subStatus?: unknown;

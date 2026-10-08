@@ -3,7 +3,7 @@ import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { requestVisualizerReleaseApproval } from '@/lib/visualizer-release'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 function toOptionalString(value: unknown): string | null {
   if (typeof value !== 'string') return null

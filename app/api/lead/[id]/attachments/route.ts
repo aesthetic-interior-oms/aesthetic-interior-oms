@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { uploadToGCS } from '@/lib/gcs-storage'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
   const resolvedParams = await context.params

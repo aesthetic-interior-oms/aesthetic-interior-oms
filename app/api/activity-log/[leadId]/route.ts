@@ -6,7 +6,7 @@ import prisma from '@/lib/prisma'
 import { NextRequest, NextResponse } from 'next/server'
 
 // Type definition for route context params
-type RouteContext = { params: { leadId: string } | Promise<{ leadId: string }> }
+type RouteContext = { params: Promise<{ leadId: string }> }
 
 function toActivityType(value: string | null): ActivityType | undefined {
   if (!value) return undefined

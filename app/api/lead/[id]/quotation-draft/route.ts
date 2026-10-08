@@ -52,7 +52,7 @@ import type {
   QuotationSection,
 } from '@/lib/quotation-types'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 type SaveQuotationDraftBody = {
   documentType?: unknown

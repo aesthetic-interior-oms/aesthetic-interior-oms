@@ -5,7 +5,7 @@ import { AccountStatus } from '@/generated/prisma/client'
 
 export const dynamic = 'force-dynamic'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {

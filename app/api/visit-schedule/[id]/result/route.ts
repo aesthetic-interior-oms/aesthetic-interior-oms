@@ -7,7 +7,7 @@ import { logActivity, logLeadStageChanged } from '@/lib/activity-log-service'
 import { getVisitWorkflowControlState } from '@/lib/visit-workflow-control'
 import { uploadToGCS } from '@/lib/gcs-storage'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 async function resolveVisitId(context: RouteContext): Promise<string | null> {
   const resolvedParams = await context.params

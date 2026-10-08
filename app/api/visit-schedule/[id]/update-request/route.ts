@@ -5,7 +5,7 @@ import { requireDatabaseRoles } from '@/lib/authz'
 import { logActivity } from '@/lib/activity-log-service'
 import { findVisitConflict, isFutureDate } from '@/lib/visit-guards'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 type CreateUpdateRequestBody = {
   type?: unknown

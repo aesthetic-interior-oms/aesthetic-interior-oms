@@ -11,7 +11,7 @@ export const preferredRegion = 'sin1'
 //here get all notes for a lead, create a note for a lead. The leadId is used to filter notes by lead and to associate new notes with the correct lead when creating them.
 
 // Define route context type that handles both sync and async params (Next.js 15+ uses Promise-based params)
-type RouteContext = { params: { leadId: string } | Promise<{ leadId: string }> }
+type RouteContext = { params: Promise<{ leadId: string }> }
 
 // Pagination constants
 const DEFAULT_PAGE = 1 // Default page number when not specified

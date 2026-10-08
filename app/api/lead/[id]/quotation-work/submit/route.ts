@@ -20,7 +20,7 @@ import { sendPushToUser } from "@/lib/fcm-service";
 import { recalculateQuotationUserPerformance } from "@/lib/quotation-performance";
 import { isGCSUploadUrl } from "@/lib/gcs-storage";
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> };
+type RouteContext = { params: Promise<{ id: string }> };
 
 type SubmitQuotationBody = {
   note?: unknown;

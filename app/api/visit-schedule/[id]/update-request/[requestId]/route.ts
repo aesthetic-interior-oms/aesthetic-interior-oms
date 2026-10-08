@@ -5,11 +5,7 @@ import { requireDatabaseRoles } from '@/lib/authz'
 import { logActivity, logLeadStageChanged } from '@/lib/activity-log-service'
 import { findVisitConflict, isFutureDate } from '@/lib/visit-guards'
 
-type RouteContext = {
-  params:
-    | { id: string; requestId: string }
-    | Promise<{ id: string; requestId: string }>
-}
+type RouteContext = { params: Promise<{ id: string; requestId: string }> }
 
 type ResolveBody = {
   action?: unknown

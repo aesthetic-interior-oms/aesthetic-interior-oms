@@ -14,7 +14,7 @@ import { logLeadSubStatusChanged } from '@/lib/activity-log-service'
 import { sendPushToUser } from '@/lib/fcm-service'
 import { updateJrArchitectPerformance } from '@/lib/jr-architect-performance'
 
-type RouteContext = { params: { submissionId: string } | Promise<{ submissionId: string }> }
+type RouteContext = { params: Promise<{ submissionId: string }> }
 
 type ReviewDecision = 'APPROVE' | 'CORRECTION' | 'DROP'
 

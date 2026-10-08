@@ -4,7 +4,7 @@ import { requireDatabaseRoles } from '@/lib/authz'
 import { sendPushToUser } from '@/lib/fcm-service'
 import { releaseVisualizerAfterPaymentGate } from '@/lib/visualizer-release'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 function toOptionalString(value: unknown): string | null {
   if (typeof value !== 'string') return null

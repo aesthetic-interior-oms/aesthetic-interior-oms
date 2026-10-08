@@ -7,7 +7,7 @@ import {
   fetchFacebookConversationMessagesById,
 } from '@/lib/facebook'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
   const resolved = await context.params

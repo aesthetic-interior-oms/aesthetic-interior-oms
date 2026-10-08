@@ -19,7 +19,7 @@ const STARTABLE_SUBSTATUSES = new Set<LeadSubStatus>([
   LeadSubStatus.CLIENT_FULL_PAID,
 ])
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
   const resolvedParams = await context.params

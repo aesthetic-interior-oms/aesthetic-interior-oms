@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma'
 
 
 // Route context for accessing dynamic route parameters [leadId] and [id]
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 // Type for request body when updating notes
 type UpdateNoteBody = {

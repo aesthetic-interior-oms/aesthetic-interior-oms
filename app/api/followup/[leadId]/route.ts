@@ -8,7 +8,7 @@ import { requireDatabaseRoles } from '@/lib/authz';
 import { canManagePaymentStatus } from '@/lib/lead-handoff';
 import { buildScopedLeadWhere } from '@/lib/lead-access';
 
-type RouteContext = { params: { leadId: string } | Promise<{ leadId: string }> };
+type RouteContext = { params: Promise<{ leadId: string }> };
 const debugLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') {
     // console.log(...args);

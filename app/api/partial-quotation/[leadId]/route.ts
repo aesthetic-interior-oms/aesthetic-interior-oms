@@ -4,7 +4,7 @@ import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { logActivity, logLeadStageChanged, logLeadSubStatusChanged } from '@/lib/activity-log-service'
 
-type RouteContext = { params: { leadId: string } | Promise<{ leadId: string }> }
+type RouteContext = { params: Promise<{ leadId: string }> }
 type LineItem = { id: string; name: string; quantity: number; rate: number; total: number }
 
 async function leadIdOf(context: RouteContext) {

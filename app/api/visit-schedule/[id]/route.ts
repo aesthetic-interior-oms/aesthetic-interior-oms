@@ -8,7 +8,7 @@ import { findVisitConflict } from '@/lib/visit-guards';
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles';
 import { sendPushToUser } from '@/lib/fcm-service';
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> };
+type RouteContext = { params: Promise<{ id: string }> };
 
 type UpdateVisitBody = {
   visitTeamUserId?: unknown;

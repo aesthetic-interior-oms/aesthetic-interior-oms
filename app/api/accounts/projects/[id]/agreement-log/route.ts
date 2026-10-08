@@ -4,7 +4,7 @@ import { requireDatabaseRoles } from '@/lib/authz'
 
 export const dynamic = 'force-dynamic'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
   const resolvedParams = await context.params

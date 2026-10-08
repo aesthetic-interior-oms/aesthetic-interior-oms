@@ -20,7 +20,7 @@ import { createSrCadReviewTodosForCadStart } from '@/lib/sr-cad-todo';
 import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles';
 import { processAgreementAndDiscountSync } from '@/lib/agreement-discount-sync';
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> };
+type RouteContext = { params: Promise<{ id: string }> };
 
 const debugLog = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== 'production') {

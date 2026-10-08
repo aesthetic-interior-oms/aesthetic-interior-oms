@@ -5,7 +5,7 @@ import { requireDatabaseRoles } from '@/lib/authz'
 import { canManagePrimaryLeadFlow, isSrOrAdmin } from '@/lib/lead-workflow-auth'
 import { logActivity, logLeadStageChanged, logLeadSubStatusChanged } from '@/lib/activity-log-service'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 type CompleteFirstMeetingBody = {
   note?: unknown

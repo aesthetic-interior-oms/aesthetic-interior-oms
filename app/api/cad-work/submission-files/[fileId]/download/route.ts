@@ -5,7 +5,7 @@ import prisma from '@/lib/prisma'
 import { downloadFromGCSUrl, isGCSUploadUrl } from '@/lib/gcs-storage'
 import { isGoogleCloudStorageUrl } from '@/lib/download-utils'
 
-type RouteContext = { params: { fileId: string } | Promise<{ fileId: string }> }
+type RouteContext = { params: Promise<{ fileId: string }> }
 
 async function resolveFileId(context: RouteContext): Promise<string | null> {
   const params = await context.params

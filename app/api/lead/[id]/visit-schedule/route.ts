@@ -20,7 +20,7 @@ import { findVisitConflict } from '@/lib/visit-guards';
 import { getWeeklySeniorCrmAssignment } from '@/lib/sr-crm-rotation';
 import { sendPushToUser } from '@/lib/fcm-service';
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> };
+type RouteContext = { params: Promise<{ id: string }> };
 
 type ScheduleVisitBody = {
   visitTeamUserId?: unknown;

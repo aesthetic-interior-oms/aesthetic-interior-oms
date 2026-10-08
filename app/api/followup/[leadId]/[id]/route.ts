@@ -3,7 +3,7 @@ import { ActivityType, FollowUpStatus, Prisma } from '@/generated/prisma/client'
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 
-type RouteContext = { params: { leadId: string; id: string } | Promise<{ leadId: string; id: string }> };
+type RouteContext = { params: Promise<{ leadId: string; id: string }> };
 const completedFollowUpStatuses: FollowUpStatus[] = [FollowUpStatus.DONE, FollowUpStatus.LATELY_DONE];
 
 async function resolveParams(context: RouteContext): Promise<{ leadId: string | null; id: string | null }> {

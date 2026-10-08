@@ -259,7 +259,7 @@ import { createSrCadReviewTodosForCadStart } from '@/lib/sr-cad-todo';
 export const runtime = 'nodejs';
 export const preferredRegion = 'sin1';
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> };
+type RouteContext = { params: Promise<{ id: string }> };
 
 type UpdateLeadBody = {
   name?: unknown;

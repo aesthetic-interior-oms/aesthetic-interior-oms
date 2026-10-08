@@ -6,7 +6,7 @@ import { canManagePrimaryLeadFlow, isSrOrAdmin } from '@/lib/lead-workflow-auth'
 import { logActivity } from '@/lib/activity-log-service'
 import { sendPushToUser } from '@/lib/fcm-service'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 type CreateMeetingBody = {
   type?: unknown

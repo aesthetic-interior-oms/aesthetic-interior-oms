@@ -15,7 +15,7 @@ import {
 } from '@/lib/activity-log-service'
 import { sendPushToUser } from '@/lib/fcm-service'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 type SubmitVisualizerBody = {
   note?: unknown
