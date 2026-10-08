@@ -71,13 +71,7 @@ export function buildQuotationLeadWhere(input: {
   actorDepartments: string[]
   actorRoles?: string[]
 }) {
-  const isAdminOrSrOrAccountsOrPc =
-    isQuotationAdmin(input.actorDepartments) ||
-    input.actorDepartments.includes('ACCOUNTS') ||
-    input.actorDepartments.includes('PROJECT_COORDINATOR') ||
-    input.actorDepartments.includes('PROJECT_CORDINATOR')
-
-  if (isAdminOrSrOrAccountsOrPc) {
+  if (canAccessQuotationDraft(input.actorDepartments)) {
     return { id: input.leadId }
   }
 
