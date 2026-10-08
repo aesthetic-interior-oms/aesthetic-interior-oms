@@ -16,3 +16,7 @@ did you understand ? then explain to first what feature you need to add
 ___________________________________________________________________________________________
 
 2. 
+
+In the review center the cad uploaded file is unable to download 
+user ( sr crm , admin ) from the review center can 't download the cad file 
+why solve this issue 

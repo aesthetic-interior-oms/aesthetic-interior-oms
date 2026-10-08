@@ -286,6 +286,7 @@ function FilePreviewCard({ file }: { file: ReviewFile }) {
         </span>
         <a
           href={getDownloadUrl(file.url, file.fileName)}
+          download={file.fileName}
           target="_blank"
           rel="noopener noreferrer"
           className="absolute right-1 top-1 z-20 inline-flex h-7 w-7 items-center justify-center rounded-full bg-background/90 text-foreground opacity-0 shadow transition group-hover:opacity-100"
@@ -316,6 +317,7 @@ function FilePreviewCard({ file }: { file: ReviewFile }) {
         </div>
         <a
           href={getDownloadUrl(file.url, file.fileName)}
+          download={file.fileName}
           target="_blank"
           rel="noopener noreferrer"
           className="z-20 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground opacity-0 transition group-hover:opacity-100"

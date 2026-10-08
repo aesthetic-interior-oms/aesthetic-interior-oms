@@ -37,8 +37,8 @@ function parseVisitMonth(value: string | null): { start: Date; end: Date } | nul
   }
 }
 
-function getAuthorizedFileUrl(fileId: string): string {
-  return `/api/cad-work/submission-files/${fileId}/download`
+function getAuthorizedFileUrl(fileId: string, isInline = false): string {
+  return `/api/cad-work/submission-files/${fileId}/download${isInline ? '?inline=1' : ''}`
 }
 
 export async function GET(request: NextRequest) {
@@ -213,7 +213,11 @@ export async function GET(request: NextRequest) {
           files: await Promise.all(
             submission.files.map(async (file) => ({
               ...file,
-              url: getAuthorizedFileUrl(file.id),
+              url: getAuthorizedFileUrl(
+                file.id,
+                file.fileType?.toLowerCase().startsWith('image/') ||
+                  file.fileType?.toLowerCase() === 'application/pdf',
+              ),
             })),
           ),
         }

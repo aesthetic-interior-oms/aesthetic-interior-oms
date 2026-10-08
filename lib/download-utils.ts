@@ -8,6 +8,17 @@
 export function getSmartDownloadUrl(url: string, fileName?: string): string {
   if (!url) return ''
 
+  if (url.includes('/api/cad-work/submission-files/')) {
+    const [base, query] = url.split('?')
+    const params = new URLSearchParams(query || '')
+    params.delete('inline')
+    params.set('download', '1')
+    if (fileName && !params.has('fileName')) {
+      params.set('fileName', fileName)
+    }
+    return `${base}?${params.toString()}`
+  }
+
   if (isGoogleCloudStorageUrl(url)) {
     const params = new URLSearchParams()
     params.set('url', url)
@@ -24,7 +35,7 @@ export function getSmartDownloadUrl(url: string, fileName?: string): string {
   return url
 }
 
-function isGoogleCloudStorageUrl(url: string): boolean {
+export function isGoogleCloudStorageUrl(url: string): boolean {
   try {
     const { hostname } = new URL(url)
     return (
