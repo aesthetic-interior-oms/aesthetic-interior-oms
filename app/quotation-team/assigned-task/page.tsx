@@ -74,7 +74,7 @@ function formatLabel(value: string | null | undefined) {
 
 function getRecentMonthsList() {
   const months: { label: string; value: string }[] = [
-    { label: "All Visit Months", value: "" },
+    { label: "All Visit Months", value: "ALL" },
     { label: "No Visit Date", value: "NO_VISIT" },
   ];
   const now = new Date();
@@ -113,16 +113,15 @@ export default function QuotationAssignedTaskPage() {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
   const availableMonths = useMemo(() => getRecentMonthsList(), []);
-  const [selectedMonth, setSelectedMonth] = useState("");
-  const selectedMonthLabel = selectedMonth
-    ? availableMonths.find((month) => month.value === selectedMonth)?.label ?? selectedMonth
-    : "All Visit Months";
+  const [selectedMonth, setSelectedMonth] = useState("ALL");
+  const selectedMonthLabel =
+    availableMonths.find((month) => month.value === selectedMonth)?.label ?? "All Visit Months";
 
-  const loadTasks = useCallback(async (monthKey = "") => {
+  const loadTasks = useCallback(async (monthKey = "ALL") => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (monthKey) params.set("month", monthKey);
+      if (monthKey && monthKey !== "ALL") params.set("month", monthKey);
 
       const response = await fetch(`/api/quotation/assigned-tasks?${params.toString()}`, {
         cache: "no-store",

@@ -809,7 +809,7 @@ export default function ProjectVendorsTab({ leadId }: { leadId: string }) {
                 <Select value={paymentForm.milestoneId} onValueChange={(v) => setPaymentForm((f) => ({ ...f, milestoneId: v }))}>
                   <SelectTrigger><SelectValue placeholder="None (General Payment)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None (General Payment)</SelectItem>
+                    <SelectItem value="NONE">None (General Payment)</SelectItem>
                     {paymentAgreement.milestones.filter((m) => !m.isPaid).map((m) => (
                       <SelectItem key={m.id} value={m.id}>
                         {m.title} — ৳{m.amount.toLocaleString("en-BD")}
