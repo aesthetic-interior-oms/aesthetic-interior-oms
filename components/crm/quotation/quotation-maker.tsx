@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowDownToLine, Edit2, ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { ArrowDownToLine, Download, Edit2, ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DetailQuotationDocument } from '@/components/crm/quotation/pdf/DetailQuotationDocument'
+import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
 import { CollapsibleCard } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
 import {
@@ -145,6 +148,8 @@ export function QuotationMaker({
   const isPlayground = mode === 'playground'
   const previewContext = isPlayground ? 'playground' : 'lead'
   const previewContextId = isPlayground ? 'playground' : leadId
+  const pathname = usePathname() || ''
+  const [generatingPdf, setGeneratingPdf] = useState(false)
 
   const [slotIndex, setSlotIndex] = useState<number>(1)
   const [availableSlots, setAvailableSlots] = useState<Array<{ slotIndex: number; title: string; grandTotal: number; exists: boolean }>>([
@@ -1318,6 +1323,56 @@ return (
             <ExternalLink className="mr-1.5 h-4 w-4" />
             Live Preview
           </Button>
+          {!pathname.startsWith('/quotation-team') ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={generatingPdf}
+              onClick={async () => {
+                if (!content || !totals) return
+                setGeneratingPdf(true)
+                try {
+                  const downloadedAt = new Date().toISOString()
+                  const contentForDownload = {
+                    ...content,
+                    downloadedAt,
+                  }
+                  const safeClientName = (content.clientName || leadName || 'Client').replace(/[^a-z0-9]/gi, '_').toLowerCase()
+                  await downloadPdfFromDocument(
+                    <DetailQuotationDocument
+                      clientName={content.clientName || leadName || 'Client'}
+                      clientAddress={content.clientAddress || leadLocation || null}
+                      content={contentForDownload}
+                      totals={totals}
+                      isBlank={true}
+                    />,
+                    `Blank_Detail_Quotation_${safeClientName}.pdf`,
+                  )
+                  toast.success('Blank Detail Quotation PDF downloaded')
+                } catch (error) {
+                  console.error('Failed to generate Blank PDF:', error)
+                  toast.error('Failed to generate Blank PDF')
+                } finally {
+                  setGeneratingPdf(false)
+                }
+              }}
+              className="border-primary/40 text-primary hover:bg-primary/10"
+              title="Download Detail Quotation PDF with blank rates and totals"
+            >
+              {generatingPdf ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                  Generating Blank...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-1.5 h-4 w-4" />
+                  Blank Quotation
+                </>
+              )}
+            </Button>
+          ) : null}
           {!isPlayground ? (
             <Button type="button" size="sm" variant="outline" asChild>
               <Link href="/quotation-team/my-work">Back to My Work</Link>

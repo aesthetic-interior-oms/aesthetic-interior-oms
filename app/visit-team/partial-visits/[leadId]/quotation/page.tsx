@@ -96,14 +96,24 @@ export default function PartialVisitQuotationPage() {
                   <p className="text-sm font-medium">Detail quotation PDF</p>
                   <p className="text-xs text-muted-foreground">Open the PDF preview, then click Download PDF to save this lead's detail quotation.</p>
                 </div>
-                <Link
-                  href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id, download: true })}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex w-fit items-center justify-center rounded-md border bg-white px-4 py-2 text-sm font-medium hover:bg-muted"
-                >
-                  Download detail PDF
-                </Link>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id, download: true })}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex w-fit items-center justify-center rounded-md border bg-white px-4 py-2 text-sm font-medium hover:bg-muted"
+                  >
+                    Download detail PDF
+                  </Link>
+                  <Link
+                    href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id, isBlank: true, download: true })}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex w-fit items-center justify-center rounded-md border border-primary/40 bg-white px-4 py-2 text-sm font-medium text-primary hover:bg-primary/10"
+                  >
+                    Download blank PDF
+                  </Link>
+                </div>
               </CardContent>
             </Card>
 

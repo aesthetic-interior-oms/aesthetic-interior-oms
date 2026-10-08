@@ -565,6 +565,7 @@ export function DetailQuotationDocument({
   content,
   totals,
   agreementSummary,
+  isBlank = false,
 }: {
   clientName: string
   clientAddress: string | null
@@ -575,6 +576,7 @@ export function DetailQuotationDocument({
     honoredAmount: number
     totalAmount: number
   }
+  isBlank?: boolean
 }) {
   const floorSummaries = buildDetailFloorSummaries(content)
   const cleanIntro = (content.introLetter || '').replace('Dear Sir,\n', '').replace('Dear Sir,', '').trim();
@@ -677,7 +679,7 @@ export function DetailQuotationDocument({
                     {softWrapPdfText(isFESection ? entry.floor.name.toUpperCase() : entry.floor.name)}
                   </Text>
                   <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>
-                    {formatDetailTableAmount(entry.total)}{isFESection ? ' (approx.)' : ''}
+                    {isBlank ? '' : `${formatDetailTableAmount(entry.total)}${isFESection ? ' (approx.)' : ''}`}
                   </Text>
                 </View>
                 {getAreaGroups(entry)
@@ -706,7 +708,7 @@ export function DetailQuotationDocument({
                           {softWrapPdfText(isFEArea ? area.name.toUpperCase() : area.name)}
                         </Text>
                         <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>
-                          {formatDetailTableAmount(areaTotal)}{isFEArea ? ' (approx.)' : ''}
+                          {isBlank ? '' : `${formatDetailTableAmount(areaTotal)}${isFEArea ? ' (approx.)' : ''}`}
                         </Text>
                       </View>
                     )
@@ -720,25 +722,25 @@ export function DetailQuotationDocument({
           <>
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandTotalLabel}>TOTAL</Text>
-              <Text style={styles.grandTotalValue}>{formatDetailCurrency(agreementSummary.originalQuotationTotal)}</Text>
+              <Text style={styles.grandTotalValue}>{isBlank ? '' : formatDetailCurrency(agreementSummary.originalQuotationTotal)}</Text>
             </View>
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandTotalLabel}>HONORED AMOUNT</Text>
-              <Text style={styles.grandTotalValue}>{formatDetailCurrency(agreementSummary.honoredAmount)}</Text>
+              <Text style={styles.grandTotalValue}>{isBlank ? '' : formatDetailCurrency(agreementSummary.honoredAmount)}</Text>
             </View>
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandTotalLabel}>GRAND TOTAL</Text>
-              <Text style={styles.grandTotalValue}>{formatDetailCurrency(agreementSummary.totalAmount)}</Text>
+              <Text style={styles.grandTotalValue}>{isBlank ? '' : formatDetailCurrency(agreementSummary.totalAmount)}</Text>
             </View>
-            <Text style={styles.inWords}>In Words: {amountInWordsTaka(agreementSummary.totalAmount)}</Text>
+            {isBlank ? null : <Text style={styles.inWords}>In Words: {amountInWordsTaka(agreementSummary.totalAmount)}</Text>}
           </>
         ) : (
           <>
             <View style={styles.grandTotalRow}>
               <Text style={styles.grandTotalLabel}>TOTAL</Text>
-              <Text style={styles.grandTotalValue}>{formatDetailCurrency(totals.grandTotal)}</Text>
+              <Text style={styles.grandTotalValue}>{isBlank ? '' : formatDetailCurrency(totals.grandTotal)}</Text>
             </View>
-            <Text style={styles.inWords}>In Words: {amountInWordsTaka(totals.grandTotal)}</Text>
+            {isBlank ? null : <Text style={styles.inWords}>In Words: {amountInWordsTaka(totals.grandTotal)}</Text>}
           </>
         )}
 
@@ -849,21 +851,21 @@ export function DetailQuotationDocument({
                         {isFEPackageMode ? (
                           // Case 3: merge Qty/UP into single "Package" cell
                           <Text style={[styles.tdCol, { width: '22%', textAlign: 'center' }, rowCellStyle, { fontSize: 9 }]}>
-                            {isFirstMaterialRow ? 'Package' : ''}
+                            {isFirstMaterialRow ? (isBlank ? '' : 'Package') : ''}
                           </Text>
                         ) : (
                           // Cases 1, 2, 4: show Qty/SFT and Unit Price columns separately
                           <>
                             <Text style={[styles.tdCol, styles.wQty, rowCellStyle, { fontSize: 9 }]}>
-                              {isFirstMaterialRow ? (isPkg ? 'Package' : formatDetailQtyCell(line)) : ''}
+                              {isFirstMaterialRow ? (isBlank ? '' : isPkg ? 'Package' : formatDetailQtyCell(line)) : ''}
                             </Text>
                             <Text style={[styles.tdCol, styles.wPrice, rowCellStyle, { fontSize: 9 }]}>
-                              {isFirstMaterialRow ? (priceText ? softWrapPdfText(priceText) : '') : ''}
+                              {isFirstMaterialRow ? (isBlank ? '' : priceText ? softWrapPdfText(priceText) : '') : ''}
                             </Text>
                           </>
                         )}
                         <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }, rowCellStyle]}>
-                          {totalText ? softWrapPdfText(totalText) : ''}
+                          {isBlank ? '' : totalText ? softWrapPdfText(totalText) : ''}
                         </Text>
                       </View>
                     )

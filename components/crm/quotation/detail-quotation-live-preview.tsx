@@ -40,6 +40,7 @@ type DetailQuotationLivePreviewProps = {
   contextId: string
   slotIndex?: number
   autoDownload?: boolean
+  isBlank?: boolean
 }
 
 export function DetailQuotationLivePreview({
@@ -47,6 +48,7 @@ export function DetailQuotationLivePreview({
   contextId,
   slotIndex = 1,
   autoDownload = false,
+  isBlank = false,
 }: DetailQuotationLivePreviewProps) {
   const [payload, setPayload] = useState<DetailPreviewPayload | null>(null)
   const [loading, setLoading] = useState(true)
@@ -139,14 +141,16 @@ export function DetailQuotationLivePreview({
       }
       
       const safeClientName = (payload.clientName || 'Client').replace(/[^a-z0-9]/gi, '_').toLowerCase()
+      const prefix = isBlank ? 'Blank_Detail_Quotation' : 'Detail_Quotation'
       await downloadPdfFromDocument(
         <DetailQuotationDocument
           clientName={payload.clientName}
           clientAddress={payload.clientAddress}
           content={contentForDownload}
           totals={payload.totals}
+          isBlank={isBlank}
         />,
-        `Detail_Quotation_${safeClientName}_${quotationCode}.pdf`,
+        `${prefix}_${safeClientName}_${quotationCode}.pdf`,
       )
       
       // Update local preview immediately to show the code

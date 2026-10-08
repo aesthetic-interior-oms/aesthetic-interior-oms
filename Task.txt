@@ -20,3 +20,12 @@ ________________________________________________________________________________
 In the review center the cad uploaded file is unable to download 
 user ( sr crm , admin ) from the review center can 't download the cad file 
 why solve this issue 
+
+
+______________________Special Design Consultant________________________
+1. 
+https://www.aestheticinteriorbd.com/visit-team/partial-visits/cmufd1ika000004lbwiwh7ilj/quotation
+
+in this one button at the bottom ( STUCK BOTTOM SECTION ). i need a download button named "Blank Quotation" when user click this button 
+he will generate a pdf ( detail quotation pdf ) with same design same thing just one change ( in that blank quotation qty/sft, unitprice and total column will be empty ) from everywhere 
+ready the idea. don't implement it yet just tell me an implementation plan
