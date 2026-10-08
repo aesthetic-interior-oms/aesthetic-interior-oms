@@ -50,7 +50,7 @@ export default async function QuotationTeamLayout({
   )
 
   if (user.userDepartments.length > 0) {
-    return <MainLayout role="Quotation Studio">{children}</MainLayout>
+    return <MainLayout role="Quotation Team">{children}</MainLayout>
   }
 
   redirect('/onboarding')

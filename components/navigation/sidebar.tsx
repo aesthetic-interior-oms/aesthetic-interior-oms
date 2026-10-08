@@ -801,7 +801,9 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
         ? navigationGroups['Specialist Design Consultants']
         : navigationGroups['Visit Team']
       : navigationGroups[role as keyof typeof navigationGroups] ||
-        (role && (role.toUpperCase().includes('HR') || role.toUpperCase().includes('HUMAN'))
+        (role && role.toUpperCase().includes('QUOTATION')
+          ? navigationGroups['Quotation Team']
+          : role && (role.toUpperCase().includes('HR') || role.toUpperCase().includes('HUMAN'))
           ? navigationGroups['Human_Resources']
           : [])
 
