@@ -483,6 +483,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       leadId,
       actorUserId: authResult.actorUserId,
       actorDepartments,
+      actorRoles: authResult.actorRoles,
     })
     if (!leadWhere) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
@@ -702,6 +703,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       leadId,
       actorUserId: authResult.actorUserId,
       actorDepartments,
+      actorRoles: authResult.actorRoles,
     })
     if (!leadWhere) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
