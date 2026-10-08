@@ -19,6 +19,9 @@ import {
   FileText,
   Sparkles,
   AlertCircle,
+  Table as TableIcon,
+  LayoutGrid,
+  Download,
 } from 'lucide-react'
 import { saveMaterialRequisition, RequisitionItemInput } from '@/lib/boq-service'
 import type {
@@ -29,7 +32,7 @@ import type {
 } from '@/lib/quotation-types'
 
 /* ─────────────────────────────────────────────
-   Constants
+   Constants & Preset Data
 ───────────────────────────────────────────── */
 
 export type RequisitionWorkCategory =
@@ -43,8 +46,8 @@ export type RequisitionWorkCategory =
   | 'APPLIANCES'
 
 const WORK_CATEGORIES: { key: RequisitionWorkCategory; label: string }[] = [
-  { key: 'CABINETS_CLOSETS', label: 'Cabinets / Closets' },
   { key: 'WALL_PANELING', label: 'Wall Paneling' },
+  { key: 'CABINETS_CLOSETS', label: 'Cabinets / Closets' },
   { key: 'CEILING', label: 'Ceiling' },
   { key: 'FURNITURE', label: 'Furniture' },
   { key: 'ACCESSORIES', label: 'Accessories' },
@@ -53,10 +56,185 @@ const WORK_CATEGORIES: { key: RequisitionWorkCategory; label: string }[] = [
   { key: 'APPLIANCES', label: 'Appliances' },
 ]
 
-const UOM_OPTIONS = ['Sheets', 'Pcs', 'Meters', 'RFT', 'Kg', 'Rolls', 'Pack', 'Boxes', 'Sets', 'Liters']
+const UOM_OPTIONS = ['Pcs', 'Sheets', 'Meters', 'RFT', 'Kg', 'Rolls', 'Pack', 'Boxes', 'Sets', 'Liters']
 
 /** Special key used for materials not linked to any quotation line item */
 const EXTRA_KEY = '__extra__'
+
+export interface BoardVariantAttributes {
+  itemId?: string
+  coreThickness?: string
+  baseMaterial?: string
+  laminateTopSurface?: string
+  surfaceCodeFinish?: string
+  sheetSize?: string
+  functionalUsage?: string
+  qtyLabel?: string
+}
+
+/** Pre-populated Wall Paneling / Board Catalog Preset (Matches User Standard Table) */
+const SAMPLE_WALL_PANEL_ITEMS: RequisitionItemInput[] = [
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Starlight White Board',
+    specifications: '12mm | Garjon Plywood | Beladoa Laminate | 2003 SMT (Super Matt)',
+    variantAttributes: {
+      itemId: 'BRD-001',
+      coreThickness: '12mm',
+      baseMaterial: 'Garjon Plywood',
+      laminateTopSurface: 'Beladoa Laminate',
+      surfaceCodeFinish: '2003 SMT (Super Matt)',
+      sheetSize: "8' x 4'",
+      functionalUsage: 'Shutter / Exterior Cabinet',
+      qtyLabel: '1',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Pcs',
+    productionPhase: 'Shutter / Exterior Cabinet',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Airolam Cabinet Board',
+    specifications: '12mm | Garjon Plywood | Airolam Laminate | 903 SMR (Suede Matt Finished)',
+    variantAttributes: {
+      itemId: 'BRD-002',
+      coreThickness: '12mm',
+      baseMaterial: 'Garjon Plywood',
+      laminateTopSurface: 'Airolam Laminate',
+      surfaceCodeFinish: '903 SMR (Suede Matt Finished)',
+      sheetSize: "8' x 4'",
+      functionalUsage: 'Inner Box / Shelving',
+      qtyLabel: '5',
+    },
+    netQuantity: 5,
+    wastagePercent: 0,
+    finalQuantity: 5,
+    unit: 'Pcs',
+    productionPhase: 'Inner Box / Shelving',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Structural Garjon Ply',
+    specifications: '18mm | Garjon Plywood | None (Raw) | Raw Uncoated',
+    variantAttributes: {
+      itemId: 'BRD-003',
+      coreThickness: '18mm',
+      baseMaterial: 'Garjon Plywood',
+      laminateTopSurface: 'None (Raw)',
+      surfaceCodeFinish: 'Raw Uncoated',
+      sheetSize: "8' x 4'",
+      functionalUsage: 'Heavy Load Frame / Base',
+      qtyLabel: '2',
+    },
+    netQuantity: 2,
+    wastagePercent: 0,
+    finalQuantity: 2,
+    unit: 'Pcs',
+    productionPhase: 'Heavy Load Frame / Base',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Standard Core Ply',
+    specifications: '12mm | Commercial Ply | None (Raw) | Raw Uncoated',
+    variantAttributes: {
+      itemId: 'BRD-004',
+      coreThickness: '12mm',
+      baseMaterial: 'Commercial Ply',
+      laminateTopSurface: 'None (Raw)',
+      surfaceCodeFinish: 'Raw Uncoated',
+      sheetSize: "8' x 4'",
+      functionalUsage: 'Backing Panel / Partition',
+      qtyLabel: '4',
+    },
+    netQuantity: 4,
+    wastagePercent: 0,
+    finalQuantity: 4,
+    unit: 'Pcs',
+    productionPhase: 'Backing Panel / Partition',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Thin Liner Ply',
+    specifications: '6mm | Commercial Ply | None (Raw) | Raw Uncoated',
+    variantAttributes: {
+      itemId: 'BRD-005',
+      coreThickness: '6mm',
+      baseMaterial: 'Commercial Ply',
+      laminateTopSurface: 'None (Raw)',
+      surfaceCodeFinish: 'Raw Uncoated',
+      sheetSize: "8' x 4'",
+      functionalUsage: 'Drawer Bottom / Backing',
+      qtyLabel: '1',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Pcs',
+    productionPhase: 'Drawer Bottom / Backing',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Heavy Duty Substrate',
+    specifications: '25mm | Garjon Plywood | None (Raw) | Heavy Structural',
+    variantAttributes: {
+      itemId: 'BRD-006 (Ext)',
+      coreThickness: '25mm',
+      baseMaterial: 'Garjon Plywood',
+      laminateTopSurface: 'None (Raw)',
+      surfaceCodeFinish: 'Heavy Structural',
+      sheetSize: "8' x 4'",
+      functionalUsage: 'Countertop Sub-base',
+      qtyLabel: 'Catalog',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Pcs',
+    productionPhase: 'Countertop Sub-base',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Waterproof Board',
+    specifications: '18mm | WPC (Wood Plastic) | None (Raw) | Water Resistant',
+    variantAttributes: {
+      itemId: 'BRD-007 (Ext)',
+      coreThickness: '18mm',
+      baseMaterial: 'WPC (Wood Plastic)',
+      laminateTopSurface: 'None (Raw)',
+      surfaceCodeFinish: 'Water Resistant',
+      sheetSize: "8' x 4'",
+      functionalUsage: 'Sink Under-cabinet',
+      qtyLabel: 'Catalog',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Pcs',
+    productionPhase: 'Sink Under-cabinet',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'High Gloss Panel',
+    specifications: '18mm | MDF Core | Acrylic Finish | HG Pure White',
+    variantAttributes: {
+      itemId: 'BRD-008 (Ext)',
+      coreThickness: '18mm',
+      baseMaterial: 'MDF Core',
+      laminateTopSurface: 'Acrylic Finish',
+      surfaceCodeFinish: 'HG Pure White',
+      sheetSize: "8' x 4'",
+      functionalUsage: 'Modern Kitchen Fronts',
+      qtyLabel: 'Catalog',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Pcs',
+    productionPhase: 'Modern Kitchen Fronts',
+  },
+]
 
 /* ─────────────────────────────────────────────
    Types
@@ -96,14 +274,24 @@ type ItemsMap = Record<string, RequisitionItemInput[]>
 function blankItem(quotationLineItemId?: string): RequisitionItemInput {
   return {
     quotationLineItemId,
-    workCategory: 'CABINETS_CLOSETS',
+    workCategory: 'WALL_PANELING',
     materialName: '',
     specifications: '',
+    variantAttributes: {
+      itemId: 'BRD-001',
+      coreThickness: '12mm',
+      baseMaterial: 'Garjon Plywood',
+      laminateTopSurface: 'Beladoa Laminate',
+      surfaceCodeFinish: '2003 SMT (Super Matt)',
+      sheetSize: "8' x 4'",
+      functionalUsage: 'Shutter / Exterior Cabinet',
+      qtyLabel: '1',
+    },
     netQuantity: 1,
     wastagePercent: 0,
     finalQuantity: 1,
     unit: 'Pcs',
-    productionPhase: '',
+    productionPhase: 'Shutter / Exterior Cabinet',
     remarks: '',
   }
 }
@@ -123,18 +311,39 @@ function seedFromExisting(rawItems: any[]): ItemsMap {
   for (const it of rawItems) {
     const key = it.quotationLineItemId || EXTRA_KEY
     if (!map[key]) map[key] = []
+
+    let attrs: BoardVariantAttributes = {}
+    if (typeof it.variantAttributes === 'string') {
+      try {
+        attrs = JSON.parse(it.variantAttributes)
+      } catch {
+        attrs = {}
+      }
+    } else if (it.variantAttributes && typeof it.variantAttributes === 'object') {
+      attrs = it.variantAttributes
+    }
+
     map[key].push({
       id: it.id,
       quotationLineItemId: it.quotationLineItemId || undefined,
-      workCategory: it.workCategory || 'CABINETS_CLOSETS',
+      workCategory: it.workCategory || 'WALL_PANELING',
       materialName: it.materialName || '',
       specifications: it.specifications || '',
-      variantAttributes: it.variantAttributes || {},
+      variantAttributes: {
+        itemId: attrs.itemId || '',
+        coreThickness: attrs.coreThickness || '',
+        baseMaterial: attrs.baseMaterial || '',
+        laminateTopSurface: attrs.laminateTopSurface || '',
+        surfaceCodeFinish: attrs.surfaceCodeFinish || '',
+        sheetSize: attrs.sheetSize || "8' x 4'",
+        functionalUsage: attrs.functionalUsage || it.productionPhase || '',
+        qtyLabel: attrs.qtyLabel || (it.netQuantity ? String(it.netQuantity) : '1'),
+      },
       netQuantity: Number(it.netQuantity) || 1,
       wastagePercent: Number(it.wastagePercent) || 0,
       finalQuantity: Number(it.finalQuantity) || Number(it.netQuantity) || 1,
       unit: it.unit || 'Pcs',
-      productionPhase: it.productionPhase || '',
+      productionPhase: it.productionPhase || attrs.functionalUsage || '',
       remarks: it.remarks || '',
     })
   }
@@ -142,29 +351,293 @@ function seedFromExisting(rawItems: any[]): ItemsMap {
 }
 
 /* ─────────────────────────────────────────────
-   Sub-component: Material row table for one quotation line item
+   Sub-component: Datalist Autocomplete Providers
+───────────────────────────────────────────── */
+function BoardDatalists() {
+  return (
+    <>
+      <datalist id="item-id-list">
+        <option value="BRD-001" />
+        <option value="BRD-002" />
+        <option value="BRD-003" />
+        <option value="BRD-004" />
+        <option value="BRD-005" />
+        <option value="BRD-006 (Ext)" />
+        <option value="BRD-007 (Ext)" />
+        <option value="BRD-008 (Ext)" />
+      </datalist>
+
+      <datalist id="core-thickness-list">
+        <option value="6mm" />
+        <option value="9mm" />
+        <option value="12mm" />
+        <option value="15mm" />
+        <option value="18mm" />
+        <option value="25mm" />
+      </datalist>
+
+      <datalist id="base-material-list">
+        <option value="Garjon Plywood" />
+        <option value="Commercial Ply" />
+        <option value="WPC (Wood Plastic)" />
+        <option value="MDF Core" />
+        <option value="HDF Core" />
+        <option value="Particle Board" />
+      </datalist>
+
+      <datalist id="laminate-surface-list">
+        <option value="Beladoa Laminate" />
+        <option value="Airolam Laminate" />
+        <option value="None (Raw)" />
+        <option value="Acrylic Finish" />
+        <option value="Veneer" />
+        <option value="PVC Sheet" />
+        <option value="HPL" />
+      </datalist>
+
+      <datalist id="surface-code-list">
+        <option value="2003 SMT (Super Matt)" />
+        <option value="903 SMR (Suede Matt Finished)" />
+        <option value="Raw Uncoated" />
+        <option value="Heavy Structural" />
+        <option value="Water Resistant" />
+        <option value="HG Pure White" />
+      </datalist>
+
+      <datalist id="sheet-size-list">
+        <option value="8' x 4'" />
+        <option value="8' x 3'" />
+        <option value="9' x 4'" />
+        <option value="10' x 4'" />
+      </datalist>
+
+      <datalist id="functional-usage-list">
+        <option value="Shutter / Exterior Cabinet" />
+        <option value="Inner Box / Shelving" />
+        <option value="Heavy Load Frame / Base" />
+        <option value="Backing Panel / Partition" />
+        <option value="Drawer Bottom / Backing" />
+        <option value="Countertop Sub-base" />
+        <option value="Sink Under-cabinet" />
+        <option value="Modern Kitchen Fronts" />
+        <option value="Feature Wall Accent" />
+      </datalist>
+    </>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   Sub-component: Material row table
 ───────────────────────────────────────────── */
 function MaterialRowsTable({
   rows,
+  viewMode,
   onChange,
+  onUpdateVariant,
   onAddRow,
   onRemoveRow,
+  onLoadPreset,
 }: {
   rows: RequisitionItemInput[]
+  viewMode: 'BOARD_SPEC' | 'STANDARD'
   onChange: (rowIndex: number, field: keyof RequisitionItemInput, value: any) => void
+  onUpdateVariant: (rowIndex: number, field: keyof BoardVariantAttributes, value: string) => void
   onAddRow: () => void
   onRemoveRow: (rowIndex: number) => void
+  onLoadPreset?: () => void
 }) {
   return (
     <div className="border border-dashed border-border rounded-lg overflow-hidden">
       {rows.length === 0 ? (
-        <div className="px-4 py-3 text-xs text-muted-foreground flex items-center gap-2">
-          <Package className="w-4 h-4 text-muted-foreground/60" />
-          No materials added yet for this item.
+        <div className="px-4 py-6 text-center text-xs text-muted-foreground space-y-3">
+          <div className="flex items-center justify-center gap-2 text-muted-foreground/60">
+            <Package className="w-5 h-5" />
+            <span>No wall paneling or material specifications added yet.</span>
+          </div>
+          {onLoadPreset && (
+            <button
+              onClick={onLoadPreset}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" /> Load Wall Paneling Board Catalog (BRD-001 - BRD-008)
+            </button>
+          )}
+        </div>
+      ) : viewMode === 'BOARD_SPEC' ? (
+        /* ── 10-Column Wall Paneling & Board Specification Table ── */
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left min-w-[1100px]">
+            <thead className="text-muted-foreground uppercase bg-muted/40 border-b">
+              <tr>
+                <th className="px-2.5 py-2 font-semibold w-28">Item ID</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[160px]">Item Name</th>
+                <th className="px-2.5 py-2 font-semibold w-28">Core Thickness</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[140px]">Base Material</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[150px]">Laminate / Top Surface</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[160px]">Surface Code / Finish</th>
+                <th className="px-2.5 py-2 font-semibold w-28">Sheet Size (Std)</th>
+                <th className="px-2.5 py-2 font-semibold w-20">Unit</th>
+                <th className="px-2.5 py-2 font-semibold text-center w-24">Quantity</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[160px]">Functional Usage</th>
+                <th className="px-2 py-2 font-semibold w-8 text-right"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {rows.map((item, ri) => {
+                const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                return (
+                  <tr key={ri} className="hover:bg-muted/10 transition-colors">
+                    {/* 1. Item ID */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="item-id-list"
+                        value={attrs.itemId || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
+                        placeholder="BRD-001"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-mono font-medium focus:ring-1 focus:ring-primary"
+                      />
+                    </td>
+
+                    {/* 2. Item Name */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={item.materialName}
+                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
+                        placeholder="e.g. Starlight White Board"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-semibold focus:ring-1 focus:ring-primary"
+                      />
+                    </td>
+
+                    {/* 3. Core Thickness */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="core-thickness-list"
+                        value={attrs.coreThickness || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'coreThickness', e.target.value)}
+                        placeholder="12mm"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary"
+                      />
+                    </td>
+
+                    {/* 4. Base Material */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="base-material-list"
+                        value={attrs.baseMaterial || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'baseMaterial', e.target.value)}
+                        placeholder="Garjon Plywood"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary"
+                      />
+                    </td>
+
+                    {/* 5. Laminate / Top Surface */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="laminate-surface-list"
+                        value={attrs.laminateTopSurface || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'laminateTopSurface', e.target.value)}
+                        placeholder="Beladoa Laminate"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary"
+                      />
+                    </td>
+
+                    {/* 6. Surface Code / Finish */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="surface-code-list"
+                        value={attrs.surfaceCodeFinish || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'surfaceCodeFinish', e.target.value)}
+                        placeholder="2003 SMT"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary"
+                      />
+                    </td>
+
+                    {/* 7. Sheet Size (Std) */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="sheet-size-list"
+                        value={attrs.sheetSize || "8' x 4'"}
+                        onChange={(e) => onUpdateVariant(ri, 'sheetSize', e.target.value)}
+                        placeholder="8' x 4'"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center focus:ring-1 focus:ring-primary"
+                      />
+                    </td>
+
+                    {/* 8. Unit */}
+                    <td className="px-2.5 py-2">
+                      <select
+                        value={item.unit}
+                        onChange={(e) => onChange(ri, 'unit', e.target.value)}
+                        className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary"
+                      >
+                        {UOM_OPTIONS.map((uom) => (
+                          <option key={uom} value={uom}>
+                            {uom}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* 9. Quantity */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'qtyLabel', val)
+                          const num = parseFloat(val)
+                          if (!isNaN(num)) {
+                            onChange(ri, 'netQuantity', num)
+                          }
+                        }}
+                        placeholder="1 or Catalog"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center font-bold focus:ring-1 focus:ring-primary"
+                      />
+                    </td>
+
+                    {/* 10. Functional Usage */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="functional-usage-list"
+                        value={attrs.functionalUsage || item.productionPhase || ''}
+                        onChange={(e) => {
+                          onUpdateVariant(ri, 'functionalUsage', e.target.value)
+                          onChange(ri, 'productionPhase', e.target.value)
+                        }}
+                        placeholder="Shutter / Exterior Cabinet"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary"
+                      />
+                    </td>
+
+                    {/* Delete */}
+                    <td className="px-2 py-2 text-right">
+                      <button
+                        onClick={() => onRemoveRow(ri)}
+                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        title="Remove board row"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       ) : (
+        /* ── Standard 8-Column Material Table ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left">
+          <table className="w-full text-xs text-left min-w-[800px]">
             <thead className="text-muted-foreground uppercase bg-muted/40 border-b">
               <tr>
                 <th className="px-3 py-2 font-semibold w-36">Category</th>
@@ -174,7 +647,7 @@ function MaterialRowsTable({
                 <th className="px-3 py-2 font-semibold text-center w-20">Wastage %</th>
                 <th className="px-3 py-2 font-semibold text-center w-20">Final Qty</th>
                 <th className="px-3 py-2 font-semibold w-24">UOM</th>
-                <th className="px-3 py-2 font-semibold w-28">Phase</th>
+                <th className="px-3 py-2 font-semibold w-28">Phase / Usage</th>
                 <th className="px-3 py-2 font-semibold w-8 text-right"></th>
               </tr>
             </thead>
@@ -286,14 +759,24 @@ function MaterialRowsTable({
         </div>
       )}
 
-      <div className="px-3 py-2 border-t border-dashed border-border bg-muted/5">
+      <div className="px-3 py-2 border-t border-dashed border-border bg-muted/5 flex flex-wrap items-center justify-between gap-2">
         <button
           onClick={onAddRow}
           className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
         >
           <Plus className="w-3.5 h-3.5" />
-          Add Material Row
+          Add Board / Material Row
         </button>
+
+        {onLoadPreset && rows.length > 0 && (
+          <button
+            onClick={onLoadPreset}
+            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Download className="w-3 h-3 text-amber-500" />
+            Append Wall Paneling Sample Data (BRD-001 - BRD-008)
+          </button>
+        )}
       </div>
     </div>
   )
@@ -306,16 +789,22 @@ function QuotationLineItemCard({
   item,
   area,
   rows,
+  viewMode,
   onChangeRow,
+  onUpdateVariant,
   onAddRow,
   onRemoveRow,
+  onLoadPreset,
 }: {
   item: QuotationLineItem
   area?: QuotationArea
   rows: RequisitionItemInput[]
+  viewMode: 'BOARD_SPEC' | 'STANDARD'
   onChangeRow: (rowIndex: number, field: keyof RequisitionItemInput, value: any) => void
+  onUpdateVariant: (rowIndex: number, field: keyof BoardVariantAttributes, value: string) => void
   onAddRow: () => void
   onRemoveRow: (rowIndex: number) => void
+  onLoadPreset: () => void
 }) {
   const [expanded, setExpanded] = useState(true)
 
@@ -356,7 +845,7 @@ function QuotationLineItemCard({
             ৳{item.amount.toLocaleString('en-IN')}
           </p>
           <p className="text-xs text-muted-foreground">
-            {rows.length} material row{rows.length !== 1 ? 's' : ''}
+            {rows.length} board/material row{rows.length !== 1 ? 's' : ''}
           </p>
         </div>
       </button>
@@ -366,9 +855,12 @@ function QuotationLineItemCard({
         <div className="p-3">
           <MaterialRowsTable
             rows={rows}
+            viewMode={viewMode}
             onChange={onChangeRow}
+            onUpdateVariant={onUpdateVariant}
             onAddRow={onAddRow}
             onRemoveRow={onRemoveRow}
+            onLoadPreset={onLoadPreset}
           />
         </div>
       )}
@@ -389,13 +881,13 @@ export function RequisitionBuilderClient({
   const [isPending, startTransition] = useTransition()
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
   const [notes, setNotes] = useState<string>(existingRequisition?.notes || '')
+  const [viewMode, setViewMode] = useState<'BOARD_SPEC' | 'STANDARD'>('BOARD_SPEC')
 
   // ── Parse quotation content ──
   const quotation = useMemo<QuotationDraftContent | null>(() => {
     if (!detailQuotation?.content) return null
     try {
       const c = detailQuotation.content
-      // May already be object (Prisma JSON) or a stringified JSON
       return typeof c === 'string' ? (JSON.parse(c) as QuotationDraftContent) : (c as QuotationDraftContent)
     } catch {
       return null
@@ -417,7 +909,10 @@ export function RequisitionBuilderClient({
     if (existingRequisition?.items && existingRequisition.items.length > 0) {
       return seedFromExisting(existingRequisition.items)
     }
-    return {}
+    // Default: seed Extra section with user wall panel sample table if completely empty
+    return {
+      [EXTRA_KEY]: SAMPLE_WALL_PANEL_ITEMS,
+    }
   })
 
   // ── Helpers to mutate itemsMap ──
@@ -432,6 +927,32 @@ export function RequisitionBuilderClient({
         const net = Number(field === 'netQuantity' ? rawValue : current.netQuantity) || 0
         const waste = Number(field === 'wastagePercent' ? rawValue : current.wastagePercent) || 0
         current.finalQuantity = Math.round(net * (1 + waste / 100) * 100) / 100
+      }
+
+      rows[rowIndex] = current
+      return { ...prev, [key]: rows }
+    })
+  }
+
+  const updateVariant = (key: string, rowIndex: number, field: keyof BoardVariantAttributes, value: string) => {
+    setItemsMap((prev) => {
+      const rows = [...(prev[key] ?? [])]
+      const current = { ...rows[rowIndex] }
+      const prevAttrs: BoardVariantAttributes = current.variantAttributes || {}
+      const nextAttrs = { ...prevAttrs, [field]: value }
+
+      current.variantAttributes = nextAttrs
+
+      // Keep specifications string in sync with board specs
+      const specParts = [
+        nextAttrs.coreThickness,
+        nextAttrs.baseMaterial,
+        nextAttrs.laminateTopSurface,
+        nextAttrs.surfaceCodeFinish,
+      ].filter(Boolean)
+
+      if (specParts.length > 0) {
+        current.specifications = specParts.join(' | ')
       }
 
       rows[rowIndex] = current
@@ -459,6 +980,17 @@ export function RequisitionBuilderClient({
     })
   }
 
+  const loadPreset = (key: string, quotationLineItemId?: string) => {
+    const presetItems = SAMPLE_WALL_PANEL_ITEMS.map((item) => ({
+      ...item,
+      quotationLineItemId,
+    }))
+    setItemsMap((prev) => ({
+      ...prev,
+      [key]: [...(prev[key] ?? []), ...presetItems],
+    }))
+  }
+
   // ── Summary counts ──
   const totalMaterialRows = useMemo(() => flattenItems(itemsMap).length, [itemsMap])
   const coveredLineItems = useMemo(
@@ -481,8 +1013,8 @@ export function RequisitionBuilderClient({
       if (res.success) {
         setSaveSuccess(
           status === 'SUBMITTED'
-            ? 'Requisition submitted to Procurement team successfully!'
-            : 'Requisition draft saved successfully!'
+            ? 'Material requisition submitted to Procurement team successfully!'
+            : 'Material requisition draft saved successfully!'
         )
         router.refresh()
       }
@@ -492,6 +1024,8 @@ export function RequisitionBuilderClient({
   /* ── RENDER ── */
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto pb-24">
+      {/* ── Global Autocomplete Lists ── */}
+      <BoardDatalists />
 
       {/* ── Top Bar ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
@@ -504,7 +1038,7 @@ export function RequisitionBuilderClient({
           </Link>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Boxes className="w-6 h-6 text-primary" />
-            Material Requisition Builder
+            Material & Wall Paneling Requisition Builder
           </h1>
           <p className="text-xs text-muted-foreground">
             Project: <span className="font-semibold text-foreground">{lead.name}</span> | Phone:{' '}
@@ -512,7 +1046,32 @@ export function RequisitionBuilderClient({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Action Controls & View Switcher */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Table View Toggle */}
+          <div className="inline-flex items-center rounded-lg border bg-muted/30 p-1 text-xs">
+            <button
+              onClick={() => setViewMode('BOARD_SPEC')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-colors ${
+                viewMode === 'BOARD_SPEC'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <TableIcon className="w-3.5 h-3.5 text-primary" /> Wall Paneling Spec View (10 Cols)
+            </button>
+            <button
+              onClick={() => setViewMode('STANDARD')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-colors ${
+                viewMode === 'STANDARD'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" /> Standard View
+            </button>
+          </div>
+
           <button
             onClick={() => handleSave('DRAFT')}
             disabled={isPending}
@@ -570,17 +1129,15 @@ export function RequisitionBuilderClient({
           </div>
           {lineItems.length > 0 && (
             <p className="text-xs text-muted-foreground mt-2">
-              Expand each quotation line item below and add the raw materials required for that work scope.
-              Items that do not map to any quotation line go in the{' '}
-              <strong>Extra / Miscellaneous</strong> section at the bottom.
+              Expand each quotation line item below to enter Wall Paneling & Board specs (Item ID, Core Thickness, Base Material, Laminate, Finish, Size, Unit, Qty, Functional Usage).
+              Items that span multiple areas go in the <strong>Extra / Miscellaneous</strong> section below.
             </p>
           )}
         </div>
       ) : (
         <div className="rounded-xl border bg-amber-50/40 dark:bg-amber-950/20 p-4 border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2">
           <HelpCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-          No approved detail quotation found for this lead. You can still create a manual requisition using
-          the Extra / Miscellaneous section below.
+          No approved detail quotation found for this lead. You can still manage Wall Paneling & Board data using the Extra / Miscellaneous section below.
         </div>
       )}
 
@@ -614,9 +1171,12 @@ export function RequisitionBuilderClient({
                         item={li}
                         area={area}
                         rows={getRows(li.id)}
+                        viewMode={viewMode}
                         onChangeRow={(ri, field, val) => updateRow(li.id, ri, field, val)}
+                        onUpdateVariant={(ri, field, val) => updateVariant(li.id, ri, field, val)}
                         onAddRow={() => addRow(li.id, li.id)}
                         onRemoveRow={(ri) => removeRow(li.id, ri)}
+                        onLoadPreset={() => loadPreset(li.id, li.id)}
                       />
                     )
                   })}
@@ -632,31 +1192,39 @@ export function RequisitionBuilderClient({
         </div>
       ) : null}
 
-      {/* ── Extra / Miscellaneous Section ── */}
+      {/* ── Extra / Miscellaneous & Wall Paneling Section ── */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 border-b pb-2">
-          <Sparkles className="w-4 h-4 text-amber-500" />
-          <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-            Extra / Miscellaneous Materials
-          </h2>
-          <span className="text-xs text-muted-foreground ml-2">
-            Materials not linked to any specific quotation line item
-          </span>
+        <div className="flex items-center justify-between border-b pb-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
+              Wall Paneling & Board Specifications (Extra / General)
+            </h2>
+          </div>
+          <button
+            onClick={() => loadPreset(EXTRA_KEY)}
+            className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors"
+          >
+            <Download className="w-3.5 h-3.5 text-amber-600" />
+            Load Sample Board Catalog (BRD-001 - BRD-008)
+          </button>
         </div>
 
         <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
-          <div className="px-4 py-3 bg-amber-50/40 dark:bg-amber-950/20 border-b border-amber-100 dark:border-amber-900">
+          <div className="px-4 py-3 bg-amber-50/40 dark:bg-amber-950/20 border-b border-amber-100 dark:border-amber-900 flex flex-col md:flex-row md:items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
-              Use this section for materials that span multiple quotation items or cannot be attributed
-              to a single line item (e.g. consumables, PPE, miscellaneous hardware).
+              Use this table to input Wall Paneling and Board specifications manually across all 10 columns (Item ID, Item Name, Core Thickness, Base Material, Laminate, Surface Code, Size, Unit, Qty, Functional Usage).
             </p>
           </div>
           <div className="p-3">
             <MaterialRowsTable
               rows={getRows(EXTRA_KEY)}
+              viewMode={viewMode}
               onChange={(ri, field, val) => updateRow(EXTRA_KEY, ri, field, val)}
+              onUpdateVariant={(ri, field, val) => updateVariant(EXTRA_KEY, ri, field, val)}
               onAddRow={() => addRow(EXTRA_KEY, undefined)}
               onRemoveRow={(ri) => removeRow(EXTRA_KEY, ri)}
+              onLoadPreset={() => loadPreset(EXTRA_KEY)}
             />
           </div>
         </div>
@@ -680,12 +1248,12 @@ export function RequisitionBuilderClient({
       {totalMaterialRows > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur-sm px-6 py-3 flex items-center justify-between shadow-lg">
           <p className="text-xs text-muted-foreground">
-            <strong className="text-foreground">{totalMaterialRows}</strong> material row
+            <strong className="text-foreground">{totalMaterialRows}</strong> board/material row
             {totalMaterialRows !== 1 ? 's' : ''} across{' '}
             <strong className="text-foreground">{coveredLineItems}</strong> quotation item
             {coveredLineItems !== 1 ? 's' : ''}
             {getRows(EXTRA_KEY).length > 0 && (
-              <> + <strong className="text-foreground">{getRows(EXTRA_KEY).length}</strong> extra</>
+              <> + <strong className="text-foreground">{getRows(EXTRA_KEY).length}</strong> general board row{getRows(EXTRA_KEY).length !== 1 ? 's' : ''}</>
             )}
           </p>
           <div className="flex items-center gap-2">
