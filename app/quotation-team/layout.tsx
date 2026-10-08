@@ -49,36 +49,8 @@ export default async function QuotationTeamLayout({
       .filter((name): name is string => Boolean(name)),
   )
 
-  const isQuotationAllowed =
-    departmentNames.has('QUOTATION_TEAM') ||
-    departmentNames.has('QUOTATION') ||
-    departmentNames.has('ADMIN') ||
-    departmentNames.has('SR_CRM') ||
-    departmentNames.has('PROJECT_COORDINATOR') ||
-    departmentNames.has('ACCOUNTS')
-
-  if (isQuotationAllowed) {
-    return <MainLayout role="Quotation Team">{children}</MainLayout>
-  }
-
-  if (departmentNames.has('PROJECT_COORDINATOR')) {
-    redirect('/crm/pc/dashboard')
-  }
-
-  if (departmentNames.has('JR_CRM')) {
-    redirect(JR_CRM_DASHBOARD)
-  }
-
-  if (departmentNames.has('JR_ARCHITECT')) {
-    redirect(JR_ARCHITECT_DASHBOARD)
-  }
-
-  if (departmentNames.has('VISIT_TEAM')) {
-    redirect(VISIT_DASHBOARD)
-  }
-
-  if (departmentNames.has('VISUALIZER_3D') || departmentNames.has('3D_VISUALIZER')) {
-    redirect(VISUALIZER_DASHBOARD)
+  if (user.userDepartments.length > 0) {
+    return <MainLayout role="Quotation Studio">{children}</MainLayout>
   }
 
   redirect('/onboarding')
