@@ -17,6 +17,7 @@ import {
   Paperclip,
   Phone,
   RefreshCw,
+  Sparkles,
   User,
   Wallet,
   Wrench,
@@ -447,6 +448,24 @@ export default function PartialVisitLeadDetailPage() {
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           Refresh
+        </Button>
+      </div>
+
+      {/* Pre-Visit Quotation Info Banner */}
+      <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 dark:bg-indigo-950/30 dark:border-indigo-800 p-3.5 text-xs text-indigo-900 dark:text-indigo-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+          <span>
+            <strong>Quotation Available Anytime:</strong> You can create, edit, and download Short & Detail Quotations at any stage—before or after site visit completion.
+          </span>
+        </div>
+        <Button
+          size="sm"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs h-7 shrink-0 gap-1.5"
+          onClick={openPartialQuotation}
+        >
+          <FileText className="h-3.5 w-3.5" />
+          Create / Edit Quotation
         </Button>
       </div>
 

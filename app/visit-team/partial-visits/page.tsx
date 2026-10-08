@@ -683,35 +683,51 @@ export default function PartialVisitsPage() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="pt-2 flex flex-wrap items-center gap-2">
+                  <div className="pt-2">
                     {isActionable ? (
-                      <>
-                        <Button
-                          size="sm"
-                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-8 text-xs font-semibold gap-1"
-                          onClick={() => openCompleteModal(visit)}
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          Complete Visit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-xs gap-1"
-                          onClick={() => openRescheduleModal(visit)}
-                        >
-                          <Calendar className="h-3.5 w-3.5" />
-                          Reschedule
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 text-xs text-destructive hover:bg-destructive/10 gap-1 px-2"
-                          onClick={() => openCancelModal(visit)}
-                        >
-                          <Ban className="h-3.5 w-3.5" />
-                        </Button>
-                      </>
+                      <div className="space-y-2">
+                        <div className="flex w-full items-center gap-2">
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-8 text-xs font-semibold gap-1"
+                            onClick={() => openCompleteModal(visit)}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Complete Visit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="flex-1 h-8 text-xs gap-1 font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
+                            asChild
+                          >
+                            <Link href={`/visit-team/partial-visits/${visit.lead.id}`}>
+                              <FileText className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                              Lead & Quotation
+                            </Link>
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-7 text-xs gap-1"
+                            onClick={() => openRescheduleModal(visit)}
+                          >
+                            <Calendar className="h-3.5 w-3.5" />
+                            Reschedule
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs text-destructive hover:bg-destructive/10 gap-1 px-2"
+                            onClick={() => openCancelModal(visit)}
+                          >
+                            <Ban className="h-3.5 w-3.5" />
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
                     ) : (
                       <div className="flex w-full items-center gap-2">
                         <Button
@@ -798,6 +814,17 @@ export default function PartialVisitsPage() {
                             >
                               <CheckCircle2 className="h-3 w-3" />
                               Complete
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="h-7 text-xs px-2.5 gap-1 font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300"
+                              asChild
+                            >
+                              <Link href={`/visit-team/partial-visits/${visit.lead.id}`}>
+                                <FileText className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                                Quotation & Details
+                              </Link>
                             </Button>
                             <Button
                               size="sm"
