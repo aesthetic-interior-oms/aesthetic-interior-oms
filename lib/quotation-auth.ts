@@ -1,4 +1,4 @@
-import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/prisma/client'
+import { LeadStage, LeadSubStatus } from '@/generated/prisma/client'
 import { buildScopedLeadWhere } from '@/lib/lead-access'
 
 export const QUOTATION_EDITABLE_SUBSTATUSES = new Set<LeadSubStatus>([
