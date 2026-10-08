@@ -128,7 +128,12 @@ function findFirstShortQuotationIssue(content: ShortQuotationContent) {
   return content.rooms
     .flatMap((room) => room.lines.map((line) => ({ room, line })))
     .find(({ line }) => {
-      if (line.isLumpSum) return false
+      if (line.isLumpSum) {
+        return (line.total ?? 0) <= 0
+      }
+      if ((line.unitPrice ?? 0) > 0 && (line.quantitySqft ?? 0) <= 0) {
+        return false // Case 1: Unit price only is allowed
+      }
       return (line.quantitySqft ?? 0) <= 0 || (line.unitPrice ?? 0) <= 0
     })
 }
@@ -1477,16 +1482,19 @@ function SortableShortRow({
       </td>
       <td className="px-2 py-2">
         {line.isLumpSum ? (
-          <span className="text-xs text-muted-foreground">Lump sum</span>
+          <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-200 font-bold text-[10px] uppercase">
+            Package
+          </Badge>
         ) : (
           <Input
             type="text"
             inputMode="decimal"
             disabled={!canEdit}
             value={line.quantitySqft ?? ''}
+            placeholder={(line.unitPrice ?? 0) > 0 ? '--' : ''}
             onChange={(event) =>
               updateLine(roomId, line.id, {
-                quantitySqft: Number(event.target.value.replace(/,/g, '')) || 0,
+                quantitySqft: event.target.value === '' ? null : Number(event.target.value.replace(/,/g, '')) || 0,
               })
             }
           />
@@ -1513,7 +1521,7 @@ function SortableShortRow({
             value={line.unitPrice ?? ''}
             onChange={(event) =>
               updateLine(roomId, line.id, {
-                unitPrice: Number(event.target.value.replace(/,/g, '')) || 0,
+                unitPrice: event.target.value === '' ? null : Number(event.target.value.replace(/,/g, '')) || 0,
               })
             }
           />
@@ -1526,7 +1534,7 @@ function SortableShortRow({
             inputMode="decimal"
             disabled={!canEdit}
             value={line.total === 0 ? '' : (line.total ?? '')}
-            placeholder="Optional"
+            placeholder="e.g. 75000"
             onChange={(event) => {
               const val = event.target.value.replace(/,/g, '')
               updateLine(roomId, line.id, {
@@ -1534,6 +1542,8 @@ function SortableShortRow({
               })
             }}
           />
+        ) : (line.unitPrice ?? 0) > 0 && (line.quantitySqft ?? 0) === 0 ? (
+          <span className="font-medium text-muted-foreground">--</span>
         ) : (
           <span className="font-medium">{formatAmount(line.total)}</span>
         )}

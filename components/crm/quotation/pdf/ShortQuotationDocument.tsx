@@ -256,22 +256,36 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
                       </Text>
                       <Text style={[styles.tdCol, styles.wName]}>{softWrapPdfText(line.name)}</Text>
                       <View style={[styles.tdCol, styles.wQty]}>
-                        {line.isLumpSum ? <Text style={styles.packageBadge}>Package</Text> : <Text>{formatAmount(line.quantitySqft ?? 0)}</Text>}
+                        {line.isLumpSum ? (
+                          <Text style={styles.packageBadge}>Package</Text>
+                        ) : (line.unitPrice ?? 0) > 0 && (line.quantitySqft ?? 0) <= 0 ? (
+                          <Text style={{ textAlign: 'center', color: '#888' }}>--</Text>
+                        ) : (
+                          <Text style={{ textAlign: 'center' }}>{formatAmount(line.quantitySqft ?? 0)}</Text>
+                        )}
                       </View>
-                      {line.isLumpSum ? (
-                        <Text style={[styles.tdCol, { width: '32%', textAlign: 'center', fontSize: 8 }]}>
-                          {softWrapPdfText(line.unitPriceLabel?.trim() || 'as per project design')}
-                        </Text>
-                      ) : (
-                        <>
-                          <Text style={[styles.tdCol, styles.wPrice]}>
-                            {formatAmount(line.unitPrice ?? 0)}
+                      <View style={[styles.tdCol, styles.wPrice]}>
+                        {line.isLumpSum ? (
+                          <Text style={{ textAlign: 'right', fontSize: 8, color: '#555' }}>
+                            {softWrapPdfText(line.unitPriceLabel?.trim() || 'as per project design')}
                           </Text>
-                          <Text style={[styles.tdCol, styles.wTotal, styles.bold, { color: PRIMARY }]}>
+                        ) : (
+                          <Text style={{ textAlign: 'right' }}>{formatAmount(line.unitPrice ?? 0)}</Text>
+                        )}
+                      </View>
+                      <View style={[styles.tdCol, styles.wTotal]}>
+                        {line.isLumpSum ? (
+                          <Text style={[styles.bold, { color: PRIMARY, textAlign: 'right' }]}>
+                            {line.total > 0 ? formatAmount(line.total) : '--'}
+                          </Text>
+                        ) : (line.unitPrice ?? 0) > 0 && (line.quantitySqft ?? 0) <= 0 ? (
+                          <Text style={{ textAlign: 'right', color: '#888' }}>--</Text>
+                        ) : (
+                          <Text style={[styles.bold, { color: PRIMARY, textAlign: 'right' }]}>
                             {formatAmount(line.total)}
                           </Text>
-                        </>
-                      )}
+                        )}
+                      </View>
                     </View>
                   )
                 })}
