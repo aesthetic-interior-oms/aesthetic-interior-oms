@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, FileText, Loader2, MapPin, UserRound, Sparkles, ClipboardList, PenTool, CheckCircle, RotateCcw, CalendarClock, RefreshCw, X } from "lucide-react";
+import { Download, FileText, Loader2, MapPin, UserRound, Sparkles, ClipboardList, PenTool, CheckCircle, RotateCcw, CalendarClock, RefreshCw, X, Search } from "lucide-react";
 import { CrmPageHeader } from "@/components/crm/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -73,7 +73,10 @@ function formatLabel(value: string | null | undefined) {
 }
 
 function getRecentMonthsList() {
-  const months: { label: string; value: string }[] = [];
+  const months: { label: string; value: string }[] = [
+    { label: "All Visit Months", value: "" },
+    { label: "No Visit Date", value: "NO_VISIT" },
+  ];
   const now = new Date();
 
   for (let i = 0; i < 12; i += 1) {
@@ -101,6 +104,7 @@ export default function QuotationAssignedTaskPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [leads, setLeads] = useState<TaskLead[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [submitLead, setSubmitLead] = useState<TaskLead | null>(null);
   const [submitNote, setSubmitNote] = useState("");
   const [submitAttachments, setSubmitAttachments] = useState<AttachmentInput[]>([
@@ -160,31 +164,42 @@ export default function QuotationAssignedTaskPage() {
   );
 
   const filteredLeads = useMemo(() => {
-    if (selectedStatFilter === "total") return leads;
+    let result = leads;
+
+    const q = searchQuery.trim().toLowerCase();
+    if (q) {
+      result = result.filter((lead) => {
+        const nameMatch = lead.name?.toLowerCase().includes(q);
+        const phoneMatch = lead.phone?.toLowerCase().includes(q);
+        const locationMatch = lead.location?.toLowerCase().includes(q);
+        const stageMatch = formatLabel(lead.stage).toLowerCase().includes(q);
+        const subStatusMatch = formatLabel(lead.subStatus).toLowerCase().includes(q);
+        const srMatch = lead.srCrmAssignee?.fullName?.toLowerCase().includes(q);
+        const jrMatch = lead.jrArchitectAssignee?.fullName?.toLowerCase().includes(q);
+        return nameMatch || phoneMatch || locationMatch || stageMatch || subStatusMatch || srMatch || jrMatch;
+      });
+    }
+
     if (selectedStatFilter === "assigned") {
-      return leads.filter((lead) => lead.subStatus === "QUOTATION_ASSIGNED");
-    }
-    if (selectedStatFilter === "working") {
-      return leads.filter((lead) => lead.subStatus === "QUOTATION_WORKING");
-    }
-    if (selectedStatFilter === "completed") {
-      return leads.filter(
+      result = result.filter((lead) => lead.subStatus === "QUOTATION_ASSIGNED");
+    } else if (selectedStatFilter === "working") {
+      result = result.filter((lead) => lead.subStatus === "QUOTATION_WORKING");
+    } else if (selectedStatFilter === "completed") {
+      result = result.filter(
         (lead) =>
           lead.subStatus === "QUOTATION_COMPLETED" ||
           lead.subStatus === "QUOTATION_APPROVED"
       );
+    } else if (selectedStatFilter === "corrections") {
+      result = result.filter((lead) => lead.subStatus === "QUOTATION_CORRECTION");
+    } else if (selectedStatFilter === "detailSqft") {
+      result = result.filter((lead) => (lead.avgDetailSqft ?? 0) > 0);
+    } else if (selectedStatFilter === "shortSqft") {
+      result = result.filter((lead) => (lead.avgShortSqft ?? 0) > 0);
     }
-    if (selectedStatFilter === "corrections") {
-      return leads.filter((lead) => lead.subStatus === "QUOTATION_CORRECTION");
-    }
-    if (selectedStatFilter === "detailSqft") {
-      return leads.filter((lead) => (lead.avgDetailSqft ?? 0) > 0);
-    }
-    if (selectedStatFilter === "shortSqft") {
-      return leads.filter((lead) => (lead.avgShortSqft ?? 0) > 0);
-    }
-    return leads;
-  }, [leads, selectedStatFilter]);
+
+    return result;
+  }, [leads, searchQuery, selectedStatFilter]);
 
   const monthGroups = useMemo(() => {
     const groups = new Map<string, TaskLead[]>();
@@ -326,6 +341,26 @@ export default function QuotationAssignedTaskPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex items-center min-w-[220px] max-w-[320px]">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search tasks by name, phone, location..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-10 pl-9 pr-8 text-sm"
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    title="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </div>
               <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
                 {selectedMonthLabel}
               </Badge>
@@ -432,16 +467,38 @@ export default function QuotationAssignedTaskPage() {
         ) : filteredLeads.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground space-y-3">
-              <p>No quotation tasks match the selected stat filter.</p>
-              <Button variant="outline" size="sm" onClick={() => setSelectedStatFilter("total")}>
-                Clear Filter
-              </Button>
+              <p>No quotation tasks match your search query or selected filter.</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {searchQuery ? (
+                  <Button variant="outline" size="sm" onClick={() => setSearchQuery("")}>
+                    Clear Search
+                  </Button>
+                ) : null}
+                {selectedStatFilter !== "total" ? (
+                  <Button variant="outline" size="sm" onClick={() => setSelectedStatFilter("total")}>
+                    Clear Stat Filter
+                  </Button>
+                ) : null}
+              </div>
             </CardContent>
           </Card>
         ) : (
           <>
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {searchQuery ? (
+                  <Badge variant="secondary" className="gap-1.5 px-3 py-1 text-xs font-semibold">
+                    <span>Search:</span>
+                    <span className="font-bold text-primary">&quot;{searchQuery}&quot;</span>
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="ml-1 hover:text-foreground text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ) : null}
                 {selectedStatFilter !== "total" ? (
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className="gap-1.5 px-3 py-1 text-xs font-semibold">
@@ -462,11 +519,12 @@ export default function QuotationAssignedTaskPage() {
                       <X className="mr-1 h-3 w-3" /> Clear Filter
                     </Button>
                   </div>
-                ) : (
+                ) : null}
+                {!searchQuery && selectedStatFilter === "total" ? (
                   <span className="text-xs font-medium text-muted-foreground">
                     Showing all <strong>{leads.length}</strong> assigned tasks
                   </span>
-                )}
+                ) : null}
               </div>
 
               <div className="flex items-center gap-2 rounded-md border p-1 bg-muted/20">
@@ -504,7 +562,7 @@ export default function QuotationAssignedTaskPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/50">
-          {leads.map((lead) => (
+          {filteredLeads.map((lead) => (
                         <tr key={lead.id} className="hover:bg-muted/30">
                           <td className="px-4 py-3">
                             <Link href={`/quotation-team/leads/${lead.id}`} className="font-semibold hover:text-primary hover:underline">{lead.name}</Link>

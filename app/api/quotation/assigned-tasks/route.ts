@@ -120,7 +120,6 @@ export async function GET(request: Request) {
           take: 1,
         },
         visits: {
-          where: { status: 'COMPLETED' },
           select: { projectSqft: true, scheduledAt: true },
           orderBy: { scheduledAt: 'desc' },
           take: 1,
@@ -193,9 +192,11 @@ export async function GET(request: Request) {
       }
     })
 
-    const filteredTasksData = monthKey
-      ? tasksData.filter((task) => task.visitMonthKey === monthKey)
-      : tasksData
+    const filteredTasksData = requestedMonth === 'NO_VISIT'
+      ? tasksData.filter((task) => !task.visitMonthKey)
+      : monthKey
+        ? tasksData.filter((task) => task.visitMonthKey === monthKey)
+        : tasksData
 
     const totalDetailSqft = filteredTasksData.reduce((sum, item) => sum + item.avgDetailSqft, 0)
     const totalShortSqft = filteredTasksData.reduce((sum, item) => sum + item.avgShortSqft, 0)
