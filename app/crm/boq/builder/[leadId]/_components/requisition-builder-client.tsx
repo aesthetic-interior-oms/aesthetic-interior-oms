@@ -26,6 +26,7 @@ import {
   Wrench,
   Pin,
   FlaskConical,
+  Receipt,
 } from 'lucide-react'
 import { saveMaterialRequisition, RequisitionItemInput } from '@/lib/boq-service'
 import type {
@@ -1097,15 +1098,15 @@ const CABINET_SUBTYPES: { key: CabinetSubType; label: string; viewMode: ViewMode
   { key: 'HPL_PASTING',     label: '🪵 HPL Pasting Details',       viewMode: 'CABINET_HPL_SPEC' },
 ]
 
-const CATEGORY_COLORS: Record<RequisitionWorkCategory, { bg: string; text: string; border: string }> = {
-  WALL_PANELING:    { bg: 'bg-blue-50 dark:bg-blue-950/30',    text: 'text-blue-700 dark:text-blue-300',    border: 'border-blue-200 dark:border-blue-800'    },
-  CEILING:          { bg: 'bg-purple-50 dark:bg-purple-950/30', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-200 dark:border-purple-800' },
-  CABINETS_CLOSETS: { bg: 'bg-amber-50 dark:bg-amber-950/30',  text: 'text-amber-700 dark:text-amber-300',  border: 'border-amber-200 dark:border-amber-800'  },
-  FURNITURE:        { bg: 'bg-green-50 dark:bg-green-950/30',  text: 'text-green-700 dark:text-green-300',  border: 'border-green-200 dark:border-green-800'  },
-  ACCESSORIES:      { bg: 'bg-pink-50 dark:bg-pink-950/30',    text: 'text-pink-700 dark:text-pink-300',    border: 'border-pink-200 dark:border-pink-800'    },
-  ELECTRICAL_WORK:  { bg: 'bg-yellow-50 dark:bg-yellow-950/30',text: 'text-yellow-700 dark:text-yellow-300',border: 'border-yellow-200 dark:border-yellow-800' },
-  PAINT:            { bg: 'bg-indigo-50 dark:bg-indigo-950/30',text: 'text-indigo-700 dark:text-indigo-300',border: 'border-indigo-200 dark:border-indigo-800' },
-  APPLIANCES:       { bg: 'bg-teal-50 dark:bg-teal-950/30',   text: 'text-teal-700 dark:text-teal-300',   border: 'border-teal-200 dark:border-teal-800'    },
+const CATEGORY_COLORS: Record<RequisitionWorkCategory, { bg: string; text: string; border: string; pill: string }> = {
+  WALL_PANELING:    { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-primary/10 text-primary border-primary/20' },
+  CEILING:          { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20' },
+  CABINETS_CLOSETS: { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20' },
+  FURNITURE:        { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20' },
+  ACCESSORIES:      { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-pink-500/10 text-pink-700 dark:text-pink-300 border-pink-500/20' },
+  ELECTRICAL_WORK:  { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/20' },
+  PAINT:            { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20' },
+  APPLIANCES:       { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20' },
 }
 
 function getViewModeForSection(section: CardSection): ViewModeType {
@@ -1324,6 +1325,17 @@ function computeInitialState(existingRequisition: Props['existingRequisition']):
     },
   }
 }
+
+/* ─────────────────────────────────────────────
+   Data Grid Styling Helpers (Spreadsheet UI)
+───────────────────────────────────────────── */
+const GRID_CELL_INPUT = "w-full bg-transparent border-0 rounded-none px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-primary/5 transition-colors"
+const GRID_CELL_BOLD = "w-full bg-transparent border-0 rounded-none px-2.5 py-1.5 text-xs font-semibold text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-primary/5 transition-colors"
+const GRID_CELL_MONO = "w-full bg-transparent border-0 rounded-none px-2.5 py-1.5 text-xs font-mono font-medium text-foreground/90 placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-primary/5 transition-colors"
+const GRID_CELL_NUM = "w-full bg-transparent border-0 rounded-none px-2 py-1.5 text-xs text-center font-bold text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-primary/5 transition-colors"
+const GRID_CELL_SELECT = "w-full bg-transparent border-0 rounded-none px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:bg-primary/5 transition-colors cursor-pointer"
+const GRID_TH = "px-2.5 py-2 select-none whitespace-nowrap text-[11px] font-semibold text-muted-foreground uppercase tracking-wider text-left"
+const GRID_TD = "p-0 align-middle"
 
 /* ─────────────────────────────────────────────
    Sub-component: Datalist Autocomplete Providers
@@ -1648,14 +1660,15 @@ function MaterialRowsTable({
   onLoadCabinetHplPreset?: () => void
 }) {
   return (
-    <div className="border border-dashed border-border rounded-lg overflow-hidden">
+    <div className="border border-border/80 rounded-lg overflow-hidden shadow-xs bg-card">
       {rows.length === 0 ? (
-        <div className="px-4 py-6 text-center text-xs text-muted-foreground space-y-3">
-          <div className="flex items-center justify-center gap-2 text-muted-foreground/60">
-            <Package className="w-5 h-5" />
-            <span>No material specifications added yet.</span>
+        <div className="px-4 py-8 text-center text-xs text-muted-foreground space-y-3 bg-muted/10">
+          <div className="flex flex-col items-center justify-center gap-1.5 text-muted-foreground/70">
+            <Package className="w-6 h-6 text-muted-foreground/40" />
+            <span className="font-semibold text-foreground/80">No material specifications added yet</span>
+            <span className="text-[11px] text-muted-foreground">Select a pre-configured catalog below or click Add Material Row</span>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-2">
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
             {onLoadPreset && (
               <button
                 onClick={onLoadPreset}
@@ -1667,15 +1680,15 @@ function MaterialRowsTable({
             {onLoadLouverPreset && (
               <button
                 onClick={onLoadLouverPreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 rounded-md transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20 rounded-md transition-colors border border-indigo-500/20"
               >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Load Louvers & Profiles (LVR-001 - EDG-002)
+                <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Load Louvers & Profiles (LVR-001 - EDG-002)
               </button>
             )}
             {onLoadScrewPreset && (
               <button
                 onClick={onLoadScrewPreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300 rounded-md transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-500/10 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors border border-amber-500/20"
               >
                 <Wrench className="w-3.5 h-3.5 text-amber-600" /> Load Screws & Fasteners (SCR-075 - SCR-250)
               </button>
@@ -1683,7 +1696,7 @@ function MaterialRowsTable({
             {onLoadNailPreset && (
               <button
                 onClick={onLoadNailPreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-rose-50 text-rose-800 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 rounded-md transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-rose-500/10 text-rose-800 dark:text-rose-300 hover:bg-rose-500/20 rounded-md transition-colors border border-rose-500/20"
               >
                 <Pin className="w-3.5 h-3.5 text-rose-600" /> Load Nails & Pins (NAL-200 - PIN-002)
               </button>
@@ -1691,7 +1704,7 @@ function MaterialRowsTable({
             {onLoadAdhesivePreset && (
               <button
                 onClick={onLoadAdhesivePreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 rounded-md transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20 rounded-md transition-colors border border-emerald-500/20"
               >
                 <FlaskConical className="w-3.5 h-3.5 text-emerald-600" /> Load Adhesives (ADH-001 - ADH-005)
               </button>
@@ -1699,7 +1712,7 @@ function MaterialRowsTable({
             {onLoadCabinetCorePreset && (
               <button
                 onClick={onLoadCabinetCorePreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-50 text-amber-900 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-200 rounded-md transition-colors border border-amber-200 dark:border-amber-800"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-500/10 text-amber-900 dark:text-amber-200 hover:bg-amber-500/20 rounded-md transition-colors border border-amber-500/20"
               >
                 <Download className="w-3.5 h-3.5 text-amber-600" /> Load Core Board Spec (Sr. 1 - 5.1)
               </button>
@@ -1707,7 +1720,7 @@ function MaterialRowsTable({
             {onLoadCabinetHplPreset && (
               <button
                 onClick={onLoadCabinetHplPreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-cyan-50 text-cyan-900 hover:bg-cyan-100 dark:bg-cyan-950/50 dark:text-cyan-200 rounded-md transition-colors border border-cyan-200 dark:border-cyan-800"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-cyan-500/10 text-cyan-900 dark:text-cyan-200 hover:bg-cyan-500/20 rounded-md transition-colors border border-cyan-500/20"
               >
                 <Sparkles className="w-3.5 h-3.5 text-cyan-600" /> Load HPL Pasting Details (HPL-1 - HPL-8)
               </button>
@@ -1717,116 +1730,116 @@ function MaterialRowsTable({
       ) : viewMode === 'BOARD_SPEC' ? (
         /* ── 1. Core Structural Boards & Plywood Table (10 Cols) ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[1100px]">
-            <thead className="text-muted-foreground uppercase bg-muted/40 border-b">
-              <tr>
-                <th className="px-2.5 py-2 font-semibold w-28">Item ID</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[160px]">Item Name</th>
-                <th className="px-2.5 py-2 font-semibold w-28">Core Thickness</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[140px]">Base Material</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[150px]">Laminate / Top Surface</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[160px]">Surface Code / Finish</th>
-                <th className="px-2.5 py-2 font-semibold w-28">Sheet Size (Std)</th>
-                <th className="px-2.5 py-2 font-semibold w-20">Unit</th>
-                <th className="px-2.5 py-2 font-semibold text-center w-24">Quantity</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[160px]">Functional Usage</th>
-                <th className="px-2 py-2 font-semibold w-8 text-right"></th>
+          <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
+            <thead className="bg-muted/60 border-b border-border">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-28`}>Item ID</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
+                <th className={`${GRID_TH} w-28`}>Core Thickness</th>
+                <th className={`${GRID_TH} min-w-[140px]`}>Base Material</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Laminate / Top Surface</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Surface Code / Finish</th>
+                <th className={`${GRID_TH} w-28 text-center`}>Sheet Size</th>
+                <th className={`${GRID_TH} w-20`}>Unit</th>
+                <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Functional Usage</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => {
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
-                  <tr key={ri} className="hover:bg-muted/10 transition-colors">
+                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
                     {/* 1. Item ID */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="item-id-list"
                         value={attrs.itemId || ''}
                         onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
                         placeholder="BRD-001"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-mono font-medium focus:ring-1 focus:ring-primary"
+                        className={GRID_CELL_MONO}
                       />
                     </td>
 
                     {/* 2. Item Name */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={item.materialName}
                         onChange={(e) => onChange(ri, 'materialName', e.target.value)}
                         placeholder="e.g. Starlight White Board"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-semibold focus:ring-1 focus:ring-primary"
+                        className={GRID_CELL_BOLD}
                       />
                     </td>
 
                     {/* 3. Core Thickness */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="core-thickness-list"
                         value={attrs.coreThickness || ''}
                         onChange={(e) => onUpdateVariant(ri, 'coreThickness', e.target.value)}
                         placeholder="12mm"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 4. Base Material */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="base-material-list"
                         value={attrs.baseMaterial || ''}
                         onChange={(e) => onUpdateVariant(ri, 'baseMaterial', e.target.value)}
                         placeholder="Garjon Plywood"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 5. Laminate / Top Surface */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="laminate-surface-list"
                         value={attrs.laminateTopSurface || ''}
                         onChange={(e) => onUpdateVariant(ri, 'laminateTopSurface', e.target.value)}
                         placeholder="Beladoa Laminate"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 6. Surface Code / Finish */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="surface-code-list"
                         value={attrs.surfaceCodeFinish || ''}
                         onChange={(e) => onUpdateVariant(ri, 'surfaceCodeFinish', e.target.value)}
                         placeholder="2003 SMT"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 7. Sheet Size (Std) */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="sheet-size-list"
                         value={attrs.sheetSize || "8' x 4'"}
                         onChange={(e) => onUpdateVariant(ri, 'sheetSize', e.target.value)}
                         placeholder="8' x 4'"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center focus:ring-1 focus:ring-primary"
+                        className={`${GRID_CELL_INPUT} text-center`}
                       />
                     </td>
 
                     {/* 8. Unit */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <select
                         value={item.unit}
                         onChange={(e) => onChange(ri, 'unit', e.target.value)}
-                        className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary"
+                        className={GRID_CELL_SELECT}
                       >
                         {UOM_OPTIONS.map((uom) => (
                           <option key={uom} value={uom}>
@@ -1837,7 +1850,7 @@ function MaterialRowsTable({
                     </td>
 
                     {/* 9. Quantity */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
@@ -1850,12 +1863,12 @@ function MaterialRowsTable({
                           }
                         }}
                         placeholder="1 or Catalog"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center font-bold focus:ring-1 focus:ring-primary"
+                        className={GRID_CELL_NUM}
                       />
                     </td>
 
                     {/* 10. Functional Usage */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="functional-usage-list"
@@ -1865,18 +1878,18 @@ function MaterialRowsTable({
                           onChange(ri, 'productionPhase', e.target.value)
                         }}
                         placeholder="Shutter / Exterior Cabinet"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-primary"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* Delete */}
-                    <td className="px-2 py-2 text-right">
+                    <td className="p-0 w-8 text-center align-middle">
                       <button
                         onClick={() => onRemoveRow(ri)}
-                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                         title="Remove board row"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
                       </button>
                     </td>
                   </tr>
@@ -1888,104 +1901,104 @@ function MaterialRowsTable({
       ) : viewMode === 'LOUVER_SPEC' ? (
         /* ── 2. Decorative Panels, Louvers & Edge Profiles Table (10 Cols) ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[1100px]">
-            <thead className="text-muted-foreground uppercase bg-indigo-50/60 dark:bg-indigo-950/30 border-b border-indigo-100 dark:border-indigo-900">
-              <tr>
-                <th className="px-2.5 py-2 font-semibold w-28 text-indigo-900 dark:text-indigo-200">Item ID</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-indigo-900 dark:text-indigo-200">Item Name</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[130px] text-indigo-900 dark:text-indigo-200">Profile / Type</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[130px] text-indigo-900 dark:text-indigo-200">Material</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[140px] text-indigo-900 dark:text-indigo-200">Accent Finish</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[140px] text-indigo-900 dark:text-indigo-200">Code / Variant</th>
-                <th className="px-2.5 py-2 font-semibold w-20 text-indigo-900 dark:text-indigo-200">Unit</th>
-                <th className="px-2.5 py-2 font-semibold text-center w-24 text-indigo-900 dark:text-indigo-200">Quantity</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-indigo-900 dark:text-indigo-200">Primary Usage</th>
-                <th className="px-2.5 py-2 font-semibold w-28 text-indigo-900 dark:text-indigo-200">Notes / Col 1</th>
-                <th className="px-2 py-2 font-semibold w-8 text-right"></th>
+          <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
+            <thead className="bg-muted/60 border-b border-border">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-28`}>Item ID</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
+                <th className={`${GRID_TH} min-w-[130px]`}>Profile / Type</th>
+                <th className={`${GRID_TH} min-w-[130px]`}>Material</th>
+                <th className={`${GRID_TH} min-w-[140px]`}>Accent Finish</th>
+                <th className={`${GRID_TH} min-w-[140px]`}>Code / Variant</th>
+                <th className={`${GRID_TH} w-20`}>Unit</th>
+                <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Primary Usage</th>
+                <th className={`${GRID_TH} w-28`}>Notes / Col 1</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => {
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
-                  <tr key={ri} className="hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 transition-colors">
+                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
                     {/* 1. Item ID */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="item-id-list"
                         value={attrs.itemId || ''}
                         onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
                         placeholder="LVR-001"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-mono font-semibold text-indigo-700 dark:text-indigo-300 focus:ring-1 focus:ring-indigo-500"
+                        className={GRID_CELL_MONO}
                       />
                     </td>
 
                     {/* 2. Item Name */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={item.materialName}
                         onChange={(e) => onChange(ri, 'materialName', e.target.value)}
                         placeholder="e.g. Charcoal Louver Panel"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-semibold focus:ring-1 focus:ring-indigo-500"
+                        className={GRID_CELL_BOLD}
                       />
                     </td>
 
                     {/* 3. Profile/Type */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="profile-type-list"
                         value={attrs.profileType || ''}
                         onChange={(e) => onUpdateVariant(ri, 'profileType', e.target.value)}
                         placeholder="Fluted Panel"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 4. Material */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="louver-material-list"
                         value={attrs.material || ''}
                         onChange={(e) => onUpdateVariant(ri, 'material', e.target.value)}
                         placeholder="Charcoal / WPC"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 5. Accent Finish */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="accent-finish-list"
                         value={attrs.accentFinish || ''}
                         onChange={(e) => onUpdateVariant(ri, 'accentFinish', e.target.value)}
                         placeholder="Rose Gold Accent"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 6. Code / Variant */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="code-variant-list"
                         value={attrs.codeVariant || ''}
                         onChange={(e) => onUpdateVariant(ri, 'codeVariant', e.target.value)}
                         placeholder="Advance 14081"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 7. Unit */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <select
                         value={item.unit}
                         onChange={(e) => onChange(ri, 'unit', e.target.value)}
-                        className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                        className={GRID_CELL_SELECT}
                       >
                         {UOM_OPTIONS.map((uom) => (
                           <option key={uom} value={uom}>
@@ -1996,7 +2009,7 @@ function MaterialRowsTable({
                     </td>
 
                     {/* 8. Quantity */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
@@ -2009,12 +2022,12 @@ function MaterialRowsTable({
                           }
                         }}
                         placeholder="27 or Catalog"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center font-bold text-indigo-700 dark:text-indigo-300 focus:ring-1 focus:ring-indigo-500"
+                        className={GRID_CELL_NUM}
                       />
                     </td>
 
                     {/* 9. Primary Usage */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="primary-usage-list"
@@ -2024,29 +2037,29 @@ function MaterialRowsTable({
                           onChange(ri, 'productionPhase', e.target.value)
                         }}
                         placeholder="Feature Wall Accent"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 10. Notes / Column 1 */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.column1 || ''}
                         onChange={(e) => onUpdateVariant(ri, 'column1', e.target.value)}
                         placeholder="Remarks / Specs"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* Delete */}
-                    <td className="px-2 py-2 text-right">
+                    <td className="p-0 w-8 text-center align-middle">
                       <button
                         onClick={() => onRemoveRow(ri)}
-                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                         title="Remove row"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
                       </button>
                     </td>
                   </tr>
@@ -2058,104 +2071,104 @@ function MaterialRowsTable({
       ) : viewMode === 'SCREW_SPEC' ? (
         /* ── 3. Screws & Structural Fasteners Table (10 Cols) ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[1100px]">
-            <thead className="text-muted-foreground uppercase bg-amber-50/60 dark:bg-amber-950/30 border-b border-amber-100 dark:border-amber-900">
-              <tr>
-                <th className="px-2.5 py-2 font-semibold w-28 text-amber-900 dark:text-amber-200">Item ID</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-amber-900 dark:text-amber-200">Item Name</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[130px] text-amber-900 dark:text-amber-200">Fastener Type</th>
-                <th className="px-2.5 py-2 font-semibold w-28 text-amber-900 dark:text-amber-200">Length (Inches)</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[130px] text-amber-900 dark:text-amber-200">Gauge / Size</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[140px] text-amber-900 dark:text-amber-200">Material / Finish</th>
-                <th className="px-2.5 py-2 font-semibold w-20 text-amber-900 dark:text-amber-200">Unit</th>
-                <th className="px-2.5 py-2 font-semibold text-center w-24 text-amber-900 dark:text-amber-200">Quantity</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-amber-900 dark:text-amber-200">Usage Purpose</th>
-                <th className="px-2.5 py-2 font-semibold w-28 text-amber-900 dark:text-amber-200">Notes / Col 1</th>
-                <th className="px-2 py-2 font-semibold w-8 text-right"></th>
+          <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
+            <thead className="bg-muted/60 border-b border-border">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-28`}>Item ID</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
+                <th className={`${GRID_TH} min-w-[130px]`}>Fastener Type</th>
+                <th className={`${GRID_TH} w-28`}>Length (Inches)</th>
+                <th className={`${GRID_TH} min-w-[130px]`}>Gauge / Size</th>
+                <th className={`${GRID_TH} min-w-[140px]`}>Material / Finish</th>
+                <th className={`${GRID_TH} w-20`}>Unit</th>
+                <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Usage Purpose</th>
+                <th className={`${GRID_TH} w-28`}>Notes / Col 1</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => {
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
-                  <tr key={ri} className="hover:bg-amber-50/20 dark:hover:bg-amber-950/20 transition-colors">
+                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
                     {/* 1. Item ID */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="item-id-list"
                         value={attrs.itemId || ''}
                         onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
                         placeholder="SCR-075"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-mono font-semibold text-amber-700 dark:text-amber-300 focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_MONO}
                       />
                     </td>
 
                     {/* 2. Item Name */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={item.materialName}
                         onChange={(e) => onChange(ri, 'materialName', e.target.value)}
                         placeholder="e.g. Hardware Screw"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-semibold focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_BOLD}
                       />
                     </td>
 
                     {/* 3. Fastener Type */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="fastener-type-list"
                         value={attrs.fastenerType || ''}
                         onChange={(e) => onUpdateVariant(ri, 'fastenerType', e.target.value)}
                         placeholder="Wood Screw"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 4. Length (Inches) */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="fastener-length-list"
                         value={attrs.lengthInches || ''}
                         onChange={(e) => onUpdateVariant(ri, 'lengthInches', e.target.value)}
                         placeholder='0.75" (3/4")'
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 5. Gauge / Size */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="gauge-size-list"
                         value={attrs.gaugeSize || ''}
                         onChange={(e) => onUpdateVariant(ri, 'gaugeSize', e.target.value)}
                         placeholder="#6 Countered"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 6. Material / Finish */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="fastener-finish-list"
                         value={attrs.materialFinish || ''}
                         onChange={(e) => onUpdateVariant(ri, 'materialFinish', e.target.value)}
                         placeholder="Zinc Coated"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 7. Unit */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <select
                         value={item.unit}
                         onChange={(e) => onChange(ri, 'unit', e.target.value)}
-                        className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_SELECT}
                       >
                         {UOM_OPTIONS.map((uom) => (
                           <option key={uom} value={uom}>
@@ -2166,7 +2179,7 @@ function MaterialRowsTable({
                     </td>
 
                     {/* 8. Quantity */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
@@ -2179,12 +2192,12 @@ function MaterialRowsTable({
                           }
                         }}
                         placeholder="300"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center font-bold text-amber-700 dark:text-amber-300 focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_NUM}
                       />
                     </td>
 
                     {/* 9. Usage Purpose */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="usage-purpose-list"
@@ -2194,29 +2207,29 @@ function MaterialRowsTable({
                           onChange(ri, 'productionPhase', e.target.value)
                         }}
                         placeholder="Hinges & Drawer Runners"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 10. Notes / Column 1 */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.column1 || ''}
                         onChange={(e) => onUpdateVariant(ri, 'column1', e.target.value)}
                         placeholder="Remarks / Specs"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* Delete */}
-                    <td className="px-2 py-2 text-right">
+                    <td className="p-0 w-8 text-center align-middle">
                       <button
                         onClick={() => onRemoveRow(ri)}
-                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                         title="Remove row"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
                       </button>
                     </td>
                   </tr>
@@ -2228,89 +2241,89 @@ function MaterialRowsTable({
       ) : viewMode === 'NAIL_SPEC' ? (
         /* ── 4. Nails, Pins & Masonry Anchors Table (10 Cols) ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[1100px]">
-            <thead className="text-muted-foreground uppercase bg-rose-50/60 dark:bg-rose-950/30 border-b border-rose-100 dark:border-rose-900">
-              <tr>
-                <th className="px-2.5 py-2 font-semibold w-28 text-rose-900 dark:text-rose-200">Item ID</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-rose-900 dark:text-rose-200">Item Name</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[130px] text-rose-900 dark:text-rose-200">Type</th>
-                <th className="px-2.5 py-2 font-semibold w-28 text-rose-900 dark:text-rose-200">Length</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[130px] text-rose-900 dark:text-rose-200">Thickness / Spec</th>
-                <th className="px-2.5 py-2 font-semibold w-20 text-rose-900 dark:text-rose-200">Unit Type</th>
-                <th className="px-2.5 py-2 font-semibold text-center w-24 text-rose-900 dark:text-rose-200">Quantity</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-rose-900 dark:text-rose-200">Functional Usage</th>
-                <th className="px-2.5 py-2 font-semibold w-28 text-rose-900 dark:text-rose-200">Notes / Col 1</th>
-                <th className="px-2 py-2 font-semibold w-8 text-right"></th>
+          <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
+            <thead className="bg-muted/60 border-b border-border">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-28`}>Item ID</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
+                <th className={`${GRID_TH} min-w-[130px]`}>Type</th>
+                <th className={`${GRID_TH} w-28`}>Length</th>
+                <th className={`${GRID_TH} min-w-[130px]`}>Thickness / Spec</th>
+                <th className={`${GRID_TH} w-20`}>Unit Type</th>
+                <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Functional Usage</th>
+                <th className={`${GRID_TH} w-28`}>Notes / Col 1</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => {
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
-                  <tr key={ri} className="hover:bg-rose-50/20 dark:hover:bg-rose-950/20 transition-colors">
+                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
                     {/* 1. Item ID */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="item-id-list"
                         value={attrs.itemId || ''}
                         onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
                         placeholder="NAL-200"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-mono font-semibold text-rose-700 dark:text-rose-300 focus:ring-1 focus:ring-rose-500"
+                        className={GRID_CELL_MONO}
                       />
                     </td>
 
                     {/* 2. Item Name */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={item.materialName}
                         onChange={(e) => onChange(ri, 'materialName', e.target.value)}
                         placeholder="e.g. Wire Nail (Tarkata)"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-semibold focus:ring-1 focus:ring-rose-500"
+                        className={GRID_CELL_BOLD}
                       />
                     </td>
 
                     {/* 3. Type */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="nail-type-list"
                         value={attrs.nailType || ''}
                         onChange={(e) => onUpdateVariant(ri, 'nailType', e.target.value)}
                         placeholder="Wire Nail"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-rose-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 4. Length */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.lengthSpec || ''}
                         onChange={(e) => onUpdateVariant(ri, 'lengthSpec', e.target.value)}
                         placeholder='2.0"'
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-rose-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 5. Thickness / Spec */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.thicknessSpec || ''}
                         onChange={(e) => onUpdateVariant(ri, 'thicknessSpec', e.target.value)}
                         placeholder="Standard Gauge"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-rose-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 6. Unit Type */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <select
                         value={item.unit}
                         onChange={(e) => onChange(ri, 'unit', e.target.value)}
-                        className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-rose-500"
+                        className={GRID_CELL_SELECT}
                       >
                         {UOM_OPTIONS.map((uom) => (
                           <option key={uom} value={uom}>
@@ -2321,7 +2334,7 @@ function MaterialRowsTable({
                     </td>
 
                     {/* 7. Quantity */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
@@ -2334,12 +2347,12 @@ function MaterialRowsTable({
                           }
                         }}
                         placeholder="300"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center font-bold text-rose-700 dark:text-rose-300 focus:ring-1 focus:ring-rose-500"
+                        className={GRID_CELL_NUM}
                       />
                     </td>
 
                     {/* 8. Functional Usage */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="functional-usage-list"
@@ -2349,29 +2362,29 @@ function MaterialRowsTable({
                           onChange(ri, 'productionPhase', e.target.value)
                         }}
                         placeholder="Frame Tacking"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-rose-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 9. Notes / Column 1 */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.column1 || ''}
                         onChange={(e) => onUpdateVariant(ri, 'column1', e.target.value)}
                         placeholder="Remarks / Specs"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-rose-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* Delete */}
-                    <td className="px-2 py-2 text-right">
+                    <td className="p-0 w-8 text-center align-middle">
                       <button
                         onClick={() => onRemoveRow(ri)}
-                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                         title="Remove row"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
                       </button>
                     </td>
                   </tr>
@@ -2383,65 +2396,65 @@ function MaterialRowsTable({
       ) : viewMode === 'ADHESIVE_SPEC' ? (
         /* ── 5. Adhesives & Chemical Solvents Table (10 Cols) ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[1100px]">
-            <thead className="text-muted-foreground uppercase bg-emerald-50/60 dark:bg-emerald-950/30 border-b border-emerald-100 dark:border-emerald-900">
-              <tr>
-                <th className="px-2.5 py-2 font-semibold w-28 text-emerald-900 dark:text-emerald-200">Item ID</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-emerald-900 dark:text-emerald-200">Chemical Name</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[150px] text-emerald-900 dark:text-emerald-200">Chemical Class</th>
-                <th className="px-2.5 py-2 font-semibold w-24 text-emerald-900 dark:text-emerald-200">Packaging Unit</th>
-                <th className="px-2.5 py-2 font-semibold text-center w-24 text-emerald-900 dark:text-emerald-200">Quantity</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[180px] text-emerald-900 dark:text-emerald-200">Application Method</th>
-                <th className="px-2.5 py-2 font-semibold w-28 text-emerald-900 dark:text-emerald-200">Notes / Col 1</th>
-                <th className="px-2 py-2 font-semibold w-8 text-right"></th>
+          <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
+            <thead className="bg-muted/60 border-b border-border">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-28`}>Item ID</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Chemical Name</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Chemical Class</th>
+                <th className={`${GRID_TH} w-24`}>Packaging Unit</th>
+                <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
+                <th className={`${GRID_TH} min-w-[180px]`}>Application Method</th>
+                <th className={`${GRID_TH} w-28`}>Notes / Col 1</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => {
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
-                  <tr key={ri} className="hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-colors">
+                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
                     {/* 1. Item ID */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="item-id-list"
                         value={attrs.itemId || ''}
                         onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
                         placeholder="ADH-001"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-mono font-semibold text-emerald-700 dark:text-emerald-300 focus:ring-1 focus:ring-emerald-500"
+                        className={GRID_CELL_MONO}
                       />
                     </td>
 
                     {/* 2. Chemical Name (Material Name) */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={item.materialName}
                         onChange={(e) => onChange(ri, 'materialName', e.target.value)}
                         placeholder="e.g. Lichu Gum"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-semibold focus:ring-1 focus:ring-emerald-500"
+                        className={GRID_CELL_BOLD}
                       />
                     </td>
 
                     {/* 3. Chemical Class */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="chemical-class-list"
                         value={attrs.chemicalClass || ''}
                         onChange={(e) => onUpdateVariant(ri, 'chemicalClass', e.target.value)}
                         placeholder="PVA Wood Adhesive"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 4. Packaging Unit */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <select
                         value={item.unit}
                         onChange={(e) => onChange(ri, 'unit', e.target.value)}
-                        className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-emerald-500"
+                        className={GRID_CELL_SELECT}
                       >
                         {UOM_OPTIONS.map((uom) => (
                           <option key={uom} value={uom}>
@@ -2452,7 +2465,7 @@ function MaterialRowsTable({
                     </td>
 
                     {/* 5. Quantity */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
@@ -2465,12 +2478,12 @@ function MaterialRowsTable({
                           }
                         }}
                         placeholder="15"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center font-bold text-emerald-700 dark:text-emerald-300 focus:ring-1 focus:ring-emerald-500"
+                        className={GRID_CELL_NUM}
                       />
                     </td>
 
                     {/* 6. Application Method */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="application-method-list"
@@ -2480,29 +2493,29 @@ function MaterialRowsTable({
                           onChange(ri, 'productionPhase', e.target.value)
                         }}
                         placeholder="Cold Press Wood Joinery"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 7. Notes / Column 1 */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.column1 || ''}
                         onChange={(e) => onUpdateVariant(ri, 'column1', e.target.value)}
                         placeholder="Remarks / Specs"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* Delete */}
-                    <td className="px-2 py-2 text-right">
+                    <td className="p-0 w-8 text-center align-middle">
                       <button
                         onClick={() => onRemoveRow(ri)}
-                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                         title="Remove row"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
                       </button>
                     </td>
                   </tr>
@@ -2514,37 +2527,37 @@ function MaterialRowsTable({
       ) : viewMode === 'CABINET_CORE_SPEC' ? (
         /* ── 6. Closet / Cabinet Core Board Specification Table ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[920px]">
-            <thead className="text-amber-900 dark:text-amber-200 uppercase bg-amber-500/10 border-b border-amber-200 dark:border-amber-900/50">
-              <tr>
-                <th className="px-2.5 py-2 font-semibold w-20">Sr. No</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[150px]">Base Material / Core</th>
-                <th className="px-2.5 py-2 font-semibold w-28">Thickness</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[180px]">Laminate / Finish Details</th>
-                <th className="px-2.5 py-2 font-semibold w-36">Side Specification</th>
-                <th className="px-2.5 py-2 font-semibold text-center w-28">Board Qty</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[150px]">Edging Tape Qty</th>
-                <th className="px-2 py-2 font-semibold w-8 text-right"></th>
+          <table className="w-full text-xs text-left min-w-[920px] border-collapse divide-y divide-border/60">
+            <thead className="bg-muted/60 border-b border-border">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-20`}>Sr. No</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Base Material / Core</th>
+                <th className={`${GRID_TH} w-28`}>Thickness</th>
+                <th className={`${GRID_TH} min-w-[180px]`}>Laminate / Finish Details</th>
+                <th className={`${GRID_TH} w-36`}>Side Specification</th>
+                <th className={`${GRID_TH} text-center w-28`}>Board Qty</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Edging Tape Qty</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => {
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
-                  <tr key={ri} className="hover:bg-amber-50/20 dark:hover:bg-amber-950/20 transition-colors">
+                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
                     {/* 1. Sr. No */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.srNo || ''}
                         onChange={(e) => onUpdateVariant(ri, 'srNo', e.target.value)}
                         placeholder="1"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-mono font-medium focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_MONO}
                       />
                     </td>
 
                     {/* 2. Base Material / Core */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="cabinet-base-material-list"
@@ -2554,36 +2567,36 @@ function MaterialRowsTable({
                           onChange(ri, 'materialName', e.target.value)
                         }}
                         placeholder="MR Board"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-semibold focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_BOLD}
                       />
                     </td>
 
                     {/* 3. Thickness */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="cabinet-thickness-list"
                         value={attrs.coreThickness || ''}
                         onChange={(e) => onUpdateVariant(ri, 'coreThickness', e.target.value)}
                         placeholder="18mm"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 4. Laminate / Finish Details */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="cabinet-laminate-finish-list"
                         value={attrs.laminateFinishDetails || ''}
                         onChange={(e) => onUpdateVariant(ri, 'laminateFinishDetails', e.target.value)}
                         placeholder="Champagne Gold"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 5. Side Specification */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="cabinet-side-spec-list"
@@ -2593,12 +2606,12 @@ function MaterialRowsTable({
                           onChange(ri, 'productionPhase', e.target.value)
                         }}
                         placeholder="Both Side"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 6. Board Qty */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
@@ -2609,30 +2622,30 @@ function MaterialRowsTable({
                           if (!isNaN(num)) onChange(ri, 'netQuantity', num)
                         }}
                         placeholder="89 pcs"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center font-bold text-amber-700 dark:text-amber-300 focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_NUM}
                       />
                     </td>
 
                     {/* 7. Edging Tape Qty */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="cabinet-edging-tape-list"
                         value={attrs.edgingTapeQty || ''}
                         onChange={(e) => onUpdateVariant(ri, 'edgingTapeQty', e.target.value)}
                         placeholder="— or 5 Roll (Edging)"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* Delete */}
-                    <td className="px-2 py-2 text-right">
+                    <td className="p-0 w-8 text-center align-middle">
                       <button
                         onClick={() => onRemoveRow(ri)}
-                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                         title="Remove row"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
                       </button>
                     </td>
                   </tr>
@@ -2644,26 +2657,26 @@ function MaterialRowsTable({
       ) : viewMode === 'CABINET_HPL_SPEC' ? (
         /* ── 7. Closet / Cabinet HPL Pasting Details Table ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[950px]">
-            <thead className="text-cyan-900 dark:text-cyan-200 uppercase bg-cyan-500/10 border-b border-cyan-200 dark:border-cyan-900/50">
-              <tr>
-                <th className="px-2.5 py-2 font-semibold w-24">Line No</th>
-                <th className="px-2.5 py-2 font-semibold w-28">Core Thickness</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[150px]">Core Substrate Type</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[170px]">Front Laminate Code</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[180px]">Back Laminate / Liner Code</th>
-                <th className="px-2.5 py-2 font-semibold text-center w-28">Quantity</th>
-                <th className="px-2.5 py-2 font-semibold min-w-[150px]">Edging Tape Qty</th>
-                <th className="px-2 py-2 font-semibold w-8 text-right"></th>
+          <table className="w-full text-xs text-left min-w-[950px] border-collapse divide-y divide-border/60">
+            <thead className="bg-muted/60 border-b border-border">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-24`}>Line No</th>
+                <th className={`${GRID_TH} w-28`}>Core Thickness</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Core Substrate Type</th>
+                <th className={`${GRID_TH} min-w-[170px]`}>Front Laminate Code</th>
+                <th className={`${GRID_TH} min-w-[180px]`}>Back Laminate / Liner Code</th>
+                <th className={`${GRID_TH} text-center w-28`}>Quantity</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Edging Tape Qty</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => {
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
-                  <tr key={ri} className="hover:bg-cyan-50/20 dark:hover:bg-cyan-950/20 transition-colors">
+                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
                     {/* 1. Line No */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.lineNo || attrs.itemId || ''}
@@ -2672,24 +2685,24 @@ function MaterialRowsTable({
                           onUpdateVariant(ri, 'itemId', e.target.value)
                         }}
                         placeholder="HPL-1"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-mono font-medium focus:ring-1 focus:ring-cyan-500"
+                        className={GRID_CELL_MONO}
                       />
                     </td>
 
                     {/* 2. Core Thickness */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="cabinet-thickness-list"
                         value={attrs.coreThickness || ''}
                         onChange={(e) => onUpdateVariant(ri, 'coreThickness', e.target.value)}
                         placeholder="18mm"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-cyan-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 3. Core Substrate Type */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="cabinet-core-substrate-list"
@@ -2700,36 +2713,36 @@ function MaterialRowsTable({
                           onChange(ri, 'materialName', `${e.target.value} HPL Pasting`)
                         }}
                         placeholder="MR Board"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-semibold focus:ring-1 focus:ring-cyan-500"
+                        className={GRID_CELL_BOLD}
                       />
                     </td>
 
                     {/* 4. Front Laminate Code */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="cabinet-front-laminate-list"
                         value={attrs.frontLaminateCode || ''}
                         onChange={(e) => onUpdateVariant(ri, 'frontLaminateCode', e.target.value)}
                         placeholder="MR Champagne Gold"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-cyan-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 5. Back Laminate / Liner Code */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="cabinet-back-laminate-list"
                         value={attrs.backLaminateCode || ''}
                         onChange={(e) => onUpdateVariant(ri, 'backLaminateCode', e.target.value)}
                         placeholder="Luxury 8193"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-cyan-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 6. Quantity */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
@@ -2740,30 +2753,30 @@ function MaterialRowsTable({
                           if (!isNaN(num)) onChange(ri, 'netQuantity', num)
                         }}
                         placeholder="40 pcs"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center font-bold text-cyan-700 dark:text-cyan-300 focus:ring-1 focus:ring-cyan-500"
+                        className={GRID_CELL_NUM}
                       />
                     </td>
 
                     {/* 7. Edging Tape Qty */}
-                    <td className="px-2.5 py-2">
+                    <td className={GRID_TD}>
                       <input
                         type="text"
                         list="cabinet-edging-tape-list"
                         value={attrs.edgingTapeQty || ''}
                         onChange={(e) => onUpdateVariant(ri, 'edgingTapeQty', e.target.value)}
                         placeholder="— or 4 Roll"
-                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-cyan-500"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* Delete */}
-                    <td className="px-2 py-2 text-right">
+                    <td className="p-0 w-8 text-center align-middle">
                       <button
                         onClick={() => onRemoveRow(ri)}
-                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                         title="Remove row"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
                       </button>
                     </td>
                   </tr>
@@ -2775,29 +2788,29 @@ function MaterialRowsTable({
       ) : (
         /* ── 8. Standard 8-Column Material Table ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[800px]">
-            <thead className="text-muted-foreground uppercase bg-muted/40 border-b">
-              <tr>
-                <th className="px-3 py-2 font-semibold w-36">Category</th>
-                <th className="px-3 py-2 font-semibold min-w-[160px]">Material Name</th>
-                <th className="px-3 py-2 font-semibold min-w-[200px]">Specification</th>
-                <th className="px-3 py-2 font-semibold text-center w-20">Net Qty</th>
-                <th className="px-3 py-2 font-semibold text-center w-20">Wastage %</th>
-                <th className="px-3 py-2 font-semibold text-center w-20">Final Qty</th>
-                <th className="px-3 py-2 font-semibold w-24">UOM</th>
-                <th className="px-3 py-2 font-semibold w-28">Phase / Usage</th>
-                <th className="px-3 py-2 font-semibold w-8 text-right"></th>
+          <table className="w-full text-xs text-left min-w-[800px] border-collapse divide-y divide-border/60">
+            <thead className="bg-muted/60 border-b border-border">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-36`}>Category</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Material Name</th>
+                <th className={`${GRID_TH} min-w-[200px]`}>Specification</th>
+                <th className={`${GRID_TH} text-center w-20`}>Net Qty</th>
+                <th className={`${GRID_TH} text-center w-20`}>Wastage %</th>
+                <th className={`${GRID_TH} text-center w-20`}>Final Qty</th>
+                <th className={`${GRID_TH} w-24`}>UOM</th>
+                <th className={`${GRID_TH} w-28`}>Phase / Usage</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => (
-                <tr key={ri} className="hover:bg-muted/10 transition-colors">
+                <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
                   {/* Category */}
-                  <td className="px-3 py-2">
+                  <td className={GRID_TD}>
                     <select
                       value={item.workCategory}
                       onChange={(e) => onChange(ri, 'workCategory', e.target.value)}
-                      className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary"
+                      className={GRID_CELL_SELECT}
                     >
                       {WORK_CATEGORIES.map((c) => (
                         <option key={c.key} value={c.key}>
@@ -2808,58 +2821,58 @@ function MaterialRowsTable({
                   </td>
 
                   {/* Material Name */}
-                  <td className="px-3 py-2">
+                  <td className={GRID_TD}>
                     <input
                       type="text"
                       value={item.materialName}
                       onChange={(e) => onChange(ri, 'materialName', e.target.value)}
                       placeholder="e.g. 18mm Plywood"
-                      className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary"
+                      className={GRID_CELL_BOLD}
                     />
                   </td>
 
                   {/* Specification */}
-                  <td className="px-3 py-2">
+                  <td className={GRID_TD}>
                     <input
                       type="text"
                       value={item.specifications || ''}
                       onChange={(e) => onChange(ri, 'specifications', e.target.value)}
                       placeholder="Grade / finish / brand"
-                      className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary"
+                      className={GRID_CELL_INPUT}
                     />
                   </td>
 
                   {/* Net Qty */}
-                  <td className="px-3 py-2">
+                  <td className={GRID_TD}>
                     <input
                       type="number"
                       step="any"
                       value={item.netQuantity}
                       onChange={(e) => onChange(ri, 'netQuantity', e.target.value)}
-                      className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs text-center font-medium focus:ring-1 focus:ring-primary"
+                      className={GRID_CELL_NUM}
                     />
                   </td>
 
                   {/* Wastage */}
-                  <td className="px-3 py-2">
+                  <td className={GRID_TD}>
                     <input
                       type="number"
                       step="any"
                       value={item.wastagePercent}
                       onChange={(e) => onChange(ri, 'wastagePercent', e.target.value)}
-                      className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs text-center text-amber-600 focus:ring-1 focus:ring-primary"
+                      className={`${GRID_CELL_NUM} text-amber-600 dark:text-amber-400`}
                     />
                   </td>
 
                   {/* Final Qty */}
-                  <td className="px-3 py-2 text-center font-bold text-foreground">{item.finalQuantity}</td>
+                  <td className="px-2.5 py-1.5 text-center font-bold text-foreground text-xs">{item.finalQuantity}</td>
 
                   {/* UOM */}
-                  <td className="px-3 py-2">
+                  <td className={GRID_TD}>
                     <select
                       value={item.unit}
                       onChange={(e) => onChange(ri, 'unit', e.target.value)}
-                      className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary"
+                      className={GRID_CELL_SELECT}
                     >
                       {UOM_OPTIONS.map((uom) => (
                         <option key={uom} value={uom}>
@@ -2870,24 +2883,24 @@ function MaterialRowsTable({
                   </td>
 
                   {/* Phase */}
-                  <td className="px-3 py-2">
+                  <td className={GRID_TD}>
                     <input
                       type="text"
                       value={item.productionPhase || ''}
                       onChange={(e) => onChange(ri, 'productionPhase', e.target.value)}
                       placeholder="e.g. Carcase"
-                      className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-primary"
+                      className={GRID_CELL_INPUT}
                     />
                   </td>
 
                   {/* Delete */}
-                  <td className="px-2 py-2 text-right">
+                  <td className="p-0 w-8 text-center align-middle">
                     <button
                       onClick={() => onRemoveRow(ri)}
-                      className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                      className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
                       title="Remove row"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3.5 h-3.5 mx-auto" />
                     </button>
                   </td>
                 </tr>
@@ -2897,20 +2910,20 @@ function MaterialRowsTable({
         </div>
       )}
 
-      <div className="px-3 py-2 border-t border-dashed border-border bg-muted/5 flex flex-wrap items-center justify-between gap-2">
+      <div className="px-3.5 py-2.5 border-t border-border/60 bg-muted/20 flex flex-wrap items-center justify-between gap-2">
         <button
           onClick={onAddRow}
-          className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-md shadow-xs transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
           Add Material Row
         </button>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
           {onLoadPreset && rows.length > 0 && (
             <button
               onClick={onLoadPreset}
-              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border border-border/50"
             >
               <Download className="w-3 h-3 text-amber-500" />
               + Add Core Boards (BRD)
@@ -2919,7 +2932,7 @@ function MaterialRowsTable({
           {onLoadLouverPreset && rows.length > 0 && (
             <button
               onClick={onLoadLouverPreset}
-              className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors border border-indigo-200 dark:border-indigo-800"
             >
               <Sparkles className="w-3 h-3 text-indigo-500" />
               + Add Louvers (LVR/EDG)
@@ -2928,7 +2941,7 @@ function MaterialRowsTable({
           {onLoadScrewPreset && rows.length > 0 && (
             <button
               onClick={onLoadScrewPreset}
-              className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300 hover:underline transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors border border-amber-200 dark:border-amber-800"
             >
               <Wrench className="w-3 h-3 text-amber-600" />
               + Add Screws (SCR)
@@ -2937,7 +2950,7 @@ function MaterialRowsTable({
           {onLoadNailPreset && rows.length > 0 && (
             <button
               onClick={onLoadNailPreset}
-              className="inline-flex items-center gap-1 text-xs font-medium text-rose-700 dark:text-rose-300 hover:underline transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors border border-rose-200 dark:border-rose-800"
             >
               <Pin className="w-3 h-3 text-rose-600" />
               + Add Nails & Pins (NAL/PIN)
@@ -2946,7 +2959,7 @@ function MaterialRowsTable({
           {onLoadAdhesivePreset && rows.length > 0 && (
             <button
               onClick={onLoadAdhesivePreset}
-              className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:underline transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors border border-emerald-200 dark:border-emerald-800"
             >
               <FlaskConical className="w-3 h-3 text-emerald-600" />
               + Add Adhesives (ADH)
@@ -2955,7 +2968,7 @@ function MaterialRowsTable({
           {onLoadCabinetCorePreset && rows.length > 0 && (
             <button
               onClick={onLoadCabinetCorePreset}
-              className="inline-flex items-center gap-1 text-xs font-medium text-amber-800 dark:text-amber-300 hover:underline transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors border border-amber-200 dark:border-amber-800"
             >
               <Download className="w-3 h-3 text-amber-600" />
               + Add Core Board Spec
@@ -2964,7 +2977,7 @@ function MaterialRowsTable({
           {onLoadCabinetHplPreset && rows.length > 0 && (
             <button
               onClick={onLoadCabinetHplPreset}
-              className="inline-flex items-center gap-1 text-xs font-medium text-cyan-700 dark:text-cyan-300 hover:underline transition-colors"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 transition-colors border border-cyan-200 dark:border-cyan-800"
             >
               <Sparkles className="w-3 h-3 text-cyan-600" />
               + Add HPL Pasting
@@ -3014,26 +3027,30 @@ function SectionBlock({
   return (
     <div className="border-t first:border-t-0">
       {/* Section header */}
-      <div className={`flex items-center gap-2 px-3 py-2 ${colors.bg} border-b ${colors.border}`}>
-        <button onClick={onToggleCollapse} className={`${colors.text} hover:opacity-70 transition-opacity`} title={section.collapsed ? 'Expand' : 'Collapse'}>
-          {section.collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+      <div className={`flex items-center gap-2.5 px-4 py-2.5 ${colors.bg} border-b ${colors.border}`}>
+        <button
+          onClick={onToggleCollapse}
+          className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
+          title={section.collapsed ? 'Expand section' : 'Collapse section'}
+        >
+          {section.collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
 
-        <span className={`text-xs font-bold uppercase tracking-wide ${colors.text}`}>{catLabel}</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-foreground">{catLabel}</span>
 
         {subTypeInfo && (
-          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${colors.bg} ${colors.text} ${colors.border}`}>
+          <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium border ${colors.pill}`}>
             {subTypeInfo.label}
           </span>
         )}
 
-        <span className="ml-auto text-xs text-muted-foreground">
-          {rows.length} row{rows.length !== 1 ? 's' : ''}
+        <span className="ml-auto text-[11px] font-medium text-muted-foreground bg-background/90 px-2.5 py-0.5 rounded-full border border-border/60 shadow-2xs">
+          {rows.length} {rows.length === 1 ? 'row' : 'rows'}
         </span>
 
         <button
           onClick={onRemove}
-          className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+          className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 p-1 rounded transition-colors"
           title="Remove this section"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -3042,7 +3059,7 @@ function SectionBlock({
 
       {/* Section body */}
       {!section.collapsed && (
-        <div className="p-3">
+        <div className="p-3 bg-muted/5">
           <MaterialRowsTable
             rows={rows}
             viewMode={viewMode}
@@ -3076,11 +3093,15 @@ function AddSectionForm({ onAdd, onCancel }: {
   const [cabSub, setCabSub] = useState<CabinetSubType>('CORE_BOARD_SPEC')
 
   return (
-    <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 bg-muted/10 border-t">
+    <div className="flex flex-wrap items-center gap-2.5 px-4 py-3 bg-muted/20 border-t border-border/70">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold">
+        <Plus className="w-3.5 h-3.5 text-primary" />
+        <span>New Section:</span>
+      </div>
       <select
         value={cat}
         onChange={(e) => setCat(e.target.value as RequisitionWorkCategory)}
-        className="text-xs bg-background border border-input rounded px-2 py-1.5 focus:ring-1 focus:ring-primary font-medium"
+        className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-primary font-medium shadow-xs"
       >
         {WORK_CATEGORIES.map((c) => (
           <option key={c.key} value={c.key}>{c.label}</option>
@@ -3091,7 +3112,7 @@ function AddSectionForm({ onAdd, onCancel }: {
         <select
           value={sub}
           onChange={(e) => setSub(e.target.value as WallPanelingSubType)}
-          className="text-xs bg-background border border-input rounded px-2 py-1.5 focus:ring-1 focus:ring-primary font-medium"
+          className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-primary font-medium shadow-xs"
         >
           {WALL_PANELING_SUBTYPES.map((s) => (
             <option key={s.key} value={s.key}>{s.label}</option>
@@ -3103,7 +3124,7 @@ function AddSectionForm({ onAdd, onCancel }: {
         <select
           value={cabSub}
           onChange={(e) => setCabSub(e.target.value as CabinetSubType)}
-          className="text-xs bg-background border border-input rounded px-2 py-1.5 focus:ring-1 focus:ring-amber-500 font-medium"
+          className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-amber-500 font-medium shadow-xs"
         >
           {CABINET_SUBTYPES.map((s) => (
             <option key={s.key} value={s.key}>{s.label}</option>
@@ -3117,11 +3138,11 @@ function AddSectionForm({ onAdd, onCancel }: {
           cat === 'WALL_PANELING' ? sub : undefined,
           cat === 'CABINETS_CLOSETS' ? cabSub : undefined
         )}
-        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-xs"
       >
-        <Plus className="w-3 h-3" /> Add
+        <Plus className="w-3.5 h-3.5" /> Confirm Add Section
       </button>
-      <button onClick={onCancel} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+      <button onClick={onCancel} className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5">
         Cancel
       </button>
     </div>
@@ -3166,35 +3187,39 @@ function QuotationLineItemCard({
   const totalRows = sections.reduce((sum, s) => sum + getRowsForSection(s.id).length, 0)
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
+    <div className="border border-border/80 rounded-xl overflow-hidden bg-card shadow-xs transition-shadow hover:shadow-sm">
       {/* Card header */}
       <button
         onClick={() => setCardExpanded((v) => !v)}
-        className="w-full flex items-start justify-between gap-3 px-4 py-3 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-muted/20 hover:bg-muted/35 transition-colors text-left"
       >
-        <div className="flex items-start gap-3 flex-1 min-w-0">
-          <div className="mt-0.5">
-            {cardExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="text-muted-foreground p-0.5 rounded flex-shrink-0">
+            {cardExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               {area && (
-                <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
                   {area.name}
                 </span>
               )}
-              <p className="text-sm font-semibold text-foreground truncate">{item.description}</p>
+              <p className="text-sm font-bold text-foreground truncate">{item.description}</p>
             </div>
             {item.materials && (
-              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.materials}</p>
+              <p className="text-xs text-muted-foreground/80 line-clamp-1">{item.materials}</p>
             )}
           </div>
         </div>
-        <div className="flex-shrink-0 text-right space-y-0.5">
-          <p className="text-xs text-muted-foreground">{item.quantity} {item.unit}</p>
-          <p className="text-xs font-bold text-foreground">৳{item.amount.toLocaleString('en-IN')}</p>
-          <p className="text-xs text-muted-foreground">
-            {sections.length} section{sections.length !== 1 ? 's' : ''} · {totalRows} row{totalRows !== 1 ? 's' : ''}
+        <div className="flex-shrink-0 text-right space-y-1 pl-3 border-l border-border/50">
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-xs text-muted-foreground">{item.quantity} {item.unit}</span>
+            <span className="text-xs font-bold text-foreground bg-muted/60 px-2 py-0.5 rounded border border-border/40">
+              ৳{item.amount.toLocaleString('en-IN')}
+            </span>
+          </div>
+          <p className="text-[11px] font-medium text-muted-foreground">
+            {sections.length} {sections.length === 1 ? 'section' : 'sections'} · {totalRows} {totalRows === 1 ? 'row' : 'rows'}
           </p>
         </div>
       </button>
@@ -3203,9 +3228,10 @@ function QuotationLineItemCard({
         <div>
           {/* Empty state */}
           {sections.length === 0 && !showAddSection && (
-            <div className="px-4 py-6 text-center text-xs text-muted-foreground space-y-2">
-              <Package className="w-5 h-5 mx-auto text-muted-foreground/40" />
-              <p>No material sections yet. Add a section to start specifying materials.</p>
+            <div className="px-4 py-8 text-center text-xs text-muted-foreground space-y-2 bg-muted/5">
+              <Package className="w-6 h-6 mx-auto text-muted-foreground/40" />
+              <p className="font-semibold text-foreground/80">No material sections configured for this quotation item.</p>
+              <p className="text-[11px] text-muted-foreground">Add a section below to start specifying required materials.</p>
             </div>
           )}
 
@@ -3236,10 +3262,10 @@ function QuotationLineItemCard({
               onCancel={() => setShowAddSection(false)}
             />
           ) : (
-            <div className="px-3 py-2.5 border-t bg-muted/5">
+            <div className="px-4 py-2.5 border-t border-border/70 bg-muted/10">
               <button
                 onClick={() => setShowAddSection(true)}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Section
               </button>
@@ -3284,28 +3310,35 @@ function ExtraCard({
   const totalRows = sections.reduce((sum, s) => sum + getRowsForSection(s.id).length, 0)
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
+    <div className="border border-amber-500/30 rounded-xl overflow-hidden bg-card shadow-xs transition-shadow hover:shadow-sm">
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-start justify-between gap-3 px-4 py-3 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors text-left border-b border-amber-100 dark:border-amber-900"
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-amber-500/5 hover:bg-amber-500/10 transition-colors text-left border-b border-amber-500/20"
       >
-        <div className="flex items-center gap-2 flex-1">
-          {expanded ? <ChevronDown className="w-4 h-4 text-amber-600" /> : <ChevronRight className="w-4 h-4 text-amber-600" />}
-          <Sparkles className="w-4 h-4 text-amber-500" />
-          <span className="text-sm font-bold text-foreground">Extra / General Materials</span>
-          <span className="text-xs text-muted-foreground">(not linked to a quotation line item)</span>
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <div className="text-amber-600 dark:text-amber-400 p-0.5 rounded flex-shrink-0">
+            {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </div>
+          <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="text-sm font-bold text-foreground">Extra & General Materials</span>
+            <span className="text-xs text-muted-foreground">(Unlinked site supplies, hardware, & sundries)</span>
+          </div>
         </div>
-        <span className="text-xs text-muted-foreground">
-          {sections.length} section{sections.length !== 1 ? 's' : ''} · {totalRows} row{totalRows !== 1 ? 's' : ''}
-        </span>
+        <div className="flex-shrink-0 text-right">
+          <span className="text-[11px] font-medium text-amber-800 dark:text-amber-200 bg-amber-500/15 px-2.5 py-0.5 rounded-full border border-amber-500/25">
+            {sections.length} {sections.length === 1 ? 'section' : 'sections'} · {totalRows} {totalRows === 1 ? 'row' : 'rows'}
+          </span>
+        </div>
       </button>
 
       {expanded && (
         <div>
           {sections.length === 0 && !showAddSection && (
-            <div className="px-4 py-5 text-center text-xs text-muted-foreground space-y-2">
-              <Package className="w-5 h-5 mx-auto text-muted-foreground/40" />
-              <p>No sections yet. Add a Wall Paneling or Closet/Cabinet section to load material catalogs.</p>
+            <div className="px-4 py-8 text-center text-xs text-muted-foreground space-y-2 bg-muted/5">
+              <Package className="w-6 h-6 mx-auto text-muted-foreground/40" />
+              <p className="font-semibold text-foreground/80">No general sections added yet.</p>
+              <p className="text-[11px] text-muted-foreground">Add a Wall Paneling or Closet/Cabinet section below to specify catalog materials.</p>
             </div>
           )}
 
@@ -3334,10 +3367,10 @@ function ExtraCard({
               onCancel={() => setShowAddSection(false)}
             />
           ) : (
-            <div className="px-3 py-2.5 border-t bg-muted/5">
+            <div className="px-4 py-2.5 border-t border-border/70 bg-muted/10">
               <button
                 onClick={() => setShowAddSection(true)}
-                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Section
               </button>
@@ -3553,6 +3586,8 @@ export function RequisitionBuilderClient({
     })
   }
 
+  const coveragePct = lineItems.length > 0 ? Math.round((coveredLineItems / lineItems.length) * 100) : 0
+
   /* ── RENDER ── */
   return (
     <div className="p-4 md:p-6 space-y-6 w-full pb-24">
@@ -3560,21 +3595,24 @@ export function RequisitionBuilderClient({
       <BoardDatalists />
 
       {/* ── Top Bar ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/80 pb-4">
         <div className="space-y-1">
           <Link
             href="/crm/boq/assigned-task"
-            className="inline-flex items-center text-xs font-medium text-muted-foreground hover:text-foreground mb-1"
+            className="inline-flex items-center text-xs font-medium text-muted-foreground hover:text-foreground mb-1 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Assigned Tasks
           </Link>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
             <Boxes className="w-6 h-6 text-primary" />
             Material Requisition Builder
           </h1>
-          <p className="text-xs text-muted-foreground">
-            Project: <span className="font-semibold text-foreground">{lead.name}</span> | Phone:{' '}
-            {lead.phone || 'N/A'} | Location: {lead.location || 'N/A'}
+          <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
+            <span>Project: <strong className="text-foreground">{lead.name}</strong></span>
+            <span>•</span>
+            <span>Phone: {lead.phone || 'N/A'}</span>
+            <span>•</span>
+            <span>Location: {lead.location || 'N/A'}</span>
           </p>
         </div>
 
@@ -3583,7 +3621,7 @@ export function RequisitionBuilderClient({
           <button
             onClick={() => handleSave('DRAFT')}
             disabled={isPending}
-            className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm hover:bg-accent transition-colors disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-xs hover:bg-accent transition-colors disabled:opacity-50"
           >
             <Save className="w-4 h-4 mr-2 text-amber-500" />
             Save Draft
@@ -3601,46 +3639,86 @@ export function RequisitionBuilderClient({
 
       {/* ── Success Banner ── */}
       {saveSuccess && (
-        <div className="p-4 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm flex items-center gap-2">
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-200 text-sm flex items-center gap-2.5">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
           {saveSuccess}
         </div>
       )}
 
-      {/* ── Quotation Context / Stats Card ── */}
+      {/* ── Executive KPI Summary Strip ── */}
       {detailQuotation ? (
-        <div className="rounded-xl border bg-blue-50/40 dark:bg-blue-950/20 p-4 border-blue-200 dark:border-blue-900">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-semibold text-foreground">Approved Detail Quotation</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-emerald-100 text-emerald-800">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+          {/* KPI 1: Approved Quotation Total */}
+          <div className="rounded-xl border border-border/80 bg-card p-4 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-xs font-semibold uppercase tracking-wider">Approved Quotation</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
                 {detailQuotation.status}
               </span>
             </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
-              <span>
-                Grand Total:{' '}
-                <strong className="text-foreground">৳{detailQuotation.grandTotal.toLocaleString('en-IN')}</strong>
-              </span>
-              <span>
-                Items Covered:{' '}
-                <strong className="text-foreground">{coveredLineItems}/{lineItems.length}</strong>
-              </span>
-              <span>
-                Total Rows:{' '}
-                <strong className="text-foreground">{totalMaterialRows}</strong>
-              </span>
+            <div className="mt-3">
+              <div className="text-2xl font-bold tracking-tight text-foreground">
+                ৳{detailQuotation.grandTotal.toLocaleString('en-IN')}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Total approved client project contract value
+              </p>
             </div>
           </div>
-          {lineItems.length > 0 && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Each quotation line item below can have multiple sections — add <strong>Wall Paneling</strong>, <strong>Ceiling</strong>, <strong>Cabinets / Closets</strong> and more independently per line item.
-            </p>
-          )}
+
+          {/* KPI 2: Requisition Coverage Progress */}
+          <div className="rounded-xl border border-border/80 bg-card p-4 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-xs font-semibold uppercase tracking-wider">Line Item Coverage</span>
+              <span className="text-xs font-bold text-foreground">
+                {coveragePct}%
+              </span>
+            </div>
+            <div className="mt-3 space-y-2">
+              <div className="flex items-baseline justify-between">
+                <span className="text-2xl font-bold tracking-tight text-foreground">
+                  {coveredLineItems} <span className="text-sm font-normal text-muted-foreground">/ {lineItems.length} items</span>
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {lineItems.length - coveredLineItems} remaining
+                </span>
+              </div>
+              {/* Progress bar */}
+              <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-500 ${
+                    coveragePct === 100
+                      ? 'bg-emerald-500'
+                      : coveragePct > 50
+                      ? 'bg-primary'
+                      : 'bg-amber-500'
+                  }`}
+                  style={{ width: `${coveragePct}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* KPI 3: Active Material Rows */}
+          <div className="rounded-xl border border-border/80 bg-card p-4 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="text-xs font-semibold uppercase tracking-wider">Material Specs</span>
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
+                Live Requisition
+              </span>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-bold tracking-tight text-foreground">
+                {totalMaterialRows} <span className="text-sm font-normal text-muted-foreground">total rows</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {totalMaterialRows - extraRowCount} linked to BOQ · {extraRowCount} general site materials
+              </p>
+            </div>
+          </div>
         </div>
       ) : (
-        <div className="rounded-xl border bg-amber-50/40 dark:bg-amber-950/20 p-4 border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2">
+        <div className="rounded-xl border bg-amber-500/10 border-amber-500/30 p-4 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2">
           <HelpCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
           No approved detail quotation found for this lead. You can still add materials in the Extra / General section below.
         </div>
@@ -3656,11 +3734,13 @@ export function RequisitionBuilderClient({
             return (
               <div key={section.id} className="space-y-3">
                 {/* Section Header */}
-                <div className="flex items-center gap-2 border-b pb-2">
-                  <Layers className="w-4 h-4 text-primary" />
+                <div className="flex items-center gap-2 border-b border-border/60 pb-2.5 pt-2">
+                  <div className="p-1 rounded bg-primary/10 text-primary">
+                    <Layers className="w-4 h-4" />
+                  </div>
                   <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{section.name}</h2>
-                  <span className="text-xs text-muted-foreground ml-auto">
-                    {sectionItems.length} line item{sectionItems.length !== 1 ? 's' : ''}
+                  <span className="text-xs font-medium text-muted-foreground ml-auto bg-muted px-2.5 py-0.5 rounded-full border border-border/40">
+                    {sectionItems.length} {sectionItems.length !== 1 ? 'line items' : 'line item'}
                   </span>
                 </div>
 
@@ -3717,8 +3797,8 @@ export function RequisitionBuilderClient({
       </div>
 
       {/* ── Requisition Notes ── */}
-      <div className="rounded-xl border bg-card p-4 shadow-sm space-y-2">
-        <label className="text-xs font-semibold text-foreground uppercase tracking-wider">
+      <div className="rounded-xl border border-border/80 bg-card p-4 shadow-xs space-y-2">
+        <label className="text-xs font-bold text-foreground uppercase tracking-wider">
           Requisition Remarks / Special Factory Notes
         </label>
         <textarea
@@ -3726,14 +3806,19 @@ export function RequisitionBuilderClient({
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="e.g. Waterproof BWP grade required for kitchen sink area. Material delivery target Oct 20."
-          className="w-full bg-background border border-input rounded-md p-2.5 text-xs text-foreground focus:ring-1 focus:ring-primary"
+          className="w-full bg-background border border-input rounded-md p-2.5 text-xs text-foreground focus:ring-1 focus:ring-primary shadow-xs"
         />
       </div>
 
       {/* ── Bottom Save / Submit Bar ── */}
       {totalMaterialRows > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur-sm px-6 py-3 flex items-center justify-between shadow-lg">
-          <p className="text-xs text-muted-foreground">
+        <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/80 bg-background/95 backdrop-blur-md px-6 py-3 flex items-center justify-between shadow-xl">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <p className="text-xs text-muted-foreground">
             <strong className="text-foreground">{totalMaterialRows}</strong> material row
             {totalMaterialRows !== 1 ? 's' : ''} across{' '}
             <strong className="text-foreground">{coveredLineItems}</strong> quotation item
@@ -3742,24 +3827,25 @@ export function RequisitionBuilderClient({
               <> + <strong className="text-foreground">{extraRowCount}</strong> general row{extraRowCount !== 1 ? 's' : ''}</>
             )}
           </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleSave('DRAFT')}
-              disabled={isPending}
-              className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm hover:bg-accent transition-colors disabled:opacity-50"
-            >
-              <Save className="w-4 h-4 mr-2 text-amber-500" />
-              Save Draft
-            </button>
-            <button
-              onClick={() => handleSave('SUBMITTED')}
-              disabled={isPending}
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              <Send className="w-4 h-4 mr-2" />
-              Submit Requisition
-            </button>
-          </div>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => handleSave('DRAFT')}
+            disabled={isPending}
+            className="inline-flex items-center justify-center rounded-lg border border-input bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-2xs hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            <Save className="w-3.5 h-3.5 mr-1.5 text-amber-500" />
+            Save Draft
+          </button>
+          <button
+            onClick={() => handleSave('SUBMITTED')}
+            disabled={isPending || totalMaterialRows === 0}
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            <Send className="w-3.5 h-3.5 mr-1.5" />
+            Submit Requisition
+          </button>
+        </div>
         </div>
       )}
     </div>
