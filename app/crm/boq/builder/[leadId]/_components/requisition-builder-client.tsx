@@ -22,6 +22,7 @@ import {
   Table as TableIcon,
   LayoutGrid,
   Download,
+  Flame,
 } from 'lucide-react'
 import { saveMaterialRequisition, RequisitionItemInput } from '@/lib/boq-service'
 import type {
@@ -62,6 +63,7 @@ const UOM_OPTIONS = ['Pcs', 'Sheets', 'Meters', 'RFT', 'Kg', 'Rolls', 'Pack', 'B
 const EXTRA_KEY = '__extra__'
 
 export interface BoardVariantAttributes {
+  // Core Structural Board attributes
   itemId?: string
   coreThickness?: string
   baseMaterial?: string
@@ -70,9 +72,17 @@ export interface BoardVariantAttributes {
   sheetSize?: string
   functionalUsage?: string
   qtyLabel?: string
+
+  // Decorative Panels, Louvers & Edge Profiles attributes
+  profileType?: string
+  material?: string
+  accentFinish?: string
+  codeVariant?: string
+  primaryUsage?: string
+  column1?: string
 }
 
-/** Pre-populated Wall Paneling / Board Catalog Preset (Matches User Standard Table) */
+/** 1. Core Structural Boards & Plywood Catalog Preset (BRD-001 - BRD-008) */
 const SAMPLE_WALL_PANEL_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
@@ -236,6 +246,124 @@ const SAMPLE_WALL_PANEL_ITEMS: RequisitionItemInput[] = [
   },
 ]
 
+/** 2. Decorative Panels, Louvers & Edge Profiles Catalog Preset (LVR-001 - EDG-002) */
+const SAMPLE_LOUVER_PROFILE_ITEMS: RequisitionItemInput[] = [
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Charcoal Louver Panel',
+    specifications: 'Fluted Panel | Charcoal / WPC | Rose Gold Accent | Advance 14081',
+    variantAttributes: {
+      itemId: 'LVR-001',
+      profileType: 'Fluted Panel',
+      material: 'Charcoal / WPC',
+      accentFinish: 'Rose Gold Accent',
+      codeVariant: 'Advance 14081',
+      primaryUsage: 'Feature Wall Accent',
+      qtyLabel: '27',
+    },
+    netQuantity: 27,
+    wastagePercent: 0,
+    finalQuantity: 27,
+    unit: 'Pcs',
+    productionPhase: 'Feature Wall Accent',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Rose Gold Charcoal Panel',
+    specifications: 'Fluted Panel | Charcoal / WPC | Rose Gold Line | Line Type A',
+    variantAttributes: {
+      itemId: 'LVR-002',
+      profileType: 'Fluted Panel',
+      material: 'Charcoal / WPC',
+      accentFinish: 'Rose Gold Line',
+      codeVariant: 'Line Type A',
+      primaryUsage: 'Framing Accent',
+      qtyLabel: '7',
+    },
+    netQuantity: 7,
+    wastagePercent: 0,
+    finalQuantity: 7,
+    unit: 'Pcs',
+    productionPhase: 'Framing Accent',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Rose Gold Charcoal Panel',
+    specifications: 'Fluted Panel | Charcoal / WPC | Rose Gold Line | Line Type B',
+    variantAttributes: {
+      itemId: 'LVR-003',
+      profileType: 'Fluted Panel',
+      material: 'Charcoal / WPC',
+      accentFinish: 'Rose Gold Line',
+      codeVariant: 'Line Type B',
+      primaryUsage: 'Secondary Wall Panel',
+      qtyLabel: '54',
+    },
+    netQuantity: 54,
+    wastagePercent: 0,
+    finalQuantity: 54,
+    unit: 'Pcs',
+    productionPhase: 'Secondary Wall Panel',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'T-Inlay Metallic Strip',
+    specifications: 'T-Profile Bit | Aluminum / Brass | Metallic Rose Gold | T-Bit 10mm',
+    variantAttributes: {
+      itemId: 'TRM-001',
+      profileType: 'T-Profile Bit',
+      material: 'Aluminum / Brass',
+      accentFinish: 'Metallic Rose Gold',
+      codeVariant: 'T-Bit 10mm',
+      primaryUsage: 'Groove Accent Inlay',
+      qtyLabel: '26',
+    },
+    netQuantity: 26,
+    wastagePercent: 0,
+    finalQuantity: 26,
+    unit: 'RFT',
+    productionPhase: 'Groove Accent Inlay',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Heavy PVC Edge Band',
+    specifications: 'Tape Trim | PVC Plastic | Solid White / Grey | 3mm Thickness',
+    variantAttributes: {
+      itemId: 'EDG-001',
+      profileType: 'Tape Trim',
+      material: 'PVC Plastic',
+      accentFinish: 'Solid White / Grey',
+      codeVariant: '3mm Thickness',
+      primaryUsage: 'Board Edge Sealing',
+      qtyLabel: '4',
+    },
+    netQuantity: 4,
+    wastagePercent: 0,
+    finalQuantity: 4,
+    unit: 'Pcs',
+    productionPhase: 'Board Edge Sealing',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Standard PVC Edge Band',
+    specifications: 'Tape Trim | PVC Plastic | Solid White / Grey | 1mm Thickness',
+    variantAttributes: {
+      itemId: 'EDG-002 (Ext)',
+      profileType: 'Tape Trim',
+      material: 'PVC Plastic',
+      accentFinish: 'Solid White / Grey',
+      codeVariant: '1mm Thickness',
+      primaryUsage: 'Internal Shelving Edges',
+      qtyLabel: 'Catalog',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Roll',
+    productionPhase: 'Internal Shelving Edges',
+  },
+]
+
 /* ─────────────────────────────────────────────
    Types
 ───────────────────────────────────────────── */
@@ -267,6 +395,8 @@ interface Props {
 
 /** Items grouped: Record<quotationLineItemId | '__extra__', RequisitionItemInput[]> */
 type ItemsMap = Record<string, RequisitionItemInput[]>
+
+type ViewModeType = 'BOARD_SPEC' | 'LOUVER_SPEC' | 'STANDARD'
 
 /* ─────────────────────────────────────────────
    Helper – build a blank requisition item
@@ -338,12 +468,18 @@ function seedFromExisting(rawItems: any[]): ItemsMap {
         sheetSize: attrs.sheetSize || "8' x 4'",
         functionalUsage: attrs.functionalUsage || it.productionPhase || '',
         qtyLabel: attrs.qtyLabel || (it.netQuantity ? String(it.netQuantity) : '1'),
+        profileType: attrs.profileType || '',
+        material: attrs.material || '',
+        accentFinish: attrs.accentFinish || '',
+        codeVariant: attrs.codeVariant || '',
+        primaryUsage: attrs.primaryUsage || '',
+        column1: attrs.column1 || '',
       },
       netQuantity: Number(it.netQuantity) || 1,
       wastagePercent: Number(it.wastagePercent) || 0,
       finalQuantity: Number(it.finalQuantity) || Number(it.netQuantity) || 1,
       unit: it.unit || 'Pcs',
-      productionPhase: it.productionPhase || attrs.functionalUsage || '',
+      productionPhase: it.productionPhase || attrs.functionalUsage || attrs.primaryUsage || '',
       remarks: it.remarks || '',
     })
   }
@@ -356,6 +492,7 @@ function seedFromExisting(rawItems: any[]): ItemsMap {
 function BoardDatalists() {
   return (
     <>
+      {/* ── Core Boards Datalists ── */}
       <datalist id="item-id-list">
         <option value="BRD-001" />
         <option value="BRD-002" />
@@ -365,6 +502,12 @@ function BoardDatalists() {
         <option value="BRD-006 (Ext)" />
         <option value="BRD-007 (Ext)" />
         <option value="BRD-008 (Ext)" />
+        <option value="LVR-001" />
+        <option value="LVR-002" />
+        <option value="LVR-003" />
+        <option value="TRM-001" />
+        <option value="EDG-001" />
+        <option value="EDG-002 (Ext)" />
       </datalist>
 
       <datalist id="core-thickness-list">
@@ -422,6 +565,54 @@ function BoardDatalists() {
         <option value="Modern Kitchen Fronts" />
         <option value="Feature Wall Accent" />
       </datalist>
+
+      {/* ── Decorative Panels, Louvers & Edge Profiles Datalists ── */}
+      <datalist id="profile-type-list">
+        <option value="Fluted Panel" />
+        <option value="T-Profile Bit" />
+        <option value="Tape Trim" />
+        <option value="L-Angle Profile" />
+        <option value="Corner Trim" />
+        <option value="U-Channel" />
+        <option value="Groove Inlay" />
+      </datalist>
+
+      <datalist id="louver-material-list">
+        <option value="Charcoal / WPC" />
+        <option value="Aluminum / Brass" />
+        <option value="PVC Plastic" />
+        <option value="MDF Core" />
+        <option value="Solid Wood" />
+        <option value="Acrylic" />
+      </datalist>
+
+      <datalist id="accent-finish-list">
+        <option value="Rose Gold Accent" />
+        <option value="Rose Gold Line" />
+        <option value="Metallic Rose Gold" />
+        <option value="Solid White / Grey" />
+        <option value="Matte Black" />
+        <option value="Gold Anodized" />
+        <option value="Silver Brushed" />
+      </datalist>
+
+      <datalist id="code-variant-list">
+        <option value="Advance 14081" />
+        <option value="Line Type A" />
+        <option value="Line Type B" />
+        <option value="T-Bit 10mm" />
+        <option value="3mm Thickness" />
+        <option value="1mm Thickness" />
+      </datalist>
+
+      <datalist id="primary-usage-list">
+        <option value="Feature Wall Accent" />
+        <option value="Framing Accent" />
+        <option value="Secondary Wall Panel" />
+        <option value="Groove Accent Inlay" />
+        <option value="Board Edge Sealing" />
+        <option value="Internal Shelving Edges" />
+      </datalist>
     </>
   )
 }
@@ -437,14 +628,16 @@ function MaterialRowsTable({
   onAddRow,
   onRemoveRow,
   onLoadPreset,
+  onLoadLouverPreset,
 }: {
   rows: RequisitionItemInput[]
-  viewMode: 'BOARD_SPEC' | 'STANDARD'
+  viewMode: ViewModeType
   onChange: (rowIndex: number, field: keyof RequisitionItemInput, value: any) => void
   onUpdateVariant: (rowIndex: number, field: keyof BoardVariantAttributes, value: string) => void
   onAddRow: () => void
   onRemoveRow: (rowIndex: number) => void
   onLoadPreset?: () => void
+  onLoadLouverPreset?: () => void
 }) {
   return (
     <div className="border border-dashed border-border rounded-lg overflow-hidden">
@@ -454,17 +647,27 @@ function MaterialRowsTable({
             <Package className="w-5 h-5" />
             <span>No wall paneling or material specifications added yet.</span>
           </div>
-          {onLoadPreset && (
-            <button
-              onClick={onLoadPreset}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" /> Load Wall Paneling Board Catalog (BRD-001 - BRD-008)
-            </button>
-          )}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {onLoadPreset && (
+              <button
+                onClick={onLoadPreset}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" /> Load Core Boards (BRD-001 - BRD-008)
+              </button>
+            )}
+            {onLoadLouverPreset && (
+              <button
+                onClick={onLoadLouverPreset}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 rounded-md transition-colors"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Load Louvers & Edge Profiles (LVR-001 - EDG-002)
+              </button>
+            )}
+          </div>
         </div>
       ) : viewMode === 'BOARD_SPEC' ? (
-        /* ── 10-Column Wall Paneling & Board Specification Table ── */
+        /* ── 1. Core Structural Boards & Plywood Table (10 Cols) ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[1100px]">
             <thead className="text-muted-foreground uppercase bg-muted/40 border-b">
@@ -634,8 +837,178 @@ function MaterialRowsTable({
             </tbody>
           </table>
         </div>
+      ) : viewMode === 'LOUVER_SPEC' ? (
+        /* ── 2. Decorative Panels, Louvers & Edge Profiles Table (10 Cols) ── */
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left min-w-[1100px]">
+            <thead className="text-muted-foreground uppercase bg-indigo-50/60 dark:bg-indigo-950/30 border-b border-indigo-100 dark:border-indigo-900">
+              <tr>
+                <th className="px-2.5 py-2 font-semibold w-28 text-indigo-900 dark:text-indigo-200">Item ID</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-indigo-900 dark:text-indigo-200">Item Name</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[130px] text-indigo-900 dark:text-indigo-200">Profile / Type</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[130px] text-indigo-900 dark:text-indigo-200">Material</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[140px] text-indigo-900 dark:text-indigo-200">Accent Finish</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[140px] text-indigo-900 dark:text-indigo-200">Code / Variant</th>
+                <th className="px-2.5 py-2 font-semibold w-20 text-indigo-900 dark:text-indigo-200">Unit</th>
+                <th className="px-2.5 py-2 font-semibold text-center w-24 text-indigo-900 dark:text-indigo-200">Quantity</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-indigo-900 dark:text-indigo-200">Primary Usage</th>
+                <th className="px-2.5 py-2 font-semibold w-28 text-indigo-900 dark:text-indigo-200">Notes / Col 1</th>
+                <th className="px-2 py-2 font-semibold w-8 text-right"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {rows.map((item, ri) => {
+                const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                return (
+                  <tr key={ri} className="hover:bg-indigo-50/20 dark:hover:bg-indigo-950/20 transition-colors">
+                    {/* 1. Item ID */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="item-id-list"
+                        value={attrs.itemId || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
+                        placeholder="LVR-001"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-mono font-semibold text-indigo-700 dark:text-indigo-300 focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </td>
+
+                    {/* 2. Item Name */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={item.materialName}
+                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
+                        placeholder="e.g. Charcoal Louver Panel"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-semibold focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </td>
+
+                    {/* 3. Profile/Type */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="profile-type-list"
+                        value={attrs.profileType || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'profileType', e.target.value)}
+                        placeholder="Fluted Panel"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </td>
+
+                    {/* 4. Material */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="louver-material-list"
+                        value={attrs.material || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'material', e.target.value)}
+                        placeholder="Charcoal / WPC"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </td>
+
+                    {/* 5. Accent Finish */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="accent-finish-list"
+                        value={attrs.accentFinish || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'accentFinish', e.target.value)}
+                        placeholder="Rose Gold Accent"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </td>
+
+                    {/* 6. Code / Variant */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="code-variant-list"
+                        value={attrs.codeVariant || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'codeVariant', e.target.value)}
+                        placeholder="Advance 14081"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </td>
+
+                    {/* 7. Unit */}
+                    <td className="px-2.5 py-2">
+                      <select
+                        value={item.unit}
+                        onChange={(e) => onChange(ri, 'unit', e.target.value)}
+                        className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                      >
+                        {UOM_OPTIONS.map((uom) => (
+                          <option key={uom} value={uom}>
+                            {uom}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* 8. Quantity */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'qtyLabel', val)
+                          const num = parseFloat(val)
+                          if (!isNaN(num)) {
+                            onChange(ri, 'netQuantity', num)
+                          }
+                        }}
+                        placeholder="27 or Catalog"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center font-bold text-indigo-700 dark:text-indigo-300 focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </td>
+
+                    {/* 9. Primary Usage */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="primary-usage-list"
+                        value={attrs.primaryUsage || item.productionPhase || ''}
+                        onChange={(e) => {
+                          onUpdateVariant(ri, 'primaryUsage', e.target.value)
+                          onChange(ri, 'productionPhase', e.target.value)
+                        }}
+                        placeholder="Feature Wall Accent"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </td>
+
+                    {/* 10. Notes / Column 1 */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={attrs.column1 || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'column1', e.target.value)}
+                        placeholder="Remarks / Specs"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-indigo-500"
+                      />
+                    </td>
+
+                    {/* Delete */}
+                    <td className="px-2 py-2 text-right">
+                      <button
+                        onClick={() => onRemoveRow(ri)}
+                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        title="Remove row"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
-        /* ── Standard 8-Column Material Table ── */
+        /* ── 3. Standard 8-Column Material Table ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[800px]">
             <thead className="text-muted-foreground uppercase bg-muted/40 border-b">
@@ -765,18 +1138,29 @@ function MaterialRowsTable({
           className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
         >
           <Plus className="w-3.5 h-3.5" />
-          Add Board / Material Row
+          Add Material Row
         </button>
 
-        {onLoadPreset && rows.length > 0 && (
-          <button
-            onClick={onLoadPreset}
-            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Download className="w-3 h-3 text-amber-500" />
-            Append Wall Paneling Sample Data (BRD-001 - BRD-008)
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {onLoadPreset && rows.length > 0 && (
+            <button
+              onClick={onLoadPreset}
+              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Download className="w-3 h-3 text-amber-500" />
+              + Add Core Boards (BRD-001 - BRD-008)
+            </button>
+          )}
+          {onLoadLouverPreset && rows.length > 0 && (
+            <button
+              onClick={onLoadLouverPreset}
+              className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline transition-colors"
+            >
+              <Sparkles className="w-3 h-3 text-indigo-500" />
+              + Add Louvers & Edge Profiles (LVR-001 - EDG-002)
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -795,16 +1179,18 @@ function QuotationLineItemCard({
   onAddRow,
   onRemoveRow,
   onLoadPreset,
+  onLoadLouverPreset,
 }: {
   item: QuotationLineItem
   area?: QuotationArea
   rows: RequisitionItemInput[]
-  viewMode: 'BOARD_SPEC' | 'STANDARD'
+  viewMode: ViewModeType
   onChangeRow: (rowIndex: number, field: keyof RequisitionItemInput, value: any) => void
   onUpdateVariant: (rowIndex: number, field: keyof BoardVariantAttributes, value: string) => void
   onAddRow: () => void
   onRemoveRow: (rowIndex: number) => void
   onLoadPreset: () => void
+  onLoadLouverPreset: () => void
 }) {
   const [expanded, setExpanded] = useState(true)
 
@@ -845,7 +1231,7 @@ function QuotationLineItemCard({
             ৳{item.amount.toLocaleString('en-IN')}
           </p>
           <p className="text-xs text-muted-foreground">
-            {rows.length} board/material row{rows.length !== 1 ? 's' : ''}
+            {rows.length} material row{rows.length !== 1 ? 's' : ''}
           </p>
         </div>
       </button>
@@ -861,6 +1247,7 @@ function QuotationLineItemCard({
             onAddRow={onAddRow}
             onRemoveRow={onRemoveRow}
             onLoadPreset={onLoadPreset}
+            onLoadLouverPreset={onLoadLouverPreset}
           />
         </div>
       )}
@@ -881,7 +1268,7 @@ export function RequisitionBuilderClient({
   const [isPending, startTransition] = useTransition()
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
   const [notes, setNotes] = useState<string>(existingRequisition?.notes || '')
-  const [viewMode, setViewMode] = useState<'BOARD_SPEC' | 'STANDARD'>('BOARD_SPEC')
+  const [viewMode, setViewMode] = useState<ViewModeType>('BOARD_SPEC')
 
   // ── Parse quotation content ──
   const quotation = useMemo<QuotationDraftContent | null>(() => {
@@ -909,7 +1296,7 @@ export function RequisitionBuilderClient({
     if (existingRequisition?.items && existingRequisition.items.length > 0) {
       return seedFromExisting(existingRequisition.items)
     }
-    // Default: seed Extra section with user wall panel sample table if completely empty
+    // Default: seed Extra section with user wall panel core boards sample table if completely empty
     return {
       [EXTRA_KEY]: SAMPLE_WALL_PANEL_ITEMS,
     }
@@ -943,12 +1330,12 @@ export function RequisitionBuilderClient({
 
       current.variantAttributes = nextAttrs
 
-      // Keep specifications string in sync with board specs
+      // Keep specifications string in sync
       const specParts = [
-        nextAttrs.coreThickness,
-        nextAttrs.baseMaterial,
-        nextAttrs.laminateTopSurface,
-        nextAttrs.surfaceCodeFinish,
+        nextAttrs.coreThickness || nextAttrs.profileType,
+        nextAttrs.baseMaterial || nextAttrs.material,
+        nextAttrs.laminateTopSurface || nextAttrs.accentFinish,
+        nextAttrs.surfaceCodeFinish || nextAttrs.codeVariant,
       ].filter(Boolean)
 
       if (specParts.length > 0) {
@@ -982,6 +1369,17 @@ export function RequisitionBuilderClient({
 
   const loadPreset = (key: string, quotationLineItemId?: string) => {
     const presetItems = SAMPLE_WALL_PANEL_ITEMS.map((item) => ({
+      ...item,
+      quotationLineItemId,
+    }))
+    setItemsMap((prev) => ({
+      ...prev,
+      [key]: [...(prev[key] ?? []), ...presetItems],
+    }))
+  }
+
+  const loadLouverPreset = (key: string, quotationLineItemId?: string) => {
+    const presetItems = SAMPLE_LOUVER_PROFILE_ITEMS.map((item) => ({
       ...item,
       quotationLineItemId,
     }))
@@ -1048,7 +1446,7 @@ export function RequisitionBuilderClient({
 
         {/* Action Controls & View Switcher */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Table View Toggle */}
+          {/* Table View Switcher */}
           <div className="inline-flex items-center rounded-lg border bg-muted/30 p-1 text-xs">
             <button
               onClick={() => setViewMode('BOARD_SPEC')}
@@ -1058,7 +1456,17 @@ export function RequisitionBuilderClient({
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <TableIcon className="w-3.5 h-3.5 text-primary" /> Wall Paneling Spec View (10 Cols)
+              <TableIcon className="w-3.5 h-3.5 text-primary" /> Core Boards (10 Cols)
+            </button>
+            <button
+              onClick={() => setViewMode('LOUVER_SPEC')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-colors ${
+                viewMode === 'LOUVER_SPEC'
+                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Louvers & Edge Profiles (10 Cols)
             </button>
             <button
               onClick={() => setViewMode('STANDARD')}
@@ -1129,8 +1537,8 @@ export function RequisitionBuilderClient({
           </div>
           {lineItems.length > 0 && (
             <p className="text-xs text-muted-foreground mt-2">
-              Expand each quotation line item below to enter Wall Paneling & Board specs (Item ID, Core Thickness, Base Material, Laminate, Finish, Size, Unit, Qty, Functional Usage).
-              Items that span multiple areas go in the <strong>Extra / Miscellaneous</strong> section below.
+              Expand each quotation line item below to enter <strong>Core Boards & Plywood</strong> or <strong>Decorative Panels, Louvers & Edge Profiles</strong>.
+              You can toggle between view modes at the top right.
             </p>
           )}
         </div>
@@ -1177,6 +1585,7 @@ export function RequisitionBuilderClient({
                         onAddRow={() => addRow(li.id, li.id)}
                         onRemoveRow={(ri) => removeRow(li.id, ri)}
                         onLoadPreset={() => loadPreset(li.id, li.id)}
+                        onLoadLouverPreset={() => loadLouverPreset(li.id, li.id)}
                       />
                     )
                   })}
@@ -1194,26 +1603,35 @@ export function RequisitionBuilderClient({
 
       {/* ── Extra / Miscellaneous & Wall Paneling Section ── */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between border-b pb-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500" />
             <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-              Wall Paneling & Board Specifications (Extra / General)
+              Wall Paneling & Decorative Profiles (Extra / General)
             </h2>
           </div>
-          <button
-            onClick={() => loadPreset(EXTRA_KEY)}
-            className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors"
-          >
-            <Download className="w-3.5 h-3.5 text-amber-600" />
-            Load Sample Board Catalog (BRD-001 - BRD-008)
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => loadPreset(EXTRA_KEY)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors"
+            >
+              <Download className="w-3.5 h-3.5 text-amber-600" />
+              Load Core Boards (BRD-001 - BRD-008)
+            </button>
+            <button
+              onClick={() => loadLouverPreset(EXTRA_KEY)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 hover:bg-indigo-100 rounded-md transition-colors"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              Load Louvers & Profiles (LVR-001 - EDG-002)
+            </button>
+          </div>
         </div>
 
         <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
           <div className="px-4 py-3 bg-amber-50/40 dark:bg-amber-950/20 border-b border-amber-100 dark:border-amber-900 flex flex-col md:flex-row md:items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
-              Use this table to input Wall Paneling and Board specifications manually across all 10 columns (Item ID, Item Name, Core Thickness, Base Material, Laminate, Surface Code, Size, Unit, Qty, Functional Usage).
+              Manage Core Boards, Louvers, Fluted Panels, Metallic Inlays, and Edge Banding. Use the view toggle at top right to switch table structures.
             </p>
           </div>
           <div className="p-3">
@@ -1225,6 +1643,7 @@ export function RequisitionBuilderClient({
               onAddRow={() => addRow(EXTRA_KEY, undefined)}
               onRemoveRow={(ri) => removeRow(EXTRA_KEY, ri)}
               onLoadPreset={() => loadPreset(EXTRA_KEY)}
+              onLoadLouverPreset={() => loadLouverPreset(EXTRA_KEY)}
             />
           </div>
         </div>
@@ -1248,12 +1667,12 @@ export function RequisitionBuilderClient({
       {totalMaterialRows > 0 && (
         <div className="fixed bottom-0 left-0 right-0 z-30 border-t bg-background/95 backdrop-blur-sm px-6 py-3 flex items-center justify-between shadow-lg">
           <p className="text-xs text-muted-foreground">
-            <strong className="text-foreground">{totalMaterialRows}</strong> board/material row
+            <strong className="text-foreground">{totalMaterialRows}</strong> material row
             {totalMaterialRows !== 1 ? 's' : ''} across{' '}
             <strong className="text-foreground">{coveredLineItems}</strong> quotation item
             {coveredLineItems !== 1 ? 's' : ''}
             {getRows(EXTRA_KEY).length > 0 && (
-              <> + <strong className="text-foreground">{getRows(EXTRA_KEY).length}</strong> general board row{getRows(EXTRA_KEY).length !== 1 ? 's' : ''}</>
+              <> + <strong className="text-foreground">{getRows(EXTRA_KEY).length}</strong> general material row{getRows(EXTRA_KEY).length !== 1 ? 's' : ''}</>
             )}
           </p>
           <div className="flex items-center gap-2">
