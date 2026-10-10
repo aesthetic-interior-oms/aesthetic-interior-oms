@@ -100,6 +100,9 @@ export interface BoardVariantAttributes {
   applicationMethod?: string
 
   column1?: string
+
+  /** Persists the WallPanelingSubType so items can be re-grouped into sections on reload */
+  wpSubType?: string
 }
 
 /** 1. Core Structural Boards & Plywood Catalog Preset (BRD-001 - BRD-008) */
@@ -696,35 +699,89 @@ interface Props {
 }
 
 /** Items grouped: Record<quotationLineItemId | '__extra__', RequisitionItemInput[]> */
+// ── Section-based architecture ──
+export type WallPanelingSubType = 'CORE_BOARDS' | 'LOUVERS_PROFILES' | 'SCREWS_FASTENERS' | 'NAILS_PINS' | 'ADHESIVES'
+
+interface CardSection {
+  id: string
+  category: RequisitionWorkCategory
+  wallPanelingSubType?: WallPanelingSubType
+  collapsed: boolean
+}
+
+type SectionsMap = Record<string, CardSection[]>
+/** ItemsMap key = `${cardKey}::${sectionId}` */
 type ItemsMap = Record<string, RequisitionItemInput[]>
 
 type ViewModeType = 'BOARD_SPEC' | 'LOUVER_SPEC' | 'SCREW_SPEC' | 'NAIL_SPEC' | 'ADHESIVE_SPEC' | 'STANDARD'
 
+const WALL_PANELING_SUBTYPES: { key: WallPanelingSubType; label: string; viewMode: ViewModeType }[] = [
+  { key: 'CORE_BOARDS',      label: '🪵 Core Structural Boards & Plywood',          viewMode: 'BOARD_SPEC'    },
+  { key: 'LOUVERS_PROFILES', label: '✨ Decorative Panels, Louvers & Edge Profiles', viewMode: 'LOUVER_SPEC'   },
+  { key: 'SCREWS_FASTENERS', label: '🔩 Screws & Structural Fasteners',             viewMode: 'SCREW_SPEC'    },
+  { key: 'NAILS_PINS',       label: '📌 Nails, Pins & Masonry Anchors',             viewMode: 'NAIL_SPEC'     },
+  { key: 'ADHESIVES',        label: '🧪 Adhesives & Chemical Solvents',             viewMode: 'ADHESIVE_SPEC' },
+]
+
+const CATEGORY_COLORS: Record<RequisitionWorkCategory, { bg: string; text: string; border: string }> = {
+  WALL_PANELING:    { bg: 'bg-blue-50 dark:bg-blue-950/30',    text: 'text-blue-700 dark:text-blue-300',    border: 'border-blue-200 dark:border-blue-800'    },
+  CEILING:          { bg: 'bg-purple-50 dark:bg-purple-950/30', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-200 dark:border-purple-800' },
+  CABINETS_CLOSETS: { bg: 'bg-amber-50 dark:bg-amber-950/30',  text: 'text-amber-700 dark:text-amber-300',  border: 'border-amber-200 dark:border-amber-800'  },
+  FURNITURE:        { bg: 'bg-green-50 dark:bg-green-950/30',  text: 'text-green-700 dark:text-green-300',  border: 'border-green-200 dark:border-green-800'  },
+  ACCESSORIES:      { bg: 'bg-pink-50 dark:bg-pink-950/30',    text: 'text-pink-700 dark:text-pink-300',    border: 'border-pink-200 dark:border-pink-800'    },
+  ELECTRICAL_WORK:  { bg: 'bg-yellow-50 dark:bg-yellow-950/30',text: 'text-yellow-700 dark:text-yellow-300',border: 'border-yellow-200 dark:border-yellow-800' },
+  PAINT:            { bg: 'bg-indigo-50 dark:bg-indigo-950/30',text: 'text-indigo-700 dark:text-indigo-300',border: 'border-indigo-200 dark:border-indigo-800' },
+  APPLIANCES:       { bg: 'bg-teal-50 dark:bg-teal-950/30',   text: 'text-teal-700 dark:text-teal-300',   border: 'border-teal-200 dark:border-teal-800'    },
+}
+
+function getViewModeForSection(section: CardSection): ViewModeType {
+  if (section.category !== 'WALL_PANELING') return 'STANDARD'
+  switch (section.wallPanelingSubType) {
+    case 'CORE_BOARDS':      return 'BOARD_SPEC'
+    case 'LOUVERS_PROFILES': return 'LOUVER_SPEC'
+    case 'SCREWS_FASTENERS': return 'SCREW_SPEC'
+    case 'NAILS_PINS':       return 'NAIL_SPEC'
+    case 'ADHESIVES':        return 'ADHESIVE_SPEC'
+    default:                 return 'BOARD_SPEC'
+  }
+}
+
+function sectionItemKey(cardKey: string, sectionId: string): string {
+  return `${cardKey}::${sectionId}`
+}
+
 /* ─────────────────────────────────────────────
    Helper – build a blank requisition item
 ───────────────────────────────────────────── */
-function blankItem(quotationLineItemId?: string): RequisitionItemInput {
-  return {
+function blankItem(
+  category: RequisitionWorkCategory = 'WALL_PANELING',
+  subType?: WallPanelingSubType,
+  quotationLineItemId?: string,
+): RequisitionItemInput {
+  const base: RequisitionItemInput = {
     quotationLineItemId,
-    workCategory: 'WALL_PANELING',
+    workCategory: category,
     materialName: '',
     specifications: '',
-    variantAttributes: {
-      itemId: 'BRD-001',
-      coreThickness: '12mm',
-      baseMaterial: 'Garjon Plywood',
-      laminateTopSurface: 'Beladoa Laminate',
-      surfaceCodeFinish: '2003 SMT (Super Matt)',
-      sheetSize: "8' x 4'",
-      functionalUsage: 'Shutter / Exterior Cabinet',
-      qtyLabel: '1',
-    },
     netQuantity: 1,
     wastagePercent: 0,
     finalQuantity: 1,
     unit: 'Pcs',
-    productionPhase: 'Shutter / Exterior Cabinet',
+    productionPhase: '',
     remarks: '',
+    variantAttributes: {},
+  }
+  switch (subType) {
+    case 'LOUVERS_PROFILES':
+      return { ...base, variantAttributes: { itemId: '', profileType: '', material: '', accentFinish: '', codeVariant: '', primaryUsage: '', qtyLabel: '1', wpSubType: 'LOUVERS_PROFILES' } }
+    case 'SCREWS_FASTENERS':
+      return { ...base, variantAttributes: { itemId: '', fastenerType: '', lengthInches: '', gaugeSize: '', materialFinish: '', usagePurpose: '', qtyLabel: '1', wpSubType: 'SCREWS_FASTENERS' } }
+    case 'NAILS_PINS':
+      return { ...base, variantAttributes: { itemId: '', nailType: '', lengthSpec: '', thicknessSpec: '', functionalUsage: '', qtyLabel: '1', wpSubType: 'NAILS_PINS' } }
+    case 'ADHESIVES':
+      return { ...base, variantAttributes: { itemId: '', chemicalClass: '', applicationMethod: '', qtyLabel: '1', wpSubType: 'ADHESIVES' } }
+    default:
+      return { ...base, variantAttributes: { itemId: '', coreThickness: '', baseMaterial: '', laminateTopSurface: '', surfaceCodeFinish: '', sheetSize: "8' x 4'", functionalUsage: '', qtyLabel: '1', wpSubType: subType ?? 'CORE_BOARDS' } }
   }
 }
 
@@ -736,29 +793,43 @@ function flattenItems(map: ItemsMap): RequisitionItemInput[] {
 }
 
 /* ─────────────────────────────────────────────
-   Helper – seed ItemsMap from existing items
+   Helper – seed state from existing saved items
 ───────────────────────────────────────────── */
-function seedFromExisting(rawItems: any[]): ItemsMap {
-  const map: ItemsMap = {}
+function seedFromExisting(rawItems: any[]): { sectionsMap: SectionsMap; itemsMap: ItemsMap } {
+  const sectionsMap: SectionsMap = {}
+  const itemsMap: ItemsMap = {}
+  const sectionRegistry: Record<string, string> = {}
+
   for (const it of rawItems) {
-    const key = it.quotationLineItemId || EXTRA_KEY
-    if (!map[key]) map[key] = []
+    const cardKey: string = it.quotationLineItemId || EXTRA_KEY
 
     let attrs: BoardVariantAttributes = {}
     if (typeof it.variantAttributes === 'string') {
-      try {
-        attrs = JSON.parse(it.variantAttributes)
-      } catch {
-        attrs = {}
-      }
+      try { attrs = JSON.parse(it.variantAttributes) } catch { attrs = {} }
     } else if (it.variantAttributes && typeof it.variantAttributes === 'object') {
       attrs = it.variantAttributes
     }
 
-    map[key].push({
+    const category: RequisitionWorkCategory = it.workCategory || 'WALL_PANELING'
+    const wpSubType = attrs.wpSubType as WallPanelingSubType | undefined
+
+    // Find or create a section for this (cardKey, category, wpSubType) combo
+    const regKey = `${cardKey}::${category}::${wpSubType ?? ''}`
+    let sectionId = sectionRegistry[regKey]
+    if (!sectionId) {
+      sectionId = `section-${Object.keys(sectionRegistry).length}`
+      sectionRegistry[regKey] = sectionId
+      if (!sectionsMap[cardKey]) sectionsMap[cardKey] = []
+      sectionsMap[cardKey].push({ id: sectionId, category, wallPanelingSubType: wpSubType, collapsed: false })
+    }
+
+    const key = sectionItemKey(cardKey, sectionId)
+    if (!itemsMap[key]) itemsMap[key] = []
+
+    itemsMap[key].push({
       id: it.id,
       quotationLineItemId: it.quotationLineItemId || undefined,
-      workCategory: it.workCategory || 'WALL_PANELING',
+      workCategory: category,
       materialName: it.materialName || '',
       specifications: it.specifications || '',
       variantAttributes: {
@@ -786,6 +857,7 @@ function seedFromExisting(rawItems: any[]): ItemsMap {
         chemicalClass: attrs.chemicalClass || '',
         applicationMethod: attrs.applicationMethod || '',
         column1: attrs.column1 || '',
+        wpSubType: attrs.wpSubType || '',
       },
       netQuantity: Number(it.netQuantity) || 1,
       wastagePercent: Number(it.wastagePercent) || 0,
@@ -795,7 +867,23 @@ function seedFromExisting(rawItems: any[]): ItemsMap {
       remarks: it.remarks || '',
     })
   }
-  return map
+
+  return { sectionsMap, itemsMap }
+}
+
+function computeInitialState(existingRequisition: Props['existingRequisition']): { sectionsMap: SectionsMap; itemsMap: ItemsMap } {
+  if (existingRequisition?.items && existingRequisition.items.length > 0) {
+    return seedFromExisting(existingRequisition.items)
+  }
+  const defaultSectionId = 'section-default'
+  return {
+    sectionsMap: {
+      [EXTRA_KEY]: [{ id: defaultSectionId, category: 'WALL_PANELING', wallPanelingSubType: 'CORE_BOARDS', collapsed: false }],
+    },
+    itemsMap: {
+      [sectionItemKey(EXTRA_KEY, defaultSectionId)]: [...SAMPLE_WALL_PANEL_ITEMS],
+    },
+  }
 }
 
 /* ─────────────────────────────────────────────
@@ -2078,53 +2166,179 @@ function MaterialRowsTable({
 }
 
 /* ─────────────────────────────────────────────
+   Sub-component: Single category section inside a card
+───────────────────────────────────────────── */
+function SectionBlock({
+  section,
+  rows,
+  onChange,
+  onUpdateVariant,
+  onAddRow,
+  onRemoveRow,
+  onLoadPreset,
+  onToggleCollapse,
+  onRemove,
+}: {
+  section: CardSection
+  rows: RequisitionItemInput[]
+  onChange: (ri: number, field: keyof RequisitionItemInput, value: any) => void
+  onUpdateVariant: (ri: number, field: keyof BoardVariantAttributes, value: string) => void
+  onAddRow: () => void
+  onRemoveRow: (ri: number) => void
+  onLoadPreset: (subType: WallPanelingSubType) => void
+  onToggleCollapse: () => void
+  onRemove: () => void
+}) {
+  const viewMode = getViewModeForSection(section)
+  const catLabel = WORK_CATEGORIES.find((c) => c.key === section.category)?.label ?? section.category
+  const subTypeInfo = section.wallPanelingSubType
+    ? WALL_PANELING_SUBTYPES.find((s) => s.key === section.wallPanelingSubType)
+    : null
+  const colors = CATEGORY_COLORS[section.category]
+
+  return (
+    <div className="border-t first:border-t-0">
+      {/* Section header */}
+      <div className={`flex items-center gap-2 px-3 py-2 ${colors.bg} border-b ${colors.border}`}>
+        <button onClick={onToggleCollapse} className={`${colors.text} hover:opacity-70 transition-opacity`} title={section.collapsed ? 'Expand' : 'Collapse'}>
+          {section.collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </button>
+
+        <span className={`text-xs font-bold uppercase tracking-wide ${colors.text}`}>{catLabel}</span>
+
+        {subTypeInfo && (
+          <span className={`text-xs px-2 py-0.5 rounded-full font-semibold border ${colors.bg} ${colors.text} ${colors.border}`}>
+            {subTypeInfo.label}
+          </span>
+        )}
+
+        <span className="ml-auto text-xs text-muted-foreground">
+          {rows.length} row{rows.length !== 1 ? 's' : ''}
+        </span>
+
+        <button
+          onClick={onRemove}
+          className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+          title="Remove this section"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Section body */}
+      {!section.collapsed && (
+        <div className="p-3">
+          <MaterialRowsTable
+            rows={rows}
+            viewMode={viewMode}
+            onChange={onChange}
+            onUpdateVariant={onUpdateVariant}
+            onAddRow={onAddRow}
+            onRemoveRow={onRemoveRow}
+            onLoadPreset={section.wallPanelingSubType === 'CORE_BOARDS' ? () => onLoadPreset('CORE_BOARDS') : undefined}
+            onLoadLouverPreset={section.wallPanelingSubType === 'LOUVERS_PROFILES' ? () => onLoadPreset('LOUVERS_PROFILES') : undefined}
+            onLoadScrewPreset={section.wallPanelingSubType === 'SCREWS_FASTENERS' ? () => onLoadPreset('SCREWS_FASTENERS') : undefined}
+            onLoadNailPreset={section.wallPanelingSubType === 'NAILS_PINS' ? () => onLoadPreset('NAILS_PINS') : undefined}
+            onLoadAdhesivePreset={section.wallPanelingSubType === 'ADHESIVES' ? () => onLoadPreset('ADHESIVES') : undefined}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   Sub-component: "Add Section" inline form
+───────────────────────────────────────────── */
+function AddSectionForm({ onAdd, onCancel }: {
+  onAdd: (category: RequisitionWorkCategory, subType?: WallPanelingSubType) => void
+  onCancel: () => void
+}) {
+  const [cat, setCat] = useState<RequisitionWorkCategory>('WALL_PANELING')
+  const [sub, setSub] = useState<WallPanelingSubType>('CORE_BOARDS')
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-3 py-2.5 bg-muted/10 border-t">
+      <select
+        value={cat}
+        onChange={(e) => setCat(e.target.value as RequisitionWorkCategory)}
+        className="text-xs bg-background border border-input rounded px-2 py-1.5 focus:ring-1 focus:ring-primary font-medium"
+      >
+        {WORK_CATEGORIES.map((c) => (
+          <option key={c.key} value={c.key}>{c.label}</option>
+        ))}
+      </select>
+
+      {cat === 'WALL_PANELING' && (
+        <select
+          value={sub}
+          onChange={(e) => setSub(e.target.value as WallPanelingSubType)}
+          className="text-xs bg-background border border-input rounded px-2 py-1.5 focus:ring-1 focus:ring-primary font-medium"
+        >
+          {WALL_PANELING_SUBTYPES.map((s) => (
+            <option key={s.key} value={s.key}>{s.label}</option>
+          ))}
+        </select>
+      )}
+
+      <button
+        onClick={() => onAdd(cat, cat === 'WALL_PANELING' ? sub : undefined)}
+        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+      >
+        <Plus className="w-3 h-3" /> Add
+      </button>
+      <button onClick={onCancel} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+        Cancel
+      </button>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
    Sub-component: Single quotation line item card
 ───────────────────────────────────────────── */
 function QuotationLineItemCard({
   item,
   area,
-  rows,
-  viewMode,
+  sections,
+  getRowsForSection,
   onChangeRow,
   onUpdateVariant,
   onAddRow,
   onRemoveRow,
   onLoadPreset,
-  onLoadLouverPreset,
-  onLoadScrewPreset,
-  onLoadNailPreset,
-  onLoadAdhesivePreset,
+  onAddSection,
+  onRemoveSection,
+  onToggleSectionCollapse,
 }: {
   item: QuotationLineItem
   area?: QuotationArea
-  rows: RequisitionItemInput[]
-  viewMode: ViewModeType
-  onChangeRow: (rowIndex: number, field: keyof RequisitionItemInput, value: any) => void
-  onUpdateVariant: (rowIndex: number, field: keyof BoardVariantAttributes, value: string) => void
-  onAddRow: () => void
-  onRemoveRow: (rowIndex: number) => void
-  onLoadPreset: () => void
-  onLoadLouverPreset: () => void
-  onLoadScrewPreset: () => void
-  onLoadNailPreset: () => void
-  onLoadAdhesivePreset: () => void
+  sections: CardSection[]
+  getRowsForSection: (sectionId: string) => RequisitionItemInput[]
+  onChangeRow: (sectionId: string, ri: number, field: keyof RequisitionItemInput, value: any) => void
+  onUpdateVariant: (sectionId: string, ri: number, field: keyof BoardVariantAttributes, value: string) => void
+  onAddRow: (sectionId: string) => void
+  onRemoveRow: (sectionId: string, ri: number) => void
+  onLoadPreset: (sectionId: string, subType: WallPanelingSubType) => void
+  onAddSection: (category: RequisitionWorkCategory, subType?: WallPanelingSubType) => void
+  onRemoveSection: (sectionId: string) => void
+  onToggleSectionCollapse: (sectionId: string) => void
 }) {
-  const [expanded, setExpanded] = useState(true)
+  const [cardExpanded, setCardExpanded] = useState(true)
+  const [showAddSection, setShowAddSection] = useState(false)
+
+  const totalRows = sections.reduce((sum, s) => sum + getRowsForSection(s.id).length, 0)
 
   return (
     <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
-      {/* Header row */}
+      {/* Card header */}
       <button
-        onClick={() => setExpanded((v) => !v)}
+        onClick={() => setCardExpanded((v) => !v)}
         className="w-full flex items-start justify-between gap-3 px-4 py-3 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
       >
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <div className="mt-0.5">
-            {expanded ? (
-              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            )}
+            {cardExpanded ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -2141,34 +2355,154 @@ function QuotationLineItemCard({
           </div>
         </div>
         <div className="flex-shrink-0 text-right space-y-0.5">
+          <p className="text-xs text-muted-foreground">{item.quantity} {item.unit}</p>
+          <p className="text-xs font-bold text-foreground">৳{item.amount.toLocaleString('en-IN')}</p>
           <p className="text-xs text-muted-foreground">
-            {item.quantity} {item.unit}
-          </p>
-          <p className="text-xs font-bold text-foreground">
-            ৳{item.amount.toLocaleString('en-IN')}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {rows.length} material row{rows.length !== 1 ? 's' : ''}
+            {sections.length} section{sections.length !== 1 ? 's' : ''} · {totalRows} row{totalRows !== 1 ? 's' : ''}
           </p>
         </div>
       </button>
 
-      {/* Material rows */}
+      {cardExpanded && (
+        <div>
+          {/* Empty state */}
+          {sections.length === 0 && !showAddSection && (
+            <div className="px-4 py-6 text-center text-xs text-muted-foreground space-y-2">
+              <Package className="w-5 h-5 mx-auto text-muted-foreground/40" />
+              <p>No material sections yet. Add a section to start specifying materials.</p>
+            </div>
+          )}
+
+          {/* Section blocks */}
+          {sections.map((section) => (
+            <SectionBlock
+              key={section.id}
+              section={section}
+              rows={getRowsForSection(section.id)}
+              onChange={(ri, field, val) => onChangeRow(section.id, ri, field, val)}
+              onUpdateVariant={(ri, field, val) => onUpdateVariant(section.id, ri, field, val)}
+              onAddRow={() => onAddRow(section.id)}
+              onRemoveRow={(ri) => onRemoveRow(section.id, ri)}
+              onLoadPreset={(subType) => onLoadPreset(section.id, subType)}
+              onToggleCollapse={() => onToggleSectionCollapse(section.id)}
+              onRemove={() => onRemoveSection(section.id)}
+            />
+          ))}
+
+          {/* Add Section form or trigger */}
+          {showAddSection ? (
+            <AddSectionForm
+              onAdd={(cat, sub) => {
+                onAddSection(cat, sub)
+                setShowAddSection(false)
+              }}
+              onCancel={() => setShowAddSection(false)}
+            />
+          ) : (
+            <div className="px-3 py-2.5 border-t bg-muted/5">
+              <button
+                onClick={() => setShowAddSection(true)}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Section
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   Sub-component: Extra / General section card (EXTRA_KEY)
+───────────────────────────────────────────── */
+function ExtraCard({
+  sections,
+  getRowsForSection,
+  onChangeRow,
+  onUpdateVariant,
+  onAddRow,
+  onRemoveRow,
+  onLoadPreset,
+  onAddSection,
+  onRemoveSection,
+  onToggleSectionCollapse,
+}: {
+  sections: CardSection[]
+  getRowsForSection: (sectionId: string) => RequisitionItemInput[]
+  onChangeRow: (sectionId: string, ri: number, field: keyof RequisitionItemInput, value: any) => void
+  onUpdateVariant: (sectionId: string, ri: number, field: keyof BoardVariantAttributes, value: string) => void
+  onAddRow: (sectionId: string) => void
+  onRemoveRow: (sectionId: string, ri: number) => void
+  onLoadPreset: (sectionId: string, subType: WallPanelingSubType) => void
+  onAddSection: (category: RequisitionWorkCategory, subType?: WallPanelingSubType) => void
+  onRemoveSection: (sectionId: string) => void
+  onToggleSectionCollapse: (sectionId: string) => void
+}) {
+  const [expanded, setExpanded] = useState(true)
+  const [showAddSection, setShowAddSection] = useState(false)
+  const totalRows = sections.reduce((sum, s) => sum + getRowsForSection(s.id).length, 0)
+
+  return (
+    <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-start justify-between gap-3 px-4 py-3 bg-amber-50/50 dark:bg-amber-950/20 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors text-left border-b border-amber-100 dark:border-amber-900"
+      >
+        <div className="flex items-center gap-2 flex-1">
+          {expanded ? <ChevronDown className="w-4 h-4 text-amber-600" /> : <ChevronRight className="w-4 h-4 text-amber-600" />}
+          <Sparkles className="w-4 h-4 text-amber-500" />
+          <span className="text-sm font-bold text-foreground">Extra / General Materials</span>
+          <span className="text-xs text-muted-foreground">(not linked to a quotation line item)</span>
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {sections.length} section{sections.length !== 1 ? 's' : ''} · {totalRows} row{totalRows !== 1 ? 's' : ''}
+        </span>
+      </button>
+
       {expanded && (
-        <div className="p-3">
-          <MaterialRowsTable
-            rows={rows}
-            viewMode={viewMode}
-            onChange={onChangeRow}
-            onUpdateVariant={onUpdateVariant}
-            onAddRow={onAddRow}
-            onRemoveRow={onRemoveRow}
-            onLoadPreset={onLoadPreset}
-            onLoadLouverPreset={onLoadLouverPreset}
-            onLoadScrewPreset={onLoadScrewPreset}
-            onLoadNailPreset={onLoadNailPreset}
-            onLoadAdhesivePreset={onLoadAdhesivePreset}
-          />
+        <div>
+          {sections.length === 0 && !showAddSection && (
+            <div className="px-4 py-5 text-center text-xs text-muted-foreground space-y-2">
+              <Package className="w-5 h-5 mx-auto text-muted-foreground/40" />
+              <p>No sections yet. Add a Wall Paneling section to load material catalogs.</p>
+            </div>
+          )}
+
+          {sections.map((section) => (
+            <SectionBlock
+              key={section.id}
+              section={section}
+              rows={getRowsForSection(section.id)}
+              onChange={(ri, field, val) => onChangeRow(section.id, ri, field, val)}
+              onUpdateVariant={(ri, field, val) => onUpdateVariant(section.id, ri, field, val)}
+              onAddRow={() => onAddRow(section.id)}
+              onRemoveRow={(ri) => onRemoveRow(section.id, ri)}
+              onLoadPreset={(subType) => onLoadPreset(section.id, subType)}
+              onToggleCollapse={() => onToggleSectionCollapse(section.id)}
+              onRemove={() => onRemoveSection(section.id)}
+            />
+          ))}
+
+          {showAddSection ? (
+            <AddSectionForm
+              onAdd={(cat, sub) => {
+                onAddSection(cat, sub)
+                setShowAddSection(false)
+              }}
+              onCancel={() => setShowAddSection(false)}
+            />
+          ) : (
+            <div className="px-3 py-2.5 border-t bg-muted/5">
+              <button
+                onClick={() => setShowAddSection(true)}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              >
+                <Plus className="w-3.5 h-3.5" /> Add Section
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -2188,7 +2522,10 @@ export function RequisitionBuilderClient({
   const [isPending, startTransition] = useTransition()
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
   const [notes, setNotes] = useState<string>(existingRequisition?.notes || '')
-  const [viewMode, setViewMode] = useState<ViewModeType>('BOARD_SPEC')
+
+  // ── Per-section architecture state ──
+  const [sectionsMap, setSectionsMap] = useState<SectionsMap>(() => computeInitialState(existingRequisition).sectionsMap)
+  const [itemsMap, setItemsMap] = useState<ItemsMap>(() => computeInitialState(existingRequisition).itemsMap)
 
   // ── Parse quotation content ──
   const quotation = useMemo<QuotationDraftContent | null>(() => {
@@ -2211,142 +2548,118 @@ export function RequisitionBuilderClient({
     return m
   }, [areas])
 
-  // ── Items state: keyed by quotationLineItemId | '__extra__' ──
-  const [itemsMap, setItemsMap] = useState<ItemsMap>(() => {
-    if (existingRequisition?.items && existingRequisition.items.length > 0) {
-      return seedFromExisting(existingRequisition.items)
-    }
-    // Default: seed Extra section with user wall panel core boards sample table if completely empty
-    return {
-      [EXTRA_KEY]: SAMPLE_WALL_PANEL_ITEMS,
-    }
-  })
+  // ── Section helpers ──
+  const getSectionsForCard = (cardKey: string): CardSection[] => sectionsMap[cardKey] ?? []
 
-  // ── Helpers to mutate itemsMap ──
-  const getRows = (key: string): RequisitionItemInput[] => itemsMap[key] ?? []
+  const getRowsForSection = (cardKey: string, sectionId: string): RequisitionItemInput[] =>
+    itemsMap[sectionItemKey(cardKey, sectionId)] ?? []
 
-  const updateRow = (key: string, rowIndex: number, field: keyof RequisitionItemInput, rawValue: any) => {
+  const addSection = (cardKey: string, category: RequisitionWorkCategory, wallPanelingSubType?: WallPanelingSubType, quotationLineItemId?: string) => {
+    const sectionId = `section-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    setSectionsMap((prev) => ({
+      ...prev,
+      [cardKey]: [...(prev[cardKey] ?? []), { id: sectionId, category, wallPanelingSubType, collapsed: false }],
+    }))
+    setItemsMap((prev) => ({
+      ...prev,
+      [sectionItemKey(cardKey, sectionId)]: [blankItem(category, wallPanelingSubType, quotationLineItemId)],
+    }))
+  }
+
+  const removeSection = (cardKey: string, sectionId: string) => {
+    setSectionsMap((prev) => ({
+      ...prev,
+      [cardKey]: (prev[cardKey] ?? []).filter((s) => s.id !== sectionId),
+    }))
+    setItemsMap((prev) => {
+      const next = { ...prev }
+      delete next[sectionItemKey(cardKey, sectionId)]
+      return next
+    })
+  }
+
+  const toggleSectionCollapse = (cardKey: string, sectionId: string) => {
+    setSectionsMap((prev) => ({
+      ...prev,
+      [cardKey]: (prev[cardKey] ?? []).map((s) => (s.id === sectionId ? { ...s, collapsed: !s.collapsed } : s)),
+    }))
+  }
+
+  const updateRow = (cardKey: string, sectionId: string, rowIndex: number, field: keyof RequisitionItemInput, rawValue: any) => {
+    const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => {
       const rows = [...(prev[key] ?? [])]
       const current = { ...rows[rowIndex], [field]: rawValue }
-
       if (field === 'netQuantity' || field === 'wastagePercent') {
         const net = Number(field === 'netQuantity' ? rawValue : current.netQuantity) || 0
         const waste = Number(field === 'wastagePercent' ? rawValue : current.wastagePercent) || 0
         current.finalQuantity = Math.round(net * (1 + waste / 100) * 100) / 100
       }
-
       rows[rowIndex] = current
       return { ...prev, [key]: rows }
     })
   }
 
-  const updateVariant = (key: string, rowIndex: number, field: keyof BoardVariantAttributes, value: string) => {
+  const updateVariant = (cardKey: string, sectionId: string, rowIndex: number, field: keyof BoardVariantAttributes, value: string) => {
+    const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => {
       const rows = [...(prev[key] ?? [])]
       const current = { ...rows[rowIndex] }
       const prevAttrs: BoardVariantAttributes = current.variantAttributes || {}
       const nextAttrs = { ...prevAttrs, [field]: value }
-
       current.variantAttributes = nextAttrs
-
-      // Keep specifications string in sync
       const specParts = [
         nextAttrs.coreThickness || nextAttrs.profileType || nextAttrs.fastenerType || nextAttrs.nailType || nextAttrs.chemicalClass,
         nextAttrs.baseMaterial || nextAttrs.material || nextAttrs.lengthInches || nextAttrs.lengthSpec || nextAttrs.applicationMethod,
         nextAttrs.laminateTopSurface || nextAttrs.accentFinish || nextAttrs.gaugeSize || nextAttrs.thicknessSpec,
         nextAttrs.surfaceCodeFinish || nextAttrs.codeVariant || nextAttrs.materialFinish,
       ].filter(Boolean)
-
-      if (specParts.length > 0) {
-        current.specifications = specParts.join(' | ')
-      }
-
+      if (specParts.length > 0) current.specifications = specParts.join(' | ')
       rows[rowIndex] = current
       return { ...prev, [key]: rows }
     })
   }
 
-  const addRow = (key: string, quotationLineItemId?: string) => {
+  const addRow = (cardKey: string, sectionId: string, quotationLineItemId?: string) => {
+    const sectionInfo = (sectionsMap[cardKey] ?? []).find((s) => s.id === sectionId)
+    const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => ({
       ...prev,
-      [key]: [...(prev[key] ?? []), blankItem(quotationLineItemId)],
+      [key]: [...(prev[key] ?? []), blankItem(sectionInfo?.category ?? 'WALL_PANELING', sectionInfo?.wallPanelingSubType, quotationLineItemId)],
     }))
   }
 
-  const removeRow = (key: string, rowIndex: number) => {
-    setItemsMap((prev) => {
-      const rows = (prev[key] ?? []).filter((_, i) => i !== rowIndex)
-      const next = { ...prev }
-      if (rows.length === 0) {
-        delete next[key]
-      } else {
-        next[key] = rows
-      }
-      return next
-    })
+  const removeRow = (cardKey: string, sectionId: string, rowIndex: number) => {
+    const key = sectionItemKey(cardKey, sectionId)
+    setItemsMap((prev) => ({ ...prev, [key]: (prev[key] ?? []).filter((_, i) => i !== rowIndex) }))
   }
 
-  const loadPreset = (key: string, quotationLineItemId?: string) => {
-    const presetItems = SAMPLE_WALL_PANEL_ITEMS.map((item) => ({
+  const loadPresetForSection = (cardKey: string, sectionId: string, subType: WallPanelingSubType, quotationLineItemId?: string) => {
+    const presetMap: Record<WallPanelingSubType, RequisitionItemInput[]> = {
+      CORE_BOARDS: SAMPLE_WALL_PANEL_ITEMS,
+      LOUVERS_PROFILES: SAMPLE_LOUVER_PROFILE_ITEMS,
+      SCREWS_FASTENERS: SAMPLE_SCREW_FASTENER_ITEMS,
+      NAILS_PINS: SAMPLE_NAIL_PIN_ITEMS,
+      ADHESIVES: SAMPLE_ADHESIVE_CHEMICAL_ITEMS,
+    }
+    const presetItems = presetMap[subType].map((item) => ({
       ...item,
       quotationLineItemId,
+      variantAttributes: { ...(item.variantAttributes || {}), wpSubType: subType },
     }))
-    setItemsMap((prev) => ({
-      ...prev,
-      [key]: [...(prev[key] ?? []), ...presetItems],
-    }))
-  }
-
-  const loadLouverPreset = (key: string, quotationLineItemId?: string) => {
-    const presetItems = SAMPLE_LOUVER_PROFILE_ITEMS.map((item) => ({
-      ...item,
-      quotationLineItemId,
-    }))
-    setItemsMap((prev) => ({
-      ...prev,
-      [key]: [...(prev[key] ?? []), ...presetItems],
-    }))
-  }
-
-  const loadScrewPreset = (key: string, quotationLineItemId?: string) => {
-    const presetItems = SAMPLE_SCREW_FASTENER_ITEMS.map((item) => ({
-      ...item,
-      quotationLineItemId,
-    }))
-    setItemsMap((prev) => ({
-      ...prev,
-      [key]: [...(prev[key] ?? []), ...presetItems],
-    }))
-  }
-
-  const loadNailPreset = (key: string, quotationLineItemId?: string) => {
-    const presetItems = SAMPLE_NAIL_PIN_ITEMS.map((item) => ({
-      ...item,
-      quotationLineItemId,
-    }))
-    setItemsMap((prev) => ({
-      ...prev,
-      [key]: [...(prev[key] ?? []), ...presetItems],
-    }))
-  }
-
-  const loadAdhesivePreset = (key: string, quotationLineItemId?: string) => {
-    const presetItems = SAMPLE_ADHESIVE_CHEMICAL_ITEMS.map((item) => ({
-      ...item,
-      quotationLineItemId,
-    }))
-    setItemsMap((prev) => ({
-      ...prev,
-      [key]: [...(prev[key] ?? []), ...presetItems],
-    }))
+    const key = sectionItemKey(cardKey, sectionId)
+    setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
   }
 
   // ── Summary counts ──
   const totalMaterialRows = useMemo(() => flattenItems(itemsMap).length, [itemsMap])
   const coveredLineItems = useMemo(
-    () => lineItems.filter((li) => (itemsMap[li.id]?.length ?? 0) > 0).length,
-    [lineItems, itemsMap]
+    () => lineItems.filter((li) => (sectionsMap[li.id] ?? []).some((s) => (itemsMap[sectionItemKey(li.id, s.id)]?.length ?? 0) > 0)).length,
+    [lineItems, sectionsMap, itemsMap]
+  )
+  const extraRowCount = useMemo(
+    () => (sectionsMap[EXTRA_KEY] ?? []).reduce((sum, s) => sum + (itemsMap[sectionItemKey(EXTRA_KEY, s.id)]?.length ?? 0), 0),
+    [sectionsMap, itemsMap]
   )
 
   // ── Save / Submit ──
@@ -2374,7 +2687,7 @@ export function RequisitionBuilderClient({
 
   /* ── RENDER ── */
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto pb-24">
+    <div className="p-4 md:p-6 space-y-6 w-full pb-24">
       {/* ── Global Autocomplete Lists ── */}
       <BoardDatalists />
 
@@ -2389,7 +2702,7 @@ export function RequisitionBuilderClient({
           </Link>
           <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
             <Boxes className="w-6 h-6 text-primary" />
-            Material & Wall Paneling Requisition Builder
+            Material Requisition Builder
           </h1>
           <p className="text-xs text-muted-foreground">
             Project: <span className="font-semibold text-foreground">{lead.name}</span> | Phone:{' '}
@@ -2397,72 +2710,8 @@ export function RequisitionBuilderClient({
           </p>
         </div>
 
-        {/* Action Controls & View Switcher */}
+        {/* Action buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Table View Switcher */}
-          <div className="inline-flex flex-wrap items-center rounded-lg border bg-muted/30 p-1 text-xs">
-            <button
-              onClick={() => setViewMode('BOARD_SPEC')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-semibold transition-colors ${
-                viewMode === 'BOARD_SPEC'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <TableIcon className="w-3.5 h-3.5 text-primary" /> Core Boards
-            </button>
-            <button
-              onClick={() => setViewMode('LOUVER_SPEC')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-semibold transition-colors ${
-                viewMode === 'LOUVER_SPEC'
-                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Louvers
-            </button>
-            <button
-              onClick={() => setViewMode('SCREW_SPEC')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-semibold transition-colors ${
-                viewMode === 'SCREW_SPEC'
-                  ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Wrench className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> Screws
-            </button>
-            <button
-              onClick={() => setViewMode('NAIL_SPEC')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-semibold transition-colors ${
-                viewMode === 'NAIL_SPEC'
-                  ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Pin className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" /> Nails & Pins
-            </button>
-            <button
-              onClick={() => setViewMode('ADHESIVE_SPEC')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-semibold transition-colors ${
-                viewMode === 'ADHESIVE_SPEC'
-                  ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <FlaskConical className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Adhesives
-            </button>
-            <button
-              onClick={() => setViewMode('STANDARD')}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-semibold transition-colors ${
-                viewMode === 'STANDARD'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" /> Standard
-            </button>
-          </div>
-
           <button
             onClick={() => handleSave('DRAFT')}
             disabled={isPending}
@@ -2507,28 +2756,25 @@ export function RequisitionBuilderClient({
                 <strong className="text-foreground">৳{detailQuotation.grandTotal.toLocaleString('en-IN')}</strong>
               </span>
               <span>
-                Quotation Items Covered:{' '}
-                <strong className="text-foreground">
-                  {coveredLineItems}/{lineItems.length}
-                </strong>
+                Items Covered:{' '}
+                <strong className="text-foreground">{coveredLineItems}/{lineItems.length}</strong>
               </span>
               <span>
-                Total Material Rows:{' '}
+                Total Rows:{' '}
                 <strong className="text-foreground">{totalMaterialRows}</strong>
               </span>
             </div>
           </div>
           {lineItems.length > 0 && (
             <p className="text-xs text-muted-foreground mt-2">
-              Manage <strong>Core Boards</strong>, <strong>Louvers & Profiles</strong>, <strong>Screws & Fasteners</strong>, <strong>Nails & Pins</strong>, or <strong>Adhesives & Chemicals</strong>.
-              Use the mode buttons at the top right to switch table layouts.
+              Each quotation line item below can have multiple sections — add <strong>Wall Paneling</strong>, <strong>Ceiling</strong>, <strong>Cabinets</strong> and more independently per line item.
             </p>
           )}
         </div>
       ) : (
         <div className="rounded-xl border bg-amber-50/40 dark:bg-amber-950/20 p-4 border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2">
           <HelpCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-          No approved detail quotation found for this lead. You can still manage Wall Paneling & Board data using the Extra / Miscellaneous section below.
+          No approved detail quotation found for this lead. You can still add materials in the Extra / General section below.
         </div>
       )}
 
@@ -2544,9 +2790,7 @@ export function RequisitionBuilderClient({
                 {/* Section Header */}
                 <div className="flex items-center gap-2 border-b pb-2">
                   <Layers className="w-4 h-4 text-primary" />
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-                    {section.name}
-                  </h2>
+                  <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{section.name}</h2>
                   <span className="text-xs text-muted-foreground ml-auto">
                     {sectionItems.length} line item{sectionItems.length !== 1 ? 's' : ''}
                   </span>
@@ -2561,17 +2805,16 @@ export function RequisitionBuilderClient({
                         key={li.id}
                         item={li}
                         area={area}
-                        rows={getRows(li.id)}
-                        viewMode={viewMode}
-                        onChangeRow={(ri, field, val) => updateRow(li.id, ri, field, val)}
-                        onUpdateVariant={(ri, field, val) => updateVariant(li.id, ri, field, val)}
-                        onAddRow={() => addRow(li.id, li.id)}
-                        onRemoveRow={(ri) => removeRow(li.id, ri)}
-                        onLoadPreset={() => loadPreset(li.id, li.id)}
-                        onLoadLouverPreset={() => loadLouverPreset(li.id, li.id)}
-                        onLoadScrewPreset={() => loadScrewPreset(li.id, li.id)}
-                        onLoadNailPreset={() => loadNailPreset(li.id, li.id)}
-                        onLoadAdhesivePreset={() => loadAdhesivePreset(li.id, li.id)}
+                        sections={getSectionsForCard(li.id)}
+                        getRowsForSection={(sectionId) => getRowsForSection(li.id, sectionId)}
+                        onChangeRow={(sectionId, ri, field, val) => updateRow(li.id, sectionId, ri, field, val)}
+                        onUpdateVariant={(sectionId, ri, field, val) => updateVariant(li.id, sectionId, ri, field, val)}
+                        onAddRow={(sectionId) => addRow(li.id, sectionId, li.id)}
+                        onRemoveRow={(sectionId, ri) => removeRow(li.id, sectionId, ri)}
+                        onLoadPreset={(sectionId, subType) => loadPresetForSection(li.id, sectionId, subType, li.id)}
+                        onAddSection={(cat, sub) => addSection(li.id, cat, sub, li.id)}
+                        onRemoveSection={(sectionId) => removeSection(li.id, sectionId)}
+                        onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(li.id, sectionId)}
                       />
                     )
                   })}
@@ -2587,76 +2830,20 @@ export function RequisitionBuilderClient({
         </div>
       ) : null}
 
-      {/* ── Extra / Miscellaneous & Wall Paneling Section ── */}
+      {/* ── Extra / General Section ── */}
       <div className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-500" />
-            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-              Wall Paneling, Hardware & Adhesives (Extra / General)
-            </h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <button
-              onClick={() => loadPreset(EXTRA_KEY)}
-              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors"
-            >
-              <Download className="w-3 h-3 text-amber-600" />
-              Boards
-            </button>
-            <button
-              onClick={() => loadLouverPreset(EXTRA_KEY)}
-              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 hover:bg-indigo-100 rounded-md transition-colors"
-            >
-              <Sparkles className="w-3 h-3 text-indigo-600" />
-              Louvers
-            </button>
-            <button
-              onClick={() => loadScrewPreset(EXTRA_KEY)}
-              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-amber-100/70 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 hover:bg-amber-200/80 rounded-md transition-colors"
-            >
-              <Wrench className="w-3 h-3 text-amber-700" />
-              Screws
-            </button>
-            <button
-              onClick={() => loadNailPreset(EXTRA_KEY)}
-              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-rose-100/70 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 hover:bg-rose-200/80 rounded-md transition-colors"
-            >
-              <Pin className="w-3 h-3 text-rose-700" />
-              Nails
-            </button>
-            <button
-              onClick={() => loadAdhesivePreset(EXTRA_KEY)}
-              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-emerald-100/70 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 hover:bg-emerald-200/80 rounded-md transition-colors"
-            >
-              <FlaskConical className="w-3 h-3 text-emerald-700" />
-              Adhesives
-            </button>
-          </div>
-        </div>
-
-        <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
-          <div className="px-4 py-3 bg-amber-50/40 dark:bg-amber-950/20 border-b border-amber-100 dark:border-amber-900 flex flex-col md:flex-row md:items-center justify-between gap-2">
-            <p className="text-xs text-muted-foreground">
-              Manage Core Boards, Louvers, Fluted Panels, Metallic Inlays, Edge Banding, Screws, Nails/Pins, and Adhesives/Solvents. Use the view toggle at top right to switch table structures.
-            </p>
-          </div>
-          <div className="p-3">
-            <MaterialRowsTable
-              rows={getRows(EXTRA_KEY)}
-              viewMode={viewMode}
-              onChange={(ri, field, val) => updateRow(EXTRA_KEY, ri, field, val)}
-              onUpdateVariant={(ri, field, val) => updateVariant(EXTRA_KEY, ri, field, val)}
-              onAddRow={() => addRow(EXTRA_KEY, undefined)}
-              onRemoveRow={(ri) => removeRow(EXTRA_KEY, ri)}
-              onLoadPreset={() => loadPreset(EXTRA_KEY)}
-              onLoadLouverPreset={() => loadLouverPreset(EXTRA_KEY)}
-              onLoadScrewPreset={() => loadScrewPreset(EXTRA_KEY)}
-              onLoadNailPreset={() => loadNailPreset(EXTRA_KEY)}
-              onLoadAdhesivePreset={() => loadAdhesivePreset(EXTRA_KEY)}
-            />
-          </div>
-        </div>
+        <ExtraCard
+          sections={getSectionsForCard(EXTRA_KEY)}
+          getRowsForSection={(sectionId) => getRowsForSection(EXTRA_KEY, sectionId)}
+          onChangeRow={(sectionId, ri, field, val) => updateRow(EXTRA_KEY, sectionId, ri, field, val)}
+          onUpdateVariant={(sectionId, ri, field, val) => updateVariant(EXTRA_KEY, sectionId, ri, field, val)}
+          onAddRow={(sectionId) => addRow(EXTRA_KEY, sectionId, undefined)}
+          onRemoveRow={(sectionId, ri) => removeRow(EXTRA_KEY, sectionId, ri)}
+          onLoadPreset={(sectionId, subType) => loadPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
+          onAddSection={(cat, sub) => addSection(EXTRA_KEY, cat, sub, undefined)}
+          onRemoveSection={(sectionId) => removeSection(EXTRA_KEY, sectionId)}
+          onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(EXTRA_KEY, sectionId)}
+        />
       </div>
 
       {/* ── Requisition Notes ── */}
@@ -2681,8 +2868,8 @@ export function RequisitionBuilderClient({
             {totalMaterialRows !== 1 ? 's' : ''} across{' '}
             <strong className="text-foreground">{coveredLineItems}</strong> quotation item
             {coveredLineItems !== 1 ? 's' : ''}
-            {getRows(EXTRA_KEY).length > 0 && (
-              <> + <strong className="text-foreground">{getRows(EXTRA_KEY).length}</strong> general material row{getRows(EXTRA_KEY).length !== 1 ? 's' : ''}</>
+            {extraRowCount > 0 && (
+              <> + <strong className="text-foreground">{extraRowCount}</strong> general row{extraRowCount !== 1 ? 's' : ''}</>
             )}
           </p>
           <div className="flex items-center gap-2">
@@ -2708,3 +2895,4 @@ export function RequisitionBuilderClient({
     </div>
   )
 }
+
