@@ -1098,15 +1098,15 @@ const CABINET_SUBTYPES: { key: CabinetSubType; label: string; viewMode: ViewMode
   { key: 'HPL_PASTING',     label: '🪵 HPL Pasting Details',       viewMode: 'CABINET_HPL_SPEC' },
 ]
 
-const CATEGORY_COLORS: Record<RequisitionWorkCategory, { bg: string; text: string; border: string; pill: string }> = {
-  WALL_PANELING:    { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-primary/10 text-primary border-primary/20' },
-  CEILING:          { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/20' },
-  CABINETS_CLOSETS: { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20' },
-  FURNITURE:        { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20' },
-  ACCESSORIES:      { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-pink-500/10 text-pink-700 dark:text-pink-300 border-pink-500/20' },
-  ELECTRICAL_WORK:  { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-300 border-yellow-500/20' },
-  PAINT:            { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/20' },
-  APPLIANCES:       { bg: 'bg-muted/30', text: 'text-foreground', border: 'border-border/80', pill: 'bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20' },
+const CATEGORY_COLORS: Record<RequisitionWorkCategory, { bg: string; text: string; border: string; pill: string; leftBorder: string }> = {
+  WALL_PANELING:    { bg: 'bg-blue-50/70 dark:bg-blue-950/20', text: 'text-blue-950 dark:text-blue-200', border: 'border-blue-200/80 dark:border-blue-900/60', pill: 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200 border-blue-300 dark:border-blue-700', leftBorder: 'border-l-4 border-l-blue-500' },
+  CEILING:          { bg: 'bg-purple-50/70 dark:bg-purple-950/20', text: 'text-purple-950 dark:text-purple-200', border: 'border-purple-200/80 dark:border-purple-900/60', pill: 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-200 border-purple-300 dark:border-purple-700', leftBorder: 'border-l-4 border-l-purple-500' },
+  CABINETS_CLOSETS: { bg: 'bg-amber-50/70 dark:bg-amber-950/20', text: 'text-amber-950 dark:text-amber-200', border: 'border-amber-200/80 dark:border-amber-900/60', pill: 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200 border-amber-300 dark:border-amber-700', leftBorder: 'border-l-4 border-l-amber-500' },
+  FURNITURE:        { bg: 'bg-emerald-50/70 dark:bg-emerald-950/20', text: 'text-emerald-950 dark:text-emerald-200', border: 'border-emerald-200/80 dark:border-emerald-900/60', pill: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700', leftBorder: 'border-l-4 border-l-emerald-500' },
+  ACCESSORIES:      { bg: 'bg-pink-50/70 dark:bg-pink-950/20', text: 'text-pink-950 dark:text-pink-200', border: 'border-pink-200/80 dark:border-pink-900/60', pill: 'bg-pink-100 text-pink-800 dark:bg-pink-900/60 dark:text-pink-200 border-pink-300 dark:border-pink-700', leftBorder: 'border-l-4 border-l-pink-500' },
+  ELECTRICAL_WORK:  { bg: 'bg-yellow-50/70 dark:bg-yellow-950/20', text: 'text-yellow-950 dark:text-yellow-200', border: 'border-yellow-200/80 dark:border-yellow-900/60', pill: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/60 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700', leftBorder: 'border-l-4 border-l-yellow-500' },
+  PAINT:            { bg: 'bg-indigo-50/70 dark:bg-indigo-950/20', text: 'text-indigo-950 dark:text-indigo-200', border: 'border-indigo-200/80 dark:border-indigo-900/60', pill: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200 border-indigo-300 dark:border-indigo-700', leftBorder: 'border-l-4 border-l-indigo-500' },
+  APPLIANCES:       { bg: 'bg-teal-50/70 dark:bg-teal-950/20', text: 'text-teal-950 dark:text-teal-200', border: 'border-teal-200/80 dark:border-teal-900/60', pill: 'bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 border-teal-300 dark:border-teal-700', leftBorder: 'border-l-4 border-l-teal-500' },
 }
 
 function getViewModeForSection(section: CardSection): ViewModeType {
@@ -1334,7 +1334,7 @@ const GRID_CELL_BOLD = "w-full bg-transparent border-0 rounded-none px-2.5 py-1.
 const GRID_CELL_MONO = "w-full bg-transparent border-0 rounded-none px-2.5 py-1.5 text-xs font-mono font-medium text-foreground/90 placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-primary/5 transition-colors"
 const GRID_CELL_NUM = "w-full bg-transparent border-0 rounded-none px-2 py-1.5 text-xs text-center font-bold text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-primary/5 transition-colors"
 const GRID_CELL_SELECT = "w-full bg-transparent border-0 rounded-none px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:bg-primary/5 transition-colors cursor-pointer"
-const GRID_TH = "px-2.5 py-2 select-none whitespace-nowrap text-[11px] font-semibold text-muted-foreground uppercase tracking-wider text-left"
+const GRID_TH = "px-2.5 py-2 select-none whitespace-nowrap text-[11px] font-bold uppercase tracking-wider text-left text-inherit"
 const GRID_TD = "p-0 align-middle"
 
 /* ─────────────────────────────────────────────
@@ -1731,7 +1731,7 @@ function MaterialRowsTable({
         /* ── 1. Core Structural Boards & Plywood Table (10 Cols) ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
-            <thead className="bg-muted/60 border-b border-border">
+            <thead className="bg-amber-500/10 border-b border-amber-500/20 text-amber-900 dark:text-amber-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-28`}>Item ID</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
@@ -1902,7 +1902,7 @@ function MaterialRowsTable({
         /* ── 2. Decorative Panels, Louvers & Edge Profiles Table (10 Cols) ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
-            <thead className="bg-muted/60 border-b border-border">
+            <thead className="bg-indigo-500/10 border-b border-indigo-500/20 text-indigo-900 dark:text-indigo-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-28`}>Item ID</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
@@ -2072,7 +2072,7 @@ function MaterialRowsTable({
         /* ── 3. Screws & Structural Fasteners Table (10 Cols) ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
-            <thead className="bg-muted/60 border-b border-border">
+            <thead className="bg-amber-600/10 border-b border-amber-600/20 text-amber-950 dark:text-amber-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-28`}>Item ID</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
@@ -2242,7 +2242,7 @@ function MaterialRowsTable({
         /* ── 4. Nails, Pins & Masonry Anchors Table (10 Cols) ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
-            <thead className="bg-muted/60 border-b border-border">
+            <thead className="bg-rose-500/10 border-b border-rose-500/20 text-rose-900 dark:text-rose-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-28`}>Item ID</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
@@ -2397,7 +2397,7 @@ function MaterialRowsTable({
         /* ── 5. Adhesives & Chemical Solvents Table (10 Cols) ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
-            <thead className="bg-muted/60 border-b border-border">
+            <thead className="bg-emerald-500/10 border-b border-emerald-500/20 text-emerald-900 dark:text-emerald-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-28`}>Item ID</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Chemical Name</th>
@@ -2528,7 +2528,7 @@ function MaterialRowsTable({
         /* ── 6. Closet / Cabinet Core Board Specification Table ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[920px] border-collapse divide-y divide-border/60">
-            <thead className="bg-muted/60 border-b border-border">
+            <thead className="bg-amber-500/10 border-b border-amber-500/20 text-amber-900 dark:text-amber-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-20`}>Sr. No</th>
                 <th className={`${GRID_TH} min-w-[150px]`}>Base Material / Core</th>
@@ -2658,7 +2658,7 @@ function MaterialRowsTable({
         /* ── 7. Closet / Cabinet HPL Pasting Details Table ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[950px] border-collapse divide-y divide-border/60">
-            <thead className="bg-muted/60 border-b border-border">
+            <thead className="bg-cyan-500/10 border-b border-cyan-500/20 text-cyan-900 dark:text-cyan-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-24`}>Line No</th>
                 <th className={`${GRID_TH} w-28`}>Core Thickness</th>
@@ -2789,7 +2789,7 @@ function MaterialRowsTable({
         /* ── 8. Standard 8-Column Material Table ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[800px] border-collapse divide-y divide-border/60">
-            <thead className="bg-muted/60 border-b border-border">
+            <thead className="bg-blue-500/10 border-b border-blue-500/20 text-blue-900 dark:text-blue-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-36`}>Category</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Material Name</th>
@@ -3027,7 +3027,7 @@ function SectionBlock({
   return (
     <div className="border-t first:border-t-0">
       {/* Section header */}
-      <div className={`flex items-center gap-2.5 px-4 py-2.5 ${colors.bg} border-b ${colors.border}`}>
+      <div className={`flex items-center gap-2.5 px-4 py-2.5 ${colors.bg} border-b ${colors.border} ${colors.leftBorder}`}>
         <button
           onClick={onToggleCollapse}
           className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
@@ -3036,7 +3036,7 @@ function SectionBlock({
           {section.collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
 
-        <span className="text-xs font-bold uppercase tracking-wider text-foreground">{catLabel}</span>
+        <span className={`text-xs font-bold uppercase tracking-wider ${colors.text}`}>{catLabel}</span>
 
         {subTypeInfo && (
           <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium border ${colors.pill}`}>
@@ -3200,7 +3200,7 @@ function QuotationLineItemCard({
           <div className="flex-1 min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               {area && (
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300 bg-blue-500/10 px-2.5 py-0.5 rounded-md border border-blue-500/25">
                   {area.name}
                 </span>
               )}
@@ -3214,11 +3214,16 @@ function QuotationLineItemCard({
         <div className="flex-shrink-0 text-right space-y-1 pl-3 border-l border-border/50">
           <div className="flex items-center justify-end gap-2">
             <span className="text-xs text-muted-foreground">{item.quantity} {item.unit}</span>
-            <span className="text-xs font-bold text-foreground bg-muted/60 px-2 py-0.5 rounded border border-border/40">
+            <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/25">
               ৳{item.amount.toLocaleString('en-IN')}
             </span>
           </div>
-          <p className="text-[11px] font-medium text-muted-foreground">
+          <p className="text-[11px] font-medium text-muted-foreground flex items-center justify-end gap-1.5">
+            {totalRows > 0 ? (
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            ) : (
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
+            )}
             {sections.length} {sections.length === 1 ? 'section' : 'sections'} · {totalRows} {totalRows === 1 ? 'row' : 'rows'}
           </p>
         </div>
@@ -3649,50 +3654,54 @@ export function RequisitionBuilderClient({
       {detailQuotation ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
           {/* KPI 1: Approved Quotation Total */}
-          <div className="rounded-xl border border-border/80 bg-card p-4 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-semibold uppercase tracking-wider">Approved Quotation</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+          <div className="rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-card p-4 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-950 dark:text-emerald-200">Approved Quotation</span>
+              </div>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30">
                 {detailQuotation.status}
               </span>
             </div>
             <div className="mt-3">
-              <div className="text-2xl font-bold tracking-tight text-foreground">
+              <div className="text-2xl font-bold tracking-tight text-emerald-950 dark:text-emerald-100">
                 ৳{detailQuotation.grandTotal.toLocaleString('en-IN')}
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 mt-0.5 font-medium">
                 Total approved client project contract value
               </p>
             </div>
           </div>
 
           {/* KPI 2: Requisition Coverage Progress */}
-          <div className="rounded-xl border border-border/80 bg-card p-4 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-semibold uppercase tracking-wider">Line Item Coverage</span>
-              <span className="text-xs font-bold text-foreground">
+          <div className="rounded-xl border border-blue-500/25 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-card p-4 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center">
+                  <Layers className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-blue-950 dark:text-blue-200">Line Item Coverage</span>
+              </div>
+              <span className="text-xs font-bold text-blue-800 dark:text-blue-200 bg-blue-500/15 px-2.5 py-0.5 rounded-full border border-blue-500/30">
                 {coveragePct}%
               </span>
             </div>
             <div className="mt-3 space-y-2">
               <div className="flex items-baseline justify-between">
-                <span className="text-2xl font-bold tracking-tight text-foreground">
+                <span className="text-2xl font-bold tracking-tight text-blue-950 dark:text-blue-100">
                   {coveredLineItems} <span className="text-sm font-normal text-muted-foreground">/ {lineItems.length} items</span>
                 </span>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-[11px] text-blue-700/80 dark:text-blue-300/80 font-medium">
                   {lineItems.length - coveredLineItems} remaining
                 </span>
               </div>
-              {/* Progress bar */}
-              <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+              {/* Vibrant multi-stop progress bar */}
+              <div className="w-full bg-blue-100 dark:bg-blue-950/50 rounded-full h-2 overflow-hidden border border-blue-200/50 dark:border-blue-800/40">
                 <div
-                  className={`h-full transition-all duration-500 ${
-                    coveragePct === 100
-                      ? 'bg-emerald-500'
-                      : coveragePct > 50
-                      ? 'bg-primary'
-                      : 'bg-amber-500'
-                  }`}
+                  className="h-full transition-all duration-500 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500 rounded-full"
                   style={{ width: `${coveragePct}%` }}
                 />
               </div>
@@ -3700,18 +3709,23 @@ export function RequisitionBuilderClient({
           </div>
 
           {/* KPI 3: Active Material Rows */}
-          <div className="rounded-xl border border-border/80 bg-card p-4 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-semibold uppercase tracking-wider">Material Specs</span>
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/20">
+          <div className="rounded-xl border border-purple-500/25 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-card p-4 shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-md bg-purple-500/20 text-purple-700 dark:text-purple-300 flex items-center justify-center">
+                  <Package className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-950 dark:text-purple-200">Material Specs</span>
+              </div>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-800 dark:text-purple-200 border border-purple-500/30">
                 Live Requisition
               </span>
             </div>
             <div className="mt-3">
-              <div className="text-2xl font-bold tracking-tight text-foreground">
+              <div className="text-2xl font-bold tracking-tight text-purple-950 dark:text-purple-100">
                 {totalMaterialRows} <span className="text-sm font-normal text-muted-foreground">total rows</span>
               </div>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-[11px] text-purple-700/80 dark:text-purple-300/80 mt-0.5 font-medium">
                 {totalMaterialRows - extraRowCount} linked to BOQ · {extraRowCount} general site materials
               </p>
             </div>
