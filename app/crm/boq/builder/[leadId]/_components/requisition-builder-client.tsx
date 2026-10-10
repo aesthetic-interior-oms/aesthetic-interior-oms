@@ -115,6 +115,18 @@ export interface BoardVariantAttributes {
   frontLaminateCode?: string
   backLaminateCode?: string
   cabinetSubType?: string
+
+  // ── Accessories & Hardware attributes ──
+  accessoryCategory?: string
+  itemCode?: string
+  dimensions?: string
+  unitPrice?: string
+  totalAmount?: string
+  serviceCategory?: string
+  quantityUnit?: string
+  rateType?: string
+  estimatedTotal?: string
+  accessoriesSubType?: string
 }
 
 /** 1. Core Structural Boards & Plywood Catalog Preset (BRD-001 - BRD-008) */
@@ -1029,6 +1041,204 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
   },
 ]
 
+/** 8. Kitchen & Closet Hardware Accessories Catalog Preset (SL 01 - 07) */
+const SAMPLE_ACCESSORY_HARDWARE_ITEMS: RequisitionItemInput[] = [
+  {
+    workCategory: 'ACCESSORIES',
+    materialName: 'Elevator Basket',
+    specifications: 'Kitchen | Code: KIW-23 | D13" × W30" × H25" | ৳31,000/pc',
+    variantAttributes: {
+      srNo: '01',
+      accessoryCategory: 'Kitchen',
+      itemCode: 'KIW-23',
+      dimensions: 'D13" × W30" × H25"',
+      unitPrice: '৳31,000',
+      totalAmount: '৳31,000',
+      accessoriesSubType: 'HARDWARE_ACCESSORIES',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Pcs',
+    productionPhase: 'Kitchen',
+  },
+  {
+    workCategory: 'ACCESSORIES',
+    materialName: 'Cutlery Tray',
+    specifications: 'Kitchen | Code: KIW-23 | D19" × W29" × H4" | ৳3,100/pc',
+    variantAttributes: {
+      srNo: '02',
+      accessoryCategory: 'Kitchen',
+      itemCode: 'KIW-23',
+      dimensions: 'D19" × W29" × H4"',
+      unitPrice: '৳3,100',
+      totalAmount: '৳3,100',
+      accessoriesSubType: 'HARDWARE_ACCESSORIES',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Pcs',
+    productionPhase: 'Kitchen',
+  },
+  {
+    workCategory: 'ACCESSORIES',
+    materialName: 'Plate Organizer',
+    specifications: 'Kitchen | Code: KIW-12.1 | D18" × W30" × H15" | ৳13,500/pc',
+    variantAttributes: {
+      srNo: '03',
+      accessoryCategory: 'Kitchen',
+      itemCode: 'KIW-12.1',
+      dimensions: 'D18" × W30" × H15"',
+      unitPrice: '৳13,500',
+      totalAmount: '৳13,500',
+      accessoriesSubType: 'HARDWARE_ACCESSORIES',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Pcs',
+    productionPhase: 'Kitchen',
+  },
+  {
+    workCategory: 'ACCESSORIES',
+    materialName: 'Pantry Unit',
+    specifications: 'Kitchen | Code: KIW-33 | D20" × W22" × H72" | ৳31,500/pc',
+    variantAttributes: {
+      srNo: '04',
+      accessoryCategory: 'Kitchen',
+      itemCode: 'KIW-33',
+      dimensions: 'D20" × W22" × H72"',
+      unitPrice: '৳31,500',
+      totalAmount: '৳31,500',
+      accessoriesSubType: 'HARDWARE_ACCESSORIES',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Pcs',
+    productionPhase: 'Kitchen',
+  },
+  {
+    workCategory: 'ACCESSORIES',
+    materialName: 'Pull Out Hanger',
+    specifications: 'Closet | Code: GLFA943B / GLFA943S | W764mm × H60mm | ৳8,500/pc',
+    variantAttributes: {
+      srNo: '05',
+      accessoryCategory: 'Closet',
+      itemCode: 'GLFA943B / GLFA943S',
+      dimensions: 'W764mm × H60mm',
+      unitPrice: '৳8,500',
+      totalAmount: '৳17,000',
+      accessoriesSubType: 'HARDWARE_ACCESSORIES',
+    },
+    netQuantity: 2,
+    wastagePercent: 0,
+    finalQuantity: 2,
+    unit: 'Pcs',
+    productionPhase: 'Closet',
+  },
+  {
+    workCategory: 'ACCESSORIES',
+    materialName: 'Trousers / Saree Hanger',
+    specifications: 'Closet | Code: GLFJ113M / GLFJ113G | W764mm × H60mm | ৳14,500/pc',
+    variantAttributes: {
+      srNo: '06',
+      accessoryCategory: 'Closet',
+      itemCode: 'GLFJ113M / GLFJ113G',
+      dimensions: 'W764mm × H60mm',
+      unitPrice: '৳14,500',
+      totalAmount: '৳14,500',
+      accessoriesSubType: 'HARDWARE_ACCESSORIES',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Pcs',
+    productionPhase: 'Closet',
+  },
+  {
+    workCategory: 'ACCESSORIES',
+    materialName: 'Jewelry Tray Organizer',
+    specifications: 'Closet | Code: R9001G-800 | D300mm × W764mm × H60mm | ৳12,000/pc',
+    variantAttributes: {
+      srNo: '07',
+      accessoryCategory: 'Closet',
+      itemCode: 'R9001G-800',
+      dimensions: 'D300mm × W764mm × H60mm',
+      unitPrice: '৳12,000',
+      totalAmount: '৳24,000',
+      accessoriesSubType: 'HARDWARE_ACCESSORIES',
+    },
+    netQuantity: 2,
+    wastagePercent: 0,
+    finalQuantity: 2,
+    unit: 'Pcs',
+    productionPhase: 'Closet',
+  },
+]
+
+/** 9. Additional Deliverables & Services Catalog Preset (SL 08 - 10) */
+const SAMPLE_ACCESSORY_SERVICES_ITEMS: RequisitionItemInput[] = [
+  {
+    workCategory: 'ACCESSORIES',
+    materialName: 'Fitting & Hardware',
+    specifications: 'Heavy-duty Soft-close Slides, Hinges & Fasteners | 1 Lot | Lumpsum | ৳6,500',
+    variantAttributes: {
+      srNo: '08',
+      serviceCategory: 'Fitting & Hardware',
+      quantityUnit: '1 Lot',
+      rateType: 'Lumpsum',
+      estimatedTotal: '৳6,500',
+      accessoriesSubType: 'SERVICES_DELIVERABLES',
+    },
+    remarks: 'Heavy-duty Soft-close Slides, Hinges & Fasteners',
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Lot',
+    productionPhase: 'Fitting & Hardware',
+  },
+  {
+    workCategory: 'ACCESSORIES',
+    materialName: 'Installation Labor',
+    specifications: 'On-site fitting & alignment for Kitchen/Closet units | 1 Project | Lumpsum | ৳8,500',
+    variantAttributes: {
+      srNo: '09',
+      serviceCategory: 'Installation Labor',
+      quantityUnit: '1 Project',
+      rateType: 'Lumpsum',
+      estimatedTotal: '৳8,500',
+      accessoriesSubType: 'SERVICES_DELIVERABLES',
+    },
+    remarks: 'On-site fitting & alignment for Kitchen/Closet units',
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Project',
+    productionPhase: 'Installation Labor',
+  },
+  {
+    workCategory: 'ACCESSORIES',
+    materialName: 'Transport & Handling',
+    specifications: 'Delivery & careful handling (Mirpur-10 to Keraniganj) | 1 Trip | Lumpsum | ৳4,000',
+    variantAttributes: {
+      srNo: '10',
+      serviceCategory: 'Transport & Handling',
+      quantityUnit: '1 Trip',
+      rateType: 'Lumpsum',
+      estimatedTotal: '৳4,000',
+      accessoriesSubType: 'SERVICES_DELIVERABLES',
+    },
+    remarks: 'Delivery & careful handling (Mirpur-10 to Keraniganj)',
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Trip',
+    productionPhase: 'Transport & Handling',
+  },
+]
+
 /* ─────────────────────────────────────────────
    Types
 ───────────────────────────────────────────── */
@@ -1062,12 +1272,14 @@ interface Props {
 // ── Section-based architecture ──
 export type WallPanelingSubType = 'CORE_BOARDS' | 'LOUVERS_PROFILES' | 'SCREWS_FASTENERS' | 'NAILS_PINS' | 'ADHESIVES'
 export type CabinetSubType = 'CORE_BOARD_SPEC' | 'HPL_PASTING'
+export type AccessoriesSubType = 'HARDWARE_ACCESSORIES' | 'SERVICES_DELIVERABLES'
 
 interface CardSection {
   id: string
   category: RequisitionWorkCategory
   wallPanelingSubType?: WallPanelingSubType
   cabinetSubType?: CabinetSubType
+  accessoriesSubType?: AccessoriesSubType
   collapsed: boolean
 }
 
@@ -1083,6 +1295,8 @@ type ViewModeType =
   | 'ADHESIVE_SPEC'
   | 'CABINET_CORE_SPEC'
   | 'CABINET_HPL_SPEC'
+  | 'HARDWARE_ACCESSORY_SPEC'
+  | 'SERVICES_DELIVERABLE_SPEC'
   | 'STANDARD'
 
 const WALL_PANELING_SUBTYPES: { key: WallPanelingSubType; label: string; viewMode: ViewModeType }[] = [
@@ -1096,6 +1310,11 @@ const WALL_PANELING_SUBTYPES: { key: WallPanelingSubType; label: string; viewMod
 const CABINET_SUBTYPES: { key: CabinetSubType; label: string; viewMode: ViewModeType }[] = [
   { key: 'CORE_BOARD_SPEC', label: '📋 Core Board Specification', viewMode: 'CABINET_CORE_SPEC' },
   { key: 'HPL_PASTING',     label: '🪵 HPL Pasting Details',       viewMode: 'CABINET_HPL_SPEC' },
+]
+
+const ACCESSORIES_SUBTYPES: { key: AccessoriesSubType; label: string; viewMode: ViewModeType }[] = [
+  { key: 'HARDWARE_ACCESSORIES',  label: '🍳 Kitchen & Closet Hardware Accessories', viewMode: 'HARDWARE_ACCESSORY_SPEC' },
+  { key: 'SERVICES_DELIVERABLES', label: '🚚 Additional Deliverables & Services',    viewMode: 'SERVICES_DELIVERABLE_SPEC' },
 ]
 
 const CATEGORY_COLORS: Record<RequisitionWorkCategory, { bg: string; text: string; border: string; pill: string; leftBorder: string }> = {
@@ -1127,6 +1346,13 @@ function getViewModeForSection(section: CardSection): ViewModeType {
       default:                return 'CABINET_CORE_SPEC'
     }
   }
+  if (section.category === 'ACCESSORIES') {
+    switch (section.accessoriesSubType) {
+      case 'HARDWARE_ACCESSORIES':  return 'HARDWARE_ACCESSORY_SPEC'
+      case 'SERVICES_DELIVERABLES': return 'SERVICES_DELIVERABLE_SPEC'
+      default:                      return 'HARDWARE_ACCESSORY_SPEC'
+    }
+  }
   return 'STANDARD'
 }
 
@@ -1141,6 +1367,7 @@ function blankItem(
   category: RequisitionWorkCategory = 'WALL_PANELING',
   wallPanelingSubType?: WallPanelingSubType,
   cabinetSubType?: CabinetSubType,
+  accessoriesSubType?: AccessoriesSubType,
   quotationLineItemId?: string,
 ): RequisitionItemInput {
   const base: RequisitionItemInput = {
@@ -1155,6 +1382,41 @@ function blankItem(
     productionPhase: '',
     remarks: '',
     variantAttributes: {},
+  }
+
+  if (category === 'ACCESSORIES') {
+    if (accessoriesSubType === 'SERVICES_DELIVERABLES') {
+      return {
+        ...base,
+        materialName: 'Fitting & Hardware',
+        unit: 'Lot',
+        productionPhase: 'Fitting & Hardware',
+        variantAttributes: {
+          srNo: '08',
+          serviceCategory: 'Fitting & Hardware',
+          quantityUnit: '1 Lot',
+          rateType: 'Lumpsum',
+          estimatedTotal: '৳6,500',
+          accessoriesSubType: 'SERVICES_DELIVERABLES',
+        },
+      }
+    }
+    // Default HARDWARE_ACCESSORIES
+    return {
+      ...base,
+      materialName: 'Elevator Basket',
+      unit: 'Pcs',
+      productionPhase: 'Kitchen',
+      variantAttributes: {
+        srNo: '01',
+        accessoryCategory: 'Kitchen',
+        itemCode: 'KIW-23',
+        dimensions: 'D13" × W30" × H25"',
+        unitPrice: '৳31,000',
+        totalAmount: '৳31,000',
+        accessoriesSubType: 'HARDWARE_ACCESSORIES',
+      },
+    }
   }
 
   if (category === 'CABINETS_CLOSETS') {
@@ -1237,9 +1499,10 @@ function seedFromExisting(rawItems: any[]): { sectionsMap: SectionsMap; itemsMap
     const category: RequisitionWorkCategory = it.workCategory || 'WALL_PANELING'
     const wpSubType = attrs.wpSubType as WallPanelingSubType | undefined
     const cabSubType = attrs.cabinetSubType as CabinetSubType | undefined
+    const accSubType = attrs.accessoriesSubType as AccessoriesSubType | undefined
 
-    // Find or create a section for this (cardKey, category, wpSubType, cabSubType) combo
-    const regKey = `${cardKey}::${category}::${wpSubType ?? ''}::${cabSubType ?? ''}`
+    // Find or create a section for this (cardKey, category, wpSubType, cabSubType, accSubType) combo
+    const regKey = `${cardKey}::${category}::${wpSubType ?? ''}::${cabSubType ?? ''}::${accSubType ?? ''}`
     let sectionId = sectionRegistry[regKey]
     if (!sectionId) {
       sectionId = `section-${Object.keys(sectionRegistry).length}`
@@ -1250,6 +1513,7 @@ function seedFromExisting(rawItems: any[]): { sectionsMap: SectionsMap; itemsMap
         category,
         wallPanelingSubType: wpSubType,
         cabinetSubType: cabSubType,
+        accessoriesSubType: accSubType,
         collapsed: false,
       })
     }
@@ -1298,12 +1562,22 @@ function seedFromExisting(rawItems: any[]): { sectionsMap: SectionsMap; itemsMap
         frontLaminateCode: attrs.frontLaminateCode || '',
         backLaminateCode: attrs.backLaminateCode || '',
         cabinetSubType: attrs.cabinetSubType || '',
+        accessoryCategory: attrs.accessoryCategory || '',
+        itemCode: attrs.itemCode || '',
+        dimensions: attrs.dimensions || '',
+        unitPrice: attrs.unitPrice || '',
+        totalAmount: attrs.totalAmount || '',
+        serviceCategory: attrs.serviceCategory || '',
+        quantityUnit: attrs.quantityUnit || '',
+        rateType: attrs.rateType || '',
+        estimatedTotal: attrs.estimatedTotal || '',
+        accessoriesSubType: attrs.accessoriesSubType || '',
       },
       netQuantity: Number(it.netQuantity) || 1,
       wastagePercent: Number(it.wastagePercent) || 0,
       finalQuantity: Number(it.finalQuantity) || Number(it.netQuantity) || 1,
       unit: it.unit || 'Pcs',
-      productionPhase: it.productionPhase || attrs.functionalUsage || attrs.primaryUsage || attrs.usagePurpose || attrs.applicationMethod || attrs.sideSpecification || '',
+      productionPhase: it.productionPhase || attrs.functionalUsage || attrs.primaryUsage || attrs.usagePurpose || attrs.applicationMethod || attrs.sideSpecification || attrs.accessoryCategory || attrs.serviceCategory || '',
       remarks: it.remarks || '',
     })
   }
@@ -1623,6 +1897,21 @@ function BoardDatalists() {
         <option value="Super 111 (Both Side)" />
         <option value="Single Side Liner" />
       </datalist>
+
+      {/* ── Accessories & Hardware Datalists ── */}
+      <datalist id="accessory-category-list">
+        <option value="Kitchen" />
+        <option value="Closet" />
+        <option value="Cabinet" />
+        <option value="Hardware" />
+      </datalist>
+
+      <datalist id="accessory-service-category-list">
+        <option value="Fitting & Hardware" />
+        <option value="Installation Labor" />
+        <option value="Transport & Handling" />
+        <option value="Cleaning & Alignment" />
+      </datalist>
     </>
   )
 }
@@ -1644,6 +1933,8 @@ function MaterialRowsTable({
   onLoadAdhesivePreset,
   onLoadCabinetCorePreset,
   onLoadCabinetHplPreset,
+  onLoadAccessoryHardwarePreset,
+  onLoadAccessoryServicesPreset,
 }: {
   rows: RequisitionItemInput[]
   viewMode: ViewModeType
@@ -1658,6 +1949,8 @@ function MaterialRowsTable({
   onLoadAdhesivePreset?: () => void
   onLoadCabinetCorePreset?: () => void
   onLoadCabinetHplPreset?: () => void
+  onLoadAccessoryHardwarePreset?: () => void
+  onLoadAccessoryServicesPreset?: () => void
 }) {
   return (
     <div className="border border-border/80 rounded-lg overflow-hidden shadow-xs bg-card">
@@ -1723,6 +2016,22 @@ function MaterialRowsTable({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-cyan-500/10 text-cyan-900 dark:text-cyan-200 hover:bg-cyan-500/20 rounded-md transition-colors border border-cyan-500/20"
               >
                 <Sparkles className="w-3.5 h-3.5 text-cyan-600" /> Load HPL Pasting Details (HPL-1 - HPL-8)
+              </button>
+            )}
+            {onLoadAccessoryHardwarePreset && (
+              <button
+                onClick={onLoadAccessoryHardwarePreset}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-pink-500/10 text-pink-900 dark:text-pink-200 hover:bg-pink-500/20 rounded-md transition-colors border border-pink-500/20"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-pink-600" /> Load Hardware Accessories (SL 01 - 07)
+              </button>
+            )}
+            {onLoadAccessoryServicesPreset && (
+              <button
+                onClick={onLoadAccessoryServicesPreset}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-purple-500/10 text-purple-900 dark:text-purple-200 hover:bg-purple-500/20 rounded-md transition-colors border border-purple-500/20"
+              >
+                <Layers className="w-3.5 h-3.5 text-purple-600" /> Load Deliverables & Services (SL 08 - 10)
               </button>
             )}
           </div>
@@ -2785,6 +3094,275 @@ function MaterialRowsTable({
             </tbody>
           </table>
         </div>
+      ) : viewMode === 'HARDWARE_ACCESSORY_SPEC' ? (
+        /* ── 9. Kitchen & Closet Hardware Accessories Table (10 Cols) ── */
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
+            <thead className="bg-pink-500/10 border-b border-pink-500/20 text-pink-950 dark:text-pink-200">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-16`}>SL</th>
+                <th className={`${GRID_TH} w-28`}>Category</th>
+                <th className={`${GRID_TH} min-w-[170px]`}>Item Name</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Item Code</th>
+                <th className={`${GRID_TH} min-w-[170px]`}>Dimensions (D × W × H)</th>
+                <th className={`${GRID_TH} w-20`}>Unit</th>
+                <th className={`${GRID_TH} text-center w-20`}>Quantity</th>
+                <th className={`${GRID_TH} min-w-[120px]`}>Unit Price (BDT)</th>
+                <th className={`${GRID_TH} text-center min-w-[130px]`}>Total Amount (BDT)</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40 bg-card">
+              {rows.map((item, ri) => {
+                const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                return (
+                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
+                    {/* 1. SL */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.srNo || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'srNo', e.target.value)}
+                        placeholder="01"
+                        className={GRID_CELL_MONO}
+                      />
+                    </td>
+
+                    {/* 2. Category */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        list="accessory-category-list"
+                        value={attrs.accessoryCategory || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'accessoryCategory', e.target.value)}
+                        placeholder="Kitchen"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* 3. Item Name */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={item.materialName}
+                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
+                        placeholder="Elevator Basket"
+                        className={GRID_CELL_BOLD}
+                      />
+                    </td>
+
+                    {/* 4. Item Code */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.itemCode || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'itemCode', e.target.value)}
+                        placeholder="KIW-23"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* 5. Dimensions */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.dimensions || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'dimensions', e.target.value)}
+                        placeholder={'D13" × W30" × H25"'}
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* 6. Unit */}
+                    <td className={GRID_TD}>
+                      <select
+                        value={item.unit}
+                        onChange={(e) => onChange(ri, 'unit', e.target.value)}
+                        className={GRID_CELL_SELECT}
+                      >
+                        {UOM_OPTIONS.map((uom) => (
+                          <option key={uom} value={uom}>{uom}</option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* 7. Quantity */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="number"
+                        step="any"
+                        value={item.netQuantity}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onChange(ri, 'netQuantity', val)
+                          const cleanPrice = String(attrs.unitPrice || '').replace(/[^0-9.]/g, '')
+                          const numP = parseFloat(cleanPrice)
+                          if (!isNaN(numP)) {
+                            const newTotal = (parseFloat(val) || 0) * numP
+                            onUpdateVariant(ri, 'totalAmount', `৳${newTotal.toLocaleString('en-IN')}`)
+                          }
+                        }}
+                        className={GRID_CELL_NUM}
+                      />
+                    </td>
+
+                    {/* 8. Unit Price (BDT) */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.unitPrice || ''}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'unitPrice', val)
+                          const cleanPrice = val.replace(/[^0-9.]/g, '')
+                          const numP = parseFloat(cleanPrice)
+                          if (!isNaN(numP)) {
+                            const qty = item.netQuantity || 1
+                            const newTotal = qty * numP
+                            onUpdateVariant(ri, 'totalAmount', `৳${newTotal.toLocaleString('en-IN')}`)
+                          }
+                        }}
+                        placeholder="৳31,000"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* 9. Total Amount (BDT) */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.totalAmount || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'totalAmount', e.target.value)}
+                        placeholder="৳31,000"
+                        className={`${GRID_CELL_BOLD} text-center text-pink-700 dark:text-pink-300`}
+                      />
+                    </td>
+
+                    {/* Delete */}
+                    <td className="p-0 w-8 text-center align-middle">
+                      <button
+                        onClick={() => onRemoveRow(ri)}
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                        title="Remove row"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : viewMode === 'SERVICES_DELIVERABLE_SPEC' ? (
+        /* ── 10. Additional Deliverables & Services Table (7 Cols) ── */
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left min-w-[950px] border-collapse divide-y divide-border/60">
+            <thead className="bg-purple-500/10 border-b border-purple-500/20 text-purple-950 dark:text-purple-200">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-16`}>SL</th>
+                <th className={`${GRID_TH} min-w-[180px]`}>Service / Material Category</th>
+                <th className={`${GRID_TH} min-w-[280px]`}>Description</th>
+                <th className={`${GRID_TH} min-w-[130px]`}>Quantity / Unit</th>
+                <th className={`${GRID_TH} min-w-[120px]`}>Rate (BDT)</th>
+                <th className={`${GRID_TH} text-center min-w-[140px]`}>Estimated Total (BDT)</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40 bg-card">
+              {rows.map((item, ri) => {
+                const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                return (
+                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
+                    {/* 1. SL */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.srNo || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'srNo', e.target.value)}
+                        placeholder="08"
+                        className={GRID_CELL_MONO}
+                      />
+                    </td>
+
+                    {/* 2. Service / Material Category */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        list="accessory-service-category-list"
+                        value={attrs.serviceCategory || item.materialName}
+                        onChange={(e) => {
+                          onUpdateVariant(ri, 'serviceCategory', e.target.value)
+                          onChange(ri, 'materialName', e.target.value)
+                        }}
+                        placeholder="Fitting & Hardware"
+                        className={GRID_CELL_BOLD}
+                      />
+                    </td>
+
+                    {/* 3. Description */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={item.remarks || item.specifications || ''}
+                        onChange={(e) => {
+                          onChange(ri, 'remarks', e.target.value)
+                          onChange(ri, 'specifications', e.target.value)
+                        }}
+                        placeholder="Heavy-duty Soft-close Slides, Hinges & Fasteners"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* 4. Quantity / Unit */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.quantityUnit || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'quantityUnit', e.target.value)}
+                        placeholder="1 Lot"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* 5. Rate (BDT) */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.rateType || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'rateType', e.target.value)}
+                        placeholder="Lumpsum"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* 6. Estimated Total (BDT) */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.estimatedTotal || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'estimatedTotal', e.target.value)}
+                        placeholder="৳6,500"
+                        className={`${GRID_CELL_BOLD} text-center text-purple-700 dark:text-purple-300`}
+                      />
+                    </td>
+
+                    {/* Delete */}
+                    <td className="p-0 w-8 text-center align-middle">
+                      <button
+                        onClick={() => onRemoveRow(ri)}
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                        title="Remove row"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         /* ── 8. Standard 8-Column Material Table ── */
         <div className="overflow-x-auto">
@@ -2983,6 +3561,24 @@ function MaterialRowsTable({
               + Add HPL Pasting
             </button>
           )}
+          {onLoadAccessoryHardwarePreset && rows.length > 0 && (
+            <button
+              onClick={onLoadAccessoryHardwarePreset}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-pink-700 dark:text-pink-300 hover:bg-pink-50 dark:hover:bg-pink-950/40 transition-colors border border-pink-200 dark:border-pink-800"
+            >
+              <Sparkles className="w-3 h-3 text-pink-600" />
+              + Add Hardware Accessories
+            </button>
+          )}
+          {onLoadAccessoryServicesPreset && rows.length > 0 && (
+            <button
+              onClick={onLoadAccessoryServicesPreset}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors border border-purple-200 dark:border-purple-800"
+            >
+              <Layers className="w-3 h-3 text-purple-600" />
+              + Add Deliverables & Services
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -3001,6 +3597,7 @@ function SectionBlock({
   onRemoveRow,
   onLoadPreset,
   onLoadCabinetPreset,
+  onLoadAccessoryPreset,
   onToggleCollapse,
   onRemove,
 }: {
@@ -3012,6 +3609,7 @@ function SectionBlock({
   onRemoveRow: (ri: number) => void
   onLoadPreset: (subType: WallPanelingSubType) => void
   onLoadCabinetPreset?: (subType: CabinetSubType) => void
+  onLoadAccessoryPreset?: (subType: AccessoriesSubType) => void
   onToggleCollapse: () => void
   onRemove: () => void
 }) {
@@ -3021,6 +3619,8 @@ function SectionBlock({
     ? WALL_PANELING_SUBTYPES.find((s) => s.key === section.wallPanelingSubType)
     : section.cabinetSubType
     ? CABINET_SUBTYPES.find((s) => s.key === section.cabinetSubType)
+    : section.accessoriesSubType
+    ? ACCESSORIES_SUBTYPES.find((s) => s.key === section.accessoriesSubType)
     : null
   const colors = CATEGORY_COLORS[section.category]
 
@@ -3074,6 +3674,8 @@ function SectionBlock({
             onLoadAdhesivePreset={section.wallPanelingSubType === 'ADHESIVES' ? () => onLoadPreset('ADHESIVES') : undefined}
             onLoadCabinetCorePreset={section.cabinetSubType === 'CORE_BOARD_SPEC' && onLoadCabinetPreset ? () => onLoadCabinetPreset('CORE_BOARD_SPEC') : undefined}
             onLoadCabinetHplPreset={section.cabinetSubType === 'HPL_PASTING' && onLoadCabinetPreset ? () => onLoadCabinetPreset('HPL_PASTING') : undefined}
+            onLoadAccessoryHardwarePreset={section.accessoriesSubType === 'HARDWARE_ACCESSORIES' && onLoadAccessoryPreset ? () => onLoadAccessoryPreset('HARDWARE_ACCESSORIES') : undefined}
+            onLoadAccessoryServicesPreset={section.accessoriesSubType === 'SERVICES_DELIVERABLES' && onLoadAccessoryPreset ? () => onLoadAccessoryPreset('SERVICES_DELIVERABLES') : undefined}
           />
         </div>
       )}
@@ -3085,12 +3687,13 @@ function SectionBlock({
    Sub-component: "Add Section" inline form
 ───────────────────────────────────────────── */
 function AddSectionForm({ onAdd, onCancel }: {
-  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType) => void
+  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType) => void
   onCancel: () => void
 }) {
   const [cat, setCat] = useState<RequisitionWorkCategory>('WALL_PANELING')
   const [sub, setSub] = useState<WallPanelingSubType>('CORE_BOARDS')
   const [cabSub, setCabSub] = useState<CabinetSubType>('CORE_BOARD_SPEC')
+  const [accSub, setAccSub] = useState<AccessoriesSubType>('HARDWARE_ACCESSORIES')
 
   return (
     <div className="flex flex-wrap items-center gap-2.5 px-4 py-3 bg-muted/20 border-t border-border/70">
@@ -3132,11 +3735,24 @@ function AddSectionForm({ onAdd, onCancel }: {
         </select>
       )}
 
+      {cat === 'ACCESSORIES' && (
+        <select
+          value={accSub}
+          onChange={(e) => setAccSub(e.target.value as AccessoriesSubType)}
+          className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-pink-500 font-medium shadow-xs"
+        >
+          {ACCESSORIES_SUBTYPES.map((s) => (
+            <option key={s.key} value={s.key}>{s.label}</option>
+          ))}
+        </select>
+      )}
+
       <button
         onClick={() => onAdd(
           cat,
           cat === 'WALL_PANELING' ? sub : undefined,
-          cat === 'CABINETS_CLOSETS' ? cabSub : undefined
+          cat === 'CABINETS_CLOSETS' ? cabSub : undefined,
+          cat === 'ACCESSORIES' ? accSub : undefined
         )}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-xs"
       >
@@ -3163,6 +3779,7 @@ function QuotationLineItemCard({
   onRemoveRow,
   onLoadPreset,
   onLoadCabinetPreset,
+  onLoadAccessoryPreset,
   onAddSection,
   onRemoveSection,
   onToggleSectionCollapse,
@@ -3177,7 +3794,8 @@ function QuotationLineItemCard({
   onRemoveRow: (sectionId: string, ri: number) => void
   onLoadPreset: (sectionId: string, subType: WallPanelingSubType) => void
   onLoadCabinetPreset: (sectionId: string, subType: CabinetSubType) => void
-  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType) => void
+  onLoadAccessoryPreset?: (sectionId: string, subType: AccessoriesSubType) => void
+  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType) => void
   onRemoveSection: (sectionId: string) => void
   onToggleSectionCollapse: (sectionId: string) => void
 }) {
@@ -3252,6 +3870,7 @@ function QuotationLineItemCard({
               onRemoveRow={(ri) => onRemoveRow(section.id, ri)}
               onLoadPreset={(subType) => onLoadPreset(section.id, subType)}
               onLoadCabinetPreset={(subType) => onLoadCabinetPreset(section.id, subType)}
+              onLoadAccessoryPreset={(subType) => onLoadAccessoryPreset?.(section.id, subType)}
               onToggleCollapse={() => onToggleSectionCollapse(section.id)}
               onRemove={() => onRemoveSection(section.id)}
             />
@@ -3260,8 +3879,8 @@ function QuotationLineItemCard({
           {/* Add Section form or trigger */}
           {showAddSection ? (
             <AddSectionForm
-              onAdd={(cat, wpSub, cabSub) => {
-                onAddSection(cat, wpSub, cabSub)
+              onAdd={(cat, wpSub, cabSub, accSub) => {
+                onAddSection(cat, wpSub, cabSub, accSub)
                 setShowAddSection(false)
               }}
               onCancel={() => setShowAddSection(false)}
@@ -3294,6 +3913,7 @@ function ExtraCard({
   onRemoveRow,
   onLoadPreset,
   onLoadCabinetPreset,
+  onLoadAccessoryPreset,
   onAddSection,
   onRemoveSection,
   onToggleSectionCollapse,
@@ -3306,7 +3926,8 @@ function ExtraCard({
   onRemoveRow: (sectionId: string, ri: number) => void
   onLoadPreset: (sectionId: string, subType: WallPanelingSubType) => void
   onLoadCabinetPreset: (sectionId: string, subType: CabinetSubType) => void
-  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType) => void
+  onLoadAccessoryPreset?: (sectionId: string, subType: AccessoriesSubType) => void
+  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType) => void
   onRemoveSection: (sectionId: string) => void
   onToggleSectionCollapse: (sectionId: string) => void
 }) {
@@ -3343,7 +3964,7 @@ function ExtraCard({
             <div className="px-4 py-8 text-center text-xs text-muted-foreground space-y-2 bg-muted/5">
               <Package className="w-6 h-6 mx-auto text-muted-foreground/40" />
               <p className="font-semibold text-foreground/80">No general sections added yet.</p>
-              <p className="text-[11px] text-muted-foreground">Add a Wall Paneling or Closet/Cabinet section below to specify catalog materials.</p>
+              <p className="text-[11px] text-muted-foreground">Add a Wall Paneling, Closet/Cabinet, or Accessories section below to specify catalog materials.</p>
             </div>
           )}
 
@@ -3358,6 +3979,7 @@ function ExtraCard({
               onRemoveRow={(ri) => onRemoveRow(section.id, ri)}
               onLoadPreset={(subType) => onLoadPreset(section.id, subType)}
               onLoadCabinetPreset={(subType) => onLoadCabinetPreset(section.id, subType)}
+              onLoadAccessoryPreset={(subType) => onLoadAccessoryPreset?.(section.id, subType)}
               onToggleCollapse={() => onToggleSectionCollapse(section.id)}
               onRemove={() => onRemoveSection(section.id)}
             />
@@ -3365,8 +3987,8 @@ function ExtraCard({
 
           {showAddSection ? (
             <AddSectionForm
-              onAdd={(cat, wpSub, cabSub) => {
-                onAddSection(cat, wpSub, cabSub)
+              onAdd={(cat, wpSub, cabSub, accSub) => {
+                onAddSection(cat, wpSub, cabSub, accSub)
                 setShowAddSection(false)
               }}
               onCancel={() => setShowAddSection(false)}
@@ -3437,16 +4059,17 @@ export function RequisitionBuilderClient({
     category: RequisitionWorkCategory,
     wallPanelingSubType?: WallPanelingSubType,
     cabinetSubType?: CabinetSubType,
+    accessoriesSubType?: AccessoriesSubType,
     quotationLineItemId?: string
   ) => {
     const sectionId = `section-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
     setSectionsMap((prev) => ({
       ...prev,
-      [cardKey]: [...(prev[cardKey] ?? []), { id: sectionId, category, wallPanelingSubType, cabinetSubType, collapsed: false }],
+      [cardKey]: [...(prev[cardKey] ?? []), { id: sectionId, category, wallPanelingSubType, cabinetSubType, accessoriesSubType, collapsed: false }],
     }))
     setItemsMap((prev) => ({
       ...prev,
-      [sectionItemKey(cardKey, sectionId)]: [blankItem(category, wallPanelingSubType, cabinetSubType, quotationLineItemId)],
+      [sectionItemKey(cardKey, sectionId)]: [blankItem(category, wallPanelingSubType, cabinetSubType, accessoriesSubType, quotationLineItemId)],
     }))
   }
 
@@ -3493,10 +4116,10 @@ export function RequisitionBuilderClient({
       const nextAttrs = { ...prevAttrs, [field]: value }
       current.variantAttributes = nextAttrs
       const specParts = [
-        nextAttrs.coreThickness || nextAttrs.profileType || nextAttrs.fastenerType || nextAttrs.nailType || nextAttrs.chemicalClass,
-        nextAttrs.baseMaterial || nextAttrs.coreSubstrateType || nextAttrs.material || nextAttrs.lengthInches || nextAttrs.lengthSpec || nextAttrs.applicationMethod,
-        nextAttrs.laminateTopSurface || nextAttrs.laminateFinishDetails || nextAttrs.frontLaminateCode || nextAttrs.accentFinish || nextAttrs.gaugeSize || nextAttrs.thicknessSpec,
-        nextAttrs.surfaceCodeFinish || nextAttrs.backLaminateCode || nextAttrs.sideSpecification || nextAttrs.codeVariant || nextAttrs.materialFinish,
+        nextAttrs.coreThickness || nextAttrs.profileType || nextAttrs.fastenerType || nextAttrs.nailType || nextAttrs.chemicalClass || nextAttrs.accessoryCategory || nextAttrs.serviceCategory,
+        nextAttrs.baseMaterial || nextAttrs.coreSubstrateType || nextAttrs.material || nextAttrs.lengthInches || nextAttrs.lengthSpec || nextAttrs.applicationMethod || nextAttrs.itemCode || nextAttrs.quantityUnit,
+        nextAttrs.laminateTopSurface || nextAttrs.laminateFinishDetails || nextAttrs.frontLaminateCode || nextAttrs.accentFinish || nextAttrs.gaugeSize || nextAttrs.thicknessSpec || nextAttrs.dimensions || nextAttrs.rateType,
+        nextAttrs.surfaceCodeFinish || nextAttrs.backLaminateCode || nextAttrs.sideSpecification || nextAttrs.codeVariant || nextAttrs.materialFinish || nextAttrs.unitPrice || nextAttrs.estimatedTotal,
       ].filter(Boolean)
       if (specParts.length > 0) current.specifications = specParts.join(' | ')
       rows[rowIndex] = current
@@ -3515,6 +4138,7 @@ export function RequisitionBuilderClient({
           sectionInfo?.category ?? 'WALL_PANELING',
           sectionInfo?.wallPanelingSubType,
           sectionInfo?.cabinetSubType,
+          sectionInfo?.accessoriesSubType,
           quotationLineItemId
         ),
       ],
@@ -3552,6 +4176,20 @@ export function RequisitionBuilderClient({
       ...item,
       quotationLineItemId,
       variantAttributes: { ...(item.variantAttributes || {}), cabinetSubType: subType },
+    }))
+    const key = sectionItemKey(cardKey, sectionId)
+    setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
+  }
+
+  const loadAccessoryPresetForSection = (cardKey: string, sectionId: string, subType: AccessoriesSubType, quotationLineItemId?: string) => {
+    const presetMap: Record<AccessoriesSubType, RequisitionItemInput[]> = {
+      HARDWARE_ACCESSORIES: SAMPLE_ACCESSORY_HARDWARE_ITEMS,
+      SERVICES_DELIVERABLES: SAMPLE_ACCESSORY_SERVICES_ITEMS,
+    }
+    const presetItems = presetMap[subType].map((item) => ({
+      ...item,
+      quotationLineItemId,
+      variantAttributes: { ...(item.variantAttributes || {}), accessoriesSubType: subType },
     }))
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
@@ -3775,7 +4413,8 @@ export function RequisitionBuilderClient({
                         onRemoveRow={(sectionId, ri) => removeRow(li.id, sectionId, ri)}
                         onLoadPreset={(sectionId, subType) => loadPresetForSection(li.id, sectionId, subType, li.id)}
                         onLoadCabinetPreset={(sectionId, subType) => loadCabinetPresetForSection(li.id, sectionId, subType, li.id)}
-                        onAddSection={(cat, wpSub, cabSub) => addSection(li.id, cat, wpSub, cabSub, li.id)}
+                        onLoadAccessoryPreset={(sectionId, subType) => loadAccessoryPresetForSection(li.id, sectionId, subType, li.id)}
+                        onAddSection={(cat, wpSub, cabSub, accSub) => addSection(li.id, cat, wpSub, cabSub, accSub, li.id)}
                         onRemoveSection={(sectionId) => removeSection(li.id, sectionId)}
                         onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(li.id, sectionId)}
                       />
@@ -3804,7 +4443,8 @@ export function RequisitionBuilderClient({
           onRemoveRow={(sectionId, ri) => removeRow(EXTRA_KEY, sectionId, ri)}
           onLoadPreset={(sectionId, subType) => loadPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
           onLoadCabinetPreset={(sectionId, subType) => loadCabinetPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
-          onAddSection={(cat, wpSub, cabSub) => addSection(EXTRA_KEY, cat, wpSub, cabSub, undefined)}
+          onLoadAccessoryPreset={(sectionId, subType) => loadAccessoryPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
+          onAddSection={(cat, wpSub, cabSub, accSub) => addSection(EXTRA_KEY, cat, wpSub, cabSub, accSub, undefined)}
           onRemoveSection={(sectionId) => removeSection(EXTRA_KEY, sectionId)}
           onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(EXTRA_KEY, sectionId)}
         />
