@@ -24,6 +24,8 @@ import {
   Download,
   Flame,
   Wrench,
+  Pin,
+  FlaskConical,
 } from 'lucide-react'
 import { saveMaterialRequisition, RequisitionItemInput } from '@/lib/boq-service'
 import type {
@@ -58,7 +60,7 @@ const WORK_CATEGORIES: { key: RequisitionWorkCategory; label: string }[] = [
   { key: 'APPLIANCES', label: 'Appliances' },
 ]
 
-const UOM_OPTIONS = ['Pcs', 'Sheets', 'Meters', 'RFT', 'Kg', 'Rolls', 'Pack', 'Boxes', 'Sets', 'Liters']
+const UOM_OPTIONS = ['Pcs', 'Sheets', 'Meters', 'RFT', 'Kg', 'Rolls', 'Pack', 'Boxes', 'Sets', 'Liters', 'Tube', 'Roll']
 
 /** Special key used for materials not linked to any quotation line item */
 const EXTRA_KEY = '__extra__'
@@ -87,6 +89,15 @@ export interface BoardVariantAttributes {
   gaugeSize?: string
   materialFinish?: string
   usagePurpose?: string
+
+  // Nails, Pins & Masonry Anchors attributes
+  nailType?: string
+  lengthSpec?: string
+  thicknessSpec?: string
+
+  // Adhesives & Chemical Solvents attributes
+  chemicalClass?: string
+  applicationMethod?: string
 
   column1?: string
 }
@@ -472,6 +483,189 @@ const SAMPLE_SCREW_FASTENER_ITEMS: RequisitionItemInput[] = [
   },
 ]
 
+/** 4. Nails, Pins & Masonry Anchors Catalog Preset (NAL-200 - PIN-002) */
+const SAMPLE_NAIL_PIN_ITEMS: RequisitionItemInput[] = [
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Wire Nail (Tarkata)',
+    specifications: 'Wire Nail | 2.0" | Standard Gauge',
+    variantAttributes: {
+      itemId: 'NAL-200',
+      nailType: 'Wire Nail',
+      lengthSpec: '2.0"',
+      thicknessSpec: 'Standard Gauge',
+      functionalUsage: 'Frame Tacking',
+      qtyLabel: '300',
+    },
+    netQuantity: 300,
+    wastagePercent: 0,
+    finalQuantity: 300,
+    unit: 'Pcs',
+    productionPhase: 'Frame Tacking',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Wood Nail Bulk',
+    specifications: 'Loose Nail | 1.25" | Fine Gauge',
+    variantAttributes: {
+      itemId: 'NAL-125',
+      nailType: 'Loose Nail',
+      lengthSpec: '1.25"',
+      thicknessSpec: 'Fine Gauge',
+      functionalUsage: 'Plywood Sub-frame',
+      qtyLabel: '3',
+    },
+    netQuantity: 3,
+    wastagePercent: 0,
+    finalQuantity: 3,
+    unit: 'Kg',
+    productionPhase: 'Plywood Sub-frame',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Masonry Steel Nail',
+    specifications: 'Hardened Steel | 0.5" | Short Masonry',
+    variantAttributes: {
+      itemId: 'NAL-050',
+      nailType: 'Hardened Steel',
+      lengthSpec: '0.5"',
+      thicknessSpec: 'Short Masonry',
+      functionalUsage: 'Concrete Wall Fixing',
+      qtyLabel: '1',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Kg',
+    productionPhase: 'Concrete Wall Fixing',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Both Side Pin',
+    specifications: 'Double Head Pin | Standard | Clamping Pin',
+    variantAttributes: {
+      itemId: 'PIN-001',
+      nailType: 'Double Head Pin',
+      lengthSpec: 'Standard',
+      thicknessSpec: 'Clamping Pin',
+      functionalUsage: 'Laminate Holding',
+      qtyLabel: '1',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Pack',
+    productionPhase: 'Laminate Holding',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'F30 Brad Nails',
+    specifications: 'Pneumatic Pin | 1.18" (30mm) | Gauge 18',
+    variantAttributes: {
+      itemId: 'PIN-002 (Ext)',
+      nailType: 'Pneumatic Pin',
+      lengthSpec: '1.18" (30mm)',
+      thicknessSpec: 'Gauge 18',
+      functionalUsage: 'Nail Gun Finishing',
+      qtyLabel: 'Catalog',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Box',
+    productionPhase: 'Nail Gun Finishing',
+  },
+]
+
+/** 5. Adhesives & Chemical Solvents Catalog Preset (ADH-001 - ADH-005) */
+const SAMPLE_ADHESIVE_CHEMICAL_ITEMS: RequisitionItemInput[] = [
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Lichu Gum',
+    specifications: 'PVA Wood Adhesive | Cold Press Wood Joinery',
+    variantAttributes: {
+      itemId: 'ADH-001',
+      chemicalClass: 'PVA Wood Adhesive',
+      applicationMethod: 'Cold Press Wood Joinery',
+      functionalUsage: 'Cold Press Wood Joinery',
+      qtyLabel: '15',
+    },
+    netQuantity: 15,
+    wastagePercent: 0,
+    finalQuantity: 15,
+    unit: 'Kg',
+    productionPhase: 'Cold Press Wood Joinery',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Super Glue',
+    specifications: 'Cyanoacrylate | Instant Edge & Trim Bond',
+    variantAttributes: {
+      itemId: 'ADH-002',
+      chemicalClass: 'Cyanoacrylate',
+      applicationMethod: 'Instant Edge & Trim Bond',
+      functionalUsage: 'Instant Edge & Trim Bond',
+      qtyLabel: '3',
+    },
+    netQuantity: 3,
+    wastagePercent: 0,
+    finalQuantity: 3,
+    unit: 'Kg',
+    productionPhase: 'Instant Edge & Trim Bond',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Poli Solution Gum',
+    specifications: 'Contact Adhesive (Neoprene) | Manual Laminate Pressing',
+    variantAttributes: {
+      itemId: 'ADH-003',
+      chemicalClass: 'Contact Adhesive (Neoprene)',
+      applicationMethod: 'Manual Laminate Pressing',
+      functionalUsage: 'Manual Laminate Pressing',
+      qtyLabel: '4',
+    },
+    netQuantity: 4,
+    wastagePercent: 0,
+    finalQuantity: 4,
+    unit: 'Pack',
+    productionPhase: 'Manual Laminate Pressing',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Aika Gum',
+    specifications: 'Binding / Double Tape | Edge Fixing / Hold',
+    variantAttributes: {
+      itemId: 'ADH-004',
+      chemicalClass: 'Binding / Double Tape',
+      applicationMethod: 'Edge Fixing / Hold',
+      functionalUsage: 'Edge Fixing / Hold',
+      qtyLabel: '1',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Roll',
+    productionPhase: 'Edge Fixing / Hold',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Silicone Sealant',
+    specifications: 'Neutral Cure Silicone | Sink / Marble Joint Sealing',
+    variantAttributes: {
+      itemId: 'ADH-005 (Ext)',
+      chemicalClass: 'Neutral Cure Silicone',
+      applicationMethod: 'Sink / Marble Joint Sealing',
+      functionalUsage: 'Sink / Marble Joint Sealing',
+      qtyLabel: 'Catalog',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Tube',
+    productionPhase: 'Sink / Marble Joint Sealing',
+  },
+]
+
 /* ─────────────────────────────────────────────
    Types
 ───────────────────────────────────────────── */
@@ -504,7 +698,7 @@ interface Props {
 /** Items grouped: Record<quotationLineItemId | '__extra__', RequisitionItemInput[]> */
 type ItemsMap = Record<string, RequisitionItemInput[]>
 
-type ViewModeType = 'BOARD_SPEC' | 'LOUVER_SPEC' | 'SCREW_SPEC' | 'STANDARD'
+type ViewModeType = 'BOARD_SPEC' | 'LOUVER_SPEC' | 'SCREW_SPEC' | 'NAIL_SPEC' | 'ADHESIVE_SPEC' | 'STANDARD'
 
 /* ─────────────────────────────────────────────
    Helper – build a blank requisition item
@@ -586,13 +780,18 @@ function seedFromExisting(rawItems: any[]): ItemsMap {
         gaugeSize: attrs.gaugeSize || '',
         materialFinish: attrs.materialFinish || '',
         usagePurpose: attrs.usagePurpose || '',
+        nailType: attrs.nailType || '',
+        lengthSpec: attrs.lengthSpec || '',
+        thicknessSpec: attrs.thicknessSpec || '',
+        chemicalClass: attrs.chemicalClass || '',
+        applicationMethod: attrs.applicationMethod || '',
         column1: attrs.column1 || '',
       },
       netQuantity: Number(it.netQuantity) || 1,
       wastagePercent: Number(it.wastagePercent) || 0,
       finalQuantity: Number(it.finalQuantity) || Number(it.netQuantity) || 1,
       unit: it.unit || 'Pcs',
-      productionPhase: it.productionPhase || attrs.functionalUsage || attrs.primaryUsage || attrs.usagePurpose || '',
+      productionPhase: it.productionPhase || attrs.functionalUsage || attrs.primaryUsage || attrs.usagePurpose || attrs.applicationMethod || '',
       remarks: it.remarks || '',
     })
   }
@@ -626,6 +825,16 @@ function BoardDatalists() {
         <option value="SCR-150" />
         <option value="SCR-200" />
         <option value="SCR-250" />
+        <option value="NAL-200" />
+        <option value="NAL-125" />
+        <option value="NAL-050" />
+        <option value="PIN-001" />
+        <option value="PIN-002 (Ext)" />
+        <option value="ADH-001" />
+        <option value="ADH-002" />
+        <option value="ADH-003" />
+        <option value="ADH-004" />
+        <option value="ADH-005 (Ext)" />
       </datalist>
 
       {/* ── Core Boards Datalists ── */}
@@ -775,6 +984,33 @@ function BoardDatalists() {
         <option value="Frame Anchor / Wall" />
         <option value="Heavy Wall Cleat / Base" />
       </datalist>
+
+      {/* ── Nails, Pins & Anchors Datalists ── */}
+      <datalist id="nail-type-list">
+        <option value="Wire Nail" />
+        <option value="Loose Nail" />
+        <option value="Hardened Steel" />
+        <option value="Double Head Pin" />
+        <option value="Pneumatic Pin" />
+      </datalist>
+
+      {/* ── Adhesives & Chemical Solvents Datalists ── */}
+      <datalist id="chemical-class-list">
+        <option value="PVA Wood Adhesive" />
+        <option value="Cyanoacrylate" />
+        <option value="Contact Adhesive (Neoprene)" />
+        <option value="Binding / Double Tape" />
+        <option value="Neutral Cure Silicone" />
+        <option value="PU Foam Sealant" />
+      </datalist>
+
+      <datalist id="application-method-list">
+        <option value="Cold Press Wood Joinery" />
+        <option value="Instant Edge & Trim Bond" />
+        <option value="Manual Laminate Pressing" />
+        <option value="Edge Fixing / Hold" />
+        <option value="Sink / Marble Joint Sealing" />
+      </datalist>
     </>
   )
 }
@@ -792,6 +1028,8 @@ function MaterialRowsTable({
   onLoadPreset,
   onLoadLouverPreset,
   onLoadScrewPreset,
+  onLoadNailPreset,
+  onLoadAdhesivePreset,
 }: {
   rows: RequisitionItemInput[]
   viewMode: ViewModeType
@@ -802,6 +1040,8 @@ function MaterialRowsTable({
   onLoadPreset?: () => void
   onLoadLouverPreset?: () => void
   onLoadScrewPreset?: () => void
+  onLoadNailPreset?: () => void
+  onLoadAdhesivePreset?: () => void
 }) {
   return (
     <div className="border border-dashed border-border rounded-lg overflow-hidden">
@@ -834,6 +1074,22 @@ function MaterialRowsTable({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300 rounded-md transition-colors"
               >
                 <Wrench className="w-3.5 h-3.5 text-amber-600" /> Load Screws & Fasteners (SCR-075 - SCR-250)
+              </button>
+            )}
+            {onLoadNailPreset && (
+              <button
+                onClick={onLoadNailPreset}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-rose-50 text-rose-800 hover:bg-rose-100 dark:bg-rose-950/50 dark:text-rose-300 rounded-md transition-colors"
+              >
+                <Pin className="w-3.5 h-3.5 text-rose-600" /> Load Nails & Pins (NAL-200 - PIN-002)
+              </button>
+            )}
+            {onLoadAdhesivePreset && (
+              <button
+                onClick={onLoadAdhesivePreset}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:text-emerald-300 rounded-md transition-colors"
+              >
+                <FlaskConical className="w-3.5 h-3.5 text-emerald-600" /> Load Adhesives (ADH-001 - ADH-005)
               </button>
             )}
           </div>
@@ -1349,8 +1605,294 @@ function MaterialRowsTable({
             </tbody>
           </table>
         </div>
+      ) : viewMode === 'NAIL_SPEC' ? (
+        /* ── 4. Nails, Pins & Masonry Anchors Table (10 Cols) ── */
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left min-w-[1100px]">
+            <thead className="text-muted-foreground uppercase bg-rose-50/60 dark:bg-rose-950/30 border-b border-rose-100 dark:border-rose-900">
+              <tr>
+                <th className="px-2.5 py-2 font-semibold w-28 text-rose-900 dark:text-rose-200">Item ID</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-rose-900 dark:text-rose-200">Item Name</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[130px] text-rose-900 dark:text-rose-200">Type</th>
+                <th className="px-2.5 py-2 font-semibold w-28 text-rose-900 dark:text-rose-200">Length</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[130px] text-rose-900 dark:text-rose-200">Thickness / Spec</th>
+                <th className="px-2.5 py-2 font-semibold w-20 text-rose-900 dark:text-rose-200">Unit Type</th>
+                <th className="px-2.5 py-2 font-semibold text-center w-24 text-rose-900 dark:text-rose-200">Quantity</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-rose-900 dark:text-rose-200">Functional Usage</th>
+                <th className="px-2.5 py-2 font-semibold w-28 text-rose-900 dark:text-rose-200">Notes / Col 1</th>
+                <th className="px-2 py-2 font-semibold w-8 text-right"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {rows.map((item, ri) => {
+                const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                return (
+                  <tr key={ri} className="hover:bg-rose-50/20 dark:hover:bg-rose-950/20 transition-colors">
+                    {/* 1. Item ID */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="item-id-list"
+                        value={attrs.itemId || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
+                        placeholder="NAL-200"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-mono font-semibold text-rose-700 dark:text-rose-300 focus:ring-1 focus:ring-rose-500"
+                      />
+                    </td>
+
+                    {/* 2. Item Name */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={item.materialName}
+                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
+                        placeholder="e.g. Wire Nail (Tarkata)"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-semibold focus:ring-1 focus:ring-rose-500"
+                      />
+                    </td>
+
+                    {/* 3. Type */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="nail-type-list"
+                        value={attrs.nailType || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'nailType', e.target.value)}
+                        placeholder="Wire Nail"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-rose-500"
+                      />
+                    </td>
+
+                    {/* 4. Length */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={attrs.lengthSpec || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'lengthSpec', e.target.value)}
+                        placeholder='2.0"'
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-rose-500"
+                      />
+                    </td>
+
+                    {/* 5. Thickness / Spec */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={attrs.thicknessSpec || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'thicknessSpec', e.target.value)}
+                        placeholder="Standard Gauge"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-rose-500"
+                      />
+                    </td>
+
+                    {/* 6. Unit Type */}
+                    <td className="px-2.5 py-2">
+                      <select
+                        value={item.unit}
+                        onChange={(e) => onChange(ri, 'unit', e.target.value)}
+                        className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-rose-500"
+                      >
+                        {UOM_OPTIONS.map((uom) => (
+                          <option key={uom} value={uom}>
+                            {uom}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* 7. Quantity */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'qtyLabel', val)
+                          const num = parseFloat(val)
+                          if (!isNaN(num)) {
+                            onChange(ri, 'netQuantity', num)
+                          }
+                        }}
+                        placeholder="300"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center font-bold text-rose-700 dark:text-rose-300 focus:ring-1 focus:ring-rose-500"
+                      />
+                    </td>
+
+                    {/* 8. Functional Usage */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="functional-usage-list"
+                        value={attrs.functionalUsage || item.productionPhase || ''}
+                        onChange={(e) => {
+                          onUpdateVariant(ri, 'functionalUsage', e.target.value)
+                          onChange(ri, 'productionPhase', e.target.value)
+                        }}
+                        placeholder="Frame Tacking"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-rose-500"
+                      />
+                    </td>
+
+                    {/* 9. Notes / Column 1 */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={attrs.column1 || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'column1', e.target.value)}
+                        placeholder="Remarks / Specs"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-rose-500"
+                      />
+                    </td>
+
+                    {/* Delete */}
+                    <td className="px-2 py-2 text-right">
+                      <button
+                        onClick={() => onRemoveRow(ri)}
+                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        title="Remove row"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : viewMode === 'ADHESIVE_SPEC' ? (
+        /* ── 5. Adhesives & Chemical Solvents Table (10 Cols) ── */
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left min-w-[1100px]">
+            <thead className="text-muted-foreground uppercase bg-emerald-50/60 dark:bg-emerald-950/30 border-b border-emerald-100 dark:border-emerald-900">
+              <tr>
+                <th className="px-2.5 py-2 font-semibold w-28 text-emerald-900 dark:text-emerald-200">Item ID</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-emerald-900 dark:text-emerald-200">Chemical Name</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[150px] text-emerald-900 dark:text-emerald-200">Chemical Class</th>
+                <th className="px-2.5 py-2 font-semibold w-24 text-emerald-900 dark:text-emerald-200">Packaging Unit</th>
+                <th className="px-2.5 py-2 font-semibold text-center w-24 text-emerald-900 dark:text-emerald-200">Quantity</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[180px] text-emerald-900 dark:text-emerald-200">Application Method</th>
+                <th className="px-2.5 py-2 font-semibold w-28 text-emerald-900 dark:text-emerald-200">Notes / Col 1</th>
+                <th className="px-2 py-2 font-semibold w-8 text-right"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {rows.map((item, ri) => {
+                const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                return (
+                  <tr key={ri} className="hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-colors">
+                    {/* 1. Item ID */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="item-id-list"
+                        value={attrs.itemId || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
+                        placeholder="ADH-001"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-mono font-semibold text-emerald-700 dark:text-emerald-300 focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </td>
+
+                    {/* 2. Chemical Name (Material Name) */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={item.materialName}
+                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
+                        placeholder="e.g. Lichu Gum"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-semibold focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </td>
+
+                    {/* 3. Chemical Class */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="chemical-class-list"
+                        value={attrs.chemicalClass || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'chemicalClass', e.target.value)}
+                        placeholder="PVA Wood Adhesive"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </td>
+
+                    {/* 4. Packaging Unit */}
+                    <td className="px-2.5 py-2">
+                      <select
+                        value={item.unit}
+                        onChange={(e) => onChange(ri, 'unit', e.target.value)}
+                        className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-emerald-500"
+                      >
+                        {UOM_OPTIONS.map((uom) => (
+                          <option key={uom} value={uom}>
+                            {uom}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* 5. Quantity */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'qtyLabel', val)
+                          const num = parseFloat(val)
+                          if (!isNaN(num)) {
+                            onChange(ri, 'netQuantity', num)
+                          }
+                        }}
+                        placeholder="15"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center font-bold text-emerald-700 dark:text-emerald-300 focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </td>
+
+                    {/* 6. Application Method */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="application-method-list"
+                        value={attrs.applicationMethod || item.productionPhase || ''}
+                        onChange={(e) => {
+                          onUpdateVariant(ri, 'applicationMethod', e.target.value)
+                          onChange(ri, 'productionPhase', e.target.value)
+                        }}
+                        placeholder="Cold Press Wood Joinery"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </td>
+
+                    {/* 7. Notes / Column 1 */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={attrs.column1 || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'column1', e.target.value)}
+                        placeholder="Remarks / Specs"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-emerald-500"
+                      />
+                    </td>
+
+                    {/* Delete */}
+                    <td className="px-2 py-2 text-right">
+                      <button
+                        onClick={() => onRemoveRow(ri)}
+                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        title="Remove row"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
-        /* ── 4. Standard 8-Column Material Table ── */
+        /* ── 6. Standard 8-Column Material Table ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[800px]">
             <thead className="text-muted-foreground uppercase bg-muted/40 border-b">
@@ -1490,7 +2032,7 @@ function MaterialRowsTable({
               className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               <Download className="w-3 h-3 text-amber-500" />
-              + Add Core Boards (BRD-001 - BRD-008)
+              + Add Core Boards (BRD)
             </button>
           )}
           {onLoadLouverPreset && rows.length > 0 && (
@@ -1499,7 +2041,7 @@ function MaterialRowsTable({
               className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline transition-colors"
             >
               <Sparkles className="w-3 h-3 text-indigo-500" />
-              + Add Louvers & Edge Profiles (LVR-001 - EDG-002)
+              + Add Louvers (LVR/EDG)
             </button>
           )}
           {onLoadScrewPreset && rows.length > 0 && (
@@ -1508,7 +2050,25 @@ function MaterialRowsTable({
               className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300 hover:underline transition-colors"
             >
               <Wrench className="w-3 h-3 text-amber-600" />
-              + Add Screws & Fasteners (SCR-075 - SCR-250)
+              + Add Screws (SCR)
+            </button>
+          )}
+          {onLoadNailPreset && rows.length > 0 && (
+            <button
+              onClick={onLoadNailPreset}
+              className="inline-flex items-center gap-1 text-xs font-medium text-rose-700 dark:text-rose-300 hover:underline transition-colors"
+            >
+              <Pin className="w-3 h-3 text-rose-600" />
+              + Add Nails & Pins (NAL/PIN)
+            </button>
+          )}
+          {onLoadAdhesivePreset && rows.length > 0 && (
+            <button
+              onClick={onLoadAdhesivePreset}
+              className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300 hover:underline transition-colors"
+            >
+              <FlaskConical className="w-3 h-3 text-emerald-600" />
+              + Add Adhesives (ADH)
             </button>
           )}
         </div>
@@ -1532,6 +2092,8 @@ function QuotationLineItemCard({
   onLoadPreset,
   onLoadLouverPreset,
   onLoadScrewPreset,
+  onLoadNailPreset,
+  onLoadAdhesivePreset,
 }: {
   item: QuotationLineItem
   area?: QuotationArea
@@ -1544,6 +2106,8 @@ function QuotationLineItemCard({
   onLoadPreset: () => void
   onLoadLouverPreset: () => void
   onLoadScrewPreset: () => void
+  onLoadNailPreset: () => void
+  onLoadAdhesivePreset: () => void
 }) {
   const [expanded, setExpanded] = useState(true)
 
@@ -1602,6 +2166,8 @@ function QuotationLineItemCard({
             onLoadPreset={onLoadPreset}
             onLoadLouverPreset={onLoadLouverPreset}
             onLoadScrewPreset={onLoadScrewPreset}
+            onLoadNailPreset={onLoadNailPreset}
+            onLoadAdhesivePreset={onLoadAdhesivePreset}
           />
         </div>
       )}
@@ -1686,9 +2252,9 @@ export function RequisitionBuilderClient({
 
       // Keep specifications string in sync
       const specParts = [
-        nextAttrs.coreThickness || nextAttrs.profileType || nextAttrs.fastenerType,
-        nextAttrs.baseMaterial || nextAttrs.material || nextAttrs.lengthInches,
-        nextAttrs.laminateTopSurface || nextAttrs.accentFinish || nextAttrs.gaugeSize,
+        nextAttrs.coreThickness || nextAttrs.profileType || nextAttrs.fastenerType || nextAttrs.nailType || nextAttrs.chemicalClass,
+        nextAttrs.baseMaterial || nextAttrs.material || nextAttrs.lengthInches || nextAttrs.lengthSpec || nextAttrs.applicationMethod,
+        nextAttrs.laminateTopSurface || nextAttrs.accentFinish || nextAttrs.gaugeSize || nextAttrs.thicknessSpec,
         nextAttrs.surfaceCodeFinish || nextAttrs.codeVariant || nextAttrs.materialFinish,
       ].filter(Boolean)
 
@@ -1745,6 +2311,28 @@ export function RequisitionBuilderClient({
 
   const loadScrewPreset = (key: string, quotationLineItemId?: string) => {
     const presetItems = SAMPLE_SCREW_FASTENER_ITEMS.map((item) => ({
+      ...item,
+      quotationLineItemId,
+    }))
+    setItemsMap((prev) => ({
+      ...prev,
+      [key]: [...(prev[key] ?? []), ...presetItems],
+    }))
+  }
+
+  const loadNailPreset = (key: string, quotationLineItemId?: string) => {
+    const presetItems = SAMPLE_NAIL_PIN_ITEMS.map((item) => ({
+      ...item,
+      quotationLineItemId,
+    }))
+    setItemsMap((prev) => ({
+      ...prev,
+      [key]: [...(prev[key] ?? []), ...presetItems],
+    }))
+  }
+
+  const loadAdhesivePreset = (key: string, quotationLineItemId?: string) => {
+    const presetItems = SAMPLE_ADHESIVE_CHEMICAL_ITEMS.map((item) => ({
       ...item,
       quotationLineItemId,
     }))
@@ -1812,10 +2400,10 @@ export function RequisitionBuilderClient({
         {/* Action Controls & View Switcher */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Table View Switcher */}
-          <div className="inline-flex items-center rounded-lg border bg-muted/30 p-1 text-xs">
+          <div className="inline-flex flex-wrap items-center rounded-lg border bg-muted/30 p-1 text-xs">
             <button
               onClick={() => setViewMode('BOARD_SPEC')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-semibold transition-colors ${
                 viewMode === 'BOARD_SPEC'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -1825,33 +2413,53 @@ export function RequisitionBuilderClient({
             </button>
             <button
               onClick={() => setViewMode('LOUVER_SPEC')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-semibold transition-colors ${
                 viewMode === 'LOUVER_SPEC'
                   ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Louvers & Profiles
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Louvers
             </button>
             <button
               onClick={() => setViewMode('SCREW_SPEC')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-semibold transition-colors ${
                 viewMode === 'SCREW_SPEC'
                   ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <Wrench className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> Screws & Fasteners
+              <Wrench className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> Screws
+            </button>
+            <button
+              onClick={() => setViewMode('NAIL_SPEC')}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-semibold transition-colors ${
+                viewMode === 'NAIL_SPEC'
+                  ? 'bg-rose-50 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Pin className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" /> Nails & Pins
+            </button>
+            <button
+              onClick={() => setViewMode('ADHESIVE_SPEC')}
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-semibold transition-colors ${
+                viewMode === 'ADHESIVE_SPEC'
+                  ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <FlaskConical className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Adhesives
             </button>
             <button
               onClick={() => setViewMode('STANDARD')}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-semibold transition-colors ${
                 viewMode === 'STANDARD'
                   ? 'bg-background text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <LayoutGrid className="w-3.5 h-3.5" /> Standard View
+              <LayoutGrid className="w-3.5 h-3.5" /> Standard
             </button>
           </div>
 
@@ -1912,8 +2520,8 @@ export function RequisitionBuilderClient({
           </div>
           {lineItems.length > 0 && (
             <p className="text-xs text-muted-foreground mt-2">
-              Expand each quotation line item below to enter <strong>Core Boards & Plywood</strong>, <strong>Decorative Panels, Louvers & Edge Profiles</strong>, or <strong>Screws & Fasteners</strong>.
-              Use the mode buttons at the top right to switch tables.
+              Manage <strong>Core Boards</strong>, <strong>Louvers & Profiles</strong>, <strong>Screws & Fasteners</strong>, <strong>Nails & Pins</strong>, or <strong>Adhesives & Chemicals</strong>.
+              Use the mode buttons at the top right to switch table layouts.
             </p>
           )}
         </div>
@@ -1962,6 +2570,8 @@ export function RequisitionBuilderClient({
                         onLoadPreset={() => loadPreset(li.id, li.id)}
                         onLoadLouverPreset={() => loadLouverPreset(li.id, li.id)}
                         onLoadScrewPreset={() => loadScrewPreset(li.id, li.id)}
+                        onLoadNailPreset={() => loadNailPreset(li.id, li.id)}
+                        onLoadAdhesivePreset={() => loadAdhesivePreset(li.id, li.id)}
                       />
                     )
                   })}
@@ -1983,30 +2593,44 @@ export function RequisitionBuilderClient({
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500" />
             <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-              Wall Paneling, Louvers & Fasteners (Extra / General)
+              Wall Paneling, Hardware & Adhesives (Extra / General)
             </h2>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <button
               onClick={() => loadPreset(EXTRA_KEY)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors"
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors"
             >
-              <Download className="w-3.5 h-3.5 text-amber-600" />
-              Load Core Boards (BRD)
+              <Download className="w-3 h-3 text-amber-600" />
+              Boards
             </button>
             <button
               onClick={() => loadLouverPreset(EXTRA_KEY)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 hover:bg-indigo-100 rounded-md transition-colors"
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 hover:bg-indigo-100 rounded-md transition-colors"
             >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              Load Louvers (LVR/EDG)
+              <Sparkles className="w-3 h-3 text-indigo-600" />
+              Louvers
             </button>
             <button
               onClick={() => loadScrewPreset(EXTRA_KEY)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-amber-100/70 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 hover:bg-amber-200/80 rounded-md transition-colors"
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-amber-100/70 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 hover:bg-amber-200/80 rounded-md transition-colors"
             >
-              <Wrench className="w-3.5 h-3.5 text-amber-700" />
-              Load Screws (SCR)
+              <Wrench className="w-3 h-3 text-amber-700" />
+              Screws
+            </button>
+            <button
+              onClick={() => loadNailPreset(EXTRA_KEY)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-rose-100/70 text-rose-800 dark:bg-rose-950/70 dark:text-rose-300 hover:bg-rose-200/80 rounded-md transition-colors"
+            >
+              <Pin className="w-3 h-3 text-rose-700" />
+              Nails
+            </button>
+            <button
+              onClick={() => loadAdhesivePreset(EXTRA_KEY)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold bg-emerald-100/70 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300 hover:bg-emerald-200/80 rounded-md transition-colors"
+            >
+              <FlaskConical className="w-3 h-3 text-emerald-700" />
+              Adhesives
             </button>
           </div>
         </div>
@@ -2014,7 +2638,7 @@ export function RequisitionBuilderClient({
         <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
           <div className="px-4 py-3 bg-amber-50/40 dark:bg-amber-950/20 border-b border-amber-100 dark:border-amber-900 flex flex-col md:flex-row md:items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
-              Manage Core Boards, Louvers, Fluted Panels, Metallic Inlays, Edge Banding, and Structural Screws/Fasteners. Use the view toggle at top right to switch table structures.
+              Manage Core Boards, Louvers, Fluted Panels, Metallic Inlays, Edge Banding, Screws, Nails/Pins, and Adhesives/Solvents. Use the view toggle at top right to switch table structures.
             </p>
           </div>
           <div className="p-3">
@@ -2028,6 +2652,8 @@ export function RequisitionBuilderClient({
               onLoadPreset={() => loadPreset(EXTRA_KEY)}
               onLoadLouverPreset={() => loadLouverPreset(EXTRA_KEY)}
               onLoadScrewPreset={() => loadScrewPreset(EXTRA_KEY)}
+              onLoadNailPreset={() => loadNailPreset(EXTRA_KEY)}
+              onLoadAdhesivePreset={() => loadAdhesivePreset(EXTRA_KEY)}
             />
           </div>
         </div>
@@ -2074,7 +2700,7 @@ export function RequisitionBuilderClient({
               className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
               <Send className="w-4 h-4 mr-2" />
-              Submit to Procurement
+              Submit Requisition
             </button>
           </div>
         </div>
