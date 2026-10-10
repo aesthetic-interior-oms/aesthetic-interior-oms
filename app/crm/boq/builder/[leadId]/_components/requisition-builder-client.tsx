@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   Download,
   Flame,
+  Wrench,
 } from 'lucide-react'
 import { saveMaterialRequisition, RequisitionItemInput } from '@/lib/boq-service'
 import type {
@@ -79,6 +80,14 @@ export interface BoardVariantAttributes {
   accentFinish?: string
   codeVariant?: string
   primaryUsage?: string
+
+  // Screws & Structural Fasteners attributes
+  fastenerType?: string
+  lengthInches?: string
+  gaugeSize?: string
+  materialFinish?: string
+  usagePurpose?: string
+
   column1?: string
 }
 
@@ -364,6 +373,105 @@ const SAMPLE_LOUVER_PROFILE_ITEMS: RequisitionItemInput[] = [
   },
 ]
 
+/** 3. Screws & Structural Fasteners Catalog Preset (SCR-075 - SCR-250) */
+const SAMPLE_SCREW_FASTENER_ITEMS: RequisitionItemInput[] = [
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Hardware Screw',
+    specifications: 'Wood Screw | 0.75" (3/4") | #6 Countered | Zinc Coated',
+    variantAttributes: {
+      itemId: 'SCR-075',
+      fastenerType: 'Wood Screw',
+      lengthInches: '0.75" (3/4")',
+      gaugeSize: '#6 Countered',
+      materialFinish: 'Zinc Coated',
+      usagePurpose: 'Hinges & Drawer Runners',
+      qtyLabel: '300',
+    },
+    netQuantity: 300,
+    wastagePercent: 0,
+    finalQuantity: 300,
+    unit: 'Pcs',
+    productionPhase: 'Hinges & Drawer Runners',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Medium Joinery Screw',
+    specifications: 'Wood Screw | 1.25" | #7 Countered | Black Phosphate',
+    variantAttributes: {
+      itemId: 'SCR-125',
+      fastenerType: 'Wood Screw',
+      lengthInches: '1.25"',
+      gaugeSize: '#7 Countered',
+      materialFinish: 'Black Phosphate',
+      usagePurpose: 'Carcass Box Assembly',
+      qtyLabel: '700',
+    },
+    netQuantity: 700,
+    wastagePercent: 0,
+    finalQuantity: 700,
+    unit: 'Pcs',
+    productionPhase: 'Carcass Box Assembly',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Frame Joinery Screw',
+    specifications: 'Wood Screw | 1.50" | #8 Heavy | Zinc Coated',
+    variantAttributes: {
+      itemId: 'SCR-150',
+      fastenerType: 'Wood Screw',
+      lengthInches: '1.50"',
+      gaugeSize: '#8 Heavy',
+      materialFinish: 'Zinc Coated',
+      usagePurpose: 'Wall Cabinet Mounting',
+      qtyLabel: '400',
+    },
+    netQuantity: 400,
+    wastagePercent: 0,
+    finalQuantity: 400,
+    unit: 'Pcs',
+    productionPhase: 'Wall Cabinet Mounting',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Anchor Screw',
+    specifications: 'Wood Screw | 2.00" | #8 Wall Plug | Steel',
+    variantAttributes: {
+      itemId: 'SCR-200',
+      fastenerType: 'Wood Screw',
+      lengthInches: '2.00"',
+      gaugeSize: '#8 Wall Plug',
+      materialFinish: 'Steel',
+      usagePurpose: 'Frame Anchor / Wall',
+      qtyLabel: '21',
+    },
+    netQuantity: 21,
+    wastagePercent: 0,
+    finalQuantity: 21,
+    unit: 'Pcs',
+    productionPhase: 'Frame Anchor / Wall',
+  },
+  {
+    workCategory: 'WALL_PANELING',
+    materialName: 'Deep Structural Screw',
+    specifications: 'Wood Screw | 2.50" | #10 Heavy Duty | Hardened Steel',
+    variantAttributes: {
+      itemId: 'SCR-250',
+      fastenerType: 'Wood Screw',
+      lengthInches: '2.50"',
+      gaugeSize: '#10 Heavy Duty',
+      materialFinish: 'Hardened Steel',
+      usagePurpose: 'Heavy Wall Cleat / Base',
+      qtyLabel: '300',
+    },
+    netQuantity: 300,
+    wastagePercent: 0,
+    finalQuantity: 300,
+    unit: 'Pcs',
+    productionPhase: 'Heavy Wall Cleat / Base',
+  },
+]
+
 /* ─────────────────────────────────────────────
    Types
 ───────────────────────────────────────────── */
@@ -396,7 +504,7 @@ interface Props {
 /** Items grouped: Record<quotationLineItemId | '__extra__', RequisitionItemInput[]> */
 type ItemsMap = Record<string, RequisitionItemInput[]>
 
-type ViewModeType = 'BOARD_SPEC' | 'LOUVER_SPEC' | 'STANDARD'
+type ViewModeType = 'BOARD_SPEC' | 'LOUVER_SPEC' | 'SCREW_SPEC' | 'STANDARD'
 
 /* ─────────────────────────────────────────────
    Helper – build a blank requisition item
@@ -473,13 +581,18 @@ function seedFromExisting(rawItems: any[]): ItemsMap {
         accentFinish: attrs.accentFinish || '',
         codeVariant: attrs.codeVariant || '',
         primaryUsage: attrs.primaryUsage || '',
+        fastenerType: attrs.fastenerType || '',
+        lengthInches: attrs.lengthInches || '',
+        gaugeSize: attrs.gaugeSize || '',
+        materialFinish: attrs.materialFinish || '',
+        usagePurpose: attrs.usagePurpose || '',
         column1: attrs.column1 || '',
       },
       netQuantity: Number(it.netQuantity) || 1,
       wastagePercent: Number(it.wastagePercent) || 0,
       finalQuantity: Number(it.finalQuantity) || Number(it.netQuantity) || 1,
       unit: it.unit || 'Pcs',
-      productionPhase: it.productionPhase || attrs.functionalUsage || attrs.primaryUsage || '',
+      productionPhase: it.productionPhase || attrs.functionalUsage || attrs.primaryUsage || attrs.usagePurpose || '',
       remarks: it.remarks || '',
     })
   }
@@ -492,7 +605,7 @@ function seedFromExisting(rawItems: any[]): ItemsMap {
 function BoardDatalists() {
   return (
     <>
-      {/* ── Core Boards Datalists ── */}
+      {/* ── Item ID List ── */}
       <datalist id="item-id-list">
         <option value="BRD-001" />
         <option value="BRD-002" />
@@ -508,8 +621,14 @@ function BoardDatalists() {
         <option value="TRM-001" />
         <option value="EDG-001" />
         <option value="EDG-002 (Ext)" />
+        <option value="SCR-075" />
+        <option value="SCR-125" />
+        <option value="SCR-150" />
+        <option value="SCR-200" />
+        <option value="SCR-250" />
       </datalist>
 
+      {/* ── Core Boards Datalists ── */}
       <datalist id="core-thickness-list">
         <option value="6mm" />
         <option value="9mm" />
@@ -613,6 +732,49 @@ function BoardDatalists() {
         <option value="Board Edge Sealing" />
         <option value="Internal Shelving Edges" />
       </datalist>
+
+      {/* ── Screws & Structural Fasteners Datalists ── */}
+      <datalist id="fastener-type-list">
+        <option value="Wood Screw" />
+        <option value="Drywall Screw" />
+        <option value="Self Tapping Screw" />
+        <option value="Concrete Anchor" />
+        <option value="Machine Bolt" />
+      </datalist>
+
+      <datalist id="fastener-length-list">
+        <option value='0.75" (3/4")' />
+        <option value='1.25"' />
+        <option value='1.50"' />
+        <option value='2.00"' />
+        <option value='2.50"' />
+        <option value='3.00"' />
+      </datalist>
+
+      <datalist id="gauge-size-list">
+        <option value="#6 Countered" />
+        <option value="#7 Countered" />
+        <option value="#8 Heavy" />
+        <option value="#8 Wall Plug" />
+        <option value="#10 Heavy Duty" />
+      </datalist>
+
+      <datalist id="fastener-finish-list">
+        <option value="Zinc Coated" />
+        <option value="Black Phosphate" />
+        <option value="Steel" />
+        <option value="Hardened Steel" />
+        <option value="Brass Plated" />
+        <option value="Stainless Steel" />
+      </datalist>
+
+      <datalist id="usage-purpose-list">
+        <option value="Hinges & Drawer Runners" />
+        <option value="Carcass Box Assembly" />
+        <option value="Wall Cabinet Mounting" />
+        <option value="Frame Anchor / Wall" />
+        <option value="Heavy Wall Cleat / Base" />
+      </datalist>
     </>
   )
 }
@@ -629,6 +791,7 @@ function MaterialRowsTable({
   onRemoveRow,
   onLoadPreset,
   onLoadLouverPreset,
+  onLoadScrewPreset,
 }: {
   rows: RequisitionItemInput[]
   viewMode: ViewModeType
@@ -638,6 +801,7 @@ function MaterialRowsTable({
   onRemoveRow: (rowIndex: number) => void
   onLoadPreset?: () => void
   onLoadLouverPreset?: () => void
+  onLoadScrewPreset?: () => void
 }) {
   return (
     <div className="border border-dashed border-border rounded-lg overflow-hidden">
@@ -661,7 +825,15 @@ function MaterialRowsTable({
                 onClick={onLoadLouverPreset}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 rounded-md transition-colors"
               >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Load Louvers & Edge Profiles (LVR-001 - EDG-002)
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Load Louvers & Profiles (LVR-001 - EDG-002)
+              </button>
+            )}
+            {onLoadScrewPreset && (
+              <button
+                onClick={onLoadScrewPreset}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-50 text-amber-800 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300 rounded-md transition-colors"
+              >
+                <Wrench className="w-3.5 h-3.5 text-amber-600" /> Load Screws & Fasteners (SCR-075 - SCR-250)
               </button>
             )}
           </div>
@@ -1007,8 +1179,178 @@ function MaterialRowsTable({
             </tbody>
           </table>
         </div>
+      ) : viewMode === 'SCREW_SPEC' ? (
+        /* ── 3. Screws & Structural Fasteners Table (10 Cols) ── */
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left min-w-[1100px]">
+            <thead className="text-muted-foreground uppercase bg-amber-50/60 dark:bg-amber-950/30 border-b border-amber-100 dark:border-amber-900">
+              <tr>
+                <th className="px-2.5 py-2 font-semibold w-28 text-amber-900 dark:text-amber-200">Item ID</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-amber-900 dark:text-amber-200">Item Name</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[130px] text-amber-900 dark:text-amber-200">Fastener Type</th>
+                <th className="px-2.5 py-2 font-semibold w-28 text-amber-900 dark:text-amber-200">Length (Inches)</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[130px] text-amber-900 dark:text-amber-200">Gauge / Size</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[140px] text-amber-900 dark:text-amber-200">Material / Finish</th>
+                <th className="px-2.5 py-2 font-semibold w-20 text-amber-900 dark:text-amber-200">Unit</th>
+                <th className="px-2.5 py-2 font-semibold text-center w-24 text-amber-900 dark:text-amber-200">Quantity</th>
+                <th className="px-2.5 py-2 font-semibold min-w-[160px] text-amber-900 dark:text-amber-200">Usage Purpose</th>
+                <th className="px-2.5 py-2 font-semibold w-28 text-amber-900 dark:text-amber-200">Notes / Col 1</th>
+                <th className="px-2 py-2 font-semibold w-8 text-right"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {rows.map((item, ri) => {
+                const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                return (
+                  <tr key={ri} className="hover:bg-amber-50/20 dark:hover:bg-amber-950/20 transition-colors">
+                    {/* 1. Item ID */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="item-id-list"
+                        value={attrs.itemId || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
+                        placeholder="SCR-075"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-mono font-semibold text-amber-700 dark:text-amber-300 focus:ring-1 focus:ring-amber-500"
+                      />
+                    </td>
+
+                    {/* 2. Item Name */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={item.materialName}
+                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
+                        placeholder="e.g. Hardware Screw"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs font-semibold focus:ring-1 focus:ring-amber-500"
+                      />
+                    </td>
+
+                    {/* 3. Fastener Type */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="fastener-type-list"
+                        value={attrs.fastenerType || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'fastenerType', e.target.value)}
+                        placeholder="Wood Screw"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                      />
+                    </td>
+
+                    {/* 4. Length (Inches) */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="fastener-length-list"
+                        value={attrs.lengthInches || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'lengthInches', e.target.value)}
+                        placeholder='0.75" (3/4")'
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                      />
+                    </td>
+
+                    {/* 5. Gauge / Size */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="gauge-size-list"
+                        value={attrs.gaugeSize || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'gaugeSize', e.target.value)}
+                        placeholder="#6 Countered"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                      />
+                    </td>
+
+                    {/* 6. Material / Finish */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="fastener-finish-list"
+                        value={attrs.materialFinish || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'materialFinish', e.target.value)}
+                        placeholder="Zinc Coated"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                      />
+                    </td>
+
+                    {/* 7. Unit */}
+                    <td className="px-2.5 py-2">
+                      <select
+                        value={item.unit}
+                        onChange={(e) => onChange(ri, 'unit', e.target.value)}
+                        className="w-full bg-background border border-input rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                      >
+                        {UOM_OPTIONS.map((uom) => (
+                          <option key={uom} value={uom}>
+                            {uom}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+
+                    {/* 8. Quantity */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'qtyLabel', val)
+                          const num = parseFloat(val)
+                          if (!isNaN(num)) {
+                            onChange(ri, 'netQuantity', num)
+                          }
+                        }}
+                        placeholder="300"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs text-center font-bold text-amber-700 dark:text-amber-300 focus:ring-1 focus:ring-amber-500"
+                      />
+                    </td>
+
+                    {/* 9. Usage Purpose */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        list="usage-purpose-list"
+                        value={attrs.usagePurpose || item.productionPhase || ''}
+                        onChange={(e) => {
+                          onUpdateVariant(ri, 'usagePurpose', e.target.value)
+                          onChange(ri, 'productionPhase', e.target.value)
+                        }}
+                        placeholder="Hinges & Drawer Runners"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                      />
+                    </td>
+
+                    {/* 10. Notes / Column 1 */}
+                    <td className="px-2.5 py-2">
+                      <input
+                        type="text"
+                        value={attrs.column1 || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'column1', e.target.value)}
+                        placeholder="Remarks / Specs"
+                        className="w-full bg-background border border-input rounded px-2 py-1 text-xs focus:ring-1 focus:ring-amber-500"
+                      />
+                    </td>
+
+                    {/* Delete */}
+                    <td className="px-2 py-2 text-right">
+                      <button
+                        onClick={() => onRemoveRow(ri)}
+                        className="text-muted-foreground hover:text-destructive p-0.5 rounded transition-colors"
+                        title="Remove row"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
-        /* ── 3. Standard 8-Column Material Table ── */
+        /* ── 4. Standard 8-Column Material Table ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[800px]">
             <thead className="text-muted-foreground uppercase bg-muted/40 border-b">
@@ -1141,7 +1483,7 @@ function MaterialRowsTable({
           Add Material Row
         </button>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {onLoadPreset && rows.length > 0 && (
             <button
               onClick={onLoadPreset}
@@ -1158,6 +1500,15 @@ function MaterialRowsTable({
             >
               <Sparkles className="w-3 h-3 text-indigo-500" />
               + Add Louvers & Edge Profiles (LVR-001 - EDG-002)
+            </button>
+          )}
+          {onLoadScrewPreset && rows.length > 0 && (
+            <button
+              onClick={onLoadScrewPreset}
+              className="inline-flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300 hover:underline transition-colors"
+            >
+              <Wrench className="w-3 h-3 text-amber-600" />
+              + Add Screws & Fasteners (SCR-075 - SCR-250)
             </button>
           )}
         </div>
@@ -1180,6 +1531,7 @@ function QuotationLineItemCard({
   onRemoveRow,
   onLoadPreset,
   onLoadLouverPreset,
+  onLoadScrewPreset,
 }: {
   item: QuotationLineItem
   area?: QuotationArea
@@ -1191,6 +1543,7 @@ function QuotationLineItemCard({
   onRemoveRow: (rowIndex: number) => void
   onLoadPreset: () => void
   onLoadLouverPreset: () => void
+  onLoadScrewPreset: () => void
 }) {
   const [expanded, setExpanded] = useState(true)
 
@@ -1248,6 +1601,7 @@ function QuotationLineItemCard({
             onRemoveRow={onRemoveRow}
             onLoadPreset={onLoadPreset}
             onLoadLouverPreset={onLoadLouverPreset}
+            onLoadScrewPreset={onLoadScrewPreset}
           />
         </div>
       )}
@@ -1332,10 +1686,10 @@ export function RequisitionBuilderClient({
 
       // Keep specifications string in sync
       const specParts = [
-        nextAttrs.coreThickness || nextAttrs.profileType,
-        nextAttrs.baseMaterial || nextAttrs.material,
-        nextAttrs.laminateTopSurface || nextAttrs.accentFinish,
-        nextAttrs.surfaceCodeFinish || nextAttrs.codeVariant,
+        nextAttrs.coreThickness || nextAttrs.profileType || nextAttrs.fastenerType,
+        nextAttrs.baseMaterial || nextAttrs.material || nextAttrs.lengthInches,
+        nextAttrs.laminateTopSurface || nextAttrs.accentFinish || nextAttrs.gaugeSize,
+        nextAttrs.surfaceCodeFinish || nextAttrs.codeVariant || nextAttrs.materialFinish,
       ].filter(Boolean)
 
       if (specParts.length > 0) {
@@ -1380,6 +1734,17 @@ export function RequisitionBuilderClient({
 
   const loadLouverPreset = (key: string, quotationLineItemId?: string) => {
     const presetItems = SAMPLE_LOUVER_PROFILE_ITEMS.map((item) => ({
+      ...item,
+      quotationLineItemId,
+    }))
+    setItemsMap((prev) => ({
+      ...prev,
+      [key]: [...(prev[key] ?? []), ...presetItems],
+    }))
+  }
+
+  const loadScrewPreset = (key: string, quotationLineItemId?: string) => {
+    const presetItems = SAMPLE_SCREW_FASTENER_ITEMS.map((item) => ({
       ...item,
       quotationLineItemId,
     }))
@@ -1456,7 +1821,7 @@ export function RequisitionBuilderClient({
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <TableIcon className="w-3.5 h-3.5 text-primary" /> Core Boards (10 Cols)
+              <TableIcon className="w-3.5 h-3.5 text-primary" /> Core Boards
             </button>
             <button
               onClick={() => setViewMode('LOUVER_SPEC')}
@@ -1466,7 +1831,17 @@ export function RequisitionBuilderClient({
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Louvers & Edge Profiles (10 Cols)
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" /> Louvers & Profiles
+            </button>
+            <button
+              onClick={() => setViewMode('SCREW_SPEC')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-semibold transition-colors ${
+                viewMode === 'SCREW_SPEC'
+                  ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Wrench className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" /> Screws & Fasteners
             </button>
             <button
               onClick={() => setViewMode('STANDARD')}
@@ -1537,8 +1912,8 @@ export function RequisitionBuilderClient({
           </div>
           {lineItems.length > 0 && (
             <p className="text-xs text-muted-foreground mt-2">
-              Expand each quotation line item below to enter <strong>Core Boards & Plywood</strong> or <strong>Decorative Panels, Louvers & Edge Profiles</strong>.
-              You can toggle between view modes at the top right.
+              Expand each quotation line item below to enter <strong>Core Boards & Plywood</strong>, <strong>Decorative Panels, Louvers & Edge Profiles</strong>, or <strong>Screws & Fasteners</strong>.
+              Use the mode buttons at the top right to switch tables.
             </p>
           )}
         </div>
@@ -1586,6 +1961,7 @@ export function RequisitionBuilderClient({
                         onRemoveRow={(ri) => removeRow(li.id, ri)}
                         onLoadPreset={() => loadPreset(li.id, li.id)}
                         onLoadLouverPreset={() => loadLouverPreset(li.id, li.id)}
+                        onLoadScrewPreset={() => loadScrewPreset(li.id, li.id)}
                       />
                     )
                   })}
@@ -1607,23 +1983,30 @@ export function RequisitionBuilderClient({
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500" />
             <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
-              Wall Paneling & Decorative Profiles (Extra / General)
+              Wall Paneling, Louvers & Fasteners (Extra / General)
             </h2>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => loadPreset(EXTRA_KEY)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors"
             >
               <Download className="w-3.5 h-3.5 text-amber-600" />
-              Load Core Boards (BRD-001 - BRD-008)
+              Load Core Boards (BRD)
             </button>
             <button
               onClick={() => loadLouverPreset(EXTRA_KEY)}
-              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 hover:bg-indigo-100 rounded-md transition-colors"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 hover:bg-indigo-100 rounded-md transition-colors"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              Load Louvers & Profiles (LVR-001 - EDG-002)
+              Load Louvers (LVR/EDG)
+            </button>
+            <button
+              onClick={() => loadScrewPreset(EXTRA_KEY)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-amber-100/70 text-amber-800 dark:bg-amber-950/70 dark:text-amber-300 hover:bg-amber-200/80 rounded-md transition-colors"
+            >
+              <Wrench className="w-3.5 h-3.5 text-amber-700" />
+              Load Screws (SCR)
             </button>
           </div>
         </div>
@@ -1631,7 +2014,7 @@ export function RequisitionBuilderClient({
         <div className="border rounded-lg overflow-hidden bg-card shadow-sm">
           <div className="px-4 py-3 bg-amber-50/40 dark:bg-amber-950/20 border-b border-amber-100 dark:border-amber-900 flex flex-col md:flex-row md:items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
-              Manage Core Boards, Louvers, Fluted Panels, Metallic Inlays, and Edge Banding. Use the view toggle at top right to switch table structures.
+              Manage Core Boards, Louvers, Fluted Panels, Metallic Inlays, Edge Banding, and Structural Screws/Fasteners. Use the view toggle at top right to switch table structures.
             </p>
           </div>
           <div className="p-3">
@@ -1644,6 +2027,7 @@ export function RequisitionBuilderClient({
               onRemoveRow={(ri) => removeRow(EXTRA_KEY, ri)}
               onLoadPreset={() => loadPreset(EXTRA_KEY)}
               onLoadLouverPreset={() => loadLouverPreset(EXTRA_KEY)}
+              onLoadScrewPreset={() => loadScrewPreset(EXTRA_KEY)}
             />
           </div>
         </div>
