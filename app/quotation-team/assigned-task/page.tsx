@@ -117,8 +117,8 @@ export default function QuotationAssignedTaskPage() {
   const selectedMonthLabel =
     availableMonths.find((month) => month.value === selectedMonth)?.label ?? "All Visit Months";
 
-  const loadTasks = useCallback(async (monthKey = "ALL") => {
-    setLoading(true);
+  const loadTasks = useCallback(async (monthKey = "ALL", silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const params = new URLSearchParams();
       if (monthKey && monthKey !== "ALL") params.set("month", monthKey);
@@ -132,19 +132,40 @@ export default function QuotationAssignedTaskPage() {
       }
       setLeads(payload.data as TaskLead[]);
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to load assigned tasks",
-      );
-      setLeads([]);
+      if (!silent) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to load assigned tasks",
+        );
+        setLeads([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     void loadTasks(selectedMonth);
+
+    // Auto-refresh tasks every 30 seconds when tab is active so other PCs see new assignments live
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadTasks(selectedMonth, true);
+      }
+    }, 30000);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void loadTasks(selectedMonth, true);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [loadTasks, selectedMonth]);
 
   const [selectedStatFilter, setSelectedStatFilter] = useState<string>("total");

@@ -338,6 +338,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     }
 
     let notifyVisitMemberOfCadId: string | null = null;
+    let notifyQuotationMemberId: string | null = null;
 
     const updatedLead = await prisma.$transaction(async (tx) => {
       let finalAgreementValue = agreementValue;
@@ -484,6 +485,22 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         }
       }
 
+      if (
+        nextSubStatus === LeadSubStatus.QUOTATION_ASSIGNED ||
+        (nextStage === LeadStage.QUOTATION_PHASE && existingLead.stage !== LeadStage.QUOTATION_PHASE)
+      ) {
+        const quotationAssignment = await tx.leadAssignment.findFirst({
+          where: {
+            leadId,
+            department: LeadAssignmentDepartment.QUOTATION,
+          },
+          select: { userId: true },
+        });
+        if (quotationAssignment) {
+          notifyQuotationMemberId = quotationAssignment.userId;
+        }
+      }
+
       return updated;
     });
 
@@ -497,6 +514,29 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         );
       } catch (pushErr) {
         console.error('[lead/:id/stage] Failed to send CAD assignment push to visit member:', pushErr);
+      }
+    }
+
+    if (notifyQuotationMemberId) {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: notifyQuotationMemberId,
+            leadId: updatedLead.id,
+            type: 'LEAD_ASSIGNED_TO_YOU',
+            title: 'New Quotation assignment',
+            message: `${updatedLead.name} has been assigned to you for quotation work.`,
+            scheduledFor: new Date(),
+          },
+        });
+        await sendPushToUser(
+          notifyQuotationMemberId,
+          'New Quotation assignment',
+          `${updatedLead.name} has been assigned to you for quotation work.`,
+          { type: 'QUOTATION_ASSIGNED', leadId: updatedLead.id }
+        );
+      } catch (pushErr) {
+        console.error('[lead/:id/stage] Failed to send Quotation assignment push:', pushErr);
       }
     }
 

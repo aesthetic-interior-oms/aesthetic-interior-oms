@@ -395,6 +395,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
     }
 
+    if (department === 'QUOTATION') {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: user.id,
+            leadId: lead.id,
+            type: 'LEAD_ASSIGNED_TO_YOU',
+            title: isUpdate ? 'Quotation assignment updated' : 'New Quotation assignment',
+            message: lead.name + ' has been assigned to you for quotation work.',
+            scheduledFor: new Date(),
+          },
+        })
+        await sendPushToUser(
+          user.id,
+          isUpdate ? 'Quotation assignment updated' : 'New Quotation assignment',
+          lead.name + ' has been assigned to you for quotation work.',
+          { type: 'QUOTATION_ASSIGNED', leadId: lead.id },
+        )
+      } catch (notificationError) {
+        console.error('[POST /api/lead/[id]/assignments] Failed to notify Quotation user:', notificationError)
+      }
+    }
+
     if (hasVisitsToReassign) {
       try {
         await sendPushToUser(

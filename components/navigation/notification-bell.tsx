@@ -205,21 +205,35 @@ export function NotificationBell() {
     setSoundEnabled(enabled)
     loadNotifications(true)
 
+    // Poll every 30 seconds (was 120s) so all PCs pick up new notifications quickly
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
         void loadNotifications(false)
       }
-    }, 120000)
+    }, 30000)
+
+    let focusQuickPollTimer: ReturnType<typeof setTimeout> | number | null = null
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         wasHiddenRef.current = true
         visibleUnreadCountRef.current = unreadCountRef.current
+        // Cancel any pending quick-poll when tab hides
+        if (focusQuickPollTimer !== null) {
+          window.clearTimeout(focusQuickPollTimer)
+          focusQuickPollTimer = null
+        }
         return
       }
       if (document.visibilityState === 'visible' && wasHiddenRef.current) {
         wasHiddenRef.current = false
+        // Immediate poll on tab focus
         void loadNotifications(false, true)
+        // Also poll again after 5s to catch any notifications that arrive just after focus
+        focusQuickPollTimer = window.setTimeout(() => {
+          void loadNotifications(false)
+          focusQuickPollTimer = null
+        }, 5000)
       }
     }
 
@@ -227,6 +241,7 @@ export function NotificationBell() {
 
     return () => {
       window.clearInterval(timer)
+      if (focusQuickPollTimer !== null) window.clearTimeout(focusQuickPollTimer)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [loadNotifications])
@@ -289,6 +304,9 @@ export function NotificationBell() {
     if (pathname.startsWith('/crm/visualizer')) {
       return `/crm/visualizer/leads/${leadId}`
     }
+    if (pathname.startsWith('/quotation-team')) {
+      return `/quotation-team/leads/${leadId}`
+    }
     return `/crm/jr/leads/${leadId}`
   }
 
@@ -302,6 +320,9 @@ export function NotificationBell() {
     }
     if (item.type === 'LEAD_ASSIGNED_TO_YOU' && pathname.startsWith('/crm/jr')) {
       return '/crm/jr/leads'
+    }
+    if (item.type === 'LEAD_ASSIGNED_TO_YOU' && pathname.startsWith('/quotation-team')) {
+      return '/quotation-team/assigned-task'
     }
     return null
   }

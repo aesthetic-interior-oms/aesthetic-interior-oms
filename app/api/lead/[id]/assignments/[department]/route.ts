@@ -10,6 +10,7 @@ import { requireDatabaseRoles } from '@/lib/authz'
 import { logUserAssigned } from '@/lib/activity-log-service'
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete'
 import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles'
+import { sendPushToUser } from '@/lib/fcm-service'
 
 /*
   POSTMAN TESTING DATA
@@ -244,10 +245,31 @@ export async function POST(
         action: 'new quotation assignment',
       })
 
-      return assignment
+      return { assignment, leadName: lead.name }
     })
 
-    return NextResponse.json({ success: true, data: result, message: 'New quotation assignment created successfully' })
+    try {
+      await prisma.notification.create({
+        data: {
+          userId: user.id,
+          leadId,
+          type: 'LEAD_ASSIGNED_TO_YOU',
+          title: 'New Quotation assignment',
+          message: `${result.leadName || 'Lead'} has been assigned to you for quotation work.`,
+          scheduledFor: new Date(),
+        },
+      })
+      await sendPushToUser(
+        user.id,
+        'New Quotation assignment',
+        `${result.leadName || 'Lead'} has been assigned to you for quotation work.`,
+        { type: 'QUOTATION_ASSIGNED', leadId },
+      )
+    } catch (notificationError) {
+      console.error('[POST /api/lead/[id]/assignments/[department]] Failed to notify quotation user:', notificationError)
+    }
+
+    return NextResponse.json({ success: true, data: result.assignment, message: 'New quotation assignment created successfully' })
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Failed to create new quotation assignment'
     return NextResponse.json({ success: false, error: errorMsg }, { status: errorMsg.includes('not found') ? 404 : 500 })
@@ -519,6 +541,29 @@ export async function PUT(
     debugLog(
       '✨ [PUT /api/lead/[id]/assignments/[department]] - Assignment updated successfully',
     )
+
+    if (department === 'QUOTATION') {
+      try {
+        await prisma.notification.create({
+          data: {
+            userId: user.id,
+            leadId: lead.id,
+            type: 'LEAD_ASSIGNED_TO_YOU',
+            title: 'Quotation assignment updated',
+            message: `${lead.name} has been assigned to you for quotation work.`,
+            scheduledFor: new Date(),
+          },
+        })
+        await sendPushToUser(
+          user.id,
+          'Quotation assignment updated',
+          `${lead.name} has been assigned to you for quotation work.`,
+          { type: 'QUOTATION_ASSIGNED', leadId: lead.id },
+        )
+      } catch (notificationError) {
+        console.error('[PUT /api/lead/[id]/assignments/[department]] Failed to notify quotation user:', notificationError)
+      }
+    }
 
     return NextResponse.json({
       success: true,
