@@ -1261,7 +1261,6 @@ interface Props {
     notes: string | null
     items: SavedRequisitionItem[]
   } | null
-  userId: string
 }
 
 /** Items grouped: Record<quotationLineItemId | '__extra__', RequisitionItemInput[]> */
@@ -4051,7 +4050,6 @@ export function RequisitionBuilderClient({
   lead,
   detailQuotation,
   existingRequisition,
-  userId,
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -4278,7 +4276,6 @@ export function RequisitionBuilderClient({
         quotationDraftId: detailQuotation?.id,
         status,
         notes,
-        createdById: userId,
         items: requisitionItems,
       })
       if (res.success) {
@@ -4299,7 +4296,7 @@ export function RequisitionBuilderClient({
       setSaveError(error instanceof Error ? error.message : 'Failed to save material requisition.')
       return false
     }
-  }, [detailQuotation?.id, lead.id, notes, requisitionItems, router, userId])
+  }, [detailQuotation?.id, lead.id, notes, requisitionItems, router])
 
   const handleSave = useCallback((status: SaveStatus = 'DRAFT') => {
     startTransition(() => {

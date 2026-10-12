@@ -32,7 +32,6 @@ export default async function RequisitionBuilderPage({ params }: PageProps) {
       lead={data.lead}
       detailQuotation={data.detailQuotation}
       existingRequisition={data.requisition}
-      userId={userId}
     />
   )
 }

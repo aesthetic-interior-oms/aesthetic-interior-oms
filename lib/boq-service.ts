@@ -2,8 +2,10 @@
 
 import prisma from '@/lib/prisma'
 import { RequisitionWorkCategory, RequisitionStatus, LeadSubStatus, LeadAssignmentDepartment } from '@/generated/prisma/client'
+import type { Prisma } from '@/generated/prisma/client'
 import { requireDatabaseRoles } from '@/lib/authz'
 
+type RequisitionVariantAttributes = Record<string, string | number | boolean | null | undefined>
 
 export type RequisitionItemInput = {
   id?: string
@@ -11,7 +13,7 @@ export type RequisitionItemInput = {
   workCategory: RequisitionWorkCategory
   materialName: string
   specifications?: string
-  variantAttributes?: any
+  variantAttributes?: RequisitionVariantAttributes
   netQuantity: number
   wastagePercent: number
   finalQuantity: number
@@ -251,7 +253,6 @@ export async function saveMaterialRequisition(input: {
   quotationDraftId?: string
   status?: RequisitionStatus
   notes?: string
-  createdById: string
   items: RequisitionItemInput[]
 }) {
   try {
@@ -300,7 +301,7 @@ export async function saveMaterialRequisition(input: {
           requisitionNo,
           status: input.status || 'DRAFT',
           notes: input.notes,
-          createdById: input.createdById,
+          createdById: authResult.actorUserId,
         },
       })
       requisitionId = newReq.id
@@ -323,7 +324,7 @@ export async function saveMaterialRequisition(input: {
           workCategory: item.workCategory,
           materialName: item.materialName,
           specifications: item.specifications,
-          variantAttributes: item.variantAttributes || {},
+          variantAttributes: (item.variantAttributes || {}) as Prisma.InputJsonValue,
           netQuantity: Number(item.netQuantity) || 1,
           wastagePercent: Number(item.wastagePercent) || 0,
           finalQuantity: Number(item.finalQuantity) || Number(item.netQuantity) || 1,
