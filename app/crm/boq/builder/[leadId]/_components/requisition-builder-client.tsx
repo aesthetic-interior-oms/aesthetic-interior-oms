@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -16,13 +16,9 @@ import {
   Package,
   Layers,
   CheckCircle2,
-  FileText,
   Sparkles,
   AlertCircle,
-  Table as TableIcon,
-  LayoutGrid,
   Download,
-  Flame,
   Wrench,
   Pin,
   FlaskConical,
@@ -1256,14 +1252,14 @@ interface Props {
     id: string
     grandTotal: number
     status: string
-    content: any
+    content: unknown
   } | null
   existingRequisition: {
     id: string
     requisitionNo: string
     status: string
     notes: string | null
-    items: any[]
+    items: SavedRequisitionItem[]
   } | null
   userId: string
 }
@@ -1286,6 +1282,23 @@ interface CardSection {
 type SectionsMap = Record<string, CardSection[]>
 /** ItemsMap key = `${cardKey}::${sectionId}` */
 type ItemsMap = Record<string, RequisitionItemInput[]>
+
+type RequisitionFieldValue = string | number | Record<string, unknown> | undefined
+
+type SavedRequisitionItem = {
+  id?: string
+  quotationLineItemId?: string | null
+  workCategory?: RequisitionWorkCategory
+  materialName?: string | null
+  specifications?: string | null
+  variantAttributes?: unknown
+  netQuantity?: number | string | null
+  wastagePercent?: number | string | null
+  finalQuantity?: number | string | null
+  unit?: string | null
+  productionPhase?: string | null
+  remarks?: string | null
+}
 
 type ViewModeType =
   | 'BOARD_SPEC'
@@ -1478,10 +1491,32 @@ function flattenItems(map: ItemsMap): RequisitionItemInput[] {
   return Object.values(map).flat()
 }
 
+type SaveStatus = 'DRAFT' | 'SUBMITTED'
+type PdfTableDoc = {
+  internal: {
+    getCurrentPageInfo: () => { pageNumber: number }
+    getNumberOfPages: () => number
+  }
+  lastAutoTable?: { finalY?: number }
+}
+
+function getWorkCategoryLabel(category: RequisitionWorkCategory | string): string {
+  return WORK_CATEGORIES.find((item) => item.key === category)?.label ?? String(category).replace(/_/g, ' ')
+}
+
+function safePdfText(value: unknown, fallback = '-'): string {
+  if (value === null || value === undefined || value === '') return fallback
+  return String(value).replace(/[৳—–]/g, (match) => (match === '৳' ? 'BDT ' : '-'))
+}
+
+function safeFilePart(value: string): string {
+  return value.trim().replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'requisition'
+}
+
 /* ─────────────────────────────────────────────
    Helper – seed state from existing saved items
 ───────────────────────────────────────────── */
-function seedFromExisting(rawItems: any[]): { sectionsMap: SectionsMap; itemsMap: ItemsMap } {
+function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: SectionsMap; itemsMap: ItemsMap } {
   const sectionsMap: SectionsMap = {}
   const itemsMap: ItemsMap = {}
   const sectionRegistry: Record<string, string> = {}
@@ -1493,7 +1528,7 @@ function seedFromExisting(rawItems: any[]): { sectionsMap: SectionsMap; itemsMap
     if (typeof it.variantAttributes === 'string') {
       try { attrs = JSON.parse(it.variantAttributes) } catch { attrs = {} }
     } else if (it.variantAttributes && typeof it.variantAttributes === 'object') {
-      attrs = it.variantAttributes
+      attrs = it.variantAttributes as BoardVariantAttributes
     }
 
     const category: RequisitionWorkCategory = it.workCategory || 'WALL_PANELING'
@@ -1938,7 +1973,7 @@ function MaterialRowsTable({
 }: {
   rows: RequisitionItemInput[]
   viewMode: ViewModeType
-  onChange: (rowIndex: number, field: keyof RequisitionItemInput, value: any) => void
+  onChange: (rowIndex: number, field: keyof RequisitionItemInput, value: RequisitionFieldValue) => void
   onUpdateVariant: (rowIndex: number, field: keyof BoardVariantAttributes, value: string) => void
   onAddRow: () => void
   onRemoveRow: (rowIndex: number) => void
@@ -3603,7 +3638,7 @@ function SectionBlock({
 }: {
   section: CardSection
   rows: RequisitionItemInput[]
-  onChange: (ri: number, field: keyof RequisitionItemInput, value: any) => void
+  onChange: (ri: number, field: keyof RequisitionItemInput, value: RequisitionFieldValue) => void
   onUpdateVariant: (ri: number, field: keyof BoardVariantAttributes, value: string) => void
   onAddRow: () => void
   onRemoveRow: (ri: number) => void
@@ -3788,7 +3823,7 @@ function QuotationLineItemCard({
   area?: QuotationArea
   sections: CardSection[]
   getRowsForSection: (sectionId: string) => RequisitionItemInput[]
-  onChangeRow: (sectionId: string, ri: number, field: keyof RequisitionItemInput, value: any) => void
+  onChangeRow: (sectionId: string, ri: number, field: keyof RequisitionItemInput, value: RequisitionFieldValue) => void
   onUpdateVariant: (sectionId: string, ri: number, field: keyof BoardVariantAttributes, value: string) => void
   onAddRow: (sectionId: string) => void
   onRemoveRow: (sectionId: string, ri: number) => void
@@ -3920,7 +3955,7 @@ function ExtraCard({
 }: {
   sections: CardSection[]
   getRowsForSection: (sectionId: string) => RequisitionItemInput[]
-  onChangeRow: (sectionId: string, ri: number, field: keyof RequisitionItemInput, value: any) => void
+  onChangeRow: (sectionId: string, ri: number, field: keyof RequisitionItemInput, value: RequisitionFieldValue) => void
   onUpdateVariant: (sectionId: string, ri: number, field: keyof BoardVariantAttributes, value: string) => void
   onAddRow: (sectionId: string) => void
   onRemoveRow: (sectionId: string, ri: number) => void
@@ -4021,6 +4056,12 @@ export function RequisitionBuilderClient({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
+  const [lastSavedStatus, setLastSavedStatus] = useState<SaveStatus | null>(
+    existingRequisition?.status === 'SUBMITTED' ? 'SUBMITTED' : existingRequisition ? 'DRAFT' : null
+  )
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false)
   const [notes, setNotes] = useState<string>(existingRequisition?.notes || '')
 
   // ── Per-section architecture state ──
@@ -4038,15 +4079,24 @@ export function RequisitionBuilderClient({
     }
   }, [detailQuotation])
 
-  const sections: QuotationSection[] = quotation?.sections ?? []
-  const areas: QuotationArea[] = quotation?.areas ?? []
-  const lineItems: QuotationLineItem[] = (quotation?.lineItems ?? []).filter((li) => li.included)
+  const sections = useMemo<QuotationSection[]>(() => quotation?.sections ?? [], [quotation])
+  const areas = useMemo<QuotationArea[]>(() => quotation?.areas ?? [], [quotation])
+  const lineItems = useMemo<QuotationLineItem[]>(
+    () => (quotation?.lineItems ?? []).filter((li) => li.included),
+    [quotation]
+  )
 
   const areaMap = useMemo(() => {
     const m = new Map<string, QuotationArea>()
     for (const a of areas) m.set(a.id, a)
     return m
   }, [areas])
+
+  const lineItemMap = useMemo(() => {
+    const m = new Map<string, QuotationLineItem>()
+    for (const item of lineItems) m.set(item.id, item)
+    return m
+  }, [lineItems])
 
   // ── Section helpers ──
   const getSectionsForCard = (cardKey: string): CardSection[] => sectionsMap[cardKey] ?? []
@@ -4092,7 +4142,7 @@ export function RequisitionBuilderClient({
     }))
   }
 
-  const updateRow = (cardKey: string, sectionId: string, rowIndex: number, field: keyof RequisitionItemInput, rawValue: any) => {
+  const updateRow = (cardKey: string, sectionId: string, rowIndex: number, field: keyof RequisitionItemInput, rawValue: RequisitionFieldValue) => {
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => {
       const rows = [...(prev[key] ?? [])]
@@ -4196,7 +4246,8 @@ export function RequisitionBuilderClient({
   }
 
   // ── Summary counts ──
-  const totalMaterialRows = useMemo(() => flattenItems(itemsMap).length, [itemsMap])
+  const requisitionItems = useMemo(() => flattenItems(itemsMap), [itemsMap])
+  const totalMaterialRows = requisitionItems.length
   const coveredLineItems = useMemo(
     () => lineItems.filter((li) => (sectionsMap[li.id] ?? []).some((s) => (itemsMap[sectionItemKey(li.id, s.id)]?.length ?? 0) > 0)).length,
     [lineItems, sectionsMap, itemsMap]
@@ -4205,35 +4256,233 @@ export function RequisitionBuilderClient({
     () => (sectionsMap[EXTRA_KEY] ?? []).reduce((sum, s) => sum + (itemsMap[sectionItemKey(EXTRA_KEY, s.id)]?.length ?? 0), 0),
     [sectionsMap, itemsMap]
   )
+  const categorySummary = useMemo(() => {
+    const summary: Partial<Record<RequisitionWorkCategory, number>> = {}
+    for (const item of requisitionItems) {
+      const category = item.workCategory as RequisitionWorkCategory
+      summary[category] = (summary[category] ?? 0) + 1
+    }
+    return Object.entries(summary)
+      .map(([category, count]) => `${getWorkCategoryLabel(category)}: ${count}`)
+      .join('  |  ')
+  }, [requisitionItems])
+  const coveragePct = lineItems.length > 0 ? Math.round((coveredLineItems / lineItems.length) * 100) : 0
 
   // ── Save / Submit ──
-  const handleSave = (status: 'DRAFT' | 'SUBMITTED' = 'DRAFT') => {
+  const saveRequisition = useCallback(async (status: SaveStatus = 'DRAFT', successMessage?: string) => {
     setSaveSuccess(null)
-    startTransition(async () => {
+    setSaveError(null)
+    try {
       const res = await saveMaterialRequisition({
         leadId: lead.id,
         quotationDraftId: detailQuotation?.id,
         status,
         notes,
         createdById: userId,
-        items: flattenItems(itemsMap),
+        items: requisitionItems,
       })
       if (res.success) {
+        setLastSavedAt(new Date())
+        setLastSavedStatus(status)
         setSaveSuccess(
-          status === 'SUBMITTED'
+          successMessage ??
+          (status === 'SUBMITTED'
             ? 'Material requisition submitted to Procurement team successfully!'
-            : 'Material requisition draft saved successfully!'
+            : 'Material requisition draft saved successfully!')
         )
         router.refresh()
+        return true
       }
-    })
-  }
+      setSaveError(res.error || 'Failed to save material requisition.')
+      return false
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Failed to save material requisition.')
+      return false
+    }
+  }, [detailQuotation?.id, lead.id, notes, requisitionItems, router, userId])
 
-  const coveragePct = lineItems.length > 0 ? Math.round((coveredLineItems / lineItems.length) * 100) : 0
+  const handleSave = useCallback((status: SaveStatus = 'DRAFT') => {
+    startTransition(() => {
+      void saveRequisition(status)
+    })
+  }, [saveRequisition, startTransition])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        handleSave('DRAFT')
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [handleSave])
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (totalMaterialRows === 0) {
+      setSaveError('Add at least one material row before downloading the PDF.')
+      return
+    }
+
+    setIsPdfGenerating(true)
+    try {
+      const saved = await saveRequisition('DRAFT', 'Draft saved. Requisition PDF is ready for download.')
+      if (!saved) return
+
+      const { default: jsPDF } = await import('jspdf')
+      const { default: autoTable } = await import('jspdf-autotable')
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      const pageW = doc.internal.pageSize.getWidth()
+      const pageH = doc.internal.pageSize.getHeight()
+      const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      const reqNo = existingRequisition?.requisitionNo || `DRAFT-${lead.id.slice(-6).toUpperCase()}`
+
+      const logoImg = new Image()
+      logoImg.src = '/Logo/HeaderLogo.png'
+      await new Promise((resolve) => {
+        logoImg.onload = resolve
+        logoImg.onerror = resolve
+      })
+
+      doc.setFillColor(15, 23, 42)
+      doc.rect(0, 0, pageW, 30, 'F')
+      doc.addImage(logoImg, 'PNG', 14, 9, 43.2, 8)
+      doc.setTextColor(255, 255, 255)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(15)
+      doc.text('MATERIAL REQUISITION', pageW - 14, 12, { align: 'right' })
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(203, 213, 225)
+      doc.text(`Requisition: ${safePdfText(reqNo)}  |  Generated: ${today}`, pageW - 14, 19, { align: 'right' })
+
+      doc.setFillColor(248, 250, 252)
+      doc.setDrawColor(226, 232, 240)
+      doc.roundedRect(14, 36, pageW - 28, 24, 2, 2, 'FD')
+      doc.setTextColor(15, 23, 42)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9)
+      doc.text('Project / Client', 20, 43)
+      doc.text('Requisition Summary', pageW / 2 + 6, 43)
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.setTextColor(71, 85, 105)
+      doc.text(`Client: ${safePdfText(lead.name)}`, 20, 49)
+      doc.text(`Phone: ${safePdfText(lead.phone)}`, 20, 54)
+      doc.text(`Location: ${safePdfText(lead.location)}`, 20, 59)
+      doc.text(`Status: ${lastSavedStatus === 'SUBMITTED' ? 'Submitted' : 'Draft'}`, pageW / 2 + 6, 49)
+      doc.text(`Material Rows: ${totalMaterialRows}`, pageW / 2 + 6, 54)
+      doc.text(`Quotation Coverage: ${coveredLineItems}/${lineItems.length} items (${coveragePct}%)`, pageW / 2 + 6, 59)
+
+      doc.setFillColor(239, 246, 255)
+      doc.setDrawColor(191, 219, 254)
+      doc.roundedRect(14, 64, pageW - 28, 10, 1.5, 1.5, 'FD')
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(7.5)
+      doc.setTextColor(30, 64, 175)
+      doc.text(safePdfText(categorySummary || 'No category rows'), 20, 70)
+
+      const pdfDoc = doc as unknown as PdfTableDoc
+      autoTable(doc, {
+        startY: 80,
+        head: [['SL', 'Category', 'Material', 'Specifications', 'Qty', 'Unit', 'BOQ Source', 'Phase / Usage', 'Remarks']],
+        body: requisitionItems.map((item, index) => {
+          const sourceItem = item.quotationLineItemId ? lineItemMap.get(item.quotationLineItemId) : null
+          const sourceArea = sourceItem?.areaId ? areaMap.get(sourceItem.areaId) : null
+          const sourceLabel = sourceItem
+            ? `${sourceArea ? `${sourceArea.name} / ` : ''}${sourceItem.description}`
+            : 'General / Extra'
+          return [
+            index + 1,
+            safePdfText(getWorkCategoryLabel(item.workCategory as RequisitionWorkCategory)),
+            safePdfText(item.materialName),
+            safePdfText(item.specifications),
+            Number(item.finalQuantity || item.netQuantity || 0).toLocaleString('en-IN'),
+            safePdfText(item.unit),
+            safePdfText(sourceLabel),
+            safePdfText(item.productionPhase),
+            safePdfText(item.remarks),
+          ]
+        }),
+        theme: 'grid',
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 7.2,
+          cellPadding: 2,
+        },
+        bodyStyles: {
+          fontSize: 6.8,
+          textColor: [15, 23, 42],
+          cellPadding: 1.8,
+          lineColor: [226, 232, 240],
+          lineWidth: 0.1,
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        columnStyles: {
+          0: { cellWidth: 9, halign: 'center' },
+          1: { cellWidth: 24 },
+          2: { cellWidth: 34, fontStyle: 'bold' },
+          3: { cellWidth: 55 },
+          4: { cellWidth: 14, halign: 'right', fontStyle: 'bold' },
+          5: { cellWidth: 13 },
+          6: { cellWidth: 50 },
+          7: { cellWidth: 33 },
+          8: { cellWidth: 'auto' },
+        },
+        margin: { left: 10, right: 10 },
+        didDrawPage: () => {
+          const pageNum = pdfDoc.internal.getCurrentPageInfo().pageNumber
+          const pageCount = pdfDoc.internal.getNumberOfPages()
+          doc.setFontSize(7)
+          doc.setTextColor(148, 163, 184)
+          doc.text(`Aesthetic Interior | BOQ Material Requisition | Page ${pageNum} of ${pageCount}`, pageW / 2, pageH - 5, { align: 'center' })
+        },
+      })
+
+      if (notes.trim()) {
+        const finalY = (pdfDoc.lastAutoTable?.finalY ?? 80) + 8
+        if (finalY < pageH - 22) {
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(8)
+          doc.setTextColor(15, 23, 42)
+          doc.text('Factory Notes', 14, finalY)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(71, 85, 105)
+          doc.text(doc.splitTextToSize(safePdfText(notes), pageW - 28), 14, finalY + 5)
+        }
+      }
+
+      doc.save(`material-requisition-${safeFilePart(lead.name)}-${safeFilePart(reqNo)}.pdf`)
+    } catch (error) {
+      console.error(error)
+      setSaveError('Failed to generate requisition PDF. Please try again.')
+    } finally {
+      setIsPdfGenerating(false)
+    }
+  }, [
+    areaMap,
+    categorySummary,
+    coveragePct,
+    coveredLineItems,
+    existingRequisition?.requisitionNo,
+    lastSavedStatus,
+    lead.id,
+    lead.location,
+    lead.name,
+    lead.phone,
+    lineItemMap,
+    lineItems.length,
+    notes,
+    requisitionItems,
+    saveRequisition,
+    totalMaterialRows,
+  ])
 
   /* ── RENDER ── */
   return (
-    <div className="p-4 md:p-6 space-y-6 w-full pb-24">
+    <div className="p-4 md:p-6 space-y-6 w-full pb-40">
       {/* ── Global Autocomplete Lists ── */}
       <BoardDatalists />
 
@@ -4268,6 +4517,15 @@ export function RequisitionBuilderClient({
           >
             <Save className="w-4 h-4 mr-2 text-amber-500" />
             Save Draft
+            <span className="ml-2 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">Ctrl+S</span>
+          </button>
+          <button
+            onClick={handleDownloadPdf}
+            disabled={isPending || isPdfGenerating || totalMaterialRows === 0}
+            className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-xs hover:bg-accent transition-colors disabled:opacity-50"
+          >
+            <Receipt className="w-4 h-4 mr-2 text-blue-600" />
+            {isPdfGenerating ? 'Building PDF...' : 'Requisition PDF'}
           </button>
           <button
             onClick={() => handleSave('SUBMITTED')}
@@ -4285,6 +4543,13 @@ export function RequisitionBuilderClient({
         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-200 text-sm flex items-center gap-2.5">
           <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
           {saveSuccess}
+        </div>
+      )}
+
+      {saveError && (
+        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2.5">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          {saveError}
         </div>
       )}
 
@@ -4464,44 +4729,73 @@ export function RequisitionBuilderClient({
         />
       </div>
 
-      {/* ── Bottom Save / Submit Bar ── */}
-      {totalMaterialRows > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/80 bg-background/95 backdrop-blur-md px-6 py-3 flex items-center justify-between shadow-xl">
-          <div className="flex items-center gap-3">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <p className="text-xs text-muted-foreground">
-            <strong className="text-foreground">{totalMaterialRows}</strong> material row
-            {totalMaterialRows !== 1 ? 's' : ''} across{' '}
-            <strong className="text-foreground">{coveredLineItems}</strong> quotation item
-            {coveredLineItems !== 1 ? 's' : ''}
-            {extraRowCount > 0 && (
-              <> + <strong className="text-foreground">{extraRowCount}</strong> general row{extraRowCount !== 1 ? 's' : ''}</>
-            )}
-          </p>
+      {/* ── Always-visible Bottom Workspace Bar ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/80 bg-background/95 px-4 py-3 shadow-2xl backdrop-blur-md md:px-6">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[680px]">
+            <div className="rounded-md border border-border/70 bg-card px-3 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Materials</p>
+              <p className="text-sm font-bold text-foreground">{totalMaterialRows} row{totalMaterialRows !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="rounded-md border border-border/70 bg-card px-3 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Coverage</p>
+              <p className="text-sm font-bold text-foreground">{coveredLineItems}/{lineItems.length} item{lineItems.length !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="rounded-md border border-border/70 bg-card px-3 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">General</p>
+              <p className="text-sm font-bold text-foreground">{extraRowCount} row{extraRowCount !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="rounded-md border border-border/70 bg-card px-3 py-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">State</p>
+              <p className="truncate text-sm font-bold text-foreground">
+                {isPending ? 'Saving...' : lastSavedStatus === 'SUBMITTED' ? 'Submitted' : lastSavedAt ? 'Draft saved' : 'Unsaved draft'}
+              </p>
+            </div>
+          </div>
+
+          <div className="min-w-0 flex-1 text-xs text-muted-foreground lg:px-4">
+            <div className="flex items-center gap-2">
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${saveError ? 'bg-destructive' : lastSavedAt ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              <p className="truncate">
+                {categorySummary || 'No materials added yet.'}
+                {lastSavedAt && (
+                  <span className="ml-2 text-muted-foreground/80">
+                    Last saved {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => handleSave('DRAFT')}
+              disabled={isPending}
+              className="inline-flex items-center justify-center rounded-lg border border-input bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              <Save className="mr-1.5 h-3.5 w-3.5 text-amber-500" />
+              Save Draft
+              <span className="ml-2 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">Ctrl+S</span>
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              disabled={isPending || isPdfGenerating || totalMaterialRows === 0}
+              className="inline-flex items-center justify-center rounded-lg border border-input bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              <Receipt className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
+              {isPdfGenerating ? 'Building PDF...' : 'PDF'}
+            </button>
+            <button
+              onClick={() => handleSave('SUBMITTED')}
+              disabled={isPending || totalMaterialRows === 0}
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
+            >
+              <Send className="mr-1.5 h-3.5 w-3.5" />
+              Submit Requisition
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => handleSave('DRAFT')}
-            disabled={isPending}
-            className="inline-flex items-center justify-center rounded-lg border border-input bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-2xs hover:bg-muted transition-colors disabled:opacity-50"
-          >
-            <Save className="w-3.5 h-3.5 mr-1.5 text-amber-500" />
-            Save Draft
-          </button>
-          <button
-            onClick={() => handleSave('SUBMITTED')}
-            disabled={isPending || totalMaterialRows === 0}
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            <Send className="w-3.5 h-3.5 mr-1.5" />
-            Submit Requisition
-          </button>
-        </div>
-        </div>
-      )}
+      </div>
     </div>
   )
 }
