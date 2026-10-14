@@ -57,7 +57,7 @@ const WORK_CATEGORIES: { key: RequisitionWorkCategory; label: string }[] = [
   { key: 'APPLIANCES', label: 'Appliances' },
 ]
 
-const UOM_OPTIONS = ['Pcs', 'Sheets', 'Meters', 'RFT', 'Kg', 'Rolls', 'Pack', 'Boxes', 'Sets', 'Liters', 'Tube', 'Roll']
+const UOM_OPTIONS = ['Pcs', 'Nos', 'Sheets', 'Meters', 'RFT', 'Kg', 'Rolls', 'Pack', 'Boxes', 'Sets', 'Liters', 'Tube', 'Roll']
 
 /** Special key used for materials not linked to any quotation line item */
 const EXTRA_KEY = '__extra__'
@@ -125,6 +125,13 @@ export interface BoardVariantAttributes {
   rateType?: string
   estimatedTotal?: string
   accessoriesSubType?: string
+
+  // ── Appliance attributes ──
+  brandModelCode?: string
+  outerDimensions?: string
+  cabinetNicheCutOutSize?: string
+  mepUtilityRequirements?: string
+  applianceSubType?: string
 }
 
 /** 1. Core Structural Boards & Plywood Catalog Preset (BRD-001 - BRD-008) */
@@ -1237,6 +1244,156 @@ const SAMPLE_ACCESSORY_SERVICES_ITEMS: RequisitionItemInput[] = [
   },
 ]
 
+const SAMPLE_CORE_APPLIANCE_ITEMS: RequisitionItemInput[] = [
+  {
+    workCategory: 'APPLIANCES',
+    materialName: 'Gas / Induction Hob',
+    specifications: 'HAFELE 538.66.759 | W860 × H135 × D520 mm | W840 × D480 mm (Counter Cut) | LPG/NG Gas Point + 16A Electric',
+    variantAttributes: {
+      srNo: '1',
+      brandModelCode: 'HAFELE 538.66.759',
+      outerDimensions: 'W860 × H135 × D520 mm',
+      cabinetNicheCutOutSize: 'W840 × D480 mm (Counter Cut)',
+      mepUtilityRequirements: 'LPG/NG Gas Point + 16A Electric',
+      qtyLabel: '1 nos',
+      unitPrice: '৳70,000',
+      totalAmount: '৳70,000',
+      applianceSubType: 'CORE_APPLIANCES',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Nos',
+    productionPhase: 'Core Appliances',
+  },
+  {
+    workCategory: 'APPLIANCES',
+    materialName: 'Kitchen Hood Chimney',
+    specifications: 'SWISH Klasso KH 0300114-72 | W900 × H600 × D500 mm | 150mm Dia Wall Duct Hole | 6A Power Plug (230V / 50Hz)',
+    variantAttributes: {
+      srNo: '2',
+      brandModelCode: 'SWISH Klasso KH 0300114-72',
+      outerDimensions: 'W900 × H600 × D500 mm',
+      cabinetNicheCutOutSize: '150mm Dia Wall Duct Hole',
+      mepUtilityRequirements: '6A Power Plug (230V / 50Hz)',
+      qtyLabel: '1 nos',
+      unitPrice: '৳1,15,000',
+      totalAmount: '৳1,15,000',
+      applianceSubType: 'CORE_APPLIANCES',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Nos',
+    productionPhase: 'Core Appliances',
+  },
+  {
+    workCategory: 'APPLIANCES',
+    materialName: 'Under-Counter Sink + RO Faucet',
+    specifications: 'Swish/Hafele Single Bowl Granit | W750 × H220 × D460 mm | W730 × D440 mm (Under-mount Cut) | 1/2" Fresh Water + 1.5" Waste Drain',
+    variantAttributes: {
+      srNo: '3',
+      brandModelCode: 'Swish/Hafele Single Bowl Granit',
+      outerDimensions: 'W750 × H220 × D460 mm',
+      cabinetNicheCutOutSize: 'W730 × D440 mm (Under-mount Cut)',
+      mepUtilityRequirements: '1/2" Fresh Water + 1.5" Waste Drain',
+      qtyLabel: '1 nos',
+      unitPrice: '৳39,250',
+      totalAmount: '৳39,250',
+      applianceSubType: 'CORE_APPLIANCES',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Nos',
+    productionPhase: 'Core Appliances',
+  },
+  {
+    workCategory: 'APPLIANCES',
+    materialName: 'Built-In Refrigerator',
+    specifications: 'BOSCH Premium Series | W558 × H1772 × D545 mm | W600 × H1780 × D580 mm (Cabinet Niche) | 13A Wall Socket (24/7 Power)',
+    variantAttributes: {
+      srNo: '4',
+      brandModelCode: 'BOSCH Premium Series',
+      outerDimensions: 'W558 × H1772 × D545 mm',
+      cabinetNicheCutOutSize: 'W600 × H1780 × D580 mm (Cabinet Niche)',
+      mepUtilityRequirements: '13A Wall Socket (24/7 Power)',
+      qtyLabel: '1 nos',
+      unitPrice: '৳4,70,000',
+      totalAmount: '৳4,70,000',
+      applianceSubType: 'CORE_APPLIANCES',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Nos',
+    productionPhase: 'Core Appliances',
+  },
+  {
+    workCategory: 'APPLIANCES',
+    materialName: 'Built-In Electric Grill Oven',
+    specifications: 'HAFELE BSO72P | W595 × H595 × D570 mm | W560 × H585 × D550 mm (Cabinet Niche) | 16A Single Phase / 3.2kW',
+    variantAttributes: {
+      srNo: '5',
+      brandModelCode: 'HAFELE BSO72P',
+      outerDimensions: 'W595 × H595 × D570 mm',
+      cabinetNicheCutOutSize: 'W560 × H585 × D550 mm (Cabinet Niche)',
+      mepUtilityRequirements: '16A Single Phase / 3.2kW',
+      qtyLabel: '1 nos',
+      unitPrice: '৳1,12,800',
+      totalAmount: '৳1,12,800',
+      applianceSubType: 'CORE_APPLIANCES',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Nos',
+    productionPhase: 'Core Appliances',
+  },
+  {
+    workCategory: 'APPLIANCES',
+    materialName: 'Built-In Microwave Oven',
+    specifications: 'HAFELE 595 Series | W595 × H388 × D467 mm | W560 × H380 × D500 mm (Cabinet Niche) | 6A Power Plug',
+    variantAttributes: {
+      srNo: '6',
+      brandModelCode: 'HAFELE 595 Series',
+      outerDimensions: 'W595 × H388 × D467 mm',
+      cabinetNicheCutOutSize: 'W560 × H380 × D500 mm (Cabinet Niche)',
+      mepUtilityRequirements: '6A Power Plug',
+      qtyLabel: '1 nos',
+      unitPrice: '৳74,600',
+      totalAmount: '৳74,600',
+      applianceSubType: 'CORE_APPLIANCES',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Nos',
+    productionPhase: 'Core Appliances',
+  },
+  {
+    workCategory: 'APPLIANCES',
+    materialName: 'Under-Counter RO Water Purifier',
+    specifications: 'KENT Excellence / Grand | W400 × H410 × D260 mm | Under-Sink Cabinet Base | Water Line + Waste Out + 6A Plug',
+    variantAttributes: {
+      srNo: '7',
+      brandModelCode: 'KENT Excellence / Grand',
+      outerDimensions: 'W400 × H410 × D260 mm',
+      cabinetNicheCutOutSize: 'Under-Sink Cabinet Base',
+      mepUtilityRequirements: 'Water Line + Waste Out + 6A Plug',
+      qtyLabel: '1 nos',
+      unitPrice: '৳40,000',
+      totalAmount: '৳40,000',
+      applianceSubType: 'CORE_APPLIANCES',
+    },
+    netQuantity: 1,
+    wastagePercent: 0,
+    finalQuantity: 1,
+    unit: 'Nos',
+    productionPhase: 'Core Appliances',
+  },
+]
+
 /* ─────────────────────────────────────────────
    Types
 ───────────────────────────────────────────── */
@@ -1270,6 +1427,7 @@ interface Props {
 export type WallPanelingSubType = 'CORE_BOARDS' | 'LOUVERS_PROFILES' | 'SCREWS_FASTENERS' | 'NAILS_PINS' | 'ADHESIVES'
 export type CabinetSubType = 'CORE_BOARD_SPEC' | 'HPL_PASTING'
 export type AccessoriesSubType = 'HARDWARE_ACCESSORIES' | 'SERVICES_DELIVERABLES'
+export type ApplianceSubType = 'CORE_APPLIANCES'
 
 interface CardSection {
   id: string
@@ -1277,6 +1435,7 @@ interface CardSection {
   wallPanelingSubType?: WallPanelingSubType
   cabinetSubType?: CabinetSubType
   accessoriesSubType?: AccessoriesSubType
+  applianceSubType?: ApplianceSubType
   collapsed: boolean
 }
 
@@ -1311,6 +1470,7 @@ type ViewModeType =
   | 'CABINET_HPL_SPEC'
   | 'HARDWARE_ACCESSORY_SPEC'
   | 'SERVICES_DELIVERABLE_SPEC'
+  | 'CORE_APPLIANCE_SPEC'
   | 'STANDARD'
 
 const WALL_PANELING_SUBTYPES: { key: WallPanelingSubType; label: string; viewMode: ViewModeType }[] = [
@@ -1329,6 +1489,10 @@ const CABINET_SUBTYPES: { key: CabinetSubType; label: string; viewMode: ViewMode
 const ACCESSORIES_SUBTYPES: { key: AccessoriesSubType; label: string; viewMode: ViewModeType }[] = [
   { key: 'HARDWARE_ACCESSORIES',  label: '🍳 Kitchen & Closet Hardware Accessories', viewMode: 'HARDWARE_ACCESSORY_SPEC' },
   { key: 'SERVICES_DELIVERABLES', label: '🚚 Additional Deliverables & Services',    viewMode: 'SERVICES_DELIVERABLE_SPEC' },
+]
+
+const APPLIANCE_SUBTYPES: { key: ApplianceSubType; label: string; viewMode: ViewModeType }[] = [
+  { key: 'CORE_APPLIANCES', label: 'Core Appliances', viewMode: 'CORE_APPLIANCE_SPEC' },
 ]
 
 const CATEGORY_COLORS: Record<RequisitionWorkCategory, { bg: string; text: string; border: string; pill: string; leftBorder: string }> = {
@@ -1367,6 +1531,12 @@ function getViewModeForSection(section: CardSection): ViewModeType {
       default:                      return 'HARDWARE_ACCESSORY_SPEC'
     }
   }
+  if (section.category === 'APPLIANCES') {
+    switch (section.applianceSubType) {
+      case 'CORE_APPLIANCES': return 'CORE_APPLIANCE_SPEC'
+      default:                return 'CORE_APPLIANCE_SPEC'
+    }
+  }
   return 'STANDARD'
 }
 
@@ -1382,6 +1552,7 @@ function blankItem(
   wallPanelingSubType?: WallPanelingSubType,
   cabinetSubType?: CabinetSubType,
   accessoriesSubType?: AccessoriesSubType,
+  applianceSubType?: ApplianceSubType,
   quotationLineItemId?: string,
 ): RequisitionItemInput {
   const base: RequisitionItemInput = {
@@ -1471,6 +1642,26 @@ function blankItem(
     }
   }
 
+  if (category === 'APPLIANCES') {
+    return {
+      ...base,
+      materialName: 'Gas / Induction Hob',
+      unit: 'Nos',
+      productionPhase: 'Core Appliances',
+      variantAttributes: {
+        srNo: '1',
+        brandModelCode: 'HAFELE 538.66.759',
+        outerDimensions: 'W860 × H135 × D520 mm',
+        cabinetNicheCutOutSize: 'W840 × D480 mm (Counter Cut)',
+        mepUtilityRequirements: 'LPG/NG Gas Point + 16A Electric',
+        qtyLabel: '1 nos',
+        unitPrice: '৳70,000',
+        totalAmount: '৳70,000',
+        applianceSubType: applianceSubType ?? 'CORE_APPLIANCES',
+      },
+    }
+  }
+
   switch (wallPanelingSubType) {
     case 'LOUVERS_PROFILES':
       return { ...base, variantAttributes: { itemId: '', profileType: '', material: '', accentFinish: '', codeVariant: '', primaryUsage: '', qtyLabel: '1', wpSubType: 'LOUVERS_PROFILES' } }
@@ -1545,6 +1736,9 @@ function getSectionTypeLabel(section: CardSection): string {
   }
   if (section.accessoriesSubType) {
     return ACCESSORIES_SUBTYPES.find((item) => item.key === section.accessoriesSubType)?.label ?? fallback
+  }
+  if (section.applianceSubType) {
+    return APPLIANCE_SUBTYPES.find((item) => item.key === section.applianceSubType)?.label ?? fallback
   }
   return fallback
 }
@@ -1727,6 +1921,25 @@ function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]
     }
   }
 
+  if (viewMode === 'CORE_APPLIANCE_SPEC') {
+    return {
+      color: [13, 148, 136],
+      head: ['SL', 'Item Name', 'Brand & Model Code', 'Outer Dimensions', 'Cabinet Niche / Cut-Out Size', 'MEP & Utility Requirements', 'Qty', 'Unit Price', 'Total Amount'],
+      body: rows.map((item) => [
+        text(pdfAttr(item, 'srNo')),
+        text(item.materialName),
+        text(pdfAttr(item, 'brandModelCode')),
+        text(pdfAttr(item, 'outerDimensions')),
+        text(pdfAttr(item, 'cabinetNicheCutOutSize')),
+        text(pdfAttr(item, 'mepUtilityRequirements')),
+        pdfQty(item),
+        text(pdfAttr(item, 'unitPrice')),
+        text(pdfAttr(item, 'totalAmount')),
+      ]),
+      columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 1: { cellWidth: 32, fontStyle: 'bold' }, 2: { cellWidth: 34 }, 3: { cellWidth: 32 }, 4: { cellWidth: 39 }, 5: { cellWidth: 44 }, 6: { cellWidth: 14, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 22, halign: 'right' }, 8: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' } },
+    }
+  }
+
   return {
     color: [37, 99, 235],
     head: ['Category', 'Material Name', 'Specification', 'Net Qty', 'Waste %', 'Final Qty', 'UOM', 'Phase / Usage', 'Remarks'],
@@ -1767,9 +1980,12 @@ function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: Sect
     const wpSubType = attrs.wpSubType as WallPanelingSubType | undefined
     const cabSubType = attrs.cabinetSubType as CabinetSubType | undefined
     const accSubType = attrs.accessoriesSubType as AccessoriesSubType | undefined
+    const appSubType = category === 'APPLIANCES'
+      ? ((attrs.applianceSubType as ApplianceSubType | undefined) ?? 'CORE_APPLIANCES')
+      : undefined
 
-    // Find or create a section for this (cardKey, category, wpSubType, cabSubType, accSubType) combo
-    const regKey = `${cardKey}::${category}::${wpSubType ?? ''}::${cabSubType ?? ''}::${accSubType ?? ''}`
+    // Find or create a section for this (cardKey, category, subtype) combo.
+    const regKey = `${cardKey}::${category}::${wpSubType ?? ''}::${cabSubType ?? ''}::${accSubType ?? ''}::${appSubType ?? ''}`
     let sectionId = sectionRegistry[regKey]
     if (!sectionId) {
       sectionId = `section-${Object.keys(sectionRegistry).length}`
@@ -1781,6 +1997,7 @@ function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: Sect
         wallPanelingSubType: wpSubType,
         cabinetSubType: cabSubType,
         accessoriesSubType: accSubType,
+        applianceSubType: appSubType,
         collapsed: false,
       })
     }
@@ -1839,12 +2056,17 @@ function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: Sect
         rateType: attrs.rateType || '',
         estimatedTotal: attrs.estimatedTotal || '',
         accessoriesSubType: attrs.accessoriesSubType || '',
+        brandModelCode: attrs.brandModelCode || '',
+        outerDimensions: attrs.outerDimensions || '',
+        cabinetNicheCutOutSize: attrs.cabinetNicheCutOutSize || '',
+        mepUtilityRequirements: attrs.mepUtilityRequirements || '',
+        applianceSubType: attrs.applianceSubType || '',
       },
       netQuantity: Number(it.netQuantity) || 1,
       wastagePercent: Number(it.wastagePercent) || 0,
       finalQuantity: Number(it.finalQuantity) || Number(it.netQuantity) || 1,
       unit: it.unit || 'Pcs',
-      productionPhase: it.productionPhase || attrs.functionalUsage || attrs.primaryUsage || attrs.usagePurpose || attrs.applicationMethod || attrs.sideSpecification || attrs.accessoryCategory || attrs.serviceCategory || '',
+      productionPhase: it.productionPhase || attrs.functionalUsage || attrs.primaryUsage || attrs.usagePurpose || attrs.applicationMethod || attrs.sideSpecification || attrs.accessoryCategory || attrs.serviceCategory || attrs.applianceSubType || '',
       remarks: it.remarks || '',
     })
   }
@@ -2202,6 +2424,7 @@ function MaterialRowsTable({
   onLoadCabinetHplPreset,
   onLoadAccessoryHardwarePreset,
   onLoadAccessoryServicesPreset,
+  onLoadAppliancePreset,
 }: {
   rows: RequisitionItemInput[]
   viewMode: ViewModeType
@@ -2218,6 +2441,7 @@ function MaterialRowsTable({
   onLoadCabinetHplPreset?: () => void
   onLoadAccessoryHardwarePreset?: () => void
   onLoadAccessoryServicesPreset?: () => void
+  onLoadAppliancePreset?: () => void
 }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border/70 bg-background shadow-2xs">
@@ -2299,6 +2523,14 @@ function MaterialRowsTable({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-purple-500/10 text-purple-900 dark:text-purple-200 hover:bg-purple-500/20 rounded-md transition-colors border border-purple-500/20"
               >
                 <Layers className="w-3.5 h-3.5 text-purple-600" /> Load Deliverables & Services (SL 08 - 10)
+              </button>
+            )}
+            {onLoadAppliancePreset && (
+              <button
+                onClick={onLoadAppliancePreset}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-teal-500/10 text-teal-900 dark:text-teal-200 hover:bg-teal-500/20 rounded-md transition-colors border border-teal-500/20"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-teal-600" /> Load Core Appliances (SL 01 - 07)
               </button>
             )}
           </div>
@@ -3646,6 +3878,138 @@ function MaterialRowsTable({
             </tbody>
           </table>
         </div>
+      ) : viewMode === 'CORE_APPLIANCE_SPEC' ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left min-w-[1250px] border-collapse divide-y divide-border/60">
+            <thead className="bg-teal-500/10 border-b border-teal-500/20 text-teal-950 dark:text-teal-200">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-14`}>SL</th>
+                <th className={`${GRID_TH} min-w-[190px]`}>Item Name</th>
+                <th className={`${GRID_TH} min-w-[210px]`}>Brand & Model Code</th>
+                <th className={`${GRID_TH} min-w-[190px]`}>Outer Dimensions (W × H × D)</th>
+                <th className={`${GRID_TH} min-w-[220px]`}>Cabinet Niche / Cut-Out Size</th>
+                <th className={`${GRID_TH} min-w-[230px]`}>MEP & Utility Requirements</th>
+                <th className={`${GRID_TH} w-24 text-center`}>Qty</th>
+                <th className={`${GRID_TH} min-w-[130px]`}>Unit Price (BDT)</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Total Amount (BDT)</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40 bg-card">
+              {rows.map((item, ri) => {
+                const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                return (
+                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.srNo || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'srNo', e.target.value)}
+                        placeholder="1"
+                        className={GRID_CELL_MONO}
+                      />
+                    </td>
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={item.materialName}
+                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
+                        placeholder="Gas / Induction Hob"
+                        className={GRID_CELL_BOLD}
+                      />
+                    </td>
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.brandModelCode || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'brandModelCode', e.target.value)}
+                        placeholder="HAFELE 538.66.759"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.outerDimensions || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'outerDimensions', e.target.value)}
+                        placeholder="W860 × H135 × D520 mm"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.cabinetNicheCutOutSize || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'cabinetNicheCutOutSize', e.target.value)}
+                        placeholder="W840 × D480 mm (Counter Cut)"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.mepUtilityRequirements || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'mepUtilityRequirements', e.target.value)}
+                        placeholder="LPG/NG Gas Point + 16A Electric"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : `${item.netQuantity} ${item.unit}`}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'qtyLabel', val)
+                          const num = parseFloat(val)
+                          if (!isNaN(num)) onChange(ri, 'netQuantity', num)
+                        }}
+                        placeholder="1 nos"
+                        className={GRID_CELL_NUM}
+                      />
+                    </td>
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.unitPrice || ''}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'unitPrice', val)
+                          const cleanPrice = val.replace(/[^0-9.]/g, '')
+                          const numP = parseFloat(cleanPrice)
+                          const qty = parseFloat(String(attrs.qtyLabel || item.netQuantity || 1))
+                          if (!isNaN(numP) && !isNaN(qty)) {
+                            onUpdateVariant(ri, 'totalAmount', `৳${(qty * numP).toLocaleString('en-IN')}`)
+                          }
+                        }}
+                        placeholder="৳70,000"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.totalAmount || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'totalAmount', e.target.value)}
+                        placeholder="৳70,000"
+                        className={`${GRID_CELL_BOLD} text-teal-700 dark:text-teal-300`}
+                      />
+                    </td>
+                    <td className="p-0 w-8 text-center align-middle">
+                      <button
+                        onClick={() => onRemoveRow(ri)}
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                        title="Remove appliance row"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         /* ── 8. Standard 8-Column Material Table ── */
         <div className="overflow-x-auto">
@@ -3864,6 +4228,15 @@ function MaterialRowsTable({
               + Add Deliverables & Services
             </button>
           )}
+          {onLoadAppliancePreset && rows.length > 0 && (
+            <button
+              onClick={onLoadAppliancePreset}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors border border-teal-200 dark:border-teal-800"
+            >
+              <Sparkles className="w-3 h-3 text-teal-600" />
+              + Add Core Appliances
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -3883,6 +4256,7 @@ function SectionBlock({
   onLoadPreset,
   onLoadCabinetPreset,
   onLoadAccessoryPreset,
+  onLoadAppliancePreset,
   onToggleCollapse,
   onRemove,
 }: {
@@ -3895,6 +4269,7 @@ function SectionBlock({
   onLoadPreset: (subType: WallPanelingSubType) => void
   onLoadCabinetPreset?: (subType: CabinetSubType) => void
   onLoadAccessoryPreset?: (subType: AccessoriesSubType) => void
+  onLoadAppliancePreset?: (subType: ApplianceSubType) => void
   onToggleCollapse: () => void
   onRemove: () => void
 }) {
@@ -3906,6 +4281,8 @@ function SectionBlock({
     ? CABINET_SUBTYPES.find((s) => s.key === section.cabinetSubType)
     : section.accessoriesSubType
     ? ACCESSORIES_SUBTYPES.find((s) => s.key === section.accessoriesSubType)
+    : section.applianceSubType
+    ? APPLIANCE_SUBTYPES.find((s) => s.key === section.applianceSubType)
     : null
   const colors = CATEGORY_COLORS[section.category]
 
@@ -3977,6 +4354,7 @@ function SectionBlock({
             onLoadCabinetHplPreset={section.cabinetSubType === 'HPL_PASTING' && onLoadCabinetPreset ? () => onLoadCabinetPreset('HPL_PASTING') : undefined}
             onLoadAccessoryHardwarePreset={section.accessoriesSubType === 'HARDWARE_ACCESSORIES' && onLoadAccessoryPreset ? () => onLoadAccessoryPreset('HARDWARE_ACCESSORIES') : undefined}
             onLoadAccessoryServicesPreset={section.accessoriesSubType === 'SERVICES_DELIVERABLES' && onLoadAccessoryPreset ? () => onLoadAccessoryPreset('SERVICES_DELIVERABLES') : undefined}
+            onLoadAppliancePreset={section.applianceSubType === 'CORE_APPLIANCES' && onLoadAppliancePreset ? () => onLoadAppliancePreset('CORE_APPLIANCES') : undefined}
           />
         </div>
       )}
@@ -3988,13 +4366,14 @@ function SectionBlock({
    Sub-component: "Add Section" inline form
 ───────────────────────────────────────────── */
 function AddSectionForm({ onAdd, onCancel }: {
-  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType) => void
+  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType) => void
   onCancel: () => void
 }) {
   const [cat, setCat] = useState<RequisitionWorkCategory>('WALL_PANELING')
   const [sub, setSub] = useState<WallPanelingSubType>('CORE_BOARDS')
   const [cabSub, setCabSub] = useState<CabinetSubType>('CORE_BOARD_SPEC')
   const [accSub, setAccSub] = useState<AccessoriesSubType>('HARDWARE_ACCESSORIES')
+  const [appSub, setAppSub] = useState<ApplianceSubType>('CORE_APPLIANCES')
 
   return (
     <div className="flex flex-wrap items-center gap-2.5 px-4 py-3 bg-muted/20 border-t border-border/70">
@@ -4048,12 +4427,25 @@ function AddSectionForm({ onAdd, onCancel }: {
         </select>
       )}
 
+      {cat === 'APPLIANCES' && (
+        <select
+          value={appSub}
+          onChange={(e) => setAppSub(e.target.value as ApplianceSubType)}
+          className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-teal-500 font-medium shadow-xs"
+        >
+          {APPLIANCE_SUBTYPES.map((s) => (
+            <option key={s.key} value={s.key}>{s.label}</option>
+          ))}
+        </select>
+      )}
+
       <button
         onClick={() => onAdd(
           cat,
           cat === 'WALL_PANELING' ? sub : undefined,
           cat === 'CABINETS_CLOSETS' ? cabSub : undefined,
-          cat === 'ACCESSORIES' ? accSub : undefined
+          cat === 'ACCESSORIES' ? accSub : undefined,
+          cat === 'APPLIANCES' ? appSub : undefined
         )}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-xs"
       >
@@ -4081,6 +4473,7 @@ function QuotationLineItemCard({
   onLoadPreset,
   onLoadCabinetPreset,
   onLoadAccessoryPreset,
+  onLoadAppliancePreset,
   onAddSection,
   onRemoveSection,
   onToggleSectionCollapse,
@@ -4096,7 +4489,8 @@ function QuotationLineItemCard({
   onLoadPreset: (sectionId: string, subType: WallPanelingSubType) => void
   onLoadCabinetPreset: (sectionId: string, subType: CabinetSubType) => void
   onLoadAccessoryPreset?: (sectionId: string, subType: AccessoriesSubType) => void
-  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType) => void
+  onLoadAppliancePreset?: (sectionId: string, subType: ApplianceSubType) => void
+  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType) => void
   onRemoveSection: (sectionId: string) => void
   onToggleSectionCollapse: (sectionId: string) => void
 }) {
@@ -4198,6 +4592,7 @@ function QuotationLineItemCard({
               onLoadPreset={(subType) => onLoadPreset(section.id, subType)}
               onLoadCabinetPreset={(subType) => onLoadCabinetPreset(section.id, subType)}
               onLoadAccessoryPreset={(subType) => onLoadAccessoryPreset?.(section.id, subType)}
+              onLoadAppliancePreset={(subType) => onLoadAppliancePreset?.(section.id, subType)}
               onToggleCollapse={() => onToggleSectionCollapse(section.id)}
               onRemove={() => onRemoveSection(section.id)}
             />
@@ -4206,8 +4601,8 @@ function QuotationLineItemCard({
           {/* Add Section form or trigger */}
           {showAddSection ? (
             <AddSectionForm
-              onAdd={(cat, wpSub, cabSub, accSub) => {
-                onAddSection(cat, wpSub, cabSub, accSub)
+              onAdd={(cat, wpSub, cabSub, accSub, appSub) => {
+                onAddSection(cat, wpSub, cabSub, accSub, appSub)
                 setShowAddSection(false)
               }}
               onCancel={() => setShowAddSection(false)}
@@ -4241,6 +4636,7 @@ function ExtraCard({
   onLoadPreset,
   onLoadCabinetPreset,
   onLoadAccessoryPreset,
+  onLoadAppliancePreset,
   onAddSection,
   onRemoveSection,
   onToggleSectionCollapse,
@@ -4254,7 +4650,8 @@ function ExtraCard({
   onLoadPreset: (sectionId: string, subType: WallPanelingSubType) => void
   onLoadCabinetPreset: (sectionId: string, subType: CabinetSubType) => void
   onLoadAccessoryPreset?: (sectionId: string, subType: AccessoriesSubType) => void
-  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType) => void
+  onLoadAppliancePreset?: (sectionId: string, subType: ApplianceSubType) => void
+  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType) => void
   onRemoveSection: (sectionId: string) => void
   onToggleSectionCollapse: (sectionId: string) => void
 }) {
@@ -4291,7 +4688,7 @@ function ExtraCard({
             <div className="rounded-xl border border-dashed border-border/80 bg-background px-4 py-8 text-center text-xs text-muted-foreground space-y-2">
               <Package className="w-6 h-6 mx-auto text-muted-foreground/40" />
               <p className="font-semibold text-foreground/80">No general sections added yet.</p>
-              <p className="text-[11px] text-muted-foreground">Add a Wall Paneling, Closet/Cabinet, or Accessories section below to specify catalog materials.</p>
+              <p className="text-[11px] text-muted-foreground">Add a Wall Paneling, Closet/Cabinet, Accessories, or Appliance section below to specify catalog materials.</p>
             </div>
           )}
 
@@ -4307,6 +4704,7 @@ function ExtraCard({
               onLoadPreset={(subType) => onLoadPreset(section.id, subType)}
               onLoadCabinetPreset={(subType) => onLoadCabinetPreset(section.id, subType)}
               onLoadAccessoryPreset={(subType) => onLoadAccessoryPreset?.(section.id, subType)}
+              onLoadAppliancePreset={(subType) => onLoadAppliancePreset?.(section.id, subType)}
               onToggleCollapse={() => onToggleSectionCollapse(section.id)}
               onRemove={() => onRemoveSection(section.id)}
             />
@@ -4314,8 +4712,8 @@ function ExtraCard({
 
           {showAddSection ? (
             <AddSectionForm
-              onAdd={(cat, wpSub, cabSub, accSub) => {
-                onAddSection(cat, wpSub, cabSub, accSub)
+              onAdd={(cat, wpSub, cabSub, accSub, appSub) => {
+                onAddSection(cat, wpSub, cabSub, accSub, appSub)
                 setShowAddSection(false)
               }}
               onCancel={() => setShowAddSection(false)}
@@ -4395,16 +4793,25 @@ export function RequisitionBuilderClient({
     wallPanelingSubType?: WallPanelingSubType,
     cabinetSubType?: CabinetSubType,
     accessoriesSubType?: AccessoriesSubType,
+    applianceSubType?: ApplianceSubType,
     quotationLineItemId?: string
   ) => {
     const sectionId = `section-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    const initialRows = category === 'APPLIANCES' && applianceSubType === 'CORE_APPLIANCES'
+      ? SAMPLE_CORE_APPLIANCE_ITEMS.map((item) => ({
+          ...item,
+          quotationLineItemId,
+          variantAttributes: { ...(item.variantAttributes || {}), applianceSubType },
+        }))
+      : [blankItem(category, wallPanelingSubType, cabinetSubType, accessoriesSubType, applianceSubType, quotationLineItemId)]
+
     setSectionsMap((prev) => ({
       ...prev,
-      [cardKey]: [...(prev[cardKey] ?? []), { id: sectionId, category, wallPanelingSubType, cabinetSubType, accessoriesSubType, collapsed: false }],
+      [cardKey]: [...(prev[cardKey] ?? []), { id: sectionId, category, wallPanelingSubType, cabinetSubType, accessoriesSubType, applianceSubType, collapsed: false }],
     }))
     setItemsMap((prev) => ({
       ...prev,
-      [sectionItemKey(cardKey, sectionId)]: [blankItem(category, wallPanelingSubType, cabinetSubType, accessoriesSubType, quotationLineItemId)],
+      [sectionItemKey(cardKey, sectionId)]: initialRows,
     }))
   }
 
@@ -4451,10 +4858,10 @@ export function RequisitionBuilderClient({
       const nextAttrs = { ...prevAttrs, [field]: value }
       current.variantAttributes = nextAttrs
       const specParts = [
-        nextAttrs.coreThickness || nextAttrs.profileType || nextAttrs.fastenerType || nextAttrs.nailType || nextAttrs.chemicalClass || nextAttrs.accessoryCategory || nextAttrs.serviceCategory,
-        nextAttrs.baseMaterial || nextAttrs.coreSubstrateType || nextAttrs.material || nextAttrs.lengthInches || nextAttrs.lengthSpec || nextAttrs.applicationMethod || nextAttrs.itemCode || nextAttrs.quantityUnit,
-        nextAttrs.laminateTopSurface || nextAttrs.laminateFinishDetails || nextAttrs.frontLaminateCode || nextAttrs.accentFinish || nextAttrs.gaugeSize || nextAttrs.thicknessSpec || nextAttrs.dimensions || nextAttrs.rateType,
-        nextAttrs.surfaceCodeFinish || nextAttrs.backLaminateCode || nextAttrs.sideSpecification || nextAttrs.codeVariant || nextAttrs.materialFinish || nextAttrs.unitPrice || nextAttrs.estimatedTotal,
+        nextAttrs.coreThickness || nextAttrs.profileType || nextAttrs.fastenerType || nextAttrs.nailType || nextAttrs.chemicalClass || nextAttrs.accessoryCategory || nextAttrs.serviceCategory || nextAttrs.brandModelCode,
+        nextAttrs.baseMaterial || nextAttrs.coreSubstrateType || nextAttrs.material || nextAttrs.lengthInches || nextAttrs.lengthSpec || nextAttrs.applicationMethod || nextAttrs.itemCode || nextAttrs.quantityUnit || nextAttrs.outerDimensions,
+        nextAttrs.laminateTopSurface || nextAttrs.laminateFinishDetails || nextAttrs.frontLaminateCode || nextAttrs.accentFinish || nextAttrs.gaugeSize || nextAttrs.thicknessSpec || nextAttrs.dimensions || nextAttrs.rateType || nextAttrs.cabinetNicheCutOutSize,
+        nextAttrs.surfaceCodeFinish || nextAttrs.backLaminateCode || nextAttrs.sideSpecification || nextAttrs.codeVariant || nextAttrs.materialFinish || nextAttrs.unitPrice || nextAttrs.estimatedTotal || nextAttrs.mepUtilityRequirements,
       ].filter(Boolean)
       if (specParts.length > 0) current.specifications = specParts.join(' | ')
       rows[rowIndex] = current
@@ -4474,6 +4881,7 @@ export function RequisitionBuilderClient({
           sectionInfo?.wallPanelingSubType,
           sectionInfo?.cabinetSubType,
           sectionInfo?.accessoriesSubType,
+          sectionInfo?.applianceSubType,
           quotationLineItemId
         ),
       ],
@@ -4525,6 +4933,19 @@ export function RequisitionBuilderClient({
       ...item,
       quotationLineItemId,
       variantAttributes: { ...(item.variantAttributes || {}), accessoriesSubType: subType },
+    }))
+    const key = sectionItemKey(cardKey, sectionId)
+    setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
+  }
+
+  const loadAppliancePresetForSection = (cardKey: string, sectionId: string, subType: ApplianceSubType, quotationLineItemId?: string) => {
+    const presetMap: Record<ApplianceSubType, RequisitionItemInput[]> = {
+      CORE_APPLIANCES: SAMPLE_CORE_APPLIANCE_ITEMS,
+    }
+    const presetItems = presetMap[subType].map((item) => ({
+      ...item,
+      quotationLineItemId,
+      variantAttributes: { ...(item.variantAttributes || {}), applianceSubType: subType },
     }))
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
@@ -4747,6 +5168,8 @@ export function RequisitionBuilderClient({
         doc.text(`${rows.length} material ${rows.length === 1 ? 'row' : 'rows'}`, pageW - marginX - 8, cursorY + 5.8, { align: 'right' })
         cursorY += 11
 
+        const tableStartPage = pdfDoc.internal.getCurrentPageInfo().pageNumber
+
         autoTable(doc, {
           startY: cursorY,
           head: [table.head],
@@ -4769,8 +5192,13 @@ export function RequisitionBuilderClient({
           alternateRowStyles: { fillColor: [248, 250, 252] },
           columnStyles: table.columnStyles,
           margin: { left: marginX + 4, right: marginX + 4, top: topY, bottom: 18 },
+          willDrawPage: () => {
+            const currentPage = pdfDoc.internal.getCurrentPageInfo().pageNumber
+            if (currentPage !== tableStartPage) {
+              drawChrome()
+            }
+          },
           didDrawPage: () => {
-            drawChrome()
             drawPageFooter()
           },
         })
@@ -5065,7 +5493,8 @@ export function RequisitionBuilderClient({
                         onLoadPreset={(sectionId, subType) => loadPresetForSection(li.id, sectionId, subType, li.id)}
                         onLoadCabinetPreset={(sectionId, subType) => loadCabinetPresetForSection(li.id, sectionId, subType, li.id)}
                         onLoadAccessoryPreset={(sectionId, subType) => loadAccessoryPresetForSection(li.id, sectionId, subType, li.id)}
-                        onAddSection={(cat, wpSub, cabSub, accSub) => addSection(li.id, cat, wpSub, cabSub, accSub, li.id)}
+                        onLoadAppliancePreset={(sectionId, subType) => loadAppliancePresetForSection(li.id, sectionId, subType, li.id)}
+                        onAddSection={(cat, wpSub, cabSub, accSub, appSub) => addSection(li.id, cat, wpSub, cabSub, accSub, appSub, li.id)}
                         onRemoveSection={(sectionId) => removeSection(li.id, sectionId)}
                         onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(li.id, sectionId)}
                       />
@@ -5095,7 +5524,8 @@ export function RequisitionBuilderClient({
           onLoadPreset={(sectionId, subType) => loadPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
           onLoadCabinetPreset={(sectionId, subType) => loadCabinetPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
           onLoadAccessoryPreset={(sectionId, subType) => loadAccessoryPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
-          onAddSection={(cat, wpSub, cabSub, accSub) => addSection(EXTRA_KEY, cat, wpSub, cabSub, accSub, undefined)}
+          onLoadAppliancePreset={(sectionId, subType) => loadAppliancePresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
+          onAddSection={(cat, wpSub, cabSub, accSub, appSub) => addSection(EXTRA_KEY, cat, wpSub, cabSub, accSub, appSub, undefined)}
           onRemoveSection={(sectionId) => removeSection(EXTRA_KEY, sectionId)}
           onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(EXTRA_KEY, sectionId)}
         />
