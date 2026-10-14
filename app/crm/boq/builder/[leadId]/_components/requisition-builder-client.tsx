@@ -1503,6 +1503,10 @@ function getWorkCategoryLabel(category: RequisitionWorkCategory | string): strin
   return WORK_CATEGORIES.find((item) => item.key === category)?.label ?? String(category).replace(/_/g, ' ')
 }
 
+function formatBdtRounded(value: number): string {
+  return `৳${Math.round(Number(value) || 0).toLocaleString('en-IN')}`
+}
+
 function safePdfText(value: unknown, fallback = '-'): string {
   if (value === null || value === undefined || value === '') return fallback
   return String(value).replace(/[৳—–]/g, (match) => (match === '৳' ? 'BDT ' : '-'))
@@ -1510,6 +1514,233 @@ function safePdfText(value: unknown, fallback = '-'): string {
 
 function safeFilePart(value: string): string {
   return value.trim().replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'requisition'
+}
+
+type PdfRgb = [number, number, number]
+type PdfColumnStyles = Record<number, {
+  cellWidth?: number | 'auto'
+  halign?: 'left' | 'center' | 'right'
+  fontStyle?: 'normal' | 'bold'
+}>
+type RequisitionPdfTableConfig = {
+  head: string[]
+  body: Array<Array<string | number>>
+  columnStyles: PdfColumnStyles
+  color: PdfRgb
+}
+
+function cleanPdfLabel(value: string): string {
+  return safePdfText(value.replace(/[^\x20-\x7E]/g, '').trim())
+}
+
+function getSectionTypeLabel(section: CardSection): string {
+  const fallback = getWorkCategoryLabel(section.category)
+  if (section.wallPanelingSubType) {
+    return WALL_PANELING_SUBTYPES.find((item) => item.key === section.wallPanelingSubType)?.label ?? fallback
+  }
+  if (section.cabinetSubType) {
+    return CABINET_SUBTYPES.find((item) => item.key === section.cabinetSubType)?.label ?? fallback
+  }
+  if (section.accessoriesSubType) {
+    return ACCESSORIES_SUBTYPES.find((item) => item.key === section.accessoriesSubType)?.label ?? fallback
+  }
+  return fallback
+}
+
+function pdfAttr(item: RequisitionItemInput, key: keyof BoardVariantAttributes): string {
+  const value = item.variantAttributes?.[key]
+  if (value === null || value === undefined || value === '') return ''
+  return String(value)
+}
+
+function pdfQty(item: RequisitionItemInput): string {
+  const label = pdfAttr(item, 'qtyLabel') || pdfAttr(item, 'quantityUnit')
+  if (label) return safePdfText(label)
+  return Number(item.finalQuantity || item.netQuantity || 0).toLocaleString('en-IN')
+}
+
+function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]): RequisitionPdfTableConfig {
+  const viewMode = getViewModeForSection(section)
+  const text = (value: unknown) => safePdfText(value)
+
+  if (viewMode === 'BOARD_SPEC') {
+    return {
+      color: [146, 64, 14],
+      head: ['Item ID', 'Item Name', 'Thickness', 'Base Material', 'Laminate / Top', 'Surface / Finish', 'Sheet', 'Qty', 'Usage'],
+      body: rows.map((item) => [
+        text(pdfAttr(item, 'itemId')),
+        text(item.materialName),
+        text(pdfAttr(item, 'coreThickness')),
+        text(pdfAttr(item, 'baseMaterial')),
+        text(pdfAttr(item, 'laminateTopSurface')),
+        text(pdfAttr(item, 'surfaceCodeFinish')),
+        text(pdfAttr(item, 'sheetSize')),
+        pdfQty(item),
+        text(pdfAttr(item, 'functionalUsage') || item.productionPhase),
+      ]),
+      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 42, fontStyle: 'bold' }, 2: { cellWidth: 22 }, 3: { cellWidth: 32 }, 4: { cellWidth: 36 }, 5: { cellWidth: 40 }, 6: { cellWidth: 20 }, 7: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 8: { cellWidth: 'auto' } },
+    }
+  }
+
+  if (viewMode === 'LOUVER_SPEC') {
+    return {
+      color: [79, 70, 229],
+      head: ['Item ID', 'Item Name', 'Profile / Type', 'Material', 'Accent Finish', 'Code / Variant', 'Qty', 'Usage', 'Notes'],
+      body: rows.map((item) => [
+        text(pdfAttr(item, 'itemId')),
+        text(item.materialName),
+        text(pdfAttr(item, 'profileType')),
+        text(pdfAttr(item, 'material')),
+        text(pdfAttr(item, 'accentFinish')),
+        text(pdfAttr(item, 'codeVariant')),
+        pdfQty(item),
+        text(pdfAttr(item, 'primaryUsage') || item.productionPhase),
+        text(pdfAttr(item, 'column1') || item.remarks),
+      ]),
+      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 40, fontStyle: 'bold' }, 2: { cellWidth: 30 }, 3: { cellWidth: 30 }, 4: { cellWidth: 32 }, 5: { cellWidth: 34 }, 6: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 44 }, 8: { cellWidth: 'auto' } },
+    }
+  }
+
+  if (viewMode === 'SCREW_SPEC') {
+    return {
+      color: [180, 83, 9],
+      head: ['Item ID', 'Item Name', 'Fastener Type', 'Length', 'Gauge / Size', 'Finish', 'Qty', 'Usage', 'Notes'],
+      body: rows.map((item) => [
+        text(pdfAttr(item, 'itemId')),
+        text(item.materialName),
+        text(pdfAttr(item, 'fastenerType')),
+        text(pdfAttr(item, 'lengthInches')),
+        text(pdfAttr(item, 'gaugeSize')),
+        text(pdfAttr(item, 'materialFinish')),
+        pdfQty(item),
+        text(pdfAttr(item, 'usagePurpose') || item.productionPhase),
+        text(pdfAttr(item, 'column1') || item.remarks),
+      ]),
+      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 38, fontStyle: 'bold' }, 2: { cellWidth: 32 }, 3: { cellWidth: 22 }, 4: { cellWidth: 30 }, 5: { cellWidth: 34 }, 6: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 46 }, 8: { cellWidth: 'auto' } },
+    }
+  }
+
+  if (viewMode === 'NAIL_SPEC') {
+    return {
+      color: [190, 18, 60],
+      head: ['Item ID', 'Item Name', 'Type', 'Length', 'Thickness / Spec', 'Unit Type', 'Qty', 'Usage', 'Notes'],
+      body: rows.map((item) => [
+        text(pdfAttr(item, 'itemId')),
+        text(item.materialName),
+        text(pdfAttr(item, 'nailType')),
+        text(pdfAttr(item, 'lengthSpec')),
+        text(pdfAttr(item, 'thicknessSpec')),
+        text(pdfAttr(item, 'unitType') || item.unit),
+        pdfQty(item),
+        text(pdfAttr(item, 'functionalUsage') || item.productionPhase),
+        text(pdfAttr(item, 'column1') || item.remarks),
+      ]),
+      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 42, fontStyle: 'bold' }, 2: { cellWidth: 28 }, 3: { cellWidth: 24 }, 4: { cellWidth: 34 }, 5: { cellWidth: 24 }, 6: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 42 }, 8: { cellWidth: 'auto' } },
+    }
+  }
+
+  if (viewMode === 'ADHESIVE_SPEC') {
+    return {
+      color: [5, 150, 105],
+      head: ['Item ID', 'Chemical Name', 'Class', 'Packaging Unit', 'Qty', 'Application Method', 'Notes'],
+      body: rows.map((item) => [
+        text(pdfAttr(item, 'itemId')),
+        text(item.materialName),
+        text(pdfAttr(item, 'chemicalClass')),
+        text(pdfAttr(item, 'packagingUnit') || item.unit),
+        pdfQty(item),
+        text(pdfAttr(item, 'applicationMethod') || item.productionPhase),
+        text(pdfAttr(item, 'column1') || item.remarks),
+      ]),
+      columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 48, fontStyle: 'bold' }, 2: { cellWidth: 34 }, 3: { cellWidth: 30 }, 4: { cellWidth: 20, halign: 'right', fontStyle: 'bold' }, 5: { cellWidth: 58 }, 6: { cellWidth: 'auto' } },
+    }
+  }
+
+  if (viewMode === 'CABINET_CORE_SPEC') {
+    return {
+      color: [146, 64, 14],
+      head: ['Sr No', 'Base Material / Core', 'Thickness', 'Laminate / Finish Details', 'Side Spec', 'Board Qty', 'Edging Tape Qty'],
+      body: rows.map((item) => [
+        text(pdfAttr(item, 'srNo')),
+        text(pdfAttr(item, 'baseMaterial') || item.materialName),
+        text(pdfAttr(item, 'coreThickness')),
+        text(pdfAttr(item, 'laminateFinishDetails')),
+        text(pdfAttr(item, 'sideSpecification')),
+        text(pdfAttr(item, 'qtyLabel') || item.finalQuantity),
+        text(pdfAttr(item, 'edgingTapeQty')),
+      ]),
+      columnStyles: { 0: { cellWidth: 18, halign: 'center' }, 1: { cellWidth: 48, fontStyle: 'bold' }, 2: { cellWidth: 24 }, 3: { cellWidth: 68 }, 4: { cellWidth: 40 }, 5: { cellWidth: 28, halign: 'right', fontStyle: 'bold' }, 6: { cellWidth: 'auto' } },
+    }
+  }
+
+  if (viewMode === 'CABINET_HPL_SPEC') {
+    return {
+      color: [8, 145, 178],
+      head: ['Line No', 'Core Thickness', 'Core Substrate', 'Front Laminate', 'Back Laminate / Liner', 'Qty', 'Edging Tape Qty'],
+      body: rows.map((item) => [
+        text(pdfAttr(item, 'lineNo')),
+        text(pdfAttr(item, 'coreThickness')),
+        text(pdfAttr(item, 'coreSubstrateType') || pdfAttr(item, 'baseMaterial') || item.materialName),
+        text(pdfAttr(item, 'frontLaminateCode')),
+        text(pdfAttr(item, 'backLaminateCode')),
+        text(pdfAttr(item, 'qtyLabel') || item.finalQuantity),
+        text(pdfAttr(item, 'edgingTapeQty')),
+      ]),
+      columnStyles: { 0: { cellWidth: 22, halign: 'center' }, 1: { cellWidth: 28 }, 2: { cellWidth: 46, fontStyle: 'bold' }, 3: { cellWidth: 50 }, 4: { cellWidth: 58 }, 5: { cellWidth: 22, halign: 'right', fontStyle: 'bold' }, 6: { cellWidth: 'auto' } },
+    }
+  }
+
+  if (viewMode === 'HARDWARE_ACCESSORY_SPEC') {
+    return {
+      color: [219, 39, 119],
+      head: ['SL', 'Category', 'Item Name', 'Item Code', 'Dimensions', 'Unit', 'Qty', 'Unit Price', 'Total'],
+      body: rows.map((item) => [
+        text(pdfAttr(item, 'srNo')),
+        text(pdfAttr(item, 'accessoryCategory')),
+        text(item.materialName),
+        text(pdfAttr(item, 'itemCode')),
+        text(pdfAttr(item, 'dimensions')),
+        text(item.unit),
+        pdfQty(item),
+        text(pdfAttr(item, 'unitPrice')),
+        text(pdfAttr(item, 'totalAmount')),
+      ]),
+      columnStyles: { 0: { cellWidth: 12, halign: 'center' }, 1: { cellWidth: 26 }, 2: { cellWidth: 44, fontStyle: 'bold' }, 3: { cellWidth: 28 }, 4: { cellWidth: 52 }, 5: { cellWidth: 18 }, 6: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 28, halign: 'right' }, 8: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' } },
+    }
+  }
+
+  if (viewMode === 'SERVICES_DELIVERABLE_SPEC') {
+    return {
+      color: [124, 58, 237],
+      head: ['SL', 'Service / Material Category', 'Description', 'Quantity / Unit', 'Rate', 'Estimated Total'],
+      body: rows.map((item) => [
+        text(pdfAttr(item, 'srNo')),
+        text(pdfAttr(item, 'serviceCategory') || item.materialName),
+        text(item.remarks || item.specifications),
+        text(pdfAttr(item, 'quantityUnit') || pdfQty(item)),
+        text(pdfAttr(item, 'rateType')),
+        text(pdfAttr(item, 'estimatedTotal')),
+      ]),
+      columnStyles: { 0: { cellWidth: 12, halign: 'center' }, 1: { cellWidth: 54, fontStyle: 'bold' }, 2: { cellWidth: 92 }, 3: { cellWidth: 34 }, 4: { cellWidth: 32, halign: 'right' }, 5: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' } },
+    }
+  }
+
+  return {
+    color: [37, 99, 235],
+    head: ['Category', 'Material Name', 'Specification', 'Net Qty', 'Waste %', 'Final Qty', 'UOM', 'Phase / Usage', 'Remarks'],
+    body: rows.map((item) => [
+      text(getWorkCategoryLabel(item.workCategory)),
+      text(item.materialName),
+      text(item.specifications),
+      Number(item.netQuantity || 0).toLocaleString('en-IN'),
+      Number(item.wastagePercent || 0).toLocaleString('en-IN'),
+      Number(item.finalQuantity || 0).toLocaleString('en-IN'),
+      text(item.unit),
+      text(item.productionPhase),
+      text(item.remarks),
+    ]),
+    columnStyles: { 0: { cellWidth: 30 }, 1: { cellWidth: 42, fontStyle: 'bold' }, 2: { cellWidth: 62 }, 3: { cellWidth: 20, halign: 'right' }, 4: { cellWidth: 20, halign: 'right' }, 5: { cellWidth: 22, halign: 'right', fontStyle: 'bold' }, 6: { cellWidth: 18 }, 7: { cellWidth: 38 }, 8: { cellWidth: 'auto' } },
+  }
 }
 
 /* ─────────────────────────────────────────────
@@ -1987,9 +2218,9 @@ function MaterialRowsTable({
   onLoadAccessoryServicesPreset?: () => void
 }) {
   return (
-    <div className="border border-border/80 rounded-lg overflow-hidden shadow-xs bg-card">
+    <div className="overflow-hidden rounded-lg border border-border/70 bg-background shadow-2xs">
       {rows.length === 0 ? (
-        <div className="px-4 py-8 text-center text-xs text-muted-foreground space-y-3 bg-muted/10">
+        <div className="space-y-3 bg-background px-4 py-8 text-center text-xs text-muted-foreground">
           <div className="flex flex-col items-center justify-center gap-1.5 text-muted-foreground/70">
             <Package className="w-6 h-6 text-muted-foreground/40" />
             <span className="font-semibold text-foreground/80">No material specifications added yet</span>
@@ -2070,9 +2301,25 @@ function MaterialRowsTable({
             )}
           </div>
         </div>
-      ) : viewMode === 'BOARD_SPEC' ? (
-        /* ── 1. Core Structural Boards & Plywood Table (10 Cols) ── */
-        <div className="overflow-x-auto">
+      ) : (
+        <>
+          <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-slate-50 px-3.5 py-2.5 dark:bg-slate-950/30">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-md bg-background text-muted-foreground ring-1 ring-border/70">
+                <Package className="h-3.5 w-3.5" />
+              </span>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Level 3</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-foreground">Material rows</p>
+              </div>
+            </div>
+            <span className="rounded-full border border-border/60 bg-background px-2.5 py-0.5 text-[11px] font-semibold text-muted-foreground">
+              {rows.length} {rows.length === 1 ? 'row' : 'rows'}
+            </span>
+          </div>
+          {viewMode === 'BOARD_SPEC' ? (
+            /* ── 1. Core Structural Boards & Plywood Table (10 Cols) ── */
+            <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
             <thead className="bg-amber-500/10 border-b border-amber-500/20 text-amber-900 dark:text-amber-200">
               <tr className="divide-x divide-border/40">
@@ -2240,8 +2487,8 @@ function MaterialRowsTable({
               })}
             </tbody>
           </table>
-        </div>
-      ) : viewMode === 'LOUVER_SPEC' ? (
+            </div>
+          ) : viewMode === 'LOUVER_SPEC' ? (
         /* ── 2. Decorative Panels, Louvers & Edge Profiles Table (10 Cols) ── */
         <div className="overflow-x-auto">
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
@@ -3521,6 +3768,8 @@ function MaterialRowsTable({
           </table>
         </div>
       )}
+        </>
+      )}
 
       <div className="px-3.5 py-2.5 border-t border-border/60 bg-muted/20 flex flex-wrap items-center justify-between gap-2">
         <button
@@ -3659,9 +3908,9 @@ function SectionBlock({
   const colors = CATEGORY_COLORS[section.category]
 
   return (
-    <div className="border-t first:border-t-0">
+    <div className={`rounded-xl border-2 bg-card shadow-2xs ${colors.border} ${colors.leftBorder}`}>
       {/* Section header */}
-      <div className={`flex items-center gap-2.5 px-4 py-2.5 ${colors.bg} border-b ${colors.border} ${colors.leftBorder}`}>
+      <div className={`flex items-center gap-2.5 px-4 py-3 ${colors.bg} border-b ${colors.border}`}>
         <button
           onClick={onToggleCollapse}
           className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
@@ -3670,15 +3919,31 @@ function SectionBlock({
           {section.collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
 
-        <span className={`text-xs font-bold uppercase tracking-wider ${colors.text}`}>{catLabel}</span>
+        <div className="min-w-0 flex-1">
+          <div className="mb-1 flex items-center gap-1.5">
+            <span className="rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground ring-1 ring-border/60">Level 2</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Requisition section type</span>
+            {subTypeInfo && (
+              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+            )}
+            {subTypeInfo && (
+              <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {subTypeInfo.label}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`text-sm font-bold ${colors.text}`}>{catLabel}</span>
 
-        {subTypeInfo && (
-          <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium border ${colors.pill}`}>
-            {subTypeInfo.label}
-          </span>
-        )}
+            {subTypeInfo && (
+              <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium border ${colors.pill}`}>
+                {subTypeInfo.label}
+              </span>
+            )}
+          </div>
+        </div>
 
-        <span className="ml-auto text-[11px] font-medium text-muted-foreground bg-background/90 px-2.5 py-0.5 rounded-full border border-border/60 shadow-2xs">
+        <span className="text-[11px] font-medium text-muted-foreground bg-background/90 px-2.5 py-0.5 rounded-full border border-border/60 shadow-2xs">
           {rows.length} {rows.length === 1 ? 'row' : 'rows'}
         </span>
 
@@ -3693,7 +3958,7 @@ function SectionBlock({
 
       {/* Section body */}
       {!section.collapsed && (
-        <div className="p-3 bg-muted/5">
+        <div className="bg-background/70 p-3">
           <MaterialRowsTable
             rows={rows}
             viewMode={viewMode}
@@ -3839,53 +4104,79 @@ function QuotationLineItemCard({
   const totalRows = sections.reduce((sum, s) => sum + getRowsForSection(s.id).length, 0)
 
   return (
-    <div className="border border-border/80 rounded-xl overflow-hidden bg-card shadow-xs transition-shadow hover:shadow-sm">
+    <div className="overflow-hidden rounded-2xl border-2 border-primary/20 bg-card shadow-sm ring-1 ring-transparent transition-shadow hover:border-primary/35 hover:shadow-md">
       {/* Card header */}
       <button
         onClick={() => setCardExpanded((v) => !v)}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-muted/20 hover:bg-muted/35 transition-colors text-left"
+        className="w-full border-b border-primary/15 bg-primary/[0.035] px-4 py-4 text-left transition-colors hover:bg-primary/[0.06]"
       >
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className="text-muted-foreground p-0.5 rounded flex-shrink-0">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-border/70 bg-muted/40 text-muted-foreground">
             {cardExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </div>
-          <div className="flex-1 min-w-0 space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              {area && (
-                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300 bg-blue-500/10 px-2.5 py-0.5 rounded-md border border-blue-500/25">
-                  {area.name}
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
+                  Level 1
                 </span>
+                <span className="rounded-md border border-primary/25 bg-background px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
+                  Quotation product
+                </span>
+                {area && (
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300 bg-blue-500/10 px-2.5 py-0.5 rounded-md border border-blue-500/25">
+                    {area.name}
+                  </span>
+                )}
+              </div>
+              <p className="truncate text-base font-bold text-foreground">{item.description}</p>
+              {item.materials && (
+                <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground/85">{item.materials}</p>
               )}
-              <p className="text-sm font-bold text-foreground truncate">{item.description}</p>
             </div>
-            {item.materials && (
-              <p className="text-xs text-muted-foreground/80 line-clamp-1">{item.materials}</p>
-            )}
           </div>
-        </div>
-        <div className="flex-shrink-0 text-right space-y-1 pl-3 border-l border-border/50">
-          <div className="flex items-center justify-end gap-2">
-            <span className="text-xs text-muted-foreground">{item.quantity} {item.unit}</span>
-            <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/25">
-              ৳{item.amount.toLocaleString('en-IN')}
-            </span>
+          <div className="flex-shrink-0 space-y-2 text-left lg:border-l lg:border-border/60 lg:pl-4 lg:text-right">
+            <div className="flex items-center gap-2 lg:justify-end">
+              <span className="text-xs font-medium text-muted-foreground">{item.quantity} {item.unit}</span>
+              <span className="text-xs font-bold text-emerald-800 dark:text-emerald-200 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/25">
+                {formatBdtRounded(item.amount)}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <span className="rounded-lg border border-border/70 bg-muted/25 px-2.5 py-1.5">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sections</span>
+                <span className="block text-sm font-bold text-foreground">{sections.length}</span>
+              </span>
+              <span className="rounded-lg border border-border/70 bg-muted/25 px-2.5 py-1.5">
+                <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Rows</span>
+                <span className="block text-sm font-bold text-foreground">{totalRows}</span>
+              </span>
+            </div>
+            <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground lg:justify-end">
+              {totalRows > 0 ? (
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              ) : (
+                <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+              )}
+              {totalRows > 0 ? 'Configured' : 'Needs material rows'}
+            </p>
           </div>
-          <p className="text-[11px] font-medium text-muted-foreground flex items-center justify-end gap-1.5">
-            {totalRows > 0 ? (
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            ) : (
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />
-            )}
-            {sections.length} {sections.length === 1 ? 'section' : 'sections'} · {totalRows} {totalRows === 1 ? 'row' : 'rows'}
-          </p>
         </div>
       </button>
 
       {cardExpanded && (
-        <div>
+        <div className="space-y-3 bg-muted/10 p-3">
+          {sections.length > 0 ? (
+            <div className="rounded-xl border border-dashed border-primary/25 bg-background px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-muted-foreground">
+                <span className="rounded bg-primary/10 px-2 py-0.5 font-black uppercase tracking-wider text-primary">Inside this product</span>
+                <span>add section types first, then material rows under each section.</span>
+              </div>
+            </div>
+          ) : null}
           {/* Empty state */}
           {sections.length === 0 && !showAddSection && (
-            <div className="px-4 py-8 text-center text-xs text-muted-foreground space-y-2 bg-muted/5">
+            <div className="rounded-xl border border-dashed border-border/80 bg-background px-4 py-8 text-center text-xs text-muted-foreground space-y-2">
               <Package className="w-6 h-6 mx-auto text-muted-foreground/40" />
               <p className="font-semibold text-foreground/80">No material sections configured for this quotation item.</p>
               <p className="text-[11px] text-muted-foreground">Add a section below to start specifying required materials.</p>
@@ -3920,7 +4211,7 @@ function QuotationLineItemCard({
               onCancel={() => setShowAddSection(false)}
             />
           ) : (
-            <div className="px-4 py-2.5 border-t border-border/70 bg-muted/10">
+            <div className="rounded-xl border border-dashed border-border/80 bg-background px-4 py-2.5">
               <button
                 onClick={() => setShowAddSection(true)}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
@@ -3993,9 +4284,9 @@ function ExtraCard({
       </button>
 
       {expanded && (
-        <div>
+        <div className="space-y-3 bg-muted/10 p-3">
           {sections.length === 0 && !showAddSection && (
-            <div className="px-4 py-8 text-center text-xs text-muted-foreground space-y-2 bg-muted/5">
+            <div className="rounded-xl border border-dashed border-border/80 bg-background px-4 py-8 text-center text-xs text-muted-foreground space-y-2">
               <Package className="w-6 h-6 mx-auto text-muted-foreground/40" />
               <p className="font-semibold text-foreground/80">No general sections added yet.</p>
               <p className="text-[11px] text-muted-foreground">Add a Wall Paneling, Closet/Cabinet, or Accessories section below to specify catalog materials.</p>
@@ -4028,7 +4319,7 @@ function ExtraCard({
               onCancel={() => setShowAddSection(false)}
             />
           ) : (
-            <div className="px-4 py-2.5 border-t border-border/70 bg-muted/10">
+            <div className="rounded-xl border border-dashed border-border/80 bg-background px-4 py-2.5">
               <button
                 onClick={() => setShowAddSection(true)}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
@@ -4341,116 +4632,194 @@ export function RequisitionBuilderClient({
         logoImg.onerror = resolve
       })
 
-      doc.setFillColor(15, 23, 42)
-      doc.rect(0, 0, pageW, 30, 'F')
-      doc.addImage(logoImg, 'PNG', 14, 9, 43.2, 8)
-      doc.setTextColor(255, 255, 255)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(15)
-      doc.text('MATERIAL REQUISITION', pageW - 14, 12, { align: 'right' })
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8)
-      doc.setTextColor(203, 213, 225)
-      doc.text(`Requisition: ${safePdfText(reqNo)}  |  Generated: ${today}`, pageW - 14, 19, { align: 'right' })
-
-      doc.setFillColor(248, 250, 252)
-      doc.setDrawColor(226, 232, 240)
-      doc.roundedRect(14, 36, pageW - 28, 24, 2, 2, 'FD')
-      doc.setTextColor(15, 23, 42)
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(9)
-      doc.text('Project / Client', 20, 43)
-      doc.text('Requisition Summary', pageW / 2 + 6, 43)
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(8)
-      doc.setTextColor(71, 85, 105)
-      doc.text(`Client: ${safePdfText(lead.name)}`, 20, 49)
-      doc.text(`Phone: ${safePdfText(lead.phone)}`, 20, 54)
-      doc.text(`Location: ${safePdfText(lead.location)}`, 20, 59)
-      doc.text(`Status: ${lastSavedStatus === 'SUBMITTED' ? 'Submitted' : 'Draft'}`, pageW / 2 + 6, 49)
-      doc.text(`Material Rows: ${totalMaterialRows}`, pageW / 2 + 6, 54)
-      doc.text(`Quotation Coverage: ${coveredLineItems}/${lineItems.length} items (${coveragePct}%)`, pageW / 2 + 6, 59)
-
-      doc.setFillColor(239, 246, 255)
-      doc.setDrawColor(191, 219, 254)
-      doc.roundedRect(14, 64, pageW - 28, 10, 1.5, 1.5, 'FD')
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(7.5)
-      doc.setTextColor(30, 64, 175)
-      doc.text(safePdfText(categorySummary || 'No category rows'), 20, 70)
-
       const pdfDoc = doc as unknown as PdfTableDoc
-      autoTable(doc, {
-        startY: 80,
-        head: [['SL', 'Category', 'Material', 'Specifications', 'Qty', 'Unit', 'BOQ Source', 'Phase / Usage', 'Remarks']],
-        body: requisitionItems.map((item, index) => {
-          const sourceItem = item.quotationLineItemId ? lineItemMap.get(item.quotationLineItemId) : null
-          const sourceArea = sourceItem?.areaId ? areaMap.get(sourceItem.areaId) : null
-          const sourceLabel = sourceItem
-            ? `${sourceArea ? `${sourceArea.name} / ` : ''}${sourceItem.description}`
-            : 'General / Extra'
-          return [
-            index + 1,
-            safePdfText(getWorkCategoryLabel(item.workCategory as RequisitionWorkCategory)),
-            safePdfText(item.materialName),
-            safePdfText(item.specifications),
-            Number(item.finalQuantity || item.netQuantity || 0).toLocaleString('en-IN'),
-            safePdfText(item.unit),
-            safePdfText(sourceLabel),
-            safePdfText(item.productionPhase),
-            safePdfText(item.remarks),
-          ]
-        }),
-        theme: 'grid',
-        headStyles: {
-          fillColor: [15, 23, 42],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          fontSize: 7.2,
-          cellPadding: 2,
-        },
-        bodyStyles: {
-          fontSize: 6.8,
-          textColor: [15, 23, 42],
-          cellPadding: 1.8,
-          lineColor: [226, 232, 240],
-          lineWidth: 0.1,
-        },
-        alternateRowStyles: { fillColor: [248, 250, 252] },
-        columnStyles: {
-          0: { cellWidth: 9, halign: 'center' },
-          1: { cellWidth: 24 },
-          2: { cellWidth: 34, fontStyle: 'bold' },
-          3: { cellWidth: 55 },
-          4: { cellWidth: 14, halign: 'right', fontStyle: 'bold' },
-          5: { cellWidth: 13 },
-          6: { cellWidth: 50 },
-          7: { cellWidth: 33 },
-          8: { cellWidth: 'auto' },
-        },
-        margin: { left: 10, right: 10 },
-        didDrawPage: () => {
-          const pageNum = pdfDoc.internal.getCurrentPageInfo().pageNumber
-          const pageCount = pdfDoc.internal.getNumberOfPages()
-          doc.setFontSize(7)
-          doc.setTextColor(148, 163, 184)
-          doc.text(`Aesthetic Interior | BOQ Material Requisition | Page ${pageNum} of ${pageCount}`, pageW / 2, pageH - 5, { align: 'center' })
-        },
-      })
+      const marginX = 10
+      const topY = 34
+      const bottomY = pageH - 18
+      let cursorY = topY
 
-      if (notes.trim()) {
-        const finalY = (pdfDoc.lastAutoTable?.finalY ?? 80) + 8
-        if (finalY < pageH - 22) {
-          doc.setFont('helvetica', 'bold')
-          doc.setFontSize(8)
-          doc.setTextColor(15, 23, 42)
-          doc.text('Factory Notes', 14, finalY)
-          doc.setFont('helvetica', 'normal')
-          doc.setTextColor(71, 85, 105)
-          doc.text(doc.splitTextToSize(safePdfText(notes), pageW - 28), 14, finalY + 5)
-        }
+      const drawChrome = () => {
+        doc.setFillColor(255, 255, 255)
+        doc.rect(0, 0, pageW, pageH, 'F')
+        doc.addImage(logoImg, 'PNG', marginX, 10, 43.2, 8)
+        doc.setDrawColor(31, 54, 61)
+        doc.setLineWidth(0.7)
+        doc.line(marginX, 23, pageW / 2 - 34, 23)
+        doc.line(pageW / 2 + 34, 23, pageW - marginX, 23)
+        doc.setTextColor(31, 54, 61)
+        doc.setFont('times', 'italic')
+        doc.setFontSize(12)
+        doc.text('Material Requisition', pageW / 2, 24, { align: 'center' })
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(7)
+        doc.setTextColor(100, 116, 139)
+        doc.text(`Requisition: ${safePdfText(reqNo)} | Generated: ${today}`, pageW - marginX, 13, { align: 'right' })
+        doc.setDrawColor(165, 124, 0)
+        doc.setLineWidth(0.4)
+        doc.line(marginX, pageH - 12, pageW - marginX, pageH - 12)
+        doc.setTextColor(71, 85, 105)
+        doc.setFont('helvetica', 'bold')
+        doc.text('Aesthetic Interior Studio', marginX, pageH - 7)
+        doc.setFont('helvetica', 'normal')
+        doc.text('183, East Senpara, Begum Rokeya Soroni, 3rd floor, Mirpur 10, Dhaka-1216', marginX + 42, pageH - 7)
+        doc.text('www.aestheticinteriorbd.com', pageW - marginX, pageH - 7, { align: 'right' })
       }
 
+      const drawPageFooter = () => {
+        const pageNum = pdfDoc.internal.getCurrentPageInfo().pageNumber
+        const pageCount = pdfDoc.internal.getNumberOfPages()
+        doc.setFontSize(6.5)
+        doc.setTextColor(148, 163, 184)
+        doc.text(`Page ${pageNum} of ${pageCount}`, pageW / 2, pageH - 3.5, { align: 'center' })
+      }
+
+      const ensureSpace = (height: number) => {
+        if (cursorY + height <= bottomY) return
+        doc.addPage()
+        drawChrome()
+        cursorY = topY
+      }
+
+      const drawSummary = () => {
+        drawChrome()
+        doc.setFillColor(248, 250, 252)
+        doc.setDrawColor(226, 232, 240)
+        doc.roundedRect(marginX, cursorY, pageW - marginX * 2, 26, 2, 2, 'FD')
+        doc.setTextColor(15, 23, 42)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(8.5)
+        doc.text('Project / Client', marginX + 6, cursorY + 7)
+        doc.text('Requisition Summary', pageW / 2 + 6, cursorY + 7)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(7.4)
+        doc.setTextColor(71, 85, 105)
+        doc.text(`Client: ${safePdfText(lead.name)}`, marginX + 6, cursorY + 13)
+        doc.text(`Phone: ${safePdfText(lead.phone)}`, marginX + 6, cursorY + 18)
+        doc.text(`Location: ${safePdfText(lead.location)}`, marginX + 6, cursorY + 23)
+        doc.text(`Status: ${lastSavedStatus === 'SUBMITTED' ? 'Submitted' : 'Draft'}`, pageW / 2 + 6, cursorY + 13)
+        doc.text(`Approved Quotation: ${safePdfText(formatBdtRounded(detailQuotation?.grandTotal ?? 0))}`, pageW / 2 + 6, cursorY + 18)
+        doc.text(`Coverage: ${coveredLineItems}/${lineItems.length} products | Material Rows: ${totalMaterialRows}`, pageW / 2 + 6, cursorY + 23)
+        cursorY += 33
+
+        doc.setFillColor(239, 246, 255)
+        doc.setDrawColor(191, 219, 254)
+        doc.roundedRect(marginX, cursorY, pageW - marginX * 2, 14, 1.5, 1.5, 'FD')
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(7)
+        doc.setTextColor(30, 64, 175)
+        doc.text('PDF hierarchy: Quotation product -> Requisition section type -> Material rows', marginX + 5, cursorY + 5)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(71, 85, 105)
+        doc.text(safePdfText(categorySummary || 'No category rows'), marginX + 5, cursorY + 10)
+        cursorY += 20
+      }
+
+      const drawProductHeader = (title: string, meta: string, amount: number, index: number, isExtra = false) => {
+        ensureSpace(18)
+        doc.setFillColor(isExtra ? 255 : 243, isExtra ? 251 : 248, isExtra ? 235 : 247)
+        doc.setDrawColor(isExtra ? 245 : 191, isExtra ? 158 : 219, isExtra ? 11 : 254)
+        doc.roundedRect(marginX, cursorY, pageW - marginX * 2, 15, 2, 2, 'FD')
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(8.5)
+        doc.setTextColor(isExtra ? 146 : 30, isExtra ? 64 : 64, isExtra ? 14 : 175)
+        doc.text(isExtra ? 'EXTRA / GENERAL MATERIALS' : `PRODUCT ${index}`, marginX + 4, cursorY + 5)
+        doc.setFontSize(9)
+        doc.setTextColor(15, 23, 42)
+        doc.text(doc.splitTextToSize(safePdfText(title), 145)[0] ?? safePdfText(title), marginX + 4, cursorY + 10.5)
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(7)
+        doc.setTextColor(71, 85, 105)
+        doc.text(safePdfText(meta), pageW - marginX - 4, cursorY + 5, { align: 'right' })
+        if (!isExtra) {
+          doc.setFont('helvetica', 'bold')
+          doc.text(safePdfText(formatBdtRounded(amount)), pageW - marginX - 4, cursorY + 10.5, { align: 'right' })
+        }
+        cursorY += 19
+      }
+
+      const drawSection = (section: CardSection, rows: RequisitionItemInput[]) => {
+        if (rows.length === 0) return
+        const table = buildSectionPdfTable(section, rows)
+        ensureSpace(24)
+        doc.setFillColor(table.color[0], table.color[1], table.color[2])
+        doc.roundedRect(marginX + 4, cursorY, pageW - marginX * 2 - 8, 9, 1.5, 1.5, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(7.4)
+        doc.text(`Section type: ${cleanPdfLabel(getSectionTypeLabel(section))}`, marginX + 8, cursorY + 5.8)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`${rows.length} material ${rows.length === 1 ? 'row' : 'rows'}`, pageW - marginX - 8, cursorY + 5.8, { align: 'right' })
+        cursorY += 11
+
+        autoTable(doc, {
+          startY: cursorY,
+          head: [table.head],
+          body: table.body,
+          theme: 'grid',
+          headStyles: {
+            fillColor: table.color,
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 6.4,
+            cellPadding: 1.7,
+          },
+          bodyStyles: {
+            fontSize: 6.2,
+            textColor: [15, 23, 42],
+            cellPadding: 1.5,
+            lineColor: [226, 232, 240],
+            lineWidth: 0.1,
+          },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          columnStyles: table.columnStyles,
+          margin: { left: marginX + 4, right: marginX + 4, top: topY, bottom: 18 },
+          didDrawPage: () => {
+            drawChrome()
+            drawPageFooter()
+          },
+        })
+        cursorY = (pdfDoc.lastAutoTable?.finalY ?? cursorY) + 5
+      }
+
+      drawSummary()
+
+      lineItems.forEach((item, itemIndex) => {
+        const cardSections = sectionsMap[item.id] ?? []
+        const hasRows = cardSections.some((section) => (itemsMap[sectionItemKey(item.id, section.id)] ?? []).length > 0)
+        if (!hasRows) return
+        const sourceArea = item.areaId ? areaMap.get(item.areaId) : null
+        drawProductHeader(
+          item.description,
+          `${sourceArea ? `${sourceArea.name} | ` : ''}${item.quantity} ${item.unit}`,
+          item.amount,
+          itemIndex + 1,
+        )
+        cardSections.forEach((section) => {
+          drawSection(section, itemsMap[sectionItemKey(item.id, section.id)] ?? [])
+        })
+      })
+
+      const extraSections = sectionsMap[EXTRA_KEY] ?? []
+      const hasExtraRows = extraSections.some((section) => (itemsMap[sectionItemKey(EXTRA_KEY, section.id)] ?? []).length > 0)
+      if (hasExtraRows) {
+        drawProductHeader('Unlinked site supplies, hardware, and sundries', `${extraRowCount} general rows`, 0, 0, true)
+        extraSections.forEach((section) => {
+          drawSection(section, itemsMap[sectionItemKey(EXTRA_KEY, section.id)] ?? [])
+        })
+      }
+
+      if (notes.trim()) {
+        ensureSpace(22)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(8)
+        doc.setTextColor(15, 23, 42)
+        doc.text('Factory Notes', marginX, cursorY)
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(71, 85, 105)
+        doc.text(doc.splitTextToSize(safePdfText(notes), pageW - marginX * 2), marginX, cursorY + 5)
+      }
+
+      drawPageFooter()
       doc.save(`material-requisition-${safeFilePart(lead.name)}-${safeFilePart(reqNo)}.pdf`)
     } catch (error) {
       console.error(error)
@@ -4568,10 +4937,10 @@ export function RequisitionBuilderClient({
             </div>
             <div className="mt-3">
               <div className="text-2xl font-bold tracking-tight text-emerald-950 dark:text-emerald-100">
-                ৳{detailQuotation.grandTotal.toLocaleString('en-IN')}
+                {formatBdtRounded(detailQuotation.grandTotal)}
               </div>
               <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 mt-0.5 font-medium">
-                Total approved client project contract value
+                Rounded from saved quotation total for display
               </p>
             </div>
           </div>
@@ -4638,6 +5007,26 @@ export function RequisitionBuilderClient({
         </div>
       )}
 
+      <div className="rounded-2xl border border-border/80 bg-card p-3 shadow-xs">
+        <div className="grid gap-2 md:grid-cols-3">
+          <div className="rounded-xl border-2 border-primary/25 bg-primary/[0.04] p-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-primary">Level 1</p>
+            <p className="mt-1 text-sm font-bold text-foreground">Quotation product</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">The approved product or line item from quotation.</p>
+          </div>
+          <div className="rounded-xl border-2 border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900/60 dark:bg-blue-950/20">
+            <p className="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-300">Level 2</p>
+            <p className="mt-1 text-sm font-bold text-foreground">Requisition section type</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Wall paneling, cabinet, accessories, and other work categories.</p>
+          </div>
+          <div className="rounded-xl border border-border/80 bg-muted/20 p-3">
+            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Level 3</p>
+            <p className="mt-1 text-sm font-bold text-foreground">Material rows</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Actual procurement rows with item specs, quantity, unit, and usage.</p>
+          </div>
+        </div>
+      </div>
+
       {/* ── Quotation-Driven Sections ── */}
       {quotation && lineItems.length > 0 ? (
         <div className="space-y-8">
@@ -4646,13 +5035,16 @@ export function RequisitionBuilderClient({
             if (sectionItems.length === 0) return null
 
             return (
-              <div key={section.id} className="space-y-3">
+              <div key={section.id} className="space-y-4">
                 {/* Section Header */}
-                <div className="flex items-center gap-2 border-b border-border/60 pb-2.5 pt-2">
-                  <div className="p-1 rounded bg-primary/10 text-primary">
+                <div className="flex items-center gap-2 border-b border-border/70 bg-muted/10 px-2 pb-3 pt-3">
+                  <div className="p-1.5 rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
                     <Layers className="w-4 h-4" />
                   </div>
-                  <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{section.name}</h2>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Quotation group</p>
+                    <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{section.name}</h2>
+                  </div>
                   <span className="text-xs font-medium text-muted-foreground ml-auto bg-muted px-2.5 py-0.5 rounded-full border border-border/40">
                     {sectionItems.length} {sectionItems.length !== 1 ? 'line items' : 'line item'}
                   </span>
