@@ -207,6 +207,11 @@ const styles = StyleSheet.create({
   wQty: { width: '10%', textAlign: 'center' },
   wPrice: { width: '12%', textAlign: 'center' },
   wTotal: { width: '12%', textAlign: 'center' },
+  wChecklistSl: { width: '7%', textAlign: 'center' },
+  wChecklistDesc: { width: '53%' },
+  wChecklistQty: { width: '12%', textAlign: 'center' },
+  wChecklistPrice: { width: '14%', textAlign: 'center' },
+  wChecklistTotal: { width: '14%', textAlign: 'center' },
 
   // Columns Summary
   wSumName: { width: '72%', paddingLeft: 10 },
@@ -559,6 +564,14 @@ function SingleMaterialLine({ text, isFirstRowAndEmpty }: { text: string; isFirs
   )
 }
 
+function buildChecklistDescription(line: QuotationDraftContent['lineItems'][number]) {
+  const description = line.description?.trim() ?? ''
+  const materials = line.materials?.trim() ?? ''
+
+  if (description && materials) return `${description}\n${materials}`
+  return description || materials
+}
+
 export function DetailQuotationDocument({
   clientName,
   clientAddress,
@@ -566,6 +579,7 @@ export function DetailQuotationDocument({
   totals,
   agreementSummary,
   isBlank = false,
+  variant = 'quotation',
 }: {
   clientName: string
   clientAddress: string | null
@@ -577,6 +591,7 @@ export function DetailQuotationDocument({
     totalAmount: number
   }
   isBlank?: boolean
+  variant?: 'quotation' | 'checklist'
 }) {
   const floorSummaries = buildDetailFloorSummaries(content)
   const cleanIntro = (content.introLetter || '').replace('Dear Sir,\n', '').replace('Dear Sir,', '').trim();
@@ -621,6 +636,84 @@ export function DetailQuotationDocument({
       })
     })
   })
+
+  if (variant === 'checklist') {
+    return (
+      <Document>
+        {floorSummaries.map((entry, entryIndex) => (
+          <Page key={entry.floor.id} size="A4" style={styles.detailPage}>
+            <WatermarkBackground />
+            <GlobalHeader
+              date={content.quotationDate ?? ''}
+              clientName={clientName}
+              clientAddress={clientAddress || ''}
+              showDate={false}
+            />
+
+            {entryIndex === 0 ? (
+              <ClientInfoBlock clientName={clientName} clientAddress={clientAddress} />
+            ) : null}
+
+            <Text style={[styles.sectionTitle, entryIndex === 0 ? { marginTop: 0 } : {}]}>
+              {softWrapPdfText(entry.floor.name)}
+            </Text>
+
+            <View style={styles.tableWrapper}>
+              <View style={styles.tHead}>
+                <Text style={[styles.thCol, styles.wChecklistSl]}>SL</Text>
+                <Text style={[styles.thCol, styles.wChecklistDesc]}>Material Description</Text>
+                <Text style={[styles.thCol, styles.wChecklistQty]}>Qty/Sft</Text>
+                <Text style={[styles.thCol, styles.wChecklistPrice]}>Unit Price</Text>
+                <Text style={[styles.thCol, styles.wChecklistTotal, styles.thColLast]}>Total Price</Text>
+              </View>
+
+              {getAreaGroups(entry).map((area) => (
+                <View key={area.id}>
+                  {area.name ? (
+                    <View style={styles.areaTitleRow} wrap={false}>
+                      <Text style={styles.areaTitleText}>{softWrapPdfText(area.name)}</Text>
+                    </View>
+                  ) : null}
+                  {area.lines.map((line, lineIndex) => {
+                    const isPkg = isPackageLine(line)
+                    const descriptionLines = splitPdfTableLines(buildChecklistDescription(line), 66)
+                    const tableLineCount = Math.max(descriptionLines.length, 1)
+                    const rowCellStyle = {
+                      paddingTop: DETAIL_ROW_VERTICAL_PADDING,
+                      paddingBottom: DETAIL_ROW_VERTICAL_PADDING,
+                    }
+                    const slNumber = String(lineSlMap.get(line.id) ?? lineIndex + 1).padStart(2, '0')
+
+                    return Array.from({ length: tableLineCount }, (_, rowIndex) => {
+                      const isFirstMaterialRow = rowIndex === 0
+                      const isLastSubRow = rowIndex === tableLineCount - 1
+                      const descriptionText = descriptionLines[rowIndex] ?? ''
+
+                      return (
+                        <View key={`${line.id}-checklist-${rowIndex}`} wrap={false} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}, !isLastSubRow ? { borderBottomWidth: 0 } : {}]}>
+                          <Text style={[styles.tdCol, styles.wChecklistSl, styles.bold, rowCellStyle]}>{isFirstMaterialRow ? slNumber : ''}</Text>
+                          <View style={[styles.tdCol, styles.wChecklistDesc, styles.matCell, rowCellStyle]}>
+                            <SingleMaterialLine text={descriptionText} isFirstRowAndEmpty={isFirstMaterialRow} />
+                          </View>
+                          <Text style={[styles.tdCol, styles.wChecklistQty, rowCellStyle, { fontSize: 9 }]}>
+                            {isFirstMaterialRow ? (isPkg ? 'Package' : formatDetailQtyCell(line)) : ''}
+                          </Text>
+                          <Text style={[styles.tdCol, styles.wChecklistPrice, rowCellStyle]} />
+                          <Text style={[styles.tdCol, styles.wChecklistTotal, styles.tdColLast, rowCellStyle]} />
+                        </View>
+                      )
+                    })
+                  })}
+                </View>
+              ))}
+            </View>
+
+            <FooterFixed content={content} />
+          </Page>
+        ))}
+      </Document>
+    )
+  }
 
   // Filter out Finishing & Electrical Works from the Project Summary list ONLY if it has no total (total <= 0)
   const summaryFloorEntries = floorSummaries.filter((entry) => {
@@ -797,18 +890,16 @@ export function DetailQuotationDocument({
                     : splitPdfTableLines(priceTextRaw, 9)
 
                   const isFinishingElectricalEntry =
-                    Boolean((line as any).isFinishingElectrical) ||
+                    Boolean(line.isFinishingElectrical) ||
                     entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
                     entry.floor.id === 'finishing-electrical-works-section' ||
                     Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name)) ||
                     Boolean(area.name && /finishing|electrical/i.test(area.name))
 
                   // FE case 3: total entered directly (amount > 0) AND no rate or no qty → merge Qty/UP cols → "Package"
-                  const feRate = Number.isFinite((line as any).rate) ? (line as any).rate : 0
-                  const feQty = Number.isFinite((line as any).quantity) ? (line as any).quantity : 0
+                  const feRate = Number.isFinite(line.rate) ? line.rate : 0
+                  const feQty = Number.isFinite(line.quantity) ? line.quantity : 0
                   const isFEPackageMode = isFinishingElectricalEntry && (line.amount > 0) && !(feRate > 0 && feQty > 0)
-                  // FE case 4: both rate AND qty → show normally (no merge)
-                  const isFENormalMode = isFinishingElectricalEntry && feRate > 0 && feQty > 0
 
                   let totalTextRaw = ''
                   if (isFinishingElectricalEntry) {

@@ -2,7 +2,7 @@ import { DetailQuotationLivePreview } from '@/components/crm/quotation/detail-qu
 import type { DetailPreviewContext } from '@/lib/detail-quotation-preview-sync'
 
 type DetailPreviewPageProps = {
-  searchParams: Promise<{ context?: string; id?: string; slot?: string; download?: string; isBlank?: string }>
+  searchParams: Promise<{ context?: string; id?: string; slot?: string; download?: string; isBlank?: string; checklist?: string }>
 }
 
 export default async function DetailPreviewPage({ searchParams }: DetailPreviewPageProps) {
@@ -12,6 +12,7 @@ export default async function DetailPreviewPage({ searchParams }: DetailPreviewP
   const slotIndex = params.slot ? parseInt(params.slot, 10) || 1 : 1
   const autoDownload = params.download === 'true' || params.download === '1'
   const isBlank = params.isBlank === 'true' || params.isBlank === '1'
+  const checklist = params.checklist === 'true' || params.checklist === '1'
 
   if (!contextId) {
     return (
@@ -21,5 +22,5 @@ export default async function DetailPreviewPage({ searchParams }: DetailPreviewP
     )
   }
 
-  return <DetailQuotationLivePreview context={context} contextId={contextId} slotIndex={slotIndex} autoDownload={autoDownload} isBlank={isBlank} />
+  return <DetailQuotationLivePreview context={context} contextId={contextId} slotIndex={slotIndex} autoDownload={autoDownload} isBlank={isBlank} checklist={checklist} />
 }

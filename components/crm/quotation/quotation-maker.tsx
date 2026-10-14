@@ -1323,6 +1323,53 @@ return (
             <ExternalLink className="mr-1.5 h-4 w-4" />
             Live Preview
           </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={generatingPdf}
+            onClick={async () => {
+              if (!content || !totals) return
+              setGeneratingPdf(true)
+              try {
+                const downloadedAt = new Date().toISOString()
+                const contentForDownload = {
+                  ...withDetailQuotationDefaults(content),
+                  downloadedAt,
+                }
+                const safeClientName = (content.clientName || leadName || 'Client').replace(/[^a-z0-9]/gi, '_').toLowerCase()
+                await downloadPdfFromDocument(
+                  <DetailQuotationDocument
+                    clientName={content.clientName || leadName || 'Client'}
+                    clientAddress={content.clientAddress || leadLocation || null}
+                    content={contentForDownload}
+                    totals={totals}
+                    variant="checklist"
+                  />,
+                  `Checklist_PDF_${safeClientName}.pdf`,
+                )
+                toast.success('Checklist PDF downloaded')
+              } catch (error) {
+                console.error('Failed to generate Checklist PDF:', error)
+                toast.error('Failed to generate Checklist PDF')
+              } finally {
+                setGeneratingPdf(false)
+              }
+            }}
+            title="Download checklist PDF with blank unit price and total price columns"
+          >
+            {generatingPdf ? (
+              <>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Download className="mr-1.5 h-4 w-4" />
+                Checklist PDF
+              </>
+            )}
+          </Button>
           {!pathname.startsWith('/quotation-team') ? (
             <Button
               type="button"

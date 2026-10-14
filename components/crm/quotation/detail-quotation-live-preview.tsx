@@ -41,6 +41,7 @@ type DetailQuotationLivePreviewProps = {
   slotIndex?: number
   autoDownload?: boolean
   isBlank?: boolean
+  checklist?: boolean
 }
 
 export function DetailQuotationLivePreview({
@@ -49,6 +50,7 @@ export function DetailQuotationLivePreview({
   slotIndex = 1,
   autoDownload = false,
   isBlank = false,
+  checklist = false,
 }: DetailQuotationLivePreviewProps) {
   const [payload, setPayload] = useState<DetailPreviewPayload | null>(null)
   const [loading, setLoading] = useState(true)
@@ -127,7 +129,7 @@ export function DetailQuotationLivePreview({
     setLoading(false)
   }, [context, contextId, slotIndex])
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = useCallback(async () => {
     if (!payload) return
     setDownloading(true)
     try {
@@ -141,7 +143,7 @@ export function DetailQuotationLivePreview({
       }
       
       const safeClientName = (payload.clientName || 'Client').replace(/[^a-z0-9]/gi, '_').toLowerCase()
-      const prefix = isBlank ? 'Blank_Detail_Quotation' : 'Detail_Quotation'
+      const prefix = checklist ? 'Checklist_PDF' : isBlank ? 'Blank_Detail_Quotation' : 'Detail_Quotation'
       await downloadPdfFromDocument(
         <DetailQuotationDocument
           clientName={payload.clientName}
@@ -149,6 +151,7 @@ export function DetailQuotationLivePreview({
           content={contentForDownload}
           totals={payload.totals}
           isBlank={isBlank}
+          variant={checklist ? 'checklist' : 'quotation'}
         />,
         `${prefix}_${safeClientName}_${quotationCode}.pdf`,
       )
@@ -160,14 +163,14 @@ export function DetailQuotationLivePreview({
       }
       setPayload(nextPayload)
       
-      toast.success(`PDF downloaded with quotation code ${quotationCode}`)
+      toast.success(`${checklist ? 'Checklist PDF' : 'PDF'} downloaded with quotation code ${quotationCode}`)
     } catch (error) {
       console.error('Failed to generate PDF:', error)
       toast.error('Failed to generate PDF')
     } finally {
       setDownloading(false)
     }
-  }
+  }, [checklist, isBlank, payload])
 
   useEffect(() => {
     void loadPayload()
@@ -239,7 +242,7 @@ export function DetailQuotationLivePreview({
                 Generating PDF...
               </>
             ) : (
-              'Download PDF'
+              checklist ? 'Download Checklist PDF' : 'Download PDF'
             )}
           </button>
         </div>
