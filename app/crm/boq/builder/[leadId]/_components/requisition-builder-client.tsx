@@ -95,6 +95,8 @@ export interface BoardVariantAttributes {
   // Adhesives & Chemical Solvents attributes
   chemicalClass?: string
   applicationMethod?: string
+  packagingUnit?: string
+  unitType?: string
 
   column1?: string
 
@@ -4381,12 +4383,6 @@ export function RequisitionBuilderClient({
     return m
   }, [areas])
 
-  const lineItemMap = useMemo(() => {
-    const m = new Map<string, QuotationLineItem>()
-    for (const item of lineItems) m.set(item.id, item)
-    return m
-  }, [lineItems])
-
   // ── Section helpers ──
   const getSectionsForCard = (cardKey: string): CardSection[] => sectionsMap[cardKey] ?? []
 
@@ -4830,19 +4826,20 @@ export function RequisitionBuilderClient({
   }, [
     areaMap,
     categorySummary,
-    coveragePct,
     coveredLineItems,
+    detailQuotation?.grandTotal,
     existingRequisition?.requisitionNo,
+    extraRowCount,
     lastSavedStatus,
     lead.id,
     lead.location,
     lead.name,
     lead.phone,
-    lineItemMap,
-    lineItems.length,
+    lineItems,
+    itemsMap,
     notes,
-    requisitionItems,
     saveRequisition,
+    sectionsMap,
     totalMaterialRows,
   ])
 

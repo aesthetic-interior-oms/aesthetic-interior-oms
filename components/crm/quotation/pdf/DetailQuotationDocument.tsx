@@ -207,9 +207,10 @@ const styles = StyleSheet.create({
   wQty: { width: '10%', textAlign: 'center' },
   wPrice: { width: '12%', textAlign: 'center' },
   wTotal: { width: '12%', textAlign: 'center' },
-  wChecklistSl: { width: '7%', textAlign: 'center' },
-  wChecklistDesc: { width: '53%' },
-  wChecklistQty: { width: '12%', textAlign: 'center' },
+  wChecklistSl: { width: '6%', textAlign: 'center' },
+  wChecklistName: { width: '18%' },
+  wChecklistDesc: { width: '38%' },
+  wChecklistQty: { width: '10%', textAlign: 'center' },
   wChecklistPrice: { width: '14%', textAlign: 'center' },
   wChecklistTotal: { width: '14%', textAlign: 'center' },
 
@@ -564,14 +565,6 @@ function SingleMaterialLine({ text, isFirstRowAndEmpty }: { text: string; isFirs
   )
 }
 
-function buildChecklistDescription(line: QuotationDraftContent['lineItems'][number]) {
-  const description = line.description?.trim() ?? ''
-  const materials = line.materials?.trim() ?? ''
-
-  if (description && materials) return `${description}\n${materials}`
-  return description || materials
-}
-
 export function DetailQuotationDocument({
   clientName,
   clientAddress,
@@ -661,6 +654,7 @@ export function DetailQuotationDocument({
             <View style={styles.tableWrapper}>
               <View style={styles.tHead}>
                 <Text style={[styles.thCol, styles.wChecklistSl]}>SL</Text>
+                <Text style={[styles.thCol, styles.wChecklistName]}>Name</Text>
                 <Text style={[styles.thCol, styles.wChecklistDesc]}>Material Description</Text>
                 <Text style={[styles.thCol, styles.wChecklistQty]}>Qty/Sft</Text>
                 <Text style={[styles.thCol, styles.wChecklistPrice]}>Unit Price</Text>
@@ -676,8 +670,9 @@ export function DetailQuotationDocument({
                   ) : null}
                   {area.lines.map((line, lineIndex) => {
                     const isPkg = isPackageLine(line)
-                    const descriptionLines = splitPdfTableLines(buildChecklistDescription(line), 66)
-                    const tableLineCount = Math.max(descriptionLines.length, 1)
+                    const nameLines = splitPdfTableLines(line.description, 18)
+                    const descriptionLines = splitPdfTableLines(line.materials, 48)
+                    const tableLineCount = Math.max(nameLines.length, descriptionLines.length, 1)
                     const rowCellStyle = {
                       paddingTop: DETAIL_ROW_VERTICAL_PADDING,
                       paddingBottom: DETAIL_ROW_VERTICAL_PADDING,
@@ -687,13 +682,15 @@ export function DetailQuotationDocument({
                     return Array.from({ length: tableLineCount }, (_, rowIndex) => {
                       const isFirstMaterialRow = rowIndex === 0
                       const isLastSubRow = rowIndex === tableLineCount - 1
+                      const nameText = nameLines[rowIndex] ?? ''
                       const descriptionText = descriptionLines[rowIndex] ?? ''
 
                       return (
                         <View key={`${line.id}-checklist-${rowIndex}`} wrap={false} style={[styles.tRow, lineIndex % 2 === 1 ? styles.tRowAlt : {}, !isLastSubRow ? { borderBottomWidth: 0 } : {}]}>
                           <Text style={[styles.tdCol, styles.wChecklistSl, styles.bold, rowCellStyle]}>{isFirstMaterialRow ? slNumber : ''}</Text>
+                          <Text wrap={false} style={[styles.tdCol, styles.wChecklistName, rowCellStyle]}>{nameText ? softWrapPdfText(nameText) : ''}</Text>
                           <View style={[styles.tdCol, styles.wChecklistDesc, styles.matCell, rowCellStyle]}>
-                            <SingleMaterialLine text={descriptionText} isFirstRowAndEmpty={isFirstMaterialRow} />
+                            <SingleMaterialLine text={descriptionText} isFirstRowAndEmpty={isFirstMaterialRow && !line.materials?.trim()} />
                           </View>
                           <Text style={[styles.tdCol, styles.wChecklistQty, rowCellStyle, { fontSize: 9 }]}>
                             {isFirstMaterialRow ? (isPkg ? 'Package' : formatDetailQtyCell(line)) : ''}
@@ -967,9 +964,9 @@ export function DetailQuotationDocument({
                     <Text style={[styles.tdCol, styles.wSl]} />
                     <Text style={[styles.tdCol, styles.wName]} />
                     <Text style={[styles.tdCol, styles.wMats, styles.bold, styles.areaTotalLabel]}>TOTAL FOR {softWrapPdfText(area.name).toUpperCase()}</Text>
-                    <Text style={[styles.tdCol, styles.wQty, styles.bold]}>{formatDetailAmount(getDetailAreaSqft(area.lines))}</Text>
+                    <Text style={[styles.tdCol, styles.wQty, styles.bold]}>{isBlank ? '' : formatDetailAmount(getDetailAreaSqft(area.lines))}</Text>
                     <Text style={[styles.tdCol, styles.wPrice]} />
-                    <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }]}>{formatDetailCurrency(getDetailAreaTotal(area.lines))}</Text>
+                    <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }]}>{isBlank ? '' : formatDetailCurrency(getDetailAreaTotal(area.lines))}</Text>
                   </View>
                 ) : null}
               </View>
@@ -983,11 +980,11 @@ export function DetailQuotationDocument({
                   TOTAL FOR {softWrapPdfText(entry.floor.name).toUpperCase()}
                 </Text>
                 <Text style={styles.grandTotalValue}>
-                  {formatDetailCurrency(entry.total)}
-                  {entry.floor.sectionType === 'FINISHING_ELECTRICAL' || entry.floor.name === 'Finishing & Electrical Works' ? ' (approx.)' : ''}
+                  {isBlank ? '' : formatDetailCurrency(entry.total)}
+                  {!isBlank && (entry.floor.sectionType === 'FINISHING_ELECTRICAL' || entry.floor.name === 'Finishing & Electrical Works') ? ' (approx.)' : ''}
                 </Text>
               </View>
-              <Text style={styles.inWords}>In Words: {amountInWordsTaka(entry.total)}</Text>
+              {isBlank ? null : <Text style={styles.inWords}>In Words: {amountInWordsTaka(entry.total)}</Text>}
             </>
           ) : null}
 
