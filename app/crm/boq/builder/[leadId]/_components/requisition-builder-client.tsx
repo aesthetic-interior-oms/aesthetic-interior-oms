@@ -26,7 +26,8 @@ import {
   Check,
   X,
 } from 'lucide-react'
-import { saveMaterialRequisition, RequisitionItemInput, DEFAULT_CABINET_CATALOG, CabinetCatalogConfig } from '@/lib/boq-service'
+import { saveMaterialRequisition, RequisitionItemInput } from '@/lib/boq-service'
+import { DEFAULT_CABINET_CATALOG, type CabinetCatalogConfig } from '@/lib/boq-cabinet-catalog'
 import type {
   QuotationDraftContent,
   QuotationSection,
