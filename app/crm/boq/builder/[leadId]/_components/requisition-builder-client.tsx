@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -23,8 +23,10 @@ import {
   Pin,
   FlaskConical,
   Receipt,
+  Check,
+  X,
 } from 'lucide-react'
-import { saveMaterialRequisition, RequisitionItemInput } from '@/lib/boq-service'
+import { saveMaterialRequisition, RequisitionItemInput, DEFAULT_CABINET_CATALOG, CabinetCatalogConfig } from '@/lib/boq-service'
 import type {
   QuotationDraftContent,
   QuotationSection,
@@ -113,7 +115,9 @@ export interface BoardVariantAttributes {
   edgingTapeQty?: string
   coreSubstrateType?: string
   frontLaminateCode?: string
+  frontLaminateType?: 'SOLID' | 'HPL' | string
   backLaminateCode?: string
+  backLaminateType?: 'SOLID' | 'HPL' | string
   cabinetSubType?: string
 
   // ── Accessories & Hardware attributes ──
@@ -705,10 +709,10 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'MR Board',
-    specifications: '18mm | Champagne Gold (Both Side) | Body',
+    specifications: '18mm | Champagne Gold (Both Side) | Backply',
     variantAttributes: {
       srNo: '1',
-      usage: 'Body',
+      usage: 'Backply',
       baseMaterial: 'MR Board',
       coreThickness: '18mm',
       isHplPasting: false,
@@ -723,7 +727,7 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 89,
     unit: 'Pcs',
-    productionPhase: 'Body',
+    productionPhase: 'Backply',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
@@ -797,10 +801,10 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Elegant Board',
-    specifications: '18mm | Code: A-7112 | Body',
+    specifications: '18mm | Code: A-7112 | Backply',
     variantAttributes: {
       srNo: '3',
-      usage: 'Body',
+      usage: 'Backply',
       baseMaterial: 'Elegant Board',
       coreThickness: '18mm',
       isHplPasting: false,
@@ -815,7 +819,7 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 8,
     unit: 'Pcs',
-    productionPhase: 'Body',
+    productionPhase: 'Backply',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
@@ -866,10 +870,10 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Starlight Board',
-    specifications: '18mm | White Matt Finish | Body',
+    specifications: '18mm | White Matt Finish | Backply',
     variantAttributes: {
       srNo: '5',
-      usage: 'Body',
+      usage: 'Backply',
       baseMaterial: 'Starlight Board',
       coreThickness: '18mm',
       isHplPasting: false,
@@ -884,7 +888,7 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 5,
     unit: 'Pcs',
-    productionPhase: 'Body',
+    productionPhase: 'Backply',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
@@ -916,11 +920,11 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'MR Board HPL Pasting',
-    specifications: '18mm | Front: MR Champagne Gold | Back: Luxury 8193 | Body',
+    specifications: '18mm | Front: MR Champagne Gold | Back: Luxury 8193 | Backply',
     variantAttributes: {
       srNo: 'HPL-1',
       lineNo: 'HPL-1',
-      usage: 'Body',
+      usage: 'Backply',
       baseMaterial: 'MR Board',
       coreSubstrateType: 'MR Board',
       coreThickness: '18mm',
@@ -935,7 +939,7 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 40,
     unit: 'Pcs',
-    productionPhase: 'Body',
+    productionPhase: 'Backply',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
@@ -988,11 +992,11 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '16mm | Front: Super 101 | Back: Super 101 (Both Side) | Body | Edging: 2 Roll',
+    specifications: '16mm | Front: Super 101 | Back: Super 101 (Both Side) | Backply | Edging: 2 Roll',
     variantAttributes: {
       srNo: 'HPL-4',
       lineNo: 'HPL-4',
-      usage: 'Body',
+      usage: 'Backply',
       baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
       coreThickness: '16mm',
@@ -1007,7 +1011,7 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 11,
     unit: 'Pcs',
-    productionPhase: 'Body',
+    productionPhase: 'Backply',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
@@ -1036,11 +1040,11 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '16mm | Front: Super 111 | Back: Luxury 8193 | Body | Edging: 1 Roll',
+    specifications: '16mm | Front: Super 111 | Back: Luxury 8193 | Backply | Edging: 1 Roll',
     variantAttributes: {
       srNo: 'HPL-6',
       lineNo: 'HPL-6',
-      usage: 'Body',
+      usage: 'Backply',
       baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
       coreThickness: '16mm',
@@ -1055,7 +1059,7 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 6,
     unit: 'Pcs',
-    productionPhase: 'Body',
+    productionPhase: 'Backply',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
@@ -1663,19 +1667,21 @@ function blankItem(
   if (category === 'CABINETS_CLOSETS') {
     return {
       ...base,
-      materialName: 'MR Board',
+      materialName: '',
       unit: 'Pcs',
-      productionPhase: 'Body',
+      productionPhase: '',
       variantAttributes: {
-        srNo: '1',
-        usage: 'Body',
-        baseMaterial: 'MR Board',
-        coreThickness: '18mm',
+        srNo: '',
+        usage: '',
+        baseMaterial: '',
+        coreThickness: '',
         isHplPasting: false,
         frontLaminateCode: '',
+        frontLaminateType: 'SOLID',
         backLaminateCode: '',
-        qtyLabel: '1 pcs',
-        edgingTapeQty: '—',
+        backLaminateType: 'SOLID',
+        qtyLabel: '1',
+        edgingTapeQty: '',
         cabinetSubType: 'BOARD_SPEC',
       },
     }
@@ -1894,31 +1900,34 @@ function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]
   if (viewMode === 'CABINET_CORE_SPEC' || viewMode === 'CABINET_HPL_SPEC') {
     return {
       color: [146, 64, 14],
-      head: ['Sr No', 'Usage', 'Thickness', 'Base Material / Core', 'HPL', 'Front Laminate / Finish', 'Back Laminate / Liner', 'Board Qty', 'Edging Tape Qty'],
+      head: ['Sr No', 'Usage', 'Thickness', 'Base Material / Core', 'Front Laminate / Finish', 'Back Laminate / Liner', 'Board Qty', 'Edging Tape Qty'],
       body: rows.map((item) => {
-        const isHpl = pdfAttr(item, 'isHplPasting') === 'true' || pdfAttr(item, 'cabinetSubType') === 'HPL_PASTING'
+        const frontCode = pdfAttr(item, 'frontLaminateCode') || pdfAttr(item, 'laminateFinishDetails')
+        const backCode = pdfAttr(item, 'backLaminateCode') || pdfAttr(item, 'sideSpecification')
+        const frontType = pdfAttr(item, 'frontLaminateType')
+        const backType = pdfAttr(item, 'backLaminateType')
+        const frontText = frontCode ? `${frontCode}${frontType === 'HPL' ? ' (HPL)' : ''}` : '—'
+        const backText = backCode ? `${backCode}${backType === 'HPL' ? ' (HPL)' : ''}` : '—'
         return [
           text(pdfAttr(item, 'srNo') || pdfAttr(item, 'lineNo')),
           text(pdfAttr(item, 'usage') || pdfAttr(item, 'functionalUsage') || item.productionPhase),
           text(pdfAttr(item, 'coreThickness')),
           text(pdfAttr(item, 'baseMaterial') || pdfAttr(item, 'coreSubstrateType') || item.materialName),
-          isHpl ? 'Yes' : 'No',
-          text(pdfAttr(item, 'frontLaminateCode') || pdfAttr(item, 'laminateFinishDetails')),
-          text(pdfAttr(item, 'backLaminateCode') || (isHpl ? '—' : (pdfAttr(item, 'sideSpecification') || '—'))),
+          text(frontText),
+          text(backText),
           text(pdfAttr(item, 'qtyLabel') || item.finalQuantity),
           text(pdfAttr(item, 'edgingTapeQty')),
         ]
       }),
       columnStyles: {
         0: { cellWidth: 14, halign: 'center' },
-        1: { cellWidth: 26 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 38, fontStyle: 'bold' },
-        4: { cellWidth: 12, halign: 'center' },
-        5: { cellWidth: 42 },
-        6: { cellWidth: 42 },
-        7: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
-        8: { cellWidth: 'auto' },
+        1: { cellWidth: 28 },
+        2: { cellWidth: 22 },
+        3: { cellWidth: 44, fontStyle: 'bold' },
+        4: { cellWidth: 46 },
+        5: { cellWidth: 46 },
+        6: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+        7: { cellWidth: 'auto' },
       },
     }
   }
@@ -2083,7 +2092,9 @@ function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: Sect
         edgingTapeQty: attrs.edgingTapeQty || '',
         coreSubstrateType: attrs.coreSubstrateType || attrs.baseMaterial || '',
         frontLaminateCode: attrs.frontLaminateCode || attrs.laminateFinishDetails || '',
+        frontLaminateType: attrs.frontLaminateType || (attrs.isHplPasting || attrs.cabinetSubType === 'HPL_PASTING' ? 'HPL' : 'SOLID'),
         backLaminateCode: attrs.backLaminateCode || (attrs.sideSpecification && attrs.sideSpecification !== 'Standard' ? attrs.sideSpecification : ''),
+        backLaminateType: attrs.backLaminateType || (attrs.isHplPasting || attrs.cabinetSubType === 'HPL_PASTING' ? 'HPL' : 'SOLID'),
         cabinetSubType: attrs.cabinetSubType || 'BOARD_SPEC',
         accessoryCategory: attrs.accessoryCategory || '',
         itemCode: attrs.itemCode || '',
@@ -2468,6 +2479,306 @@ function BoardDatalists() {
         <option value="Cleaning & Alignment" />
       </datalist>
     </>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   Sub-component: Interactive Cabinet Dropdown Combobox
+───────────────────────────────────────────── */
+function CabinetCombobox({
+  value,
+  onChange,
+  options,
+  placeholder,
+  className,
+}: {
+  value: string
+  onChange: (val: string) => void
+  options: string[]
+  placeholder?: string
+  className?: string
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          value={value || ''}
+          onChange={(e) => {
+            onChange(e.target.value)
+            setIsOpen(true)
+          }}
+          onFocus={(e) => {
+            e.target.select()
+            setIsOpen(true)
+          }}
+          placeholder={placeholder}
+          className={`${className || GRID_CELL_INPUT} pr-5`}
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="absolute right-1 text-muted-foreground/40 hover:text-foreground p-0.5"
+          title="Open dropdown"
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[140px] w-full rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-lg backdrop-blur-md">
+          <div className="max-h-48 overflow-y-auto">
+            {options.map((opt) => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => {
+                  onChange(opt)
+                  setIsOpen(false)
+                }}
+                className={`flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left hover:bg-primary/10 hover:text-primary transition-colors ${
+                  value === opt ? 'bg-primary/15 font-semibold text-primary' : ''
+                }`}
+              >
+                <span>{opt}</span>
+                {value === opt && <Check className="w-3 h-3 text-primary" />}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   Sub-component: Dedicated Laminate & HPL Finish Picker
+───────────────────────────────────────────── */
+function LaminateFinishPicker({
+  value,
+  finishType,
+  onChange,
+  solidShades = DEFAULT_CABINET_CATALOG.solidShades,
+  hplBrands = DEFAULT_CABINET_CATALOG.hplBrands,
+  isBack = false,
+  placeholder = 'Select finish...',
+}: {
+  value: string
+  finishType?: 'SOLID' | 'HPL' | string
+  onChange: (val: string, finishType: 'SOLID' | 'HPL') => void
+  solidShades?: string[]
+  hplBrands?: string[]
+  isBack?: boolean
+  placeholder?: string
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const isInitialHpl = finishType === 'HPL' || hplBrands.includes(value)
+  const [activeTab, setActiveTab] = useState<'SOLID' | 'HPL'>(isInitialHpl ? 'HPL' : 'SOLID')
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
+
+  const currentIsHpl = finishType === 'HPL' || hplBrands.includes(value)
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <div className="relative flex items-center">
+        {/* Toggle badge button */}
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => {
+            const nextType = currentIsHpl ? 'SOLID' : 'HPL'
+            setActiveTab(nextType)
+            setIsOpen(true)
+          }}
+          className={`shrink-0 ml-1 px-1 py-0.5 rounded text-[10px] font-bold tracking-tight uppercase transition-colors ${
+            currentIsHpl
+              ? 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-200 border border-cyan-500/40 hover:bg-cyan-500/30'
+              : 'bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/40 hover:bg-amber-500/30'
+          }`}
+          title="Click to switch between Solid Shade and HPL Pasting"
+        >
+          {currentIsHpl ? 'HPL' : 'Solid'}
+        </button>
+
+        <input
+          type="text"
+          value={value || ''}
+          onChange={(e) => {
+            const val = e.target.value
+            const detectedHpl = hplBrands.includes(val) || activeTab === 'HPL'
+            onChange(val, detectedHpl ? 'HPL' : 'SOLID')
+            setIsOpen(true)
+          }}
+          onFocus={(e) => {
+            e.target.select()
+            setIsOpen(true)
+          }}
+          placeholder={placeholder}
+          className={`${GRID_CELL_INPUT} pl-1.5 pr-5`}
+        />
+
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="absolute right-1 text-muted-foreground/40 hover:text-foreground p-0.5"
+          title="Open finish options"
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 top-full z-50 mt-1 min-w-[240px] w-max max-w-[320px] rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-xl backdrop-blur-md">
+          {/* Tabs */}
+          <div className="grid grid-cols-2 gap-1 p-0.5 bg-muted/60 rounded-md mb-1.5">
+            <button
+              type="button"
+              onClick={() => setActiveTab('SOLID')}
+              className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors ${
+                activeTab === 'SOLID'
+                  ? 'bg-amber-500 text-white shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              🎨 Solid Shades ({solidShades.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('HPL')}
+              className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors ${
+                activeTab === 'HPL'
+                  ? 'bg-cyan-600 text-white shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              🪵 HPL Pasting ({hplBrands.length})
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          <div className="max-h-56 overflow-y-auto divide-y divide-border/30">
+            {activeTab === 'SOLID' ? (
+              <div className="py-0.5">
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Solid Laminate Shades (Color / Finish Name)
+                </div>
+                {solidShades.map((shade) => (
+                  <button
+                    key={shade}
+                    type="button"
+                    onClick={() => {
+                      onChange(shade, 'SOLID')
+                      setIsOpen(false)
+                    }}
+                    className={`flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left rounded hover:bg-amber-500/10 hover:text-amber-900 dark:hover:text-amber-200 transition-colors ${
+                      value === shade && !currentIsHpl ? 'bg-amber-500/20 font-bold text-amber-900 dark:text-amber-200' : ''
+                    }`}
+                  >
+                    <span>{shade}</span>
+                    {value === shade && !currentIsHpl && <Check className="w-3.5 h-3.5 text-amber-600" />}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="py-0.5">
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+                  HPL Pasting (Brand & Code)
+                </div>
+                {hplBrands.map((brand) => (
+                  <button
+                    key={brand}
+                    type="button"
+                    onClick={() => {
+                      onChange(brand, 'HPL')
+                      setIsOpen(false)
+                    }}
+                    className={`flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left rounded hover:bg-cyan-500/10 hover:text-cyan-900 dark:hover:text-cyan-200 transition-colors ${
+                      value === brand && currentIsHpl ? 'bg-cyan-500/20 font-bold text-cyan-900 dark:text-cyan-200' : ''
+                    }`}
+                  >
+                    <span>{brand}</span>
+                    {value === brand && currentIsHpl && <Check className="w-3.5 h-3.5 text-cyan-600" />}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {isBack && (
+              <div className="pt-1 mt-1">
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Common Backing Shortcuts
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange('Same as Front (Both Side)', 'SOLID')
+                    setIsOpen(false)
+                  }}
+                  className="flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                >
+                  <span>Same as Front (Both Side)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onChange('Single Side Liner', 'SOLID')
+                    setIsOpen(false)
+                  }}
+                  className="flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                >
+                  <span>Single Side Liner</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Footer: Clear button */}
+          {value && (
+            <div className="pt-1 mt-1 border-t border-border/40 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  onChange('', 'SOLID')
+                  setIsOpen(false)
+                }}
+                className="px-2 py-1 text-[11px] text-destructive hover:bg-destructive/10 rounded font-medium transition-colors"
+              >
+                Clear value
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -3417,16 +3728,15 @@ function MaterialRowsTable({
       ) : (viewMode === 'CABINET_CORE_SPEC' || viewMode === 'CABINET_HPL_SPEC') ? (
         /* ── 6. Unified Closet / Cabinet Board Specification Table ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[1080px] border-collapse divide-y divide-border/60">
+          <table className="w-full text-xs text-left min-w-[1040px] border-collapse divide-y divide-border/60">
             <thead className="bg-amber-500/10 border-b border-amber-500/20 text-amber-900 dark:text-amber-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-16 text-center`}>Sr. No</th>
-                <th className={`${GRID_TH} min-w-[140px]`}>Usage</th>
+                <th className={`${GRID_TH} w-14 text-center`}>Sr. No</th>
+                <th className={`${GRID_TH} w-36`}>Usage</th>
                 <th className={`${GRID_TH} w-24`}>Thickness</th>
-                <th className={`${GRID_TH} min-w-[160px]`}>Base Material / Core</th>
-                <th className={`${GRID_TH} w-24 text-center`}>HPL Pasting?</th>
-                <th className={`${GRID_TH} min-w-[170px]`}>Front Laminate / Finish</th>
-                <th className={`${GRID_TH} min-w-[170px]`}>Back Laminate / Liner</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Base Material / Core</th>
+                <th className={`${GRID_TH} min-w-[190px]`}>Front Laminate / Finish</th>
+                <th className={`${GRID_TH} min-w-[190px]`}>Back Laminate / Liner</th>
                 <th className={`${GRID_TH} text-center w-28`}>Board Qty</th>
                 <th className={`${GRID_TH} min-w-[140px]`}>Edging Tape Qty</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
@@ -3435,7 +3745,10 @@ function MaterialRowsTable({
             <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => {
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
-                const isHpl = attrs.isHplPasting === true || attrs.isHplPasting === 'true' || attrs.cabinetSubType === 'HPL_PASTING'
+                const isFrontHpl = attrs.frontLaminateType === 'HPL' || DEFAULT_CABINET_CATALOG.hplBrands.includes(attrs.frontLaminateCode || '')
+                const isBackHpl = attrs.backLaminateType === 'HPL' || DEFAULT_CABINET_CATALOG.hplBrands.includes(attrs.backLaminateCode || '')
+                const isHpl = isFrontHpl || isBackHpl || attrs.isHplPasting === true || attrs.isHplPasting === 'true' || attrs.cabinetSubType === 'HPL_PASTING'
+
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
                     {/* 1. Sr. No */}
@@ -3447,113 +3760,90 @@ function MaterialRowsTable({
                           onUpdateVariant(ri, 'srNo', e.target.value)
                           onUpdateVariant(ri, 'lineNo', e.target.value)
                         }}
+                        onFocus={(e) => e.target.select()}
                         placeholder={`${ri + 1}`}
                         className={GRID_CELL_MONO}
                       />
                     </td>
 
-                    {/* 2. Usage (Dropdown + Manual) */}
+                    {/* 2. Usage (Dropdown with Shutter, Top Cabinet, Backply) */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="cabinet-usage-list"
+                      <CabinetCombobox
                         value={attrs.usage || attrs.functionalUsage || item.productionPhase || ''}
-                        onChange={(e) => {
-                          const val = e.target.value
+                        onChange={(val) => {
                           onUpdateVariant(ri, 'usage', val)
                           onUpdateVariant(ri, 'functionalUsage', val)
                           onChange(ri, 'productionPhase', val)
                         }}
-                        placeholder="Shutter / Body / Top"
-                        className={GRID_CELL_INPUT}
+                        options={DEFAULT_CABINET_CATALOG.usageOptions}
+                        placeholder="Shutter / Top / Backply"
                       />
                     </td>
 
                     {/* 3. Core Thickness (Dropdown + Manual) */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="cabinet-thickness-list"
+                      <CabinetCombobox
                         value={attrs.coreThickness || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'coreThickness', e.target.value)}
+                        onChange={(val) => onUpdateVariant(ri, 'coreThickness', val)}
+                        options={DEFAULT_CABINET_CATALOG.coreThicknesses}
                         placeholder="18mm"
-                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
                     {/* 4. Base Material / Core (Dropdown + Manual) */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="cabinet-base-material-list"
+                      <CabinetCombobox
                         value={attrs.baseMaterial || attrs.coreSubstrateType || item.materialName || ''}
-                        onChange={(e) => {
-                          const val = e.target.value
+                        onChange={(val) => {
                           onUpdateVariant(ri, 'baseMaterial', val)
                           onUpdateVariant(ri, 'coreSubstrateType', val)
                           onChange(ri, 'materialName', isHpl ? `${val} HPL Pasting` : val)
                         }}
+                        options={DEFAULT_CABINET_CATALOG.baseMaterials}
                         placeholder="MR Board"
                         className={GRID_CELL_BOLD}
                       />
                     </td>
 
-                    {/* 5. HPL Pasting Checkbox */}
-                    <td className={`${GRID_TD} text-center`}>
-                      <label className="inline-flex items-center justify-center gap-1.5 py-1.5 px-2 cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(isHpl)}
-                          onChange={(e) => {
-                            const checked = e.target.checked
-                            onUpdateVariant(ri, 'isHplPasting', checked ? 'true' : 'false')
-                            onUpdateVariant(ri, 'cabinetSubType', checked ? 'HPL_PASTING' : 'BOARD_SPEC')
-                            const baseMat = (attrs.baseMaterial || attrs.coreSubstrateType || item.materialName || 'Board').replace(/\s+HPL\s+Pasting$/i, '')
-                            onChange(ri, 'materialName', checked ? `${baseMat} HPL Pasting` : baseMat)
-                          }}
-                          className="h-3.5 w-3.5 rounded border-muted-foreground text-cyan-600 focus:ring-cyan-500 cursor-pointer"
-                        />
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wide ${
-                          isHpl
-                            ? 'bg-cyan-500/15 text-cyan-800 dark:text-cyan-200 border border-cyan-500/30'
-                            : 'bg-muted/70 text-muted-foreground'
-                        }`}>
-                          {isHpl ? 'HPL' : 'No'}
-                        </span>
-                      </label>
-                    </td>
-
-                    {/* 6. Front Laminate / Finish (Dropdown + Manual) */}
+                    {/* 5. Front Laminate / Finish */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="cabinet-front-laminate-list"
+                      <LaminateFinishPicker
                         value={attrs.frontLaminateCode || attrs.laminateFinishDetails || ''}
-                        onChange={(e) => {
-                          const val = e.target.value
+                        finishType={attrs.frontLaminateType || (isFrontHpl ? 'HPL' : 'SOLID')}
+                        onChange={(val, fType) => {
                           onUpdateVariant(ri, 'frontLaminateCode', val)
+                          onUpdateVariant(ri, 'frontLaminateType', fType)
                           onUpdateVariant(ri, 'laminateFinishDetails', val)
+                          const frontHpl = fType === 'HPL' || DEFAULT_CABINET_CATALOG.hplBrands.includes(val)
+                          const rowHpl = frontHpl || isBackHpl
+                          onUpdateVariant(ri, 'isHplPasting', rowHpl ? 'true' : 'false')
+                          const baseMat = (attrs.baseMaterial || attrs.coreSubstrateType || item.materialName || 'Board').replace(/\s+HPL\s+Pasting$/i, '')
+                          onChange(ri, 'materialName', rowHpl ? `${baseMat} HPL Pasting` : baseMat)
                         }}
-                        placeholder={isHpl ? 'MR Champagne Gold' : 'Champagne Gold'}
-                        className={GRID_CELL_INPUT}
+                        placeholder="Select front finish..."
                       />
                     </td>
 
-                    {/* 7. Back Laminate / Liner (Dropdown + Manual) */}
+                    {/* 6. Back Laminate / Liner */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="cabinet-back-laminate-list"
+                      <LaminateFinishPicker
                         value={attrs.backLaminateCode || ''}
-                        onChange={(e) => {
-                          onUpdateVariant(ri, 'backLaminateCode', e.target.value)
+                        finishType={attrs.backLaminateType || (isBackHpl ? 'HPL' : 'SOLID')}
+                        onChange={(val, fType) => {
+                          onUpdateVariant(ri, 'backLaminateCode', val)
+                          onUpdateVariant(ri, 'backLaminateType', fType)
+                          const backHpl = fType === 'HPL' || DEFAULT_CABINET_CATALOG.hplBrands.includes(val)
+                          const rowHpl = isFrontHpl || backHpl
+                          onUpdateVariant(ri, 'isHplPasting', rowHpl ? 'true' : 'false')
+                          const baseMat = (attrs.baseMaterial || attrs.coreSubstrateType || item.materialName || 'Board').replace(/\s+HPL\s+Pasting$/i, '')
+                          onChange(ri, 'materialName', rowHpl ? `${baseMat} HPL Pasting` : baseMat)
                         }}
-                        placeholder={isHpl ? 'Luxury 8193 / Liner' : 'Both Side / Same as Front'}
-                        className={GRID_CELL_INPUT}
+                        isBack={true}
+                        placeholder="Select back finish..."
                       />
                     </td>
 
-                    {/* 8. Board Qty */}
+                    {/* 7. Board Qty */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3564,20 +3854,19 @@ function MaterialRowsTable({
                           const num = parseFloat(val)
                           if (!isNaN(num)) onChange(ri, 'netQuantity', num)
                         }}
-                        placeholder="89 pcs"
+                        onFocus={(e) => e.target.select()}
+                        placeholder="1 pcs"
                         className={GRID_CELL_NUM}
                       />
                     </td>
 
-                    {/* 9. Edging Tape Qty */}
+                    {/* 8. Edging Tape Qty */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="cabinet-edging-tape-list"
+                      <CabinetCombobox
                         value={attrs.edgingTapeQty || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'edgingTapeQty', e.target.value)}
-                        placeholder="— or 5 Roll (Edging)"
-                        className={GRID_CELL_INPUT}
+                        onChange={(val) => onUpdateVariant(ri, 'edgingTapeQty', val)}
+                        options={['—', '1 Roll', '2 Roll', '3 Roll', '4 Roll', '5 Roll (Edging)', '1 Roll (Edging)']}
+                        placeholder="— or 1 Roll"
                       />
                     </td>
 
