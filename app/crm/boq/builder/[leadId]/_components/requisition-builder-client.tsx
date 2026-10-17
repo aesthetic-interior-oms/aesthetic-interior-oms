@@ -106,6 +106,8 @@ export interface BoardVariantAttributes {
   // ── Closet / Cabinet attributes ──
   srNo?: string
   lineNo?: string
+  usage?: string
+  isHplPasting?: boolean | string
   laminateFinishDetails?: string
   sideSpecification?: string
   edgingTapeQty?: string
@@ -703,182 +705,209 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'MR Board',
-    specifications: '18mm | Champagne Gold | Both Side',
+    specifications: '18mm | Champagne Gold (Both Side) | Body',
     variantAttributes: {
       srNo: '1',
+      usage: 'Body',
       baseMaterial: 'MR Board',
       coreThickness: '18mm',
+      isHplPasting: false,
+      frontLaminateCode: 'Champagne Gold',
+      backLaminateCode: 'Same as Front (Both Side)',
       laminateFinishDetails: 'Champagne Gold',
-      sideSpecification: 'Both Side',
       qtyLabel: '89 pcs',
       edgingTapeQty: '—',
-      cabinetSubType: 'CORE_BOARD_SPEC',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 89,
     wastagePercent: 0,
     finalQuantity: 89,
     unit: 'Pcs',
-    productionPhase: 'Both Side',
+    productionPhase: 'Body',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'MR Board',
-    specifications: '6mm | Champagne Gold | Both Side | Edging: 5 Roll (Edging)',
+    specifications: '6mm | Champagne Gold | Shutter | Edging: 5 Roll (Edging)',
     variantAttributes: {
       srNo: '1.1',
+      usage: 'Shutter',
       baseMaterial: 'MR Board',
       coreThickness: '6mm',
+      isHplPasting: false,
+      frontLaminateCode: 'Champagne Gold',
+      backLaminateCode: 'Single Side Liner',
       laminateFinishDetails: 'Champagne Gold',
-      sideSpecification: 'Both Side',
       qtyLabel: '42 pcs',
       edgingTapeQty: '5 Roll (Edging)',
-      cabinetSubType: 'CORE_BOARD_SPEC',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 42,
     wastagePercent: 0,
     finalQuantity: 42,
     unit: 'Pcs',
-    productionPhase: 'Both Side',
+    productionPhase: 'Shutter',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Elegant Board',
-    specifications: '18mm | Code: A-7123 | Standard',
+    specifications: '18mm | Code: A-7123 | Top Cabinet',
     variantAttributes: {
       srNo: '2',
+      usage: 'Top Cabinet',
       baseMaterial: 'Elegant Board',
       coreThickness: '18mm',
+      isHplPasting: false,
+      frontLaminateCode: 'Code: A-7123',
+      backLaminateCode: '',
       laminateFinishDetails: 'Code: A-7123',
-      sideSpecification: 'Standard',
       qtyLabel: '2 pcs',
       edgingTapeQty: '—',
-      cabinetSubType: 'CORE_BOARD_SPEC',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 2,
     wastagePercent: 0,
     finalQuantity: 2,
     unit: 'Pcs',
-    productionPhase: 'Standard',
+    productionPhase: 'Top Cabinet',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Elegant Board',
-    specifications: '9mm | Code: A-7123 | Standard | Edging: 1 Roll (Edging)',
+    specifications: '9mm | Code: A-7123 | Shutter | Edging: 1 Roll (Edging)',
     variantAttributes: {
       srNo: '2.1',
+      usage: 'Shutter',
       baseMaterial: 'Elegant Board',
       coreThickness: '9mm',
+      isHplPasting: false,
+      frontLaminateCode: 'Code: A-7123',
+      backLaminateCode: '',
       laminateFinishDetails: 'Code: A-7123',
-      sideSpecification: 'Standard',
       qtyLabel: '1 pcs',
       edgingTapeQty: '1 Roll (Edging)',
-      cabinetSubType: 'CORE_BOARD_SPEC',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 1,
     wastagePercent: 0,
     finalQuantity: 1,
     unit: 'Pcs',
-    productionPhase: 'Standard',
+    productionPhase: 'Shutter',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Elegant Board',
-    specifications: '18mm | Code: A-7112 | Standard',
+    specifications: '18mm | Code: A-7112 | Body',
     variantAttributes: {
       srNo: '3',
+      usage: 'Body',
       baseMaterial: 'Elegant Board',
       coreThickness: '18mm',
+      isHplPasting: false,
+      frontLaminateCode: 'Code: A-7112',
+      backLaminateCode: '',
       laminateFinishDetails: 'Code: A-7112',
-      sideSpecification: 'Standard',
       qtyLabel: '8 pcs',
       edgingTapeQty: '—',
-      cabinetSubType: 'CORE_BOARD_SPEC',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 8,
     wastagePercent: 0,
     finalQuantity: 8,
     unit: 'Pcs',
-    productionPhase: 'Standard',
+    productionPhase: 'Body',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Elegant Board',
-    specifications: '9mm | Code: A-7112 | Standard | Edging: 1 Roll (Edging)',
+    specifications: '9mm | Code: A-7112 | Top Cabinet | Edging: 1 Roll (Edging)',
     variantAttributes: {
       srNo: '3.1',
+      usage: 'Top Cabinet',
       baseMaterial: 'Elegant Board',
       coreThickness: '9mm',
+      isHplPasting: false,
+      frontLaminateCode: 'Code: A-7112',
+      backLaminateCode: '',
       laminateFinishDetails: 'Code: A-7112',
-      sideSpecification: 'Standard',
       qtyLabel: '3 pcs',
       edgingTapeQty: '1 Roll (Edging)',
-      cabinetSubType: 'CORE_BOARD_SPEC',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 3,
     wastagePercent: 0,
     finalQuantity: 3,
     unit: 'Pcs',
-    productionPhase: 'Standard',
+    productionPhase: 'Top Cabinet',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'White Board',
-    specifications: '18mm | Duco Paint Finish | Standard',
+    specifications: '18mm | Duco Paint Finish | Shutter',
     variantAttributes: {
       srNo: '4',
+      usage: 'Shutter',
       baseMaterial: 'White Board',
       coreThickness: '18mm',
+      isHplPasting: false,
+      frontLaminateCode: 'Duco Paint Finish',
+      backLaminateCode: '',
       laminateFinishDetails: 'Duco Paint Finish',
-      sideSpecification: 'Standard',
       qtyLabel: '3 pcs',
       edgingTapeQty: '—',
-      cabinetSubType: 'CORE_BOARD_SPEC',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 3,
     wastagePercent: 0,
     finalQuantity: 3,
     unit: 'Pcs',
-    productionPhase: 'Standard',
+    productionPhase: 'Shutter',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Starlight Board',
-    specifications: '18mm | White Matt Finish | Standard',
+    specifications: '18mm | White Matt Finish | Body',
     variantAttributes: {
       srNo: '5',
+      usage: 'Body',
       baseMaterial: 'Starlight Board',
       coreThickness: '18mm',
+      isHplPasting: false,
+      frontLaminateCode: 'White Matt Finish',
+      backLaminateCode: '',
       laminateFinishDetails: 'White Matt Finish',
-      sideSpecification: 'Standard',
       qtyLabel: '5 pcs',
       edgingTapeQty: '—',
-      cabinetSubType: 'CORE_BOARD_SPEC',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 5,
     wastagePercent: 0,
     finalQuantity: 5,
     unit: 'Pcs',
-    productionPhase: 'Standard',
+    productionPhase: 'Body',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Starlight Board',
-    specifications: '6mm | White Matt Finish | Standard | Edging: 1 Role (Edging)',
+    specifications: '6mm | White Matt Finish | Top Cabinet | Edging: 1 Role (Edging)',
     variantAttributes: {
       srNo: '5.1',
+      usage: 'Top Cabinet',
       baseMaterial: 'Starlight Board',
       coreThickness: '6mm',
+      isHplPasting: false,
+      frontLaminateCode: 'White Matt Finish',
+      backLaminateCode: '',
       laminateFinishDetails: 'White Matt Finish',
-      sideSpecification: 'Standard',
       qtyLabel: '1 pcs',
       edgingTapeQty: '1 Role (Edging)',
-      cabinetSubType: 'CORE_BOARD_SPEC',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 1,
     wastagePercent: 0,
     finalQuantity: 1,
     unit: 'Pcs',
-    productionPhase: 'Standard',
+    productionPhase: 'Top Cabinet',
   },
 ]
 
@@ -887,162 +916,194 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'MR Board HPL Pasting',
-    specifications: '18mm | Front: MR Champagne Gold | Back: Luxury 8193',
+    specifications: '18mm | Front: MR Champagne Gold | Back: Luxury 8193 | Body',
     variantAttributes: {
+      srNo: 'HPL-1',
       lineNo: 'HPL-1',
-      coreThickness: '18mm',
+      usage: 'Body',
+      baseMaterial: 'MR Board',
       coreSubstrateType: 'MR Board',
+      coreThickness: '18mm',
+      isHplPasting: true,
       frontLaminateCode: 'MR Champagne Gold',
       backLaminateCode: 'Luxury 8193',
       qtyLabel: '40 pcs',
       edgingTapeQty: '—',
-      cabinetSubType: 'HPL_PASTING',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 40,
     wastagePercent: 0,
     finalQuantity: 40,
     unit: 'Pcs',
-    productionPhase: 'HPL Pasting',
+    productionPhase: 'Body',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'MR Board HPL Pasting',
-    specifications: '18mm | Front: MR Champagne Gold | Back: Aromex 9904 | Edging: 4 Roll',
+    specifications: '18mm | Front: MR Champagne Gold | Back: Aromex 9904 | Shutter | Edging: 4 Roll',
     variantAttributes: {
+      srNo: 'HPL-2',
       lineNo: 'HPL-2',
-      coreThickness: '18mm',
+      usage: 'Shutter',
+      baseMaterial: 'MR Board',
       coreSubstrateType: 'MR Board',
+      coreThickness: '18mm',
+      isHplPasting: true,
       frontLaminateCode: 'MR Champagne Gold',
       backLaminateCode: 'Aromex 9904',
       qtyLabel: '9 pcs',
       edgingTapeQty: '4 Roll',
-      cabinetSubType: 'HPL_PASTING',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 9,
     wastagePercent: 0,
     finalQuantity: 9,
     unit: 'Pcs',
-    productionPhase: 'HPL Pasting',
+    productionPhase: 'Shutter',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '16mm | Front: Super 101 | Back: Luxury 8193',
+    specifications: '16mm | Front: Super 101 | Back: Luxury 8193 | Top Cabinet',
     variantAttributes: {
+      srNo: 'HPL-3',
       lineNo: 'HPL-3',
-      coreThickness: '16mm',
+      usage: 'Top Cabinet',
+      baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
+      coreThickness: '16mm',
+      isHplPasting: true,
       frontLaminateCode: 'Super 101',
       backLaminateCode: 'Luxury 8193',
       qtyLabel: '21 pcs',
       edgingTapeQty: '—',
-      cabinetSubType: 'HPL_PASTING',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 21,
     wastagePercent: 0,
     finalQuantity: 21,
     unit: 'Pcs',
-    productionPhase: 'HPL Pasting',
+    productionPhase: 'Top Cabinet',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '16mm | Front: Super 101 | Back: Super 101 (Both Side) | Edging: 2 Roll',
+    specifications: '16mm | Front: Super 101 | Back: Super 101 (Both Side) | Body | Edging: 2 Roll',
     variantAttributes: {
+      srNo: 'HPL-4',
       lineNo: 'HPL-4',
-      coreThickness: '16mm',
+      usage: 'Body',
+      baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
+      coreThickness: '16mm',
+      isHplPasting: true,
       frontLaminateCode: 'Super 101',
       backLaminateCode: 'Super 101 (Both Side)',
       qtyLabel: '11 pcs',
       edgingTapeQty: '2 Roll',
-      cabinetSubType: 'HPL_PASTING',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 11,
     wastagePercent: 0,
     finalQuantity: 11,
     unit: 'Pcs',
-    productionPhase: 'HPL Pasting',
+    productionPhase: 'Body',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '6mm | Front: Super 101 | Back: Single Side Liner',
+    specifications: '6mm | Front: Super 101 | Back: Single Side Liner | Shutter',
     variantAttributes: {
+      srNo: 'HPL-5',
       lineNo: 'HPL-5',
-      coreThickness: '6mm',
+      usage: 'Shutter',
+      baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
+      coreThickness: '6mm',
+      isHplPasting: true,
       frontLaminateCode: 'Super 101',
       backLaminateCode: 'Single Side Liner',
       qtyLabel: '7 pcs',
       edgingTapeQty: '—',
-      cabinetSubType: 'HPL_PASTING',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 7,
     wastagePercent: 0,
     finalQuantity: 7,
     unit: 'Pcs',
-    productionPhase: 'HPL Pasting',
+    productionPhase: 'Shutter',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '16mm | Front: Super 111 | Back: Luxury 8193 | Edging: 1 Roll',
+    specifications: '16mm | Front: Super 111 | Back: Luxury 8193 | Body | Edging: 1 Roll',
     variantAttributes: {
+      srNo: 'HPL-6',
       lineNo: 'HPL-6',
-      coreThickness: '16mm',
+      usage: 'Body',
+      baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
+      coreThickness: '16mm',
+      isHplPasting: true,
       frontLaminateCode: 'Super 111',
       backLaminateCode: 'Luxury 8193',
       qtyLabel: '6 pcs',
       edgingTapeQty: '1 Roll',
-      cabinetSubType: 'HPL_PASTING',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 6,
     wastagePercent: 0,
     finalQuantity: 6,
     unit: 'Pcs',
-    productionPhase: 'HPL Pasting',
+    productionPhase: 'Body',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '16mm | Front: Super 111 | Back: Super 111 (Both Side)',
+    specifications: '16mm | Front: Super 111 | Back: Super 111 (Both Side) | Shutter',
     variantAttributes: {
+      srNo: 'HPL-7',
       lineNo: 'HPL-7',
-      coreThickness: '16mm',
+      usage: 'Shutter',
+      baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
+      coreThickness: '16mm',
+      isHplPasting: true,
       frontLaminateCode: 'Super 111',
       backLaminateCode: 'Super 111 (Both Side)',
       qtyLabel: '5 pcs',
       edgingTapeQty: '—',
-      cabinetSubType: 'HPL_PASTING',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 5,
     wastagePercent: 0,
     finalQuantity: 5,
     unit: 'Pcs',
-    productionPhase: 'HPL Pasting',
+    productionPhase: 'Shutter',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '6mm | Front: Super 111 | Back: Single Side Liner | Edging: 1 Roll',
+    specifications: '6mm | Front: Super 111 | Back: Single Side Liner | Top Cabinet | Edging: 1 Roll',
     variantAttributes: {
+      srNo: 'HPL-8',
       lineNo: 'HPL-8',
-      coreThickness: '6mm',
+      usage: 'Top Cabinet',
+      baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
+      coreThickness: '6mm',
+      isHplPasting: true,
       frontLaminateCode: 'Super 111',
       backLaminateCode: 'Single Side Liner',
       qtyLabel: '3 pcs',
       edgingTapeQty: '1 Roll',
-      cabinetSubType: 'HPL_PASTING',
+      cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 3,
     wastagePercent: 0,
     finalQuantity: 3,
     unit: 'Pcs',
-    productionPhase: 'HPL Pasting',
+    productionPhase: 'Top Cabinet',
   },
 ]
 
@@ -1425,7 +1486,7 @@ interface Props {
 /** Items grouped: Record<quotationLineItemId | '__extra__', RequisitionItemInput[]> */
 // ── Section-based architecture ──
 export type WallPanelingSubType = 'CORE_BOARDS' | 'LOUVERS_PROFILES' | 'SCREWS_FASTENERS' | 'NAILS_PINS' | 'ADHESIVES'
-export type CabinetSubType = 'CORE_BOARD_SPEC' | 'HPL_PASTING'
+export type CabinetSubType = 'BOARD_SPEC' | 'CORE_BOARD_SPEC' | 'HPL_PASTING'
 export type AccessoriesSubType = 'HARDWARE_ACCESSORIES' | 'SERVICES_DELIVERABLES'
 export type ApplianceSubType = 'CORE_APPLIANCES'
 
@@ -1482,8 +1543,7 @@ const WALL_PANELING_SUBTYPES: { key: WallPanelingSubType; label: string; viewMod
 ]
 
 const CABINET_SUBTYPES: { key: CabinetSubType; label: string; viewMode: ViewModeType }[] = [
-  { key: 'CORE_BOARD_SPEC', label: '📋 Core Board Specification', viewMode: 'CABINET_CORE_SPEC' },
-  { key: 'HPL_PASTING',     label: '🪵 HPL Pasting Details',       viewMode: 'CABINET_HPL_SPEC' },
+  { key: 'BOARD_SPEC', label: '🪵 Cabinet / Closet Board Specification', viewMode: 'CABINET_CORE_SPEC' },
 ]
 
 const ACCESSORIES_SUBTYPES: { key: AccessoriesSubType; label: string; viewMode: ViewModeType }[] = [
@@ -1518,11 +1578,7 @@ function getViewModeForSection(section: CardSection): ViewModeType {
     }
   }
   if (section.category === 'CABINETS_CLOSETS') {
-    switch (section.cabinetSubType) {
-      case 'CORE_BOARD_SPEC': return 'CABINET_CORE_SPEC'
-      case 'HPL_PASTING':     return 'CABINET_HPL_SPEC'
-      default:                return 'CABINET_CORE_SPEC'
-    }
+    return 'CABINET_CORE_SPEC'
   }
   if (section.category === 'ACCESSORIES') {
     switch (section.accessoriesSubType) {
@@ -1605,39 +1661,22 @@ function blankItem(
   }
 
   if (category === 'CABINETS_CLOSETS') {
-    if (cabinetSubType === 'HPL_PASTING') {
-      return {
-        ...base,
-        materialName: 'MR Board HPL Pasting',
-        unit: 'Pcs',
-        productionPhase: 'HPL Pasting',
-        variantAttributes: {
-          lineNo: 'HPL-1',
-          coreThickness: '18mm',
-          coreSubstrateType: 'MR Board',
-          frontLaminateCode: '',
-          backLaminateCode: '',
-          qtyLabel: '1 pcs',
-          edgingTapeQty: '—',
-          cabinetSubType: 'HPL_PASTING',
-        },
-      }
-    }
-    // Default CORE_BOARD_SPEC
     return {
       ...base,
       materialName: 'MR Board',
       unit: 'Pcs',
-      productionPhase: 'Standard',
+      productionPhase: 'Body',
       variantAttributes: {
         srNo: '1',
+        usage: 'Body',
         baseMaterial: 'MR Board',
         coreThickness: '18mm',
-        laminateFinishDetails: '',
-        sideSpecification: 'Standard',
+        isHplPasting: false,
+        frontLaminateCode: '',
+        backLaminateCode: '',
         qtyLabel: '1 pcs',
         edgingTapeQty: '—',
-        cabinetSubType: 'CORE_BOARD_SPEC',
+        cabinetSubType: 'BOARD_SPEC',
       },
     }
   }
@@ -1852,37 +1891,35 @@ function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]
     }
   }
 
-  if (viewMode === 'CABINET_CORE_SPEC') {
+  if (viewMode === 'CABINET_CORE_SPEC' || viewMode === 'CABINET_HPL_SPEC') {
     return {
       color: [146, 64, 14],
-      head: ['Sr No', 'Base Material / Core', 'Thickness', 'Laminate / Finish Details', 'Side Spec', 'Board Qty', 'Edging Tape Qty'],
-      body: rows.map((item) => [
-        text(pdfAttr(item, 'srNo')),
-        text(pdfAttr(item, 'baseMaterial') || item.materialName),
-        text(pdfAttr(item, 'coreThickness')),
-        text(pdfAttr(item, 'laminateFinishDetails')),
-        text(pdfAttr(item, 'sideSpecification')),
-        text(pdfAttr(item, 'qtyLabel') || item.finalQuantity),
-        text(pdfAttr(item, 'edgingTapeQty')),
-      ]),
-      columnStyles: { 0: { cellWidth: 18, halign: 'center' }, 1: { cellWidth: 48, fontStyle: 'bold' }, 2: { cellWidth: 24 }, 3: { cellWidth: 68 }, 4: { cellWidth: 40 }, 5: { cellWidth: 28, halign: 'right', fontStyle: 'bold' }, 6: { cellWidth: 'auto' } },
-    }
-  }
-
-  if (viewMode === 'CABINET_HPL_SPEC') {
-    return {
-      color: [8, 145, 178],
-      head: ['Line No', 'Core Thickness', 'Core Substrate', 'Front Laminate', 'Back Laminate / Liner', 'Qty', 'Edging Tape Qty'],
-      body: rows.map((item) => [
-        text(pdfAttr(item, 'lineNo')),
-        text(pdfAttr(item, 'coreThickness')),
-        text(pdfAttr(item, 'coreSubstrateType') || pdfAttr(item, 'baseMaterial') || item.materialName),
-        text(pdfAttr(item, 'frontLaminateCode')),
-        text(pdfAttr(item, 'backLaminateCode')),
-        text(pdfAttr(item, 'qtyLabel') || item.finalQuantity),
-        text(pdfAttr(item, 'edgingTapeQty')),
-      ]),
-      columnStyles: { 0: { cellWidth: 22, halign: 'center' }, 1: { cellWidth: 28 }, 2: { cellWidth: 46, fontStyle: 'bold' }, 3: { cellWidth: 50 }, 4: { cellWidth: 58 }, 5: { cellWidth: 22, halign: 'right', fontStyle: 'bold' }, 6: { cellWidth: 'auto' } },
+      head: ['Sr No', 'Usage', 'Thickness', 'Base Material / Core', 'HPL', 'Front Laminate / Finish', 'Back Laminate / Liner', 'Board Qty', 'Edging Tape Qty'],
+      body: rows.map((item) => {
+        const isHpl = pdfAttr(item, 'isHplPasting') === 'true' || pdfAttr(item, 'cabinetSubType') === 'HPL_PASTING'
+        return [
+          text(pdfAttr(item, 'srNo') || pdfAttr(item, 'lineNo')),
+          text(pdfAttr(item, 'usage') || pdfAttr(item, 'functionalUsage') || item.productionPhase),
+          text(pdfAttr(item, 'coreThickness')),
+          text(pdfAttr(item, 'baseMaterial') || pdfAttr(item, 'coreSubstrateType') || item.materialName),
+          isHpl ? 'Yes' : 'No',
+          text(pdfAttr(item, 'frontLaminateCode') || pdfAttr(item, 'laminateFinishDetails')),
+          text(pdfAttr(item, 'backLaminateCode') || (isHpl ? '—' : (pdfAttr(item, 'sideSpecification') || '—'))),
+          text(pdfAttr(item, 'qtyLabel') || item.finalQuantity),
+          text(pdfAttr(item, 'edgingTapeQty')),
+        ]
+      }),
+      columnStyles: {
+        0: { cellWidth: 14, halign: 'center' },
+        1: { cellWidth: 26 },
+        2: { cellWidth: 20 },
+        3: { cellWidth: 38, fontStyle: 'bold' },
+        4: { cellWidth: 12, halign: 'center' },
+        5: { cellWidth: 42 },
+        6: { cellWidth: 42 },
+        7: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
+        8: { cellWidth: 'auto' },
+      },
     }
   }
 
@@ -2037,15 +2074,17 @@ function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: Sect
         applicationMethod: attrs.applicationMethod || '',
         column1: attrs.column1 || '',
         wpSubType: attrs.wpSubType || '',
-        srNo: attrs.srNo || '',
-        lineNo: attrs.lineNo || '',
-        laminateFinishDetails: attrs.laminateFinishDetails || '',
+        srNo: attrs.srNo || attrs.lineNo || '',
+        lineNo: attrs.lineNo || attrs.srNo || '',
+        usage: attrs.usage || attrs.functionalUsage || it.productionPhase || '',
+        isHplPasting: attrs.isHplPasting === true || attrs.cabinetSubType === 'HPL_PASTING' || Boolean(attrs.frontLaminateCode && attrs.backLaminateCode),
+        laminateFinishDetails: attrs.laminateFinishDetails || attrs.frontLaminateCode || '',
         sideSpecification: attrs.sideSpecification || '',
         edgingTapeQty: attrs.edgingTapeQty || '',
-        coreSubstrateType: attrs.coreSubstrateType || '',
-        frontLaminateCode: attrs.frontLaminateCode || '',
-        backLaminateCode: attrs.backLaminateCode || '',
-        cabinetSubType: attrs.cabinetSubType || '',
+        coreSubstrateType: attrs.coreSubstrateType || attrs.baseMaterial || '',
+        frontLaminateCode: attrs.frontLaminateCode || attrs.laminateFinishDetails || '',
+        backLaminateCode: attrs.backLaminateCode || (attrs.sideSpecification && attrs.sideSpecification !== 'Standard' ? attrs.sideSpecification : ''),
+        cabinetSubType: attrs.cabinetSubType || 'BOARD_SPEC',
         accessoryCategory: attrs.accessoryCategory || '',
         itemCode: attrs.itemCode || '',
         dimensions: attrs.dimensions || '',
@@ -2315,6 +2354,17 @@ function BoardDatalists() {
       </datalist>
 
       {/* ── Closet / Cabinet Datalists ── */}
+      <datalist id="cabinet-usage-list">
+        <option value="Shutter" />
+        <option value="Top Cabinet" />
+        <option value="Body" />
+        <option value="Bottom Cabinet" />
+        <option value="Carcass / Internal" />
+        <option value="Shelves" />
+        <option value="Backing" />
+        <option value="Drawer Box" />
+      </datalist>
+
       <datalist id="cabinet-base-material-list">
         <option value="MR Board" />
         <option value="Elegant Board" />
@@ -2324,12 +2374,16 @@ function BoardDatalists() {
         <option value="Garjon Plywood" />
         <option value="Commercial Ply" />
         <option value="MDF Core" />
+        <option value="HDF Core" />
+        <option value="Particle Board" />
+        <option value="WPC (Wood Plastic)" />
       </datalist>
 
       <datalist id="cabinet-thickness-list">
         <option value="6mm" />
         <option value="9mm" />
         <option value="12mm" />
+        <option value="15mm" />
         <option value="16mm" />
         <option value="18mm" />
         <option value="25mm" />
@@ -2343,6 +2397,8 @@ function BoardDatalists() {
         <option value="White Matt Finish" />
         <option value="Luxury 8193" />
         <option value="Aromex 9904" />
+        <option value="Super 101" />
+        <option value="Super 111" />
       </datalist>
 
       <datalist id="cabinet-side-spec-list">
@@ -2369,22 +2425,32 @@ function BoardDatalists() {
         <option value="Marine Plywood" />
         <option value="Garjon Plywood" />
         <option value="Commercial Ply" />
+        <option value="MDF Core" />
       </datalist>
 
       <datalist id="cabinet-front-laminate-list">
         <option value="MR Champagne Gold" />
+        <option value="Champagne Gold" />
         <option value="Super 101" />
         <option value="Super 111" />
         <option value="Luxury 8193" />
         <option value="Aromex 9904" />
+        <option value="Code: A-7123" />
+        <option value="Code: A-7112" />
+        <option value="Duco Paint Finish" />
+        <option value="White Matt Finish" />
       </datalist>
 
       <datalist id="cabinet-back-laminate-list">
+        <option value="Same as Front (Both Side)" />
+        <option value="Single Side Liner" />
+        <option value="White Liner" />
         <option value="Luxury 8193" />
         <option value="Aromex 9904" />
         <option value="Super 101 (Both Side)" />
         <option value="Super 111 (Both Side)" />
-        <option value="Single Side Liner" />
+        <option value="MR Champagne Gold" />
+        <option value="Champagne Gold" />
       </datalist>
 
       {/* ── Accessories & Hardware Datalists ── */}
@@ -3348,54 +3414,62 @@ function MaterialRowsTable({
             </tbody>
           </table>
         </div>
-      ) : viewMode === 'CABINET_CORE_SPEC' ? (
-        /* ── 6. Closet / Cabinet Core Board Specification Table ── */
+      ) : (viewMode === 'CABINET_CORE_SPEC' || viewMode === 'CABINET_HPL_SPEC') ? (
+        /* ── 6. Unified Closet / Cabinet Board Specification Table ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[920px] border-collapse divide-y divide-border/60">
+          <table className="w-full text-xs text-left min-w-[1080px] border-collapse divide-y divide-border/60">
             <thead className="bg-amber-500/10 border-b border-amber-500/20 text-amber-900 dark:text-amber-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-20`}>Sr. No</th>
-                <th className={`${GRID_TH} min-w-[150px]`}>Base Material / Core</th>
-                <th className={`${GRID_TH} w-28`}>Thickness</th>
-                <th className={`${GRID_TH} min-w-[180px]`}>Laminate / Finish Details</th>
-                <th className={`${GRID_TH} w-36`}>Side Specification</th>
+                <th className={`${GRID_TH} w-16 text-center`}>Sr. No</th>
+                <th className={`${GRID_TH} min-w-[140px]`}>Usage</th>
+                <th className={`${GRID_TH} w-24`}>Thickness</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Base Material / Core</th>
+                <th className={`${GRID_TH} w-24 text-center`}>HPL Pasting?</th>
+                <th className={`${GRID_TH} min-w-[170px]`}>Front Laminate / Finish</th>
+                <th className={`${GRID_TH} min-w-[170px]`}>Back Laminate / Liner</th>
                 <th className={`${GRID_TH} text-center w-28`}>Board Qty</th>
-                <th className={`${GRID_TH} min-w-[150px]`}>Edging Tape Qty</th>
+                <th className={`${GRID_TH} min-w-[140px]`}>Edging Tape Qty</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => {
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                const isHpl = attrs.isHplPasting === true || attrs.isHplPasting === 'true' || attrs.cabinetSubType === 'HPL_PASTING'
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
                     {/* 1. Sr. No */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
-                        value={attrs.srNo || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'srNo', e.target.value)}
-                        placeholder="1"
+                        value={attrs.srNo || attrs.lineNo || ''}
+                        onChange={(e) => {
+                          onUpdateVariant(ri, 'srNo', e.target.value)
+                          onUpdateVariant(ri, 'lineNo', e.target.value)
+                        }}
+                        placeholder={`${ri + 1}`}
                         className={GRID_CELL_MONO}
                       />
                     </td>
 
-                    {/* 2. Base Material / Core */}
+                    {/* 2. Usage (Dropdown + Manual) */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
-                        list="cabinet-base-material-list"
-                        value={attrs.baseMaterial || item.materialName || ''}
+                        list="cabinet-usage-list"
+                        value={attrs.usage || attrs.functionalUsage || item.productionPhase || ''}
                         onChange={(e) => {
-                          onUpdateVariant(ri, 'baseMaterial', e.target.value)
-                          onChange(ri, 'materialName', e.target.value)
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'usage', val)
+                          onUpdateVariant(ri, 'functionalUsage', val)
+                          onChange(ri, 'productionPhase', val)
                         }}
-                        placeholder="MR Board"
-                        className={GRID_CELL_BOLD}
+                        placeholder="Shutter / Body / Top"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
-                    {/* 3. Thickness */}
+                    {/* 3. Core Thickness (Dropdown + Manual) */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3407,34 +3481,79 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 4. Laminate / Finish Details */}
+                    {/* 4. Base Material / Core (Dropdown + Manual) */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
-                        list="cabinet-laminate-finish-list"
-                        value={attrs.laminateFinishDetails || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'laminateFinishDetails', e.target.value)}
-                        placeholder="Champagne Gold"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 5. Side Specification */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="cabinet-side-spec-list"
-                        value={attrs.sideSpecification || item.productionPhase || ''}
+                        list="cabinet-base-material-list"
+                        value={attrs.baseMaterial || attrs.coreSubstrateType || item.materialName || ''}
                         onChange={(e) => {
-                          onUpdateVariant(ri, 'sideSpecification', e.target.value)
-                          onChange(ri, 'productionPhase', e.target.value)
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'baseMaterial', val)
+                          onUpdateVariant(ri, 'coreSubstrateType', val)
+                          onChange(ri, 'materialName', isHpl ? `${val} HPL Pasting` : val)
                         }}
-                        placeholder="Both Side"
+                        placeholder="MR Board"
+                        className={GRID_CELL_BOLD}
+                      />
+                    </td>
+
+                    {/* 5. HPL Pasting Checkbox */}
+                    <td className={`${GRID_TD} text-center`}>
+                      <label className="inline-flex items-center justify-center gap-1.5 py-1.5 px-2 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(isHpl)}
+                          onChange={(e) => {
+                            const checked = e.target.checked
+                            onUpdateVariant(ri, 'isHplPasting', checked ? 'true' : 'false')
+                            onUpdateVariant(ri, 'cabinetSubType', checked ? 'HPL_PASTING' : 'BOARD_SPEC')
+                            const baseMat = (attrs.baseMaterial || attrs.coreSubstrateType || item.materialName || 'Board').replace(/\s+HPL\s+Pasting$/i, '')
+                            onChange(ri, 'materialName', checked ? `${baseMat} HPL Pasting` : baseMat)
+                          }}
+                          className="h-3.5 w-3.5 rounded border-muted-foreground text-cyan-600 focus:ring-cyan-500 cursor-pointer"
+                        />
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded tracking-wide ${
+                          isHpl
+                            ? 'bg-cyan-500/15 text-cyan-800 dark:text-cyan-200 border border-cyan-500/30'
+                            : 'bg-muted/70 text-muted-foreground'
+                        }`}>
+                          {isHpl ? 'HPL' : 'No'}
+                        </span>
+                      </label>
+                    </td>
+
+                    {/* 6. Front Laminate / Finish (Dropdown + Manual) */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        list="cabinet-front-laminate-list"
+                        value={attrs.frontLaminateCode || attrs.laminateFinishDetails || ''}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'frontLaminateCode', val)
+                          onUpdateVariant(ri, 'laminateFinishDetails', val)
+                        }}
+                        placeholder={isHpl ? 'MR Champagne Gold' : 'Champagne Gold'}
                         className={GRID_CELL_INPUT}
                       />
                     </td>
 
-                    {/* 6. Board Qty */}
+                    {/* 7. Back Laminate / Liner (Dropdown + Manual) */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        list="cabinet-back-laminate-list"
+                        value={attrs.backLaminateCode || ''}
+                        onChange={(e) => {
+                          onUpdateVariant(ri, 'backLaminateCode', e.target.value)
+                        }}
+                        placeholder={isHpl ? 'Luxury 8193 / Liner' : 'Both Side / Same as Front'}
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* 8. Board Qty */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3450,7 +3569,7 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 7. Edging Tape Qty */}
+                    {/* 9. Edging Tape Qty */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3458,137 +3577,6 @@ function MaterialRowsTable({
                         value={attrs.edgingTapeQty || ''}
                         onChange={(e) => onUpdateVariant(ri, 'edgingTapeQty', e.target.value)}
                         placeholder="— or 5 Roll (Edging)"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* Delete */}
-                    <td className="p-0 w-8 text-center align-middle">
-                      <button
-                        onClick={() => onRemoveRow(ri)}
-                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                        title="Remove row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : viewMode === 'CABINET_HPL_SPEC' ? (
-        /* ── 7. Closet / Cabinet HPL Pasting Details Table ── */
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[950px] border-collapse divide-y divide-border/60">
-            <thead className="bg-cyan-500/10 border-b border-cyan-500/20 text-cyan-900 dark:text-cyan-200">
-              <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-24`}>Line No</th>
-                <th className={`${GRID_TH} w-28`}>Core Thickness</th>
-                <th className={`${GRID_TH} min-w-[150px]`}>Core Substrate Type</th>
-                <th className={`${GRID_TH} min-w-[170px]`}>Front Laminate Code</th>
-                <th className={`${GRID_TH} min-w-[180px]`}>Back Laminate / Liner Code</th>
-                <th className={`${GRID_TH} text-center w-28`}>Quantity</th>
-                <th className={`${GRID_TH} min-w-[150px]`}>Edging Tape Qty</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/40 bg-card">
-              {rows.map((item, ri) => {
-                const attrs: BoardVariantAttributes = item.variantAttributes || {}
-                return (
-                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
-                    {/* 1. Line No */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.lineNo || attrs.itemId || ''}
-                        onChange={(e) => {
-                          onUpdateVariant(ri, 'lineNo', e.target.value)
-                          onUpdateVariant(ri, 'itemId', e.target.value)
-                        }}
-                        placeholder="HPL-1"
-                        className={GRID_CELL_MONO}
-                      />
-                    </td>
-
-                    {/* 2. Core Thickness */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="cabinet-thickness-list"
-                        value={attrs.coreThickness || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'coreThickness', e.target.value)}
-                        placeholder="18mm"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 3. Core Substrate Type */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="cabinet-core-substrate-list"
-                        value={attrs.coreSubstrateType || attrs.baseMaterial || item.materialName || ''}
-                        onChange={(e) => {
-                          onUpdateVariant(ri, 'coreSubstrateType', e.target.value)
-                          onUpdateVariant(ri, 'baseMaterial', e.target.value)
-                          onChange(ri, 'materialName', `${e.target.value} HPL Pasting`)
-                        }}
-                        placeholder="MR Board"
-                        className={GRID_CELL_BOLD}
-                      />
-                    </td>
-
-                    {/* 4. Front Laminate Code */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="cabinet-front-laminate-list"
-                        value={attrs.frontLaminateCode || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'frontLaminateCode', e.target.value)}
-                        placeholder="MR Champagne Gold"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 5. Back Laminate / Liner Code */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="cabinet-back-laminate-list"
-                        value={attrs.backLaminateCode || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'backLaminateCode', e.target.value)}
-                        placeholder="Luxury 8193"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 6. Quantity */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          onUpdateVariant(ri, 'qtyLabel', val)
-                          const num = parseFloat(val)
-                          if (!isNaN(num)) onChange(ri, 'netQuantity', num)
-                        }}
-                        placeholder="40 pcs"
-                        className={GRID_CELL_NUM}
-                      />
-                    </td>
-
-                    {/* 7. Edging Tape Qty */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="cabinet-edging-tape-list"
-                        value={attrs.edgingTapeQty || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'edgingTapeQty', e.target.value)}
-                        placeholder="— or 4 Roll"
                         className={GRID_CELL_INPUT}
                       />
                     </td>
@@ -4198,7 +4186,7 @@ function MaterialRowsTable({
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors border border-amber-200 dark:border-amber-800"
             >
               <Download className="w-3 h-3 text-amber-600" />
-              + Add Core Board Spec
+              + Add Sample Boards
             </button>
           )}
           {onLoadCabinetHplPreset && rows.length > 0 && (
@@ -4207,7 +4195,7 @@ function MaterialRowsTable({
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 transition-colors border border-cyan-200 dark:border-cyan-800"
             >
               <Sparkles className="w-3 h-3 text-cyan-600" />
-              + Add HPL Pasting
+              + Add HPL Pasting Samples
             </button>
           )}
           {onLoadAccessoryHardwarePreset && rows.length > 0 && (
@@ -4350,8 +4338,8 @@ function SectionBlock({
             onLoadScrewPreset={section.wallPanelingSubType === 'SCREWS_FASTENERS' ? () => onLoadPreset('SCREWS_FASTENERS') : undefined}
             onLoadNailPreset={section.wallPanelingSubType === 'NAILS_PINS' ? () => onLoadPreset('NAILS_PINS') : undefined}
             onLoadAdhesivePreset={section.wallPanelingSubType === 'ADHESIVES' ? () => onLoadPreset('ADHESIVES') : undefined}
-            onLoadCabinetCorePreset={section.cabinetSubType === 'CORE_BOARD_SPEC' && onLoadCabinetPreset ? () => onLoadCabinetPreset('CORE_BOARD_SPEC') : undefined}
-            onLoadCabinetHplPreset={section.cabinetSubType === 'HPL_PASTING' && onLoadCabinetPreset ? () => onLoadCabinetPreset('HPL_PASTING') : undefined}
+            onLoadCabinetCorePreset={section.category === 'CABINETS_CLOSETS' && onLoadCabinetPreset ? () => onLoadCabinetPreset('CORE_BOARD_SPEC') : undefined}
+            onLoadCabinetHplPreset={section.category === 'CABINETS_CLOSETS' && onLoadCabinetPreset ? () => onLoadCabinetPreset('HPL_PASTING') : undefined}
             onLoadAccessoryHardwarePreset={section.accessoriesSubType === 'HARDWARE_ACCESSORIES' && onLoadAccessoryPreset ? () => onLoadAccessoryPreset('HARDWARE_ACCESSORIES') : undefined}
             onLoadAccessoryServicesPreset={section.accessoriesSubType === 'SERVICES_DELIVERABLES' && onLoadAccessoryPreset ? () => onLoadAccessoryPreset('SERVICES_DELIVERABLES') : undefined}
             onLoadAppliancePreset={section.applianceSubType === 'CORE_APPLIANCES' && onLoadAppliancePreset ? () => onLoadAppliancePreset('CORE_APPLIANCES') : undefined}
@@ -4371,7 +4359,7 @@ function AddSectionForm({ onAdd, onCancel }: {
 }) {
   const [cat, setCat] = useState<RequisitionWorkCategory>('WALL_PANELING')
   const [sub, setSub] = useState<WallPanelingSubType>('CORE_BOARDS')
-  const [cabSub, setCabSub] = useState<CabinetSubType>('CORE_BOARD_SPEC')
+  const [cabSub, setCabSub] = useState<CabinetSubType>('BOARD_SPEC')
   const [accSub, setAccSub] = useState<AccessoriesSubType>('HARDWARE_ACCESSORIES')
   const [appSub, setAppSub] = useState<ApplianceSubType>('CORE_APPLIANCES')
 
@@ -4912,6 +4900,7 @@ export function RequisitionBuilderClient({
 
   const loadCabinetPresetForSection = (cardKey: string, sectionId: string, subType: CabinetSubType, quotationLineItemId?: string) => {
     const presetMap: Record<CabinetSubType, RequisitionItemInput[]> = {
+      BOARD_SPEC: SAMPLE_CABINET_CORE_BOARD_ITEMS,
       CORE_BOARD_SPEC: SAMPLE_CABINET_CORE_BOARD_ITEMS,
       HPL_PASTING: SAMPLE_CABINET_HPL_PASTING_ITEMS,
     }
