@@ -7,6 +7,7 @@ import {
   Ban,
   Calendar,
   CalendarClock,
+  CalendarPlus,
   CheckCircle2,
   Clock,
   ExternalLink,
@@ -16,6 +17,7 @@ import {
   MapPin,
   Paperclip,
   Phone,
+  Plus,
   RefreshCw,
   Sparkles,
   User,
@@ -216,6 +218,19 @@ export default function PartialVisitLeadDetailPage() {
   const [viewingResult, setViewingResult] = useState<VisitResultData | null>(null)
   const [loadingResult, setLoadingResult] = useState(false)
 
+  // Schedule Visit Dialog
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+  const [scheduleDate, setScheduleDate] = useState('')
+  const [scheduleFee, setScheduleFee] = useState('')
+  const [scheduleProjectStatus, setScheduleProjectStatus] = useState<ProjectStatus>('UNDER_CONSTRUCTION')
+  const [scheduleProjectSqft, setScheduleProjectSqft] = useState('')
+  const [scheduleNotes, setScheduleNotes] = useState('')
+  const [submittingSchedule, setSubmittingSchedule] = useState(false)
+
+  // Substatus updating
+  const [updatingSubStatus, setUpdatingSubStatus] = useState(false)
+  const [openingQuotation, setOpeningQuotation] = useState(false)
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
@@ -406,7 +421,80 @@ export default function PartialVisitLeadDetailPage() {
     }
   }
 
-  const openPartialQuotation = () => {
+  const handleSubStatusChange = async (newSubStatus: string) => {
+    setUpdatingSubStatus(true)
+    try {
+      const res = await fetch(`/api/lead/${leadId}/stage`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: 'PARTIAL_QUOTATION_PHASE',
+          subStatus: newSubStatus,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(`Substatus updated to ${newSubStatus.replace(/_/g, ' ')}`)
+        setLead((prev) => (prev ? { ...prev, stage: 'PARTIAL_QUOTATION_PHASE', subStatus: newSubStatus } : null))
+      } else {
+        toast.error(data.error || 'Failed to update substatus')
+      }
+    } catch {
+      toast.error('Failed to update substatus')
+    } finally {
+      setUpdatingSubStatus(false)
+    }
+  }
+
+  const handleScheduleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!scheduleDate) {
+      toast.error('Visit date and time is required')
+      return
+    }
+    setSubmittingSchedule(true)
+    try {
+      const res = await fetch(`/api/lead/${leadId}/visit-schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visitType: 'PARTIAL_WORK_VISIT',
+          scheduledAt: new Date(scheduleDate).toISOString(),
+          location: lead?.location || undefined,
+          visitFee: scheduleFee ? Number(scheduleFee) : 0,
+          projectStatus: scheduleProjectStatus,
+          projectSqft: scheduleProjectSqft ? Number(scheduleProjectSqft) : undefined,
+          notes: scheduleNotes || undefined,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Partial visit scheduled successfully!')
+        setScheduleDialogOpen(false)
+        fetchData()
+      } else {
+        toast.error(data.error || 'Failed to schedule visit')
+      }
+    } catch {
+      toast.error('An unexpected error occurred')
+    } finally {
+      setSubmittingSchedule(false)
+    }
+  }
+
+  const openPartialQuotation = async () => {
+    setOpeningQuotation(true)
+    try {
+      await fetch(`/api/partial-quotation/${leadId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start' }),
+      })
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setOpeningQuotation(false)
+    }
     router.push(`/visit-team/partial-visits/${leadId}/quotation`)
   }
 
@@ -489,17 +577,34 @@ export default function PartialVisitLeadDetailPage() {
                   {stageLabel(lead.stage)}
                 </Badge>
               )}
-              {lead.subStatus && (
+              {lead.stage === 'PARTIAL_QUOTATION_PHASE' ? (
+                <div className="inline-flex items-center gap-1.5 bg-background border border-indigo-200 dark:border-indigo-800 rounded-md px-2 py-0.5 shadow-2xs">
+                  <span className="text-[11px] font-semibold text-muted-foreground uppercase">Substatus:</span>
+                  <select
+                    value={lead.subStatus ?? 'QUOTATION_WORKING'}
+                    disabled={updatingSubStatus}
+                    onChange={(e) => void handleSubStatusChange(e.target.value)}
+                    className="text-xs font-semibold bg-transparent text-foreground focus:outline-hidden cursor-pointer"
+                  >
+                    <option value="QUOTATION_WORKING">Quotation working</option>
+                    <option value="QUOTATION_COMPLETED">Quotation Complete</option>
+                    <option value="BUDGET_MEETING_SET">Budget meeting</option>
+                    <option value="FUTURE_CLIENT">Future Client</option>
+                  </select>
+                  {updatingSubStatus && <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />}
+                </div>
+              ) : lead.subStatus ? (
                 <Badge variant="outline" className="text-xs">
                   {stageLabel(lead.subStatus)}
                 </Badge>
-              )}
+              ) : null}
               <Button
                 size="sm"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 shadow-sm"
                 onClick={openPartialQuotation}
+                disabled={openingQuotation}
               >
-                <FileText className="h-4 w-4" />
+                {openingQuotation ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                 Partial Quotation Builder
               </Button>
               <Link
@@ -555,14 +660,60 @@ export default function PartialVisitLeadDetailPage() {
               {visits.length}
             </Badge>
           </h2>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs h-8"
+            onClick={() => {
+              setScheduleDate('')
+              setScheduleFee('')
+              setScheduleProjectStatus('UNDER_CONSTRUCTION')
+              setScheduleProjectSqft('')
+              setScheduleNotes('')
+              setScheduleDialogOpen(true)
+            }}
+          >
+            <CalendarPlus className="h-3.5 w-3.5" />
+            Schedule Partial Visit
+          </Button>
         </div>
 
         {sortedVisits.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground bg-muted/10 rounded-xl border text-center">
-            <Wrench className="h-8 w-8 mb-2 opacity-40" />
+          <div className="flex flex-col items-center justify-center py-10 px-4 text-center bg-muted/10 rounded-xl border space-y-3">
+            <Wrench className="h-8 w-8 text-muted-foreground/50 mb-1" />
             <p className="font-semibold text-foreground text-sm">
-              No partial visits found for this lead.
+              No partial visits scheduled yet for this client.
             </p>
+            <p className="text-xs text-muted-foreground max-w-md">
+              A visit is not required to create a quotation. You can start working on a quotation immediately or schedule a partial visit whenever needed.
+            </p>
+            <div className="flex items-center gap-2 pt-2">
+              <Button
+                size="sm"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                onClick={openPartialQuotation}
+                disabled={openingQuotation}
+              >
+                {openingQuotation ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                Create Quotation
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => {
+                  setScheduleDate('')
+                  setScheduleFee('')
+                  setScheduleProjectStatus('UNDER_CONSTRUCTION')
+                  setScheduleProjectSqft('')
+                  setScheduleNotes('')
+                  setScheduleDialogOpen(true)
+                }}
+              >
+                <CalendarPlus className="h-4 w-4" />
+                Schedule Partial Visit
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -1020,6 +1171,110 @@ export default function PartialVisitLeadDetailPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setResultDialogOpen(false)}>Close</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule Partial Visit Dialog */}
+      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CalendarPlus className="h-5 w-5 text-primary" />
+              Schedule Partial Visit
+            </DialogTitle>
+            <DialogDescription>
+              Schedule a new partial work visit for <strong>{lead.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleScheduleSubmit} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="scheduleDate" className="text-xs font-semibold">
+                Visit Date & Time <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="scheduleDate"
+                type="datetime-local"
+                value={scheduleDate}
+                onChange={(e) => setScheduleDate(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="scheduleFee" className="text-xs font-semibold">
+                  Visit Fee (BDT)
+                </Label>
+                <Input
+                  id="scheduleFee"
+                  type="number"
+                  placeholder="0"
+                  value={scheduleFee}
+                  onChange={(e) => setScheduleFee(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="scheduleProjectStatus" className="text-xs font-semibold">
+                  Site Status
+                </Label>
+                <Select
+                  value={scheduleProjectStatus}
+                  onValueChange={(val: ProjectStatus) => setScheduleProjectStatus(val)}
+                >
+                  <SelectTrigger id="scheduleProjectStatus" className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="UNDER_CONSTRUCTION">Under Construction</SelectItem>
+                    <SelectItem value="READY">Ready</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="scheduleProjectSqft" className="text-xs font-semibold">
+                Approx. Sqft
+              </Label>
+              <Input
+                id="scheduleProjectSqft"
+                type="number"
+                placeholder="e.g. 1200"
+                value={scheduleProjectSqft}
+                onChange={(e) => setScheduleProjectSqft(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="scheduleNotes" className="text-xs font-semibold">
+                Visit Notes / Instructions
+              </Label>
+              <Textarea
+                id="scheduleNotes"
+                rows={2}
+                placeholder="Optional notes for the visit..."
+                value={scheduleNotes}
+                onChange={(e) => setScheduleNotes(e.target.value)}
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setScheduleDialogOpen(false)}
+                disabled={submittingSchedule}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submittingSchedule}>
+                {submittingSchedule && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Schedule Visit
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

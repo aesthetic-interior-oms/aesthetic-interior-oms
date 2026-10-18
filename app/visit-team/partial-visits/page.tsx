@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
   Ban,
@@ -18,6 +19,7 @@ import {
   MapPin,
   Paperclip,
   Phone,
+  Plus,
   RefreshCw,
   Search,
   Sparkles,
@@ -30,6 +32,7 @@ import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { fetchMeCached } from '@/lib/client-me'
 import {
   Dialog,
   DialogContent,
@@ -58,7 +61,7 @@ import {
 } from '@/components/ui/table'
 
 /* ────────────────── Types ────────────────── */
-type VisitStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'RESCHEDULED'
+type VisitStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'RESCHEDULED' | 'NOT_SCHEDULED'
 type ProjectStatus = 'UNDER_CONSTRUCTION' | 'READY'
 
 type AttachmentItem = {
@@ -95,6 +98,8 @@ type PartialVisitRecord = {
     phone: string
     location: string | null
     budget?: number | null
+    stage?: string | null
+    subStatus?: string | null
   }
   assignedTo: {
     id: string
@@ -103,6 +108,7 @@ type PartialVisitRecord = {
     phone?: string | null
   } | null
   result?: VisitResultData | null
+  isUnscheduledLead?: boolean
 }
 
 /* ────────────────── Helpers ────────────────── */
@@ -122,6 +128,12 @@ function formatDate(value: string) {
 
 function getStatusConfig(status: VisitStatus) {
   switch (status) {
+    case 'NOT_SCHEDULED':
+      return {
+        label: 'Not Scheduled',
+        icon: CalendarClock,
+        badgeClass: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300',
+      }
     case 'SCHEDULED':
       return {
         label: 'Scheduled',
@@ -157,6 +169,7 @@ function getStatusConfig(status: VisitStatus) {
 
 /* ────────────────── Component ────────────────── */
 export default function PartialVisitsPage() {
+  const router = useRouter()
   const [visits, setVisits] = useState<PartialVisitRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -164,6 +177,21 @@ export default function PartialVisitsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [activeFilter, setActiveFilter] = useState<string>('ALL')
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
+
+  // Create Client Dialog States
+  const [createClientOpen, setCreateClientOpen] = useState(false)
+  const [newClientName, setNewClientName] = useState('')
+  const [newClientPhone, setNewClientPhone] = useState('')
+  const [newClientLocation, setNewClientLocation] = useState('')
+  const [newClientBudget, setNewClientBudget] = useState('')
+  const [newClientRemarks, setNewClientRemarks] = useState('')
+  const [scheduleNow, setScheduleNow] = useState(false)
+  const [newVisitDate, setNewVisitDate] = useState('')
+  const [newVisitFee, setNewVisitFee] = useState('')
+  const [newVisitProjectStatus, setNewVisitProjectStatus] = useState<ProjectStatus>('UNDER_CONSTRUCTION')
+  const [newVisitProjectSqft, setNewVisitProjectSqft] = useState('')
+  const [submittingCreateClient, setSubmittingCreateClient] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   // Dialog States
   const [selectedVisit, setSelectedVisit] = useState<PartialVisitRecord | null>(null)
@@ -196,6 +224,12 @@ export default function PartialVisitsPage() {
   const [resultDialogOpen, setResultDialogOpen] = useState(false)
   const [viewingResult, setViewingResult] = useState<VisitResultData | null>(null)
   const [loadingResult, setLoadingResult] = useState(false)
+
+  useEffect(() => {
+    fetchMeCached().then((me) => {
+      if (me?.id) setCurrentUserId(me.id)
+    }).catch(() => null)
+  }, [])
 
   const fetchVisits = useCallback(async () => {
     setLoading(true)
@@ -242,6 +276,7 @@ export default function PartialVisitsPage() {
   const counts = useMemo(() => {
     return {
       ALL: visits.length,
+      NOT_SCHEDULED: visits.filter((v) => v.status === 'NOT_SCHEDULED').length,
       SCHEDULED: visits.filter((v) => v.status === 'SCHEDULED').length,
       COMPLETED: visits.filter((v) => v.status === 'COMPLETED').length,
       RESCHEDULED: visits.filter((v) => v.status === 'RESCHEDULED').length,
@@ -259,6 +294,15 @@ export default function PartialVisitsPage() {
       className: 'from-slate-50 to-slate-100/60 border-slate-200/80 dark:from-slate-900/40 dark:to-slate-900/20 dark:border-slate-800',
       accentClassName: 'from-slate-500 to-slate-700',
       iconClassName: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+    },
+    {
+      key: 'NOT_SCHEDULED',
+      label: 'Not Scheduled',
+      count: counts.NOT_SCHEDULED,
+      Icon: CalendarClock,
+      className: 'from-purple-50/80 to-purple-100/40 border-purple-200/80 dark:from-purple-950/30 dark:to-purple-900/10 dark:border-purple-800/60',
+      accentClassName: 'from-purple-500 to-indigo-600',
+      iconClassName: 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300',
     },
     {
       key: 'SCHEDULED',
@@ -397,6 +441,88 @@ export default function PartialVisitsPage() {
     }
   }
 
+  const handleStartQuotation = async (leadId: string) => {
+    try {
+      await fetch(`/api/partial-quotation/${leadId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start' }),
+      })
+    } catch (err) {
+      console.error(err)
+    }
+    router.push(`/visit-team/partial-visits/${leadId}/quotation`)
+  }
+
+  const handleCreateClientSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!newClientName.trim()) {
+      toast.error('Client name is required')
+      return
+    }
+    if (!newClientPhone.trim()) {
+      toast.error('Phone number is required')
+      return
+    }
+    if (scheduleNow && !newVisitDate) {
+      toast.error('Visit date and time is required when scheduling a visit')
+      return
+    }
+
+    setSubmittingCreateClient(true)
+    try {
+      const payload: Record<string, unknown> = {
+        name: newClientName.trim(),
+        phone: newClientPhone.trim(),
+        location: newClientLocation.trim() || undefined,
+        budget: newClientBudget ? Number(newClientBudget) : undefined,
+        source: 'Specialist Design Consultant',
+        remarks: newClientRemarks.trim() || undefined,
+        scheduleVisit: scheduleNow,
+      }
+
+      if (scheduleNow) {
+        payload.visit = {
+          visitTeamUserId: currentUserId || undefined,
+          visitType: 'PARTIAL_WORK_VISIT',
+          scheduledAt: new Date(newVisitDate).toISOString(),
+          location: newClientLocation.trim() || undefined,
+          visitFee: newVisitFee ? Number(newVisitFee) : 0,
+          projectStatus: newVisitProjectStatus,
+          projectSqft: newVisitProjectSqft ? Number(newVisitProjectSqft) : undefined,
+          notes: newClientRemarks.trim() || undefined,
+        }
+      }
+
+      const res = await fetch('/api/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success('Client created successfully!')
+        setCreateClientOpen(false)
+        setNewClientName('')
+        setNewClientPhone('')
+        setNewClientLocation('')
+        setNewClientBudget('')
+        setNewClientRemarks('')
+        setScheduleNow(false)
+        setNewVisitDate('')
+        setNewVisitFee('')
+        setNewVisitProjectSqft('')
+        fetchVisits()
+      } else {
+        toast.error(data.error || 'Failed to create client')
+      }
+    } catch {
+      toast.error('An unexpected error occurred while creating client')
+    } finally {
+      setSubmittingCreateClient(false)
+    }
+  }
+
   const handleRescheduleSubmit = async () => {
     if (!selectedVisit) return
     if (!rescheduleDate) {
@@ -406,6 +532,29 @@ export default function PartialVisitsPage() {
 
     setSubmittingReschedule(true)
     try {
+      if (selectedVisit.status === 'NOT_SCHEDULED' || selectedVisit.isUnscheduledLead) {
+        const res = await fetch(`/api/lead/${selectedVisit.lead.id}/visit-schedule`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            visitType: 'PARTIAL_WORK_VISIT',
+            scheduledAt: new Date(rescheduleDate).toISOString(),
+            notes: rescheduleNotes || undefined,
+            visitTeamUserId: currentUserId || undefined,
+            location: selectedVisit.location || selectedVisit.lead.location || undefined,
+          }),
+        })
+        const data = await res.json()
+        if (data.success) {
+          toast.success('Visit scheduled successfully!')
+          setRescheduleDialogOpen(false)
+          fetchVisits()
+        } else {
+          toast.error(data.error || 'Failed to schedule visit')
+        }
+        return
+      }
+
       const res = await fetch(`/api/visit-schedule/${selectedVisit.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -481,13 +630,19 @@ export default function PartialVisitsPage() {
                 Snapshot of active partial visits and queue status.
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={fetchVisits} disabled={loading}>
-              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={() => setCreateClientOpen(true)} className="bg-primary text-primary-foreground font-semibold shadow-xs">
+                <Plus className="h-4 w-4 mr-1.5" />
+                Create Client
+              </Button>
+              <Button variant="outline" size="sm" onClick={fetchVisits} disabled={loading}>
+                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
             {statCards.map((card) => {
               const Icon = card.Icon
               const percentage = visits.length > 0 ? Math.round((card.count / visits.length) * 100) : 0
@@ -568,6 +723,7 @@ export default function PartialVisitsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All Statuses</SelectItem>
+                <SelectItem value="NOT_SCHEDULED">Not Scheduled</SelectItem>
                 <SelectItem value="SCHEDULED">Scheduled</SelectItem>
                 <SelectItem value="COMPLETED">Completed</SelectItem>
                 <SelectItem value="RESCHEDULED">Rescheduled</SelectItem>
@@ -663,7 +819,11 @@ export default function PartialVisitsPage() {
                   <div className="space-y-2 text-xs text-muted-foreground bg-muted/40 p-3 rounded-lg border border-border/50">
                     <div className="flex items-center gap-2">
                       <CalendarClock className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span className="font-semibold text-foreground">{formatDate(visit.scheduledAt)}</span>
+                      <span className="font-semibold text-foreground">
+                        {visit.status === 'NOT_SCHEDULED'
+                          ? `Created: ${formatDate(visit.scheduledAt)}`
+                          : formatDate(visit.scheduledAt)}
+                      </span>
                     </div>
                     <div className="flex items-start gap-2">
                       <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
@@ -675,6 +835,18 @@ export default function PartialVisitsPage() {
                         <span>Consultant: <strong className="text-foreground">{visit.assignedTo.fullName}</strong></span>
                       </div>
                     )}
+                    {visit.lead.stage === 'PARTIAL_QUOTATION_PHASE' && (
+                      <div className="flex items-center gap-1.5 pt-1 border-t border-border/40">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+                          Partial Quotation
+                        </span>
+                        {visit.lead.subStatus && (
+                          <span className="text-[10px] bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 px-1.5 py-0.2 rounded font-medium">
+                            {visit.lead.subStatus.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     {visit.notes && (
                       <div className="text-[11px] italic text-muted-foreground/90 pt-1 border-t border-border/40">
                         "{visit.notes}"
@@ -684,7 +856,39 @@ export default function PartialVisitsPage() {
 
                   {/* Action Buttons */}
                   <div className="pt-2">
-                    {isActionable ? (
+                    {visit.status === 'NOT_SCHEDULED' ? (
+                      <div className="space-y-2">
+                        <div className="flex w-full items-center gap-2">
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs h-8 text-xs font-semibold gap-1.5"
+                            onClick={() => handleStartQuotation(visit.lead.id)}
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            Create Quotation
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="flex-1 h-8 text-xs gap-1 font-semibold"
+                            onClick={() => openRescheduleModal(visit)}
+                          >
+                            <CalendarClock className="h-3.5 w-3.5 text-primary" />
+                            Schedule Visit
+                          </Button>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="w-full h-7 text-xs text-muted-foreground hover:text-foreground"
+                          asChild
+                        >
+                          <Link href={`/visit-team/partial-visits/${visit.lead.id}`}>
+                            View Client Details
+                          </Link>
+                        </Button>
+                      </div>
+                    ) : isActionable ? (
                       <div className="space-y-2">
                         <div className="flex w-full items-center gap-2">
                           <Button
@@ -805,7 +1009,37 @@ export default function PartialVisitsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        {isActionable ? (
+                        {visit.status === 'NOT_SCHEDULED' ? (
+                          <>
+                            <Button
+                              size="sm"
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white h-7 text-xs px-2.5 gap-1 shadow-xs"
+                              onClick={() => handleStartQuotation(visit.lead.id)}
+                            >
+                              <FileText className="h-3 w-3" />
+                              Quotation
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs px-2 gap-1"
+                              onClick={() => openRescheduleModal(visit)}
+                            >
+                              <CalendarClock className="h-3 w-3 text-primary" />
+                              Schedule
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs px-2"
+                              asChild
+                            >
+                              <Link href={`/visit-team/partial-visits/${visit.lead.id}`}>
+                                Details
+                              </Link>
+                            </Button>
+                          </>
+                        ) : isActionable ? (
                           <>
                             <Button
                               size="sm"
@@ -1276,6 +1510,180 @@ export default function PartialVisitsPage() {
               Close
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Client Dialog */}
+      <Dialog open={createClientOpen} onOpenChange={setCreateClientOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" />
+              Create New Client
+            </DialogTitle>
+            <DialogDescription>
+              Create a new client lead for partial work. You can start working on a quotation immediately or schedule a partial visit.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateClientSubmit} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="newClientName" className="text-xs font-semibold">
+                Client Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="newClientName"
+                placeholder="e.g. John Doe"
+                value={newClientName}
+                onChange={(e) => setNewClientName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="newClientPhone" className="text-xs font-semibold">
+                Phone Number <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="newClientPhone"
+                placeholder="e.g. 01712345678"
+                value={newClientPhone}
+                onChange={(e) => setNewClientPhone(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="newClientLocation" className="text-xs font-semibold">
+                  Location / Address
+                </Label>
+                <Input
+                  id="newClientLocation"
+                  placeholder="e.g. Uttara, Dhaka"
+                  value={newClientLocation}
+                  onChange={(e) => setNewClientLocation(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="newClientBudget" className="text-xs font-semibold">
+                  Budget (BDT)
+                </Label>
+                <Input
+                  id="newClientBudget"
+                  type="number"
+                  placeholder="e.g. 250000"
+                  value={newClientBudget}
+                  onChange={(e) => setNewClientBudget(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="newClientRemarks" className="text-xs font-semibold">
+                Requirements / Remarks
+              </Label>
+              <Textarea
+                id="newClientRemarks"
+                rows={2}
+                placeholder="Kitchen cabinet, TV unit, wardrobe..."
+                value={newClientRemarks}
+                onChange={(e) => setNewClientRemarks(e.target.value)}
+              />
+            </div>
+
+            {/* Optional Visit Scheduling */}
+            <div className="pt-2 border-t space-y-3">
+              <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={scheduleNow}
+                  onChange={(e) => setScheduleNow(e.target.checked)}
+                  className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
+                />
+                Schedule Partial Visit Now
+              </label>
+
+              {scheduleNow && (
+                <div className="space-y-3 pl-2 border-l-2 border-primary/20 bg-muted/20 p-3 rounded-md">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="newVisitDate" className="text-xs font-semibold">
+                      Visit Date & Time <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="newVisitDate"
+                      type="datetime-local"
+                      value={newVisitDate}
+                      onChange={(e) => setNewVisitDate(e.target.value)}
+                      required={scheduleNow}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="newVisitFee" className="text-xs font-semibold">
+                        Visit Fee (BDT)
+                      </Label>
+                      <Input
+                        id="newVisitFee"
+                        type="number"
+                        placeholder="0"
+                        value={newVisitFee}
+                        onChange={(e) => setNewVisitFee(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label htmlFor="newVisitProjectStatus" className="text-xs font-semibold">
+                        Site Status
+                      </Label>
+                      <Select
+                        value={newVisitProjectStatus}
+                        onValueChange={(val: ProjectStatus) => setNewVisitProjectStatus(val)}
+                      >
+                        <SelectTrigger id="newVisitProjectStatus" className="h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="UNDER_CONSTRUCTION">Under Construction</SelectItem>
+                          <SelectItem value="READY">Ready</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="newVisitProjectSqft" className="text-xs font-semibold">
+                      Approx. Sqft
+                    </Label>
+                    <Input
+                      id="newVisitProjectSqft"
+                      type="number"
+                      placeholder="e.g. 1200"
+                      value={newVisitProjectSqft}
+                      onChange={(e) => setNewVisitProjectSqft(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCreateClientOpen(false)}
+                disabled={submittingCreateClient}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submittingCreateClient}>
+                {submittingCreateClient && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Client
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

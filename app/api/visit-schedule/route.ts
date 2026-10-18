@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireDatabaseRoles } from '@/lib/authz';
-import { LeadAssignmentDepartment, VisitStatus, VisitType } from '@/generated/prisma/client';
+import { ActivityType, LeadAssignmentDepartment, VisitStatus, VisitType } from '@/generated/prisma/client';
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles';
 import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles';
 
@@ -78,12 +78,13 @@ export async function GET(request: NextRequest) {
     }
 
     const visitTypeParam = toOptionalString(request.nextUrl.searchParams.get('visitType'));
+    const isNotScheduledFilter = statusParam === 'NOT_SCHEDULED';
 
-    if (statusParam && !status) {
+    if (statusParam && !status && !isNotScheduledFilter) {
       return NextResponse.json({ success: false, error: 'Invalid visit status filter' }, { status: 400 });
     }
 
-    const visits = await prisma.visit.findMany({
+    const visits = isNotScheduledFilter ? [] : await prisma.visit.findMany({
       where: {
         ...(leadId ? { leadId } : {}),
         ...(shouldRestrictToSeniorCrmLeads
@@ -244,10 +245,112 @@ export async function GET(request: NextRequest) {
         feeIsPaid: visit.visitFee > 0 && totalPaid >= visit.visitFee,
         feeIsPartiallyPaid: visit.visitFee > 0 && totalPaid > 0 && totalPaid < visit.visitFee,
         feePaidAmount: totalPaid,
+        isUnscheduledLead: false,
       }
     })
 
-    return NextResponse.json({ success: true, data: normalizedVisits });
+    // For Partial Visits (Special Design Consultants), also include unscheduled leads
+    let unscheduledVisits: any[] = []
+    if (
+      (!status || isNotScheduledFilter) &&
+      (isSpecialistDesignConsultant || visitTypeParam === VisitType.PARTIAL_WORK_VISIT)
+    ) {
+      const existingLeadIdsWithVisit = new Set(visits.map((v) => v.leadId))
+      const unscheduledLeads = await prisma.lead.findMany({
+        where: {
+          ...(leadId ? { id: leadId } : {}),
+          id: { notIn: Array.from(existingLeadIdsWithVisit) },
+          ...(isAdmin
+            ? {}
+            : {
+                OR: [
+                  {
+                    assignments: {
+                      some: {
+                        userId: authResult.actorUserId,
+                        department: LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+                      },
+                    },
+                  },
+                  {
+                    activities: {
+                      some: {
+                        type: ActivityType.LEAD_CREATED,
+                        userId: authResult.actorUserId,
+                      },
+                    },
+                  },
+                  { assignedTo: authResult.actorUserId },
+                ],
+              }),
+        },
+        select: {
+          id: true,
+          name: true,
+          phone: true,
+          location: true,
+          budget: true,
+          stage: true,
+          subStatus: true,
+          created_at: true,
+          updated_at: true,
+          assignee: { select: { id: true, fullName: true, email: true, phone: true } },
+        },
+        orderBy: { created_at: 'desc' },
+      })
+
+      unscheduledVisits = unscheduledLeads.map((uLead) => ({
+        id: `unscheduled-${uLead.id}`,
+        leadId: uLead.id,
+        assignedToId: authResult.actorUserId,
+        scheduledAt: uLead.created_at.toISOString(),
+        visitFee: 0,
+        status: 'NOT_SCHEDULED',
+        visitType: VisitType.PARTIAL_WORK_VISIT,
+        projectSqft: null,
+        projectStatus: null,
+        location: uLead.location ?? '',
+        notes: null,
+        createdById: authResult.actorUserId,
+        createdAt: uLead.created_at,
+        updatedAt: uLead.updated_at,
+        lead: {
+          id: uLead.id,
+          name: uLead.name,
+          phone: uLead.phone ?? '',
+          location: uLead.location,
+          budget: uLead.budget,
+          stage: uLead.stage,
+          subStatus: uLead.subStatus,
+          assignments: [],
+        },
+        assignedTo: uLead.assignee ?? {
+          id: authResult.actorUserId,
+          fullName: authResult.actor.fullName ?? 'Specialist Design Consultant',
+          email: authResult.actor.email ?? '',
+          phone: null,
+        },
+        createdBy: {
+          id: authResult.actorUserId,
+          fullName: authResult.actor.fullName ?? 'Specialist Design Consultant',
+        },
+        visitPayments: [],
+        supportAssignments: [],
+        supportResults: [],
+        result: null,
+        updateRequests: [],
+        feeIsPaid: false,
+        feeIsPartiallyPaid: false,
+        feePaidAmount: 0,
+        isUnscheduledLead: true,
+      }))
+    }
+
+    const allVisits = isNotScheduledFilter
+      ? unscheduledVisits
+      : [...unscheduledVisits, ...normalizedVisits]
+
+    return NextResponse.json({ success: true, data: allVisits });
   } catch (error) {
     console.error('[visit-schedule][GET] Error:', error);
     return NextResponse.json({ success: false, error: 'Failed to fetch visit schedules' }, { status: 500 });

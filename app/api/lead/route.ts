@@ -720,6 +720,7 @@ export async function POST(request: NextRequest) {
     );
     const isJuniorCrm = departmentNames.has('JR_CRM');
     const isAdmin = departmentNames.has('ADMIN');
+    const isSpecialistDesignConsultant = departmentNames.has('SPECIALIST_DESIGN_CONSULTANTS');
 
     let jrCrmAssigneeId = requestedAssigneeId;
     if (!jrCrmAssigneeId && isJuniorCrm && !isAdmin) {
@@ -769,11 +770,15 @@ export async function POST(request: NextRequest) {
     // Transaction ensures both operations succeed or both fail
     // console.log('💾 [POST /api/lead] - Creating lead and activity log in transaction');
     const lead = await prisma.$transaction(async (tx) => {
-      const stage = phone ? LeadStage.NUMBER_COLLECTED : LeadStage.NEW
+      const stage = isSpecialistDesignConsultant
+        ? LeadStage.PARTIAL_VISIT_PHASE
+        : phone
+          ? LeadStage.NUMBER_COLLECTED
+          : LeadStage.NEW;
       const primaryOwnerDepartment = jrCrmAssigneeId
         ? LeadPrimaryOwnerDepartment.JR_CRM
-        : null
-      const primaryOwnerUserId = jrCrmAssigneeId ?? null
+        : null;
+      const primaryOwnerUserId = jrCrmAssigneeId ?? null;
 
       // Create the new lead with validated data
       const newLead = await tx.lead.create({
@@ -785,7 +790,11 @@ export async function POST(request: NextRequest) {
           location: toOptionalString(body.location),
           budget: toBudget(body.budget),
           stage,
-          ...(jrCrmAssigneeId ? { assignedTo: jrCrmAssigneeId } : {}),
+          ...(jrCrmAssigneeId
+            ? { assignedTo: jrCrmAssigneeId }
+            : isSpecialistDesignConsultant
+              ? { assignedTo: authResult.actorUserId }
+              : {}),
           ...(primaryOwnerDepartment ? { primaryOwnerDepartment } : {}),
           ...(primaryOwnerUserId ? { primaryOwnerUserId } : {}),
         },
@@ -804,6 +813,14 @@ export async function POST(request: NextRequest) {
             leadId: newLead.id,
             userId: jrCrmAssigneeId,
             department: LeadAssignmentDepartment.JR_CRM,
+          },
+        });
+      } else if (isSpecialistDesignConsultant) {
+        await tx.leadAssignment.create({
+          data: {
+            leadId: newLead.id,
+            userId: authResult.actorUserId,
+            department: LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
           },
         });
       }

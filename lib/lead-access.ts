@@ -1,4 +1,4 @@
-import { LeadAssignmentDepartment, LeadStage, Prisma } from '@/generated/prisma/client'
+import { ActivityType, LeadAssignmentDepartment, LeadStage, Prisma } from '@/generated/prisma/client'
 import { hasJrArchitectureLeadershipRole } from '@/lib/jr-architecture-roles'
 
 const SCOPED_DEPARTMENTS: LeadAssignmentDepartment[] = [
@@ -94,7 +94,17 @@ export function buildScopedLeadWhere(input: {
       assignments: {
         some: {
           userId: input.actorUserId,
-          department: LeadAssignmentDepartment.VISIT_TEAM,
+          department: {
+            in: [LeadAssignmentDepartment.VISIT_TEAM, LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS],
+          },
+        },
+      },
+    })
+    accessClauses.push({
+      activities: {
+        some: {
+          userId: input.actorUserId,
+          type: ActivityType.LEAD_CREATED,
         },
       },
     })

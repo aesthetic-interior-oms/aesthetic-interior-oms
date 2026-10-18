@@ -40,6 +40,32 @@ export default function PartialVisitQuotationPage() {
   const [error, setError] = useState<string | null>(null)
   const [lead, setLead] = useState<LeadDetail | null>(null)
 
+  const [updatingSubStatus, setUpdatingSubStatus] = useState(false)
+
+  const handleSubStatusChange = async (newSubStatus: string) => {
+    if (!leadId) return
+    setUpdatingSubStatus(true)
+    try {
+      const res = await fetch(`/api/lead/${leadId}/stage`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stage: 'PARTIAL_QUOTATION_PHASE',
+          subStatus: newSubStatus,
+          reason: 'Special Design Consultant updated substatus from quotation workspace.',
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setLead((prev) => (prev ? { ...prev, stage: 'PARTIAL_QUOTATION_PHASE', subStatus: newSubStatus } : null))
+      }
+    } catch {
+      // ignore
+    } finally {
+      setUpdatingSubStatus(false)
+    }
+  }
+
   useEffect(() => {
     const loadLead = async () => {
       if (!leadId) return
@@ -51,7 +77,24 @@ export default function PartialVisitQuotationPage() {
         if (!response.ok || !payload?.success || !payload?.data) {
           throw new Error(payload?.error ?? 'Failed to load lead')
         }
-        setLead(payload.data as LeadDetail)
+        const leadData = payload.data as LeadDetail
+        setLead(leadData)
+
+        // Automatically transition stage to PARTIAL_QUOTATION_PHASE if not already there
+        if (leadData.stage !== 'PARTIAL_QUOTATION_PHASE') {
+          void fetch(`/api/partial-quotation/${leadId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'start' }),
+          }).then(async (res) => {
+            const startData = await res.json()
+            if (startData.success) {
+              setLead((prev) =>
+                prev ? { ...prev, stage: 'PARTIAL_QUOTATION_PHASE', subStatus: 'QUOTATION_WORKING' } : null
+              )
+            }
+          }).catch((e) => console.error(e))
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load lead')
         setLead(null)
@@ -90,6 +133,39 @@ export default function PartialVisitQuotationPage() {
           </Card>
         ) : lead ? (
           <>
+            {/* Stage & Substatus Bar */}
+            <Card className="border-indigo-200/70 bg-gradient-to-r from-indigo-50/50 via-background to-white dark:from-indigo-950/20 dark:to-background shadow-xs">
+              <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Lead Stage:</span>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                    Partial Quotation
+                  </span>
+                  <span className="text-xs text-muted-foreground/60 hidden sm:inline">•</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Substatus:</span>
+                  <div className="relative inline-block">
+                    <select
+                      value={lead.subStatus ?? 'QUOTATION_WORKING'}
+                      disabled={updatingSubStatus}
+                      onChange={(e) => void handleSubStatusChange(e.target.value)}
+                      className="text-xs font-semibold rounded-md border border-indigo-300 dark:border-indigo-700 bg-background px-2.5 py-1 text-foreground shadow-xs hover:border-indigo-400 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="QUOTATION_WORKING">Quotation working</option>
+                      <option value="QUOTATION_COMPLETED">Quotation Complete</option>
+                      <option value="BUDGET_MEETING_SET">Budget meeting</option>
+                      <option value="FUTURE_CLIENT">Future Client</option>
+                    </select>
+                  </div>
+                  {updatingSubStatus && <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />}
+                </div>
+
+                <div className="text-xs text-muted-foreground flex items-center gap-3">
+                  {lead.phone && <span>Phone: <strong className="text-foreground">{lead.phone}</strong></span>}
+                  {lead.location && <span>Location: <strong className="text-foreground">{lead.location}</strong></span>}
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
