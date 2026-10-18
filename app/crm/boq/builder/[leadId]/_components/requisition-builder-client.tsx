@@ -63,6 +63,41 @@ const WORK_CATEGORIES: { key: RequisitionWorkCategory; label: string }[] = [
 
 const UOM_OPTIONS = ['Pcs', 'Nos', 'Sheets', 'Meters', 'RFT', 'Kg', 'Rolls', 'Pack', 'Boxes', 'Sets', 'Liters', 'Tube', 'Roll']
 
+/** Base material options for Wall Paneling Boards section */
+const BOARD_BASE_MATERIALS = [
+  'Garjon Plywood',
+  'Marine Plywood (Merin Ply)',
+  'Moisture Resistant (MR) Board',
+  'Commercial Plywood / Standard Ply',
+  'MDF (Medium Density Fiberboard)',
+  'WPC (Wood Plastic Composite)',
+]
+
+/** Laminate catalog for Wall Paneling Boards section (Solid shades + HPL brands) */
+const BOARD_LAMINATE_CATALOG = {
+  solidShades: [
+    'Beladoa Laminate',
+    'Airolam Laminate',
+    'Acrylic Finish',
+    'None (Raw)',
+    'Duco Paint',
+    'PU Paint',
+    'Melamine Finish',
+    'Veneer Finish',
+  ],
+  hplBrands: [
+    'Luxury 8193',
+    'Aromex 9904',
+    'Super 101',
+    'Super 111',
+    'Beladoa 2003',
+    'Airolam 903',
+    'Elegant A-7123',
+    'Elegant A-7112',
+    'Advance 14081',
+  ],
+}
+
 /** Special key used for materials not linked to any quotation line item */
 const EXTRA_KEY = '__extra__'
 
@@ -73,6 +108,7 @@ export interface BoardVariantAttributes {
   baseMaterial?: string
   laminateTopSurface?: string
   surfaceCodeFinish?: string
+  boardLaminateType?: 'SOLID' | 'HPL' | string
   sheetSize?: string
   functionalUsage?: string
   qtyLabel?: string
@@ -3023,15 +3059,13 @@ function MaterialRowsTable({
                       {String(ri + 1).padStart(2, '0')}
                     </td>
 
-                    {/* 2. Base Material */}
+                    {/* 2. Base Material — dropdown */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="base-material-list"
+                      <CabinetCombobox
                         value={attrs.baseMaterial || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'baseMaterial', e.target.value)}
-                        placeholder="Garjon Plywood"
-                        className={GRID_CELL_INPUT}
+                        onChange={(val) => onUpdateVariant(ri, 'baseMaterial', val)}
+                        options={BOARD_BASE_MATERIALS}
+                        placeholder="Select base material..."
                       />
                     </td>
 
@@ -3047,15 +3081,18 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 4. Laminate / Top Surface */}
+                    {/* 4. Laminate / Top Surface — Solid & HPL picker */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="laminate-surface-list"
+                      <LaminateFinishPicker
                         value={attrs.laminateTopSurface || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'laminateTopSurface', e.target.value)}
-                        placeholder="Beladoa Laminate"
-                        className={GRID_CELL_INPUT}
+                        finishType={attrs.boardLaminateType || 'SOLID'}
+                        solidShades={BOARD_LAMINATE_CATALOG.solidShades}
+                        hplBrands={BOARD_LAMINATE_CATALOG.hplBrands}
+                        onChange={(val, fType) => {
+                          onUpdateVariant(ri, 'laminateTopSurface', val)
+                          onUpdateVariant(ri, 'boardLaminateType', fType)
+                        }}
+                        placeholder="Select laminate / finish..."
                       />
                     </td>
 
