@@ -35,10 +35,12 @@ function generateShortQuotationCode(packageTier: string) {
 export function ShortQuotationLivePreview({
   context,
   contextId,
+  packageTier,
   autoDownload = false,
 }: {
   context: ShortPreviewContext
   contextId: string
+  packageTier?: string
   autoDownload?: boolean
 }) {
   const [payload, setPayload] = useState<ShortPreviewPayload | null>(null)
@@ -47,7 +49,7 @@ export function ShortQuotationLivePreview({
   const downloadedRef = useRef(false)
 
   const loadPayload = useCallback(async () => {
-    const cached = readShortPreview(context, contextId)
+    const cached = readShortPreview(context, contextId, packageTier)
     if (cached) {
       setPayload(cached)
       setLoading(false)
@@ -56,16 +58,18 @@ export function ShortQuotationLivePreview({
 
     if (context === 'lead') {
       try {
-        const response = await fetch(`/api/lead/${contextId}/quotation-draft?documentType=short`, { cache: 'no-store' })
+        const pkgParam = packageTier ? `&packageTier=${encodeURIComponent(packageTier)}` : ''
+        const response = await fetch(`/api/lead/${contextId}/quotation-draft?documentType=short${pkgParam}`, { cache: 'no-store' })
         const result = await response.json()
         if (response.ok && result?.success && result?.data) {
-          const source = result.data.draft ?? result.data.defaultShortDraft
+          const source = result.data.draft ?? result.data.defaultDraft ?? result.data.defaultShortDraft
           if (source?.content) {
             const content = normalizeShortQuotationContent(source.content)
             setPayload({
               updatedAt: new Date().toISOString(),
               context,
               contextId,
+              packageTier: content.packageTier,
               content,
             })
           }
@@ -78,12 +82,12 @@ export function ShortQuotationLivePreview({
     } else {
       setLoading(false)
     }
-  }, [context, contextId])
+  }, [context, contextId, packageTier])
 
   useEffect(() => {
     void loadPayload()
-    return subscribeShortPreview(context, contextId, () => void loadPayload())
-  }, [context, contextId, loadPayload])
+    return subscribeShortPreview(context, contextId, () => void loadPayload(), packageTier)
+  }, [context, contextId, loadPayload, packageTier])
 
   const handleDownloadPdf = useCallback(async (currentPayload: ShortPreviewPayload) => {
     setGeneratingPdf(true)

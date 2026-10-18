@@ -542,7 +542,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
           .filter((draft) => matchesBaseDraftKey(draft.draftKey, requestedDraftKey))
           .sort((first, second) => second.updatedAt.getTime() - first.updatedAt.getTime())
       : []
-    const selectedDraft = matchingRequestedDrafts[0] ?? visibleDrafts[0] ?? null
+    // CRITICAL FIX: When a specific draft key (e.g. short:platinum, short:luxury, detail:slot:2) is requested,
+    // only select the matching draft. Never fall back to visibleDrafts[0] (which may be a different package tier like short:premium),
+    // because that caused packages to mirror and overwrite each other.
+    const selectedDraft = requestedDraftKey
+      ? (matchingRequestedDrafts[0] ?? null)
+      : (visibleDrafts[0] ?? null)
 
     const availableSlots = [1, 2, 3].map((s) => {
       const bKey = s === 1 ? 'detail' : `detail:slot:${s}`
@@ -580,11 +585,32 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const sqftSummary = calculateLeadQuotationSqftSummary(visibleDrafts, 0)
 
     if (!selectedDraft) {
-      const shortContent = buildDefaultShortQuotationContent({
-        clientName: lead.name,
-        clientAddress: lead.location,
-        packageTier: requestedShortPackage,
-      })
+      let shortContent: ShortQuotationContent
+      // If requesting a short quotation tier that has not been saved yet,
+      // inherit rooms & floors from another existing short draft if available,
+      // so the user doesn't have to rebuild all rooms from scratch, BUT strictly set packageTier to requestedShortPackage.
+      const existingShortDraft = savedDrafts.find((d) => isShortQuotationContent(d.content))
+      if (requestedDocumentType === 'short' && existingShortDraft && isShortQuotationContent(existingShortDraft.content)) {
+        const baseNorm = normalizeShortQuotationContent(existingShortDraft.content as ShortQuotationContent)
+        shortContent = {
+          ...baseNorm,
+          packageTier: requestedShortPackage,
+          quotationCode: undefined,
+          downloadedAt: undefined,
+          floors: baseNorm.floors.map((f) => ({ ...f })),
+          rooms: baseNorm.rooms.map((r) => ({
+            ...r,
+            lines: r.lines.map((l) => ({ ...l })),
+          })),
+          footerNotes: [...baseNorm.footerNotes],
+        }
+      } else {
+        shortContent = buildDefaultShortQuotationContent({
+          clientName: lead.name,
+          clientAddress: lead.location,
+          packageTier: requestedShortPackage,
+        })
+      }
       const shortSummary = buildShortQuotationSummary(shortContent)
       const detailContent = buildDefaultQuotationContent({
         templateKey: requestedTemplateKey,
@@ -635,10 +661,22 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const documentType = resolveQuotationDocumentType(savedContent)
     const mergedTemplates = await getMergedQuotationTemplates()
 
+    let draftToReturn = selectedDraft
+    if (requestedDocumentType === 'short' && isShortQuotationContent(savedContent)) {
+      draftToReturn = {
+        ...selectedDraft,
+        quotationType: requestedShortPackage,
+        content: {
+          ...(savedContent as ShortQuotationContent),
+          packageTier: requestedShortPackage,
+        },
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
-        draft: serializeDraft(selectedDraft),
+        draft: serializeDraft(draftToReturn),
         documentType,
         defaultDraft: null,
         availableSlots,

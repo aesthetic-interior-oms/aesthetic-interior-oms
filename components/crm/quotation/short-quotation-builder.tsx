@@ -214,19 +214,20 @@ export function ShortQuotationBuilder({
     })
   }
 
-  const loadDraft = useCallback(async () => {
+  const loadDraft = useCallback(async (targetPackageTier?: ShortQuotationPackage) => {
+    const activeTier = targetPackageTier ?? selectedPackageTier
     setLoading(true)
     try {
       if (isPlayground) {
-        const stored = loadPlaygroundShortDraft(selectedPackageTier)
+        const stored = loadPlaygroundShortDraft(activeTier)
         if (stored) {
-          setContent(stored)
+          setContent(copyShortQuotationToPackage(stored, activeTier))
         } else {
           setContent(
             buildDefaultShortQuotationContent({
               clientName: leadName,
               clientAddress: leadLocation,
-              packageTier: selectedPackageTier,
+              packageTier: activeTier,
             }),
           )
         }
@@ -244,7 +245,7 @@ export function ShortQuotationBuilder({
       }
 
       const response = await fetch(
-        `/api/lead/${leadId}/quotation-draft?documentType=short&packageTier=${selectedPackageTier}`,
+        `/api/lead/${leadId}/quotation-draft?documentType=short&packageTier=${activeTier}`,
         { cache: 'no-store' },
       )
       const payload = await response.json()
@@ -272,15 +273,15 @@ export function ShortQuotationBuilder({
       const defaultContent = data.defaultDraft?.content
 
       if (draftContent && isShortQuotationContent(draftContent)) {
-        setContent(draftContent)
+        setContent(copyShortQuotationToPackage(draftContent, activeTier))
       } else if (defaultContent && isShortQuotationContent(defaultContent)) {
-        setContent(defaultContent)
+        setContent(copyShortQuotationToPackage(defaultContent, activeTier))
       } else {
         setContent(
           buildDefaultShortQuotationContent({
             clientName: leadName,
             clientAddress: leadLocation,
-            packageTier: selectedPackageTier,
+            packageTier: activeTier,
           }),
         )
       }
@@ -357,11 +358,12 @@ export function ShortQuotationBuilder({
         updatedAt: new Date().toISOString(),
         context: previewContext,
         contextId: previewContextId,
+        packageTier: selectedPackageTier,
         content,
       })
     }, 250)
     return () => window.clearTimeout(timer)
-  }, [content, previewContext, previewContextId])
+  }, [content, previewContext, previewContextId, selectedPackageTier])
 
   // Autocomplete state for client name
   const [nameQuery, setNameQuery] = useState('')
@@ -397,7 +399,7 @@ export function ShortQuotationBuilder({
 
   const saveDraft = useCallback(async (options?: { syncAllPackages?: boolean }) => {
     if (!content || !canEdit) return
-    const normalized = normalizeShortQuotationContent(content)
+    const normalized = copyShortQuotationToPackage(content, selectedPackageTier)
     const firstMissingLine = findFirstShortQuotationIssue(normalized)
     if (firstMissingLine) {
       const issue = firstMissingLine.line.isLumpSum
@@ -419,20 +421,21 @@ export function ShortQuotationBuilder({
 
     try {
       if (isPlayground) {
-        const packagesToSave = syncAllPackages ? SHORT_QUOTATION_PACKAGES : [normalized.packageTier]
+        const packagesToSave = syncAllPackages ? SHORT_QUOTATION_PACKAGES : [selectedPackageTier]
         packagesToSave.forEach((packageTier) => savePlaygroundShortDraft(copyShortQuotationToPackage(normalized, packageTier)))
         setContent(normalized)
         toast.success(syncAllPackages ? 'Saved the same quotation to all packages' : 'Saved to browser (playground only)')
         return
       }
 
-      const packagesToSave = syncAllPackages ? SHORT_QUOTATION_PACKAGES : [normalized.packageTier]
+      const packagesToSave = syncAllPackages ? SHORT_QUOTATION_PACKAGES : [selectedPackageTier]
       for (const packageTier of packagesToSave) {
         const contentForPackage = copyShortQuotationToPackage(normalized, packageTier)
         await persistShortQuotationContent(contentForPackage)
       }
       setContent(normalized)
-      toast.success(syncAllPackages ? 'Same quotation saved for Platinum, Premium, and Luxury' : 'Short quotation saved')
+      const tierTitle = selectedPackageTier.charAt(0) + selectedPackageTier.slice(1).toLowerCase()
+      toast.success(syncAllPackages ? 'Same quotation saved for Platinum, Premium, and Luxury' : `${tierTitle} short quotation saved`)
       onDraftSaved?.()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save quotation')
@@ -440,7 +443,7 @@ export function ShortQuotationBuilder({
       setSaving(false)
       setSavingAllPackages(false)
     }
-  }, [canEdit, content, isPlayground, persistShortQuotationContent, onDraftSaved])
+  }, [canEdit, content, isPlayground, persistShortQuotationContent, onDraftSaved, selectedPackageTier])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -688,6 +691,7 @@ export function ShortQuotationBuilder({
   const setPackageTier = (packageTier: ShortQuotationPackage) => {
     if (packageTier === selectedPackageTier) return
     setSelectedPackageTier(packageTier)
+    void loadDraft(packageTier)
   }
 
   const canStartWork =
@@ -739,6 +743,7 @@ export function ShortQuotationBuilder({
         updatedAt: downloadedAt,
         context: previewContext,
         contextId: previewContextId,
+        packageTier: selectedPackageTier,
         content: contentForDownload,
       })
 
@@ -771,10 +776,19 @@ export function ShortQuotationBuilder({
         updatedAt: new Date().toISOString(),
         context: previewContext,
         contextId: previewContextId,
+        packageTier: selectedPackageTier,
         content,
       })
     }
-    void window.open(buildShortPreviewUrl({ context: previewContext, contextId: previewContextId }), '_blank', 'noopener,noreferrer')
+    void window.open(
+      buildShortPreviewUrl({
+        context: previewContext,
+        contextId: previewContextId,
+        packageTier: selectedPackageTier,
+      }),
+      '_blank',
+      'noopener,noreferrer',
+    )
   }
   const addTaskbarRoom = () => {
     if (!taskbarFloorId) {
@@ -845,7 +859,7 @@ export function ShortQuotationBuilder({
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Package</p>
               <Select
-                value={content.packageTier}
+                value={selectedPackageTier}
                 onValueChange={(value) => setPackageTier(value as ShortQuotationPackage)}
               >
                 <SelectTrigger>
@@ -1029,7 +1043,7 @@ export function ShortQuotationBuilder({
             </Button>
             <Button type="button" disabled={!canEdit || saving || savingAllPackages} onClick={() => void saveDraft()}>
               <Save className="mr-2 h-4 w-4" />
-              {saving ? 'Saving...' : 'Save This Package'}
+              {saving ? 'Saving...' : `Save ${selectedPackageTier.charAt(0) + selectedPackageTier.slice(1).toLowerCase()}`}
             </Button>
             <Button
               type="button"
@@ -1195,7 +1209,7 @@ export function ShortQuotationBuilder({
           </Button>
           <Button type="button" size="sm" disabled={!canEdit || saving || savingAllPackages} onClick={() => void saveDraft()}>
             <Save className="mr-1.5 h-4 w-4" />
-            {saving ? 'Saving...' : 'Save'}
+            {saving ? 'Saving...' : `Save ${selectedPackageTier.charAt(0) + selectedPackageTier.slice(1).toLowerCase()}`}
           </Button>
           <Button type="button" size="sm" variant="outline" onClick={openLivePreviewTab}>
             <ExternalLink className="mr-1.5 h-4 w-4" />
