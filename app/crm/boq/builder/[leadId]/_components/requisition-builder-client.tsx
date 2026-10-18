@@ -142,21 +142,22 @@ export interface BoardVariantAttributes {
   applianceSubType?: string
 }
 
-/** 1. Core Structural Boards & Plywood Catalog Preset (BRD-001 - BRD-008) */
+/** 1. Boards Catalog Preset */
 const SAMPLE_WALL_PANEL_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'Starlight White Board',
+    materialName: 'Garjon Plywood',
     specifications: '12mm | Garjon Plywood | Beladoa Laminate | 2003 SMT (Super Matt)',
     variantAttributes: {
-      itemId: 'BRD-001',
-      coreThickness: '12mm',
       baseMaterial: 'Garjon Plywood',
+      coreThickness: '12mm',
       laminateTopSurface: 'Beladoa Laminate',
       surfaceCodeFinish: '2003 SMT (Super Matt)',
       sheetSize: "8' x 4'",
+      edgingTapeQty: '50 RFT',
       functionalUsage: 'Shutter / Exterior Cabinet',
       qtyLabel: '1',
+      wpSubType: 'CORE_BOARDS',
     },
     netQuantity: 1,
     wastagePercent: 0,
@@ -166,17 +167,18 @@ const SAMPLE_WALL_PANEL_ITEMS: RequisitionItemInput[] = [
   },
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'Airolam Cabinet Board',
+    materialName: 'Garjon Plywood',
     specifications: '12mm | Garjon Plywood | Airolam Laminate | 903 SMR (Suede Matt Finished)',
     variantAttributes: {
-      itemId: 'BRD-002',
-      coreThickness: '12mm',
       baseMaterial: 'Garjon Plywood',
+      coreThickness: '12mm',
       laminateTopSurface: 'Airolam Laminate',
       surfaceCodeFinish: '903 SMR (Suede Matt Finished)',
       sheetSize: "8' x 4'",
+      edgingTapeQty: '120 RFT',
       functionalUsage: 'Inner Box / Shelving',
       qtyLabel: '5',
+      wpSubType: 'CORE_BOARDS',
     },
     netQuantity: 5,
     wastagePercent: 0,
@@ -186,17 +188,18 @@ const SAMPLE_WALL_PANEL_ITEMS: RequisitionItemInput[] = [
   },
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'Structural Garjon Ply',
+    materialName: 'Garjon Plywood',
     specifications: '18mm | Garjon Plywood | None (Raw) | Raw Uncoated',
     variantAttributes: {
-      itemId: 'BRD-003',
-      coreThickness: '18mm',
       baseMaterial: 'Garjon Plywood',
+      coreThickness: '18mm',
       laminateTopSurface: 'None (Raw)',
       surfaceCodeFinish: 'Raw Uncoated',
       sheetSize: "8' x 4'",
+      edgingTapeQty: '40 RFT',
       functionalUsage: 'Heavy Load Frame / Base',
       qtyLabel: '2',
+      wpSubType: 'CORE_BOARDS',
     },
     netQuantity: 2,
     wastagePercent: 0,
@@ -206,17 +209,18 @@ const SAMPLE_WALL_PANEL_ITEMS: RequisitionItemInput[] = [
   },
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'Standard Core Ply',
+    materialName: 'Commercial Ply',
     specifications: '12mm | Commercial Ply | None (Raw) | Raw Uncoated',
     variantAttributes: {
-      itemId: 'BRD-004',
-      coreThickness: '12mm',
       baseMaterial: 'Commercial Ply',
+      coreThickness: '12mm',
       laminateTopSurface: 'None (Raw)',
       surfaceCodeFinish: 'Raw Uncoated',
       sheetSize: "8' x 4'",
+      edgingTapeQty: '80 RFT',
       functionalUsage: 'Backing Panel / Partition',
       qtyLabel: '4',
+      wpSubType: 'CORE_BOARDS',
     },
     netQuantity: 4,
     wastagePercent: 0,
@@ -226,17 +230,18 @@ const SAMPLE_WALL_PANEL_ITEMS: RequisitionItemInput[] = [
   },
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'Thin Liner Ply',
+    materialName: 'Commercial Ply',
     specifications: '6mm | Commercial Ply | None (Raw) | Raw Uncoated',
     variantAttributes: {
-      itemId: 'BRD-005',
-      coreThickness: '6mm',
       baseMaterial: 'Commercial Ply',
+      coreThickness: '6mm',
       laminateTopSurface: 'None (Raw)',
       surfaceCodeFinish: 'Raw Uncoated',
       sheetSize: "8' x 4'",
+      edgingTapeQty: '25 RFT',
       functionalUsage: 'Drawer Bottom / Backing',
       qtyLabel: '1',
+      wpSubType: 'CORE_BOARDS',
     },
     netQuantity: 1,
     wastagePercent: 0,
@@ -246,17 +251,18 @@ const SAMPLE_WALL_PANEL_ITEMS: RequisitionItemInput[] = [
   },
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'Heavy Duty Substrate',
+    materialName: 'Garjon Plywood',
     specifications: '25mm | Garjon Plywood | None (Raw) | Heavy Structural',
     variantAttributes: {
-      itemId: 'BRD-006 (Ext)',
-      coreThickness: '25mm',
       baseMaterial: 'Garjon Plywood',
+      coreThickness: '25mm',
       laminateTopSurface: 'None (Raw)',
       surfaceCodeFinish: 'Heavy Structural',
       sheetSize: "8' x 4'",
+      edgingTapeQty: 'Catalog',
       functionalUsage: 'Countertop Sub-base',
       qtyLabel: 'Catalog',
+      wpSubType: 'CORE_BOARDS',
     },
     netQuantity: 1,
     wastagePercent: 0,
@@ -266,17 +272,18 @@ const SAMPLE_WALL_PANEL_ITEMS: RequisitionItemInput[] = [
   },
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'Waterproof Board',
+    materialName: 'WPC (Wood Plastic)',
     specifications: '18mm | WPC (Wood Plastic) | None (Raw) | Water Resistant',
     variantAttributes: {
-      itemId: 'BRD-007 (Ext)',
-      coreThickness: '18mm',
       baseMaterial: 'WPC (Wood Plastic)',
+      coreThickness: '18mm',
       laminateTopSurface: 'None (Raw)',
       surfaceCodeFinish: 'Water Resistant',
       sheetSize: "8' x 4'",
+      edgingTapeQty: 'Catalog',
       functionalUsage: 'Sink Under-cabinet',
       qtyLabel: 'Catalog',
+      wpSubType: 'CORE_BOARDS',
     },
     netQuantity: 1,
     wastagePercent: 0,
@@ -286,17 +293,18 @@ const SAMPLE_WALL_PANEL_ITEMS: RequisitionItemInput[] = [
   },
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'High Gloss Panel',
+    materialName: 'MDF Core',
     specifications: '18mm | MDF Core | Acrylic Finish | HG Pure White',
     variantAttributes: {
-      itemId: 'BRD-008 (Ext)',
-      coreThickness: '18mm',
       baseMaterial: 'MDF Core',
+      coreThickness: '18mm',
       laminateTopSurface: 'Acrylic Finish',
       surfaceCodeFinish: 'HG Pure White',
       sheetSize: "8' x 4'",
+      edgingTapeQty: 'Catalog',
       functionalUsage: 'Modern Kitchen Fronts',
       qtyLabel: 'Catalog',
+      wpSubType: 'CORE_BOARDS',
     },
     netQuantity: 1,
     wastagePercent: 0,
@@ -306,20 +314,19 @@ const SAMPLE_WALL_PANEL_ITEMS: RequisitionItemInput[] = [
   },
 ]
 
-/** 2. Decorative Panels, Louvers & Edge Profiles Catalog Preset (LVR-001 - EDG-002) */
+/** 2. Decorative Panels Catalog Preset */
 const SAMPLE_LOUVER_PROFILE_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Charcoal Louver Panel',
-    specifications: 'Fluted Panel | Charcoal / WPC | Rose Gold Accent | Advance 14081',
+    specifications: 'Charcoal / WPC | Rose Gold Accent | Advance 14081',
     variantAttributes: {
-      itemId: 'LVR-001',
-      profileType: 'Fluted Panel',
       material: 'Charcoal / WPC',
       accentFinish: 'Rose Gold Accent',
       codeVariant: 'Advance 14081',
       primaryUsage: 'Feature Wall Accent',
       qtyLabel: '27',
+      wpSubType: 'LOUVERS_PROFILES',
     },
     netQuantity: 27,
     wastagePercent: 0,
@@ -330,15 +337,14 @@ const SAMPLE_LOUVER_PROFILE_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Rose Gold Charcoal Panel',
-    specifications: 'Fluted Panel | Charcoal / WPC | Rose Gold Line | Line Type A',
+    specifications: 'Charcoal / WPC | Rose Gold Line | Line Type A',
     variantAttributes: {
-      itemId: 'LVR-002',
-      profileType: 'Fluted Panel',
       material: 'Charcoal / WPC',
       accentFinish: 'Rose Gold Line',
       codeVariant: 'Line Type A',
       primaryUsage: 'Framing Accent',
       qtyLabel: '7',
+      wpSubType: 'LOUVERS_PROFILES',
     },
     netQuantity: 7,
     wastagePercent: 0,
@@ -349,15 +355,14 @@ const SAMPLE_LOUVER_PROFILE_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Rose Gold Charcoal Panel',
-    specifications: 'Fluted Panel | Charcoal / WPC | Rose Gold Line | Line Type B',
+    specifications: 'Charcoal / WPC | Rose Gold Line | Line Type B',
     variantAttributes: {
-      itemId: 'LVR-003',
-      profileType: 'Fluted Panel',
       material: 'Charcoal / WPC',
       accentFinish: 'Rose Gold Line',
       codeVariant: 'Line Type B',
       primaryUsage: 'Secondary Wall Panel',
       qtyLabel: '54',
+      wpSubType: 'LOUVERS_PROFILES',
     },
     netQuantity: 54,
     wastagePercent: 0,
@@ -368,15 +373,14 @@ const SAMPLE_LOUVER_PROFILE_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'T-Inlay Metallic Strip',
-    specifications: 'T-Profile Bit | Aluminum / Brass | Metallic Rose Gold | T-Bit 10mm',
+    specifications: 'Aluminum / Brass | Metallic Rose Gold | T-Bit 10mm',
     variantAttributes: {
-      itemId: 'TRM-001',
-      profileType: 'T-Profile Bit',
       material: 'Aluminum / Brass',
       accentFinish: 'Metallic Rose Gold',
       codeVariant: 'T-Bit 10mm',
       primaryUsage: 'Groove Accent Inlay',
       qtyLabel: '26',
+      wpSubType: 'LOUVERS_PROFILES',
     },
     netQuantity: 26,
     wastagePercent: 0,
@@ -387,15 +391,14 @@ const SAMPLE_LOUVER_PROFILE_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Heavy PVC Edge Band',
-    specifications: 'Tape Trim | PVC Plastic | Solid White / Grey | 3mm Thickness',
+    specifications: 'PVC Plastic | Solid White / Grey | 3mm Thickness',
     variantAttributes: {
-      itemId: 'EDG-001',
-      profileType: 'Tape Trim',
       material: 'PVC Plastic',
       accentFinish: 'Solid White / Grey',
       codeVariant: '3mm Thickness',
       primaryUsage: 'Board Edge Sealing',
       qtyLabel: '4',
+      wpSubType: 'LOUVERS_PROFILES',
     },
     netQuantity: 4,
     wastagePercent: 0,
@@ -406,15 +409,14 @@ const SAMPLE_LOUVER_PROFILE_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Standard PVC Edge Band',
-    specifications: 'Tape Trim | PVC Plastic | Solid White / Grey | 1mm Thickness',
+    specifications: 'PVC Plastic | Solid White / Grey | 1mm Thickness',
     variantAttributes: {
-      itemId: 'EDG-002 (Ext)',
-      profileType: 'Tape Trim',
       material: 'PVC Plastic',
       accentFinish: 'Solid White / Grey',
       codeVariant: '1mm Thickness',
       primaryUsage: 'Internal Shelving Edges',
       qtyLabel: 'Catalog',
+      wpSubType: 'LOUVERS_PROFILES',
     },
     netQuantity: 1,
     wastagePercent: 0,
@@ -424,20 +426,18 @@ const SAMPLE_LOUVER_PROFILE_ITEMS: RequisitionItemInput[] = [
   },
 ]
 
-/** 3. Screws & Structural Fasteners Catalog Preset (SCR-075 - SCR-250) */
+/** 3. Hardware ( Screw ) Catalog Preset */
 const SAMPLE_SCREW_FASTENER_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'Hardware Screw',
-    specifications: 'Wood Screw | 0.75" (3/4") | #6 Countered | Zinc Coated',
+    materialName: 'Screw',
+    specifications: '0.75" (3/4")',
     variantAttributes: {
-      itemId: 'SCR-075',
-      fastenerType: 'Wood Screw',
       lengthInches: '0.75" (3/4")',
-      gaugeSize: '#6 Countered',
-      materialFinish: 'Zinc Coated',
       usagePurpose: 'Hinges & Drawer Runners',
       qtyLabel: '300',
+      column1: 'Zinc Coated',
+      wpSubType: 'SCREWS_FASTENERS',
     },
     netQuantity: 300,
     wastagePercent: 0,
@@ -447,16 +447,14 @@ const SAMPLE_SCREW_FASTENER_ITEMS: RequisitionItemInput[] = [
   },
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'Medium Joinery Screw',
-    specifications: 'Wood Screw | 1.25" | #7 Countered | Black Phosphate',
+    materialName: 'Screw',
+    specifications: '1.25"',
     variantAttributes: {
-      itemId: 'SCR-125',
-      fastenerType: 'Wood Screw',
       lengthInches: '1.25"',
-      gaugeSize: '#7 Countered',
-      materialFinish: 'Black Phosphate',
       usagePurpose: 'Carcass Box Assembly',
       qtyLabel: '700',
+      column1: 'Black Phosphate',
+      wpSubType: 'SCREWS_FASTENERS',
     },
     netQuantity: 700,
     wastagePercent: 0,
@@ -466,16 +464,14 @@ const SAMPLE_SCREW_FASTENER_ITEMS: RequisitionItemInput[] = [
   },
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'Frame Joinery Screw',
-    specifications: 'Wood Screw | 1.50" | #8 Heavy | Zinc Coated',
+    materialName: 'Screw',
+    specifications: '1.50"',
     variantAttributes: {
-      itemId: 'SCR-150',
-      fastenerType: 'Wood Screw',
       lengthInches: '1.50"',
-      gaugeSize: '#8 Heavy',
-      materialFinish: 'Zinc Coated',
       usagePurpose: 'Wall Cabinet Mounting',
       qtyLabel: '400',
+      column1: 'Zinc Coated',
+      wpSubType: 'SCREWS_FASTENERS',
     },
     netQuantity: 400,
     wastagePercent: 0,
@@ -485,16 +481,14 @@ const SAMPLE_SCREW_FASTENER_ITEMS: RequisitionItemInput[] = [
   },
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'Anchor Screw',
-    specifications: 'Wood Screw | 2.00" | #8 Wall Plug | Steel',
+    materialName: 'Screw',
+    specifications: '2.00"',
     variantAttributes: {
-      itemId: 'SCR-200',
-      fastenerType: 'Wood Screw',
       lengthInches: '2.00"',
-      gaugeSize: '#8 Wall Plug',
-      materialFinish: 'Steel',
       usagePurpose: 'Frame Anchor / Wall',
       qtyLabel: '21',
+      column1: 'Steel',
+      wpSubType: 'SCREWS_FASTENERS',
     },
     netQuantity: 21,
     wastagePercent: 0,
@@ -504,16 +498,14 @@ const SAMPLE_SCREW_FASTENER_ITEMS: RequisitionItemInput[] = [
   },
   {
     workCategory: 'WALL_PANELING',
-    materialName: 'Deep Structural Screw',
-    specifications: 'Wood Screw | 2.50" | #10 Heavy Duty | Hardened Steel',
+    materialName: 'Screw',
+    specifications: '2.50"',
     variantAttributes: {
-      itemId: 'SCR-250',
-      fastenerType: 'Wood Screw',
       lengthInches: '2.50"',
-      gaugeSize: '#10 Heavy Duty',
-      materialFinish: 'Hardened Steel',
       usagePurpose: 'Heavy Wall Cleat / Base',
       qtyLabel: '300',
+      column1: 'Hardened Steel',
+      wpSubType: 'SCREWS_FASTENERS',
     },
     netQuantity: 300,
     wastagePercent: 0,
@@ -523,19 +515,18 @@ const SAMPLE_SCREW_FASTENER_ITEMS: RequisitionItemInput[] = [
   },
 ]
 
-/** 4. Nails, Pins & Masonry Anchors Catalog Preset (NAL-200 - PIN-002) */
+/** 4. Nails, Pins & Masonry Anchors Catalog Preset */
 const SAMPLE_NAIL_PIN_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Wire Nail (Tarkata)',
-    specifications: 'Wire Nail | 2.0" | Standard Gauge',
+    specifications: '2.0"',
     variantAttributes: {
-      itemId: 'NAL-200',
-      nailType: 'Wire Nail',
       lengthSpec: '2.0"',
-      thicknessSpec: 'Standard Gauge',
       functionalUsage: 'Frame Tacking',
       qtyLabel: '300',
+      column1: 'Standard Gauge',
+      wpSubType: 'NAILS_PINS',
     },
     netQuantity: 300,
     wastagePercent: 0,
@@ -546,14 +537,13 @@ const SAMPLE_NAIL_PIN_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Wood Nail Bulk',
-    specifications: 'Loose Nail | 1.25" | Fine Gauge',
+    specifications: '1.25"',
     variantAttributes: {
-      itemId: 'NAL-125',
-      nailType: 'Loose Nail',
       lengthSpec: '1.25"',
-      thicknessSpec: 'Fine Gauge',
       functionalUsage: 'Plywood Sub-frame',
       qtyLabel: '3',
+      column1: 'Fine Gauge',
+      wpSubType: 'NAILS_PINS',
     },
     netQuantity: 3,
     wastagePercent: 0,
@@ -564,14 +554,13 @@ const SAMPLE_NAIL_PIN_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Masonry Steel Nail',
-    specifications: 'Hardened Steel | 0.5" | Short Masonry',
+    specifications: '0.5"',
     variantAttributes: {
-      itemId: 'NAL-050',
-      nailType: 'Hardened Steel',
       lengthSpec: '0.5"',
-      thicknessSpec: 'Short Masonry',
       functionalUsage: 'Concrete Wall Fixing',
       qtyLabel: '1',
+      column1: 'Short Masonry',
+      wpSubType: 'NAILS_PINS',
     },
     netQuantity: 1,
     wastagePercent: 0,
@@ -582,14 +571,13 @@ const SAMPLE_NAIL_PIN_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Both Side Pin',
-    specifications: 'Double Head Pin | Standard | Clamping Pin',
+    specifications: 'Standard',
     variantAttributes: {
-      itemId: 'PIN-001',
-      nailType: 'Double Head Pin',
       lengthSpec: 'Standard',
-      thicknessSpec: 'Clamping Pin',
       functionalUsage: 'Laminate Holding',
       qtyLabel: '1',
+      column1: 'Clamping Pin',
+      wpSubType: 'NAILS_PINS',
     },
     netQuantity: 1,
     wastagePercent: 0,
@@ -600,14 +588,13 @@ const SAMPLE_NAIL_PIN_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'F30 Brad Nails',
-    specifications: 'Pneumatic Pin | 1.18" (30mm) | Gauge 18',
+    specifications: '1.18" (30mm)',
     variantAttributes: {
-      itemId: 'PIN-002 (Ext)',
-      nailType: 'Pneumatic Pin',
       lengthSpec: '1.18" (30mm)',
-      thicknessSpec: 'Gauge 18',
       functionalUsage: 'Nail Gun Finishing',
       qtyLabel: 'Catalog',
+      column1: 'Gauge 18',
+      wpSubType: 'NAILS_PINS',
     },
     netQuantity: 1,
     wastagePercent: 0,
@@ -617,18 +604,18 @@ const SAMPLE_NAIL_PIN_ITEMS: RequisitionItemInput[] = [
   },
 ]
 
-/** 5. Adhesives & Chemical Solvents Catalog Preset (ADH-001 - ADH-005) */
+/** 5. Adhesives & Chemical Solvents Catalog Preset */
 const SAMPLE_ADHESIVE_CHEMICAL_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Lichu Gum',
-    specifications: 'PVA Wood Adhesive | Cold Press Wood Joinery',
+    specifications: 'Cold Press Wood Joinery',
     variantAttributes: {
-      itemId: 'ADH-001',
-      chemicalClass: 'PVA Wood Adhesive',
       applicationMethod: 'Cold Press Wood Joinery',
       functionalUsage: 'Cold Press Wood Joinery',
       qtyLabel: '15',
+      column1: 'PVA Wood Adhesive',
+      wpSubType: 'ADHESIVES',
     },
     netQuantity: 15,
     wastagePercent: 0,
@@ -639,13 +626,13 @@ const SAMPLE_ADHESIVE_CHEMICAL_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Super Glue',
-    specifications: 'Cyanoacrylate | Instant Edge & Trim Bond',
+    specifications: 'Instant Edge & Trim Bond',
     variantAttributes: {
-      itemId: 'ADH-002',
-      chemicalClass: 'Cyanoacrylate',
       applicationMethod: 'Instant Edge & Trim Bond',
       functionalUsage: 'Instant Edge & Trim Bond',
       qtyLabel: '3',
+      column1: 'Cyanoacrylate',
+      wpSubType: 'ADHESIVES',
     },
     netQuantity: 3,
     wastagePercent: 0,
@@ -656,13 +643,13 @@ const SAMPLE_ADHESIVE_CHEMICAL_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Poli Solution Gum',
-    specifications: 'Contact Adhesive (Neoprene) | Manual Laminate Pressing',
+    specifications: 'Manual Laminate Pressing',
     variantAttributes: {
-      itemId: 'ADH-003',
-      chemicalClass: 'Contact Adhesive (Neoprene)',
       applicationMethod: 'Manual Laminate Pressing',
       functionalUsage: 'Manual Laminate Pressing',
       qtyLabel: '4',
+      column1: 'Contact Adhesive (Neoprene)',
+      wpSubType: 'ADHESIVES',
     },
     netQuantity: 4,
     wastagePercent: 0,
@@ -673,13 +660,13 @@ const SAMPLE_ADHESIVE_CHEMICAL_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Aika Gum',
-    specifications: 'Binding / Double Tape | Edge Fixing / Hold',
+    specifications: 'Edge Fixing / Hold',
     variantAttributes: {
-      itemId: 'ADH-004',
-      chemicalClass: 'Binding / Double Tape',
       applicationMethod: 'Edge Fixing / Hold',
       functionalUsage: 'Edge Fixing / Hold',
       qtyLabel: '1',
+      column1: 'Binding / Double Tape',
+      wpSubType: 'ADHESIVES',
     },
     netQuantity: 1,
     wastagePercent: 0,
@@ -690,13 +677,13 @@ const SAMPLE_ADHESIVE_CHEMICAL_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'WALL_PANELING',
     materialName: 'Silicone Sealant',
-    specifications: 'Neutral Cure Silicone | Sink / Marble Joint Sealing',
+    specifications: 'Sink / Marble Joint Sealing',
     variantAttributes: {
-      itemId: 'ADH-005 (Ext)',
-      chemicalClass: 'Neutral Cure Silicone',
       applicationMethod: 'Sink / Marble Joint Sealing',
       functionalUsage: 'Sink / Marble Joint Sealing',
       qtyLabel: 'Catalog',
+      column1: 'Neutral Cure Silicone',
+      wpSubType: 'ADHESIVES',
     },
     netQuantity: 1,
     wastagePercent: 0,
@@ -1541,9 +1528,9 @@ type ViewModeType =
   | 'STANDARD'
 
 const WALL_PANELING_SUBTYPES: { key: WallPanelingSubType; label: string; viewMode: ViewModeType }[] = [
-  { key: 'CORE_BOARDS',      label: '🪵 Core Structural Boards & Plywood',          viewMode: 'BOARD_SPEC'    },
-  { key: 'LOUVERS_PROFILES', label: '✨ Decorative Panels, Louvers & Edge Profiles', viewMode: 'LOUVER_SPEC'   },
-  { key: 'SCREWS_FASTENERS', label: '🔩 Screws & Structural Fasteners',             viewMode: 'SCREW_SPEC'    },
+  { key: 'CORE_BOARDS',      label: '🪵 Boards',                                    viewMode: 'BOARD_SPEC'    },
+  { key: 'LOUVERS_PROFILES', label: '✨ Decorative Panels',                         viewMode: 'LOUVER_SPEC'   },
+  { key: 'SCREWS_FASTENERS', label: '🔩 Hardware ( Screw )',                        viewMode: 'SCREW_SPEC'    },
   { key: 'NAILS_PINS',       label: '📌 Nails, Pins & Masonry Anchors',             viewMode: 'NAIL_SPEC'     },
   { key: 'ADHESIVES',        label: '🧪 Adhesives & Chemical Solvents',             viewMode: 'ADHESIVE_SPEC' },
 ]
@@ -1711,15 +1698,15 @@ function blankItem(
 
   switch (wallPanelingSubType) {
     case 'LOUVERS_PROFILES':
-      return { ...base, variantAttributes: { itemId: '', profileType: '', material: '', accentFinish: '', codeVariant: '', primaryUsage: '', qtyLabel: '1', wpSubType: 'LOUVERS_PROFILES' } }
+      return { ...base, variantAttributes: { material: '', accentFinish: '', codeVariant: '', primaryUsage: '', qtyLabel: '1', column1: '', wpSubType: 'LOUVERS_PROFILES' } }
     case 'SCREWS_FASTENERS':
-      return { ...base, variantAttributes: { itemId: '', fastenerType: '', lengthInches: '', gaugeSize: '', materialFinish: '', usagePurpose: '', qtyLabel: '1', wpSubType: 'SCREWS_FASTENERS' } }
+      return { ...base, materialName: 'Screw', unit: 'Pcs', variantAttributes: { lengthInches: '', usagePurpose: '', qtyLabel: '1', column1: '', wpSubType: 'SCREWS_FASTENERS' } }
     case 'NAILS_PINS':
-      return { ...base, variantAttributes: { itemId: '', nailType: '', lengthSpec: '', thicknessSpec: '', functionalUsage: '', qtyLabel: '1', wpSubType: 'NAILS_PINS' } }
+      return { ...base, unit: 'Pcs', variantAttributes: { lengthSpec: '', functionalUsage: '', qtyLabel: '1', column1: '', wpSubType: 'NAILS_PINS' } }
     case 'ADHESIVES':
-      return { ...base, variantAttributes: { itemId: '', chemicalClass: '', applicationMethod: '', qtyLabel: '1', wpSubType: 'ADHESIVES' } }
+      return { ...base, unit: 'Kg', variantAttributes: { applicationMethod: '', qtyLabel: '1', column1: '', wpSubType: 'ADHESIVES' } }
     default:
-      return { ...base, variantAttributes: { itemId: '', coreThickness: '', baseMaterial: '', laminateTopSurface: '', surfaceCodeFinish: '', sheetSize: "8' x 4'", functionalUsage: '', qtyLabel: '1', wpSubType: wallPanelingSubType ?? 'CORE_BOARDS' } }
+      return { ...base, unit: 'Pcs', variantAttributes: { baseMaterial: '', coreThickness: '12mm', laminateTopSurface: '', surfaceCodeFinish: '', sheetSize: "8' x 4'", edgingTapeQty: '', functionalUsage: '', qtyLabel: '1', wpSubType: wallPanelingSubType ?? 'CORE_BOARDS' } }
   }
 }
 
@@ -1809,93 +1796,88 @@ function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]
   if (viewMode === 'BOARD_SPEC') {
     return {
       color: [146, 64, 14],
-      head: ['Item ID', 'Item Name', 'Thickness', 'Base Material', 'Laminate / Top', 'Surface / Finish', 'Sheet', 'Qty', 'Usage'],
-      body: rows.map((item) => [
-        text(pdfAttr(item, 'itemId')),
-        text(item.materialName),
-        text(pdfAttr(item, 'coreThickness')),
+      head: ['SL NO', 'Base Material', 'Thickness', 'Laminate / Top', 'Surface / Finish', 'Sheet', 'Unit', 'Qty', 'Edging Tape Qty', 'Usage'],
+      body: rows.map((item, idx) => [
+        String(idx + 1).padStart(2, '0'),
         text(pdfAttr(item, 'baseMaterial')),
+        text(pdfAttr(item, 'coreThickness')),
         text(pdfAttr(item, 'laminateTopSurface')),
         text(pdfAttr(item, 'surfaceCodeFinish')),
         text(pdfAttr(item, 'sheetSize')),
+        text(item.unit),
         pdfQty(item),
+        text(pdfAttr(item, 'edgingTapeQty')),
         text(pdfAttr(item, 'functionalUsage') || item.productionPhase),
       ]),
-      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 42, fontStyle: 'bold' }, 2: { cellWidth: 22 }, 3: { cellWidth: 32 }, 4: { cellWidth: 36 }, 5: { cellWidth: 40 }, 6: { cellWidth: 20 }, 7: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 8: { cellWidth: 'auto' } },
+      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 1: { cellWidth: 36, fontStyle: 'bold' }, 2: { cellWidth: 20 }, 3: { cellWidth: 32 }, 4: { cellWidth: 34 }, 5: { cellWidth: 18 }, 6: { cellWidth: 14 }, 7: { cellWidth: 16, halign: 'right', fontStyle: 'bold' }, 8: { cellWidth: 26 }, 9: { cellWidth: 'auto' } },
     }
   }
 
   if (viewMode === 'LOUVER_SPEC') {
     return {
       color: [79, 70, 229],
-      head: ['Item ID', 'Item Name', 'Profile / Type', 'Material', 'Accent Finish', 'Code / Variant', 'Qty', 'Usage', 'Notes'],
-      body: rows.map((item) => [
-        text(pdfAttr(item, 'itemId')),
+      head: ['SL NO', 'Item Name', 'Material', 'Accent Finish', 'Code / Variant', 'Unit', 'Qty', 'Usage', 'Notes'],
+      body: rows.map((item, idx) => [
+        String(idx + 1).padStart(2, '0'),
         text(item.materialName),
-        text(pdfAttr(item, 'profileType')),
         text(pdfAttr(item, 'material')),
         text(pdfAttr(item, 'accentFinish')),
         text(pdfAttr(item, 'codeVariant')),
+        text(item.unit),
         pdfQty(item),
         text(pdfAttr(item, 'primaryUsage') || item.productionPhase),
         text(pdfAttr(item, 'column1') || item.remarks),
       ]),
-      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 40, fontStyle: 'bold' }, 2: { cellWidth: 30 }, 3: { cellWidth: 30 }, 4: { cellWidth: 32 }, 5: { cellWidth: 34 }, 6: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 44 }, 8: { cellWidth: 'auto' } },
+      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 1: { cellWidth: 42, fontStyle: 'bold' }, 2: { cellWidth: 32 }, 3: { cellWidth: 32 }, 4: { cellWidth: 34 }, 5: { cellWidth: 16 }, 6: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 44 }, 8: { cellWidth: 'auto' } },
     }
   }
 
   if (viewMode === 'SCREW_SPEC') {
     return {
       color: [180, 83, 9],
-      head: ['Item ID', 'Item Name', 'Fastener Type', 'Length', 'Gauge / Size', 'Finish', 'Qty', 'Usage', 'Notes'],
-      body: rows.map((item) => [
-        text(pdfAttr(item, 'itemId')),
-        text(item.materialName),
-        text(pdfAttr(item, 'fastenerType')),
+      head: ['SL NO', 'Length (Inches)', 'Unit', 'Qty', 'Usage Purpose', 'Notes'],
+      body: rows.map((item, idx) => [
+        String(idx + 1).padStart(2, '0'),
         text(pdfAttr(item, 'lengthInches')),
-        text(pdfAttr(item, 'gaugeSize')),
-        text(pdfAttr(item, 'materialFinish')),
+        text(item.unit),
         pdfQty(item),
         text(pdfAttr(item, 'usagePurpose') || item.productionPhase),
         text(pdfAttr(item, 'column1') || item.remarks),
       ]),
-      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 38, fontStyle: 'bold' }, 2: { cellWidth: 32 }, 3: { cellWidth: 22 }, 4: { cellWidth: 30 }, 5: { cellWidth: 34 }, 6: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 46 }, 8: { cellWidth: 'auto' } },
+      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 1: { cellWidth: 34, fontStyle: 'bold' }, 2: { cellWidth: 18 }, 3: { cellWidth: 20, halign: 'right', fontStyle: 'bold' }, 4: { cellWidth: 54 }, 5: { cellWidth: 'auto' } },
     }
   }
 
   if (viewMode === 'NAIL_SPEC') {
     return {
       color: [190, 18, 60],
-      head: ['Item ID', 'Item Name', 'Type', 'Length', 'Thickness / Spec', 'Unit Type', 'Qty', 'Usage', 'Notes'],
-      body: rows.map((item) => [
-        text(pdfAttr(item, 'itemId')),
+      head: ['SL NO', 'Item Name', 'Length', 'Unit', 'Qty', 'Usage', 'Notes'],
+      body: rows.map((item, idx) => [
+        String(idx + 1).padStart(2, '0'),
         text(item.materialName),
-        text(pdfAttr(item, 'nailType')),
         text(pdfAttr(item, 'lengthSpec')),
-        text(pdfAttr(item, 'thicknessSpec')),
         text(pdfAttr(item, 'unitType') || item.unit),
         pdfQty(item),
         text(pdfAttr(item, 'functionalUsage') || item.productionPhase),
         text(pdfAttr(item, 'column1') || item.remarks),
       ]),
-      columnStyles: { 0: { cellWidth: 18 }, 1: { cellWidth: 42, fontStyle: 'bold' }, 2: { cellWidth: 28 }, 3: { cellWidth: 24 }, 4: { cellWidth: 34 }, 5: { cellWidth: 24 }, 6: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 42 }, 8: { cellWidth: 'auto' } },
+      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 1: { cellWidth: 44, fontStyle: 'bold' }, 2: { cellWidth: 24 }, 3: { cellWidth: 20 }, 4: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 5: { cellWidth: 44 }, 6: { cellWidth: 'auto' } },
     }
   }
 
   if (viewMode === 'ADHESIVE_SPEC') {
     return {
       color: [5, 150, 105],
-      head: ['Item ID', 'Chemical Name', 'Class', 'Packaging Unit', 'Qty', 'Application Method', 'Notes'],
-      body: rows.map((item) => [
-        text(pdfAttr(item, 'itemId')),
+      head: ['SL NO', 'Chemical Name', 'Packaging Unit', 'Qty', 'Application Method', 'Notes'],
+      body: rows.map((item, idx) => [
+        String(idx + 1).padStart(2, '0'),
         text(item.materialName),
-        text(pdfAttr(item, 'chemicalClass')),
         text(pdfAttr(item, 'packagingUnit') || item.unit),
         pdfQty(item),
         text(pdfAttr(item, 'applicationMethod') || item.productionPhase),
         text(pdfAttr(item, 'column1') || item.remarks),
       ]),
-      columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 48, fontStyle: 'bold' }, 2: { cellWidth: 34 }, 3: { cellWidth: 30 }, 4: { cellWidth: 20, halign: 'right', fontStyle: 'bold' }, 5: { cellWidth: 58 }, 6: { cellWidth: 'auto' } },
+      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 1: { cellWidth: 50, fontStyle: 'bold' }, 2: { cellWidth: 32 }, 3: { cellWidth: 20, halign: 'right', fontStyle: 'bold' }, 4: { cellWidth: 60 }, 5: { cellWidth: 'auto' } },
     }
   }
 
@@ -3018,15 +3000,15 @@ function MaterialRowsTable({
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
             <thead className="bg-amber-500/10 border-b border-amber-500/20 text-amber-900 dark:text-amber-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-28`}>Item ID</th>
-                <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
-                <th className={`${GRID_TH} w-28`}>Core Thickness</th>
+                <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} min-w-[140px]`}>Base Material</th>
+                <th className={`${GRID_TH} w-28`}>Core Thickness</th>
                 <th className={`${GRID_TH} min-w-[150px]`}>Laminate / Top Surface</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Surface Code / Finish</th>
                 <th className={`${GRID_TH} w-28 text-center`}>Sheet Size</th>
                 <th className={`${GRID_TH} w-20`}>Unit</th>
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
+                <th className={`${GRID_TH} min-w-[130px]`}>Edging Tape Qty</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Functional Usage</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
@@ -3036,26 +3018,20 @@ function MaterialRowsTable({
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
-                    {/* 1. Item ID */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="item-id-list"
-                        value={attrs.itemId || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
-                        placeholder="BRD-001"
-                        className={GRID_CELL_MONO}
-                      />
+                    {/* 1. SL NO */}
+                    <td className={`${GRID_TD} text-center font-mono text-xs text-muted-foreground`}>
+                      {String(ri + 1).padStart(2, '0')}
                     </td>
 
-                    {/* 2. Item Name */}
+                    {/* 2. Base Material */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
-                        value={item.materialName}
-                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
-                        placeholder="e.g. Starlight White Board"
-                        className={GRID_CELL_BOLD}
+                        list="base-material-list"
+                        value={attrs.baseMaterial || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'baseMaterial', e.target.value)}
+                        placeholder="Garjon Plywood"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
@@ -3071,19 +3047,7 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 4. Base Material */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="base-material-list"
-                        value={attrs.baseMaterial || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'baseMaterial', e.target.value)}
-                        placeholder="Garjon Plywood"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 5. Laminate / Top Surface */}
+                    {/* 4. Laminate / Top Surface */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3095,7 +3059,7 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 6. Surface Code / Finish */}
+                    {/* 5. Surface Code / Finish */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3107,7 +3071,7 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 7. Sheet Size (Std) */}
+                    {/* 6. Sheet Size (Std) */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3119,7 +3083,7 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 8. Unit */}
+                    {/* 7. Unit */}
                     <td className={GRID_TD}>
                       <select
                         value={item.unit}
@@ -3134,7 +3098,7 @@ function MaterialRowsTable({
                       </select>
                     </td>
 
-                    {/* 9. Quantity */}
+                    {/* 8. Quantity */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3149,6 +3113,17 @@ function MaterialRowsTable({
                         }}
                         placeholder="1 or Catalog"
                         className={GRID_CELL_NUM}
+                      />
+                    </td>
+
+                    {/* 9. Edging Tape Qty */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.edgingTapeQty || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'edgingTapeQty', e.target.value)}
+                        placeholder="e.g. 10m"
+                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
@@ -3189,9 +3164,8 @@ function MaterialRowsTable({
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
             <thead className="bg-indigo-500/10 border-b border-indigo-500/20 text-indigo-900 dark:text-indigo-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-28`}>Item ID</th>
+                <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
-                <th className={`${GRID_TH} min-w-[130px]`}>Profile / Type</th>
                 <th className={`${GRID_TH} min-w-[130px]`}>Material</th>
                 <th className={`${GRID_TH} min-w-[140px]`}>Accent Finish</th>
                 <th className={`${GRID_TH} min-w-[140px]`}>Code / Variant</th>
@@ -3207,16 +3181,9 @@ function MaterialRowsTable({
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
-                    {/* 1. Item ID */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="item-id-list"
-                        value={attrs.itemId || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
-                        placeholder="LVR-001"
-                        className={GRID_CELL_MONO}
-                      />
+                    {/* 1. SL NO */}
+                    <td className={`${GRID_TD} text-center font-mono text-xs text-muted-foreground`}>
+                      {String(ri + 1).padStart(2, '0')}
                     </td>
 
                     {/* 2. Item Name */}
@@ -3230,19 +3197,7 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 3. Profile/Type */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="profile-type-list"
-                        value={attrs.profileType || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'profileType', e.target.value)}
-                        placeholder="Fluted Panel"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 4. Material */}
+                    {/* 3. Material */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3359,12 +3314,8 @@ function MaterialRowsTable({
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
             <thead className="bg-amber-600/10 border-b border-amber-600/20 text-amber-950 dark:text-amber-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-28`}>Item ID</th>
-                <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
-                <th className={`${GRID_TH} min-w-[130px]`}>Fastener Type</th>
+                <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} w-28`}>Length (Inches)</th>
-                <th className={`${GRID_TH} min-w-[130px]`}>Gauge / Size</th>
-                <th className={`${GRID_TH} min-w-[140px]`}>Material / Finish</th>
                 <th className={`${GRID_TH} w-20`}>Unit</th>
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Usage Purpose</th>
@@ -3377,42 +3328,12 @@ function MaterialRowsTable({
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
-                    {/* 1. Item ID */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="item-id-list"
-                        value={attrs.itemId || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
-                        placeholder="SCR-075"
-                        className={GRID_CELL_MONO}
-                      />
+                    {/* 1. SL NO */}
+                    <td className={`${GRID_TD} text-center font-mono text-xs text-muted-foreground`}>
+                      {String(ri + 1).padStart(2, '0')}
                     </td>
 
-                    {/* 2. Item Name */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={item.materialName}
-                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
-                        placeholder="e.g. Hardware Screw"
-                        className={GRID_CELL_BOLD}
-                      />
-                    </td>
-
-                    {/* 3. Fastener Type */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="fastener-type-list"
-                        value={attrs.fastenerType || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'fastenerType', e.target.value)}
-                        placeholder="Wood Screw"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 4. Length (Inches) */}
+                    {/* 2. Length (Inches) */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3424,31 +3345,7 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 5. Gauge / Size */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="gauge-size-list"
-                        value={attrs.gaugeSize || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'gaugeSize', e.target.value)}
-                        placeholder="#6 Countered"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 6. Material / Finish */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="fastener-finish-list"
-                        value={attrs.materialFinish || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'materialFinish', e.target.value)}
-                        placeholder="Zinc Coated"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 7. Unit */}
+                    {/* 3. Unit */}
                     <td className={GRID_TD}>
                       <select
                         value={item.unit}
@@ -3463,7 +3360,7 @@ function MaterialRowsTable({
                       </select>
                     </td>
 
-                    {/* 8. Quantity */}
+                    {/* 4. Quantity */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3481,7 +3378,7 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 9. Usage Purpose */}
+                    {/* 5. Usage Purpose */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3496,7 +3393,7 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 10. Notes / Column 1 */}
+                    {/* 6. Notes / Column 1 */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3529,11 +3426,9 @@ function MaterialRowsTable({
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
             <thead className="bg-rose-500/10 border-b border-rose-500/20 text-rose-900 dark:text-rose-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-28`}>Item ID</th>
+                <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
-                <th className={`${GRID_TH} min-w-[130px]`}>Type</th>
                 <th className={`${GRID_TH} w-28`}>Length</th>
-                <th className={`${GRID_TH} min-w-[130px]`}>Thickness / Spec</th>
                 <th className={`${GRID_TH} w-20`}>Unit Type</th>
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Functional Usage</th>
@@ -3546,16 +3441,9 @@ function MaterialRowsTable({
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
-                    {/* 1. Item ID */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="item-id-list"
-                        value={attrs.itemId || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
-                        placeholder="NAL-200"
-                        className={GRID_CELL_MONO}
-                      />
+                    {/* 1. SL NO */}
+                    <td className={`${GRID_TD} text-center font-mono text-xs text-muted-foreground`}>
+                      {String(ri + 1).padStart(2, '0')}
                     </td>
 
                     {/* 2. Item Name */}
@@ -3569,36 +3457,13 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 3. Type */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="nail-type-list"
-                        value={attrs.nailType || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'nailType', e.target.value)}
-                        placeholder="Wire Nail"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 4. Length */}
+                    {/* 3. Length */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
                         value={attrs.lengthSpec || ''}
                         onChange={(e) => onUpdateVariant(ri, 'lengthSpec', e.target.value)}
                         placeholder='2.0"'
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 5. Thickness / Spec */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.thicknessSpec || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'thicknessSpec', e.target.value)}
-                        placeholder="Standard Gauge"
                         className={GRID_CELL_INPUT}
                       />
                     </td>
@@ -3684,9 +3549,8 @@ function MaterialRowsTable({
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
             <thead className="bg-emerald-500/10 border-b border-emerald-500/20 text-emerald-900 dark:text-emerald-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-28`}>Item ID</th>
+                <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Chemical Name</th>
-                <th className={`${GRID_TH} min-w-[150px]`}>Chemical Class</th>
                 <th className={`${GRID_TH} w-24`}>Packaging Unit</th>
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
                 <th className={`${GRID_TH} min-w-[180px]`}>Application Method</th>
@@ -3699,16 +3563,9 @@ function MaterialRowsTable({
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
-                    {/* 1. Item ID */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="item-id-list"
-                        value={attrs.itemId || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'itemId', e.target.value)}
-                        placeholder="ADH-001"
-                        className={GRID_CELL_MONO}
-                      />
+                    {/* 1. SL NO */}
+                    <td className={`${GRID_TD} text-center font-mono text-xs text-muted-foreground`}>
+                      {String(ri + 1).padStart(2, '0')}
                     </td>
 
                     {/* 2. Chemical Name (Material Name) */}
@@ -3722,19 +3579,7 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 3. Chemical Class */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="chemical-class-list"
-                        value={attrs.chemicalClass || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'chemicalClass', e.target.value)}
-                        placeholder="PVA Wood Adhesive"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 4. Packaging Unit */}
+                    {/* 3. Packaging Unit */}
                     <td className={GRID_TD}>
                       <select
                         value={item.unit}
