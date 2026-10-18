@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -2500,11 +2501,31 @@ function CabinetCombobox({
   className?: string
 }) {
   const [isOpen, setIsOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
+  const triggerRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const openDropdown = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 160),
+        zIndex: 9999,
+      })
+    }
+    setIsOpen(true)
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setIsOpen(false)
       }
     }
@@ -2514,19 +2535,31 @@ function CabinetCombobox({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
+  // Close on scroll/resize so it doesn't drift
+  useEffect(() => {
+    if (!isOpen) return
+    const close = () => setIsOpen(false)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [isOpen])
+
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={triggerRef} className="relative w-full">
       <div className="relative flex items-center">
         <input
           type="text"
           value={value || ''}
           onChange={(e) => {
             onChange(e.target.value)
-            setIsOpen(true)
+            openDropdown()
           }}
           onFocus={(e) => {
             e.target.select()
-            setIsOpen(true)
+            openDropdown()
           }}
           placeholder={placeholder}
           className={`${className || GRID_CELL_INPUT} pr-5`}
@@ -2534,7 +2567,7 @@ function CabinetCombobox({
         <button
           type="button"
           tabIndex={-1}
-          onClick={() => setIsOpen((prev) => !prev)}
+          onClick={() => isOpen ? setIsOpen(false) : openDropdown()}
           className="absolute right-1 text-muted-foreground/40 hover:text-foreground p-0.5"
           title="Open dropdown"
         >
@@ -2542,13 +2575,18 @@ function CabinetCombobox({
         </button>
       </div>
 
-      {isOpen && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[140px] w-full rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-lg backdrop-blur-md">
+      {isOpen && typeof window !== 'undefined' && createPortal(
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-xl"
+        >
           <div className="max-h-48 overflow-y-auto">
             {options.map((opt) => (
               <button
                 key={opt}
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   onChange(opt)
                   setIsOpen(false)
@@ -2562,7 +2600,8 @@ function CabinetCombobox({
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -2589,13 +2628,33 @@ function LaminateFinishPicker({
   placeholder?: string
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
   const isInitialHpl = finishType === 'HPL' || hplBrands.includes(value)
   const [activeTab, setActiveTab] = useState<'SOLID' | 'HPL'>(isInitialHpl ? 'HPL' : 'SOLID')
-  const containerRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const openDropdown = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: 280,
+        zIndex: 9999,
+      })
+    }
+    setIsOpen(true)
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
         setIsOpen(false)
       }
     }
@@ -2605,10 +2664,22 @@ function LaminateFinishPicker({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
+  // Close on scroll/resize so it doesn't drift
+  useEffect(() => {
+    if (!isOpen) return
+    const close = () => setIsOpen(false)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [isOpen])
+
   const currentIsHpl = finishType === 'HPL' || hplBrands.includes(value)
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={triggerRef} className="relative w-full">
       <div className="relative flex items-center">
         {/* Toggle badge button */}
         <button
@@ -2617,7 +2688,7 @@ function LaminateFinishPicker({
           onClick={() => {
             const nextType = currentIsHpl ? 'SOLID' : 'HPL'
             setActiveTab(nextType)
-            setIsOpen(true)
+            openDropdown()
           }}
           className={`shrink-0 ml-1 px-1 py-0.5 rounded text-[10px] font-bold tracking-tight uppercase transition-colors ${
             currentIsHpl
@@ -2636,11 +2707,11 @@ function LaminateFinishPicker({
             const val = e.target.value
             const detectedHpl = hplBrands.includes(val) || activeTab === 'HPL'
             onChange(val, detectedHpl ? 'HPL' : 'SOLID')
-            setIsOpen(true)
+            openDropdown()
           }}
           onFocus={(e) => {
             e.target.select()
-            setIsOpen(true)
+            openDropdown()
           }}
           placeholder={placeholder}
           className={`${GRID_CELL_INPUT} pl-1.5 pr-5`}
@@ -2649,7 +2720,7 @@ function LaminateFinishPicker({
         <button
           type="button"
           tabIndex={-1}
-          onClick={() => setIsOpen((prev) => !prev)}
+          onClick={() => isOpen ? setIsOpen(false) : openDropdown()}
           className="absolute right-1 text-muted-foreground/40 hover:text-foreground p-0.5"
           title="Open finish options"
         >
@@ -2657,12 +2728,17 @@ function LaminateFinishPicker({
         </button>
       </div>
 
-      {isOpen && (
-        <div className="absolute left-0 top-full z-50 mt-1 min-w-[240px] w-max max-w-[320px] rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-xl backdrop-blur-md">
+      {isOpen && typeof window !== 'undefined' && createPortal(
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-xl"
+        >
           {/* Tabs */}
           <div className="grid grid-cols-2 gap-1 p-0.5 bg-muted/60 rounded-md mb-1.5">
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setActiveTab('SOLID')}
               className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors ${
                 activeTab === 'SOLID'
@@ -2674,6 +2750,7 @@ function LaminateFinishPicker({
             </button>
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => setActiveTab('HPL')}
               className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors ${
                 activeTab === 'HPL'
@@ -2696,6 +2773,7 @@ function LaminateFinishPicker({
                   <button
                     key={shade}
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       onChange(shade, 'SOLID')
                       setIsOpen(false)
@@ -2718,6 +2796,7 @@ function LaminateFinishPicker({
                   <button
                     key={brand}
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       onChange(brand, 'HPL')
                       setIsOpen(false)
@@ -2740,6 +2819,7 @@ function LaminateFinishPicker({
                 </div>
                 <button
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     onChange('Same as Front (Both Side)', 'SOLID')
                     setIsOpen(false)
@@ -2750,6 +2830,7 @@ function LaminateFinishPicker({
                 </button>
                 <button
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     onChange('Single Side Liner', 'SOLID')
                     setIsOpen(false)
@@ -2767,6 +2848,7 @@ function LaminateFinishPicker({
             <div className="pt-1 mt-1 border-t border-border/40 flex justify-end">
               <button
                 type="button"
+                onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
                   onChange('', 'SOLID')
                   setIsOpen(false)
@@ -2777,7 +2859,8 @@ function LaminateFinishPicker({
               </button>
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
