@@ -5164,7 +5164,14 @@ export function RequisitionBuilderClient({
           quotationLineItemId,
           variantAttributes: { ...(item.variantAttributes || {}), applianceSubType },
         }))
-      : [blankItem(category, wallPanelingSubType, cabinetSubType, accessoriesSubType, applianceSubType, quotationLineItemId)]
+      : (() => {
+          const item = blankItem(category, wallPanelingSubType, cabinetSubType, accessoriesSubType, applianceSubType, quotationLineItemId)
+          // Auto-set srNo '1' for first cabinet row
+          if (category === 'CABINETS_CLOSETS') {
+            item.variantAttributes = { ...item.variantAttributes, srNo: '1', lineNo: '1' }
+          }
+          return [item]
+        })()
 
     setSectionsMap((prev) => ({
       ...prev,
@@ -5175,6 +5182,7 @@ export function RequisitionBuilderClient({
       [sectionItemKey(cardKey, sectionId)]: initialRows,
     }))
   }
+
 
   const removeSection = (cardKey: string, sectionId: string) => {
     setSectionsMap((prev) => ({
@@ -5233,21 +5241,25 @@ export function RequisitionBuilderClient({
   const addRow = (cardKey: string, sectionId: string, quotationLineItemId?: string) => {
     const sectionInfo = (sectionsMap[cardKey] ?? []).find((s) => s.id === sectionId)
     const key = sectionItemKey(cardKey, sectionId)
-    setItemsMap((prev) => ({
-      ...prev,
-      [key]: [
-        ...(prev[key] ?? []),
-        blankItem(
-          sectionInfo?.category ?? 'WALL_PANELING',
-          sectionInfo?.wallPanelingSubType,
-          sectionInfo?.cabinetSubType,
-          sectionInfo?.accessoriesSubType,
-          sectionInfo?.applianceSubType,
-          quotationLineItemId
-        ),
-      ],
-    }))
+    setItemsMap((prev) => {
+      const existingRows = prev[key] ?? []
+      const newItem = blankItem(
+        sectionInfo?.category ?? 'WALL_PANELING',
+        sectionInfo?.wallPanelingSubType,
+        sectionInfo?.cabinetSubType,
+        sectionInfo?.accessoriesSubType,
+        sectionInfo?.applianceSubType,
+        quotationLineItemId
+      )
+      // Auto-increment srNo for cabinet rows
+      if (sectionInfo?.category === 'CABINETS_CLOSETS') {
+        const nextSrNo = String(existingRows.length + 1)
+        newItem.variantAttributes = { ...newItem.variantAttributes, srNo: nextSrNo, lineNo: nextSrNo }
+      }
+      return { ...prev, [key]: [...existingRows, newItem] }
+    })
   }
+
 
   const removeRow = (cardKey: string, sectionId: string, rowIndex: number) => {
     const key = sectionItemKey(cardKey, sectionId)
