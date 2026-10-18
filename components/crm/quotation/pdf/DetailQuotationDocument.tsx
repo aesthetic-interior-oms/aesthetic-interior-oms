@@ -834,6 +834,40 @@ export function DetailQuotationDocument({
           </>
         )}
 
+        {content.terms ? (
+          <View style={{ marginTop: 12 }}>
+            <Text style={styles.sectionTitle}>Terms &amp; Conditions</Text>
+            <View style={{ marginTop: 6 }}>
+              {content.terms
+                .split('\n')
+                .filter((line) => line.trim().length > 0)
+                .map((line, index) => {
+                  const colonIndex = line.indexOf(':')
+                  let header = ''
+                  let body = line.trim()
+                  if (colonIndex > 0 && colonIndex < 35) {
+                    header = line.slice(0, colonIndex + 1).trim()
+                    body = line.slice(colonIndex + 1).trim()
+                  }
+                  return (
+                    <View key={index} style={{ marginTop: index > 0 ? 3 : 0 }}>
+                      {header ? (
+                        <Text style={{ fontSize: 8.5, lineHeight: 1.35, color: '#333333' }}>
+                          <Text style={[styles.bold, { color: PRIMARY }]}>{header} </Text>
+                          {softWrapPdfText(body)}
+                        </Text>
+                      ) : (
+                        <Text style={{ fontSize: 8.5, lineHeight: 1.35, color: '#444444' }}>
+                          {softWrapPdfText(body)}
+                        </Text>
+                      )}
+                    </View>
+                  )
+                })}
+            </View>
+          </View>
+        ) : null}
+
         <FooterFixed content={content} />
       </Page>
 
@@ -1010,20 +1044,6 @@ export function DetailQuotationDocument({
             <View style={{ marginBottom: 8 }}>
               <Text style={styles.termTitle}>Notes</Text>
               {content.notes
-                .split('\n')
-                .filter((line) => line.trim().length > 0)
-                .map((line, index) => (
-                  <Text key={index} style={[styles.termContent, { marginTop: index > 0 ? 2 : 0 }]}>
-                    {softWrapPdfText(line.trim())}
-                  </Text>
-                ))}
-            </View>
-          ) : null}
-
-          {content.terms ? (
-            <View style={{ marginBottom: 8 }}>
-              <Text style={styles.termTitle}>Terms &amp; Conditions</Text>
-              {content.terms
                 .split('\n')
                 .filter((line) => line.trim().length > 0)
                 .map((line, index) => (

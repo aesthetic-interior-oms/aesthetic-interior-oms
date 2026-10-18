@@ -320,6 +320,32 @@ export function DetailQuotationPreview({
           <span className="font-bold">{amountInWordsTaka(totals.grandTotal)}</span>
         </p>
 
+        {normalized.terms ? (
+          <div className="mt-4">
+            <SectionTitle>Terms &amp; Conditions</SectionTitle>
+            <div className="mt-2 space-y-1 text-[8.5px] leading-relaxed text-neutral-700">
+              {normalized.terms
+                .split('\n')
+                .filter((l) => l.trim().length > 0)
+                .map((line, idx) => {
+                  const colonIndex = line.indexOf(':')
+                  let header = ''
+                  let body = line.trim()
+                  if (colonIndex > 0 && colonIndex < 35) {
+                    header = line.slice(0, colonIndex + 1).trim()
+                    body = line.slice(colonIndex + 1).trim()
+                  }
+                  return (
+                    <p key={idx}>
+                      {header ? <span className="font-bold text-neutral-900">{header} </span> : null}
+                      <span>{body}</span>
+                    </p>
+                  )
+                })}
+            </div>
+          </div>
+        ) : null}
+
         {/* Footer pinned to bottom */}
         <div className="absolute bottom-5 left-[7px] right-[7px]">
           <PageFooter content={content} />
@@ -473,13 +499,6 @@ export function DetailQuotationPreview({
             <div>
               <p className="font-bold uppercase text-[11px] mb-1" style={{ color: PRIMARY }}>Notes</p>
               <p className="text-neutral-600 whitespace-pre-wrap leading-relaxed">{normalized.notes}</p>
-            </div>
-          ) : null}
-
-          {normalized.terms ? (
-            <div>
-              <p className="font-bold uppercase text-[11px] mb-1" style={{ color: PRIMARY }}>Terms &amp; Conditions</p>
-              <p className="text-neutral-600 whitespace-pre-wrap leading-relaxed">{normalized.terms}</p>
             </div>
           ) : null}
 
