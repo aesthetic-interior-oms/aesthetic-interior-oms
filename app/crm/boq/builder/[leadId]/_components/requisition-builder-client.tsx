@@ -139,7 +139,8 @@ export interface BoardVariantAttributes {
   baseMaterial?: string
   laminateTopSurface?: string
   surfaceCodeFinish?: string
-  boardLaminateType?: 'SOLID' | 'HPL' | string
+  boardLaminateType?: 'SOLID' | 'HPL' | 'PRELAMINATED' | 'DUCO' | string
+  boardBackLaminateType?: 'SOLID' | 'HPL' | 'PRELAMINATED' | 'DUCO' | string
   sheetSize?: string
   functionalUsage?: string
   qtyLabel?: string
@@ -184,9 +185,9 @@ export interface BoardVariantAttributes {
   edgingTapeQty?: string
   coreSubstrateType?: string
   frontLaminateCode?: string
-  frontLaminateType?: 'SOLID' | 'HPL' | string
+  frontLaminateType?: 'SOLID' | 'HPL' | 'PRELAMINATED' | 'DUCO' | string
   backLaminateCode?: string
-  backLaminateType?: 'SOLID' | 'HPL' | string
+  backLaminateType?: 'SOLID' | 'HPL' | 'PRELAMINATED' | 'DUCO' | string
   cabinetSubType?: string
 
   // ── Accessories & Hardware attributes ──
@@ -2684,28 +2685,35 @@ function CabinetCombobox({
 
 /* ─────────────────────────────────────────────
    Sub-component: Dedicated Laminate & HPL Finish Picker
+   Tabs: PRELAMINATED | HPL | DUCO
 ───────────────────────────────────────────── */
+const PRELAMINATED_OPTIONS = ['Champaign Gold', 'Elegent', 'Starlight']
+const DUCO_PAINT_OPTIONS = ['Glossy', 'Soft matt']
+
 function LaminateFinishPicker({
   value,
   finishType,
   onChange,
-  solidShades = DEFAULT_CABINET_CATALOG.solidShades,
   hplBrands = DEFAULT_CABINET_CATALOG.hplBrands,
   isBack = false,
   placeholder = 'Select finish...',
 }: {
   value: string
-  finishType?: 'SOLID' | 'HPL' | string
-  onChange: (val: string, finishType: 'SOLID' | 'HPL') => void
-  solidShades?: string[]
+  finishType?: 'PRELAMINATED' | 'HPL' | 'DUCO' | 'SOLID' | string
+  onChange: (val: string, finishType: 'PRELAMINATED' | 'HPL' | 'DUCO') => void
   hplBrands?: string[]
   isBack?: boolean
   placeholder?: string
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
-  const isInitialHpl = finishType === 'HPL' || hplBrands.includes(value)
-  const [activeTab, setActiveTab] = useState<'SOLID' | 'HPL'>(isInitialHpl ? 'HPL' : 'SOLID')
+
+  const detectTab = (): 'PRELAMINATED' | 'HPL' | 'DUCO' => {
+    if (finishType === 'HPL' || hplBrands.includes(value)) return 'HPL'
+    if (finishType === 'DUCO' || DUCO_PAINT_OPTIONS.includes(value)) return 'DUCO'
+    return 'PRELAMINATED'
+  }
+  const [activeTab, setActiveTab] = useState<'PRELAMINATED' | 'HPL' | 'DUCO'>(detectTab)
   const triggerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -2716,7 +2724,7 @@ function LaminateFinishPicker({
         position: 'fixed',
         top: rect.bottom + 4,
         left: rect.left,
-        width: 280,
+        width: 300,
         zIndex: 9999,
       })
     }
@@ -2751,28 +2759,31 @@ function LaminateFinishPicker({
     }
   }, [isOpen])
 
-  const currentIsHpl = finishType === 'HPL' || hplBrands.includes(value)
+  const currentTab = detectTab()
+
+  const tabBadgeStyle = currentTab === 'HPL'
+    ? 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-200 border border-cyan-500/40 hover:bg-cyan-500/30'
+    : currentTab === 'DUCO'
+    ? 'bg-purple-500/20 text-purple-800 dark:text-purple-200 border border-purple-500/40 hover:bg-purple-500/30'
+    : 'bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/40 hover:bg-amber-500/30'
+
+  const tabBadgeLabel = currentTab === 'HPL' ? 'HPL' : currentTab === 'DUCO' ? 'Duco' : 'Pre-lam'
 
   return (
     <div ref={triggerRef} className="relative w-full">
       <div className="relative flex items-center">
-        {/* Toggle badge button */}
+        {/* Current type badge */}
         <button
           type="button"
           tabIndex={-1}
           onClick={() => {
-            const nextType = currentIsHpl ? 'SOLID' : 'HPL'
-            setActiveTab(nextType)
+            setActiveTab(currentTab)
             openDropdown()
           }}
-          className={`shrink-0 ml-1 px-1 py-0.5 rounded text-[10px] font-bold tracking-tight uppercase transition-colors ${
-            currentIsHpl
-              ? 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-200 border border-cyan-500/40 hover:bg-cyan-500/30'
-              : 'bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/40 hover:bg-amber-500/30'
-          }`}
-          title="Click to switch between Solid Shade and HPL Pasting"
+          className={`shrink-0 ml-1 px-1 py-0.5 rounded text-[10px] font-bold tracking-tight uppercase transition-colors ${tabBadgeStyle}`}
+          title="Click to choose finish type"
         >
-          {currentIsHpl ? 'HPL' : 'Solid'}
+          {tabBadgeLabel}
         </button>
 
         <input
@@ -2781,7 +2792,9 @@ function LaminateFinishPicker({
           onChange={(e) => {
             const val = e.target.value
             const detectedHpl = hplBrands.includes(val) || activeTab === 'HPL'
-            onChange(val, detectedHpl ? 'HPL' : 'SOLID')
+            const detectedDuco = DUCO_PAINT_OPTIONS.includes(val) || activeTab === 'DUCO'
+            const fType = detectedHpl ? 'HPL' : detectedDuco ? 'DUCO' : 'PRELAMINATED'
+            onChange(val, fType)
             openDropdown()
           }}
           onFocus={(e) => {
@@ -2809,60 +2822,74 @@ function LaminateFinishPicker({
           style={dropdownStyle}
           className="rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-xl"
         >
-          {/* Tabs */}
-          <div className="grid grid-cols-2 gap-1 p-0.5 bg-muted/60 rounded-md mb-1.5">
+          {/* 3 Tabs */}
+          <div className="grid grid-cols-3 gap-1 p-0.5 bg-muted/60 rounded-md mb-1.5">
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => setActiveTab('SOLID')}
-              className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors ${
-                activeTab === 'SOLID'
+              onClick={() => setActiveTab('PRELAMINATED')}
+              className={`px-1.5 py-1 text-[10px] font-semibold rounded transition-colors ${
+                activeTab === 'PRELAMINATED'
                   ? 'bg-amber-500 text-white shadow-xs'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              🎨 Solid Shades ({solidShades.length})
+              🪚 Pre-lam ({PRELAMINATED_OPTIONS.length})
             </button>
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setActiveTab('HPL')}
-              className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors ${
+              className={`px-1.5 py-1 text-[10px] font-semibold rounded transition-colors ${
                 activeTab === 'HPL'
                   ? 'bg-cyan-600 text-white shadow-xs'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              🪵 HPL Pasting ({hplBrands.length})
+              🪵 HPL ({hplBrands.length})
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setActiveTab('DUCO')}
+              className={`px-1.5 py-1 text-[10px] font-semibold rounded transition-colors ${
+                activeTab === 'DUCO'
+                  ? 'bg-purple-600 text-white shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              🎨 Duco ({DUCO_PAINT_OPTIONS.length})
             </button>
           </div>
 
           {/* Tab Content */}
           <div className="max-h-56 overflow-y-auto divide-y divide-border/30">
-            {activeTab === 'SOLID' ? (
+            {activeTab === 'PRELAMINATED' && (
               <div className="py-0.5">
-                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Solid Laminate Shades (Color / Finish Name)
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                  Prelaminated Board Finish
                 </div>
-                {solidShades.map((shade) => (
+                {PRELAMINATED_OPTIONS.map((opt) => (
                   <button
-                    key={shade}
+                    key={opt}
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
-                      onChange(shade, 'SOLID')
+                      onChange(opt, 'PRELAMINATED')
                       setIsOpen(false)
                     }}
                     className={`flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left rounded hover:bg-amber-500/10 hover:text-amber-900 dark:hover:text-amber-200 transition-colors ${
-                      value === shade && !currentIsHpl ? 'bg-amber-500/20 font-bold text-amber-900 dark:text-amber-200' : ''
+                      value === opt && currentTab === 'PRELAMINATED' ? 'bg-amber-500/20 font-bold text-amber-900 dark:text-amber-200' : ''
                     }`}
                   >
-                    <span>{shade}</span>
-                    {value === shade && !currentIsHpl && <Check className="w-3.5 h-3.5 text-amber-600" />}
+                    <span>{opt}</span>
+                    {value === opt && currentTab === 'PRELAMINATED' && <Check className="w-3.5 h-3.5 text-amber-600" />}
                   </button>
                 ))}
               </div>
-            ) : (
+            )}
+
+            {activeTab === 'HPL' && (
               <div className="py-0.5">
                 <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
                   HPL Pasting (Brand & Code)
@@ -2877,11 +2904,36 @@ function LaminateFinishPicker({
                       setIsOpen(false)
                     }}
                     className={`flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left rounded hover:bg-cyan-500/10 hover:text-cyan-900 dark:hover:text-cyan-200 transition-colors ${
-                      value === brand && currentIsHpl ? 'bg-cyan-500/20 font-bold text-cyan-900 dark:text-cyan-200' : ''
+                      value === brand && currentTab === 'HPL' ? 'bg-cyan-500/20 font-bold text-cyan-900 dark:text-cyan-200' : ''
                     }`}
                   >
                     <span>{brand}</span>
-                    {value === brand && currentIsHpl && <Check className="w-3.5 h-3.5 text-cyan-600" />}
+                    {value === brand && currentTab === 'HPL' && <Check className="w-3.5 h-3.5 text-cyan-600" />}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'DUCO' && (
+              <div className="py-0.5">
+                <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">
+                  Duco Paint Finish
+                </div>
+                {DUCO_PAINT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      onChange(opt, 'DUCO')
+                      setIsOpen(false)
+                    }}
+                    className={`flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left rounded hover:bg-purple-500/10 hover:text-purple-900 dark:hover:text-purple-200 transition-colors ${
+                      value === opt && currentTab === 'DUCO' ? 'bg-purple-500/20 font-bold text-purple-900 dark:text-purple-200' : ''
+                    }`}
+                  >
+                    <span>{opt}</span>
+                    {value === opt && currentTab === 'DUCO' && <Check className="w-3.5 h-3.5 text-purple-600" />}
                   </button>
                 ))}
               </div>
@@ -2896,7 +2948,7 @@ function LaminateFinishPicker({
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    onChange('Same as Front (Both Side)', 'SOLID')
+                    onChange('Same as Front (Both Side)', 'PRELAMINATED')
                     setIsOpen(false)
                   }}
                   className="flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
@@ -2907,7 +2959,7 @@ function LaminateFinishPicker({
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    onChange('Single Side Liner', 'SOLID')
+                    onChange('Single Side Liner', 'PRELAMINATED')
                     setIsOpen(false)
                   }}
                   className="flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
@@ -2925,7 +2977,7 @@ function LaminateFinishPicker({
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  onChange('', 'SOLID')
+                  onChange('', 'PRELAMINATED')
                   setIsOpen(false)
                 }}
                 className="px-2 py-1 text-[11px] text-destructive hover:bg-destructive/10 rounded font-medium transition-colors"
@@ -3096,12 +3148,11 @@ function MaterialRowsTable({
                 <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} min-w-[140px]`}>Base Material</th>
                 <th className={`${GRID_TH} w-28`}>Core Thickness</th>
-                <th className={`${GRID_TH} min-w-[150px]`}>Laminate / Top Surface</th>
-                <th className={`${GRID_TH} min-w-[160px]`}>Surface Code / Finish</th>
-                <th className={`${GRID_TH} w-28 text-center`}>Sheet Size</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Front / Top Laminate</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Back / Bottom Laminate</th>
                 <th className={`${GRID_TH} w-20`}>Unit</th>
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
-                <th className={`${GRID_TH} min-w-[130px]`}>Edging Tape Qty</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Edging Tape Qty</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Functional Usage</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
@@ -3139,46 +3190,36 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 4. Laminate / Top Surface — Solid & HPL picker */}
+                    {/* 4. Front / Top Laminate — Prelaminated / HPL / Duco picker */}
                     <td className={GRID_TD}>
                       <LaminateFinishPicker
                         value={attrs.laminateTopSurface || ''}
-                        finishType={attrs.boardLaminateType || 'SOLID'}
-                        solidShades={BOARD_LAMINATE_CATALOG.solidShades}
+                        finishType={attrs.boardLaminateType || 'PRELAMINATED'}
                         hplBrands={BOARD_LAMINATE_CATALOG.hplBrands}
                         onChange={(val, fType) => {
                           onUpdateVariant(ri, 'laminateTopSurface', val)
                           onUpdateVariant(ri, 'boardLaminateType', fType)
                         }}
-                        placeholder="Select laminate / finish..."
+                        placeholder="Select front laminate..."
                       />
                     </td>
 
-                    {/* 5. Surface Code / Finish */}
+                    {/* 5. Back / Bottom Laminate */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="surface-code-list"
+                      <LaminateFinishPicker
                         value={attrs.surfaceCodeFinish || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'surfaceCodeFinish', e.target.value)}
-                        placeholder="2003 SMT"
-                        className={GRID_CELL_INPUT}
+                        finishType={attrs.boardBackLaminateType || 'PRELAMINATED'}
+                        hplBrands={BOARD_LAMINATE_CATALOG.hplBrands}
+                        onChange={(val, fType) => {
+                          onUpdateVariant(ri, 'surfaceCodeFinish', val)
+                          onUpdateVariant(ri, 'boardBackLaminateType', fType)
+                        }}
+                        isBack={true}
+                        placeholder="Select back laminate..."
                       />
                     </td>
 
-                    {/* 6. Sheet Size (Std) */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="sheet-size-list"
-                        value={attrs.sheetSize || "8' x 4'"}
-                        onChange={(e) => onUpdateVariant(ri, 'sheetSize', e.target.value)}
-                        placeholder="8' x 4'"
-                        className={`${GRID_CELL_INPUT} text-center`}
-                      />
-                    </td>
-
-                    {/* 7. Unit */}
+                    {/* 6. Unit */}
                     <td className={GRID_TD}>
                       <select
                         value={item.unit}
@@ -3193,7 +3234,7 @@ function MaterialRowsTable({
                       </select>
                     </td>
 
-                    {/* 8. Quantity */}
+                    {/* 7. Quantity */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -3211,15 +3252,40 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 9. Edging Tape Qty */}
+                    {/* 8. Edging Tape Qty */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.edgingTapeQty || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'edgingTapeQty', e.target.value)}
-                        placeholder="e.g. 10m"
-                        className={GRID_CELL_INPUT}
-                      />
+                      {(() => {
+                        const raw = attrs.edgingTapeQty || ''
+                        const parts = raw.trim().split(/\s+/)
+                        const numPart = parts.length >= 2 ? parts.slice(0, -1).join(' ') : parts[0] || ''
+                        const unitPart: 'Roll' | 'RFT' = (parts[parts.length - 1] === 'RFT' ? 'RFT' : 'Roll') as 'Roll' | 'RFT'
+                        return (
+                          <div className="flex items-center gap-0.5">
+                            <input
+                              type="text"
+                              value={numPart}
+                              onChange={(e) => {
+                                const n = e.target.value
+                                onUpdateVariant(ri, 'edgingTapeQty', n ? `${n} ${unitPart}` : '')
+                              }}
+                              onFocus={(e) => e.target.select()}
+                              placeholder="Qty"
+                              className={`${GRID_CELL_NUM} w-14`}
+                            />
+                            <select
+                              value={unitPart}
+                              onChange={(e) => {
+                                const u = e.target.value
+                                onUpdateVariant(ri, 'edgingTapeQty', numPart ? `${numPart} ${u}` : '')
+                              }}
+                              className={`${GRID_CELL_SELECT} w-14 shrink-0`}
+                            >
+                              <option value="Roll">Roll</option>
+                              <option value="RFT">RFT</option>
+                            </select>
+                          </div>
+                        )
+                      })()}
                     </td>
 
                     {/* 10. Functional Usage */}
@@ -3834,7 +3900,7 @@ function MaterialRowsTable({
                     <td className={GRID_TD}>
                       <LaminateFinishPicker
                         value={attrs.frontLaminateCode || attrs.laminateFinishDetails || ''}
-                        finishType={attrs.frontLaminateType || (isFrontHpl ? 'HPL' : 'SOLID')}
+                        finishType={attrs.frontLaminateType || (isFrontHpl ? 'HPL' : 'PRELAMINATED')}
                         onChange={(val, fType) => {
                           onUpdateVariant(ri, 'frontLaminateCode', val)
                           onUpdateVariant(ri, 'frontLaminateType', fType)
@@ -3853,7 +3919,7 @@ function MaterialRowsTable({
                     <td className={GRID_TD}>
                       <LaminateFinishPicker
                         value={attrs.backLaminateCode || ''}
-                        finishType={attrs.backLaminateType || (isBackHpl ? 'HPL' : 'SOLID')}
+                        finishType={attrs.backLaminateType || (isBackHpl ? 'HPL' : 'PRELAMINATED')}
                         onChange={(val, fType) => {
                           onUpdateVariant(ri, 'backLaminateCode', val)
                           onUpdateVariant(ri, 'backLaminateType', fType)
@@ -3887,12 +3953,38 @@ function MaterialRowsTable({
 
                     {/* 8. Edging Tape Qty */}
                     <td className={GRID_TD}>
-                      <CabinetCombobox
-                        value={attrs.edgingTapeQty || ''}
-                        onChange={(val) => onUpdateVariant(ri, 'edgingTapeQty', val)}
-                        options={['—', '1 Roll', '2 Roll', '3 Roll', '4 Roll', '5 Roll (Edging)', '1 Roll (Edging)']}
-                        placeholder="— or 1 Roll"
-                      />
+                      {(() => {
+                        const raw = attrs.edgingTapeQty || ''
+                        const parts = raw.trim().split(/\s+/)
+                        const numPart = parts.length >= 2 ? parts.slice(0, -1).join(' ') : parts[0] || ''
+                        const unitPart: 'Roll' | 'RFT' = (parts[parts.length - 1] === 'RFT' ? 'RFT' : 'Roll') as 'Roll' | 'RFT'
+                        return (
+                          <div className="flex items-center gap-0.5">
+                            <input
+                              type="text"
+                              value={numPart}
+                              onChange={(e) => {
+                                const n = e.target.value
+                                onUpdateVariant(ri, 'edgingTapeQty', n ? `${n} ${unitPart}` : '')
+                              }}
+                              onFocus={(e) => e.target.select()}
+                              placeholder="Qty"
+                              className={`${GRID_CELL_NUM} w-14`}
+                            />
+                            <select
+                              value={unitPart}
+                              onChange={(e) => {
+                                const u = e.target.value
+                                onUpdateVariant(ri, 'edgingTapeQty', numPart ? `${numPart} ${u}` : '')
+                              }}
+                              className={`${GRID_CELL_SELECT} w-14 shrink-0`}
+                            >
+                              <option value="Roll">Roll</option>
+                              <option value="RFT">RFT</option>
+                            </select>
+                          </div>
+                        )
+                      })()}
                     </td>
 
                     {/* Delete */}
