@@ -2584,15 +2584,19 @@ function CabinetCombobox({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
-  // Close on scroll/resize so it doesn't drift
+  // Close on scroll/resize so it doesn't drift — but NOT when scrolling inside the dropdown
   useEffect(() => {
     if (!isOpen) return
-    const close = () => setIsOpen(false)
-    window.addEventListener('scroll', close, true)
-    window.addEventListener('resize', close)
+    const handleScroll = (e: Event) => {
+      if (dropdownRef.current && dropdownRef.current.contains(e.target as Node)) return
+      setIsOpen(false)
+    }
+    const handleResize = () => setIsOpen(false)
+    window.addEventListener('scroll', handleScroll, true)
+    window.addEventListener('resize', handleResize)
     return () => {
-      window.removeEventListener('scroll', close, true)
-      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', handleScroll, true)
+      window.removeEventListener('resize', handleResize)
     }
   }, [isOpen])
 
@@ -2747,15 +2751,19 @@ function LaminateFinishPicker({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
-  // Close on scroll/resize so it doesn't drift
+  // Close on scroll/resize so it doesn't drift — but NOT when scrolling inside the dropdown itself
   useEffect(() => {
     if (!isOpen) return
-    const close = () => setIsOpen(false)
-    window.addEventListener('scroll', close, true)
-    window.addEventListener('resize', close)
+    const handleScroll = (e: Event) => {
+      if (dropdownRef.current && dropdownRef.current.contains(e.target as Node)) return
+      setIsOpen(false)
+    }
+    const handleResize = () => setIsOpen(false)
+    window.addEventListener('scroll', handleScroll, true)
+    window.addEventListener('resize', handleResize)
     return () => {
-      window.removeEventListener('scroll', close, true)
-      window.removeEventListener('resize', close)
+      window.removeEventListener('scroll', handleScroll, true)
+      window.removeEventListener('resize', handleResize)
     }
   }, [isOpen])
 
@@ -5388,10 +5396,21 @@ export function RequisitionBuilderClient({
 
   // ── Slide view and drawer navigation state ──
   const [activeSlideIndex, setActiveSlideIndex] = useState(0)
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [drawerSearch, setDrawerSearch] = useState('')
   const [viewModePreference, setViewModePreference] = useState<'SLIDE' | 'ALL'>('SLIDE')
   const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false)
+
+  // Helper: navigate slides with direction tracking
+  const goToSlide = useCallback((indexOrUpdater: number | ((prev: number) => number)) => {
+    setActiveSlideIndex((prev) => {
+      const next = typeof indexOrUpdater === 'function' ? indexOrUpdater(prev) : indexOrUpdater
+      const clamped = Math.min(Math.max(0, next), Math.max(0, productSlides.length - 1))
+      setSlideDirection(clamped >= prev ? 'right' : 'left')
+      return clamped
+    })
+  }, [productSlides.length])
 
   const safeSlideIndex = Math.min(Math.max(0, activeSlideIndex), Math.max(0, productSlides.length - 1))
   const currentSlide = productSlides[safeSlideIndex] ?? productSlides[0]
@@ -5463,10 +5482,10 @@ export function RequisitionBuilderClient({
 
       if (event.altKey && event.key === 'ArrowLeft') {
         event.preventDefault()
-        setActiveSlideIndex((prev) => Math.max(0, prev - 1))
+        goToSlide((prev) => Math.max(0, prev - 1))
       } else if (event.altKey && event.key === 'ArrowRight') {
         event.preventDefault()
-        setActiveSlideIndex((prev) => Math.min(productSlides.length - 1, prev + 1))
+        goToSlide((prev) => Math.min(productSlides.length - 1, prev + 1))
       } else if (event.key === 'Escape' && isDrawerOpen) {
         event.preventDefault()
         setIsDrawerOpen(false)
@@ -6242,7 +6261,7 @@ export function RequisitionBuilderClient({
                     onClick={() => {
                       const targetIdx = productSlides.findIndex((s) => s.id === slide.id)
                       if (targetIdx !== -1) {
-                        setActiveSlideIndex(targetIdx)
+                        goToSlide(targetIdx)
                         setViewModePreference('SLIDE')
                       }
                       setIsDrawerOpen(false)
@@ -6315,7 +6334,7 @@ export function RequisitionBuilderClient({
         <>
           {safeSlideIndex > 0 && (
             <button
-              onClick={() => setActiveSlideIndex((prev) => Math.max(0, prev - 1))}
+              onClick={() => goToSlide((prev) => Math.max(0, prev - 1))}
               className="fixed left-3 top-1/2 -translate-y-1/2 z-20 hidden 2xl:flex h-12 w-12 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-xl backdrop-blur-sm transition-all hover:scale-110 hover:border-primary hover:bg-primary/10 hover:text-primary active:scale-95"
               title={`Previous: ${productSlides[safeSlideIndex - 1]?.title} (Alt + Left)`}
             >
@@ -6324,7 +6343,7 @@ export function RequisitionBuilderClient({
           )}
           {safeSlideIndex < productSlides.length - 1 && (
             <button
-              onClick={() => setActiveSlideIndex((prev) => Math.min(productSlides.length - 1, prev + 1))}
+              onClick={() => goToSlide((prev) => Math.min(productSlides.length - 1, prev + 1))}
               className="fixed right-3 top-1/2 -translate-y-1/2 z-20 hidden 2xl:flex h-12 w-12 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-xl backdrop-blur-sm transition-all hover:scale-110 hover:border-primary hover:bg-primary/10 hover:text-primary active:scale-95"
               title={`Next: ${productSlides[safeSlideIndex + 1]?.title} (Alt + Right)`}
             >
@@ -6352,7 +6371,7 @@ export function RequisitionBuilderClient({
         {/* Center: Slide Stepper Navigation */}
         <div className="flex items-center rounded-xl border border-border/80 bg-muted/40 p-1 shadow-2xs">
           <button
-            onClick={() => setActiveSlideIndex((prev) => Math.max(0, prev - 1))}
+            onClick={() => goToSlide((prev) => Math.max(0, prev - 1))}
             disabled={safeSlideIndex === 0}
             className="flex items-center gap-1 px-3 py-1 text-xs font-bold text-foreground rounded-lg hover:bg-background disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
             title="Previous Product (Alt + Left)"
@@ -6366,7 +6385,7 @@ export function RequisitionBuilderClient({
           </span>
 
           <button
-            onClick={() => setActiveSlideIndex((prev) => Math.min(productSlides.length - 1, prev + 1))}
+            onClick={() => goToSlide((prev) => Math.min(productSlides.length - 1, prev + 1))}
             disabled={safeSlideIndex === productSlides.length - 1}
             className="flex items-center gap-1 px-3 py-1 text-xs font-bold text-foreground rounded-lg hover:bg-background disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
             title="Next Product (Alt + Right)"
@@ -6402,8 +6421,20 @@ export function RequisitionBuilderClient({
       </div>
 
       {/* ── Main Canvas ── */}
+      {/* Slide animation keyframes injected once */}
+      <style>{`
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(48px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideInLeft  { from { opacity: 0; transform: translateX(-48px); } to { opacity: 1; transform: translateX(0); } }
+        .slide-in-right { animation: slideInRight 0.32s cubic-bezier(0.22,1,0.36,1) both; }
+        .slide-in-left  { animation: slideInLeft  0.32s cubic-bezier(0.22,1,0.36,1) both; }
+      `}</style>
       {viewModePreference === 'SLIDE' ? (
         <div className="space-y-6">
+          {/* Animated slide wrapper — key forces remount on slide change */}
+          <div
+            key={safeSlideIndex}
+            className={slideDirection === 'right' ? 'slide-in-right' : 'slide-in-left'}
+          >
           {currentSlide.type === 'LINE_ITEM' && currentSlide.item ? (
             <div className="space-y-6">
               {/* Level 1 Hero Banner */}
@@ -6605,7 +6636,8 @@ export function RequisitionBuilderClient({
                 </div>
               </div>
             </div>
-          )}
+          )}{/* end slide content conditional */}
+          </div>{/* end animated slide wrapper */}
         </div>
       ) : (
         /* All Products Vertical View */
@@ -6713,7 +6745,7 @@ export function RequisitionBuilderClient({
             {viewModePreference === 'SLIDE' && (
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => setActiveSlideIndex((prev) => Math.max(0, prev - 1))}
+                  onClick={() => goToSlide((prev) => Math.max(0, prev - 1))}
                   disabled={safeSlideIndex === 0}
                   className="p-1.5 rounded-md border border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
                   title="Previous Product"
@@ -6721,7 +6753,7 @@ export function RequisitionBuilderClient({
                   <ChevronLeft className="w-3.5 h-3.5" />
                 </button>
                 <button
-                  onClick={() => setActiveSlideIndex((prev) => Math.min(productSlides.length - 1, prev + 1))}
+                  onClick={() => goToSlide((prev) => Math.min(productSlides.length - 1, prev + 1))}
                   disabled={safeSlideIndex === productSlides.length - 1}
                   className="p-1.5 rounded-md border border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
                   title="Next Product"
