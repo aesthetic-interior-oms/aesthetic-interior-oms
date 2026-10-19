@@ -82,14 +82,14 @@ function runDeploy() {
       }
     }
 
-    // Handle P1002 (database server reached but timed out)
-    if (deployOutput.includes('P1002')) {
+    // Handle P1002 (database server reached but timed out) and P1001 (can't reach database server)
+    if (deployOutput.includes('P1002') || deployOutput.includes('P1001')) {
       if (attempt < MAX_ATTEMPTS) {
-        console.warn(`[deploy-migrations] Database timed out (P1002). Server compute may be waking up; waiting 5s before retry...`)
+        console.warn(`[deploy-migrations] Database unreachable or timed out (P1001/P1002). Server compute may be waking up; waiting 5s before retry...`)
         sleep(5000)
         continue
       } else {
-        console.warn(`[deploy-migrations] Database timed out (P1002) after ${MAX_ATTEMPTS} attempts. Continuing build since schema was generated and tables may already be up to date.`)
+        console.warn(`[deploy-migrations] Database unreachable (P1001/P1002) after ${MAX_ATTEMPTS} attempts. Continuing build since schema was generated and tables may already be up to date.`)
         // Do not crash the build on transient serverless cold starts if migrations were already run
         process.exit(0)
       }
