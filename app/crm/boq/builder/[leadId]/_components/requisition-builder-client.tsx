@@ -1998,7 +1998,7 @@ function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]
   if (viewMode === 'HARDWARE_ACCESSORY_SPEC') {
     return {
       color: [219, 39, 119],
-      head: ['SL', 'Category', 'Item Name', 'Item Code', 'Dimensions', 'Unit', 'Qty', 'Unit Price', 'Total'],
+      head: ['SL', 'Category', 'Item Name', 'Item Code', 'Dimensions', 'Unit', 'Qty'],
       body: rows.map((item) => [
         text(pdfAttr(item, 'srNo')),
         text(pdfAttr(item, 'accessoryCategory')),
@@ -2007,10 +2007,8 @@ function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]
         text(pdfAttr(item, 'dimensions')),
         text(item.unit),
         pdfQty(item),
-        text(pdfAttr(item, 'unitPrice')),
-        text(pdfAttr(item, 'totalAmount')),
       ]),
-      columnStyles: { 0: { cellWidth: 12, halign: 'center' }, 1: { cellWidth: 26 }, 2: { cellWidth: 44, fontStyle: 'bold' }, 3: { cellWidth: 28 }, 4: { cellWidth: 52 }, 5: { cellWidth: 18 }, 6: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 28, halign: 'right' }, 8: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' } },
+      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 1: { cellWidth: 32 }, 2: { cellWidth: 54, fontStyle: 'bold' }, 3: { cellWidth: 32 }, 4: { cellWidth: 'auto' }, 5: { cellWidth: 20 }, 6: { cellWidth: 22, halign: 'right', fontStyle: 'bold' } },
     }
   }
 
@@ -4226,9 +4224,7 @@ function MaterialRowsTable({
                 <th className={`${GRID_TH} min-w-[150px]`}>Item Code</th>
                 <th className={`${GRID_TH} min-w-[170px]`}>Dimensions (D × W × H)</th>
                 <th className={`${GRID_TH} w-20`}>Unit</th>
-                <th className={`${GRID_TH} text-center w-20`}>Quantity</th>
-                <th className={`${GRID_TH} min-w-[120px]`}>Unit Price (BDT)</th>
-                <th className={`${GRID_TH} text-center min-w-[130px]`}>Total Amount (BDT)</th>
+                <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
@@ -4312,49 +4308,8 @@ function MaterialRowsTable({
                         type="number"
                         step="any"
                         value={item.netQuantity}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          onChange(ri, 'netQuantity', val)
-                          const cleanPrice = String(attrs.unitPrice || '').replace(/[^0-9.]/g, '')
-                          const numP = parseFloat(cleanPrice)
-                          if (!isNaN(numP)) {
-                            const newTotal = (parseFloat(val) || 0) * numP
-                            onUpdateVariant(ri, 'totalAmount', `৳${newTotal.toLocaleString('en-IN')}`)
-                          }
-                        }}
+                        onChange={(e) => onChange(ri, 'netQuantity', e.target.value)}
                         className={GRID_CELL_NUM}
-                      />
-                    </td>
-
-                    {/* 8. Unit Price (BDT) */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.unitPrice || ''}
-                        onChange={(e) => {
-                          const val = e.target.value
-                          onUpdateVariant(ri, 'unitPrice', val)
-                          const cleanPrice = val.replace(/[^0-9.]/g, '')
-                          const numP = parseFloat(cleanPrice)
-                          if (!isNaN(numP)) {
-                            const qty = item.netQuantity || 1
-                            const newTotal = qty * numP
-                            onUpdateVariant(ri, 'totalAmount', `৳${newTotal.toLocaleString('en-IN')}`)
-                          }
-                        }}
-                        placeholder="৳31,000"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-
-                    {/* 9. Total Amount (BDT) */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.totalAmount || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'totalAmount', e.target.value)}
-                        placeholder="৳31,000"
-                        className={`${GRID_CELL_BOLD} text-center text-pink-700 dark:text-pink-300`}
                       />
                     </td>
 
