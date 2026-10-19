@@ -146,6 +146,8 @@ export interface BoardVariantAttributes {
   qtyLabel?: string
 
   // Decorative Panels, Louvers & Edge Profiles attributes
+  decorativeType?: 'READYMADE' | 'CUSTOMIZE' | string
+  thickness?: string
   profileType?: string
   material?: string
   accentFinish?: string
@@ -1864,39 +1866,47 @@ function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]
   if (viewMode === 'BOARD_SPEC') {
     return {
       color: [146, 64, 14],
-      head: ['SL NO', 'Base Material', 'Thickness', 'Laminate / Top', 'Surface / Finish', 'Sheet', 'Unit', 'Qty', 'Edging Tape Qty', 'Usage'],
+      head: ['SL NO', 'Base Material', 'Thickness', 'Front / Top Laminate', 'Back / Bottom Laminate', 'Unit', 'Qty', 'Edging Tape Qty', 'Usage'],
       body: rows.map((item, idx) => [
         String(idx + 1).padStart(2, '0'),
         text(pdfAttr(item, 'baseMaterial')),
         text(pdfAttr(item, 'coreThickness')),
-        text(pdfAttr(item, 'laminateTopSurface')),
-        text(pdfAttr(item, 'surfaceCodeFinish')),
-        text(pdfAttr(item, 'sheetSize')),
+        text(pdfAttr(item, 'laminateTopSurface') || 'Raw Board'),
+        text(pdfAttr(item, 'surfaceCodeFinish') || 'Raw Board'),
         text(item.unit),
         pdfQty(item),
         text(pdfAttr(item, 'edgingTapeQty')),
         text(pdfAttr(item, 'functionalUsage') || item.productionPhase),
       ]),
-      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 1: { cellWidth: 36, fontStyle: 'bold' }, 2: { cellWidth: 20 }, 3: { cellWidth: 32 }, 4: { cellWidth: 34 }, 5: { cellWidth: 18 }, 6: { cellWidth: 14 }, 7: { cellWidth: 16, halign: 'right', fontStyle: 'bold' }, 8: { cellWidth: 26 }, 9: { cellWidth: 'auto' } },
+      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 1: { cellWidth: 38, fontStyle: 'bold' }, 2: { cellWidth: 22 }, 3: { cellWidth: 36 }, 4: { cellWidth: 36 }, 5: { cellWidth: 16 }, 6: { cellWidth: 16, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 28 }, 8: { cellWidth: 'auto' } },
     }
   }
 
   if (viewMode === 'LOUVER_SPEC') {
     return {
       color: [79, 70, 229],
-      head: ['SL NO', 'Item Name', 'Material', 'Accent Finish', 'Code / Variant', 'Unit', 'Qty', 'Usage', 'Notes'],
-      body: rows.map((item, idx) => [
-        String(idx + 1).padStart(2, '0'),
-        text(item.materialName),
-        text(pdfAttr(item, 'material')),
-        text(pdfAttr(item, 'accentFinish')),
-        text(pdfAttr(item, 'codeVariant')),
-        text(item.unit),
-        pdfQty(item),
-        text(pdfAttr(item, 'primaryUsage') || item.productionPhase),
-        text(pdfAttr(item, 'column1') || item.remarks),
-      ]),
-      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 1: { cellWidth: 42, fontStyle: 'bold' }, 2: { cellWidth: 32 }, 3: { cellWidth: 32 }, 4: { cellWidth: 34 }, 5: { cellWidth: 16 }, 6: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 44 }, 8: { cellWidth: 'auto' } },
+      head: ['SL NO', 'Panel / Profile', 'Type', 'Thickness', 'Accent / Finish', 'Code / Variant', 'Unit', 'Qty', 'Usage', 'Notes'],
+      body: rows.map((item, idx) => {
+        const mat = pdfAttr(item, 'material') || item.materialName
+        const isReady = isReadymadePanel(mat) || pdfAttr(item, 'decorativeType') === 'READYMADE'
+        const typeLabel = isReady ? 'Readymade' : 'Customize'
+        const thk = isReady ? '—' : text(pdfAttr(item, 'thickness') || pdfAttr(item, 'coreThickness'))
+        const finish = isReady ? '—' : text(pdfAttr(item, 'accentFinish'))
+        const code = !isReady ? '—' : text(pdfAttr(item, 'codeVariant'))
+        return [
+          String(idx + 1).padStart(2, '0'),
+          text(mat),
+          typeLabel,
+          thk,
+          finish,
+          code,
+          text(item.unit),
+          pdfQty(item),
+          text(pdfAttr(item, 'primaryUsage') || item.productionPhase),
+          text(pdfAttr(item, 'column1') || item.remarks),
+        ]
+      }),
+      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 1: { cellWidth: 40, fontStyle: 'bold' }, 2: { cellWidth: 24, halign: 'center' }, 3: { cellWidth: 20 }, 4: { cellWidth: 30 }, 5: { cellWidth: 28 }, 6: { cellWidth: 16 }, 7: { cellWidth: 18, halign: 'right', fontStyle: 'bold' }, 8: { cellWidth: 38 }, 9: { cellWidth: 'auto' } },
     }
   }
 
@@ -2201,6 +2211,108 @@ const GRID_CELL_NUM = "w-full bg-transparent border-0 rounded-none px-2 py-1.5 t
 const GRID_CELL_SELECT = "w-full bg-transparent border-0 rounded-none px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:bg-primary/5 transition-colors cursor-pointer"
 const GRID_TH = "px-2.5 py-2 select-none whitespace-nowrap text-[11px] font-bold uppercase tracking-wider text-left text-inherit"
 const GRID_TD = "p-0 align-middle"
+
+/* ─────────────────────────────────────────────
+   Decorative Panels Constants & Classification
+───────────────────────────────────────────── */
+const DECORATIVE_PANEL_GROUPS = [
+  {
+    group: '1. Readymade Panels (Code Only)',
+    items: [
+      'WPC',
+      'Charcoal',
+      'PU Stone',
+      'Lumistone',
+      'Acoustic Slat Panel',
+    ],
+  },
+  {
+    group: '2. Customize Panels (Thickness & Finish)',
+    items: [
+      'T Bit',
+      'Molding Bit',
+      'Fabric Panel',
+      'Acrylic Mirror',
+      'Mosaic Pannel',
+      '3D Murals',
+      'Bavel Mirror Panel',
+    ],
+  },
+]
+
+function isReadymadePanel(mat?: string): boolean {
+  if (!mat) return false
+  const m = mat.toLowerCase()
+  return (
+    m.includes('wpc') ||
+    m.includes('charcoal') ||
+    m.includes('pu stone') ||
+    m.includes('lumistone') ||
+    m.includes('acoustic')
+  )
+}
+
+function isCustomizePanel(mat?: string): boolean {
+  if (!mat) return false
+  const m = mat.toLowerCase()
+  return (
+    m.includes('t bit') ||
+    m.includes('molding') ||
+    m.includes('moulding') ||
+    m.includes('fabric') ||
+    m.includes('acrylic') ||
+    m.includes('mosaic') ||
+    m.includes('mural') ||
+    m.includes('bavel') ||
+    m.includes('bevel')
+  )
+}
+
+/* ─────────────────────────────────────────────
+   Sub-component: Edging Tape Compound Input (Qty + Unit: Roll / RFT)
+───────────────────────────────────────────── */
+function EdgingTapeInput({
+  value,
+  onChange,
+  defaultUnit = 'RFT',
+}: {
+  value: string
+  onChange: (val: string) => void
+  defaultUnit?: 'Roll' | 'RFT'
+}) {
+  const raw = value || ''
+  const isRft = /rft/i.test(raw)
+  const isRoll = /roll|role/i.test(raw)
+  const unit: 'Roll' | 'RFT' = isRft ? 'RFT' : isRoll ? 'Roll' : defaultUnit
+  const numPart = raw.replace(/\s*(rft|roll|role|m|meter).*/i, '').trim()
+
+  return (
+    <div className="flex items-center gap-1 min-w-[125px] px-1 py-0.5">
+      <input
+        type="text"
+        value={numPart}
+        onChange={(e) => {
+          const val = e.target.value.trim()
+          onChange(val ? `${val} ${unit}` : '')
+        }}
+        onFocus={(e) => e.target.select()}
+        placeholder="e.g. 50"
+        className={`${GRID_CELL_NUM} flex-1 min-w-[50px] border border-border/40 rounded px-1.5 py-1 focus:border-primary`}
+      />
+      <select
+        value={unit}
+        onChange={(e) => {
+          const newUnit = e.target.value as 'Roll' | 'RFT'
+          onChange(numPart ? `${numPart} ${newUnit}` : '')
+        }}
+        className={`${GRID_CELL_SELECT} w-16 shrink-0 border border-border/40 rounded px-1 py-1 font-semibold text-[11px]`}
+      >
+        <option value="RFT">RFT</option>
+        <option value="Roll">Roll</option>
+      </select>
+    </div>
+  )
+}
 
 /* ─────────────────────────────────────────────
    Sub-component: Datalist Autocomplete Providers
@@ -2805,14 +2917,17 @@ function LaminateFinishPicker({
   }, [isOpen])
 
   const currentTab = detectTab()
+  const isRawBoard = !value || value.trim() === '' || value.toLowerCase().includes('raw')
 
-  const tabBadgeStyle = currentTab === 'HPL'
+  const tabBadgeStyle = isRawBoard
+    ? 'bg-slate-500/20 text-slate-800 dark:text-slate-200 border border-slate-500/40 hover:bg-slate-500/30'
+    : currentTab === 'HPL'
     ? 'bg-cyan-500/20 text-cyan-800 dark:text-cyan-200 border border-cyan-500/40 hover:bg-cyan-500/30'
     : currentTab === 'DUCO'
     ? 'bg-purple-500/20 text-purple-800 dark:text-purple-200 border border-purple-500/40 hover:bg-purple-500/30'
     : 'bg-amber-500/20 text-amber-800 dark:text-amber-200 border border-amber-500/40 hover:bg-amber-500/30'
 
-  const tabBadgeLabel = currentTab === 'HPL' ? 'HPL' : currentTab === 'DUCO' ? 'Duco' : 'Pre-lam'
+  const tabBadgeLabel = isRawBoard ? 'Raw' : currentTab === 'HPL' ? 'HPL' : currentTab === 'DUCO' ? 'Duco' : 'Pre-lam'
 
   return (
     <div ref={triggerRef} className="relative w-full">
@@ -2826,7 +2941,7 @@ function LaminateFinishPicker({
             openDropdown()
           }}
           className={`shrink-0 ml-1 px-1 py-0.5 rounded text-[10px] font-bold tracking-tight uppercase transition-colors ${tabBadgeStyle}`}
-          title="Click to choose finish type"
+          title={isRawBoard ? 'Raw Board (Uncoated) - click to select finish' : 'Click to choose finish type'}
         >
           {tabBadgeLabel}
         </button>
@@ -2846,7 +2961,7 @@ function LaminateFinishPicker({
             e.target.select()
             openDropdown()
           }}
-          placeholder={placeholder}
+          placeholder={placeholder || 'Raw Board (None)'}
           className={`${GRID_CELL_INPUT} pl-1.5 pr-5`}
         />
 
@@ -2867,6 +2982,27 @@ function LaminateFinishPicker({
           style={dropdownStyle}
           className="rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-xl"
         >
+          {/* Top Quick Shortcut: Raw Board (Uncoated) */}
+          <div className="mb-1.5 pb-1 border-b border-border/40">
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onChange('', 'PRELAMINATED')
+                setIsOpen(false)
+              }}
+              className={`flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left rounded hover:bg-slate-500/10 transition-colors ${
+                isRawBoard ? 'bg-slate-500/15 font-bold text-slate-900 dark:text-slate-100' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <span className="flex items-center gap-1.5 font-medium">
+                <span>🪵</span>
+                <span>Raw Board (Uncoated / None)</span>
+              </span>
+              {isRawBoard && <Check className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />}
+            </button>
+          </div>
+
           {/* 3 Tabs */}
           <div className="grid grid-cols-3 gap-1 p-0.5 bg-muted/60 rounded-md mb-1.5">
             <button
@@ -3192,12 +3328,12 @@ function MaterialRowsTable({
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} min-w-[140px]`}>Base Material</th>
-                <th className={`${GRID_TH} w-28`}>Core Thickness</th>
+                <th className={`${GRID_TH} w-28`}>Thickness</th>
                 <th className={`${GRID_TH} min-w-[150px]`}>Front / Top Laminate</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Back / Bottom Laminate</th>
                 <th className={`${GRID_TH} w-20`}>Unit</th>
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
-                <th className={`${GRID_TH} min-w-[160px]`}>Edging Tape Qty</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Edging Tape Qty</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Functional Usage</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
@@ -3223,19 +3359,17 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 3. Core Thickness */}
+                    {/* 3. Thickness (Dropdown + Manual) */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="core-thickness-list"
+                      <CabinetCombobox
                         value={attrs.coreThickness || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'coreThickness', e.target.value)}
+                        onChange={(val) => onUpdateVariant(ri, 'coreThickness', val)}
+                        options={['6mm', '9mm', '12mm', '15mm', '18mm', '25mm']}
                         placeholder="12mm"
-                        className={GRID_CELL_INPUT}
                       />
                     </td>
 
-                    {/* 4. Front / Top Laminate — Prelaminated / HPL / Duco picker */}
+                    {/* 4. Front / Top Laminate — Prelaminated / HPL / Duco picker (Defaults to Raw Board) */}
                     <td className={GRID_TD}>
                       <LaminateFinishPicker
                         value={attrs.laminateTopSurface || ''}
@@ -3245,11 +3379,11 @@ function MaterialRowsTable({
                           onUpdateVariant(ri, 'laminateTopSurface', val)
                           onUpdateVariant(ri, 'boardLaminateType', fType)
                         }}
-                        placeholder="Select front laminate..."
+                        placeholder="Raw Board (None)"
                       />
                     </td>
 
-                    {/* 5. Back / Bottom Laminate */}
+                    {/* 5. Back / Bottom Laminate (Defaults to Raw Board) */}
                     <td className={GRID_TD}>
                       <LaminateFinishPicker
                         value={attrs.surfaceCodeFinish || ''}
@@ -3260,7 +3394,7 @@ function MaterialRowsTable({
                           onUpdateVariant(ri, 'boardBackLaminateType', fType)
                         }}
                         isBack={true}
-                        placeholder="Select back laminate..."
+                        placeholder="Raw Board (None)"
                       />
                     </td>
 
@@ -3297,40 +3431,13 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 8. Edging Tape Qty */}
+                    {/* 8. Edging Tape Qty (Number + Unit: Roll / RFT) */}
                     <td className={GRID_TD}>
-                      {(() => {
-                        const raw = attrs.edgingTapeQty || ''
-                        const parts = raw.trim().split(/\s+/)
-                        const numPart = parts.length >= 2 ? parts.slice(0, -1).join(' ') : parts[0] || ''
-                        const unitPart: 'Roll' | 'RFT' = (parts[parts.length - 1] === 'RFT' ? 'RFT' : 'Roll') as 'Roll' | 'RFT'
-                        return (
-                          <div className="flex items-center gap-0.5">
-                            <input
-                              type="text"
-                              value={numPart}
-                              onChange={(e) => {
-                                const n = e.target.value
-                                onUpdateVariant(ri, 'edgingTapeQty', n ? `${n} ${unitPart}` : '')
-                              }}
-                              onFocus={(e) => e.target.select()}
-                              placeholder="Qty"
-                              className={`${GRID_CELL_NUM} w-14`}
-                            />
-                            <select
-                              value={unitPart}
-                              onChange={(e) => {
-                                const u = e.target.value
-                                onUpdateVariant(ri, 'edgingTapeQty', numPart ? `${numPart} ${u}` : '')
-                              }}
-                              className={`${GRID_CELL_SELECT} w-14 shrink-0`}
-                            >
-                              <option value="Roll">Roll</option>
-                              <option value="RFT">RFT</option>
-                            </select>
-                          </div>
-                        )
-                      })()}
+                      <EdgingTapeInput
+                        value={attrs.edgingTapeQty || ''}
+                        onChange={(val) => onUpdateVariant(ri, 'edgingTapeQty', val)}
+                        defaultUnit="RFT"
+                      />
                     </td>
 
                     {/* 10. Functional Usage */}
@@ -3371,13 +3478,14 @@ function MaterialRowsTable({
             <thead className="bg-indigo-500/10 border-b border-indigo-500/20 text-indigo-900 dark:text-indigo-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
-                <th className={`${GRID_TH} min-w-[160px]`}>Item Name</th>
-                <th className={`${GRID_TH} min-w-[130px]`}>Material</th>
-                <th className={`${GRID_TH} min-w-[140px]`}>Accent Finish</th>
-                <th className={`${GRID_TH} min-w-[140px]`}>Code / Variant</th>
+                <th className={`${GRID_TH} min-w-[170px]`}>Panel / Profile</th>
+                <th className={`${GRID_TH} w-24 text-center`}>Type</th>
+                <th className={`${GRID_TH} w-28`}>Thickness</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Accent / Finish</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Code / Variant</th>
                 <th className={`${GRID_TH} w-20`}>Unit</th>
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
-                <th className={`${GRID_TH} min-w-[160px]`}>Primary Usage</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Primary Usage</th>
                 <th className={`${GRID_TH} w-28`}>Notes / Col 1</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
@@ -3385,6 +3493,11 @@ function MaterialRowsTable({
             <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => {
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                const panelVal = attrs.material || item.materialName || ''
+                const isReady = isReadymadePanel(panelVal) || attrs.decorativeType === 'READYMADE'
+                const isCustom = isCustomizePanel(panelVal) || attrs.decorativeType === 'CUSTOMIZE'
+                const currentType: 'READYMADE' | 'CUSTOMIZE' | null = isReady ? 'READYMADE' : isCustom ? 'CUSTOMIZE' : null
+
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
                     {/* 1. SL NO */}
@@ -3392,51 +3505,112 @@ function MaterialRowsTable({
                       {String(ri + 1).padStart(2, '0')}
                     </td>
 
-                    {/* 2. Item Name */}
+                    {/* 2. Panel / Profile Type (Combobox with Readymade & Customize groups) */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={item.materialName}
-                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
-                        placeholder="e.g. Charcoal Louver Panel"
+                      <CabinetCombobox
+                        value={panelVal}
+                        onChange={(val) => {
+                          onUpdateVariant(ri, 'material', val)
+                          onChange(ri, 'materialName', val)
+                          if (isReadymadePanel(val)) {
+                            onUpdateVariant(ri, 'decorativeType', 'READYMADE')
+                          } else if (isCustomizePanel(val)) {
+                            onUpdateVariant(ri, 'decorativeType', 'CUSTOMIZE')
+                          }
+                        }}
+                        groups={DECORATIVE_PANEL_GROUPS}
+                        placeholder="Select panel type..."
                         className={GRID_CELL_BOLD}
                       />
                     </td>
 
-                    {/* 3. Material */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="louver-material-list"
-                        value={attrs.material || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'material', e.target.value)}
-                        placeholder="Charcoal / WPC"
-                        className={GRID_CELL_INPUT}
-                      />
+                    {/* 3. Type (Readymade vs Customize badge) */}
+                    <td className={`${GRID_TD} text-center px-1`}>
+                      {currentType === 'READYMADE' ? (
+                        <button
+                          type="button"
+                          onClick={() => onUpdateVariant(ri, 'decorativeType', 'CUSTOMIZE')}
+                          className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-cyan-500/20 text-cyan-800 dark:text-cyan-200 border border-cyan-500/40 hover:bg-cyan-500/30 transition-colors"
+                          title="Readymade panel: code only, others off. Click to toggle."
+                        >
+                          Readymade
+                        </button>
+                      ) : currentType === 'CUSTOMIZE' ? (
+                        <button
+                          type="button"
+                          onClick={() => onUpdateVariant(ri, 'decorativeType', 'READYMADE')}
+                          className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-800 dark:text-purple-200 border border-purple-500/40 hover:bg-purple-500/30 transition-colors"
+                          title="Customized panel: thickness & finish active, code off. Click to toggle."
+                        >
+                          Customize
+                        </button>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground/50 italic">—</span>
+                      )}
                     </td>
 
-                    {/* 5. Accent Finish */}
+                    {/* 4. Thickness */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="accent-finish-list"
-                        value={attrs.accentFinish || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'accentFinish', e.target.value)}
-                        placeholder="Rose Gold Accent"
-                        className={GRID_CELL_INPUT}
-                      />
+                      {currentType === 'READYMADE' ? (
+                        <div className="text-center text-muted-foreground/40 font-mono text-xs select-none bg-muted/20 py-1.5" title="Thickness not applicable for Readymade panels (Code only)">
+                          — (Off)
+                        </div>
+                      ) : (
+                        <CabinetCombobox
+                          value={attrs.thickness || attrs.coreThickness || ''}
+                          onChange={(val) => {
+                            onUpdateVariant(ri, 'thickness', val)
+                            onUpdateVariant(ri, 'coreThickness', val)
+                          }}
+                          options={['3mm', '5mm', '6mm', '8mm', '10mm', '12mm', '18mm', '25mm']}
+                          placeholder="e.g. 10mm"
+                        />
+                      )}
+                    </td>
+
+                    {/* 5. Accent / Finish */}
+                    <td className={GRID_TD}>
+                      {currentType === 'READYMADE' ? (
+                        <div className="text-center text-muted-foreground/40 font-mono text-xs select-none bg-muted/20 py-1.5" title="Finish not applicable for Readymade panels (Code only)">
+                          — (Off)
+                        </div>
+                      ) : (
+                        <CabinetCombobox
+                          value={attrs.accentFinish || ''}
+                          onChange={(val) => onUpdateVariant(ri, 'accentFinish', val)}
+                          options={[
+                            'Rose Gold Accent',
+                            'Gold Anodized',
+                            'Metallic Rose Gold',
+                            'Matte Black',
+                            'Silver Brushed',
+                            'Bronze Mirror',
+                            'Clear Mirror',
+                            'Grey Mirror',
+                            'Beveled Edge',
+                            'Fabric / Velvet',
+                            'Textured',
+                          ]}
+                          placeholder="Rose Gold Accent"
+                        />
+                      )}
                     </td>
 
                     {/* 6. Code / Variant */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="code-variant-list"
-                        value={attrs.codeVariant || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'codeVariant', e.target.value)}
-                        placeholder="Advance 14081"
-                        className={GRID_CELL_INPUT}
-                      />
+                      {currentType === 'CUSTOMIZE' ? (
+                        <div className="text-center text-muted-foreground/40 font-mono text-xs select-none bg-muted/20 py-1.5" title="Code not applicable for customized panels (Thickness & Finish only)">
+                          — (Off)
+                        </div>
+                      ) : (
+                        <input
+                          type="text"
+                          value={attrs.codeVariant || ''}
+                          onChange={(e) => onUpdateVariant(ri, 'codeVariant', e.target.value)}
+                          placeholder="e.g. Advance 14081"
+                          className={GRID_CELL_INPUT}
+                        />
+                      )}
                     </td>
 
                     {/* 7. Unit */}
@@ -3996,40 +4170,13 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 8. Edging Tape Qty */}
+                    {/* 8. Edging Tape Qty (Number + Unit: Roll / RFT) */}
                     <td className={GRID_TD}>
-                      {(() => {
-                        const raw = attrs.edgingTapeQty || ''
-                        const parts = raw.trim().split(/\s+/)
-                        const numPart = parts.length >= 2 ? parts.slice(0, -1).join(' ') : parts[0] || ''
-                        const unitPart: 'Roll' | 'RFT' = (parts[parts.length - 1] === 'RFT' ? 'RFT' : 'Roll') as 'Roll' | 'RFT'
-                        return (
-                          <div className="flex items-center gap-0.5">
-                            <input
-                              type="text"
-                              value={numPart}
-                              onChange={(e) => {
-                                const n = e.target.value
-                                onUpdateVariant(ri, 'edgingTapeQty', n ? `${n} ${unitPart}` : '')
-                              }}
-                              onFocus={(e) => e.target.select()}
-                              placeholder="Qty"
-                              className={`${GRID_CELL_NUM} w-14`}
-                            />
-                            <select
-                              value={unitPart}
-                              onChange={(e) => {
-                                const u = e.target.value
-                                onUpdateVariant(ri, 'edgingTapeQty', numPart ? `${numPart} ${u}` : '')
-                              }}
-                              className={`${GRID_CELL_SELECT} w-14 shrink-0`}
-                            >
-                              <option value="Roll">Roll</option>
-                              <option value="RFT">RFT</option>
-                            </select>
-                          </div>
-                        )
-                      })()}
+                      <EdgingTapeInput
+                        value={attrs.edgingTapeQty || ''}
+                        onChange={(val) => onUpdateVariant(ri, 'edgingTapeQty', val)}
+                        defaultUnit="Roll"
+                      />
                     </td>
 
                     {/* Delete */}
