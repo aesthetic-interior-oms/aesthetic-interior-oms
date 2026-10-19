@@ -113,13 +113,27 @@ export function FurnitureQuotationBuilder({ leadId, leadName, leadLocation, onDr
     setContent((current) => ({ ...current, items: current.items.map((item) => item.id === id ? { ...item, ...patch } : item) }))
   }
 
-  function nextSerial(section: Section) {
-    return content.items.filter((item) => item.section === section).length + 1
-  }
-
   function addDraftItem(item: SavedItem, section: Section = item.section) {
     const id = `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
     setContent((current) => ({ ...current, showElectricalSection: current.showElectricalSection || section === 'Electrical Item', items: [...current.items, { ...item, id, section, serialNo: current.items.filter((row) => row.section === section).length + 1 }] }))
+  }
+
+  function addBlankDraftItem(section: Section) {
+    const id = `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    setContent((current) => ({
+      ...current,
+      showElectricalSection: current.showElectricalSection || section === 'Electrical Item',
+      items: [...current.items, {
+        id,
+        section,
+        name: '',
+        description: '',
+        quantity: 1,
+        unit: 'Nos',
+        rate: 0,
+        serialNo: current.items.filter((item) => item.section === section).length + 1,
+      }],
+    }))
   }
 
   function reorder(section: Section, event: DragEndEvent) {
@@ -217,7 +231,7 @@ export function FurnitureQuotationBuilder({ leadId, leadName, leadLocation, onDr
       const items = content.items.filter((item) => item.section === section)
       const sectionTotal = section === 'Furniture' ? totals.furniture : totals.electrical
       return <Card key={section}>
-        <CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle className="text-lg">{section}</CardTitle><p className="text-sm text-muted-foreground">{items.length} items · {money(sectionTotal)}</p></div><div className="flex flex-wrap gap-2">{canEdit && <Button type="button" variant="outline" size="sm" onClick={() => { setPickerSection(section); setQuery(''); setPickerOpen(true) }}><Plus className="mr-1 h-4 w-4" />Add from saved items</Button>}{canEdit && <Button type="button" variant="ghost" size="sm" onClick={() => openAddSavedItem(section)}><BookmarkPlus className="mr-1 h-4 w-4" />New saved item</Button>}</div></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3"><div><CardTitle className="text-lg">{section}</CardTitle><p className="text-sm text-muted-foreground">{items.length} items · {money(sectionTotal)}</p></div><div className="flex flex-wrap gap-2">{canEdit && <Button type="button" size="sm" onClick={() => addBlankDraftItem(section)}><Plus className="mr-1 h-4 w-4" />Add Item</Button>}{canEdit && <Button type="button" variant="outline" size="sm" onClick={() => { setPickerSection(section); setQuery(''); setPickerOpen(true) }}><Search className="mr-1 h-4 w-4" />Add from saved items</Button>}{canEdit && <Button type="button" variant="ghost" size="sm" onClick={() => openAddSavedItem(section)}><BookmarkPlus className="mr-1 h-4 w-4" />New saved item</Button>}</div></CardHeader>
         <CardContent className="space-y-3">
           {items.length === 0 ? <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">No items yet. Add items from the saved list.</div> : null}
           <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(event) => reorder(section, event)}>
@@ -238,7 +252,7 @@ export function FurnitureQuotationBuilder({ leadId, leadName, leadLocation, onDr
     <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.08)] backdrop-blur">
       <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-2">
         <div><p className="text-xs text-muted-foreground">{content.items.length} quotation item(s)</p><p className="font-semibold">Grand total {money(totals.grand)}</p></div>
-        <div className="flex flex-wrap gap-2">{canEdit && <Button type="button" variant="outline" onClick={() => { setPickerSection('Furniture'); setQuery(''); setPickerOpen(true) }}><Search className="mr-2 h-4 w-4" />Saved items</Button>}{canEdit && <Button type="button" onClick={() => void saveDraft()} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save draft</Button>}<Button type="button" variant="outline" onClick={downloadPdf} disabled={downloading}>{downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}Download furniture quotation</Button></div>
+        <div className="flex flex-wrap gap-2">{canEdit && <Button type="button" variant="outline" onClick={() => { setPickerSection('Furniture'); setQuery(''); setPickerOpen(true) }}><Search className="mr-2 h-4 w-4" />Saved items</Button>}{canEdit && <Button type="button" variant="outline" onClick={() => addBlankDraftItem('Furniture')}><Plus className="mr-2 h-4 w-4" />Add Item</Button>}{canEdit && <Button type="button" onClick={() => void saveDraft()} disabled={saving}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save draft</Button>}<Button type="button" variant="outline" onClick={downloadPdf} disabled={downloading}>{downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}Download furniture quotation</Button></div>
       </div>
     </div>
 
