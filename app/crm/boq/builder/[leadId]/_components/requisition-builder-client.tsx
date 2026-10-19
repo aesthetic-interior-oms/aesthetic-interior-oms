@@ -66,15 +66,43 @@ const WORK_CATEGORIES: { key: RequisitionWorkCategory; label: string }[] = [
 
 const UOM_OPTIONS = ['Pcs', 'Nos', 'Sheets', 'Meters', 'RFT', 'Kg', 'Rolls', 'Pack', 'Boxes', 'Sets', 'Liters', 'Tube', 'Roll']
 
-/** Base material options for Wall Paneling Boards section */
-const BOARD_BASE_MATERIALS = [
-  'Garjon Plywood',
-  'Marine Plywood (Merin Ply)',
-  'Moisture Resistant (MR) Board',
-  'Commercial Plywood / Standard Ply',
-  'MDF (Medium Density Fiberboard)',
-  'WPC (Wood Plastic Composite)',
+/** Base material options for Wall Paneling and Cabinet/Closet sections */
+const BOARD_BASE_MATERIAL_GROUPS: { group: string; items: string[] }[] = [
+  {
+    group: '1. Plywood Varieties (Hardwood & Core Strata)',
+    items: [
+      'Garjon Plywood (Garjon Ply)',
+      'Marine Plywood (BWP / Merin Ply)',
+      'Commercial Plywood (Standard Ply)',
+      'Film-Faced Plywood (Shuttering Ply)',
+    ],
+  },
+  {
+    group: '2. Engineered & Fiber Boards',
+    items: [
+      'MDF (Medium Density Fiberboard)',
+      'Particle Board (Plain Raw)',
+      'High Moisture-Resistant (HMR) Board',
+    ],
+  },
+  {
+    group: '3. Pre-Finished & Surface-Coated Boards',
+    items: [
+      'Melamine Faced Board / MFC (Melamine Board)',
+      'Veneered Board',
+      'High Gloss UV Board / Acrylic Board',
+    ],
+  },
+  {
+    group: '4. Specialty & Waterproof Boards',
+    items: [
+      'Blockboard',
+      'WPC (Wood Plastic Composite) Board',
+    ],
+  },
 ]
+
+const BOARD_BASE_MATERIALS: string[] = BOARD_BASE_MATERIAL_GROUPS.flatMap((g) => g.items)
 
 /** Laminate catalog for Wall Paneling Boards section (Solid shades + HPL brands) */
 const BOARD_LAMINATE_CATALOG = {
@@ -2223,12 +2251,9 @@ function BoardDatalists() {
       </datalist>
 
       <datalist id="base-material-list">
-        <option value="Garjon Plywood" />
-        <option value="Commercial Ply" />
-        <option value="WPC (Wood Plastic)" />
-        <option value="MDF Core" />
-        <option value="HDF Core" />
-        <option value="Particle Board" />
+        {BOARD_BASE_MATERIALS.map((mat) => (
+          <option key={mat} value={mat} />
+        ))}
       </datalist>
 
       <datalist id="laminate-surface-list">
@@ -2511,13 +2536,15 @@ function BoardDatalists() {
 function CabinetCombobox({
   value,
   onChange,
-  options,
+  options = [],
+  groups,
   placeholder,
   className,
 }: {
   value: string
   onChange: (val: string) => void
-  options: string[]
+  options?: string[]
+  groups?: { group: string; items: string[] }[]
   placeholder?: string
   className?: string
 }) {
@@ -2533,7 +2560,7 @@ function CabinetCombobox({
         position: 'fixed',
         top: rect.bottom + 4,
         left: rect.left,
-        width: Math.max(rect.width, 160),
+        width: Math.max(rect.width, 280),
         zIndex: 9999,
       })
     }
@@ -2588,7 +2615,7 @@ function CabinetCombobox({
         <button
           type="button"
           tabIndex={-1}
-          onClick={() => isOpen ? setIsOpen(false) : openDropdown()}
+          onClick={() => (isOpen ? setIsOpen(false) : openDropdown())}
           className="absolute right-1 text-muted-foreground/40 hover:text-foreground p-0.5"
           title="Open dropdown"
         >
@@ -2600,26 +2627,53 @@ function CabinetCombobox({
         <div
           ref={dropdownRef}
           style={dropdownStyle}
-          className="rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-xl"
+          className="rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-2xl overflow-hidden"
         >
-          <div className="max-h-48 overflow-y-auto">
-            {options.map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  onChange(opt)
-                  setIsOpen(false)
-                }}
-                className={`flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left hover:bg-primary/10 hover:text-primary transition-colors ${
-                  value === opt ? 'bg-primary/15 font-semibold text-primary' : ''
-                }`}
-              >
-                <span>{opt}</span>
-                {value === opt && <Check className="w-3 h-3 text-primary" />}
-              </button>
-            ))}
+          <div className="max-h-72 overflow-y-auto">
+            {groups && groups.length > 0 ? (
+              groups.map((grp) => (
+                <div key={grp.group} className="border-b border-border/40 last:border-b-0 pb-1">
+                  <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground bg-muted/60 sticky top-0 z-10 backdrop-blur-xs">
+                    {grp.group}
+                  </div>
+                  {grp.items.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        onChange(opt)
+                        setIsOpen(false)
+                      }}
+                      className={`flex w-full items-center justify-between px-3 py-1.5 text-xs text-left hover:bg-primary/10 hover:text-primary transition-colors ${
+                        value === opt ? 'bg-primary/15 font-semibold text-primary' : 'text-foreground'
+                      }`}
+                    >
+                      <span className="truncate pr-2">{opt}</span>
+                      {value === opt && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              ))
+            ) : (
+              options.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onChange(opt)
+                    setIsOpen(false)
+                  }}
+                  className={`flex w-full items-center justify-between px-3 py-1.5 text-xs text-left hover:bg-primary/10 hover:text-primary transition-colors ${
+                    value === opt ? 'bg-primary/15 font-semibold text-primary' : 'text-foreground'
+                  }`}
+                >
+                  <span className="truncate pr-2">{opt}</span>
+                  {value === opt && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
+                </button>
+              ))
+            )}
           </div>
         </div>,
         document.body
@@ -3067,6 +3121,7 @@ function MaterialRowsTable({
                       <CabinetCombobox
                         value={attrs.baseMaterial || ''}
                         onChange={(val) => onUpdateVariant(ri, 'baseMaterial', val)}
+                        groups={BOARD_BASE_MATERIAL_GROUPS}
                         options={BOARD_BASE_MATERIALS}
                         placeholder="Select base material..."
                       />
@@ -3768,8 +3823,9 @@ function MaterialRowsTable({
                           onUpdateVariant(ri, 'coreSubstrateType', val)
                           onChange(ri, 'materialName', isHpl ? `${val} HPL Pasting` : val)
                         }}
-                        options={DEFAULT_CABINET_CATALOG.baseMaterials}
-                        placeholder="MR Board"
+                        groups={BOARD_BASE_MATERIAL_GROUPS}
+                        options={BOARD_BASE_MATERIALS}
+                        placeholder="Select base material..."
                         className={GRID_CELL_BOLD}
                       />
                     </td>
