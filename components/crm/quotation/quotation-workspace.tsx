@@ -5,6 +5,8 @@ import { Sparkles } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { QuotationMaker } from '@/components/crm/quotation/quotation-maker'
 import { ShortQuotationBuilder } from '@/components/crm/quotation/short-quotation-builder'
+import { FurnitureQuotationBuilder } from '@/components/crm/quotation/furniture-quotation-builder'
+import { ElectricalQuotationBuilder } from '@/components/crm/quotation/electrical-quotation-builder'
 
 type QuotationWorkspaceProps = {
   leadId: string
@@ -19,7 +21,7 @@ export function QuotationWorkspace({
   leadLocation,
   leadSubStatus,
 }: QuotationWorkspaceProps) {
-  const [activeTab, setActiveTab] = useState<'short' | 'detail'>('short')
+  const [activeTab, setActiveTab] = useState<'short' | 'detail' | 'furniture' | 'electrical'>('short')
   const [sqftSummary, setSqftSummary] = useState<{
     avgDetailSqft: number
     avgShortSqft: number
@@ -105,12 +107,14 @@ export function QuotationWorkspace({
       <Tabs
         value={activeTab}
         onValueChange={(value) => {
-          setActiveTab(value as 'short' | 'detail')
+          setActiveTab(value as 'short' | 'detail' | 'furniture' | 'electrical')
         }}
       >
-        <TabsList className="print:hidden">
+        <TabsList className="h-auto flex-wrap print:hidden">
           <TabsTrigger value="short">Short Quotation</TabsTrigger>
           <TabsTrigger value="detail">Detail Quotation</TabsTrigger>
+          <TabsTrigger value="furniture">Furniture Quotation</TabsTrigger>
+          <TabsTrigger value="electrical">Electrical Quotation</TabsTrigger>
         </TabsList>
         <TabsContent value="short" className="mt-4">
           {activeTab === 'short' ? (
@@ -133,6 +137,19 @@ export function QuotationWorkspace({
               onDraftSaved={() => void loadDraftMeta({ updateActiveTab: false })}
             />
           ) : null}
+        </TabsContent>
+        <TabsContent value="furniture" className="mt-4">
+          {activeTab === 'furniture' ? (
+            <FurnitureQuotationBuilder
+              leadId={leadId}
+              leadName={leadName}
+              leadLocation={leadLocation}
+              onDraftSaved={() => void loadDraftMeta({ updateActiveTab: false })}
+            />
+          ) : null}
+        </TabsContent>
+        <TabsContent value="electrical" className="mt-4">
+          {activeTab === 'electrical' ? <ElectricalQuotationBuilder leadId={leadId} leadName={leadName} leadLocation={leadLocation} /> : null}
         </TabsContent>
       </Tabs>
     </div>
