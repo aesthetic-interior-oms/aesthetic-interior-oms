@@ -1,5 +1,6 @@
 export type FurnitureQuotationItem = {
   id: string
+  serialNo?: number
   section: 'Furniture' | 'Electrical Item'
   name: string
   description: string
@@ -49,14 +50,18 @@ export type FurnitureQuotationContent = {
   quotationDate: string
   subject: string
   notes: string
+  showElectricalSection?: boolean
   items: FurnitureQuotationItem[]
 }
 
-export function buildDefaultFurnitureQuotationContent(input: { clientName: string; clientAddress: string | null }): FurnitureQuotationContent {
+export const FURNITURE_QUOTATION_UNITS = ['Nos', 'Set', 'Sft', 'Sqft', 'Rft', 'Rmt', 'Yard', 'Seater', 'Coil', 'Package', 'Lump sum', 'Other'] as const
+
+export function buildDefaultFurnitureQuotationContent(): FurnitureQuotationContent {
   return {
     quotationDate: new Date().toISOString().slice(0, 10),
     subject: 'Quotation for interior Furniture work.',
     notes: '',
-    items: FURNITURE_QUOTATION_TEMPLATE.map((item) => ({ ...item })),
+    showElectricalSection: false,
+    items: [],
   }
 }

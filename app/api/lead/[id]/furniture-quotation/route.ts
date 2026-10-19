@@ -20,6 +20,7 @@ function normalizeContent(value: unknown): FurnitureQuotationContent | null {
     if (!name || !Number.isFinite(quantity) || quantity < 0 || !Number.isFinite(rate) || rate < 0) return null
     items.push({
       id: typeof item.id === 'string' ? item.id : `item-${index + 1}`,
+      serialNo: Number.isInteger(Number(item.serialNo)) && Number(item.serialNo) > 0 ? Number(item.serialNo) : index + 1,
       section: item.section === 'Electrical Item' ? 'Electrical Item' : 'Furniture',
       name,
       description: typeof item.description === 'string' ? item.description.slice(0, 5000) : '',
@@ -33,6 +34,7 @@ function normalizeContent(value: unknown): FurnitureQuotationContent | null {
     quotationDate: typeof data.quotationDate === 'string' ? data.quotationDate.slice(0, 30) : new Date().toISOString().slice(0, 10),
     subject: typeof data.subject === 'string' ? data.subject.slice(0, 300) : '',
     notes: typeof data.notes === 'string' ? data.notes.slice(0, 5000) : '',
+    showElectricalSection: data.showElectricalSection === true,
     items,
   }
 }
@@ -57,7 +59,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   const result = await access(id.trim(), auth.actorUserId, auth.actor.userDepartments, auth.actorRoles)
   if ('response' in result) return result.response
   const draft = await prisma.furnitureQuotationDraft.findUnique({ where: { leadId: result.lead.id } })
-  const content = draft ? draft.content as unknown as FurnitureQuotationContent : buildDefaultFurnitureQuotationContent({ clientName: result.lead.name, clientAddress: result.lead.location })
+  const content = draft ? draft.content as unknown as FurnitureQuotationContent : buildDefaultFurnitureQuotationContent()
   return NextResponse.json({ success: true, data: { lead: result.lead, draft, content, canEdit: result.canEdit } })
 }
 

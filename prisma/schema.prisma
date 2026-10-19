@@ -362,6 +362,22 @@ model FurnitureQuotationDraft {
   @@index([status])
 }
 
+model FurnitureQuotationSavedItem {
+  id          String   @id @default(cuid())
+  section     String
+  name        String
+  description String   @default("")
+  quantity    Float    @default(1)
+  unit        String   @default("Nos")
+  rate        Float    @default(0)
+  serialNo    Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([section, isActive, serialNo])
+}
+
 model ElectricalQuotationDraft {
   id          String                @id @default(cuid())
   leadId      String                @unique
