@@ -4554,8 +4554,6 @@ function SectionBlock({
           {/* Center: Prominent Level 2 Header */}
           <div className="flex-1 text-center flex flex-col items-center justify-center min-w-0">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-background/90 border border-border/70 shadow-2xs mb-1">
-              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Level 2</span>
-              <span className="text-[10px] text-muted-foreground/40">•</span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Requisition Section</span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2">
@@ -4736,8 +4734,7 @@ function AddSectionModal({
         <div className="flex items-center justify-between pb-4 border-b border-border/70">
           <div>
             <div className="flex items-center gap-1.5 mb-1">
-              <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">Level 2</span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">New Requisition Section</span>
+              <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">New Section</span>
             </div>
             <h3 className="text-base font-bold text-foreground">Add Material Section</h3>
             <p className="text-xs text-muted-foreground truncate max-w-sm mt-0.5">Target: {productTitle}</p>
@@ -4906,10 +4903,7 @@ function QuotationLineItemCard({
             <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-md border border-primary/25 bg-primary/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
-                  Level 1
-                </span>
-                <span className="rounded-md border border-primary/25 bg-background px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary">
-                  Quotation product
+                  Quotation Product
                 </span>
                 {area && (
                   <span className="text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300 bg-blue-500/10 px-2.5 py-0.5 rounded-md border border-blue-500/25">
@@ -6016,25 +6010,6 @@ export function RequisitionBuilderClient({
         </div>
       )}
 
-      <div className="rounded-2xl border border-border/80 bg-card p-3 shadow-xs">
-        <div className="grid gap-2 md:grid-cols-3">
-          <div className="rounded-xl border-2 border-primary/25 bg-primary/[0.04] p-3">
-            <p className="text-[10px] font-black uppercase tracking-wider text-primary">Level 1</p>
-            <p className="mt-1 text-sm font-bold text-foreground">Quotation product</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">The approved product or line item from quotation.</p>
-          </div>
-          <div className="rounded-xl border-2 border-blue-200 bg-blue-50/60 p-3 dark:border-blue-900/60 dark:bg-blue-950/20">
-            <p className="text-[10px] font-black uppercase tracking-wider text-blue-700 dark:text-blue-300">Level 2</p>
-            <p className="mt-1 text-sm font-bold text-foreground">Requisition section type</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">Wall paneling, cabinet, accessories, and other work categories.</p>
-          </div>
-          <div className="rounded-xl border border-border/80 bg-muted/20 p-3">
-            <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Level 3</p>
-            <p className="mt-1 text-sm font-bold text-foreground">Material rows</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">Actual procurement rows with item specs, quantity, unit, and usage.</p>
-          </div>
-        </div>
-      </div>
 
       {/* ── Add Section Modal ── */}
       <AddSectionModal
@@ -6289,7 +6264,7 @@ export function RequisitionBuilderClient({
                   <div className="space-y-2 flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
-                        Level 1 • Quotation Product
+                        Quotation Product
                       </span>
                       <span className="rounded-md border border-border bg-muted/50 px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                         Slide {safeSlideIndex + 1} of {productSlides.length}
@@ -6407,7 +6382,7 @@ export function RequisitionBuilderClient({
                   <div className="space-y-1.5 flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                        Level 1 • Extra & General
+                        Extra & General Materials
                       </span>
                       <span className="rounded-md border border-border bg-muted/50 px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                         Slide {safeSlideIndex + 1} of {productSlides.length}
