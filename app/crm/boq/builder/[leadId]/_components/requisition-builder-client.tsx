@@ -14,6 +14,9 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
+  Search,
+  Target,
   Package,
   Layers,
   CheckCircle2,
@@ -4530,52 +4533,55 @@ function SectionBlock({
   const colors = CATEGORY_COLORS[section.category]
 
   return (
-    <div className={`rounded-xl border-2 bg-card shadow-2xs ${colors.border} ${colors.leftBorder}`}>
-      {/* Section header */}
-      <div className={`flex items-center gap-2.5 px-4 py-3 ${colors.bg} border-b ${colors.border}`}>
-        <button
-          onClick={onToggleCollapse}
-          className="text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
-          title={section.collapsed ? 'Expand section' : 'Collapse section'}
-        >
-          {section.collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-        </button>
+    <div
+      id={`section-dom-${section.id}`}
+      data-boq-section-id={section.id}
+      className={`rounded-2xl border-2 bg-card shadow-xs transition-all ${colors.border} ${colors.leftBorder}`}
+    >
+      {/* Centered Section Header */}
+      <div className={`px-4 py-3.5 ${colors.bg} border-b ${colors.border}`}>
+        <div className="flex items-center justify-between gap-3">
+          {/* Left: Collapse / Expand */}
+          <button
+            onClick={onToggleCollapse}
+            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-background/60 transition-colors"
+            title={section.collapsed ? 'Expand section' : 'Collapse section'}
+          >
+            {section.collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            <span className="text-[11px] font-bold uppercase tracking-wider">{section.collapsed ? 'Expand' : 'Collapse'}</span>
+          </button>
 
-        <div className="min-w-0 flex-1">
-          <div className="mb-1 flex items-center gap-1.5">
-            <span className="rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground ring-1 ring-border/60">Level 2</span>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Requisition section type</span>
-            {subTypeInfo && (
-              <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-            )}
-            {subTypeInfo && (
-              <span className="truncate text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {subTypeInfo.label}
-              </span>
-            )}
+          {/* Center: Prominent Level 2 Header */}
+          <div className="flex-1 text-center flex flex-col items-center justify-center min-w-0">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-background/90 border border-border/70 shadow-2xs mb-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Level 2</span>
+              <span className="text-[10px] text-muted-foreground/40">•</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Requisition Section</span>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <h3 className={`text-base font-black tracking-tight ${colors.text}`}>{catLabel}</h3>
+              {subTypeInfo && (
+                <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold border ${colors.pill}`}>
+                  {subTypeInfo.label}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className={`text-sm font-bold ${colors.text}`}>{catLabel}</span>
 
-            {subTypeInfo && (
-              <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium border ${colors.pill}`}>
-                {subTypeInfo.label}
-              </span>
-            )}
+          {/* Right: Row count & Remove */}
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-muted-foreground bg-background/90 px-2.5 py-1 rounded-full border border-border/70 shadow-2xs">
+              {rows.length} {rows.length === 1 ? 'row' : 'rows'}
+            </span>
+            <button
+              onClick={onRemove}
+              className="text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 p-1.5 rounded-md transition-colors"
+              title="Remove this section"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
-
-        <span className="text-[11px] font-medium text-muted-foreground bg-background/90 px-2.5 py-0.5 rounded-full border border-border/60 shadow-2xs">
-          {rows.length} {rows.length === 1 ? 'row' : 'rows'}
-        </span>
-
-        <button
-          onClick={onRemove}
-          className="text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 p-1 rounded transition-colors"
-          title="Remove this section"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </button>
       </div>
 
       {/* Section body */}
@@ -4697,6 +4703,149 @@ function AddSectionForm({ onAdd, onCancel }: {
       <button onClick={onCancel} className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5">
         Cancel
       </button>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   Sub-component: "Add Section" Modal Dialog
+───────────────────────────────────────────── */
+function AddSectionModal({
+  isOpen,
+  onClose,
+  productTitle,
+  onAdd,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  productTitle: string
+  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType) => void
+}) {
+  const [cat, setCat] = useState<RequisitionWorkCategory>('WALL_PANELING')
+  const [sub, setSub] = useState<WallPanelingSubType>('CORE_BOARDS')
+  const [cabSub, setCabSub] = useState<CabinetSubType>('BOARD_SPEC')
+  const [accSub, setAccSub] = useState<AccessoriesSubType>('HARDWARE_ACCESSORIES')
+  const [appSub, setAppSub] = useState<ApplianceSubType>('CORE_APPLIANCES')
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-50 w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between pb-4 border-b border-border/70">
+          <div>
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">Level 2</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">New Requisition Section</span>
+            </div>
+            <h3 className="text-base font-bold text-foreground">Add Material Section</h3>
+            <p className="text-xs text-muted-foreground truncate max-w-sm mt-0.5">Target: {productTitle}</p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 py-4">
+          <div>
+            <label className="text-xs font-bold text-foreground block mb-1.5">Work Category</label>
+            <select
+              value={cat}
+              onChange={(e) => setCat(e.target.value as RequisitionWorkCategory)}
+              className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 font-medium focus:ring-1 focus:ring-primary shadow-xs"
+            >
+              {WORK_CATEGORIES.map((c) => (
+                <option key={c.key} value={c.key}>{c.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {cat === 'WALL_PANELING' && (
+            <div>
+              <label className="text-xs font-bold text-foreground block mb-1.5">Wall Paneling Sub-Type</label>
+              <select
+                value={sub}
+                onChange={(e) => setSub(e.target.value as WallPanelingSubType)}
+                className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 font-medium focus:ring-1 focus:ring-primary shadow-xs"
+              >
+                {WALL_PANELING_SUBTYPES.map((s) => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {cat === 'CABINETS_CLOSETS' && (
+            <div>
+              <label className="text-xs font-bold text-foreground block mb-1.5">Cabinet / Closet Sub-Type</label>
+              <select
+                value={cabSub}
+                onChange={(e) => setCabSub(e.target.value as CabinetSubType)}
+                className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 font-medium focus:ring-1 focus:ring-amber-500 shadow-xs"
+              >
+                {CABINET_SUBTYPES.map((s) => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {cat === 'ACCESSORIES' && (
+            <div>
+              <label className="text-xs font-bold text-foreground block mb-1.5">Hardware / Accessories Sub-Type</label>
+              <select
+                value={accSub}
+                onChange={(e) => setAccSub(e.target.value as AccessoriesSubType)}
+                className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 font-medium focus:ring-1 focus:ring-pink-500 shadow-xs"
+              >
+                {ACCESSORIES_SUBTYPES.map((s) => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {cat === 'APPLIANCES' && (
+            <div>
+              <label className="text-xs font-bold text-foreground block mb-1.5">Appliance Sub-Type</label>
+              <select
+                value={appSub}
+                onChange={(e) => setAppSub(e.target.value as ApplianceSubType)}
+                className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 font-medium focus:ring-1 focus:ring-teal-500 shadow-xs"
+              >
+                {APPLIANCE_SUBTYPES.map((s) => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/70">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              onAdd(
+                cat,
+                cat === 'WALL_PANELING' ? sub : undefined,
+                cat === 'CABINETS_CLOSETS' ? cabSub : undefined,
+                cat === 'ACCESSORIES' ? accSub : undefined,
+                cat === 'APPLIANCES' ? appSub : undefined
+              )
+              onClose()
+            }}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" /> Confirm Add Section
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -5023,6 +5172,181 @@ export function RequisitionBuilderClient({
     for (const a of areas) m.set(a.id, a)
     return m
   }, [areas])
+
+  // ── Product slides for Level 1 focus view ──
+  const productSlides = useMemo(() => {
+    const slides: {
+      id: string
+      type: 'LINE_ITEM' | 'EXTRA'
+      index: number
+      title: string
+      areaName?: string
+      sectionName?: string
+      amount: number
+      quantity?: number
+      unit?: string
+      materials?: string | null
+      item?: QuotationLineItem
+    }[] = []
+
+    let idx = 1
+    for (const s of sections) {
+      const sItems = lineItems.filter((li) => li.sectionId === s.id)
+      for (const li of sItems) {
+        const area = li.areaId ? areaMap.get(li.areaId) : undefined
+        slides.push({
+          id: li.id,
+          type: 'LINE_ITEM',
+          index: idx++,
+          title: li.description,
+          areaName: area?.name,
+          sectionName: s.name,
+          amount: li.amount,
+          quantity: li.quantity,
+          unit: li.unit,
+          materials: li.materials,
+          item: li,
+        })
+      }
+    }
+
+    // Include line items without matching section if any
+    const assignedIds = new Set(slides.map((s) => s.id))
+    for (const li of lineItems) {
+      if (!assignedIds.has(li.id)) {
+        const area = li.areaId ? areaMap.get(li.areaId) : undefined
+        slides.push({
+          id: li.id,
+          type: 'LINE_ITEM',
+          index: idx++,
+          title: li.description,
+          areaName: area?.name,
+          sectionName: 'General',
+          amount: li.amount,
+          quantity: li.quantity,
+          unit: li.unit,
+          materials: li.materials,
+          item: li,
+        })
+      }
+    }
+
+    // Always include Extra & General Materials as the last slide
+    slides.push({
+      id: EXTRA_KEY,
+      type: 'EXTRA',
+      index: idx,
+      title: 'Extra & General Materials',
+      sectionName: 'Site Supplies & Sundries',
+      amount: 0,
+    })
+
+    return slides
+  }, [sections, lineItems, areaMap])
+
+  // ── Slide view and drawer navigation state ──
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [drawerSearch, setDrawerSearch] = useState('')
+  const [viewModePreference, setViewModePreference] = useState<'SLIDE' | 'ALL'>('SLIDE')
+  const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false)
+
+  const safeSlideIndex = Math.min(Math.max(0, activeSlideIndex), Math.max(0, productSlides.length - 1))
+  const currentSlide = productSlides[safeSlideIndex] ?? productSlides[0]
+  const currentCardKey = currentSlide?.id ?? EXTRA_KEY
+  const currentSlideSections = sectionsMap[currentCardKey] ?? []
+
+  // ── Active section detection for bottom smart action bar (IntersectionObserver) ──
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(null)
+  const visibleSectionRatios = useRef(new Map<string, number>())
+
+  useEffect(() => {
+    visibleSectionRatios.current.clear()
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const sectionId = entry.target.getAttribute('data-boq-section-id')
+          if (!sectionId) return
+          if (entry.isIntersecting) {
+            visibleSectionRatios.current.set(sectionId, entry.intersectionRatio)
+          } else {
+            visibleSectionRatios.current.delete(sectionId)
+          }
+        })
+
+        const mostVisible = [...visibleSectionRatios.current.entries()].sort((a, b) => b[1] - a[1])[0]
+        if (mostVisible) {
+          setActiveSectionId(mostVisible[0])
+        }
+      },
+      {
+        rootMargin: '-10% 0px -40% 0px',
+        threshold: [0, 0.25, 0.5, 0.75, 1],
+      }
+    )
+
+    const sectionElements = document.querySelectorAll('[data-boq-section-id]')
+    sectionElements.forEach((el) => observer.observe(el))
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [sectionsMap, safeSlideIndex, viewModePreference])
+
+  const effectiveActiveSectionId = useMemo(() => {
+    if (activeSectionId && currentSlideSections.some((s) => s.id === activeSectionId)) {
+      return activeSectionId
+    }
+    return currentSlideSections[0]?.id ?? null
+  }, [activeSectionId, currentSlideSections])
+
+  const activeSectionObj = useMemo(
+    () => currentSlideSections.find((s) => s.id === effectiveActiveSectionId) ?? currentSlideSections[0] ?? null,
+    [currentSlideSections, effectiveActiveSectionId]
+  )
+
+  const activeSectionName = useMemo(() => {
+    if (!activeSectionObj) return null
+    return getSectionTypeLabel(activeSectionObj)
+  }, [activeSectionObj])
+
+  // ── Keyboard shortcuts: Alt + ArrowLeft / Right for slides, Esc for drawer ──
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const tag = (event.target as HTMLElement)?.tagName?.toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+        return
+      }
+
+      if (event.altKey && event.key === 'ArrowLeft') {
+        event.preventDefault()
+        setActiveSlideIndex((prev) => Math.max(0, prev - 1))
+      } else if (event.altKey && event.key === 'ArrowRight') {
+        event.preventDefault()
+        setActiveSlideIndex((prev) => Math.min(productSlides.length - 1, prev + 1))
+      } else if (event.key === 'Escape' && isDrawerOpen) {
+        event.preventDefault()
+        setIsDrawerOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [productSlides.length, isDrawerOpen])
+
+  const filteredSlides = useMemo(() => {
+    if (!drawerSearch.trim()) return productSlides
+    const query = drawerSearch.toLowerCase().trim()
+    return productSlides.filter((slide) => {
+      return (
+        slide.title.toLowerCase().includes(query) ||
+        (slide.areaName && slide.areaName.toLowerCase().includes(query)) ||
+        (slide.sectionName && slide.sectionName.toLowerCase().includes(query)) ||
+        (slide.materials && slide.materials.toLowerCase().includes(query))
+      )
+    })
+  }, [productSlides, drawerSearch])
 
   // ── Section helpers ──
   const getSectionsForCard = (cardKey: string): CardSection[] => sectionsMap[cardKey] ?? []
@@ -5527,6 +5851,10 @@ export function RequisitionBuilderClient({
     totalMaterialRows,
   ])
 
+  const currentSlideRowsCount = useMemo(() => {
+    return currentSlideSections.reduce((sum, s) => sum + getRowsForSection(currentCardKey, s.id).length, 0)
+  }, [currentSlideSections, currentCardKey, itemsMap])
+
   /* ── RENDER ── */
   return (
     <div className="p-4 md:p-6 space-y-6 w-full pb-40">
@@ -5708,84 +6036,527 @@ export function RequisitionBuilderClient({
         </div>
       </div>
 
-      {/* ── Quotation-Driven Sections ── */}
-      {quotation && lineItems.length > 0 ? (
-        <div className="space-y-8">
-          {sections.map((section) => {
-            const sectionItems = lineItems.filter((li) => li.sectionId === section.id)
-            if (sectionItems.length === 0) return null
+      {/* ── Add Section Modal ── */}
+      <AddSectionModal
+        isOpen={isAddSectionModalOpen}
+        onClose={() => setIsAddSectionModalOpen(false)}
+        productTitle={currentSlide?.title ?? 'Quotation Product'}
+        onAdd={(cat, wpSub, cabSub, accSub, appSub) => {
+          addSection(
+            currentCardKey,
+            cat,
+            wpSub,
+            cabSub,
+            accSub,
+            appSub,
+            currentSlide?.type === 'LINE_ITEM' ? currentSlide.item?.id : undefined
+          )
+        }}
+      />
 
-            return (
-              <div key={section.id} className="space-y-4">
-                {/* Section Header */}
-                <div className="flex items-center gap-2 border-b border-border/70 bg-muted/10 px-2 pb-3 pt-3">
-                  <div className="p-1.5 rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
-                    <Layers className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Quotation group</p>
-                    <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{section.name}</h2>
-                  </div>
-                  <span className="text-xs font-medium text-muted-foreground ml-auto bg-muted px-2.5 py-0.5 rounded-full border border-border/40">
-                    {sectionItems.length} {sectionItems.length !== 1 ? 'line items' : 'line item'}
-                  </span>
+      {/* ── Left Product Drawer ── */}
+      {isDrawerOpen && (
+        <div className="fixed inset-0 z-50 flex">
+          <div
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsDrawerOpen(false)}
+          />
+          <div className="relative z-50 flex w-full max-w-md flex-col bg-card border-r border-border shadow-2xl animate-in slide-in-from-left duration-200">
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between border-b border-border/80 px-4 py-3.5 bg-muted/20">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                  <Layers className="w-4 h-4" />
                 </div>
-
-                {/* Line Items within this section */}
-                <div className="space-y-3">
-                  {sectionItems.map((li) => {
-                    const area = li.areaId ? areaMap.get(li.areaId) : undefined
-                    return (
-                      <QuotationLineItemCard
-                        key={li.id}
-                        item={li}
-                        area={area}
-                        sections={getSectionsForCard(li.id)}
-                        getRowsForSection={(sectionId) => getRowsForSection(li.id, sectionId)}
-                        onChangeRow={(sectionId, ri, field, val) => updateRow(li.id, sectionId, ri, field, val)}
-                        onUpdateVariant={(sectionId, ri, field, val) => updateVariant(li.id, sectionId, ri, field, val)}
-                        onAddRow={(sectionId) => addRow(li.id, sectionId, li.id)}
-                        onRemoveRow={(sectionId, ri) => removeRow(li.id, sectionId, ri)}
-                        onLoadPreset={(sectionId, subType) => loadPresetForSection(li.id, sectionId, subType, li.id)}
-                        onLoadCabinetPreset={(sectionId, subType) => loadCabinetPresetForSection(li.id, sectionId, subType, li.id)}
-                        onLoadAccessoryPreset={(sectionId, subType) => loadAccessoryPresetForSection(li.id, sectionId, subType, li.id)}
-                        onLoadAppliancePreset={(sectionId, subType) => loadAppliancePresetForSection(li.id, sectionId, subType, li.id)}
-                        onAddSection={(cat, wpSub, cabSub, accSub, appSub) => addSection(li.id, cat, wpSub, cabSub, accSub, appSub, li.id)}
-                        onRemoveSection={(sectionId) => removeSection(li.id, sectionId)}
-                        onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(li.id, sectionId)}
-                      />
-                    )
-                  })}
+                <div>
+                  <h3 className="text-sm font-bold text-foreground">Quotation Products</h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    {coveredLineItems} of {lineItems.length} products configured ({coveragePct}%)
+                  </p>
                 </div>
               </div>
-            )
-          })}
-        </div>
-      ) : detailQuotation && !quotation ? (
-        <div className="rounded-lg border bg-destructive/5 p-4 text-xs text-destructive flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          Could not parse quotation content. Please contact admin to re-finalize the quotation.
-        </div>
-      ) : null}
+              <button
+                onClick={() => setIsDrawerOpen(false)}
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-      {/* ── Extra / General Section ── */}
-      <div className="space-y-3">
-        <ExtraCard
-          sections={getSectionsForCard(EXTRA_KEY)}
-          getRowsForSection={(sectionId) => getRowsForSection(EXTRA_KEY, sectionId)}
-          onChangeRow={(sectionId, ri, field, val) => updateRow(EXTRA_KEY, sectionId, ri, field, val)}
-          onUpdateVariant={(sectionId, ri, field, val) => updateVariant(EXTRA_KEY, sectionId, ri, field, val)}
-          onAddRow={(sectionId) => addRow(EXTRA_KEY, sectionId, undefined)}
-          onRemoveRow={(sectionId, ri) => removeRow(EXTRA_KEY, sectionId, ri)}
-          onLoadPreset={(sectionId, subType) => loadPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
-          onLoadCabinetPreset={(sectionId, subType) => loadCabinetPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
-          onLoadAccessoryPreset={(sectionId, subType) => loadAccessoryPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
-          onLoadAppliancePreset={(sectionId, subType) => loadAppliancePresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
-          onAddSection={(cat, wpSub, cabSub, accSub, appSub) => addSection(EXTRA_KEY, cat, wpSub, cabSub, accSub, appSub, undefined)}
-          onRemoveSection={(sectionId) => removeSection(EXTRA_KEY, sectionId)}
-          onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(EXTRA_KEY, sectionId)}
-        />
+            {/* Search Input */}
+            <div className="p-3 border-b border-border/60 bg-background">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={drawerSearch}
+                  onChange={(e) => setDrawerSearch(e.target.value)}
+                  placeholder="Search product, room, or floor..."
+                  className="w-full rounded-md border border-input bg-muted/30 pl-8 pr-7 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                {drawerSearch && (
+                  <button
+                    onClick={() => setDrawerSearch('')}
+                    className="absolute right-2 top-2 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Product List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {filteredSlides.map((slide) => {
+                const isSelected = productSlides[safeSlideIndex]?.id === slide.id
+                const sections = getSectionsForCard(slide.id)
+                const rowsCount = sections.reduce((sum, s) => sum + getRowsForSection(slide.id, s.id).length, 0)
+                const isConfigured = rowsCount > 0
+
+                return (
+                  <button
+                    key={slide.id}
+                    onClick={() => {
+                      const targetIdx = productSlides.findIndex((s) => s.id === slide.id)
+                      if (targetIdx !== -1) {
+                        setActiveSlideIndex(targetIdx)
+                        setViewModePreference('SLIDE')
+                      }
+                      setIsDrawerOpen(false)
+                    }}
+                    className={`w-full text-left p-3 rounded-xl border transition-all ${
+                      isSelected
+                        ? 'border-primary bg-primary/10 shadow-xs ring-1 ring-primary/40'
+                        : 'border-border/70 bg-card hover:bg-muted/40 hover:border-primary/30'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <span
+                            className={`text-[10px] font-black px-1.5 py-0.5 rounded ${
+                              isSelected ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                            }`}
+                          >
+                            #{slide.index}
+                          </span>
+                          {slide.areaName && (
+                            <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded">
+                              {slide.areaName}
+                            </span>
+                          )}
+                          {slide.sectionName && (
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">
+                              {slide.sectionName}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs font-bold text-foreground truncate">{slide.title}</p>
+                      </div>
+                      {slide.amount > 0 && (
+                        <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300 shrink-0">
+                          {formatBdtRounded(slide.amount)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/40 pt-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Package className="w-3 h-3 opacity-70" />
+                        <span>{sections.length} sections · {rowsCount} rows</span>
+                      </div>
+                      {slide.type === 'EXTRA' ? (
+                        <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400 font-semibold text-[10px]">
+                          <Sparkles className="w-3 h-3" /> General
+                        </span>
+                      ) : isConfigured ? (
+                        <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-semibold text-[10px]">
+                          <CheckCircle2 className="w-3 h-3" /> Ready
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-amber-500 font-semibold text-[10px]">
+                          <AlertCircle className="w-3 h-3" /> Needs rows
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Floating Side Navigation Chevrons (Desktop) ── */}
+      {viewModePreference === 'SLIDE' && (
+        <>
+          {safeSlideIndex > 0 && (
+            <button
+              onClick={() => setActiveSlideIndex((prev) => Math.max(0, prev - 1))}
+              className="fixed left-3 top-1/2 -translate-y-1/2 z-20 hidden 2xl:flex h-12 w-12 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-xl backdrop-blur-sm transition-all hover:scale-110 hover:border-primary hover:bg-primary/10 hover:text-primary active:scale-95"
+              title={`Previous: ${productSlides[safeSlideIndex - 1]?.title} (Alt + Left)`}
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+          {safeSlideIndex < productSlides.length - 1 && (
+            <button
+              onClick={() => setActiveSlideIndex((prev) => Math.min(productSlides.length - 1, prev + 1))}
+              className="fixed right-3 top-1/2 -translate-y-1/2 z-20 hidden 2xl:flex h-12 w-12 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-xl backdrop-blur-sm transition-all hover:scale-110 hover:border-primary hover:bg-primary/10 hover:text-primary active:scale-95"
+              title={`Next: ${productSlides[safeSlideIndex + 1]?.title} (Alt + Right)`}
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
+        </>
+      )}
+
+      {/* ── Product Navigation Bar (Slide Stepper & Drawer Trigger) ── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-3 shadow-xs">
+        {/* Left: Product list drawer trigger */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsDrawerOpen(true)}
+            className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary shadow-2xs hover:bg-primary/20 transition-colors"
+            title="Open Product Navigator"
+          >
+            <Layers className="w-4 h-4" />
+            <span>Product List ({safeSlideIndex + 1}/{productSlides.length})</span>
+            <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+          </button>
+        </div>
+
+        {/* Center: Slide Stepper Navigation */}
+        <div className="flex items-center rounded-xl border border-border/80 bg-muted/40 p-1 shadow-2xs">
+          <button
+            onClick={() => setActiveSlideIndex((prev) => Math.max(0, prev - 1))}
+            disabled={safeSlideIndex === 0}
+            className="flex items-center gap-1 px-3 py-1 text-xs font-bold text-foreground rounded-lg hover:bg-background disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            title="Previous Product (Alt + Left)"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Prev</span>
+          </button>
+
+          <span className="px-3 text-xs font-black text-foreground border-x border-border/60">
+            Slide {safeSlideIndex + 1} of {productSlides.length}
+          </span>
+
+          <button
+            onClick={() => setActiveSlideIndex((prev) => Math.min(productSlides.length - 1, prev + 1))}
+            disabled={safeSlideIndex === productSlides.length - 1}
+            className="flex items-center gap-1 px-3 py-1 text-xs font-bold text-foreground rounded-lg hover:bg-background disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+            title="Next Product (Alt + Right)"
+          >
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Right: View mode toggle */}
+        <div className="flex items-center rounded-lg border border-border/70 bg-card p-0.5 text-xs">
+          <button
+            onClick={() => setViewModePreference('SLIDE')}
+            className={`px-3 py-1 rounded-md font-semibold transition-colors ${
+              viewModePreference === 'SLIDE'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Slide View
+          </button>
+          <button
+            onClick={() => setViewModePreference('ALL')}
+            className={`px-3 py-1 rounded-md font-semibold transition-colors ${
+              viewModePreference === 'ALL'
+                ? 'bg-primary text-primary-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            All Products
+          </button>
+        </div>
       </div>
+
+      {/* ── Main Canvas ── */}
+      {viewModePreference === 'SLIDE' ? (
+        <div className="space-y-6">
+          {currentSlide.type === 'LINE_ITEM' && currentSlide.item ? (
+            <div className="space-y-6">
+              {/* Level 1 Hero Banner */}
+              <div className="rounded-2xl border-2 border-primary/25 bg-gradient-to-br from-primary/[0.04] via-card to-primary/[0.02] p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-2 flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
+                        Level 1 • Quotation Product
+                      </span>
+                      <span className="rounded-md border border-border bg-muted/50 px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Slide {safeSlideIndex + 1} of {productSlides.length}
+                      </span>
+                      {currentSlide.areaName && (
+                        <span className="rounded-md border border-blue-500/30 bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
+                          {currentSlide.areaName}
+                        </span>
+                      )}
+                      {currentSlide.sectionName && (
+                        <span className="text-[11px] font-medium text-muted-foreground">
+                          {currentSlide.sectionName}
+                        </span>
+                      )}
+                    </div>
+
+                    <h2 className="text-xl md:text-2xl font-black text-foreground tracking-tight">
+                      {currentSlide.title}
+                    </h2>
+
+                    {currentSlide.materials && (
+                      <div className="rounded-xl border border-border/70 bg-background/80 p-2.5 text-xs text-muted-foreground leading-relaxed">
+                        <span className="font-bold text-foreground/80 uppercase text-[10px] tracking-wider block mb-0.5">
+                          Quotation Material Spec:
+                        </span>
+                        {currentSlide.materials}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right stats */}
+                  <div className="flex flex-wrap items-center gap-3 lg:flex-col lg:items-end">
+                    {currentSlide.amount > 0 && (
+                      <div className="text-right">
+                        <span className="text-[11px] font-semibold text-muted-foreground block">Quotation Budget</span>
+                        <span className="text-lg md:text-xl font-black text-emerald-700 dark:text-emerald-300">
+                          {formatBdtRounded(currentSlide.amount)}
+                        </span>
+                        {currentSlide.quantity && (
+                          <span className="text-xs text-muted-foreground block font-medium">
+                            Qty: {currentSlide.quantity} {currentSlide.unit}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2">
+                      <div className="rounded-lg border border-border/70 bg-card px-3 py-1.5 text-center shadow-2xs">
+                        <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sections</span>
+                        <span className="block text-sm font-black text-foreground">{currentSlideSections.length}</span>
+                      </div>
+                      <div className="rounded-lg border border-border/70 bg-card px-3 py-1.5 text-center shadow-2xs">
+                        <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Material Rows</span>
+                        <span className="block text-sm font-black text-foreground">{currentSlideRowsCount}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Level 2 Requisition Sections for this active product */}
+              <div className="space-y-5">
+                {currentSlideSections.length === 0 ? (
+                  <div className="rounded-2xl border-2 border-dashed border-border/80 bg-card/50 p-8 text-center space-y-3">
+                    <Package className="w-8 h-8 mx-auto text-muted-foreground/40" />
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">No material sections configured for this quotation item.</h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Add a section (Core Structural Boards, Fasteners, Hardware, etc.) to start specifying required materials.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsAddSectionModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                    >
+                      <Plus className="w-4 h-4" /> Add First Section
+                    </button>
+                  </div>
+                ) : (
+                  currentSlideSections.map((section) => (
+                    <SectionBlock
+                      key={section.id}
+                      section={section}
+                      rows={getRowsForSection(currentCardKey, section.id)}
+                      onChange={(ri, field, val) => updateRow(currentCardKey, section.id, ri, field, val)}
+                      onUpdateVariant={(ri, field, val) => updateVariant(currentCardKey, section.id, ri, field, val)}
+                      onAddRow={() => addRow(currentCardKey, section.id, currentSlide.item?.id)}
+                      onRemoveRow={(ri) => removeRow(currentCardKey, section.id, ri)}
+                      onLoadPreset={(subType) => loadPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
+                      onLoadCabinetPreset={(subType) => loadCabinetPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
+                      onLoadAccessoryPreset={(subType) => loadAccessoryPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
+                      onLoadAppliancePreset={(subType) => loadAppliancePresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
+                      onToggleCollapse={() => toggleSectionCollapse(currentCardKey, section.id)}
+                      onRemove={() => removeSection(currentCardKey, section.id)}
+                    />
+                  ))
+                )}
+
+                {/* Inline Add Section trigger */}
+                <div className="rounded-xl border border-dashed border-border/80 bg-card/60 p-4 text-center">
+                  <button
+                    onClick={() => setIsAddSectionModalOpen(true)}
+                    className="inline-flex items-center gap-2 text-xs font-bold text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" /> Add Another Section to {currentSlide.title}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Extra & General Materials Slide */
+            <div className="space-y-6">
+              <div className="rounded-2xl border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-card to-amber-500/5 p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                        Level 1 • Extra & General
+                      </span>
+                      <span className="rounded-md border border-border bg-muted/50 px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                        Slide {safeSlideIndex + 1} of {productSlides.length}
+                      </span>
+                    </div>
+                    <h2 className="text-xl md:text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
+                      <Sparkles className="w-6 h-6 text-amber-500" />
+                      Extra & General Materials
+                    </h2>
+                    <p className="text-xs text-muted-foreground">
+                      Site supplies, general hardware, adhesives, and sundries not linked to a specific quotation product.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="rounded-lg border border-border/70 bg-card px-3 py-1.5 text-center shadow-2xs">
+                      <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sections</span>
+                      <span className="block text-sm font-black text-foreground">{currentSlideSections.length}</span>
+                    </div>
+                    <div className="rounded-lg border border-border/70 bg-card px-3 py-1.5 text-center shadow-2xs">
+                      <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Material Rows</span>
+                      <span className="block text-sm font-black text-foreground">{currentSlideRowsCount}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-5">
+                {currentSlideSections.length === 0 ? (
+                  <div className="rounded-2xl border-2 border-dashed border-amber-500/30 bg-card/50 p-8 text-center space-y-3">
+                    <Package className="w-8 h-8 mx-auto text-amber-500/40" />
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">No general sections added yet.</h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Add a Wall Paneling, Closet/Cabinet, Accessories, or Appliance section to specify site supplies.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsAddSectionModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                    >
+                      <Plus className="w-4 h-4" /> Add General Section
+                    </button>
+                  </div>
+                ) : (
+                  currentSlideSections.map((section) => (
+                    <SectionBlock
+                      key={section.id}
+                      section={section}
+                      rows={getRowsForSection(EXTRA_KEY, section.id)}
+                      onChange={(ri, field, val) => updateRow(EXTRA_KEY, section.id, ri, field, val)}
+                      onUpdateVariant={(ri, field, val) => updateVariant(EXTRA_KEY, section.id, ri, field, val)}
+                      onAddRow={() => addRow(EXTRA_KEY, section.id, undefined)}
+                      onRemoveRow={(ri) => removeRow(EXTRA_KEY, section.id, ri)}
+                      onLoadPreset={(subType) => loadPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
+                      onLoadCabinetPreset={(subType) => loadCabinetPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
+                      onLoadAccessoryPreset={(subType) => loadAccessoryPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
+                      onLoadAppliancePreset={(subType) => loadAppliancePresetForSection(EXTRA_KEY, section.id, subType, undefined)}
+                      onToggleCollapse={() => toggleSectionCollapse(EXTRA_KEY, section.id)}
+                      onRemove={() => removeSection(EXTRA_KEY, section.id)}
+                    />
+                  ))
+                )}
+
+                <div className="rounded-xl border border-dashed border-border/80 bg-card/60 p-4 text-center">
+                  <button
+                    onClick={() => setIsAddSectionModalOpen(true)}
+                    className="inline-flex items-center gap-2 text-xs font-bold text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" /> Add Another Section to Extra & General
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* All Products Vertical View */
+        <div className="space-y-8">
+          {quotation && lineItems.length > 0 ? (
+            <div className="space-y-8">
+              {sections.map((section) => {
+                const sectionItems = lineItems.filter((li) => li.sectionId === section.id)
+                if (sectionItems.length === 0) return null
+
+                return (
+                  <div key={section.id} className="space-y-4">
+                    <div className="flex items-center gap-2 border-b border-border/70 bg-muted/10 px-2 pb-3 pt-3">
+                      <div className="p-1.5 rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Quotation group</p>
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">{section.name}</h2>
+                      </div>
+                      <span className="text-xs font-medium text-muted-foreground ml-auto bg-muted px-2.5 py-0.5 rounded-full border border-border/40">
+                        {sectionItems.length} {sectionItems.length !== 1 ? 'line items' : 'line item'}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {sectionItems.map((li) => {
+                        const area = li.areaId ? areaMap.get(li.areaId) : undefined
+                        return (
+                          <QuotationLineItemCard
+                            key={li.id}
+                            item={li}
+                            area={area}
+                            sections={getSectionsForCard(li.id)}
+                            getRowsForSection={(sectionId) => getRowsForSection(li.id, sectionId)}
+                            onChangeRow={(sectionId, ri, field, val) => updateRow(li.id, sectionId, ri, field, val)}
+                            onUpdateVariant={(sectionId, ri, field, val) => updateVariant(li.id, sectionId, ri, field, val)}
+                            onAddRow={(sectionId) => addRow(li.id, sectionId, li.id)}
+                            onRemoveRow={(sectionId, ri) => removeRow(li.id, sectionId, ri)}
+                            onLoadPreset={(sectionId, subType) => loadPresetForSection(li.id, sectionId, subType, li.id)}
+                            onLoadCabinetPreset={(sectionId, subType) => loadCabinetPresetForSection(li.id, sectionId, subType, li.id)}
+                            onLoadAccessoryPreset={(sectionId, subType) => loadAccessoryPresetForSection(li.id, sectionId, subType, li.id)}
+                            onLoadAppliancePreset={(sectionId, subType) => loadAppliancePresetForSection(li.id, sectionId, subType, li.id)}
+                            onAddSection={(cat, wpSub, cabSub, accSub, appSub) => addSection(li.id, cat, wpSub, cabSub, accSub, appSub, li.id)}
+                            onRemoveSection={(sectionId) => removeSection(li.id, sectionId)}
+                            onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(li.id, sectionId)}
+                          />
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : null}
+
+          {/* Extra Card in All View */}
+          <ExtraCard
+            sections={getSectionsForCard(EXTRA_KEY)}
+            getRowsForSection={(sectionId) => getRowsForSection(EXTRA_KEY, sectionId)}
+            onChangeRow={(sectionId, ri, field, val) => updateRow(EXTRA_KEY, sectionId, ri, field, val)}
+            onUpdateVariant={(sectionId, ri, field, val) => updateVariant(EXTRA_KEY, sectionId, ri, field, val)}
+            onAddRow={(sectionId) => addRow(EXTRA_KEY, sectionId, undefined)}
+            onRemoveRow={(sectionId, ri) => removeRow(EXTRA_KEY, sectionId, ri)}
+            onLoadPreset={(sectionId, subType) => loadPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
+            onLoadCabinetPreset={(sectionId, subType) => loadCabinetPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
+            onLoadAccessoryPreset={(sectionId, subType) => loadAccessoryPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
+            onLoadAppliancePreset={(sectionId, subType) => loadAppliancePresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
+            onAddSection={(cat, wpSub, cabSub, accSub, appSub) => addSection(EXTRA_KEY, cat, wpSub, cabSub, accSub, appSub, undefined)}
+            onRemoveSection={(sectionId) => removeSection(EXTRA_KEY, sectionId)}
+            onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(EXTRA_KEY, sectionId)}
+          />
+        </div>
+      )}
 
       {/* ── Requisition Notes ── */}
       <div className="rounded-xl border border-border/80 bg-card p-4 shadow-xs space-y-2">
@@ -5801,69 +6572,133 @@ export function RequisitionBuilderClient({
         />
       </div>
 
-      {/* ── Always-visible Bottom Workspace Bar ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/80 bg-background/95 px-4 py-3 shadow-2xl backdrop-blur-md md:px-6">
-        <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[680px]">
-            <div className="rounded-md border border-border/70 bg-card px-3 py-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Materials</p>
-              <p className="text-sm font-bold text-foreground">{totalMaterialRows} row{totalMaterialRows !== 1 ? 's' : ''}</p>
-            </div>
-            <div className="rounded-md border border-border/70 bg-card px-3 py-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Coverage</p>
-              <p className="text-sm font-bold text-foreground">{coveredLineItems}/{lineItems.length} item{lineItems.length !== 1 ? 's' : ''}</p>
-            </div>
-            <div className="rounded-md border border-border/70 bg-card px-3 py-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">General</p>
-              <p className="text-sm font-bold text-foreground">{extraRowCount} row{extraRowCount !== 1 ? 's' : ''}</p>
-            </div>
-            <div className="rounded-md border border-border/70 bg-card px-3 py-2">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">State</p>
-              <p className="truncate text-sm font-bold text-foreground">
-                {isPending ? 'Saving...' : lastSavedStatus === 'SUBMITTED' ? 'Submitted' : lastSavedAt ? 'Draft saved' : 'Unsaved draft'}
-              </p>
-            </div>
+      {/* ── Always-visible Bottom Workspace Bar (Contextual Smart Bar) ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/80 bg-background/95 px-4 py-2.5 shadow-2xl backdrop-blur-md md:px-6">
+        <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3">
+          {/* Left: Product slide info & Navigator trigger */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsDrawerOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 transition-colors shadow-2xs"
+              title="Open Product List Drawer"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span className="font-extrabold">{safeSlideIndex + 1}/{productSlides.length}</span>
+              <span className="hidden sm:inline truncate max-w-[150px] font-semibold">{currentSlide?.title}</span>
+            </button>
+
+            {viewModePreference === 'SLIDE' && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setActiveSlideIndex((prev) => Math.max(0, prev - 1))}
+                  disabled={safeSlideIndex === 0}
+                  className="p-1.5 rounded-md border border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
+                  title="Previous Product"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => setActiveSlideIndex((prev) => Math.min(productSlides.length - 1, prev + 1))}
+                  disabled={safeSlideIndex === productSlides.length - 1}
+                  className="p-1.5 rounded-md border border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
+                  title="Next Product"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="min-w-0 flex-1 text-xs text-muted-foreground lg:px-4">
-            <div className="flex items-center gap-2">
-              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${saveError ? 'bg-destructive' : lastSavedAt ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              <p className="truncate">
-                {categorySummary || 'No materials added yet.'}
-                {lastSavedAt && (
-                  <span className="ml-2 text-muted-foreground/80">
-                    Last saved {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {/* Center: Contextual Action Buttons ("Which section it will hit") */}
+          <div className="flex flex-wrap items-center gap-2">
+            {activeSectionObj ? (
+              <>
+                {/* Target section badge */}
+                <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/60 border border-border/60 text-xs">
+                  <Target className="w-3.5 h-3.5 text-primary animate-pulse" />
+                  <span className="text-muted-foreground font-medium">Target:</span>
+                  <span className="font-bold text-foreground truncate max-w-[200px]">
+                    {activeSectionName}
                   </span>
-                )}
-              </p>
-            </div>
+                </div>
+
+                {/* Add Material to active section button */}
+                <button
+                  onClick={() => {
+                    if (activeSectionObj) {
+                      addRow(
+                        currentCardKey,
+                        activeSectionObj.id,
+                        currentSlide?.type === 'LINE_ITEM' ? currentSlide.item?.id : undefined
+                      )
+                      if (activeSectionObj.collapsed) {
+                        toggleSectionCollapse(currentCardKey, activeSectionObj.id)
+                      }
+                      setTimeout(() => {
+                        document.getElementById(`section-dom-${activeSectionObj.id}`)?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'nearest',
+                        })
+                      }, 50)
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 text-xs font-bold shadow-sm transition-colors"
+                  title={`Add a material row to ${activeSectionName}`}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Material</span>
+                  <span className="hidden sm:inline font-semibold opacity-90">({activeSectionName})</span>
+                </button>
+
+                {/* Add Section button */}
+                <button
+                  onClick={() => setIsAddSectionModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card hover:bg-muted px-3 py-1.5 text-xs font-bold text-foreground shadow-2xs transition-colors"
+                  title="Add a new section to this product"
+                >
+                  <Plus className="w-3.5 h-3.5 text-primary" />
+                  <span>Add Section</span>
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setIsAddSectionModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-1.5 text-xs font-bold shadow-sm transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add First Section to this Product</span>
+              </button>
+            )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          {/* Right: Save / Submit / PDF */}
+          <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => handleSave('DRAFT')}
               disabled={isPending}
-              className="inline-flex items-center justify-center rounded-lg border border-input bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-lg border border-input bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50"
             >
               <Save className="mr-1.5 h-3.5 w-3.5 text-amber-500" />
-              Save Draft
-              <span className="ml-2 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">Ctrl+S</span>
+              <span className="hidden sm:inline">Save</span> Draft
+              <span className="ml-1.5 hidden xl:inline rounded border border-border bg-muted px-1 py-0.5 text-[9px] font-bold text-muted-foreground">
+                Ctrl+S
+              </span>
             </button>
             <button
               onClick={handleDownloadPdf}
               disabled={isPending || isPdfGenerating || totalMaterialRows === 0}
-              className="inline-flex items-center justify-center rounded-lg border border-input bg-card px-4 py-2 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-lg border border-input bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50"
             >
               <Receipt className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
-              {isPdfGenerating ? 'Building PDF...' : 'PDF'}
+              {isPdfGenerating ? 'PDF...' : 'PDF'}
             </button>
             <button
               onClick={() => handleSave('SUBMITTED')}
               disabled={isPending || totalMaterialRows === 0}
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               <Send className="mr-1.5 h-3.5 w-3.5" />
-              Submit Requisition
+              <span className="hidden sm:inline">Submit</span>
             </button>
           </div>
         </div>
