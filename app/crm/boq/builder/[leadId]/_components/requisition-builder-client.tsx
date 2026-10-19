@@ -1913,16 +1913,17 @@ function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]
   if (viewMode === 'SCREW_SPEC') {
     return {
       color: [180, 83, 9],
-      head: ['SL NO', 'Length (Inches)', 'Unit', 'Qty', 'Usage Purpose', 'Notes'],
+      head: ['SL NO', 'Item Type', 'Length (Inches)', 'Unit', 'Qty', 'Usage Purpose', 'Notes'],
       body: rows.map((item, idx) => [
         String(idx + 1).padStart(2, '0'),
+        text(item.materialName || pdfAttr(item, 'fastenerType') || 'Screw'),
         text(pdfAttr(item, 'lengthInches')),
         text(item.unit),
         pdfQty(item),
         text(pdfAttr(item, 'usagePurpose') || item.productionPhase),
         text(pdfAttr(item, 'column1') || item.remarks),
       ]),
-      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 1: { cellWidth: 34, fontStyle: 'bold' }, 2: { cellWidth: 18 }, 3: { cellWidth: 20, halign: 'right', fontStyle: 'bold' }, 4: { cellWidth: 54 }, 5: { cellWidth: 'auto' } },
+      columnStyles: { 0: { cellWidth: 14, halign: 'center' }, 1: { cellWidth: 32, fontStyle: 'bold' }, 2: { cellWidth: 28 }, 3: { cellWidth: 18 }, 4: { cellWidth: 20, halign: 'right', fontStyle: 'bold' }, 5: { cellWidth: 48 }, 6: { cellWidth: 'auto' } },
     }
   }
 
@@ -2457,6 +2458,7 @@ function BoardDatalists() {
 
       {/* ── Screws & Structural Fasteners Datalists ── */}
       <datalist id="fastener-type-list">
+        <option value="Screw" />
         <option value="Wood Screw" />
         <option value="Drywall Screw" />
         <option value="Self Tapping Screw" />
@@ -3695,6 +3697,7 @@ function MaterialRowsTable({
             <thead className="bg-amber-600/10 border-b border-amber-600/20 text-amber-950 dark:text-amber-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Item Type</th>
                 <th className={`${GRID_TH} w-28`}>Length (Inches)</th>
                 <th className={`${GRID_TH} w-20`}>Unit</th>
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
@@ -3713,7 +3716,23 @@ function MaterialRowsTable({
                       {String(ri + 1).padStart(2, '0')}
                     </td>
 
-                    {/* 2. Length (Inches) */}
+                    {/* 2. Item Type (Default: Screw) */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        list="fastener-type-list"
+                        value={item.materialName || attrs.fastenerType || 'Screw'}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onChange(ri, 'materialName', val)
+                          onUpdateVariant(ri, 'fastenerType', val)
+                        }}
+                        placeholder="Screw"
+                        className={GRID_CELL_BOLD}
+                      />
+                    </td>
+
+                    {/* 3. Length (Inches) */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
