@@ -2550,6 +2550,7 @@ function CabinetCombobox({
   className?: string
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [query, setQuery] = useState('')
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
   const triggerRef = useRef<HTMLDivElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -2568,6 +2569,11 @@ function CabinetCombobox({
     setIsOpen(true)
   }
 
+  const closeDropdown = () => {
+    setIsOpen(false)
+    setQuery('')
+  }
+
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Node
@@ -2575,7 +2581,7 @@ function CabinetCombobox({
         triggerRef.current && !triggerRef.current.contains(target) &&
         dropdownRef.current && !dropdownRef.current.contains(target)
       ) {
-        setIsOpen(false)
+        closeDropdown()
       }
     }
     if (isOpen) {
@@ -2589,9 +2595,9 @@ function CabinetCombobox({
     if (!isOpen) return
     const handleScroll = (e: Event) => {
       if (dropdownRef.current && dropdownRef.current.contains(e.target as Node)) return
-      setIsOpen(false)
+      closeDropdown()
     }
-    const handleResize = () => setIsOpen(false)
+    const handleResize = () => closeDropdown()
     window.addEventListener('scroll', handleScroll, true)
     window.addEventListener('resize', handleResize)
     return () => {
@@ -2599,6 +2605,19 @@ function CabinetCombobox({
       window.removeEventListener('resize', handleResize)
     }
   }, [isOpen])
+
+  // Filter helpers
+  const q = query.toLowerCase().trim()
+  const filteredGroups = groups?.map((grp) => ({
+    ...grp,
+    items: q ? grp.items.filter((item) => item.toLowerCase().includes(q)) : grp.items,
+  })).filter((grp) => grp.items.length > 0)
+
+  const filteredOptions = q ? options.filter((opt) => opt.toLowerCase().includes(q)) : options
+
+  const hasResults = groups
+    ? (filteredGroups?.some((g) => g.items.length > 0) ?? false)
+    : filteredOptions.length > 0
 
   return (
     <div ref={triggerRef} className="relative w-full">
@@ -2608,10 +2627,12 @@ function CabinetCombobox({
           value={value || ''}
           onChange={(e) => {
             onChange(e.target.value)
+            setQuery(e.target.value)
             openDropdown()
           }}
           onFocus={(e) => {
             e.target.select()
+            setQuery('')
             openDropdown()
           }}
           placeholder={placeholder}
@@ -2620,7 +2641,7 @@ function CabinetCombobox({
         <button
           type="button"
           tabIndex={-1}
-          onClick={() => (isOpen ? setIsOpen(false) : openDropdown())}
+          onClick={() => (isOpen ? closeDropdown() : openDropdown())}
           className="absolute right-1 text-muted-foreground/40 hover:text-foreground p-0.5"
           title="Open dropdown"
         >
@@ -2634,9 +2655,25 @@ function CabinetCombobox({
           style={dropdownStyle}
           className="rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-2xl overflow-hidden"
         >
-          <div className="max-h-72 overflow-y-auto">
-            {groups && groups.length > 0 ? (
-              groups.map((grp) => (
+          {/* Search box inside dropdown */}
+          <div className="px-2 pb-1 pt-0.5 border-b border-border/40">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onMouseDown={(e) => e.stopPropagation()}
+              placeholder="Search..."
+              autoFocus
+              className="w-full px-2 py-1 text-xs rounded border border-border/60 bg-background focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground/50"
+            />
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            {!hasResults ? (
+              <div className="px-3 py-4 text-xs text-center text-muted-foreground">
+                No results for &quot;{query}&quot;
+              </div>
+            ) : groups && groups.length > 0 ? (
+              filteredGroups!.map((grp) => (
                 <div key={grp.group} className="border-b border-border/40 last:border-b-0 pb-1">
                   <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-muted-foreground bg-muted/60 sticky top-0 z-10 backdrop-blur-xs">
                     {grp.group}
@@ -2648,7 +2685,7 @@ function CabinetCombobox({
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
                         onChange(opt)
-                        setIsOpen(false)
+                        closeDropdown()
                       }}
                       className={`flex w-full items-center justify-between px-3 py-1.5 text-xs text-left hover:bg-primary/10 hover:text-primary transition-colors ${
                         value === opt ? 'bg-primary/15 font-semibold text-primary' : 'text-foreground'
@@ -2661,14 +2698,14 @@ function CabinetCombobox({
                 </div>
               ))
             ) : (
-              options.map((opt) => (
+              filteredOptions.map((opt) => (
                 <button
                   key={opt}
                   type="button"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
                     onChange(opt)
-                    setIsOpen(false)
+                    closeDropdown()
                   }}
                   className={`flex w-full items-center justify-between px-3 py-1.5 text-xs text-left hover:bg-primary/10 hover:text-primary transition-colors ${
                     value === opt ? 'bg-primary/15 font-semibold text-primary' : 'text-foreground'
