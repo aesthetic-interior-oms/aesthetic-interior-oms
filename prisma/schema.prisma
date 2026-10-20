@@ -807,8 +807,8 @@ model ConveyanceRequest {
   id             String   @id @default(cuid())
   requesterId    String
   amount         Float
-  purpose        String
-  travelDate     DateTime
+  clientName     String
+  clientLocation String
   status         String   @default("PENDING")
   voucherNo      String?  @unique
   approvedAmount Float?
@@ -819,10 +819,26 @@ model ConveyanceRequest {
   updatedAt      DateTime @updatedAt
   requester      User     @relation("ConveyanceRequester", fields: [requesterId], references: [id], onDelete: Restrict)
   reviewedBy     User?    @relation("ConveyanceReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  bills          ConveyanceBill[]
 
-  @@index([travelDate])
-  @@index([requesterId, travelDate])
-  @@index([status, travelDate])
+  @@index([requesterId, createdAt])
+  @@index([status, createdAt])
+}
+
+model ConveyanceBill {
+  id        String            @id @default(cuid())
+  requestId String
+  date      DateTime
+  from      String
+  to        String
+  mode      String
+  purpose   String
+  amount    Float
+  createdAt DateTime          @default(now())
+  request   ConveyanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, date])
+  @@index([date])
 }
 
 model CashFlowDaily {

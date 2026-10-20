@@ -18,13 +18,12 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
   if (!current) return NextResponse.json({ success: false, error: 'Request not found.' }, { status: 404 })
   if (status === 'PAID' && current.status !== 'APPROVED') return NextResponse.json({ success: false, error: 'Only approved requests can be marked paid.' }, { status: 409 })
   if (['APPROVED', 'REJECTED'].includes(status) && current.status !== 'PENDING') return NextResponse.json({ success: false, error: 'This request has already been reviewed.' }, { status: 409 })
-  const amount = body?.approvedAmount == null ? current.amount : Number(body.approvedAmount)
+  const amount = current.amount
   const voucherNo = typeof body?.voucherNo === 'string' ? body.voucherNo.trim() || null : current.voucherNo
-  if (status === 'APPROVED' && (!Number.isFinite(amount) || amount <= 0 || amount > current.amount)) return NextResponse.json({ success: false, error: 'Approved amount must be greater than zero and no more than the requested amount.' }, { status: 400 })
   if (status === 'APPROVED' && voucherNo?.length && voucherNo.length > 80) return NextResponse.json({ success: false, error: 'Voucher number is too long.' }, { status: 400 })
   try {
     const assignedVoucher = status === 'APPROVED' && !voucherNo
-      ? `CV-${current.travelDate.toISOString().slice(0, 10).replaceAll('-', '')}-${id.slice(-6).toUpperCase()}`
+      ? `CV-${current.createdAt.toISOString().slice(0, 10).replaceAll('-', '')}-${id.slice(-6).toUpperCase()}`
       : voucherNo
     const updated = await prisma.conveyanceRequest.update({ where: { id }, data: {
       status,
