@@ -749,68 +749,10 @@ export function DetailQuotationDocument({
 
         <Text style={styles.sectionTitle}>Project Summary</Text>
 
-        <View style={styles.tableWrapper}>
-          <View style={[styles.tHead, { marginBottom: 3 }]}>
-            <Text style={[styles.thCol, styles.summaryThCol, styles.wSl]}>SL</Text>
-            <Text style={[styles.thCol, styles.summaryThCol, styles.wSumName]}>Description</Text>
-            <Text style={[styles.thCol, styles.summaryThCol, styles.wSumTotal, styles.thColLast]}>Amount ({BDT_SYMBOL})</Text>
-          </View>
-          {summaryFloorEntries.map((entry, index) => {
-            const isFESection =
-              entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
-              entry.floor.id === 'finishing-electrical-works-section' ||
-              Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name))
-
-            return (
-              <View key={entry.floor.id}>
-                <View style={[styles.tRow, styles.summaryFloorRow]}>
-                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl, styles.bold]}>{String(index + 1).padStart(2, '0')}</Text>
-                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.bold]}>
-                    {softWrapPdfText(isFESection ? entry.floor.name.toUpperCase() : entry.floor.name)}
-                  </Text>
-                  <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast, styles.bold]}>
-                    {isBlank ? '' : `${formatDetailTableAmount(entry.total)}${isFESection ? ' (approx.)' : ''}`}
-                  </Text>
-                </View>
-                {getAreaGroups(entry)
-                  .filter((area) => {
-                    const isFEArea =
-                      area.name === 'Finishing & Electrical Works' ||
-                      area.name === 'Finishing & Electrical' ||
-                      Boolean(area.name?.toLowerCase().includes('finishing')) ||
-                      Boolean(area.name?.toLowerCase().includes('electrical'))
-                    if (isFEArea) {
-                      return getDetailAreaTotal(area.lines) > 0
-                    }
-                    return true
-                  })
-                  .map((area) => {
-                    const isFEArea =
-                      area.name === 'Finishing & Electrical Works' ||
-                      area.name === 'Finishing & Electrical' ||
-                      Boolean(area.name?.toLowerCase().includes('finishing')) ||
-                      Boolean(area.name?.toLowerCase().includes('electrical'))
-                    const areaTotal = getDetailAreaTotal(area.lines)
-                    return (
-                      <View key={`${entry.floor.id}-${area.id}`} style={styles.tRow}>
-                        <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSl]} />
-                        <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumName, styles.summaryAreaName]}>
-                          {softWrapPdfText(isFEArea ? area.name.toUpperCase() : area.name)}
-                        </Text>
-                        <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>
-                          {isBlank ? '' : `${formatDetailTableAmount(areaTotal)}${isFEArea ? ' (approx.)' : ''}`}
-                        </Text>
-                      </View>
-                    )
-                  })}
-              </View>
-            )
-          })}
-        </View>
-
+        {/* Single grand total — no floor-by-floor breakdown */}
         {agreementSummary ? (
           <>
-            <View style={styles.grandTotalRow}>
+            <View style={[styles.grandTotalRow, { marginTop: 10 }]}>
               <Text style={styles.grandTotalLabel}>TOTAL</Text>
               <Text style={styles.grandTotalValue}>{isBlank ? '' : formatDetailCurrency(agreementSummary.originalQuotationTotal)}</Text>
             </View>
@@ -826,14 +768,15 @@ export function DetailQuotationDocument({
           </>
         ) : (
           <>
-            <View style={styles.grandTotalRow}>
-              <Text style={styles.grandTotalLabel}>TOTAL</Text>
+            <View style={[styles.grandTotalRow, { marginTop: 10 }]}>
+              <Text style={styles.grandTotalLabel}>TOTAL AMOUNT</Text>
               <Text style={styles.grandTotalValue}>{isBlank ? '' : formatDetailCurrency(totals.grandTotal)}</Text>
             </View>
             {isBlank ? null : <Text style={styles.inWords}>In Words: {amountInWordsTaka(totals.grandTotal)}</Text>}
           </>
         )}
 
+        {/* Terms & Conditions */}
         {content.terms ? (
           <View style={{ marginTop: 12 }}>
             <Text style={styles.sectionTitle}>Terms &amp; Conditions</Text>
@@ -867,6 +810,75 @@ export function DetailQuotationDocument({
             </View>
           </View>
         ) : null}
+
+        {/* Mode of Payment + Duration of Work */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+          <View style={{ width: '48%' }}>
+            {content.paymentTerms ? (
+              <View>
+                <Text style={styles.termTitle}>Mode of Payment</Text>
+                {content.paymentTerms
+                  .split('\n')
+                  .filter((line) => line.trim().length > 0)
+                  .map((line, index) => (
+                    <Text key={index} style={[styles.termContent, { marginTop: index > 0 ? 2 : 0 }]}>
+                      {softWrapPdfText(line.trim())}
+                    </Text>
+                  ))}
+              </View>
+            ) : null}
+          </View>
+          <View style={{ width: '48%' }}>
+            {content.durationNotes ? (
+              <View>
+                <Text style={styles.termTitle}>Duration of Work</Text>
+                {content.durationNotes
+                  .split('\n')
+                  .filter((line) => line.trim().length > 0)
+                  .map((line, index) => (
+                    <Text key={index} style={[styles.termContent, { marginTop: index > 0 ? 2 : 0 }]}>
+                      {softWrapPdfText(line.trim())}
+                    </Text>
+                  ))}
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Notes */}
+        {content.notes ? (
+          <View style={{ marginTop: 8 }}>
+            <Text style={styles.termTitle}>Notes</Text>
+            {content.notes
+              .split('\n')
+              .filter((line) => line.trim().length > 0)
+              .map((line, index) => (
+                <Text key={index} style={[styles.termContent, { marginTop: index > 0 ? 2 : 0 }]}>
+                  {softWrapPdfText(line.trim())}
+                </Text>
+              ))}
+          </View>
+        ) : null}
+
+        {content.drawingDesign ? (
+          <Text style={[styles.termContent, { color: '#d32f2f', fontWeight: 'bold', marginTop: 10 }]}>
+            {softWrapPdfText(content.drawingDesign)}
+          </Text>
+        ) : null}
+
+        {/* Signature */}
+        <View wrap={false} style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 30 }}>
+          <View>
+            <View style={styles.sigLine} />
+            <Text style={[styles.metaText, styles.bold, { marginTop: 4 }]}>Customer Approval</Text>
+            <Text style={styles.metaText}>Sign &amp; Date</Text>
+          </View>
+          <View>
+            <View style={styles.sigLine} />
+            <Text style={[styles.metaText, styles.bold, { marginTop: 4 }]}>{content.signatoryName || 'Authorized Signature'}</Text>
+            <Text style={styles.metaText}>{content.signatoryTitle || 'Aesthetic Interior'}</Text>
+          </View>
+        </View>
 
         <FooterFixed content={content} />
       </Page>
@@ -1026,90 +1038,7 @@ export function DetailQuotationDocument({
         </Page>
       ))}
 
-      {/* TERMS PAGE */}
-      <Page size="A4" style={styles.page}>
-        <WatermarkBackground />
-        <GlobalHeader
-          date={content.quotationDate ?? ''}
-          subject={content.subject ?? ''}
-          clientName={clientName}
-          clientAddress={clientAddress || ''}
-          showDate={false}
-        />
-
-        <Text style={styles.sectionTitle}>Terms &amp; Signatures</Text>
-
-        <View style={{ marginTop: 10 }}>
-          {content.notes ? (
-            <View style={{ marginBottom: 8 }}>
-              <Text style={styles.termTitle}>Notes</Text>
-              {content.notes
-                .split('\n')
-                .filter((line) => line.trim().length > 0)
-                .map((line, index) => (
-                  <Text key={index} style={[styles.termContent, { marginTop: index > 0 ? 2 : 0 }]}>
-                    {softWrapPdfText(line.trim())}
-                  </Text>
-                ))}
-            </View>
-          ) : null}
-
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <View style={{ width: '48%' }}>
-              {content.paymentTerms ? (
-                <View>
-                  <Text style={styles.termTitle}>Mode of Payment</Text>
-                  {content.paymentTerms
-                    .split('\n')
-                    .filter((line) => line.trim().length > 0)
-                    .map((line, index) => (
-                      <Text key={index} style={[styles.termContent, { marginTop: index > 0 ? 2 : 0 }]}>
-                        {softWrapPdfText(line.trim())}
-                      </Text>
-                    ))}
-                </View>
-              ) : null}
-            </View>
-            <View style={{ width: '48%' }}>
-              {content.durationNotes ? (
-                <View>
-                  <Text style={styles.termTitle}>Duration of Work</Text>
-                  {content.durationNotes
-                    .split('\n')
-                    .filter((line) => line.trim().length > 0)
-                    .map((line, index) => (
-                      <Text key={index} style={[styles.termContent, { marginTop: index > 0 ? 2 : 0 }]}>
-                        {softWrapPdfText(line.trim())}
-                      </Text>
-                    ))}
-                </View>
-              ) : null}
-            </View>
-          </View>
-
-          {content.drawingDesign ? (
-            <Text style={[styles.termContent, { color: '#d32f2f', fontWeight: 'bold', marginTop: 10 }]}>
-              {softWrapPdfText(content.drawingDesign)}
-            </Text>
-          ) : null}
-        </View>
-
-        <View wrap={false} style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 30 }}>
-          <View>
-            <View style={styles.sigLine} />
-            <Text style={[styles.metaText, styles.bold, { marginTop: 4 }]}>Customer Approval</Text>
-            <Text style={styles.metaText}>Sign &amp; Date</Text>
-          </View>
-
-          <View>
-            <View style={styles.sigLine} />
-            <Text style={[styles.metaText, styles.bold, { marginTop: 4 }]}>{content.signatoryName || 'Authorized Signature'}</Text>
-            <Text style={styles.metaText}>{content.signatoryTitle || 'Aesthetic Interior'}</Text>
-          </View>
-        </View>
-
-        <FooterFixed content={content} />
-      </Page>
     </Document>
   )
 }
+
