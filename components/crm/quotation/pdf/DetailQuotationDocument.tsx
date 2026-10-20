@@ -837,8 +837,8 @@ export function DetailQuotationDocument({
           </>
         )}
 
-        {/* Terms & Conditions — shown on front page for both layouts */}
-        {content.terms ? (
+        {/* Terms & Conditions — shown on front page for compact layout only */}
+        {layout === 'compact' && content.terms ? (
           <View style={{ marginTop: 12 }}>
             <Text style={styles.sectionTitle}>Terms &amp; Conditions</Text>
             <View style={{ marginTop: 6 }}>
@@ -1073,7 +1073,7 @@ export function DetailQuotationDocument({
                     <Text style={[styles.tdCol, styles.wSl]} />
                     <Text style={[styles.tdCol, styles.wName]} />
                     <Text style={[styles.tdCol, styles.wMats, styles.bold, styles.areaTotalLabel]}>TOTAL FOR {softWrapPdfText(area.name).toUpperCase()}</Text>
-                    <Text style={[styles.tdCol, styles.wQty, styles.bold]}>{isBlank ? '' : formatDetailAmount(getDetailAreaSqft(area.lines))}</Text>
+                    <Text style={[styles.tdCol, styles.wQty]} />
                     <Text style={[styles.tdCol, styles.wPrice]} />
                     <Text style={[styles.tdCol, styles.wTotal, styles.tdColLast, styles.bold, { color: PRIMARY }]}>{isBlank ? '' : formatDetailCurrency(getDetailAreaTotal(area.lines))}</Text>
                   </View>
@@ -1116,6 +1116,38 @@ export function DetailQuotationDocument({
           <Text style={styles.sectionTitle}>Terms &amp; Signatures</Text>
 
           <View style={{ marginTop: 10 }}>
+            {content.terms ? (
+              <View style={{ marginBottom: 8 }}>
+                <Text style={styles.termTitle}>Terms &amp; Conditions</Text>
+                {content.terms
+                  .split('\n')
+                  .filter((line) => line.trim().length > 0)
+                  .map((line, index) => {
+                    const colonIndex = line.indexOf(':')
+                    let header = ''
+                    let body = line.trim()
+                    if (colonIndex > 0 && colonIndex < 35) {
+                      header = line.slice(0, colonIndex + 1).trim()
+                      body = line.slice(colonIndex + 1).trim()
+                    }
+                    return (
+                      <View key={index} style={{ marginTop: index > 0 ? 3 : 0 }}>
+                        {header ? (
+                          <Text style={[styles.termContent, { color: '#333333' }]}>
+                            <Text style={[styles.bold, { color: PRIMARY }]}>{header} </Text>
+                            {softWrapPdfText(body)}
+                          </Text>
+                        ) : (
+                          <Text style={[styles.termContent, { color: '#444444' }]}>
+                            {softWrapPdfText(body)}
+                          </Text>
+                        )}
+                      </View>
+                    )
+                  })}
+              </View>
+            ) : null}
+
             {content.notes ? (
               <View style={{ marginBottom: 8 }}>
                 <Text style={styles.termTitle}>Notes</Text>
