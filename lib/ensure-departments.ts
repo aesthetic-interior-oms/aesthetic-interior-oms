@@ -13,6 +13,18 @@ export const STANDARD_DEPARTMENTS = [
   { name: 'PROJECT_COORDINATOR', description: 'Project Coordinator department' },
   { name: 'PROCUREMENT', description: 'Procurement department (material purchase, vendor management & delivery)' },
   { name: 'BOQ', description: 'BOQ department (material requisitions chart & quantity takeoff based on quotation)' },
+  // Field & Execution departments
+  { name: 'PROJECT_ENGINEER', description: 'Project Engineer department' },
+  { name: 'SITE_ENGINEER', description: 'Site Engineer department' },
+  { name: 'ELECTRICIAN', description: 'Electrician department' },
+  { name: 'FACTORY_MANAGER', description: 'Factory Manager department' },
+  { name: 'IMPLEMENTATION_TEAM', description: 'Implementation Team department' },
+  // Operations departments
+  { name: 'PROCUREMENT_SUPPLY_CHAIN', description: 'Procurement & Supply Chain department' },
+  { name: 'CARPENTRY', description: 'Carpentry & Fabrication department' },
+  { name: 'PLUMBING', description: 'Plumbing department' },
+  { name: 'CIVIL_WORKS', description: 'Civil Works department' },
+  { name: 'LOGISTICS_DELIVERY', description: 'Logistics & Delivery department' },
 ] as const
 
 export async function ensureStandardDepartmentsExist() {
