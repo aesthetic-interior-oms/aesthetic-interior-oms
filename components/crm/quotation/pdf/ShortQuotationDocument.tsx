@@ -185,7 +185,9 @@ export function ShortQuotationDocument({ content }: { content: ShortQuotationCon
         </View>
         {content.subject ? <Text style={{ fontSize: 10, marginBottom: 8 }}><Text style={styles.bold}>Subject: </Text>{content.subject}</Text> : null}
         {cleanIntro ? <View style={{ marginBottom: 8 }}><Text style={[styles.bold, { fontSize: 10, marginBottom: 8 }]}>Dear Sir,</Text><Text style={{ fontSize: 10, textAlign: 'justify', lineHeight: 1.5 }}>{cleanIntro}</Text></View> : null}
-        <Text style={styles.sectionTitle}>{content.packageTier} Tentative Quotation Summary</Text>
+        <Text style={styles.sectionTitle}>
+          {content.packageTier === 'MIX' ? 'Tentative Quotation Summary' : `${content.packageTier} Tentative Quotation Summary`}
+        </Text>
         <View style={[styles.tHead, { borderTopWidth: 0, borderLeftWidth: 0, borderRightWidth: 0 }]}><Text style={[styles.thCol, styles.wSumSl]}>SL</Text><Text style={[styles.thCol, styles.wSumName]}>Description</Text><Text style={[styles.thCol, styles.wSumTotal]}>Amount</Text></View>
         {summary.floors.map((entry, index) => (
           <View key={entry.floor.id}>

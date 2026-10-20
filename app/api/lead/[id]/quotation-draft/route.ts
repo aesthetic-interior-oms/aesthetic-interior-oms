@@ -116,8 +116,11 @@ function toRequestedDocumentType(value: unknown): 'short' | 'detail' | null {
 function toShortQuotationPackage(value: unknown): ShortQuotationPackage | null {
   if (typeof value !== 'string') return null
   const normalized = value.trim().toUpperCase()
-  if (normalized === 'PLATINUM' || normalized === 'PREMIUM' || normalized === 'LUXURY') {
+  if (normalized === 'PLATINUM' || normalized === 'PREMIUM' || normalized === 'LUXURY' || normalized === 'MIX') {
     return normalized
+  }
+  if (normalized === 'MIXED') {
+    return 'MIX'
   }
   return null
 }

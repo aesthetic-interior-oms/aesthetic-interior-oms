@@ -111,7 +111,9 @@ export function ShortQuotationPrint({ content }: { content: ShortQuotationConten
         {content.subject ? <p className="mb-2 text-[9px] text-neutral-700"><span className="font-bold">Subject:</span> {content.subject}</p> : null}
         {cleanIntro ? <div className="mb-2 text-[9px] leading-relaxed text-neutral-700"><p className="mb-2 font-bold">Dear Sir,</p><p className="whitespace-pre-wrap text-justify">{cleanIntro}</p></div> : null}
 
-        <SectionTitle>{content.packageTier} Short Quotation Summary</SectionTitle>
+        <SectionTitle>
+          {content.packageTier === 'MIX' ? 'Short Quotation Summary' : `${content.packageTier} Short Quotation Summary`}
+        </SectionTitle>
         <div className="flex border-b pb-1.5 pt-2 text-[9px] font-bold uppercase" style={{ color: PRIMARY, borderColor: PRIMARY }}>
           <span className="w-[8%] text-center">SL</span><span className="w-[70%]">Description</span><span className="w-[22%] text-right">Amount</span>
         </div>

@@ -1,4 +1,4 @@
-export type ShortQuotationPackage = 'PLATINUM' | 'PREMIUM' | 'LUXURY'
+export type ShortQuotationPackage = 'PLATINUM' | 'PREMIUM' | 'LUXURY' | 'MIX'
 
 export type ShortQuotationLine = {
   id: string

@@ -1608,7 +1608,7 @@ return (
               ⚠ This will replace the current content in the editor. Your changes will NOT be auto-saved — click Save after reviewing.
             </p>
             <div className="flex flex-col gap-2 pt-1">
-              {(['PLATINUM', 'PREMIUM', 'LUXURY'] as const).map((tier) => (
+              {(['PLATINUM', 'PREMIUM', 'LUXURY', 'MIX'] as const).map((tier) => (
                 <Button
                   key={tier}
                   type="button"

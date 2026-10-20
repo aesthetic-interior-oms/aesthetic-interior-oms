@@ -76,7 +76,7 @@ type DraftResponse = {
   canEdit: boolean
 }
 
-const SHORT_QUOTATION_PACKAGES: ShortQuotationPackage[] = ['PLATINUM', 'PREMIUM', 'LUXURY']
+const SHORT_QUOTATION_PACKAGES: ShortQuotationPackage[] = ['PLATINUM', 'PREMIUM', 'LUXURY', 'MIX']
 
 function copyShortQuotationToPackage(
   content: ShortQuotationContent,
@@ -869,6 +869,7 @@ export function ShortQuotationBuilder({
                   <SelectItem value="PLATINUM">Platinum</SelectItem>
                   <SelectItem value="PREMIUM">Premium</SelectItem>
                   <SelectItem value="LUXURY">Luxury</SelectItem>
+                  <SelectItem value="MIX">Mix</SelectItem>
                 </SelectContent>
               </Select>
             </div>
