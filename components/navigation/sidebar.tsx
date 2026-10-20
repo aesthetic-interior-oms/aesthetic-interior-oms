@@ -21,6 +21,7 @@ import {
   FileText,
   BarChart3,
   Package,
+  Wallet,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -130,6 +131,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Overheads',
           href: '/crm/admin/overheads',
         },
+        { icon: Wallet, label: 'Conveyance Bills', href: '/crm/accounts/conveyance' },
       ],
     },
     {
@@ -571,6 +573,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Visit Payments',
           href: '/crm/accounts/visit-payments',
         },
+        { icon: Wallet, label: 'Conveyance Bills', href: '/crm/accounts/conveyance' },
         {
           icon: Settings,
           label: 'Finance Settings',
@@ -807,9 +810,23 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
           ? navigationGroups['Human_Resources']
           : [])
 
+    const addConveyanceLink = (groups: NavGroup[]) => {
+      const conveyanceItem = { icon: Wallet, label: 'Conveyance', href: '/conveyance' }
+      const financeGroup = groups.find((group) => group.id === 'finance-overview')
+      if (financeGroup) {
+        return groups.map((group) => group.id === 'finance-overview'
+          ? { ...group, items: [...group.items, conveyanceItem] }
+          : group)
+      }
+      return [...groups, { id: 'employee-finance', label: 'Finance', defaultOpen: true, items: [conveyanceItem] }]
+    }
+
     if (!isVisits) {
-      if (role !== 'Jr Architect') return baseGroups
-      return baseGroups.map((group) => {
+      if (role !== 'Jr Architect') {
+        if (role === 'Accounts') return baseGroups
+        return addConveyanceLink(baseGroups)
+      }
+      const adjusted = baseGroups.map((group) => {
         if (group.id === 'jr-arch-workflow') {
           // Visit Queue and other shared JR Architecture queues are leader-only in the sidebar.
           return {
@@ -847,9 +864,10 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
 
         return group
       })
+      return addConveyanceLink(adjusted)
     }
 
-    return baseGroups.map((group) => {
+    const adjusted = baseGroups.map((group) => {
       if (group.id !== 'visit-overview') return group
       const queueItem = {
         icon: ClipboardList,
@@ -867,7 +885,8 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
             : group.items,
       }
     })
-  }, [canViewJrArchitectLeaderPages, canViewVisitTeamQueue, isVisits, role])
+    return addConveyanceLink(adjusted)
+  }, [canViewJrArchitectLeaderPages, canViewVisitTeamQueue, isSpecialistDesignConsultants, isVisits, role])
 
   useEffect(() => {
     if (!isVisits && role !== 'Jr Architect') return

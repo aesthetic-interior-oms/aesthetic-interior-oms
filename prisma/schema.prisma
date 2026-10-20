@@ -186,6 +186,8 @@ model User {
   stockMovements              StockMovement[]
   stockReceived               StockMovement[]            @relation("StockMovementRecipient")
   materialRequisitionsCreated MaterialRequisition[]      @relation("MaterialRequisitionCreatedBy")
+  conveyanceRequests          ConveyanceRequest[]         @relation("ConveyanceRequester")
+  conveyanceReviewed          ConveyanceRequest[]         @relation("ConveyanceReviewer")
 }
 
 model DeviceToken {
@@ -798,6 +800,29 @@ model Transaction {
   @@index([recordedById])
   @@index([collectedById])
   @@index([date])
+}
+
+// Conveyance is tracked independently from the accounting Transaction ledger.
+model ConveyanceRequest {
+  id             String   @id @default(cuid())
+  requesterId    String
+  amount         Float
+  purpose        String
+  travelDate     DateTime
+  status         String   @default("PENDING")
+  voucherNo      String?  @unique
+  approvedAmount Float?
+  accountsNote   String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  requester      User     @relation("ConveyanceRequester", fields: [requesterId], references: [id], onDelete: Restrict)
+  reviewedBy     User?    @relation("ConveyanceReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([travelDate])
+  @@index([requesterId, travelDate])
+  @@index([status, travelDate])
 }
 
 model CashFlowDaily {
