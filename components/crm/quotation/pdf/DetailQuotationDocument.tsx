@@ -795,12 +795,12 @@ export function DetailQuotationDocument({
                   return (
                     <View key={index} style={{ marginTop: index > 0 ? 3 : 0 }}>
                       {header ? (
-                        <Text style={{ fontSize: 8.5, lineHeight: 1.35, color: '#333333' }}>
+                        <Text style={[styles.termContent, { color: '#333333' }]}>
                           <Text style={[styles.bold, { color: PRIMARY }]}>{header} </Text>
                           {softWrapPdfText(body)}
                         </Text>
                       ) : (
-                        <Text style={{ fontSize: 8.5, lineHeight: 1.35, color: '#444444' }}>
+                        <Text style={[styles.termContent, { color: '#444444' }]}>
                           {softWrapPdfText(body)}
                         </Text>
                       )}
