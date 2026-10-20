@@ -622,7 +622,9 @@ export function QuotationMaker({
         totals,
       })
     }
-    const url = buildDetailPreviewUrl({ context: previewContext, contextId: previewContextId, slotIndex })
+    const isQuotationTeam = pathname.startsWith('/quotation-team')
+    const layout = isQuotationTeam ? 'standard' : 'compact'
+    const url = buildDetailPreviewUrl({ context: previewContext, contextId: previewContextId, slotIndex, layout })
     void window.open(url, '_blank', 'noopener,noreferrer')
   }
 
@@ -1393,6 +1395,7 @@ return (
                       content={contentForDownload}
                       totals={totals}
                       isBlank={true}
+                      layout={pathname.startsWith('/quotation-team') ? 'standard' : 'compact'}
                     />,
                     `Blank_Detail_Quotation_${safeClientName}.pdf`,
                   )

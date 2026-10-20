@@ -81,6 +81,7 @@ export function buildDetailPreviewUrl(input: {
   download?: boolean
   isBlank?: boolean
   checklist?: boolean
+  layout?: 'standard' | 'compact'
 }) {
   const params = new URLSearchParams({
     context: input.context,
@@ -97,6 +98,9 @@ export function buildDetailPreviewUrl(input: {
   }
   if (input.checklist) {
     params.set('checklist', 'true')
+  }
+  if (input.layout) {
+    params.set('layout', input.layout)
   }
   return `/quotation-team/detail-preview?${params.toString()}`
 }

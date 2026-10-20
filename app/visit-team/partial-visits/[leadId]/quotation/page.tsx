@@ -174,7 +174,7 @@ export default function PartialVisitQuotationPage() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Link
-                    href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id, download: true })}
+                    href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id, download: true, layout: 'compact' })}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex w-fit items-center justify-center rounded-md border bg-white px-4 py-2 text-sm font-medium hover:bg-muted"
@@ -182,7 +182,7 @@ export default function PartialVisitQuotationPage() {
                     Download detail PDF
                   </Link>
                   <Link
-                    href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id, isBlank: true, download: true })}
+                    href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id, isBlank: true, download: true, layout: 'compact' })}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex w-fit items-center justify-center rounded-md border border-primary/40 bg-white px-4 py-2 text-sm font-medium text-primary hover:bg-primary/10"

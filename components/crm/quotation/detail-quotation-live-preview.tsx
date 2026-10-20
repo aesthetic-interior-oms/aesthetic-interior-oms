@@ -42,6 +42,7 @@ type DetailQuotationLivePreviewProps = {
   autoDownload?: boolean
   isBlank?: boolean
   checklist?: boolean
+  layout?: 'standard' | 'compact'
 }
 
 export function DetailQuotationLivePreview({
@@ -51,6 +52,7 @@ export function DetailQuotationLivePreview({
   autoDownload = false,
   isBlank = false,
   checklist = false,
+  layout = 'standard',
 }: DetailQuotationLivePreviewProps) {
   const [payload, setPayload] = useState<DetailPreviewPayload | null>(null)
   const [loading, setLoading] = useState(true)
@@ -152,6 +154,7 @@ export function DetailQuotationLivePreview({
           totals={payload.totals}
           isBlank={isBlank}
           variant={checklist ? 'checklist' : 'quotation'}
+          layout={layout}
         />,
         `${prefix}_${safeClientName}_${quotationCode}.pdf`,
       )
