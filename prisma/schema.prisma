@@ -1523,3 +1523,17 @@ model MaterialRequisitionItem {
   @@index([workCategory])
 }
 
+model BoqSavedAccessoryItem {
+  id          String   @id @default(cuid())
+  name        String
+  category    String   @default("")
+  itemCode    String   @default("")
+  defaultUnit String   @default("Pcs")
+  isActive    Boolean  @default(true)
+  serialNo    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, serialNo])
+}
+

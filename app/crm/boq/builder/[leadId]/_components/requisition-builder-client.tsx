@@ -53,6 +53,26 @@ export type RequisitionWorkCategory =
   | 'PAINT'
   | 'APPLIANCES'
 
+export interface BoqSavedAccessoryItem {
+  id: string
+  name: string
+  category: string
+  itemCode: string
+  defaultUnit: string
+}
+
+export const DEFAULT_ACCESSORY_CATEGORIES = ['Kitchen', 'Closet', 'Cabinet', 'Hardware']
+
+export const DEFAULT_SAVED_ACCESSORIES: BoqSavedAccessoryItem[] = [
+  { id: 'acc-1', name: 'Elevator Basket',         category: 'Kitchen', itemCode: 'KIW-23',              defaultUnit: 'Pcs' },
+  { id: 'acc-2', name: 'Cutlery Tray',            category: 'Kitchen', itemCode: 'KIW-23',              defaultUnit: 'Pcs' },
+  { id: 'acc-3', name: 'Plate Organizer',         category: 'Kitchen', itemCode: 'KIW-12.1',            defaultUnit: 'Pcs' },
+  { id: 'acc-4', name: 'Pantry Unit',             category: 'Kitchen', itemCode: 'KIW-33',              defaultUnit: 'Pcs' },
+  { id: 'acc-5', name: 'Pull Out Hanger',         category: 'Closet',  itemCode: 'GLFA943B / GLFA943S', defaultUnit: 'Pcs' },
+  { id: 'acc-6', name: 'Trousers / Saree Hanger', category: 'Closet',  itemCode: 'GLFJ113M / GLFJ113G', defaultUnit: 'Pcs' },
+  { id: 'acc-7', name: 'Jewelry Tray Organizer',  category: 'Closet',  itemCode: 'R9001G-800',          defaultUnit: 'Pcs' },
+]
+
 const WORK_CATEGORIES: { key: RequisitionWorkCategory; label: string }[] = [
   { key: 'WALL_PANELING', label: 'Wall Paneling' },
   { key: 'CABINETS_CLOSETS', label: 'Cabinets / Closets' },
@@ -133,6 +153,8 @@ const BOARD_LAMINATE_CATALOG = {
 const EXTRA_KEY = '__extra__'
 
 export interface BoardVariantAttributes {
+  [key: string]: string | number | boolean | null | undefined
+
   // Core Structural Board attributes
   itemId?: string
   coreThickness?: string
@@ -196,6 +218,9 @@ export interface BoardVariantAttributes {
   accessoryCategory?: string
   itemCode?: string
   dimensions?: string
+  dimW?: string
+  dimH?: string
+  dimD?: string
   unitPrice?: string
   totalAmount?: string
   serviceCategory?: string
@@ -1708,16 +1733,17 @@ function blankItem(
     // Default HARDWARE_ACCESSORIES
     return {
       ...base,
-      materialName: 'Elevator Basket',
+      materialName: '',
       unit: 'Pcs',
       productionPhase: 'Kitchen',
       variantAttributes: {
-        srNo: '01',
+        srNo: '',
         accessoryCategory: 'Kitchen',
-        itemCode: 'KIW-23',
-        dimensions: 'D13" × W30" × H25"',
-        unitPrice: '৳31,000',
-        totalAmount: '৳31,000',
+        itemCode: '',
+        dimensions: '',
+        dimW: '',
+        dimD: '',
+        dimH: '',
         accessoriesSubType: 'HARDWARE_ACCESSORIES',
       },
     }
@@ -2066,6 +2092,38 @@ function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]
 }
 
 /* ─────────────────────────────────────────────
+   Dimension helper functions (W, D, H)
+───────────────────────────────────────────── */
+function parseDimensions(dimStr?: string): { dimW: string; dimD: string; dimH: string } {
+  if (!dimStr) return { dimW: '', dimD: '', dimH: '' }
+  const wMatch = dimStr.match(/(?:^|[^a-zA-Z0-9])W[:\s]*([0-9.]+(?:\s*(?:"|mm|cm|in|'|ft))?)/i)
+  const dMatch = dimStr.match(/(?:^|[^a-zA-Z0-9])D[:\s]*([0-9.]+(?:\s*(?:"|mm|cm|in|'|ft))?)/i)
+  const hMatch = dimStr.match(/(?:^|[^a-zA-Z0-9])H[:\s]*([0-9.]+(?:\s*(?:"|mm|cm|in|'|ft))?)/i)
+  return {
+    dimW: wMatch ? wMatch[1].trim() : '',
+    dimD: dMatch ? dMatch[1].trim() : '',
+    dimH: hMatch ? hMatch[1].trim() : '',
+  }
+}
+
+function formatDimensions(dimW?: string, dimD?: string, dimH?: string): string {
+  const parts: string[] = []
+  if (dimW?.trim()) {
+    const w = dimW.trim()
+    parts.push(w.toUpperCase().startsWith('W') ? w : `W${w}`)
+  }
+  if (dimD?.trim()) {
+    const d = dimD.trim()
+    parts.push(d.toUpperCase().startsWith('D') ? d : `D${d}`)
+  }
+  if (dimH?.trim()) {
+    const h = dimH.trim()
+    parts.push(h.toUpperCase().startsWith('H') ? h : `H${h}`)
+  }
+  return parts.join(' × ')
+}
+
+/* ─────────────────────────────────────────────
    Helper – seed state from existing saved items
 ───────────────────────────────────────────── */
 function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: SectionsMap; itemsMap: ItemsMap } {
@@ -2160,6 +2218,9 @@ function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: Sect
         accessoryCategory: attrs.accessoryCategory || '',
         itemCode: attrs.itemCode || '',
         dimensions: attrs.dimensions || '',
+        dimW: attrs.dimW || parseDimensions(attrs.dimensions).dimW,
+        dimD: attrs.dimD || parseDimensions(attrs.dimensions).dimD,
+        dimH: attrs.dimH || parseDimensions(attrs.dimensions).dimH,
         unitPrice: attrs.unitPrice || '',
         totalAmount: attrs.totalAmount || '',
         serviceCategory: attrs.serviceCategory || '',
@@ -2837,6 +2898,210 @@ function CabinetCombobox({
 }
 
 /* ─────────────────────────────────────────────
+   Sub-component: Interactive Accessory Item Combobox
+   Shows saved items with Category & Item Code
+───────────────────────────────────────────── */
+function AccessoryItemCombobox({
+  value,
+  onChange,
+  onSelectItem,
+  savedItems,
+  onSaveNewItem,
+  placeholder = 'Select or type item name...',
+  className,
+}: {
+  value: string
+  onChange: (val: string) => void
+  onSelectItem: (item: BoqSavedAccessoryItem) => void
+  savedItems: BoqSavedAccessoryItem[]
+  onSaveNewItem?: (name: string) => Promise<void> | void
+  placeholder?: string
+  className?: string
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
+  const [isSaving, setIsSaving] = useState(false)
+  const triggerRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const openDropdown = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 320),
+        zIndex: 9999,
+      })
+    }
+    setIsOpen(true)
+  }
+
+  const closeDropdown = () => {
+    setIsOpen(false)
+    setQuery('')
+  }
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
+        closeDropdown()
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleScroll = (e: Event) => {
+      if (dropdownRef.current && dropdownRef.current.contains(e.target as Node)) return
+      closeDropdown()
+    }
+    const handleResize = () => closeDropdown()
+    window.addEventListener('scroll', handleScroll, true)
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [isOpen])
+
+  const q = query.toLowerCase().trim()
+  const filteredItems = (savedItems || []).filter((item) => {
+    if (!q) return true
+    return (
+      item.name.toLowerCase().includes(q) ||
+      (item.category && item.category.toLowerCase().includes(q)) ||
+      (item.itemCode && item.itemCode.toLowerCase().includes(q))
+    )
+  })
+
+  const exactMatch = (savedItems || []).some((it) => it.name.trim().toLowerCase() === q)
+
+  return (
+    <div ref={triggerRef} className="relative w-full">
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          value={value || ''}
+          onChange={(e) => {
+            onChange(e.target.value)
+            setQuery(e.target.value)
+            openDropdown()
+          }}
+          onFocus={() => {
+            setQuery('')
+            openDropdown()
+          }}
+          placeholder={placeholder}
+          className={`${className || GRID_CELL_BOLD} pr-6`}
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => (isOpen ? closeDropdown() : openDropdown())}
+          className="absolute right-1 text-muted-foreground/50 hover:text-foreground p-0.5"
+          title="Open saved accessories dropdown"
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {isOpen && typeof window !== 'undefined' && createPortal(
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-2xl overflow-hidden"
+        >
+          <div className="px-2 pb-1.5 pt-1 border-b border-border/40">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onMouseDown={(e) => e.stopPropagation()}
+              placeholder="Search saved items by name, category, or code..."
+              autoFocus
+              className="w-full px-2 py-1 text-xs rounded border border-border/60 bg-background focus:outline-none focus:ring-1 focus:ring-pink-500/50 placeholder:text-muted-foreground/50"
+            />
+          </div>
+
+          <div className="max-h-64 overflow-y-auto">
+            {filteredItems.length === 0 ? (
+              <div className="px-3 py-3 text-xs text-center text-muted-foreground">
+                No matching saved items.
+              </div>
+            ) : (
+              filteredItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onSelectItem(item)
+                    closeDropdown()
+                  }}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-xs text-left hover:bg-pink-500/10 hover:text-pink-900 dark:hover:text-pink-200 transition-colors border-b border-border/20 last:border-b-0 ${
+                    value === item.name ? 'bg-pink-500/15 font-semibold text-pink-900 dark:text-pink-200' : 'text-foreground'
+                  }`}
+                >
+                  <div className="flex flex-col gap-0.5 min-w-0 pr-2">
+                    <span className="font-bold text-xs truncate">{item.name}</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {item.category && (
+                        <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-medium bg-pink-100 dark:bg-pink-950/50 text-pink-700 dark:text-pink-300 border border-pink-200/60 dark:border-pink-800/60">
+                          {item.category}
+                        </span>
+                      )}
+                      {item.itemCode && (
+                        <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-mono bg-muted text-muted-foreground border border-border/50">
+                          {item.itemCode}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {value === item.name && <Check className="w-3.5 h-3.5 text-pink-600 dark:text-pink-400 shrink-0" />}
+                </button>
+              ))
+            )}
+
+            {onSaveNewItem && q && !exactMatch && (
+              <button
+                type="button"
+                disabled={isSaving}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={async () => {
+                  setIsSaving(true)
+                  try {
+                    await onSaveNewItem(query.trim())
+                    closeDropdown()
+                  } finally {
+                    setIsSaving(false)
+                  }
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10 transition-colors border-t border-border/50"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Save &quot;{query.trim()}&quot; to Accessories Library</span>
+              </button>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
    Sub-component: Dedicated Laminate & HPL Finish Picker
    Tabs: PRELAMINATED | HPL | DUCO
 ───────────────────────────────────────────── */
@@ -3194,6 +3459,9 @@ function MaterialRowsTable({
   onLoadAccessoryHardwarePreset,
   onLoadAccessoryServicesPreset,
   onLoadAppliancePreset,
+  boqSavedAccessories,
+  onSelectSavedAccessory,
+  onSaveNewSavedAccessory,
 }: {
   rows: RequisitionItemInput[]
   viewMode: ViewModeType
@@ -3211,7 +3479,19 @@ function MaterialRowsTable({
   onLoadAccessoryHardwarePreset?: () => void
   onLoadAccessoryServicesPreset?: () => void
   onLoadAppliancePreset?: () => void
+  boqSavedAccessories?: BoqSavedAccessoryItem[]
+  onSelectSavedAccessory?: (rowIndex: number, item: BoqSavedAccessoryItem) => void
+  onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
 }) {
+  const accessoryCategories = useMemo(() => {
+    const set = new Set<string>(DEFAULT_ACCESSORY_CATEGORIES)
+    if (boqSavedAccessories) {
+      for (const item of boqSavedAccessories) {
+        if (item.category?.trim()) set.add(item.category.trim())
+      }
+    }
+    return Array.from(set)
+  }, [boqSavedAccessories])
   return (
     <div className="overflow-hidden rounded-lg border border-border/70 bg-background shadow-2xs">
       {rows.length === 0 ? (
@@ -4219,10 +4499,10 @@ function MaterialRowsTable({
             <thead className="bg-pink-500/10 border-b border-pink-500/20 text-pink-950 dark:text-pink-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-16`}>SL</th>
-                <th className={`${GRID_TH} w-28`}>Category</th>
-                <th className={`${GRID_TH} min-w-[170px]`}>Item Name</th>
-                <th className={`${GRID_TH} min-w-[150px]`}>Item Code</th>
-                <th className={`${GRID_TH} min-w-[170px]`}>Dimensions (D × W × H)</th>
+                <th className={`${GRID_TH} w-32`}>Category</th>
+                <th className={`${GRID_TH} min-w-[190px]`}>Item Name</th>
+                <th className={`${GRID_TH} min-w-[130px]`}>Item Code</th>
+                <th className={`${GRID_TH} min-w-[210px]`}>Dimensions (W × D × H)</th>
                 <th className={`${GRID_TH} w-20`}>Unit</th>
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
@@ -4244,26 +4524,43 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 2. Category */}
+                    {/* 2. Category Dropdown */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="accessory-category-list"
+                      <select
                         value={attrs.accessoryCategory || ''}
                         onChange={(e) => onUpdateVariant(ri, 'accessoryCategory', e.target.value)}
-                        placeholder="Kitchen"
-                        className={GRID_CELL_INPUT}
-                      />
+                        className={GRID_CELL_SELECT}
+                      >
+                        <option value="">Select Category...</option>
+                        {accessoryCategories.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                        {attrs.accessoryCategory && !accessoryCategories.includes(attrs.accessoryCategory) && (
+                          <option value={attrs.accessoryCategory}>{attrs.accessoryCategory}</option>
+                        )}
+                      </select>
                     </td>
 
-                    {/* 3. Item Name */}
+                    {/* 3. Item Name with Saved Library Dropdown */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
+                      <AccessoryItemCombobox
                         value={item.materialName}
-                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
-                        placeholder="Elevator Basket"
-                        className={GRID_CELL_BOLD}
+                        onChange={(val) => onChange(ri, 'materialName', val)}
+                        onSelectItem={(saved) => {
+                          if (onSelectSavedAccessory) {
+                            onSelectSavedAccessory(ri, saved)
+                          } else {
+                            onChange(ri, 'materialName', saved.name)
+                            if (saved.defaultUnit) onChange(ri, 'unit', saved.defaultUnit)
+                            onUpdateVariant(ri, 'accessoryCategory', saved.category)
+                            onUpdateVariant(ri, 'itemCode', saved.itemCode)
+                          }
+                        }}
+                        savedItems={boqSavedAccessories || DEFAULT_SAVED_ACCESSORIES}
+                        onSaveNewItem={onSaveNewSavedAccessory ? (name) => onSaveNewSavedAccessory(name, attrs.accessoryCategory, attrs.itemCode) : undefined}
+                        placeholder="Select or type item name..."
                       />
                     </td>
 
@@ -4278,15 +4575,45 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 5. Dimensions */}
+                    {/* 5. Dimensions (W, D, H - separate rooms, all optional) */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.dimensions || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'dimensions', e.target.value)}
-                        placeholder={'D13" × W30" × H25"'}
-                        className={GRID_CELL_INPUT}
-                      />
+                      <div className="flex items-center gap-1.5 py-0.5">
+                        {/* Width */}
+                        <div className="flex items-center bg-background/80 rounded border border-border/60 px-1.5 py-0.5 focus-within:border-pink-500 focus-within:ring-1 focus-within:ring-pink-500/20 transition-all flex-1 min-w-0" title="Width (optional)">
+                          <span className="text-[10px] font-bold text-muted-foreground mr-1 select-none">W</span>
+                          <input
+                            type="text"
+                            value={attrs.dimW || ''}
+                            onChange={(e) => onUpdateVariant(ri, 'dimW', e.target.value)}
+                            placeholder="—"
+                            className="w-full bg-transparent text-xs text-foreground focus:outline-none min-w-0 font-medium"
+                          />
+                        </div>
+
+                        {/* Depth */}
+                        <div className="flex items-center bg-background/80 rounded border border-border/60 px-1.5 py-0.5 focus-within:border-pink-500 focus-within:ring-1 focus-within:ring-pink-500/20 transition-all flex-1 min-w-0" title="Depth (optional)">
+                          <span className="text-[10px] font-bold text-muted-foreground mr-1 select-none">D</span>
+                          <input
+                            type="text"
+                            value={attrs.dimD || ''}
+                            onChange={(e) => onUpdateVariant(ri, 'dimD', e.target.value)}
+                            placeholder="—"
+                            className="w-full bg-transparent text-xs text-foreground focus:outline-none min-w-0 font-medium"
+                          />
+                        </div>
+
+                        {/* Height */}
+                        <div className="flex items-center bg-background/80 rounded border border-border/60 px-1.5 py-0.5 focus-within:border-pink-500 focus-within:ring-1 focus-within:ring-pink-500/20 transition-all flex-1 min-w-0" title="Height (optional)">
+                          <span className="text-[10px] font-bold text-muted-foreground mr-1 select-none">H</span>
+                          <input
+                            type="text"
+                            value={attrs.dimH || ''}
+                            onChange={(e) => onUpdateVariant(ri, 'dimH', e.target.value)}
+                            placeholder="—"
+                            className="w-full bg-transparent text-xs text-foreground focus:outline-none min-w-0 font-medium"
+                          />
+                        </div>
+                      </div>
                     </td>
 
                     {/* 6. Unit */}
@@ -4819,6 +5146,9 @@ function SectionBlock({
   onLoadAppliancePreset,
   onToggleCollapse,
   onRemove,
+  boqSavedAccessories,
+  onSelectSavedAccessory,
+  onSaveNewSavedAccessory,
 }: {
   section: CardSection
   rows: RequisitionItemInput[]
@@ -4832,6 +5162,9 @@ function SectionBlock({
   onLoadAppliancePreset?: (subType: ApplianceSubType) => void
   onToggleCollapse: () => void
   onRemove: () => void
+  boqSavedAccessories?: BoqSavedAccessoryItem[]
+  onSelectSavedAccessory?: (ri: number, item: BoqSavedAccessoryItem) => void
+  onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
 }) {
   const viewMode = getViewModeForSection(section)
   const catLabel = WORK_CATEGORIES.find((c) => c.key === section.category)?.label ?? section.category
@@ -4916,6 +5249,9 @@ function SectionBlock({
             onLoadAccessoryHardwarePreset={section.accessoriesSubType === 'HARDWARE_ACCESSORIES' && onLoadAccessoryPreset ? () => onLoadAccessoryPreset('HARDWARE_ACCESSORIES') : undefined}
             onLoadAccessoryServicesPreset={section.accessoriesSubType === 'SERVICES_DELIVERABLES' && onLoadAccessoryPreset ? () => onLoadAccessoryPreset('SERVICES_DELIVERABLES') : undefined}
             onLoadAppliancePreset={section.applianceSubType === 'CORE_APPLIANCES' && onLoadAppliancePreset ? () => onLoadAppliancePreset('CORE_APPLIANCES') : undefined}
+            boqSavedAccessories={boqSavedAccessories}
+            onSelectSavedAccessory={onSelectSavedAccessory}
+            onSaveNewSavedAccessory={onSaveNewSavedAccessory}
           />
         </div>
       )}
@@ -5180,6 +5516,9 @@ function QuotationLineItemCard({
   onAddSection,
   onRemoveSection,
   onToggleSectionCollapse,
+  boqSavedAccessories,
+  onSelectSavedAccessory,
+  onSaveNewSavedAccessory,
 }: {
   item: QuotationLineItem
   area?: QuotationArea
@@ -5196,6 +5535,9 @@ function QuotationLineItemCard({
   onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType) => void
   onRemoveSection: (sectionId: string) => void
   onToggleSectionCollapse: (sectionId: string) => void
+  boqSavedAccessories?: BoqSavedAccessoryItem[]
+  onSelectSavedAccessory?: (sectionId: string, ri: number, item: BoqSavedAccessoryItem) => void
+  onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
 }) {
   const [cardExpanded, setCardExpanded] = useState(true)
   const [showAddSection, setShowAddSection] = useState(false)
@@ -5295,6 +5637,9 @@ function QuotationLineItemCard({
               onLoadAppliancePreset={(subType) => onLoadAppliancePreset?.(section.id, subType)}
               onToggleCollapse={() => onToggleSectionCollapse(section.id)}
               onRemove={() => onRemoveSection(section.id)}
+              boqSavedAccessories={boqSavedAccessories}
+              onSelectSavedAccessory={(ri, item) => onSelectSavedAccessory?.(section.id, ri, item)}
+              onSaveNewSavedAccessory={onSaveNewSavedAccessory}
             />
           ))}
 
@@ -5340,6 +5685,9 @@ function ExtraCard({
   onAddSection,
   onRemoveSection,
   onToggleSectionCollapse,
+  boqSavedAccessories,
+  onSelectSavedAccessory,
+  onSaveNewSavedAccessory,
 }: {
   sections: CardSection[]
   getRowsForSection: (sectionId: string) => RequisitionItemInput[]
@@ -5354,6 +5702,9 @@ function ExtraCard({
   onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType) => void
   onRemoveSection: (sectionId: string) => void
   onToggleSectionCollapse: (sectionId: string) => void
+  boqSavedAccessories?: BoqSavedAccessoryItem[]
+  onSelectSavedAccessory?: (sectionId: string, ri: number, item: BoqSavedAccessoryItem) => void
+  onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
 }) {
   const [expanded, setExpanded] = useState(true)
   const [showAddSection, setShowAddSection] = useState(false)
@@ -5407,6 +5758,9 @@ function ExtraCard({
               onLoadAppliancePreset={(subType) => onLoadAppliancePreset?.(section.id, subType)}
               onToggleCollapse={() => onToggleSectionCollapse(section.id)}
               onRemove={() => onRemoveSection(section.id)}
+              boqSavedAccessories={boqSavedAccessories}
+              onSelectSavedAccessory={(ri, item) => onSelectSavedAccessory?.(section.id, ri, item)}
+              onSaveNewSavedAccessory={onSaveNewSavedAccessory}
             />
           ))}
 
@@ -5452,6 +5806,16 @@ export function RequisitionBuilderClient({
   )
   const [isPdfGenerating, setIsPdfGenerating] = useState(false)
   const [notes, setNotes] = useState<string>(existingRequisition?.notes || '')
+  const [boqSavedAccessories, setBoqSavedAccessories] = useState<BoqSavedAccessoryItem[]>(DEFAULT_SAVED_ACCESSORIES)
+
+  useEffect(() => {
+    fetch('/api/boq/saved-accessories')
+      .then((r) => r.json())
+      .then((data: { success: boolean; items?: BoqSavedAccessoryItem[] }) => {
+        if (data.success && data.items) setBoqSavedAccessories(data.items)
+      })
+      .catch(() => {})
+  }, [])
 
   // ── Per-section architecture state ──
   const [sectionsMap, setSectionsMap] = useState<SectionsMap>(() => computeInitialState(existingRequisition).sectionsMap)
@@ -5750,6 +6114,10 @@ export function RequisitionBuilderClient({
       const current = { ...rows[rowIndex] }
       const prevAttrs: BoardVariantAttributes = current.variantAttributes || {}
       const nextAttrs = { ...prevAttrs, [field]: value }
+      // Auto-rebuild dimensions string when any individual dimension field changes
+      if (field === 'dimW' || field === 'dimH' || field === 'dimD') {
+        nextAttrs.dimensions = formatDimensions(nextAttrs.dimW, nextAttrs.dimD, nextAttrs.dimH)
+      }
       current.variantAttributes = nextAttrs
       const specParts = [
         nextAttrs.coreThickness || nextAttrs.profileType || nextAttrs.fastenerType || nextAttrs.nailType || nextAttrs.chemicalClass || nextAttrs.accessoryCategory || nextAttrs.serviceCategory || nextAttrs.brandModelCode,
@@ -5828,14 +6196,65 @@ export function RequisitionBuilderClient({
       HARDWARE_ACCESSORIES: SAMPLE_ACCESSORY_HARDWARE_ITEMS,
       SERVICES_DELIVERABLES: SAMPLE_ACCESSORY_SERVICES_ITEMS,
     }
-    const presetItems = presetMap[subType].map((item) => ({
-      ...item,
-      quotationLineItemId,
-      variantAttributes: { ...(item.variantAttributes || {}), accessoriesSubType: subType },
-    }))
+    const presetItems = presetMap[subType].map((item) => {
+      const attrs = item.variantAttributes || {}
+      const parsed = parseDimensions(attrs.dimensions as string | undefined)
+      return {
+        ...item,
+        quotationLineItemId,
+        variantAttributes: {
+          ...attrs,
+          dimW: attrs.dimW || parsed.dimW,
+          dimD: attrs.dimD || parsed.dimD,
+          dimH: attrs.dimH || parsed.dimH,
+          accessoriesSubType: subType,
+        },
+      }
+    })
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
   }
+
+  const handleSelectSavedAccessory = useCallback((cardKey: string, sectionId: string, rowIndex: number, item: BoqSavedAccessoryItem) => {
+    const key = sectionItemKey(cardKey, sectionId)
+    setItemsMap((prev) => {
+      const rows = [...(prev[key] ?? [])]
+      const current = { ...rows[rowIndex] }
+      current.materialName = item.name
+      if (item.defaultUnit) current.unit = item.defaultUnit
+      const prevAttrs: BoardVariantAttributes = current.variantAttributes || {}
+      const nextAttrs: BoardVariantAttributes = {
+        ...prevAttrs,
+        accessoryCategory: item.category,
+        itemCode: item.itemCode,
+      }
+      current.variantAttributes = nextAttrs
+      const specParts = [
+        nextAttrs.accessoryCategory,
+        nextAttrs.itemCode ? `Code: ${nextAttrs.itemCode}` : '',
+        nextAttrs.dimensions,
+      ].filter(Boolean)
+      if (specParts.length > 0) current.specifications = specParts.join(' | ')
+      rows[rowIndex] = current
+      return { ...prev, [key]: rows }
+    })
+  }, [])
+
+  const handleSaveNewAccessory = useCallback(async (name: string, category?: string, itemCode?: string) => {
+    try {
+      const res = await fetch('/api/boq/saved-accessories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, category, itemCode }),
+      })
+      const data = await res.json()
+      if (data.success && data.item) {
+        setBoqSavedAccessories((prev) => [...prev, data.item])
+      }
+    } catch (e) {
+      console.error('Failed to save accessory item to library', e)
+    }
+  }, [])
 
   const loadAppliancePresetForSection = (cardKey: string, sectionId: string, subType: ApplianceSubType, quotationLineItemId?: string) => {
     const presetMap: Record<ApplianceSubType, RequisitionItemInput[]> = {
@@ -6696,6 +7115,9 @@ export function RequisitionBuilderClient({
                       onLoadAppliancePreset={(subType) => loadAppliancePresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
                       onToggleCollapse={() => toggleSectionCollapse(currentCardKey, section.id)}
                       onRemove={() => removeSection(currentCardKey, section.id)}
+                      boqSavedAccessories={boqSavedAccessories}
+                      onSelectSavedAccessory={(ri, item) => handleSelectSavedAccessory(currentCardKey, section.id, ri, item)}
+                      onSaveNewSavedAccessory={handleSaveNewAccessory}
                     />
                   ))
                 )}
@@ -6780,6 +7202,9 @@ export function RequisitionBuilderClient({
                       onLoadAppliancePreset={(subType) => loadAppliancePresetForSection(EXTRA_KEY, section.id, subType, undefined)}
                       onToggleCollapse={() => toggleSectionCollapse(EXTRA_KEY, section.id)}
                       onRemove={() => removeSection(EXTRA_KEY, section.id)}
+                      boqSavedAccessories={boqSavedAccessories}
+                      onSelectSavedAccessory={(ri, item) => handleSelectSavedAccessory(EXTRA_KEY, section.id, ri, item)}
+                      onSaveNewSavedAccessory={handleSaveNewAccessory}
                     />
                   ))
                 )}
@@ -6842,6 +7267,9 @@ export function RequisitionBuilderClient({
                             onAddSection={(cat, wpSub, cabSub, accSub, appSub) => addSection(li.id, cat, wpSub, cabSub, accSub, appSub, li.id)}
                             onRemoveSection={(sectionId) => removeSection(li.id, sectionId)}
                             onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(li.id, sectionId)}
+                            boqSavedAccessories={boqSavedAccessories}
+                            onSelectSavedAccessory={(sectionId, ri, item) => handleSelectSavedAccessory(li.id, sectionId, ri, item)}
+                            onSaveNewSavedAccessory={handleSaveNewAccessory}
                           />
                         )
                       })}
@@ -6867,6 +7295,9 @@ export function RequisitionBuilderClient({
             onAddSection={(cat, wpSub, cabSub, accSub, appSub) => addSection(EXTRA_KEY, cat, wpSub, cabSub, accSub, appSub, undefined)}
             onRemoveSection={(sectionId) => removeSection(EXTRA_KEY, sectionId)}
             onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(EXTRA_KEY, sectionId)}
+            boqSavedAccessories={boqSavedAccessories}
+            onSelectSavedAccessory={(sectionId, ri, item) => handleSelectSavedAccessory(EXTRA_KEY, sectionId, ri, item)}
+            onSaveNewSavedAccessory={handleSaveNewAccessory}
           />
         </div>
       )}
