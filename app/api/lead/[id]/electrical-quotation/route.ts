@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { buildQuotationLeadWhere, canAccessQuotationDraft, canEditQuotationDraft } from '@/lib/quotation-auth'
-import { buildDefaultElectricalQuotationContent, type ElectricalQuotationContent, type ElectricalQuotationItem } from '@/lib/electrical-quotation-template'
+import {
+  buildDefaultElectricalQuotationContent,
+  calculateElectricalGrandTotal,
+  type ElectricalQuotationContent,
+  type ElectricalQuotationItem,
+} from '@/lib/electrical-quotation-template'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -12,27 +17,37 @@ function normalizeContent(value: unknown): ElectricalQuotationContent | null {
   if (!Array.isArray(data.items)) return null
   const items: ElectricalQuotationItem[] = []
   for (const [index, raw] of data.items.entries()) {
-    if (!raw || typeof raw !== 'object') return null
+    if (!raw || typeof raw !== 'object') continue
     const item = raw as Record<string, unknown>
     const name = typeof item.name === 'string' ? item.name.trim() : ''
-    const quantity = Number(item.quantity)
-    const rate = Number(item.rate)
-    if (!name || !Number.isFinite(quantity) || quantity < 0 || !Number.isFinite(rate) || rate < 0) return null
+    if (!name) continue
+
+    const qtyNum = item.quantity === null || item.quantity === undefined || item.quantity === '' ? null : Number(item.quantity)
+    const rateNum = item.rate === null || item.rate === undefined || item.rate === '' ? null : Number(item.rate)
+
     items.push({
-      id: typeof item.id === 'string' ? item.id : `item-${index + 1}`,
+      id: typeof item.id === 'string' && item.id ? item.id : `item-${index + 1}`,
+      serialNo: typeof item.serialNo === 'number' ? item.serialNo : index + 1,
       name,
       description: typeof item.description === 'string' ? item.description.slice(0, 5000) : '',
-      quantity,
-      unit: typeof item.unit === 'string' ? item.unit.slice(0, 80) : 'Nos',
-      rate,
+      quantity: qtyNum != null && Number.isFinite(qtyNum) && qtyNum >= 0 ? qtyNum : null,
+      unit: typeof item.unit === 'string' ? item.unit.slice(0, 80) : '',
+      rate: rateNum != null && Number.isFinite(rateNum) && rateNum >= 0 ? rateNum : null,
     })
   }
+
+  const approxNum = data.approximateGrandTotal === null || data.approximateGrandTotal === undefined || data.approximateGrandTotal === ''
+    ? null
+    : Number(data.approximateGrandTotal)
+
   return {
     quotationDate: typeof data.quotationDate === 'string' ? data.quotationDate.slice(0, 30) : new Date().toISOString().slice(0, 10),
     subject: typeof data.subject === 'string' ? data.subject.slice(0, 300) : '',
     notes: typeof data.notes === 'string' ? data.notes.slice(0, 5000) : '',
     excludedItems: typeof data.excludedItems === 'string' ? data.excludedItems.slice(0, 2000) : '',
     items,
+    useApproximateTotal: Boolean(data.useApproximateTotal),
+    approximateGrandTotal: approxNum != null && Number.isFinite(approxNum) && approxNum >= 0 ? approxNum : null,
   }
 }
 
@@ -73,8 +88,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   if (!result.canEdit) return NextResponse.json({ success: false, error: 'You cannot edit this quotation' }, { status: 403 })
   const body = await request.json().catch(() => ({})) as { content?: unknown }
   const content = normalizeContent(body.content)
-  if (!content) return NextResponse.json({ success: false, error: 'Each item needs a name, quantity, and unit price' }, { status: 400 })
-  const grandTotal = content.items.reduce((sum, item) => sum + item.quantity * item.rate, 0)
+  if (!content) return NextResponse.json({ success: false, error: 'Invalid quotation content' }, { status: 400 })
+  const { grandTotal } = calculateElectricalGrandTotal(content)
   const draft = await prisma.electricalQuotationDraft.upsert({
     where: { leadId: result.lead.id },
     create: { leadId: result.lead.id, createdById: auth.actorUserId, updatedById: auth.actorUserId, content: content as never, grandTotal },

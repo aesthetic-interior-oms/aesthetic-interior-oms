@@ -149,7 +149,14 @@ export function QuotationWorkspace({
           ) : null}
         </TabsContent>
         <TabsContent value="electrical" className="mt-4">
-          {activeTab === 'electrical' ? <ElectricalQuotationBuilder leadId={leadId} leadName={leadName} leadLocation={leadLocation} /> : null}
+          {activeTab === 'electrical' ? (
+            <ElectricalQuotationBuilder
+              leadId={leadId}
+              leadName={leadName}
+              leadLocation={leadLocation}
+              onDraftSaved={() => void loadDraftMeta({ updateActiveTab: false })}
+            />
+          ) : null}
         </TabsContent>
       </Tabs>
     </div>
