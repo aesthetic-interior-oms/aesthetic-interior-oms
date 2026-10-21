@@ -1,74 +1,39 @@
-import type { Metadata } from "next";
+import Link from "next/link";
+import { SignedIn, SignedOut, SignInButton, SignUpButton } from "@clerk/nextjs";
+import { ArrowRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
-import { PremiumFaqSection } from "@/components/website/faq/premium-faq-section";
-import {
-  FaqJsonLd,
-  LocalBusinessJsonLd,
-  OrganizationJsonLd,
-  ServiceJsonLd,
-  WebsiteJsonLd,
-} from "@/components/website/seo/json-ld";
-import { AppointmentSection } from "@/components/website/homePage/appointment-section";
-import { CtaSection } from "@/components/website/homePage/cta-section";
-import { HomeHeroSection } from "@/components/website/homePage/home-hero-section";
-import { PartnersSection } from "@/components/website/homePage/partners-section";
-import { ProcessSection } from "@/components/website/homePage/process-section";
-import { ProjectSection } from "@/components/website/homePage/projects-section";
-import { ServicesSection } from "@/components/website/homePage/services-section";
-import { TestimonialsSection } from "@/components/website/homePage/testimonials-section";
-import { TrustFiguresSection } from "@/components/website/homePage/trust-figure-section";
-import { VideoGallerySection } from "@/components/website/homePage/video-gallery-section";
-import { interiorDesignFaqs } from "@/lib/seo-faqs";
-import { getWebsiteProjects } from "@/lib/website-projects";
-import { getWebsiteVideos } from "@/lib/website-videos";
-import { getWebsiteTestimonials } from "@/lib/website-testimonials";
-import { siteName } from "@/lib/site";
-
-export const dynamic = "force-dynamic";
-
-export const metadata: Metadata = {
-  title: `${siteName} in BD | Modern Interior Design Studio in Dhaka`,
-  description:
-    "Aesthetic Interior Studio in BD is a pioneer brand for modern contemporary interior design in Dhaka, Bangladesh. Explore residential, commercial, and architectural interiors.",
-  keywords: [
-    "aesthetic interior studio in bd",
-    "aesthetic interior studio Dhaka",
-    "aesthetic interior Bangladesh",
-    "interior design Dhaka Bangladesh",
-    "modern contemporary interior design Bangladesh",
-  ],
-  alternates: {
-    canonical: "/",
-  },
-  openGraph: {
-    title: `${siteName} in BD | Modern Interior Design Studio in Dhaka`,
-    description:
-      "Aesthetic Interior Studio is a pioneer brand for modern contemporary interior design in Dhaka, Bangladesh.",
-    url: "/",
-    type: "website",
-  },
-};
-
-export default async function HomePage() {
-  const [projects, videos, testimonials] = await Promise.all([getWebsiteProjects(), getWebsiteVideos(), getWebsiteTestimonials()])
+export default function SignInPage() {
   return (
-    <main className="min-h-screen bg-background pt-20">
-      <WebsiteJsonLd />
-      <OrganizationJsonLd />
-      <LocalBusinessJsonLd />
-      <ServiceJsonLd />
-      <FaqJsonLd items={interiorDesignFaqs} />
-      <HomeHeroSection />
-      <ProcessSection />
-      <ServicesSection />
-      <ProjectSection projects={projects} />
-      <TrustFiguresSection />
-      <PartnersSection />
-      <VideoGallerySection videos={videos} />
-      <AppointmentSection />
-      <PremiumFaqSection items={interiorDesignFaqs} />
-      <TestimonialsSection testimonials={testimonials} />
-      <CtaSection />
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-4 py-10 sm:px-6">
+        <section className="w-full rounded-3xl border border-foreground/10 bg-background p-6 shadow-sm md:p-10">
+          <p className="text-xs tracking-[0.28em] text-foreground/60">AESTHETIC INTERIOR CRM</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">Sign in to your workspace</h1>
+          <p className="mt-4 max-w-2xl text-sm text-foreground/75 sm:text-base">
+            Access lead management, team workflows, follow-up tracking, and department dashboards.
+          </p>
+
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+            <SignedOut>
+              <SignInButton forceRedirectUrl="/onboarding">
+                <Button className="h-10 bg-foreground text-background hover:bg-foreground/90">Sign In</Button>
+              </SignInButton>
+              <SignUpButton forceRedirectUrl="/onboarding">
+                <Button variant="outline" className="h-10">Sign Up</Button>
+              </SignUpButton>
+            </SignedOut>
+
+            <SignedIn>
+              <Button asChild className="h-10 bg-foreground text-background hover:bg-foreground/90">
+                <Link href="/onboarding">
+                  Continue to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </SignedIn>
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

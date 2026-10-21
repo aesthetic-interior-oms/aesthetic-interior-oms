@@ -6,6 +6,7 @@ import { Footer } from "@/components/website/ui/footer";
 import { Analytics } from "@vercel/analytics/next";
 
 const APP_ROUTES_WITHOUT_WEBSITE_CHROME = [
+  "/",
   "/crm",
   "/visit-team",
   "/quotation-team",
