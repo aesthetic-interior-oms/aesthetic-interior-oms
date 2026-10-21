@@ -41,6 +41,8 @@ function normalizeContent(value: unknown): ElectricalQuotationContent | null {
     : Number(data.approximateGrandTotal)
 
   return {
+    clientName: typeof data.clientName === 'string' ? data.clientName.slice(0, 200) : '',
+    clientAddress: typeof data.clientAddress === 'string' ? data.clientAddress.slice(0, 500) : '',
     quotationDate: typeof data.quotationDate === 'string' ? data.quotationDate.slice(0, 30) : new Date().toISOString().slice(0, 10),
     subject: typeof data.subject === 'string' ? data.subject.slice(0, 300) : '',
     notes: typeof data.notes === 'string' ? data.notes.slice(0, 5000) : '',
@@ -74,7 +76,17 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   const result = await getLeadAccess(id.trim(), auth.actorUserId, auth.actor.userDepartments, auth.actorRoles)
   if ('response' in result) return result.response
   const draft = await prisma.electricalQuotationDraft.findUnique({ where: { leadId: result.lead.id } })
-  const content = draft ? draft.content as unknown as ElectricalQuotationContent : buildDefaultElectricalQuotationContent()
+  const content = draft
+    ? (draft.content as unknown as ElectricalQuotationContent)
+    : buildDefaultElectricalQuotationContent({ clientName: result.lead.name, clientAddress: result.lead.location })
+
+  if (content && !content.clientName) {
+    content.clientName = result.lead.name
+  }
+  if (content && content.clientAddress === undefined) {
+    content.clientAddress = result.lead.location ?? ''
+  }
+
   return NextResponse.json({ success: true, data: { lead: result.lead, draft, content, canEdit: result.canEdit } })
 }
 

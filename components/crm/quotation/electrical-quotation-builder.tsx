@@ -203,7 +203,9 @@ function SortableItemRow({
 }
 
 export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onDraftSaved }: Props) {
-  const [content, setContent] = useState<ElectricalQuotationContent>(() => buildDefaultElectricalQuotationContent())
+  const [content, setContent] = useState<ElectricalQuotationContent>(() =>
+    buildDefaultElectricalQuotationContent({ clientName: leadName, clientAddress: leadLocation })
+  )
   const [savedItems, setSavedItems] = useState<SavedItem[]>([])
   const [canEdit, setCanEdit] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -248,7 +250,14 @@ export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onD
     ])
       .then(([draftPayload, savedPayload]) => {
         if (!active) return
-        setContent(draftPayload.data.content)
+        const fetchedContent = draftPayload.data.content as ElectricalQuotationContent
+        if (!fetchedContent.clientName) {
+          fetchedContent.clientName = leadName
+        }
+        if (fetchedContent.clientAddress === undefined || fetchedContent.clientAddress === null) {
+          fetchedContent.clientAddress = leadLocation ?? ''
+        }
+        setContent(fetchedContent)
         setCanEdit(Boolean(draftPayload.data.canEdit))
         setHasDraft(Boolean(draftPayload.data.draft))
         setSavedItems(savedPayload.items as SavedItem[])
@@ -416,7 +425,8 @@ export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onD
   async function downloadPdf(variant: 'detailed' | 'approx' = 'detailed') {
     setDownloadingType(variant)
     try {
-      const cleanName = leadName.replace(/[^a-z0-9]+/gi, '-')
+      const displayName = content.clientName?.trim() || leadName
+      const cleanName = displayName.replace(/[^a-z0-9]+/gi, '-')
       const fileName =
         variant === 'approx'
           ? `Electrical-Quotation-Approx-${cleanName}.pdf`
@@ -425,8 +435,8 @@ export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onD
       await downloadPdfFromDocument(
         <ElectricalQuotationDocument
           content={content}
-          leadName={leadName}
-          leadLocation={leadLocation}
+          leadName={displayName}
+          leadLocation={content.clientAddress !== undefined ? content.clientAddress : leadLocation}
           variant={variant}
         />,
         fileName
@@ -602,11 +612,21 @@ export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onD
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <label className="space-y-1 text-sm font-medium">
             <span>Quotation for</span>
-            <Input value={leadName} readOnly className="bg-muted/50" />
+            <Input
+              value={content.clientName ?? leadName}
+              disabled={!canEdit}
+              placeholder="Client / company name"
+              onChange={(e) => setContent((c) => ({ ...c, clientName: e.target.value }))}
+            />
           </label>
           <label className="space-y-1 text-sm font-medium">
             <span>Address</span>
-            <Input value={leadLocation ?? ''} readOnly placeholder="No address on lead" className="bg-muted/50" />
+            <Input
+              value={content.clientAddress ?? leadLocation ?? ''}
+              disabled={!canEdit}
+              placeholder="Client address / site location"
+              onChange={(e) => setContent((c) => ({ ...c, clientAddress: e.target.value }))}
+            />
           </label>
           <label className="space-y-1 text-sm font-medium">
             <span>Date</span>

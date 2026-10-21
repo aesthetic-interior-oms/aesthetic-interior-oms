@@ -9,6 +9,8 @@ export type ElectricalQuotationItem = {
 }
 
 export type ElectricalQuotationContent = {
+  clientName?: string
+  clientAddress?: string
   quotationDate: string
   subject: string
   notes: string
@@ -45,8 +47,13 @@ export const ELECTRICAL_QUOTATION_TEMPLATE: ElectricalQuotationItem[] = [
   { id: 'electrical-09', serialNo: 9, name: 'Installation Charge', description: 'Labor charge for complete fitting, fixing & installation of all electrical components. Includes groove cutting, hole cutting, PVC conduit piping, cable laying, clamping & proper alignment. Surface / concealed installation as per approved drawing & design. Making good of all damages after installation (plaster repair, finishing touch). Testing, checking & commissioning of all electrical points. Work to be executed in a neat and workmanlike manner ensuring safety and durability.', quantity: null, unit: 'Lump sum', rate: null },
 ]
 
-export function buildDefaultElectricalQuotationContent(): ElectricalQuotationContent {
+export function buildDefaultElectricalQuotationContent(initial?: {
+  clientName?: string
+  clientAddress?: string | null
+}): ElectricalQuotationContent {
   return {
+    clientName: initial?.clientName || '',
+    clientAddress: initial?.clientAddress || '',
     quotationDate: new Date().toISOString().slice(0, 10),
     subject: 'Quotation for Electrical work.',
     notes: 'Payment terms: 50% advance along with work order, 40% running payment during progress, 10% after completion & handover.',
@@ -63,14 +70,16 @@ export function calculateElectricalGrandTotal(content: ElectricalQuotationConten
   isApproximate: boolean
 } {
   const calculatedSum = (content.items || []).reduce((sum, item) => {
-    const qty = typeof item.quantity === 'number' && Number.isFinite(item.quantity) ? item.quantity : 0
-    const rate = typeof item.rate === 'number' && Number.isFinite(item.rate) ? item.rate : 0
+    const qty = typeof item.quantity === 'number' && Number.isFinite(item.quantity) ? item.quantity : Number(item.quantity) || 0
+    const rate = typeof item.rate === 'number' && Number.isFinite(item.rate) ? item.rate : Number(item.rate) || 0
     return sum + (qty * rate)
   }, 0)
 
   const approxNum = typeof content.approximateGrandTotal === 'number' && Number.isFinite(content.approximateGrandTotal) && content.approximateGrandTotal > 0
     ? content.approximateGrandTotal
-    : null
+    : typeof content.approximateGrandTotal === 'string' && Number(content.approximateGrandTotal) > 0
+      ? Number(content.approximateGrandTotal)
+      : null
 
   const isApproximate = Boolean(content.useApproximateTotal || (approxNum !== null && calculatedSum === 0))
   const grandTotal = isApproximate && approxNum !== null ? approxNum : calculatedSum

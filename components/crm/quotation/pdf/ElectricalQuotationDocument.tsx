@@ -205,19 +205,23 @@ const styles = StyleSheet.create({
     width: '11%',
     textAlign: 'right',
   },
-  // Approx Table Column Widths (SL, Item Name, Description, Unit Price)
+  // Approx Table Column Widths (SL, Item Name, Description, Unit, Unit Price)
   approxSerial: {
-    width: '6%',
+    width: '5%',
     textAlign: 'center',
   },
   approxName: {
-    width: '24%',
+    width: '22%',
   },
   approxDescription: {
-    width: '52%',
+    width: '45%',
+  },
+  approxUnit: {
+    width: '12%',
+    textAlign: 'center',
   },
   approxRate: {
-    width: '18%',
+    width: '16%',
     textAlign: 'right',
   },
   itemName: {
@@ -379,8 +383,12 @@ function DetailedItemTable({ items }: { items: ElectricalQuotationItem[] }) {
         <Text style={[styles.headCell, styles.detailTotal, styles.lastCell]}>Total (৳)</Text>
       </View>
       {items.map((item, index) => {
-        const hasQty = typeof item.quantity === 'number' && item.quantity > 0
-        const hasRate = typeof item.rate === 'number' && item.rate > 0
+        const rawQty = item.quantity as unknown
+        const rawRate = item.rate as unknown
+        const qtyNum = rawQty !== null && rawQty !== undefined && rawQty !== '' ? Number(rawQty) : null
+        const rateNum = rawRate !== null && rawRate !== undefined && rawRate !== '' ? Number(rawRate) : null
+        const hasQty = qtyNum !== null && Number.isFinite(qtyNum) && qtyNum > 0
+        const hasRate = rateNum !== null && Number.isFinite(rateNum) && rateNum > 0
         const isLump = item.unit?.toLowerCase().includes('lump')
 
         return (
@@ -392,11 +400,11 @@ function DetailedItemTable({ items }: { items: ElectricalQuotationItem[] }) {
             <View style={[styles.cell, styles.detailDescription]}>
               <Text style={styles.itemDescription}>{item.description || '—'}</Text>
             </View>
-            <Text style={[styles.cell, styles.detailQuantity]}>{hasQty ? item.quantity!.toLocaleString() : '—'}</Text>
+            <Text style={[styles.cell, styles.detailQuantity]}>{hasQty ? qtyNum!.toLocaleString() : '—'}</Text>
             <Text style={[styles.cell, styles.detailUnit]}>{item.unit || '—'}</Text>
-            <Text style={[styles.cell, styles.detailRate]}>{hasRate ? formatMoney(item.rate!) : '—'}</Text>
+            <Text style={[styles.cell, styles.detailRate]}>{hasRate ? formatMoney(rateNum!) : '—'}</Text>
             <Text style={[styles.cell, styles.detailTotal, styles.lastCell]}>
-              {hasQty && hasRate ? formatMoney(item.quantity! * item.rate!) : isLump ? 'Lump sum' : '—'}
+              {hasQty && hasRate ? formatMoney(qtyNum! * rateNum!) : isLump ? 'Lump sum' : '—'}
             </Text>
           </View>
         )
@@ -405,7 +413,7 @@ function DetailedItemTable({ items }: { items: ElectricalQuotationItem[] }) {
   )
 }
 
-// 2. Approx table: separate Item Name and Description columns (SL, Item Name, Description, Unit Price)
+// 2. Approx table: SL, Item Name, Description, Unit, Unit Price
 function ApproxItemTable({ items }: { items: ElectricalQuotationItem[] }) {
   return (
     <View style={styles.table}>
@@ -413,10 +421,13 @@ function ApproxItemTable({ items }: { items: ElectricalQuotationItem[] }) {
         <Text style={[styles.headCell, styles.approxSerial]}>SL</Text>
         <Text style={[styles.headCell, styles.approxName]}>Item Name</Text>
         <Text style={[styles.headCell, styles.approxDescription]}>Description</Text>
+        <Text style={[styles.headCell, styles.approxUnit]}>Unit</Text>
         <Text style={[styles.headCell, styles.approxRate, styles.lastCell]}>Unit Price (৳)</Text>
       </View>
       {items.map((item, index) => {
-        const hasRate = typeof item.rate === 'number' && item.rate > 0
+        const rawRate = item.rate as unknown
+        const rateNum = rawRate !== null && rawRate !== undefined && rawRate !== '' ? Number(rawRate) : null
+        const hasRate = rateNum !== null && Number.isFinite(rateNum) && rateNum > 0
         const isLump = item.unit?.toLowerCase().includes('lump')
 
         return (
@@ -430,8 +441,11 @@ function ApproxItemTable({ items }: { items: ElectricalQuotationItem[] }) {
             <View style={[styles.cell, styles.approxDescription]}>
               <Text style={styles.itemDescription}>{item.description || '—'}</Text>
             </View>
+            <Text style={[styles.cell, styles.approxUnit]}>
+              {item.unit || '—'}
+            </Text>
             <Text style={[styles.cell, styles.approxRate, styles.lastCell]}>
-              {hasRate ? formatMoney(item.rate!) : isLump ? 'Lump sum' : '—'}
+              {hasRate ? formatMoney(rateNum!) : isLump ? 'Lump sum' : '—'}
             </Text>
           </View>
         )
@@ -455,6 +469,9 @@ export function ElectricalQuotationDocument({
   const { grandTotal, isApproximate } = calculateElectricalGrandTotal(content)
   const showAsApprox = isApproxVariant || isApproximate
 
+  const displayClientName = content.clientName?.trim() || leadName
+  const displayClientAddress = content.clientAddress?.trim() ?? leadLocation
+
   return (
     <Document>
       <Page size="A4" style={styles.page} wrap>
@@ -466,8 +483,8 @@ export function ElectricalQuotationDocument({
 
         <View style={styles.client}>
           <Text style={styles.clientLabel}>Prepared For</Text>
-          <Text style={styles.clientName}>{leadName}</Text>
-          {leadLocation ? <Text style={styles.clientAddress}>{leadLocation}</Text> : null}
+          <Text style={styles.clientName}>{displayClientName}</Text>
+          {displayClientAddress ? <Text style={styles.clientAddress}>{displayClientAddress}</Text> : null}
         </View>
 
         {content.subject ? (
