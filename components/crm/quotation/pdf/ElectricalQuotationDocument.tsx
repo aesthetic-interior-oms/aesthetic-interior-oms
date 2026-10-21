@@ -178,47 +178,52 @@ const styles = StyleSheet.create({
   lastCell: {
     borderRightWidth: 0,
   },
-  // Detailed Table Widths
-  serial: {
+  // Detailed Table Column Widths (SL, Item Name, Description, Qty, Unit, U/P, Total)
+  detailSerial: {
+    width: '5%',
+    textAlign: 'center',
+  },
+  detailName: {
+    width: '20%',
+  },
+  detailDescription: {
+    width: '35%',
+  },
+  detailQuantity: {
+    width: '9%',
+    textAlign: 'right',
+  },
+  detailUnit: {
+    width: '9%',
+    textAlign: 'center',
+  },
+  detailRate: {
+    width: '11%',
+    textAlign: 'right',
+  },
+  detailTotal: {
+    width: '11%',
+    textAlign: 'right',
+  },
+  // Approx Table Column Widths (SL, Item Name, Description, Unit Price)
+  approxSerial: {
     width: '6%',
     textAlign: 'center',
   },
-  description: {
-    width: '48%',
-  },
-  quantity: {
-    width: '10%',
-    textAlign: 'right',
-  },
-  unit: {
-    width: '10%',
-    textAlign: 'center',
-  },
-  rate: {
-    width: '12%',
-    textAlign: 'right',
-  },
-  total: {
-    width: '14%',
-    textAlign: 'right',
-  },
-  // Approx Table Widths (only SL, Name/Description, and Unit Price)
-  approxSerial: {
-    width: '7%',
-    textAlign: 'center',
+  approxName: {
+    width: '24%',
   },
   approxDescription: {
-    width: '73%',
+    width: '52%',
   },
   approxRate: {
-    width: '20%',
+    width: '18%',
     textAlign: 'right',
   },
   itemName: {
     fontSize: 8.5,
     fontWeight: 'bold',
     color: PRIMARY,
-    marginBottom: 2,
   },
   itemDescription: {
     fontSize: 7.5,
@@ -360,17 +365,18 @@ function Footer({ isApprox }: { isApprox: boolean }) {
   )
 }
 
-// 1. Detailed table: all columns (SL, Name / Scope, Qty, Unit, U/P, Total)
+// 1. Detailed table: separate Item Name and Description columns (SL, Item Name, Description, Qty, Unit, U/P, Total)
 function DetailedItemTable({ items }: { items: ElectricalQuotationItem[] }) {
   return (
     <View style={styles.table}>
       <View style={styles.tableHead}>
-        <Text style={[styles.headCell, styles.serial]}>SL</Text>
-        <Text style={[styles.headCell, styles.description]}>Name / Scope of Work</Text>
-        <Text style={[styles.headCell, styles.quantity]}>Qty</Text>
-        <Text style={[styles.headCell, styles.unit]}>Unit</Text>
-        <Text style={[styles.headCell, styles.rate]}>U/P (৳)</Text>
-        <Text style={[styles.headCell, styles.total, styles.lastCell]}>Total (৳)</Text>
+        <Text style={[styles.headCell, styles.detailSerial]}>SL</Text>
+        <Text style={[styles.headCell, styles.detailName]}>Item Name</Text>
+        <Text style={[styles.headCell, styles.detailDescription]}>Description</Text>
+        <Text style={[styles.headCell, styles.detailQuantity]}>Qty</Text>
+        <Text style={[styles.headCell, styles.detailUnit]}>Unit</Text>
+        <Text style={[styles.headCell, styles.detailRate]}>U/P (৳)</Text>
+        <Text style={[styles.headCell, styles.detailTotal, styles.lastCell]}>Total (৳)</Text>
       </View>
       {items.map((item, index) => {
         const hasQty = typeof item.quantity === 'number' && item.quantity > 0
@@ -379,15 +385,17 @@ function DetailedItemTable({ items }: { items: ElectricalQuotationItem[] }) {
 
         return (
           <View key={item.id} style={[styles.tableRow, index % 2 ? styles.alternateRow : {}]} wrap={false}>
-            <Text style={[styles.cell, styles.serial]}>{String(item.serialNo ?? index + 1).padStart(2, '0')}</Text>
-            <View style={[styles.cell, styles.description]}>
+            <Text style={[styles.cell, styles.detailSerial]}>{String(item.serialNo ?? index + 1).padStart(2, '0')}</Text>
+            <View style={[styles.cell, styles.detailName]}>
               <Text style={styles.itemName}>{item.name || '—'}</Text>
-              {item.description ? <Text style={styles.itemDescription}>{item.description}</Text> : null}
             </View>
-            <Text style={[styles.cell, styles.quantity]}>{hasQty ? item.quantity!.toLocaleString() : '—'}</Text>
-            <Text style={[styles.cell, styles.unit]}>{item.unit || '—'}</Text>
-            <Text style={[styles.cell, styles.rate]}>{hasRate ? formatMoney(item.rate!) : '—'}</Text>
-            <Text style={[styles.cell, styles.total, styles.lastCell]}>
+            <View style={[styles.cell, styles.detailDescription]}>
+              <Text style={styles.itemDescription}>{item.description || '—'}</Text>
+            </View>
+            <Text style={[styles.cell, styles.detailQuantity]}>{hasQty ? item.quantity!.toLocaleString() : '—'}</Text>
+            <Text style={[styles.cell, styles.detailUnit]}>{item.unit || '—'}</Text>
+            <Text style={[styles.cell, styles.detailRate]}>{hasRate ? formatMoney(item.rate!) : '—'}</Text>
+            <Text style={[styles.cell, styles.detailTotal, styles.lastCell]}>
               {hasQty && hasRate ? formatMoney(item.quantity! * item.rate!) : isLump ? 'Lump sum' : '—'}
             </Text>
           </View>
@@ -397,13 +405,14 @@ function DetailedItemTable({ items }: { items: ElectricalQuotationItem[] }) {
   )
 }
 
-// 2. Approx table: ONLY SL, Name / Scope of Work, and Unit Price (৳)
+// 2. Approx table: separate Item Name and Description columns (SL, Item Name, Description, Unit Price)
 function ApproxItemTable({ items }: { items: ElectricalQuotationItem[] }) {
   return (
     <View style={styles.table}>
       <View style={styles.tableHead}>
         <Text style={[styles.headCell, styles.approxSerial]}>SL</Text>
-        <Text style={[styles.headCell, styles.approxDescription]}>Name / Scope of Work</Text>
+        <Text style={[styles.headCell, styles.approxName]}>Item Name</Text>
+        <Text style={[styles.headCell, styles.approxDescription]}>Description</Text>
         <Text style={[styles.headCell, styles.approxRate, styles.lastCell]}>Unit Price (৳)</Text>
       </View>
       {items.map((item, index) => {
@@ -415,9 +424,11 @@ function ApproxItemTable({ items }: { items: ElectricalQuotationItem[] }) {
             <Text style={[styles.cell, styles.approxSerial]}>
               {String(item.serialNo ?? index + 1).padStart(2, '0')}
             </Text>
-            <View style={[styles.cell, styles.approxDescription]}>
+            <View style={[styles.cell, styles.approxName]}>
               <Text style={styles.itemName}>{item.name || '—'}</Text>
-              {item.description ? <Text style={styles.itemDescription}>{item.description}</Text> : null}
+            </View>
+            <View style={[styles.cell, styles.approxDescription]}>
+              <Text style={styles.itemDescription}>{item.description || '—'}</Text>
             </View>
             <Text style={[styles.cell, styles.approxRate, styles.lastCell]}>
               {hasRate ? formatMoney(item.rate!) : isLump ? 'Lump sum' : '—'}
@@ -509,8 +520,6 @@ export function ElectricalQuotationDocument({
             <Text style={styles.blockText}>{content.notes}</Text>
           </View>
         ) : null}
-
-        {/* Note: Signatures section removed as requested */}
       </Page>
     </Document>
   )
