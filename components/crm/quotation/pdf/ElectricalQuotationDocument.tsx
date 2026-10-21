@@ -178,6 +178,7 @@ const styles = StyleSheet.create({
   lastCell: {
     borderRightWidth: 0,
   },
+  // Detailed Table Widths
   serial: {
     width: '6%',
     textAlign: 'center',
@@ -199,6 +200,18 @@ const styles = StyleSheet.create({
   },
   total: {
     width: '14%',
+    textAlign: 'right',
+  },
+  // Approx Table Widths (only SL, Name/Description, and Unit Price)
+  approxSerial: {
+    width: '7%',
+    textAlign: 'center',
+  },
+  approxDescription: {
+    width: '73%',
+  },
+  approxRate: {
+    width: '20%',
     textAlign: 'right',
   },
   itemName: {
@@ -258,29 +271,6 @@ const styles = StyleSheet.create({
     color: '#555',
     whiteSpace: 'pre-wrap',
   },
-  signaturesRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 36,
-    paddingTop: 10,
-  },
-  sigBox: {
-    width: '35%',
-  },
-  sigLine: {
-    borderTopWidth: 0.8,
-    borderTopColor: '#444',
-    marginBottom: 4,
-  },
-  sigText: {
-    fontSize: 8,
-    color: '#333',
-  },
-  sigTextBold: {
-    fontSize: 8.5,
-    fontWeight: 'bold',
-    color: PRIMARY,
-  },
   footer: {
     position: 'absolute',
     bottom: 14,
@@ -317,14 +307,14 @@ function formatMoney(value: number) {
   return Math.round(value).toLocaleString('en-BD')
 }
 
-function GlobalHeader({ date }: { date: string }) {
+function GlobalHeader({ date, isApprox }: { date: string; isApprox: boolean }) {
   return (
     <View style={styles.header} fixed>
       <Image src={`${getBaseUrl()}/backgrounddata.svg`} style={styles.headerPattern} />
       <View style={{ paddingTop: 3 }}>
         <View style={styles.headerRuleRow}>
           <View style={[styles.headerRule, { flexGrow: 1.65 }]} />
-          <Text style={styles.headerTitle}>Quotation</Text>
+          <Text style={styles.headerTitle}>{isApprox ? 'Approximate Quotation' : 'Quotation'}</Text>
           <View style={[styles.headerRule, { flexGrow: 0.85 }]} />
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -341,7 +331,7 @@ function GlobalHeader({ date }: { date: string }) {
   )
 }
 
-function Footer() {
+function Footer({ isApprox }: { isApprox: boolean }) {
   return (
     <View style={styles.footer} fixed>
       <View style={{ borderTopWidth: 1, borderTopColor: GOLD, paddingTop: 8, flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -361,14 +351,17 @@ function Footer() {
         </View>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-        <Text style={[styles.footerMeta, { marginTop: 0 }]}>Electrical Quotation</Text>
+        <Text style={[styles.footerMeta, { marginTop: 0 }]}>
+          {isApprox ? 'Electrical Quotation (Approximate)' : 'Electrical Quotation'}
+        </Text>
         <Text style={[styles.footerMeta, { marginTop: 0, textAlign: 'right' }]}>Prepared for the client</Text>
       </View>
     </View>
   )
 }
 
-function ItemTable({ items }: { items: ElectricalQuotationItem[] }) {
+// 1. Detailed table: all columns (SL, Name / Scope, Qty, Unit, U/P, Total)
+function DetailedItemTable({ items }: { items: ElectricalQuotationItem[] }) {
   return (
     <View style={styles.table}>
       <View style={styles.tableHead}>
@@ -404,16 +397,52 @@ function ItemTable({ items }: { items: ElectricalQuotationItem[] }) {
   )
 }
 
+// 2. Approx table: ONLY SL, Name / Scope of Work, and Unit Price (৳)
+function ApproxItemTable({ items }: { items: ElectricalQuotationItem[] }) {
+  return (
+    <View style={styles.table}>
+      <View style={styles.tableHead}>
+        <Text style={[styles.headCell, styles.approxSerial]}>SL</Text>
+        <Text style={[styles.headCell, styles.approxDescription]}>Name / Scope of Work</Text>
+        <Text style={[styles.headCell, styles.approxRate, styles.lastCell]}>Unit Price (৳)</Text>
+      </View>
+      {items.map((item, index) => {
+        const hasRate = typeof item.rate === 'number' && item.rate > 0
+        const isLump = item.unit?.toLowerCase().includes('lump')
+
+        return (
+          <View key={item.id} style={[styles.tableRow, index % 2 ? styles.alternateRow : {}]} wrap={false}>
+            <Text style={[styles.cell, styles.approxSerial]}>
+              {String(item.serialNo ?? index + 1).padStart(2, '0')}
+            </Text>
+            <View style={[styles.cell, styles.approxDescription]}>
+              <Text style={styles.itemName}>{item.name || '—'}</Text>
+              {item.description ? <Text style={styles.itemDescription}>{item.description}</Text> : null}
+            </View>
+            <Text style={[styles.cell, styles.approxRate, styles.lastCell]}>
+              {hasRate ? formatMoney(item.rate!) : isLump ? 'Lump sum' : '—'}
+            </Text>
+          </View>
+        )
+      })}
+    </View>
+  )
+}
+
 export function ElectricalQuotationDocument({
   content,
   leadName,
   leadLocation,
+  variant = 'detailed',
 }: {
   content: ElectricalQuotationContent
   leadName: string
   leadLocation: string | null
+  variant?: 'detailed' | 'approx'
 }) {
+  const isApproxVariant = variant === 'approx'
   const { grandTotal, isApproximate } = calculateElectricalGrandTotal(content)
+  const showAsApprox = isApproxVariant || isApproximate
 
   return (
     <Document>
@@ -421,8 +450,8 @@ export function ElectricalQuotationDocument({
         <View style={styles.watermark} fixed>
           <Image src={`${getBaseUrl()}/android-chrome-512x512.png`} style={{ width: 400, height: 400 }} />
         </View>
-        <GlobalHeader date={content.quotationDate} />
-        <Footer />
+        <GlobalHeader date={content.quotationDate} isApprox={isApproxVariant} />
+        <Footer isApprox={isApproxVariant} />
 
         <View style={styles.client}>
           <Text style={styles.clientLabel}>Prepared For</Text>
@@ -440,7 +469,11 @@ export function ElectricalQuotationDocument({
         <View wrap>
           <Text style={styles.sectionTitle}>Electrical Works &amp; Installation</Text>
           {content.items.length > 0 ? (
-            <ItemTable items={content.items} />
+            isApproxVariant ? (
+              <ApproxItemTable items={content.items} />
+            ) : (
+              <DetailedItemTable items={content.items} />
+            )
           ) : (
             <View style={{ padding: 16, borderWidth: 0.5, borderColor: BORDER, alignItems: 'center' }}>
               <Text style={{ fontSize: 8, color: '#777' }}>No specific item lines listed. Scope as per design specifications.</Text>
@@ -450,17 +483,17 @@ export function ElectricalQuotationDocument({
 
         <View style={styles.grandTotalRow} wrap={false}>
           <Text style={styles.grandTotalLabel}>
-            {isApproximate ? 'APPROXIMATE GRAND TOTAL' : 'GRAND TOTAL'}
+            {showAsApprox ? 'APPROXIMATE GRAND TOTAL' : 'GRAND TOTAL'}
           </Text>
           <Text style={styles.grandTotalValue}>
             ৳ {formatMoney(grandTotal)}
-            {isApproximate ? ' (Approx.)' : ''}
+            {showAsApprox ? ' (Approx.)' : ''}
           </Text>
         </View>
 
         <Text style={styles.inWords}>
           In Words: {amountInWordsTaka(grandTotal)}
-          {isApproximate ? ' (Approximate)' : ''}
+          {showAsApprox ? ' (Approximate)' : ''}
         </Text>
 
         {content.excludedItems ? (
@@ -477,19 +510,7 @@ export function ElectricalQuotationDocument({
           </View>
         ) : null}
 
-        <View wrap={false} style={styles.signaturesRow}>
-          <View style={styles.sigBox}>
-            <View style={styles.sigLine} />
-            <Text style={styles.sigTextBold}>Customer Approval</Text>
-            <Text style={styles.sigText}>Sign &amp; Date</Text>
-          </View>
-
-          <View style={[styles.sigBox, { alignItems: 'flex-end' }]}>
-            <View style={[styles.sigLine, { width: '100%' }]} />
-            <Text style={styles.sigTextBold}>Authorized Signature</Text>
-            <Text style={styles.sigText}>Aesthetic Interior</Text>
-          </View>
-        </View>
+        {/* Note: Signatures section removed as requested */}
       </Page>
     </Document>
   )

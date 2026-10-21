@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -161,6 +161,22 @@ export function FurnitureQuotationBuilder({ leadId, leadName, leadLocation, onDr
       return false
     } finally { setSaving(false) }
   }
+
+  const saveDraftRef = useRef(saveDraft)
+  saveDraftRef.current = saveDraft
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        if (canEdit && !saving) {
+          void saveDraftRef.current()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [canEdit, saving])
 
   async function downloadPdf() {
     setDownloading(true)

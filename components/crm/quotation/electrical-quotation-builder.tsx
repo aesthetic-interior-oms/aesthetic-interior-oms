@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -208,7 +208,7 @@ export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onD
   const [canEdit, setCanEdit] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [downloading, setDownloading] = useState(false)
+  const [downloadingType, setDownloadingType] = useState<'detailed' | 'approx' | null>(null)
   const [hasDraft, setHasDraft] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [newItemOpen, setNewItemOpen] = useState(false)
@@ -397,18 +397,49 @@ export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onD
     }
   }
 
-  async function downloadPdf() {
-    setDownloading(true)
+  const saveDraftRef = useRef(saveDraft)
+  saveDraftRef.current = saveDraft
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault()
+        if (canEdit && !saving) {
+          void saveDraftRef.current()
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [canEdit, saving])
+
+  async function downloadPdf(variant: 'detailed' | 'approx' = 'detailed') {
+    setDownloadingType(variant)
     try {
+      const cleanName = leadName.replace(/[^a-z0-9]+/gi, '-')
+      const fileName =
+        variant === 'approx'
+          ? `Electrical-Quotation-Approx-${cleanName}.pdf`
+          : `Electrical-Quotation-${cleanName}.pdf`
+
       await downloadPdfFromDocument(
-        <ElectricalQuotationDocument content={content} leadName={leadName} leadLocation={leadLocation} />,
-        `Electrical-Quotation-${leadName.replace(/[^a-z0-9]+/gi, '-')}.pdf`
+        <ElectricalQuotationDocument
+          content={content}
+          leadName={leadName}
+          leadLocation={leadLocation}
+          variant={variant}
+        />,
+        fileName
       )
-      toast.success('Electrical quotation PDF downloaded')
+      toast.success(
+        variant === 'approx'
+          ? 'Approximate quotation PDF downloaded'
+          : 'Detailed quotation PDF downloaded'
+      )
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to download quotation')
     } finally {
-      setDownloading(false)
+      setDownloadingType(null)
     }
   }
 
@@ -517,18 +548,40 @@ export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onD
             type="button"
             variant="outline"
             size="sm"
-            onClick={downloadPdf}
-            disabled={downloading}
+            onClick={() => void downloadPdf('detailed')}
+            disabled={downloadingType !== null}
+            title="Download full detailed quotation PDF"
           >
-            {downloading ? (
+            {downloadingType === 'detailed' ? (
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
             ) : (
               <Download className="mr-1.5 h-4 w-4" />
             )}
             Download PDF
           </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void downloadPdf('approx')}
+            disabled={downloadingType !== null}
+            title="Download approximate quotation PDF (Name, Scope & Unit Price)"
+          >
+            {downloadingType === 'approx' ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-1.5 h-4 w-4" />
+            )}
+            Download Approx PDF
+          </Button>
           {canEdit && (
-            <Button type="button" size="sm" onClick={() => void saveDraft()} disabled={saving}>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void saveDraft()}
+              disabled={saving}
+              title="Save draft (Ctrl+S)"
+            >
               {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
               Save draft
             </Button>
@@ -823,7 +876,12 @@ export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onD
               </Button>
             )}
             {canEdit && (
-              <Button type="button" onClick={() => void saveDraft()} disabled={saving}>
+              <Button
+                type="button"
+                onClick={() => void saveDraft()}
+                disabled={saving}
+                title="Save draft (Ctrl+S)"
+              >
                 {saving ? (
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                 ) : (
@@ -835,15 +893,30 @@ export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onD
             <Button
               type="button"
               variant="outline"
-              onClick={downloadPdf}
-              disabled={downloading}
+              onClick={() => void downloadPdf('detailed')}
+              disabled={downloadingType !== null}
+              title="Download full detailed electrical quotation PDF"
             >
-              {downloading ? (
+              {downloadingType === 'detailed' ? (
                 <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
               ) : (
                 <Download className="mr-1.5 h-4 w-4" />
               )}
               Download PDF
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void downloadPdf('approx')}
+              disabled={downloadingType !== null}
+              title="Download approximate quotation PDF (Name, Scope & Unit Price)"
+            >
+              {downloadingType === 'approx' ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-1.5 h-4 w-4" />
+              )}
+              Download Approx PDF
             </Button>
           </div>
         </CardContent>
@@ -886,7 +959,13 @@ export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onD
               </Button>
             )}
             {canEdit && (
-              <Button type="button" size="sm" onClick={() => void saveDraft()} disabled={saving}>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void saveDraft()}
+                disabled={saving}
+                title="Save draft (Ctrl+S)"
+              >
                 {saving ? (
                   <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
                 ) : (
@@ -899,15 +978,31 @@ export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onD
               type="button"
               variant="outline"
               size="sm"
-              onClick={downloadPdf}
-              disabled={downloading}
+              onClick={() => void downloadPdf('detailed')}
+              disabled={downloadingType !== null}
+              title="Download full detailed electrical quotation PDF"
             >
-              {downloading ? (
+              {downloadingType === 'detailed' ? (
                 <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
               ) : (
                 <Download className="mr-1.5 h-4 w-4" />
               )}
               Download PDF
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void downloadPdf('approx')}
+              disabled={downloadingType !== null}
+              title="Download approximate quotation PDF (Name, Scope & Unit Price)"
+            >
+              {downloadingType === 'approx' ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-1.5 h-4 w-4" />
+              )}
+              Download Approx PDF
             </Button>
           </div>
         </div>
