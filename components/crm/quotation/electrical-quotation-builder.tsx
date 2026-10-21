@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { BookmarkPlus, Download, GripVertical, Layers, Loader2, Plus, Save, Search, Trash2 } from 'lucide-react'
+import { Bold, BookmarkPlus, Download, GripVertical, Layers, Loader2, Plus, Save, Search, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -63,6 +63,7 @@ function SortableItemRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled })
   const style = { transform: CSS.Transform.toString(transform), transition }
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const qty = item.quantity ?? ''
   const rate = item.rate ?? ''
@@ -72,6 +73,47 @@ function SortableItemRow({
       : item.unit?.toLowerCase().includes('lump')
         ? 'Lump sum'
         : '—'
+
+  function handleBoldSelection() {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const val = item.description || ''
+    const selected = val.substring(start, end)
+
+    let nextVal = ''
+    let newStart = start
+    let newEnd = end
+
+    if (selected.length > 0) {
+      if (selected.startsWith('**') && selected.endsWith('**') && selected.length >= 4) {
+        const unwrapped = selected.slice(2, -2)
+        nextVal = val.substring(0, start) + unwrapped + val.substring(end)
+        newStart = start
+        newEnd = start + unwrapped.length
+      } else {
+        const wrapped = `**${selected}**`
+        nextVal = val.substring(0, start) + wrapped + val.substring(end)
+        newStart = start
+        newEnd = start + wrapped.length
+      }
+    } else {
+      const placeholder = '**bold text**'
+      nextVal = val.substring(0, start) + placeholder + val.substring(end)
+      newStart = start + 2
+      newEnd = start + placeholder.length - 2
+    }
+
+    onPatch({ description: nextVal })
+
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus()
+        textarea.setSelectionRange(newStart, newEnd)
+      }
+    }, 0)
+  }
 
   return (
     <div
@@ -132,16 +174,36 @@ function SortableItemRow({
             onChange={(e) => onPatch({ name: e.target.value })}
           />
         </label>
-        <label className="space-y-1 text-xs font-medium">
-          <span>Scope / Specification</span>
+        <div className="space-y-1 text-xs font-medium">
+          <div className="flex items-center justify-between">
+            <span>Scope / Specification</span>
+            {!disabled && (
+              <button
+                type="button"
+                onClick={handleBoldSelection}
+                title="Bold selection (**text** or Ctrl+B)"
+                className="inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <Bold className="h-3 w-3" />
+                Bold
+              </button>
+            )}
+          </div>
           <Textarea
-            className="min-h-10 text-xs"
+            ref={textareaRef}
+            className="min-h-12 text-xs"
             value={item.description}
             disabled={disabled}
-            placeholder="Brand, type, installation scope..."
+            placeholder="Brand, type, installation scope... (select text and click Bold)"
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+                e.preventDefault()
+                handleBoldSelection()
+              }
+            }}
             onChange={(e) => onPatch({ description: e.target.value })}
           />
-        </label>
+        </div>
         <label className="space-y-1 text-xs font-medium">
           <span>Qty (optional)</span>
           <Input

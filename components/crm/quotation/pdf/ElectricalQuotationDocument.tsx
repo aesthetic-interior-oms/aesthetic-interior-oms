@@ -369,6 +369,67 @@ function Footer({ isApprox }: { isApprox: boolean }) {
   )
 }
 
+function parseMarkdownBold(text: string) {
+  if (!text) return null
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      return (
+        <Text key={idx} style={{ fontWeight: 'bold', color: '#111' }}>
+          {part.slice(2, -2)}
+        </Text>
+      )
+    }
+    return part
+  })
+}
+
+function parseDescriptionLine(line: string) {
+  const trimmed = line.trim()
+  if (!trimmed) return null
+
+  // If the line is Brand information (e.g. "Brand: RFL / Gazi / Bengal"), bold the total brand data!
+  if (/^brand\s*:/i.test(trimmed)) {
+    return (
+      <Text style={{ fontWeight: 'bold', color: PRIMARY }}>
+        {line}
+      </Text>
+    )
+  }
+
+  // If line starts with a label followed by a colon (e.g. "Type:", "Installation:", "Scope:", "Cable size:")
+  const labelMatch = line.match(/^([A-Za-z0-9\s/&()_-]+:)\s*(.*)$/)
+  if (labelMatch) {
+    const label = labelMatch[1]
+    const rest = labelMatch[2]
+    return (
+      <Text>
+        <Text style={{ fontWeight: 'bold', color: PRIMARY }}>{label} </Text>
+        {parseMarkdownBold(rest)}
+      </Text>
+    )
+  }
+
+  return parseMarkdownBold(line)
+}
+
+function FormattedDescription({ text }: { text?: string | null }) {
+  if (!text || !text.trim()) {
+    return <Text style={{ color: '#888' }}>—</Text>
+  }
+  const lines = text.split('\n')
+  return (
+    <Text style={styles.itemDescription}>
+      {lines.map((line, idx) => (
+        <Text key={idx}>
+          {idx > 0 ? '\n' : null}
+          {parseDescriptionLine(line)}
+        </Text>
+      ))}
+    </Text>
+  )
+}
+
 // 1. Detailed table: separate Item Name and Description columns (SL, Item Name, Description, Qty, Unit, U/P, Total)
 function DetailedItemTable({ items }: { items: ElectricalQuotationItem[] }) {
   return (
@@ -398,7 +459,7 @@ function DetailedItemTable({ items }: { items: ElectricalQuotationItem[] }) {
               <Text style={styles.itemName}>{item.name || '—'}</Text>
             </View>
             <View style={[styles.cell, styles.detailDescription]}>
-              <Text style={styles.itemDescription}>{item.description || '—'}</Text>
+              <FormattedDescription text={item.description} />
             </View>
             <Text style={[styles.cell, styles.detailQuantity]}>{hasQty ? qtyNum!.toLocaleString() : '—'}</Text>
             <Text style={[styles.cell, styles.detailUnit]}>{item.unit || '—'}</Text>
@@ -439,7 +500,7 @@ function ApproxItemTable({ items }: { items: ElectricalQuotationItem[] }) {
               <Text style={styles.itemName}>{item.name || '—'}</Text>
             </View>
             <View style={[styles.cell, styles.approxDescription]}>
-              <Text style={styles.itemDescription}>{item.description || '—'}</Text>
+              <FormattedDescription text={item.description} />
             </View>
             <Text style={[styles.cell, styles.approxUnit]}>
               {item.unit || '—'}
