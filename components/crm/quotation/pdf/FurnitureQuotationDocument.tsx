@@ -98,6 +98,53 @@ function Footer() {
   </View>
 }
 
+function parseMarkdownBold(text: string) {
+  if (!text) return null
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      return (
+        <Text key={idx} style={{ fontWeight: 'bold', color: '#111' }}>
+          {part.slice(2, -2)}
+        </Text>
+      )
+    }
+    return part
+  })
+}
+
+function parseLine(line: string) {
+  const trimmed = line.trim()
+  if (!trimmed) return null
+  const labelMatch = line.match(/^([A-Za-z0-9\s/&()_-]+:)\s*(.*)$/)
+  if (labelMatch) {
+    const label = labelMatch[1]
+    const rest = labelMatch[2]
+    return (
+      <Text>
+        <Text style={{ fontWeight: 'bold', color: PRIMARY }}>{label} </Text>
+        {parseMarkdownBold(rest)}
+      </Text>
+    )
+  }
+  return parseMarkdownBold(line)
+}
+
+function FormattedDescription({ text }: { text?: string | null }) {
+  if (!text || !text.trim()) return null
+  const lines = text.split('\n')
+  return (
+    <Text style={styles.itemDescription}>
+      {lines.map((line, idx) => (
+        <Text key={idx}>
+          {idx > 0 ? '\n' : null}
+          {parseLine(line)}
+        </Text>
+      ))}
+    </Text>
+  )
+}
+
 function ItemTable({ items }: { items: FurnitureQuotationItem[] }) {
   return <View style={styles.table}>
     <View style={styles.tableHead}>
@@ -105,7 +152,10 @@ function ItemTable({ items }: { items: FurnitureQuotationItem[] }) {
     </View>
     {items.map((item, index) => <View key={item.id} style={[styles.tableRow, index % 2 ? styles.alternateRow : {}]} wrap={false}>
       <Text style={[styles.cell, styles.serial]}>{String(item.serialNo ?? index + 1).padStart(2, '0')}</Text>
-      <View style={[styles.cell, styles.description]}><Text style={styles.itemName}>{item.name || '—'}</Text>{item.description ? <Text style={styles.itemDescription}>{item.description}</Text> : null}</View>
+      <View style={[styles.cell, styles.description]}>
+        <Text style={styles.itemName}>{item.name || '—'}</Text>
+        <FormattedDescription text={item.description} />
+      </View>
       <Text style={[styles.cell, styles.quantity]}>{item.quantity.toLocaleString()}</Text><Text style={[styles.cell, styles.unit]}>{item.unit}</Text><Text style={[styles.cell, styles.rate]}>{formatMoney(item.rate)}</Text><Text style={[styles.cell, styles.total, styles.lastCell]}>{formatMoney(item.quantity * item.rate)}</Text>
     </View>)}
   </View>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ArrowDownToLine, Download, Edit2, ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
+import { ArrowDownToLine, Bold, Download, Edit2, ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -1647,6 +1647,7 @@ type SortableRowProps = {
 
 function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem, removeLine, lineNeedsManualPrice }: SortableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: line.id })
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const rowStyle = {
     transform: CSS.Transform.toString(transform),
@@ -1658,6 +1659,47 @@ function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem
   function fmt(v: number) {
     if (!v || v <= 0) return '---'
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v)
+  }
+
+  function handleBoldMaterials() {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const val = line.materials ?? ''
+    const selected = val.substring(start, end)
+
+    let nextVal = ''
+    let newStart = start
+    let newEnd = end
+
+    if (selected.length > 0) {
+      if (selected.startsWith('**') && selected.endsWith('**') && selected.length >= 4) {
+        const unwrapped = selected.slice(2, -2)
+        nextVal = val.substring(0, start) + unwrapped + val.substring(end)
+        newStart = start
+        newEnd = start + unwrapped.length
+      } else {
+        const wrapped = `**${selected}**`
+        nextVal = val.substring(0, start) + wrapped + val.substring(end)
+        newStart = start
+        newEnd = start + wrapped.length
+      }
+    } else {
+      const placeholder = '**bold text**'
+      nextVal = val.substring(0, start) + placeholder + val.substring(end)
+      newStart = start + 2
+      newEnd = start + placeholder.length - 2
+    }
+
+    updateLineItem(line.id, { materials: nextVal })
+
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus()
+        textarea.setSelectionRange(newStart, newEnd)
+      }
+    }, 0)
   }
 
   return (
@@ -1682,8 +1724,33 @@ function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem
       </td>
       <td className="px-3 py-2 max-w-[350px]">
         {canEdit ? (
-          <Textarea rows={4} value={line.materials ?? ''} className="min-w-[260px] text-xs break-words"
-            onChange={(e) => updateLineItem(line.id, { materials: e.target.value })} />
+          <div className="space-y-1">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleBoldMaterials}
+                title="Bold selection (**text** or Ctrl+B)"
+                className="inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <Bold className="h-3 w-3" />
+                Bold
+              </button>
+            </div>
+            <Textarea
+              ref={textareaRef}
+              rows={4}
+              value={line.materials ?? ''}
+              className="min-w-[260px] text-xs break-words"
+              placeholder="Materials / specification (select text and click Bold)"
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+                  e.preventDefault()
+                  handleBoldMaterials()
+                }
+              }}
+              onChange={(e) => updateLineItem(line.id, { materials: e.target.value })}
+            />
+          </div>
         ) : (
           <p className="whitespace-pre-wrap text-xs break-words">{line.materials || '—'}</p>
         )}

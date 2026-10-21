@@ -539,6 +539,25 @@ function splitPdfTableLines(value: string | null | undefined, lineLength: number
   return result.length > 0 ? result : ['']
 }
 
+function parseMarkdownBoldPdf(text: string, defaultBold = false) {
+  if (!text) return null
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      return (
+        <Text key={idx} style={styles.bold}>
+          {softWrapPdfText(part.slice(2, -2))}
+        </Text>
+      )
+    }
+    return (
+      <Text key={idx} style={defaultBold ? styles.bold : {}}>
+        {softWrapPdfText(part)}
+      </Text>
+    )
+  })
+}
+
 function SingleMaterialLine({ text, isFirstRowAndEmpty }: { text: string; isFirstRowAndEmpty?: boolean }) {
   if (!text) {
     if (isFirstRowAndEmpty) {
@@ -551,7 +570,7 @@ function SingleMaterialLine({ text, isFirstRowAndEmpty }: { text: string; isFirs
   if (!match) {
     return (
       <Text wrap={false} style={styles.matText}>
-        <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(text)}</Text>
+        {parseMarkdownBoldPdf(text, isWithoutWiring)}
       </Text>
     )
   }
@@ -560,7 +579,7 @@ function SingleMaterialLine({ text, isFirstRowAndEmpty }: { text: string; isFirs
   return (
     <Text wrap={false} style={styles.matText}>
       <Text style={styles.bold}>{softWrapPdfText(prefix)}</Text>
-      <Text style={isWithoutWiring ? styles.bold : {}}>{softWrapPdfText(rest)}</Text>
+      {parseMarkdownBoldPdf(rest, isWithoutWiring)}
     </Text>
   )
 }

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { BookmarkPlus, Download, GripVertical, Loader2, Plus, Save, Search, Trash2, X } from 'lucide-react'
+import { BookmarkPlus, Bold, Download, GripVertical, Loader2, Plus, Save, Search, Trash2, X } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -34,6 +34,49 @@ function SortableItemRow({ item, index, disabled, units, onPatch, onRemove, onSa
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled })
   const style = { transform: CSS.Transform.toString(transform), transition }
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  function handleBoldSelection() {
+    const textarea = textareaRef.current
+    if (!textarea) return
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const val = item.description || ''
+    const selected = val.substring(start, end)
+
+    let nextVal = ''
+    let newStart = start
+    let newEnd = end
+
+    if (selected.length > 0) {
+      if (selected.startsWith('**') && selected.endsWith('**') && selected.length >= 4) {
+        const unwrapped = selected.slice(2, -2)
+        nextVal = val.substring(0, start) + unwrapped + val.substring(end)
+        newStart = start
+        newEnd = start + unwrapped.length
+      } else {
+        const wrapped = `**${selected}**`
+        nextVal = val.substring(0, start) + wrapped + val.substring(end)
+        newStart = start
+        newEnd = start + wrapped.length
+      }
+    } else {
+      const placeholder = '**bold text**'
+      nextVal = val.substring(0, start) + placeholder + val.substring(end)
+      newStart = start + 2
+      newEnd = start + placeholder.length - 2
+    }
+
+    onPatch({ description: nextVal })
+
+    setTimeout(() => {
+      if (textarea) {
+        textarea.focus()
+        textarea.setSelectionRange(newStart, newEnd)
+      }
+    }, 0)
+  }
+
   return <div ref={setNodeRef} style={style} className={`rounded-lg border bg-card p-3 ${isDragging ? 'z-10 opacity-70 shadow-lg' : ''}`}>
     <div className="mb-3 flex items-center justify-between gap-2">
       <div className="flex items-center gap-2">
@@ -47,7 +90,36 @@ function SortableItemRow({ item, index, disabled, units, onPatch, onRemove, onSa
     </div>
     <div className="grid gap-3 lg:grid-cols-[minmax(180px,1.2fr)_minmax(240px,2fr)_90px_140px_130px_130px]">
       <label className="space-y-1 text-xs"><span>Name</span><Input value={item.name} disabled={disabled} onChange={(e) => onPatch({ name: e.target.value })} /></label>
-      <label className="space-y-1 text-xs"><span>Description / materials</span><Textarea className="min-h-10" value={item.description} disabled={disabled} onChange={(e) => onPatch({ description: e.target.value })} /></label>
+      <div className="space-y-1 text-xs">
+        <div className="flex items-center justify-between">
+          <span>Description / materials</span>
+          {!disabled && (
+            <button
+              type="button"
+              onClick={handleBoldSelection}
+              title="Bold selection (**text** or Ctrl+B)"
+              className="inline-flex items-center gap-1 rounded border bg-background px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            >
+              <Bold className="h-3 w-3" />
+              Bold
+            </button>
+          )}
+        </div>
+        <Textarea
+          ref={textareaRef}
+          className="min-h-12 text-xs"
+          value={item.description}
+          disabled={disabled}
+          placeholder="Description / materials... (select text and click Bold)"
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+              e.preventDefault()
+              handleBoldSelection()
+            }
+          }}
+          onChange={(e) => onPatch({ description: e.target.value })}
+        />
+      </div>
       <label className="space-y-1 text-xs"><span>Quantity</span><Input type="number" min="0" step="any" value={item.quantity} disabled={disabled} onChange={(e) => onPatch({ quantity: Number(e.target.value) || 0 })} /></label>
       <label className="space-y-1 text-xs"><span>Unit</span><Select value={item.unit} disabled={disabled} onValueChange={(unit) => onPatch({ unit })}><SelectTrigger><SelectValue placeholder="Select unit" /></SelectTrigger><SelectContent>{units.map((unit) => <SelectItem key={unit} value={unit}>{unit}</SelectItem>)}</SelectContent></Select></label>
       <label className="space-y-1 text-xs"><span>Unit price (৳)</span><Input type="number" min="0" step="any" value={item.rate} disabled={disabled} onChange={(e) => onPatch({ rate: Number(e.target.value) || 0 })} /></label>

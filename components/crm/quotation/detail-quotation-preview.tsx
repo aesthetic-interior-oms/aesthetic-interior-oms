@@ -196,6 +196,21 @@ function TableHeader({ cols }: { cols: { label: string; className?: string }[] }
   )
 }
 
+function renderMarkdownBold(text: string) {
+  if (!text) return null
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      return (
+        <strong key={idx} className="font-bold text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      )
+    }
+    return part
+  })
+}
+
 function formatMaterialText(text: string | null | undefined) {
   if (!text) return <span className="text-neutral-400">—</span>
   const lines = text.split('\n')
@@ -211,13 +226,13 @@ function formatMaterialText(text: string | null | undefined) {
           return (
             <span key={idx} className={`block text-[9px] leading-snug ${weightClass}`}>
               <span className="font-bold">{prefix}</span>
-              {rest}
+              {renderMarkdownBold(rest)}
             </span>
           )
         }
         return (
           <span key={idx} className={`block text-[9px] leading-snug ${weightClass}`}>
-            {line}
+            {renderMarkdownBold(line)}
           </span>
         )
       })}
