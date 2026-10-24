@@ -504,7 +504,9 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                       <View style={[styles.tdCol, { width: '26%' }]}>
                         {isNewGroup ? (
                           <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8 }}>
-                            {mat.productType || mat.subTypeLabel || mat.category}
+                            {(mat.productType || mat.subTypeLabel || mat.category || '')
+                              .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+                              .trim()}
                           </Text>
                         ) : (
                           <Text style={{ fontSize: 7, color: '#94a3b8', paddingLeft: 4 }}>↳</Text>

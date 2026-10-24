@@ -166,11 +166,11 @@ function cleanString(str?: string | null): string {
 }
 
 const PRODUCT_TYPE_SORT_ORDER: Record<string, number> = {
-  '🪵 Boards': 1,
-  '✨ Decorative Panels': 2,
-  '🔩 Hardware ( Screw )': 3,
-  '📌 Nails, Pins & Masonry Anchors': 4,
-  '🧪 Adhesives & Chemical Solvents': 5,
+  'Boards': 1,
+  'Decorative Panels': 2,
+  'Hardware ( Screw )': 3,
+  'Nails, Pins & Masonry Anchors': 4,
+  'Adhesives & Chemical Solvents': 5,
 }
 
 export function formatMaterialItem(
@@ -183,7 +183,7 @@ export function formatMaterialItem(
 
   // 1. BOARDS
   if (wpSub === 'CORE_BOARDS' || (item.workCategory === 'WALL_PANELING' && (attrs.baseMaterial || attrs.laminateTopSurface))) {
-    const productType = '🪵 Boards'
+    const productType = 'Boards'
     const thk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || '12mm'
     const base = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string) || item.materialName) || 'Garjon Plywood'
     const rawFl = cleanString((attrs.laminateTopSurface as string) || (attrs.frontLaminateCode as string))
@@ -202,7 +202,7 @@ export function formatMaterialItem(
 
   // 2. DECORATIVE PANELS
   if (wpSub === 'LOUVERS_PROFILES') {
-    const productType = '✨ Decorative Panels'
+    const productType = 'Decorative Panels'
     const panel = cleanString((attrs.material as string) || item.materialName) || 'Decorative Panel'
     const code = cleanString(attrs.codeVariant as string)
     const thk = cleanString((attrs.thickness as string) || (attrs.coreThickness as string))
@@ -227,7 +227,7 @@ export function formatMaterialItem(
 
   // 3. HARDWARE ( SCREW )
   if (wpSub === 'SCREWS_FASTENERS') {
-    const productType = '🔩 Hardware ( Screw )'
+    const productType = 'Hardware ( Screw )'
     const length = cleanString((attrs.lengthInches as string) || item.specifications)
     const itemType = cleanString(item.materialName || (attrs.fastenerType as string)) || 'Screw'
     const materialDescription = [length, itemType].filter(Boolean).join(' + ')
@@ -236,7 +236,7 @@ export function formatMaterialItem(
 
   // 4. NAILS, PINS & MASONRY ANCHORS
   if (wpSub === 'NAILS_PINS') {
-    const productType = '📌 Nails, Pins & Masonry Anchors'
+    const productType = 'Nails, Pins & Masonry Anchors'
     const length = cleanString((attrs.lengthSpec as string) || item.specifications)
     const itemType = cleanString(item.materialName || (attrs.nailType as string)) || 'Nail'
     const materialDescription = [length, itemType].filter(Boolean).join(' + ')
@@ -245,13 +245,14 @@ export function formatMaterialItem(
 
   // 5. ADHESIVES & CHEMICAL SOLVENTS
   if (wpSub === 'ADHESIVES') {
-    const productType = '🧪 Adhesives & Chemical Solvents'
+    const productType = 'Adhesives & Chemical Solvents'
     const chemicalName = cleanString(item.materialName || (attrs.adhesiveType as string)) || 'Adhesive'
     return { productType, materialDescription: chemicalName, unit }
   }
 
   // GENERAL / FALLBACK
-  const productType = section ? getSectionLabel(section) : cleanString(item.workCategory) || 'General Material'
+  const rawType = section ? getSectionLabel(section) : cleanString(item.workCategory) || 'General Material'
+  const productType = rawType.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '').trim()
   const materialDescription = [cleanString(item.materialName), cleanString(item.specifications)].filter(Boolean).join(' | ') || 'Standard Item'
   return { productType, materialDescription, unit }
 }
