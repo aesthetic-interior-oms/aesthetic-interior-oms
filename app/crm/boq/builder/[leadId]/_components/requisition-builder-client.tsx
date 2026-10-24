@@ -34,6 +34,7 @@ import {
 } from 'lucide-react'
 import { saveMaterialRequisition, RequisitionItemInput } from '@/lib/boq-service'
 import { DEFAULT_CABINET_CATALOG, type CabinetCatalogConfig } from '@/lib/boq-cabinet-catalog'
+import { RequisitionPdfExportModal } from './requisition-pdf-modal'
 import type {
   QuotationDraftContent,
   QuotationSection,
@@ -6957,6 +6958,7 @@ export function RequisitionBuilderClient({
   const [drawerSearch, setDrawerSearch] = useState('')
   const [viewModePreference, setViewModePreference] = useState<'SLIDE' | 'ALL'>('SLIDE')
   const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false)
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false)
 
   // Helper: navigate slides with direction tracking
   const goToSlide = useCallback((indexOrUpdater: number | ((prev: number) => number)) => {
@@ -7729,12 +7731,12 @@ export function RequisitionBuilderClient({
             <span className="ml-2 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">Ctrl+S</span>
           </button>
           <button
-            onClick={handleDownloadPdf}
-            disabled={isPending || isPdfGenerating || totalMaterialRows === 0}
+            onClick={() => setIsPdfModalOpen(true)}
+            disabled={isPending || totalMaterialRows === 0}
             className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-xs hover:bg-accent transition-colors disabled:opacity-50"
           >
             <Receipt className="w-4 h-4 mr-2 text-blue-600" />
-            {isPdfGenerating ? 'Building PDF...' : 'Requisition PDF'}
+            Requisition PDF
           </button>
           <button
             onClick={() => handleSave('SUBMITTED')}
@@ -7869,6 +7871,19 @@ export function RequisitionBuilderClient({
             includeSchedule
           )
         }}
+      />
+
+      {/* ── Requisition PDF Export Modal ── */}
+      <RequisitionPdfExportModal
+        isOpen={isPdfModalOpen}
+        onClose={() => setIsPdfModalOpen(false)}
+        lead={lead}
+        requisitionNo={existingRequisition?.requisitionNo || `REQ-${lead.id.slice(-6).toUpperCase()}`}
+        lineItems={lineItems}
+        areas={areas}
+        sectionsMap={sectionsMap}
+        itemsMap={itemsMap}
+        notes={notes}
       />
 
       {/* ── Left Product Drawer ── */}
@@ -8529,12 +8544,12 @@ export function RequisitionBuilderClient({
               </span>
             </button>
             <button
-              onClick={handleDownloadPdf}
-              disabled={isPending || isPdfGenerating || totalMaterialRows === 0}
+              onClick={() => setIsPdfModalOpen(true)}
+              disabled={isPending || totalMaterialRows === 0}
               className="inline-flex items-center justify-center rounded-lg border border-input bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50"
             >
               <Receipt className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
-              {isPdfGenerating ? 'PDF...' : 'PDF'}
+              PDF
             </button>
             <button
               onClick={() => handleSave('SUBMITTED')}
