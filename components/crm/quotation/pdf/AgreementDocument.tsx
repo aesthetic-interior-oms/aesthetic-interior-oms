@@ -549,14 +549,14 @@ export function AgreementDocumentPdf({
               The Aesthetic Interior shall undertake and complete the design, supply, manufacturing, installation, execution,
               furnishing, and completion of the interior works of the Project in accordance with the terms and conditions of this
               Agreement, the approved Schedule of Rates, approved drawings and designs, material specifications, and any written
-              instructions issued by the Owner or the Owner's duly authorized representative.
+              instructions issued by the Owner or the Owner&apos;s duly authorized representative.
             </Text>
           </View>
           <View style={[styles.clauseRow, { marginTop: 4 }]}>
             <Text style={styles.clauseNum}>2.</Text>
             <Text style={styles.clauseText}>
               All works shall be carried out in accordance with the approved design, specifications, agreed quality standards, and
-              applicable project requirements, under the supervision and coordination of the Owner's authorized representative, and
+              applicable project requirements, under the supervision and coordination of the Owner&apos;s authorized representative, and
               to the reasonable satisfaction of the Owner, subject to the terms and conditions of this Agreement.
             </Text>
           </View>

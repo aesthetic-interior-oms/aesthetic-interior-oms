@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   AlertCircle,
-  Building2,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -19,7 +18,6 @@ import {
   Phone,
   Receipt,
   Search,
-  Sparkles,
   UserRound,
   Users,
   X,
@@ -92,7 +90,8 @@ function formatAgreementType(value: string | null) {
   return value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-function boqEligible(_lead: AgreementLead) {
+function boqEligible(lead: AgreementLead) {
+  void lead
   return true
 }
 
