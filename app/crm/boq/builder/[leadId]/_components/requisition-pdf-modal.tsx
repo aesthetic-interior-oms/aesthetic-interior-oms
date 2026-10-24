@@ -680,14 +680,12 @@ export function RequisitionPdfExportModal({
                               <td className="py-2.5 px-3 text-center font-mono text-muted-foreground">
                                 {String(idx + 1).padStart(2, '0')}
                               </td>
-                              <td className="py-2.5 px-3">
+                              <td className="py-2.5 px-3 bg-muted/20">
                                 {isNewGroup ? (
                                   <span className="font-bold text-foreground block text-xs">
                                     {mat.productType || mat.subTypeLabel || mat.category}
                                   </span>
-                                ) : (
-                                  <span className="text-muted-foreground/50 text-xs pl-2 font-mono">↳</span>
-                                )}
+                                ) : null}
                               </td>
                               <td className="py-2.5 px-3">
                                 <span className="font-bold text-foreground block text-xs">

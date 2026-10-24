@@ -51,7 +51,7 @@ const BG_ALT = '#fffdfa'
 const styles = StyleSheet.create({
   page: {
     paddingTop: 84,
-    paddingBottom: 72,
+    paddingBottom: 95,
     paddingLeft: PAGE_SIDE_PADDING,
     paddingRight: PAGE_SIDE_PADDING,
     fontFamily: 'Noto Sans Bengali',
@@ -283,11 +283,12 @@ const styles = StyleSheet.create({
   },
   footerFixed: {
     position: 'absolute',
-    bottom: 14,
+    bottom: 18,
     left: PAGE_SIDE_PADDING,
     right: PAGE_SIDE_PADDING,
     backgroundColor: '#ffffff',
-    height: 38,
+    height: 46,
+    paddingTop: 2,
   },
   footerText: {
     fontSize: 6.5,
@@ -348,9 +349,9 @@ const GlobalFooter = ({
   generatedAt: string
 }) => (
   <View style={styles.footerFixed} fixed>
-    <View style={{ borderTopWidth: 1, borderTopColor: GOLD, paddingTop: 6, flexDirection: 'row', justifyContent: 'space-between' }}>
+    <View style={{ borderTopWidth: 1, borderTopColor: GOLD, paddingTop: 6, paddingBottom: 2, flexDirection: 'row', justifyContent: 'space-between' }}>
       <View style={{ width: '38%' }}>
-        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', fontSize: 7.5, marginBottom: 1 }]}>
+        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', fontSize: 7.5, marginBottom: 1.5 }]}>
           Aesthetic Interior Studio
         </Text>
         <Text style={styles.footerText}>183, East Senpara, Begum Rokeya Soroni</Text>
@@ -358,14 +359,14 @@ const GlobalFooter = ({
       </View>
       <View style={{ width: '30%', alignItems: 'center' }}>
         <Text style={styles.footerText}>+88 0132969 4663 · +88 0132969 4660</Text>
-        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold' }]}>www.aestheticinteriorbd.com</Text>
+        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', marginTop: 1 }]}>www.aestheticinteriorbd.com</Text>
       </View>
       <View style={{ width: '32%', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
         <Text style={styles.footerText}>© 2026 All rights reserved.</Text>
-        <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} style={styles.footerMeta} />
+        <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} style={[styles.footerMeta, { marginTop: 1 }]} />
       </View>
     </View>
-    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 3 }}>
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
       <Text style={[styles.footerMeta, { textAlign: 'left' }]}>Requisition Ref: {requisitionNo}</Text>
       <Text style={[styles.footerMeta, { textAlign: 'right' }]}>Generated: {generatedAt}</Text>
     </View>
@@ -485,34 +486,85 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                 </View>
               ) : (
                 aggregatedMaterials.map((mat, idx) => {
-                  const isNewGroup = idx === 0 || (mat.productType || mat.subTypeLabel) !== (aggregatedMaterials[idx - 1].productType || aggregatedMaterials[idx - 1].subTypeLabel)
+                  const currentType = (mat.productType || mat.subTypeLabel || mat.category || '')
+                    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+                    .trim()
+                  const prevType = idx > 0
+                    ? (aggregatedMaterials[idx - 1].productType || aggregatedMaterials[idx - 1].subTypeLabel || aggregatedMaterials[idx - 1].category || '')
+                        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+                        .trim()
+                    : ''
+                  const nextType = idx < aggregatedMaterials.length - 1
+                    ? (aggregatedMaterials[idx + 1].productType || aggregatedMaterials[idx + 1].subTypeLabel || aggregatedMaterials[idx + 1].category || '')
+                        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+                        .trim()
+                    : ''
+
+                  const isNewGroup = idx === 0 || currentType !== prevType
+                  const isLastInGroup = idx === aggregatedMaterials.length - 1 || currentType !== nextType
                   const displayQty = `${Number(mat.finalQuantity).toFixed(1).replace(/\.0$/, '')} ${mat.unit || 'Pcs'}`
 
                   return (
                     <View
                       key={mat.key || idx}
-                      style={[
-                        styles.tRow,
-                        idx % 2 === 1 ? styles.tRowAlt : {},
-                        isNewGroup && idx > 0 ? { borderTopWidth: 1.25, borderTopColor: '#cbd5e1' } : {},
-                      ]}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'stretch',
+                        minHeight: 19,
+                        backgroundColor: idx % 2 === 1 ? '#fffdfa' : '#ffffff',
+                      }}
                       wrap={false}
                     >
-                      <Text style={[styles.tdCol, { width: '7%', textAlign: 'center', fontWeight: 'bold' }]}>
-                        {String(idx + 1).padStart(2, '0')}
-                      </Text>
-                      <View style={[styles.tdCol, { width: '26%' }]}>
+                      {/* 1. SL NO */}
+                      <View
+                        style={[
+                          styles.tdCol,
+                          {
+                            width: '7%',
+                            borderBottomWidth: isLastInGroup ? 1 : 0.5,
+                            borderBottomColor: isLastInGroup ? '#94a3b8' : BORDER,
+                            justifyContent: 'center',
+                          },
+                        ]}
+                      >
+                        <Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 7.5 }}>
+                          {String(idx + 1).padStart(2, '0')}
+                        </Text>
+                      </View>
+
+                      {/* 2. PRODUCT TYPE (MERGED) */}
+                      <View
+                        style={[
+                          styles.tdCol,
+                          {
+                            width: '26%',
+                            backgroundColor: '#f8fafc',
+                            borderBottomWidth: isLastInGroup ? 1 : 0,
+                            borderBottomColor: isLastInGroup ? '#94a3b8' : 'transparent',
+                            justifyContent: isNewGroup ? 'flex-start' : 'center',
+                            paddingTop: isNewGroup ? 4 : 0,
+                          },
+                        ]}
+                      >
                         {isNewGroup ? (
                           <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8 }}>
-                            {(mat.productType || mat.subTypeLabel || mat.category || '')
-                              .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
-                              .trim()}
+                            {currentType}
                           </Text>
-                        ) : (
-                          <Text style={{ fontSize: 7, color: '#94a3b8', paddingLeft: 4 }}>↳</Text>
-                        )}
+                        ) : null}
                       </View>
-                      <View style={[styles.tdCol, { width: '50%' }]}>
+
+                      {/* 3. MATERIAL DESCRIPTION */}
+                      <View
+                        style={[
+                          styles.tdCol,
+                          {
+                            width: '50%',
+                            borderBottomWidth: isLastInGroup ? 1 : 0.5,
+                            borderBottomColor: isLastInGroup ? '#94a3b8' : BORDER,
+                            justifyContent: 'center',
+                          },
+                        ]}
+                      >
                         <Text style={{ fontWeight: 'bold', color: '#1a202c', fontSize: 8 }}>
                           {mat.materialDescription || mat.name}
                         </Text>
@@ -523,8 +575,21 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                           </Text>
                         ) : null}
                       </View>
-                      <View style={[styles.tdCol, { width: '17%', textAlign: 'center', borderRightWidth: 0 }]}>
-                        <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8.5 }}>
+
+                      {/* 4. UNIT / QTY */}
+                      <View
+                        style={[
+                          styles.tdCol,
+                          {
+                            width: '17%',
+                            borderRightWidth: 0,
+                            borderBottomWidth: isLastInGroup ? 1 : 0.5,
+                            borderBottomColor: isLastInGroup ? '#94a3b8' : BORDER,
+                            justifyContent: 'center',
+                          },
+                        ]}
+                      >
+                        <Text style={{ textAlign: 'center', fontWeight: 'bold', color: PRIMARY, fontSize: 8.5 }}>
                           {displayQty}
                         </Text>
                       </View>
@@ -587,18 +652,6 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                 ))
               )}
             </>
-          )}
-
-          {aggregatedMaterials.length > 0 && (
-            <View style={styles.totalsRow}>
-              <Text style={{ width: '61%', fontSize: 8, fontWeight: 'bold', color: PRIMARY, textAlign: 'right', paddingRight: 8 }}>
-                Total Required Quantity (All Units Combined):
-              </Text>
-              <Text style={{ width: '30%', fontSize: 8.5, fontWeight: 'bold', color: GOLD, textAlign: 'center' }}>
-                {Math.round(totalProjectQty * 10) / 10} Units
-              </Text>
-              <Text style={{ width: '9%' }} />
-            </View>
           )}
         </View>
 
