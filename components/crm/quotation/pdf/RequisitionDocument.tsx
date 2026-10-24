@@ -567,8 +567,16 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
 
                     {sec.items.map((it, itIdx) => {
                       const attrs = it.variantAttributes || {}
+                      const dimText = (attrs.dimW || attrs.dimD || attrs.dimH)
+                        ? `W${attrs.dimW || '—'} × D${attrs.dimD || '—'} × H${attrs.dimH || '—'} mm`
+                        : (attrs.outerDimensions as string)
+
                       // Build helpful spec string based on section type
                       const extraSpecs = [
+                        attrs.brandModelCode ? `Brand: ${attrs.brandModelCode}` : null,
+                        attrs.itemCode ? `Code: ${attrs.itemCode}` : null,
+                        dimText ? `Dim: ${dimText}` : null,
+                        attrs.cabinetNicheCutOutSize && attrs.cabinetNicheCutOutSize !== '—' ? `Niche: ${attrs.cabinetNicheCutOutSize}` : null,
                         attrs.coreThickness,
                         attrs.laminateTopSurface,
                         attrs.surfaceCodeFinish,

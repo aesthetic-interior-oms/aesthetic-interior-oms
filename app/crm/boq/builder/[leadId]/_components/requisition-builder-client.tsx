@@ -76,6 +76,152 @@ export const DEFAULT_SAVED_ACCESSORIES: BoqSavedAccessoryItem[] = [
   { id: 'acc-7', name: 'Jewelry Tray Organizer',  category: 'Closet',  itemCode: 'R9001G-800',          defaultUnit: 'Pcs' },
 ]
 
+export type BoqSavedApplianceItem = {
+  id: string
+  name: string
+  category: string
+  brandModelCode: string
+  dimW?: string
+  dimD?: string
+  dimH?: string
+  cabinetNicheCutOutSize?: string
+  defaultUnitPrice?: string
+  defaultUnit?: string
+}
+
+export const DEFAULT_APPLIANCE_CATEGORIES = [
+  'Cooking',
+  'Ventilation',
+  'Sink & Wet Area',
+  'Refrigeration',
+  'Oven & Baking',
+  'Water Purifier',
+  'Dishwashing',
+]
+
+export const DEFAULT_SAVED_APPLIANCES: BoqSavedApplianceItem[] = [
+  {
+    id: 'app-1',
+    name: 'Gas / Induction Hob',
+    category: 'Cooking',
+    brandModelCode: 'HAFELE 538.66.759',
+    dimW: '860',
+    dimD: '520',
+    dimH: '135',
+    cabinetNicheCutOutSize: 'W840 × D480 mm (Counter Cut)',
+    defaultUnitPrice: '৳70,000',
+    defaultUnit: 'Nos',
+  },
+  {
+    id: 'app-2',
+    name: 'Kitchen Hood Chimney',
+    category: 'Ventilation',
+    brandModelCode: 'SWISH Klasso KH 0300114-72',
+    dimW: '900',
+    dimD: '500',
+    dimH: '600',
+    cabinetNicheCutOutSize: '150mm Dia Wall Duct Hole',
+    defaultUnitPrice: '৳1,15,000',
+    defaultUnit: 'Nos',
+  },
+  {
+    id: 'app-3',
+    name: 'Under-Counter Sink + RO Faucet',
+    category: 'Sink & Wet Area',
+    brandModelCode: 'Hafele / Swish Single Bowl Granite',
+    dimW: '750',
+    dimD: '460',
+    dimH: '220',
+    cabinetNicheCutOutSize: 'W730 × D440 mm (Under-mount Cut)',
+    defaultUnitPrice: '৳39,250',
+    defaultUnit: 'Nos',
+  },
+  {
+    id: 'app-4',
+    name: 'Built-In Refrigerator',
+    category: 'Refrigeration',
+    brandModelCode: 'BOSCH Premium Series',
+    dimW: '558',
+    dimD: '545',
+    dimH: '1772',
+    cabinetNicheCutOutSize: 'W600 × H1780 × D580 mm (Cabinet Niche)',
+    defaultUnitPrice: '৳4,70,000',
+    defaultUnit: 'Nos',
+  },
+  {
+    id: 'app-5',
+    name: 'Built-In Electric Grill Oven',
+    category: 'Oven & Baking',
+    brandModelCode: 'HAFELE BSO72P',
+    dimW: '595',
+    dimD: '570',
+    dimH: '595',
+    cabinetNicheCutOutSize: 'W560 × H585 × D550 mm (Cabinet Niche)',
+    defaultUnitPrice: '৳1,12,800',
+    defaultUnit: 'Nos',
+  },
+  {
+    id: 'app-6',
+    name: 'Built-In Microwave Oven',
+    category: 'Oven & Baking',
+    brandModelCode: 'HAFELE 595 Series',
+    dimW: '595',
+    dimD: '467',
+    dimH: '388',
+    cabinetNicheCutOutSize: 'W560 × H380 × D500 mm (Cabinet Niche)',
+    defaultUnitPrice: '৳74,600',
+    defaultUnit: 'Nos',
+  },
+  {
+    id: 'app-7',
+    name: 'Under-Counter RO Water Purifier',
+    category: 'Water Purifier',
+    brandModelCode: 'KENT Excellence / Grand',
+    dimW: '400',
+    dimD: '260',
+    dimH: '410',
+    cabinetNicheCutOutSize: 'Under-Sink Cabinet Base',
+    defaultUnitPrice: '৳40,000',
+    defaultUnit: 'Nos',
+  },
+  {
+    id: 'app-8',
+    name: 'Built-in Dishwasher',
+    category: 'Dishwashing',
+    brandModelCode: 'BOSCH Serie 6 Built-in',
+    dimW: '598',
+    dimD: '550',
+    dimH: '815',
+    cabinetNicheCutOutSize: 'W600 × H820 × D570 mm (Cabinet Niche)',
+    defaultUnitPrice: '৳1,25,000',
+    defaultUnit: 'Nos',
+  },
+  {
+    id: 'app-9',
+    name: 'Food Waste Disposer',
+    category: 'Sink & Wet Area',
+    brandModelCode: 'InSinkErator Model 66',
+    dimW: '173',
+    dimD: '173',
+    dimH: '318',
+    cabinetNicheCutOutSize: 'Sink Drain Collar 3.5"',
+    defaultUnitPrice: '৳35,000',
+    defaultUnit: 'Nos',
+  },
+  {
+    id: 'app-10',
+    name: 'Built-in Wine Chiller',
+    category: 'Refrigeration',
+    brandModelCode: 'Hafele Wine Series',
+    dimW: '595',
+    dimD: '575',
+    dimH: '820',
+    cabinetNicheCutOutSize: 'W600 × H825 × D580 mm (Cabinet Niche)',
+    defaultUnitPrice: '৳1,80,000',
+    defaultUnit: 'Nos',
+  },
+]
+
 const WORK_CATEGORIES: { key: RequisitionWorkCategory; label: string }[] = [
   { key: 'WALL_PANELING', label: 'Wall Paneling' },
   { key: 'CABINETS_CLOSETS', label: 'Cabinets / Closets' },
@@ -611,6 +757,7 @@ export interface BoardVariantAttributes {
   accessoriesSubType?: string
 
   // ── Appliance attributes ──
+  applianceCategory?: string
   brandModelCode?: string
   outerDimensions?: string
   cabinetNicheCutOutSize?: string
@@ -1781,155 +1928,29 @@ const SAMPLE_ACCESSORY_SERVICES_ITEMS: RequisitionItemInput[] = [
   },
 ]
 
-const SAMPLE_CORE_APPLIANCE_ITEMS: RequisitionItemInput[] = [
-  {
-    workCategory: 'APPLIANCES',
-    materialName: 'Gas / Induction Hob',
-    specifications: 'HAFELE 538.66.759 | W860 × H135 × D520 mm | W840 × D480 mm (Counter Cut) | LPG/NG Gas Point + 16A Electric',
-    variantAttributes: {
-      srNo: '1',
-      brandModelCode: 'HAFELE 538.66.759',
-      outerDimensions: 'W860 × H135 × D520 mm',
-      cabinetNicheCutOutSize: 'W840 × D480 mm (Counter Cut)',
-      mepUtilityRequirements: 'LPG/NG Gas Point + 16A Electric',
-      qtyLabel: '1 nos',
-      unitPrice: '৳70,000',
-      totalAmount: '৳70,000',
-      applianceSubType: 'CORE_APPLIANCES',
-    },
-    netQuantity: 1,
-    wastagePercent: 0,
-    finalQuantity: 1,
-    unit: 'Nos',
-    productionPhase: 'Core Appliances',
+const SAMPLE_CORE_APPLIANCE_ITEMS: RequisitionItemInput[] = DEFAULT_SAVED_APPLIANCES.map((app, index) => ({
+  workCategory: 'APPLIANCES',
+  materialName: app.name,
+  specifications: `${app.brandModelCode} | W${app.dimW} × D${app.dimD} × H${app.dimH} mm | ${app.cabinetNicheCutOutSize}`,
+  variantAttributes: {
+    srNo: String(index + 1),
+    applianceCategory: app.category,
+    brandModelCode: app.brandModelCode,
+    dimW: app.dimW,
+    dimD: app.dimD,
+    dimH: app.dimH,
+    cabinetNicheCutOutSize: app.cabinetNicheCutOutSize,
+    qtyLabel: '1 nos',
+    unitPrice: app.defaultUnitPrice,
+    totalAmount: app.defaultUnitPrice,
+    applianceSubType: 'CORE_APPLIANCES',
   },
-  {
-    workCategory: 'APPLIANCES',
-    materialName: 'Kitchen Hood Chimney',
-    specifications: 'SWISH Klasso KH 0300114-72 | W900 × H600 × D500 mm | 150mm Dia Wall Duct Hole | 6A Power Plug (230V / 50Hz)',
-    variantAttributes: {
-      srNo: '2',
-      brandModelCode: 'SWISH Klasso KH 0300114-72',
-      outerDimensions: 'W900 × H600 × D500 mm',
-      cabinetNicheCutOutSize: '150mm Dia Wall Duct Hole',
-      mepUtilityRequirements: '6A Power Plug (230V / 50Hz)',
-      qtyLabel: '1 nos',
-      unitPrice: '৳1,15,000',
-      totalAmount: '৳1,15,000',
-      applianceSubType: 'CORE_APPLIANCES',
-    },
-    netQuantity: 1,
-    wastagePercent: 0,
-    finalQuantity: 1,
-    unit: 'Nos',
-    productionPhase: 'Core Appliances',
-  },
-  {
-    workCategory: 'APPLIANCES',
-    materialName: 'Under-Counter Sink + RO Faucet',
-    specifications: 'Swish/Hafele Single Bowl Granit | W750 × H220 × D460 mm | W730 × D440 mm (Under-mount Cut) | 1/2" Fresh Water + 1.5" Waste Drain',
-    variantAttributes: {
-      srNo: '3',
-      brandModelCode: 'Swish/Hafele Single Bowl Granit',
-      outerDimensions: 'W750 × H220 × D460 mm',
-      cabinetNicheCutOutSize: 'W730 × D440 mm (Under-mount Cut)',
-      mepUtilityRequirements: '1/2" Fresh Water + 1.5" Waste Drain',
-      qtyLabel: '1 nos',
-      unitPrice: '৳39,250',
-      totalAmount: '৳39,250',
-      applianceSubType: 'CORE_APPLIANCES',
-    },
-    netQuantity: 1,
-    wastagePercent: 0,
-    finalQuantity: 1,
-    unit: 'Nos',
-    productionPhase: 'Core Appliances',
-  },
-  {
-    workCategory: 'APPLIANCES',
-    materialName: 'Built-In Refrigerator',
-    specifications: 'BOSCH Premium Series | W558 × H1772 × D545 mm | W600 × H1780 × D580 mm (Cabinet Niche) | 13A Wall Socket (24/7 Power)',
-    variantAttributes: {
-      srNo: '4',
-      brandModelCode: 'BOSCH Premium Series',
-      outerDimensions: 'W558 × H1772 × D545 mm',
-      cabinetNicheCutOutSize: 'W600 × H1780 × D580 mm (Cabinet Niche)',
-      mepUtilityRequirements: '13A Wall Socket (24/7 Power)',
-      qtyLabel: '1 nos',
-      unitPrice: '৳4,70,000',
-      totalAmount: '৳4,70,000',
-      applianceSubType: 'CORE_APPLIANCES',
-    },
-    netQuantity: 1,
-    wastagePercent: 0,
-    finalQuantity: 1,
-    unit: 'Nos',
-    productionPhase: 'Core Appliances',
-  },
-  {
-    workCategory: 'APPLIANCES',
-    materialName: 'Built-In Electric Grill Oven',
-    specifications: 'HAFELE BSO72P | W595 × H595 × D570 mm | W560 × H585 × D550 mm (Cabinet Niche) | 16A Single Phase / 3.2kW',
-    variantAttributes: {
-      srNo: '5',
-      brandModelCode: 'HAFELE BSO72P',
-      outerDimensions: 'W595 × H595 × D570 mm',
-      cabinetNicheCutOutSize: 'W560 × H585 × D550 mm (Cabinet Niche)',
-      mepUtilityRequirements: '16A Single Phase / 3.2kW',
-      qtyLabel: '1 nos',
-      unitPrice: '৳1,12,800',
-      totalAmount: '৳1,12,800',
-      applianceSubType: 'CORE_APPLIANCES',
-    },
-    netQuantity: 1,
-    wastagePercent: 0,
-    finalQuantity: 1,
-    unit: 'Nos',
-    productionPhase: 'Core Appliances',
-  },
-  {
-    workCategory: 'APPLIANCES',
-    materialName: 'Built-In Microwave Oven',
-    specifications: 'HAFELE 595 Series | W595 × H388 × D467 mm | W560 × H380 × D500 mm (Cabinet Niche) | 6A Power Plug',
-    variantAttributes: {
-      srNo: '6',
-      brandModelCode: 'HAFELE 595 Series',
-      outerDimensions: 'W595 × H388 × D467 mm',
-      cabinetNicheCutOutSize: 'W560 × H380 × D500 mm (Cabinet Niche)',
-      mepUtilityRequirements: '6A Power Plug',
-      qtyLabel: '1 nos',
-      unitPrice: '৳74,600',
-      totalAmount: '৳74,600',
-      applianceSubType: 'CORE_APPLIANCES',
-    },
-    netQuantity: 1,
-    wastagePercent: 0,
-    finalQuantity: 1,
-    unit: 'Nos',
-    productionPhase: 'Core Appliances',
-  },
-  {
-    workCategory: 'APPLIANCES',
-    materialName: 'Under-Counter RO Water Purifier',
-    specifications: 'KENT Excellence / Grand | W400 × H410 × D260 mm | Under-Sink Cabinet Base | Water Line + Waste Out + 6A Plug',
-    variantAttributes: {
-      srNo: '7',
-      brandModelCode: 'KENT Excellence / Grand',
-      outerDimensions: 'W400 × H410 × D260 mm',
-      cabinetNicheCutOutSize: 'Under-Sink Cabinet Base',
-      mepUtilityRequirements: 'Water Line + Waste Out + 6A Plug',
-      qtyLabel: '1 nos',
-      unitPrice: '৳40,000',
-      totalAmount: '৳40,000',
-      applianceSubType: 'CORE_APPLIANCES',
-    },
-    netQuantity: 1,
-    wastagePercent: 0,
-    finalQuantity: 1,
-    unit: 'Nos',
-    productionPhase: 'Core Appliances',
-  },
-]
+  netQuantity: 1,
+  wastagePercent: 0,
+  finalQuantity: 1,
+  unit: app.defaultUnit || 'Nos',
+  productionPhase: 'Core Appliances',
+}))
 
 /* ─────────────────────────────────────────────
    Types
@@ -2219,20 +2240,23 @@ function blankItem(
   }
 
   if (category === 'APPLIANCES') {
+    const def = DEFAULT_SAVED_APPLIANCES[0]
     return {
       ...base,
-      materialName: 'Gas / Induction Hob',
-      unit: 'Nos',
+      materialName: def.name,
+      unit: def.defaultUnit || 'Nos',
       productionPhase: 'Core Appliances',
       variantAttributes: {
         srNo: '1',
-        brandModelCode: 'HAFELE 538.66.759',
-        outerDimensions: 'W860 × H135 × D520 mm',
-        cabinetNicheCutOutSize: 'W840 × D480 mm (Counter Cut)',
-        mepUtilityRequirements: 'LPG/NG Gas Point + 16A Electric',
+        applianceCategory: def.category,
+        brandModelCode: def.brandModelCode,
+        dimW: def.dimW || '',
+        dimD: def.dimD || '',
+        dimH: def.dimH || '',
+        cabinetNicheCutOutSize: def.cabinetNicheCutOutSize || '—',
         qtyLabel: '1 nos',
-        unitPrice: '৳70,000',
-        totalAmount: '৳70,000',
+        unitPrice: def.defaultUnitPrice || '',
+        totalAmount: def.defaultUnitPrice || '',
         applianceSubType: applianceSubType ?? 'CORE_APPLIANCES',
       },
     }
@@ -2507,19 +2531,23 @@ function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]
   if (viewMode === 'CORE_APPLIANCE_SPEC') {
     return {
       color: [13, 148, 136],
-      head: ['SL', 'Item Name', 'Brand & Model Code', 'Outer Dimensions', 'Cabinet Niche / Cut-Out Size', 'MEP & Utility Requirements', 'Qty', 'Unit Price', 'Total Amount'],
-      body: rows.map((item) => [
-        text(pdfAttr(item, 'srNo')),
-        text(item.materialName),
-        text(pdfAttr(item, 'brandModelCode')),
-        text(pdfAttr(item, 'outerDimensions')),
-        text(pdfAttr(item, 'cabinetNicheCutOutSize')),
-        text(pdfAttr(item, 'mepUtilityRequirements')),
-        pdfQty(item),
-        text(pdfAttr(item, 'unitPrice')),
-        text(pdfAttr(item, 'totalAmount')),
-      ]),
-      columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 1: { cellWidth: 32, fontStyle: 'bold' }, 2: { cellWidth: 34 }, 3: { cellWidth: 32 }, 4: { cellWidth: 39 }, 5: { cellWidth: 44 }, 6: { cellWidth: 14, halign: 'right', fontStyle: 'bold' }, 7: { cellWidth: 22, halign: 'right' }, 8: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' } },
+      head: ['SL', 'Item Name', 'Brand & Model Code', 'Outer Dimensions (W×D×H)', 'Cabinet Niche / Cut-Out Size', 'Qty', 'Unit Price', 'Total Amount'],
+      body: rows.map((item) => {
+        const dim = (pdfAttr(item, 'dimW') || pdfAttr(item, 'dimD') || pdfAttr(item, 'dimH'))
+          ? `W${pdfAttr(item, 'dimW')} × D${pdfAttr(item, 'dimD')} × H${pdfAttr(item, 'dimH')} mm`
+          : pdfAttr(item, 'outerDimensions')
+        return [
+          text(pdfAttr(item, 'srNo')),
+          text(item.materialName),
+          text(pdfAttr(item, 'brandModelCode')),
+          text(dim),
+          text(pdfAttr(item, 'cabinetNicheCutOutSize')),
+          pdfQty(item),
+          text(pdfAttr(item, 'unitPrice')),
+          text(pdfAttr(item, 'totalAmount')),
+        ]
+      }),
+      columnStyles: { 0: { cellWidth: 10, halign: 'center' }, 1: { cellWidth: 38, fontStyle: 'bold' }, 2: { cellWidth: 36 }, 3: { cellWidth: 36 }, 4: { cellWidth: 46 }, 5: { cellWidth: 16, halign: 'right', fontStyle: 'bold' }, 6: { cellWidth: 26, halign: 'right' }, 7: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' } },
     }
   }
 
@@ -3611,6 +3639,189 @@ function AccessoryItemCombobox({
                 <Plus className="w-3.5 h-3.5" />
                 <span>Save &quot;{query.trim()}&quot; to Accessories Library</span>
               </button>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   Sub-component: Interactive Appliance Item Combobox
+   Shows catalog items with Category, Brand & Model Code
+───────────────────────────────────────────── */
+function ApplianceItemCombobox({
+  value,
+  onChange,
+  onSelectItem,
+  savedItems,
+  placeholder = 'Select or type appliance name...',
+  className,
+}: {
+  value: string
+  onChange: (val: string) => void
+  onSelectItem: (item: BoqSavedApplianceItem) => void
+  savedItems: BoqSavedApplianceItem[]
+  placeholder?: string
+  className?: string
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
+  const triggerRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const openDropdown = () => {
+    if (triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      setDropdownStyle({
+        position: 'fixed',
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 360),
+        zIndex: 9999,
+      })
+    }
+    setIsOpen(true)
+  }
+
+  const closeDropdown = () => {
+    setIsOpen(false)
+    setQuery('')
+  }
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
+        closeDropdown()
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const handleScroll = (e: Event) => {
+      if (dropdownRef.current && dropdownRef.current.contains(e.target as Node)) return
+      closeDropdown()
+    }
+    const handleResize = () => closeDropdown()
+    window.addEventListener('scroll', handleScroll, true)
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [isOpen])
+
+  const q = query.toLowerCase().trim()
+  const filteredItems = (savedItems || []).filter((item) => {
+    if (!q) return true
+    return (
+      item.name.toLowerCase().includes(q) ||
+      (item.category && item.category.toLowerCase().includes(q)) ||
+      (item.brandModelCode && item.brandModelCode.toLowerCase().includes(q))
+    )
+  })
+
+  return (
+    <div ref={triggerRef} className="relative w-full">
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          value={value || ''}
+          onChange={(e) => {
+            onChange(e.target.value)
+            setQuery(e.target.value)
+            openDropdown()
+          }}
+          onFocus={() => {
+            setQuery('')
+            openDropdown()
+          }}
+          placeholder={placeholder}
+          className={`${className || GRID_CELL_BOLD} pr-6`}
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => (isOpen ? closeDropdown() : openDropdown())}
+          className="absolute right-1 text-muted-foreground/50 hover:text-foreground p-0.5"
+          title="Open appliance catalog dropdown"
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {isOpen && typeof window !== 'undefined' && createPortal(
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-2xl overflow-hidden"
+        >
+          <div className="px-2 pb-1.5 pt-1 border-b border-border/40">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onMouseDown={(e) => e.stopPropagation()}
+              placeholder="Search appliances by name, brand, or model..."
+              autoFocus
+              className="w-full px-2 py-1 text-xs rounded border border-border/60 bg-background focus:outline-none focus:ring-1 focus:ring-teal-500/50 placeholder:text-muted-foreground/50"
+            />
+          </div>
+
+          <div className="max-h-64 overflow-y-auto">
+            {filteredItems.length === 0 ? (
+              <div className="px-3 py-3 text-xs text-center text-muted-foreground">
+                No matching appliances in catalog. Type to enter custom appliance.
+              </div>
+            ) : (
+              filteredItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onSelectItem(item)
+                    closeDropdown()
+                  }}
+                  className={`flex w-full items-center justify-between px-3 py-2 text-xs text-left hover:bg-teal-500/10 hover:text-teal-900 dark:hover:text-teal-200 transition-colors border-b border-border/20 last:border-b-0 ${
+                    value === item.name ? 'bg-teal-500/15 font-semibold text-teal-900 dark:text-teal-200' : 'text-foreground'
+                  }`}
+                >
+                  <div className="flex flex-col gap-0.5 min-w-0 pr-2">
+                    <span className="font-bold text-xs truncate">{item.name}</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {item.category && (
+                        <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-medium bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60">
+                          {item.category}
+                        </span>
+                      )}
+                      {item.brandModelCode && (
+                        <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-mono bg-muted text-muted-foreground border border-border/50 truncate max-w-[170px]">
+                          {item.brandModelCode}
+                        </span>
+                      )}
+                      {item.dimW && (
+                        <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-mono text-muted-foreground">
+                          {item.dimW}×{item.dimD}×{item.dimH}mm
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {value === item.name && <Check className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />}
+                </button>
+              ))
             )}
           </div>
         </div>,
@@ -5310,14 +5521,14 @@ function MaterialRowsTable({
             <thead className="bg-teal-500/10 border-b border-teal-500/20 text-teal-950 dark:text-teal-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-14`}>SL</th>
-                <th className={`${GRID_TH} min-w-[190px]`}>Item Name</th>
-                <th className={`${GRID_TH} min-w-[210px]`}>Brand & Model Code</th>
-                <th className={`${GRID_TH} min-w-[190px]`}>Outer Dimensions (W × H × D)</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Category</th>
+                <th className={`${GRID_TH} min-w-[210px]`}>Item Name</th>
+                <th className={`${GRID_TH} min-w-[190px]`}>Brand &amp; Model Code</th>
+                <th className={`${GRID_TH} min-w-[200px]`}>Dimensions (W × D × H mm)</th>
                 <th className={`${GRID_TH} min-w-[220px]`}>Cabinet Niche / Cut-Out Size</th>
-                <th className={`${GRID_TH} min-w-[230px]`}>MEP & Utility Requirements</th>
                 <th className={`${GRID_TH} w-24 text-center`}>Qty</th>
                 <th className={`${GRID_TH} min-w-[130px]`}>Unit Price (BDT)</th>
-                <th className={`${GRID_TH} min-w-[150px]`}>Total Amount (BDT)</th>
+                <th className={`${GRID_TH} min-w-[140px]`}>Total Amount (BDT)</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
@@ -5326,6 +5537,7 @@ function MaterialRowsTable({
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
+                    {/* 1. SL */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -5335,15 +5547,55 @@ function MaterialRowsTable({
                         className={GRID_CELL_MONO}
                       />
                     </td>
+
+                    {/* 2. Category Dropdown */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
+                      <select
+                        value={attrs.applianceCategory || ''}
+                        onChange={(e) => onUpdateVariant(ri, 'applianceCategory', e.target.value)}
+                        className={GRID_CELL_SELECT}
+                      >
+                        <option value="">Select Category...</option>
+                        {DEFAULT_APPLIANCE_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                        {attrs.applianceCategory && !DEFAULT_APPLIANCE_CATEGORIES.includes(attrs.applianceCategory) && (
+                          <option value={attrs.applianceCategory}>{attrs.applianceCategory}</option>
+                        )}
+                      </select>
+                    </td>
+
+                    {/* 3. Item Name with Dropdown */}
+                    <td className={GRID_TD}>
+                      <ApplianceItemCombobox
                         value={item.materialName}
-                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
-                        placeholder="Gas / Induction Hob"
-                        className={GRID_CELL_BOLD}
+                        onChange={(val) => onChange(ri, 'materialName', val)}
+                        onSelectItem={(saved) => {
+                          onChange(ri, 'materialName', saved.name)
+                          if (saved.defaultUnit) onChange(ri, 'unit', saved.defaultUnit)
+                          onUpdateVariant(ri, 'applianceCategory', saved.category)
+                          onUpdateVariant(ri, 'brandModelCode', saved.brandModelCode)
+                          if (saved.dimW) onUpdateVariant(ri, 'dimW', saved.dimW)
+                          if (saved.dimD) onUpdateVariant(ri, 'dimD', saved.dimD)
+                          if (saved.dimH) onUpdateVariant(ri, 'dimH', saved.dimH)
+                          if (saved.cabinetNicheCutOutSize) onUpdateVariant(ri, 'cabinetNicheCutOutSize', saved.cabinetNicheCutOutSize)
+                          if (saved.defaultUnitPrice) {
+                            onUpdateVariant(ri, 'unitPrice', saved.defaultUnitPrice)
+                            const cleanP = parseFloat(saved.defaultUnitPrice.replace(/[^0-9.]/g, ''))
+                            const qty = parseFloat(String(attrs.qtyLabel || item.netQuantity || 1))
+                            if (!isNaN(cleanP) && !isNaN(qty)) {
+                              onUpdateVariant(ri, 'totalAmount', `৳${Math.round(qty * cleanP).toLocaleString('en-IN')}`)
+                            }
+                          }
+                        }}
+                        savedItems={DEFAULT_SAVED_APPLIANCES}
+                        placeholder="Select or type appliance..."
                       />
                     </td>
+
+                    {/* 4. Brand & Model Code */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -5353,15 +5605,44 @@ function MaterialRowsTable({
                         className={GRID_CELL_INPUT}
                       />
                     </td>
+
+                    {/* 5. Dimensions (W, D, H mm) arranged like accessories */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.outerDimensions || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'outerDimensions', e.target.value)}
-                        placeholder="W860 × H135 × D520 mm"
-                        className={GRID_CELL_INPUT}
-                      />
+                      <div className="flex items-center gap-1.5 py-0.5">
+                        <div className="flex items-center bg-background/80 rounded border border-border/60 px-1.5 py-0.5 focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500/20 transition-all flex-1 min-w-0" title="Width (mm)">
+                          <span className="text-[10px] font-bold text-muted-foreground mr-1 select-none">W</span>
+                          <input
+                            type="text"
+                            value={attrs.dimW || ''}
+                            onChange={(e) => onUpdateVariant(ri, 'dimW', e.target.value)}
+                            placeholder="—"
+                            className="w-full bg-transparent text-xs text-foreground focus:outline-none min-w-0 font-medium"
+                          />
+                        </div>
+                        <div className="flex items-center bg-background/80 rounded border border-border/60 px-1.5 py-0.5 focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500/20 transition-all flex-1 min-w-0" title="Depth (mm)">
+                          <span className="text-[10px] font-bold text-muted-foreground mr-1 select-none">D</span>
+                          <input
+                            type="text"
+                            value={attrs.dimD || ''}
+                            onChange={(e) => onUpdateVariant(ri, 'dimD', e.target.value)}
+                            placeholder="—"
+                            className="w-full bg-transparent text-xs text-foreground focus:outline-none min-w-0 font-medium"
+                          />
+                        </div>
+                        <div className="flex items-center bg-background/80 rounded border border-border/60 px-1.5 py-0.5 focus-within:border-teal-500 focus-within:ring-1 focus-within:ring-teal-500/20 transition-all flex-1 min-w-0" title="Height (mm)">
+                          <span className="text-[10px] font-bold text-muted-foreground mr-1 select-none">H</span>
+                          <input
+                            type="text"
+                            value={attrs.dimH || ''}
+                            onChange={(e) => onUpdateVariant(ri, 'dimH', e.target.value)}
+                            placeholder="—"
+                            className="w-full bg-transparent text-xs text-foreground focus:outline-none min-w-0 font-medium"
+                          />
+                        </div>
+                      </div>
                     </td>
+
+                    {/* 6. Cabinet Niche / Cut-Out Size (manage based on data) */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -5371,19 +5652,12 @@ function MaterialRowsTable({
                         className={GRID_CELL_INPUT}
                       />
                     </td>
+
+                    {/* 7. Qty */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
-                        value={attrs.mepUtilityRequirements || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'mepUtilityRequirements', e.target.value)}
-                        placeholder="LPG/NG Gas Point + 16A Electric"
-                        className={GRID_CELL_INPUT}
-                      />
-                    </td>
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : `${item.netQuantity} ${item.unit}`}
+                        value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : `${item.netQuantity} ${item.unit || 'Nos'}`}
                         onChange={(e) => {
                           const val = e.target.value
                           onUpdateVariant(ri, 'qtyLabel', val)
@@ -5394,6 +5668,8 @@ function MaterialRowsTable({
                         className={GRID_CELL_NUM}
                       />
                     </td>
+
+                    {/* 8. Unit Price */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -5405,13 +5681,15 @@ function MaterialRowsTable({
                           const numP = parseFloat(cleanPrice)
                           const qty = parseFloat(String(attrs.qtyLabel || item.netQuantity || 1))
                           if (!isNaN(numP) && !isNaN(qty)) {
-                            onUpdateVariant(ri, 'totalAmount', `৳${(qty * numP).toLocaleString('en-IN')}`)
+                            onUpdateVariant(ri, 'totalAmount', `৳${Math.round(qty * numP).toLocaleString('en-IN')}`)
                           }
                         }}
                         placeholder="৳70,000"
                         className={GRID_CELL_INPUT}
                       />
                     </td>
+
+                    {/* 9. Total Amount */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
@@ -5421,6 +5699,8 @@ function MaterialRowsTable({
                         className={`${GRID_CELL_BOLD} text-teal-700 dark:text-teal-300`}
                       />
                     </td>
+
+                    {/* 10. Remove */}
                     <td className="p-0 w-8 text-center align-middle">
                       <button
                         onClick={() => onRemoveRow(ri)}

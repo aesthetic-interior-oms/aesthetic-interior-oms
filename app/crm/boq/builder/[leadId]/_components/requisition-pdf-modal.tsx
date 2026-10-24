@@ -38,7 +38,7 @@ export type CardSection = {
   collapsed?: boolean
 }
 
-type PdfCategoryFilter = 'ALL' | 'WALL_PANELING' | 'CABINETS_CLOSETS' | 'CEILING_ELECTRICAL' | 'EXTRA'
+type PdfCategoryFilter = 'ALL' | 'WALL_PANELING' | 'CABINETS_CLOSETS' | 'ACCESSORIES' | 'APPLIANCES' | 'CEILING_ELECTRICAL' | 'EXTRA'
 
 const CATEGORY_TABS: {
   key: PdfCategoryFilter
@@ -67,6 +67,20 @@ const CATEGORY_TABS: {
     icon: '🚪',
     description: 'Carcass core boards, Shutter finishes, Edge banding, Hinges & Hardware accessories.',
     badge: 'Cabinet Scope',
+  },
+  {
+    key: 'ACCESSORIES',
+    label: 'Accessories & Hardware',
+    icon: '🔩',
+    description: 'Kitchen baskets, pantry units, wardrobe organizers, jewelry trays & hardware fittings.',
+    badge: 'Accessories Scope',
+  },
+  {
+    key: 'APPLIANCES',
+    label: 'Kitchen & Home Appliances',
+    icon: '🍳',
+    description: 'Gas/induction hobs, chimneys, built-in ovens, microwaves, sinks & water purifiers.',
+    badge: 'Appliances Scope',
   },
   {
     key: 'CEILING_ELECTRICAL',
@@ -111,6 +125,19 @@ function getSectionLabel(section: CardSection): string {
       default: return 'Ceiling & Electrical'
     }
   }
+  if (section.accessoriesSubType) {
+    switch (section.accessoriesSubType) {
+      case 'HARDWARE_FITTINGS': return 'Accessories — Hardware & Fittings'
+      case 'SERVICES_DELIVERABLES': return 'Accessories — Deliverables'
+      default: return 'Accessories'
+    }
+  }
+  if (section.applianceSubType) {
+    switch (section.applianceSubType) {
+      case 'CORE_APPLIANCES': return 'Kitchen & Home Appliances'
+      default: return 'Appliances'
+    }
+  }
   return section.category.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
@@ -118,6 +145,8 @@ function matchesCategoryFilter(section: CardSection, cardKey: string, filter: Pd
   if (filter === 'ALL') return true
   if (filter === 'WALL_PANELING') return section.category === 'WALL_PANELING'
   if (filter === 'CABINETS_CLOSETS') return section.category === 'CABINETS_CLOSETS'
+  if (filter === 'ACCESSORIES') return section.category === 'ACCESSORIES'
+  if (filter === 'APPLIANCES') return section.category === 'APPLIANCES'
   if (filter === 'CEILING_ELECTRICAL') {
     return (
       section.category === 'CEILING' ||
@@ -127,7 +156,7 @@ function matchesCategoryFilter(section: CardSection, cardKey: string, filter: Pd
     )
   }
   if (filter === 'EXTRA') {
-    return cardKey === '__extra__' || section.category === 'ACCESSORIES' || section.category === 'APPLIANCES'
+    return cardKey === '__extra__'
   }
   return true
 }
