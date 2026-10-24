@@ -27,6 +27,8 @@ import {
   Pin,
   FlaskConical,
   Receipt,
+  Lightbulb,
+  Zap,
   Check,
   X,
 } from 'lucide-react'
@@ -95,10 +97,10 @@ function scheduleItem(
   materialName: string,
   specifications: string,
   quantity: number,
-  unit = 'Pcs',
-  group?: { key: string; total: number },
+  unit = 'pcs',
+  extraAttrs: Record<string, unknown> = {},
 ): RequisitionItemInput {
-  const scheduleKey = workCategory === 'CEILING' ? 'ceiling-light-xl-v1' : 'ceiling-electrical-xl-v1'
+  const scheduleKey = workCategory === 'CEILING' ? 'ceiling-light-xl-v2' : 'ceiling-electrical-xl-v2'
   return {
     workCategory,
     materialName,
@@ -108,55 +110,361 @@ function scheduleItem(
     finalQuantity: quantity,
     unit,
     productionPhase: workCategory === 'CEILING' ? 'Ceiling Lighting' : 'Electrical Work',
-    remarks: quantity === 0 ? 'Quantity not specified in source list; confirm before requisition.' : '',
+    remarks: (extraAttrs.remarks as string) || (quantity === 0 ? 'Quantity not specified in source list; confirm before requisition.' : ''),
     variantAttributes: {
       sourceScheduleKey: scheduleKey,
       sourceQuantityStatus: quantity === 0 ? 'NEEDS_CONFIRMATION' : 'CONFIRMED',
-      ...(group ? { sourceQuantityGroup: group.key, sourceQuantityGroupTotal: group.total } : {}),
+      colorTempSpecs: specifications,
+      ...extraAttrs,
     },
   }
 }
 
-const CEILING_LIGHTING_SCHEDULE: RequisitionItemInput[] = [
-  scheduleItem('CEILING', 'T5 Light', '4000 K | 1\' length', 15),
-  scheduleItem('CEILING', 'T5 Light', '4000 K | 2\' length', 10),
-  scheduleItem('CEILING', 'T5 Light', '4000 K | 3\' length', 5),
-  scheduleItem('CEILING', 'T5 Light', '4000 K | 4\' length', 80),
-  scheduleItem('CEILING', 'Surface Panel Light', '4000 K | 15 W | quantity split from the 95-light total is not stated.', 0, 'Pcs', { key: 'spot-light-allocation', total: 95 }),
-  scheduleItem('CEILING', 'Surface Spot Light', '4000 K | 10 W | quantity split from the 95-light total is not stated.', 0, 'Pcs', { key: 'spot-light-allocation', total: 95 }),
-  scheduleItem('CEILING', 'Magnetic Flat Light', '6\' length', 0),
-  scheduleItem('CEILING', 'Magnetic Flat Light', '12" length', 14),
-  scheduleItem('CEILING', 'Magnetic Flat Light', '24" length', 0),
-  scheduleItem('CEILING', 'Magnetic Channel', '6\' length', 5),
-  scheduleItem('CEILING', 'Magnetic Channel', '10\' length', 2),
-  scheduleItem('CEILING', 'Magnetic Focus Light', 'Quantity listed as 7 pcs.', 7),
-  scheduleItem('CEILING', 'Silicon Light', '8 mm | 220 V AC', 60, 'RFT'),
-  scheduleItem('CEILING', 'Silicon Light', '8 mm | 12 V DC', 0, 'RFT'),
-  scheduleItem('CEILING', 'Power Supply', '12 V DC | 60 W | part of the 5-unit total; wattage split is not stated.', 0, 'Pcs', { key: 'power-supply-allocation', total: 5 }),
-  scheduleItem('CEILING', 'Power Supply', '12 V DC | 100 W | part of the 5-unit total; wattage split is not stated.', 0, 'Pcs', { key: 'power-supply-allocation', total: 5 }),
-  scheduleItem('CEILING', 'Power Supply', '12 V DC | 200 W | part of the 5-unit total; wattage split is not stated.', 0, 'Pcs', { key: 'power-supply-allocation', total: 5 }),
-  scheduleItem('CEILING', 'Cylinder Light', 'Quantity listed as 15 pcs.', 15),
-  scheduleItem('CEILING', 'Silicon Cover', 'Quantity not specified in the sheet.', 0),
+export interface CeilingLightingCatalogItem {
+  name: string
+  subCategory: string
+  defaultSpecs: string
+  sizeOptions?: string[]
+  voltageOptions?: string[]
+  defaultSize?: string
+  defaultVoltage?: string
+  defaultQty?: number
+  unit: string
+  defaultRemarks: string
+}
+
+export const CEILING_LIGHTING_CATALOG: CeilingLightingCatalogItem[] = [
+  {
+    name: 'T-5 Light',
+    subCategory: 'Linear Profile (T-5)',
+    defaultSpecs: '4000 K',
+    sizeOptions: ['1 Feet', '2 Feet', '3 Feet', '4 Feet'],
+    defaultSize: '4 Feet',
+    unit: 'pcs',
+    defaultRemarks: 'Profile Light',
+  },
+  {
+    name: 'Spot Light',
+    subCategory: 'Spotlights & Panels',
+    defaultSpecs: '4000 K',
+    defaultQty: 95,
+    unit: 'pcs',
+    defaultRemarks: 'Recessed Spot',
+  },
+  {
+    name: 'Surface Panel Light',
+    subCategory: 'Spotlights & Panels',
+    defaultSpecs: '4000 K',
+    voltageOptions: ['15 Watt'],
+    defaultVoltage: '15 Watt',
+    unit: 'pcs',
+    defaultRemarks: 'Surface Mounted',
+  },
+  {
+    name: 'Surface Spot Light',
+    subCategory: 'Spotlights & Panels',
+    defaultSpecs: '4000 K',
+    voltageOptions: ['10 Watt'],
+    defaultVoltage: '10 Watt',
+    unit: 'pcs',
+    defaultRemarks: 'Surface Mounted',
+  },
+  {
+    name: 'Cylinder Light',
+    subCategory: 'Spotlights & Panels',
+    defaultSpecs: 'Standard',
+    defaultQty: 15,
+    unit: 'pcs',
+    defaultRemarks: 'Downlight',
+  },
+  {
+    name: 'Magnetic Flat Light',
+    subCategory: 'Magnetic Track',
+    defaultSpecs: 'Track Insert',
+    sizeOptions: ['6 Feet', '12 Inch', '24 Inch'],
+    defaultSize: '12 Inch',
+    unit: 'pcs',
+    defaultRemarks: 'Track Insert',
+  },
+  {
+    name: 'Magnetic Channel / Track',
+    subCategory: 'Magnetic Track',
+    defaultSpecs: 'Recessed Track',
+    sizeOptions: ['6 Feet', '10 Feet'],
+    defaultSize: '6 Feet',
+    unit: 'pcs',
+    defaultRemarks: 'Track Channel',
+  },
+  {
+    name: 'Magnetic Focus Light',
+    subCategory: 'Magnetic Track',
+    defaultSpecs: 'Adjustable Spot',
+    defaultQty: 7,
+    unit: 'pcs',
+    defaultRemarks: 'Focus Light',
+  },
+  {
+    name: 'Silicon Light',
+    subCategory: 'Strip Lighting',
+    defaultSpecs: '8 mm Strip',
+    voltageOptions: ['220V AC', '12V DC'],
+    defaultVoltage: '220V AC',
+    unit: 'rft',
+    defaultRemarks: 'Flexible Strip',
+  },
+  {
+    name: 'Silicon Cover',
+    subCategory: 'Strip Lighting',
+    defaultSpecs: 'Diffuser Cover',
+    unit: 'set',
+    defaultRemarks: 'Channel Cover',
+  },
 ]
 
-const ELECTRICAL_WORK_SCHEDULE: RequisitionItemInput[] = [
-  scheduleItem('ELECTRICAL_WORK', 'Cable', 'Dimension 14/76 | quantity not specified in the sheet.', 0, 'Not specified'),
-  scheduleItem('ELECTRICAL_WORK', 'Switch', 'DP', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Switch', '1 Gang', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Switch', '2 Gang', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Switch', '3 Gang', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Switch', '4 Gang', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Switch', 'Fan Dimmer', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Socket', '15 Amp', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Socket', '13 Amp', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Socket', 'Dish', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Socket', 'Internet', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Socket', 'Intercom', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Electrical Tape', 'Spelling normalized from source sheet.', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Calling Bell', '', 0),
-  scheduleItem('ELECTRICAL_WORK', 'Calling Bell Push', '', 0),
-  scheduleItem('ELECTRICAL_WORK', 'False Cover', '', 0),
+export const CEILING_LIGHTING_SCHEDULE: RequisitionItemInput[] = [
+  scheduleItem('CEILING', 'T-5 Light', '4000 K', 15, 'pcs', { sizeDimension: '1 Feet', voltageWattage: '—', remarks: 'Profile Light' }),
+  scheduleItem('CEILING', 'T-5 Light', '4000 K', 10, 'pcs', { sizeDimension: '2 Feet', voltageWattage: '—', remarks: 'Profile Light' }),
+  scheduleItem('CEILING', 'T-5 Light', '4000 K', 5, 'pcs', { sizeDimension: '3 Feet', voltageWattage: '—', remarks: 'Profile Light' }),
+  scheduleItem('CEILING', 'T-5 Light', '4000 K', 80, 'pcs', { sizeDimension: '4 Feet', voltageWattage: '—', remarks: 'Main Profile Light' }),
+  scheduleItem('CEILING', 'Spot Light', '4000 K', 95, 'pcs', { sizeDimension: '—', voltageWattage: '—', remarks: 'Recessed Spot' }),
+  scheduleItem('CEILING', 'Surface Panel Light', '4000 K', 0, 'pcs', { sizeDimension: '—', voltageWattage: '15 Watt', remarks: 'Surface Mounted' }),
+  scheduleItem('CEILING', 'Surface Spot Light', '4000 K', 0, 'pcs', { sizeDimension: '—', voltageWattage: '10 Watt', remarks: 'Surface Mounted' }),
+  scheduleItem('CEILING', 'Cylinder Light', 'Standard', 15, 'pcs', { sizeDimension: '—', voltageWattage: '—', remarks: 'Downlight' }),
+  scheduleItem('CEILING', 'Magnetic Flat Light', 'Track Insert', 0, 'pcs', { sizeDimension: '6 Feet', voltageWattage: '—', remarks: 'Track Insert' }),
+  scheduleItem('CEILING', 'Magnetic Flat Light', 'Track Insert', 14, 'pcs', { sizeDimension: '12 Inch', voltageWattage: '—', remarks: 'Track Insert' }),
+  scheduleItem('CEILING', 'Magnetic Flat Light', 'Track Insert', 0, 'pcs', { sizeDimension: '24 Inch', voltageWattage: '—', remarks: 'Track Insert' }),
+  scheduleItem('CEILING', 'Magnetic Channel / Track', 'Recessed Track', 5, 'pcs', { sizeDimension: '6 Feet', voltageWattage: '—', remarks: 'Track Channel' }),
+  scheduleItem('CEILING', 'Magnetic Channel / Track', 'Recessed Track', 2, 'pcs', { sizeDimension: '10 Feet', voltageWattage: '—', remarks: 'Track Channel' }),
+  scheduleItem('CEILING', 'Magnetic Focus Light', 'Adjustable Spot', 7, 'pcs', { sizeDimension: '—', voltageWattage: '—', remarks: 'Focus Light' }),
+  scheduleItem('CEILING', 'Silicon Light', '8 mm Strip', 60, 'rft', { sizeDimension: '—', voltageWattage: '220V AC', remarks: 'Flexible Strip' }),
+  scheduleItem('CEILING', 'Silicon Light', '8 mm Strip', 0, 'rft', { sizeDimension: '—', voltageWattage: '12V DC', remarks: 'Low Volt Strip' }),
+  scheduleItem('CEILING', 'Silicon Cover', 'Diffuser Cover', 0, 'set', { sizeDimension: '—', voltageWattage: '—', remarks: 'Channel Cover' }),
 ]
+
+export interface CeilingElectricalCatalogItem {
+  name: string
+  subCategory: string
+  defaultSpecs: string
+  defaultRating?: string
+  hasRating: boolean
+  voltageOptions?: string[]
+  defaultVoltage?: string
+  hasVoltage: boolean
+  defaultQty?: number
+  unit: string
+  defaultRemarks: string
+}
+
+export const CEILING_ELECTRICAL_CATALOG: CeilingElectricalCatalogItem[] = [
+  {
+    name: 'Power Supply Driver',
+    subCategory: 'Drivers & Power',
+    defaultSpecs: '12V DC Output',
+    defaultRating: '—',
+    hasRating: false,
+    voltageOptions: ['60 Watt', '100 Watt', '200 Watt'],
+    defaultVoltage: '60 Watt',
+    hasVoltage: true,
+    unit: 'pcs',
+    defaultRemarks: 'Driver Unit',
+  },
+  {
+    name: 'Power Supply (General)',
+    subCategory: 'Drivers & Power',
+    defaultSpecs: 'Standard Driver',
+    defaultRating: '—',
+    hasRating: false,
+    hasVoltage: false,
+    defaultQty: 5,
+    unit: 'pcs',
+    defaultRemarks: 'Main Power Driver',
+  },
+  {
+    name: 'Electrical Cable',
+    subCategory: 'Cable & Accessories',
+    defaultSpecs: '14/76 Cable',
+    defaultRating: '—',
+    hasRating: false,
+    hasVoltage: false,
+    unit: 'coil/rft',
+    defaultRemarks: 'Wiring Cable',
+  },
+  {
+    name: 'Electrical Insulation Tape',
+    subCategory: 'Cable & Accessories',
+    defaultSpecs: 'PVC Tape',
+    defaultRating: '—',
+    hasRating: false,
+    hasVoltage: false,
+    unit: 'roll',
+    defaultRemarks: 'Accessory',
+  },
+  {
+    name: 'DP Switch',
+    subCategory: 'Switches & Controls',
+    defaultSpecs: 'Double Pole',
+    defaultRating: 'Heavy Duty',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Main Switch',
+  },
+  {
+    name: '1 Gang Switch',
+    subCategory: 'Switches & Controls',
+    defaultSpecs: 'Single Switch',
+    defaultRating: 'Standard',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Lighting Control',
+  },
+  {
+    name: '2 Gang Switch',
+    subCategory: 'Switches & Controls',
+    defaultSpecs: 'Double Switch',
+    defaultRating: 'Standard',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Lighting Control',
+  },
+  {
+    name: '3 Gang Switch',
+    subCategory: 'Switches & Controls',
+    defaultSpecs: 'Triple Switch',
+    defaultRating: 'Standard',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Lighting Control',
+  },
+  {
+    name: '4 Gang Switch',
+    subCategory: 'Switches & Controls',
+    defaultSpecs: 'Quad Switch',
+    defaultRating: 'Standard',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Lighting Control',
+  },
+  {
+    name: 'Fan Dimmer',
+    subCategory: 'Switches & Controls',
+    defaultSpecs: 'Speed Regulator',
+    defaultRating: 'Standard',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Fan Control',
+  },
+  {
+    name: 'Calling Bell Switch',
+    subCategory: 'Switches & Controls',
+    defaultSpecs: 'Doorbell Fitting',
+    defaultRating: 'Standard',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Bell Control',
+  },
+  {
+    name: 'Calling Bell Push',
+    subCategory: 'Switches & Controls',
+    defaultSpecs: 'External Push',
+    defaultRating: 'Standard',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Push Button',
+  },
+  {
+    name: 'False Cover',
+    subCategory: 'Switches & Controls',
+    defaultSpecs: 'Blank Plate',
+    defaultRating: 'Standard',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Dummy Cover',
+  },
+  {
+    name: '15 Amp Socket',
+    subCategory: 'Sockets & Outlets',
+    defaultSpecs: 'Power Socket',
+    defaultRating: '15A Rating',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Power Outlet',
+  },
+  {
+    name: '13 Amp Socket',
+    subCategory: 'Sockets & Outlets',
+    defaultSpecs: 'Multi Socket',
+    defaultRating: '13A Rating',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Power Outlet',
+  },
+  {
+    name: 'Dish Socket',
+    subCategory: 'Sockets & Outlets',
+    defaultSpecs: 'TV Outlet',
+    defaultRating: 'Coaxial',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Media Outlet',
+  },
+  {
+    name: 'Internet Socket',
+    subCategory: 'Sockets & Outlets',
+    defaultSpecs: 'RJ45 LAN Outlet',
+    defaultRating: 'Data',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Data Point',
+  },
+  {
+    name: 'Intercom Socket',
+    subCategory: 'Sockets & Outlets',
+    defaultSpecs: 'Comm Outlet',
+    defaultRating: 'Voice',
+    hasRating: true,
+    hasVoltage: false,
+    unit: 'pcs',
+    defaultRemarks: 'Comms Point',
+  },
+]
+
+export const CEILING_ELECTRICAL_SCHEDULE: RequisitionItemInput[] = [
+  scheduleItem('CEILING', 'Power Supply Driver', '12V DC Output', 0, 'pcs', { ratingDimension: '—', voltageWattage: '60 Watt', remarks: 'Driver Unit' }),
+  scheduleItem('CEILING', 'Power Supply Driver', '12V DC Output', 0, 'pcs', { ratingDimension: '—', voltageWattage: '100 Watt', remarks: 'Driver Unit' }),
+  scheduleItem('CEILING', 'Power Supply Driver', '12V DC Output', 0, 'pcs', { ratingDimension: '—', voltageWattage: '200 Watt', remarks: 'Driver Unit' }),
+  scheduleItem('CEILING', 'Power Supply (General)', 'Standard Driver', 5, 'pcs', { ratingDimension: '—', voltageWattage: '—', remarks: 'Main Power Driver' }),
+  scheduleItem('CEILING', 'Electrical Cable', '14/76 Cable', 0, 'coil/rft', { ratingDimension: '—', voltageWattage: '—', remarks: 'Wiring Cable' }),
+  scheduleItem('CEILING', 'Electrical Insulation Tape', 'PVC Tape', 0, 'roll', { ratingDimension: '—', voltageWattage: '—', remarks: 'Accessory' }),
+  scheduleItem('CEILING', 'DP Switch', 'Double Pole', 0, 'pcs', { ratingDimension: 'Heavy Duty', voltageWattage: '—', remarks: 'Main Switch' }),
+  scheduleItem('CEILING', '1 Gang Switch', 'Single Switch', 0, 'pcs', { ratingDimension: 'Standard', voltageWattage: '—', remarks: 'Lighting Control' }),
+  scheduleItem('CEILING', '2 Gang Switch', 'Double Switch', 0, 'pcs', { ratingDimension: 'Standard', voltageWattage: '—', remarks: 'Lighting Control' }),
+  scheduleItem('CEILING', '3 Gang Switch', 'Triple Switch', 0, 'pcs', { ratingDimension: 'Standard', voltageWattage: '—', remarks: 'Lighting Control' }),
+  scheduleItem('CEILING', '4 Gang Switch', 'Quad Switch', 0, 'pcs', { ratingDimension: 'Standard', voltageWattage: '—', remarks: 'Lighting Control' }),
+  scheduleItem('CEILING', 'Fan Dimmer', 'Speed Regulator', 0, 'pcs', { ratingDimension: 'Standard', voltageWattage: '—', remarks: 'Fan Control' }),
+  scheduleItem('CEILING', 'Calling Bell Switch', 'Doorbell Fitting', 0, 'pcs', { ratingDimension: 'Standard', voltageWattage: '—', remarks: 'Bell Control' }),
+  scheduleItem('CEILING', 'Calling Bell Push', 'External Push', 0, 'pcs', { ratingDimension: 'Standard', voltageWattage: '—', remarks: 'Push Button' }),
+  scheduleItem('CEILING', 'False Cover', 'Blank Plate', 0, 'pcs', { ratingDimension: 'Standard', voltageWattage: '—', remarks: 'Dummy Cover' }),
+  scheduleItem('CEILING', '15 Amp Socket', 'Power Socket', 0, 'pcs', { ratingDimension: '15A Rating', voltageWattage: '—', remarks: 'Power Outlet' }),
+  scheduleItem('CEILING', '13 Amp Socket', 'Multi Socket', 0, 'pcs', { ratingDimension: '13A Rating', voltageWattage: '—', remarks: 'Power Outlet' }),
+  scheduleItem('CEILING', 'Dish Socket', 'TV Outlet', 0, 'pcs', { ratingDimension: 'Coaxial', voltageWattage: '—', remarks: 'Media Outlet' }),
+  scheduleItem('CEILING', 'Internet Socket', 'RJ45 LAN Outlet', 0, 'pcs', { ratingDimension: 'Data', voltageWattage: '—', remarks: 'Data Point' }),
+  scheduleItem('CEILING', 'Intercom Socket', 'Comm Outlet', 0, 'pcs', { ratingDimension: 'Voice', voltageWattage: '—', remarks: 'Comms Point' }),
+]
+
+export const ELECTRICAL_WORK_SCHEDULE = CEILING_ELECTRICAL_SCHEDULE
 
 /** Base material options for Wall Paneling and Cabinet/Closet sections */
 const BOARD_BASE_MATERIAL_GROUPS: { group: string; items: string[] }[] = [
@@ -307,6 +615,13 @@ export interface BoardVariantAttributes {
   cabinetNicheCutOutSize?: string
   mepUtilityRequirements?: string
   applianceSubType?: string
+
+  // ── Ceiling & Electrical attributes ──
+  ceilingSubType?: string
+  colorTempSpecs?: string
+  sizeDimension?: string
+  voltageWattage?: string
+  ratingDimension?: string
 }
 
 /** 1. Boards Catalog Preset */
@@ -1649,6 +1964,7 @@ export type WallPanelingSubType = 'CORE_BOARDS' | 'LOUVERS_PROFILES' | 'SCREWS_F
 export type CabinetSubType = 'BOARD_SPEC' | 'CORE_BOARD_SPEC' | 'HPL_PASTING'
 export type AccessoriesSubType = 'HARDWARE_ACCESSORIES' | 'SERVICES_DELIVERABLES'
 export type ApplianceSubType = 'CORE_APPLIANCES'
+export type CeilingSubType = 'CEILING_LIGHTING' | 'ELECTRICAL_DEVICES'
 
 interface CardSection {
   id: string
@@ -1657,6 +1973,7 @@ interface CardSection {
   cabinetSubType?: CabinetSubType
   accessoriesSubType?: AccessoriesSubType
   applianceSubType?: ApplianceSubType
+  ceilingSubType?: CeilingSubType
   collapsed: boolean
 }
 
@@ -1692,6 +2009,8 @@ type ViewModeType =
   | 'HARDWARE_ACCESSORY_SPEC'
   | 'SERVICES_DELIVERABLE_SPEC'
   | 'CORE_APPLIANCE_SPEC'
+  | 'CEILING_LIGHTING_SPEC'
+  | 'CEILING_ELECTRICAL_SPEC'
   | 'STANDARD'
 
 const WALL_PANELING_SUBTYPES: { key: WallPanelingSubType; label: string; viewMode: ViewModeType }[] = [
@@ -1713,6 +2032,11 @@ const ACCESSORIES_SUBTYPES: { key: AccessoriesSubType; label: string; viewMode: 
 
 const APPLIANCE_SUBTYPES: { key: ApplianceSubType; label: string; viewMode: ViewModeType }[] = [
   { key: 'CORE_APPLIANCES', label: 'Core Appliances', viewMode: 'CORE_APPLIANCE_SPEC' },
+]
+
+const CEILING_SUBTYPES: { key: CeilingSubType; label: string; viewMode: ViewModeType }[] = [
+  { key: 'CEILING_LIGHTING',  label: '💡 Ceiling Lights & Profile Specification',   viewMode: 'CEILING_LIGHTING_SPEC' },
+  { key: 'ELECTRICAL_DEVICES', label: '⚡ Drivers, Switches & Sockets Specification', viewMode: 'CEILING_ELECTRICAL_SPEC' },
 ]
 
 const CATEGORY_COLORS: Record<RequisitionWorkCategory, { bg: string; text: string; border: string; pill: string; leftBorder: string }> = {
@@ -1753,6 +2077,17 @@ function getViewModeForSection(section: CardSection): ViewModeType {
       default:                return 'CORE_APPLIANCE_SPEC'
     }
   }
+  if (section.category === 'CEILING') {
+    switch (section.ceilingSubType) {
+      case 'ELECTRICAL_DEVICES': return 'CEILING_ELECTRICAL_SPEC'
+      case 'CEILING_LIGHTING':
+      default:
+        return 'CEILING_LIGHTING_SPEC'
+    }
+  }
+  if (section.category === 'ELECTRICAL_WORK') {
+    return 'CEILING_ELECTRICAL_SPEC'
+  }
   return 'STANDARD'
 }
 
@@ -1769,6 +2104,7 @@ function blankItem(
   cabinetSubType?: CabinetSubType,
   accessoriesSubType?: AccessoriesSubType,
   applianceSubType?: ApplianceSubType,
+  ceilingSubType?: CeilingSubType,
   quotationLineItemId?: string,
 ): RequisitionItemInput {
   const base: RequisitionItemInput = {
@@ -1779,10 +2115,47 @@ function blankItem(
     netQuantity: 1,
     wastagePercent: 0,
     finalQuantity: 1,
-    unit: 'Pcs',
+    unit: 'pcs',
     productionPhase: '',
     remarks: '',
     variantAttributes: {},
+  }
+
+  if (category === 'CEILING' && ceilingSubType !== 'ELECTRICAL_DEVICES') {
+    const item = CEILING_LIGHTING_CATALOG[0] // T-5 Light
+    return {
+      ...base,
+      materialName: item.name,
+      specifications: item.defaultSpecs,
+      unit: item.unit,
+      productionPhase: 'Ceiling Lighting',
+      remarks: item.defaultRemarks,
+      variantAttributes: {
+        srNo: '1',
+        ceilingSubType: 'CEILING_LIGHTING',
+        colorTempSpecs: item.defaultSpecs,
+        sizeDimension: item.defaultSize || '—',
+        voltageWattage: item.defaultVoltage || '—',
+      },
+    }
+  }
+
+  if (category === 'ELECTRICAL_WORK' || (category === 'CEILING' && ceilingSubType === 'ELECTRICAL_DEVICES')) {
+    const item = CEILING_ELECTRICAL_CATALOG[0] // Power Supply Driver
+    return {
+      ...base,
+      materialName: item.name,
+      specifications: item.defaultSpecs,
+      unit: item.unit,
+      productionPhase: 'Drivers & Power',
+      remarks: item.defaultRemarks,
+      variantAttributes: {
+        srNo: '1',
+        ceilingSubType: 'ELECTRICAL_DEVICES',
+        ratingDimension: item.defaultRating || '—',
+        voltageWattage: item.defaultVoltage || '—',
+      },
+    }
   }
 
   if (category === 'ACCESSORIES') {
@@ -1941,6 +2314,9 @@ function getSectionTypeLabel(section: CardSection): string {
   }
   if (section.applianceSubType) {
     return APPLIANCE_SUBTYPES.find((item) => item.key === section.applianceSubType)?.label ?? fallback
+  }
+  if (section.ceilingSubType) {
+    return CEILING_SUBTYPES.find((item) => item.key === section.ceilingSubType)?.label ?? fallback
   }
   return fallback
 }
@@ -2146,6 +2522,60 @@ function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]
     }
   }
 
+  if (viewMode === 'CEILING_LIGHTING_SPEC') {
+    return {
+      color: [147, 51, 234],
+      head: ['SL NO', 'Item Name', 'Color Temp / Specs', 'Size / Dimension', 'Voltage / Wattage', 'Qty', 'Unit', 'Remarks'],
+      body: rows.map((item, idx) => [
+        String(idx + 1).padStart(2, '0'),
+        text(item.materialName),
+        text(pdfAttr(item, 'colorTempSpecs') || item.specifications),
+        text(pdfAttr(item, 'sizeDimension') || '—'),
+        text(pdfAttr(item, 'voltageWattage') || '—'),
+        pdfQty(item),
+        text(item.unit || 'pcs'),
+        text(item.remarks || '-'),
+      ]),
+      columnStyles: {
+        0: { cellWidth: 14, halign: 'center' },
+        1: { cellWidth: 44, fontStyle: 'bold' },
+        2: { cellWidth: 32 },
+        3: { cellWidth: 26 },
+        4: { cellWidth: 26 },
+        5: { cellWidth: 16, halign: 'right', fontStyle: 'bold' },
+        6: { cellWidth: 16 },
+        7: { cellWidth: 'auto' },
+      },
+    }
+  }
+
+  if (viewMode === 'CEILING_ELECTRICAL_SPEC') {
+    return {
+      color: [202, 138, 4],
+      head: ['SL NO', 'Item Name', 'Specification / Type', 'Rating / Dimension', 'Voltage / Wattage', 'Qty', 'Unit', 'Remarks'],
+      body: rows.map((item, idx) => [
+        String(idx + 1).padStart(2, '0'),
+        text(item.materialName),
+        text(item.specifications),
+        text(pdfAttr(item, 'ratingDimension') || '—'),
+        text(pdfAttr(item, 'voltageWattage') || '—'),
+        pdfQty(item),
+        text(item.unit || 'pcs'),
+        text(item.remarks || '-'),
+      ]),
+      columnStyles: {
+        0: { cellWidth: 14, halign: 'center' },
+        1: { cellWidth: 44, fontStyle: 'bold' },
+        2: { cellWidth: 34 },
+        3: { cellWidth: 26 },
+        4: { cellWidth: 24 },
+        5: { cellWidth: 16, halign: 'right', fontStyle: 'bold' },
+        6: { cellWidth: 16 },
+        7: { cellWidth: 'auto' },
+      },
+    }
+  }
+
   return {
     color: [37, 99, 235],
     head: ['Category', 'Material Name', 'Specification', 'Net Qty', 'Waste %', 'Final Qty', 'UOM', 'Phase / Usage', 'Remarks'],
@@ -2221,9 +2651,12 @@ function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: Sect
     const appSubType = category === 'APPLIANCES'
       ? ((attrs.applianceSubType as ApplianceSubType | undefined) ?? 'CORE_APPLIANCES')
       : undefined
+    const ceilingSubType = (category === 'CEILING' || category === 'ELECTRICAL_WORK')
+      ? ((attrs.ceilingSubType as CeilingSubType | undefined) ?? (category === 'ELECTRICAL_WORK' ? 'ELECTRICAL_DEVICES' : 'CEILING_LIGHTING'))
+      : undefined
 
     // Find or create a section for this (cardKey, category, subtype) combo.
-    const regKey = `${cardKey}::${category}::${wpSubType ?? ''}::${cabSubType ?? ''}::${accSubType ?? ''}::${appSubType ?? ''}`
+    const regKey = `${cardKey}::${category}::${wpSubType ?? ''}::${cabSubType ?? ''}::${accSubType ?? ''}::${appSubType ?? ''}::${ceilingSubType ?? ''}`
     let sectionId = sectionRegistry[regKey]
     if (!sectionId) {
       sectionId = `section-${Object.keys(sectionRegistry).length}`
@@ -2236,6 +2669,7 @@ function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: Sect
         cabinetSubType: cabSubType,
         accessoriesSubType: accSubType,
         applianceSubType: appSubType,
+        ceilingSubType,
         collapsed: false,
       })
     }
@@ -2310,6 +2744,11 @@ function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: Sect
         cabinetNicheCutOutSize: attrs.cabinetNicheCutOutSize || '',
         mepUtilityRequirements: attrs.mepUtilityRequirements || '',
         applianceSubType: attrs.applianceSubType || '',
+        ceilingSubType: attrs.ceilingSubType || ceilingSubType || '',
+        colorTempSpecs: attrs.colorTempSpecs || it.specifications || '',
+        sizeDimension: attrs.sizeDimension || '',
+        voltageWattage: attrs.voltageWattage || '',
+        ratingDimension: attrs.ratingDimension || '',
       },
       netQuantity: Number.isFinite(Number(it.netQuantity)) ? Number(it.netQuantity) : 1,
       wastagePercent: Number(it.wastagePercent) || 0,
@@ -3538,6 +3977,8 @@ function MaterialRowsTable({
   onLoadAccessoryHardwarePreset,
   onLoadAccessoryServicesPreset,
   onLoadAppliancePreset,
+  onLoadCeilingLightingPreset,
+  onLoadCeilingElectricalPreset,
   boqSavedAccessories,
   onSelectSavedAccessory,
   onSaveNewSavedAccessory,
@@ -3558,6 +3999,8 @@ function MaterialRowsTable({
   onLoadAccessoryHardwarePreset?: () => void
   onLoadAccessoryServicesPreset?: () => void
   onLoadAppliancePreset?: () => void
+  onLoadCeilingLightingPreset?: () => void
+  onLoadCeilingElectricalPreset?: () => void
   boqSavedAccessories?: BoqSavedAccessoryItem[]
   onSelectSavedAccessory?: (rowIndex: number, item: BoqSavedAccessoryItem) => void
   onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
@@ -3659,6 +4102,22 @@ function MaterialRowsTable({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-teal-500/10 text-teal-900 dark:text-teal-200 hover:bg-teal-500/20 rounded-md transition-colors border border-teal-500/20"
               >
                 <Sparkles className="w-3.5 h-3.5 text-teal-600" /> Load Core Appliances (SL 01 - 07)
+              </button>
+            )}
+            {onLoadCeilingLightingPreset && (
+              <button
+                onClick={onLoadCeilingLightingPreset}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-purple-500/10 text-purple-900 dark:text-purple-200 hover:bg-purple-500/20 rounded-md transition-colors border border-purple-500/20"
+              >
+                <Lightbulb className="w-3.5 h-3.5 text-purple-600" /> Load Ceiling Lighting Schedule (17 Items)
+              </button>
+            )}
+            {onLoadCeilingElectricalPreset && (
+              <button
+                onClick={onLoadCeilingElectricalPreset}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-yellow-500/10 text-yellow-900 dark:text-yellow-200 hover:bg-yellow-500/20 rounded-md transition-colors border border-yellow-500/20"
+              >
+                <Zap className="w-3.5 h-3.5 text-yellow-600" /> Load Drivers, Switches & Sockets (20 Items)
               </button>
             )}
           </div>
@@ -4976,6 +5435,401 @@ function MaterialRowsTable({
             </tbody>
           </table>
         </div>
+      ) : viewMode === 'CEILING_LIGHTING_SPEC' ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left min-w-[1050px] border-collapse divide-y divide-border/60">
+            <thead className="bg-purple-500/10 border-b border-purple-500/20 text-purple-950 dark:text-purple-200">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-14`}>SL</th>
+                <th className={`${GRID_TH} min-w-[200px]`}>Item Name</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Color Temp / Specs</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Size / Dimension</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Voltage / Wattage</th>
+                <th className={`${GRID_TH} w-24 text-center`}>Quantity</th>
+                <th className={`${GRID_TH} w-24 text-center`}>Unit</th>
+                <th className={`${GRID_TH} min-w-[180px]`}>Remarks</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40 bg-card">
+              {rows.map((item, ri) => {
+                const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                const catalogItem = CEILING_LIGHTING_CATALOG.find((c) => c.name.toLowerCase() === (item.materialName || '').toLowerCase())
+                const hasSize = Boolean(catalogItem?.sizeOptions && catalogItem.sizeOptions.length > 0)
+                const hasVoltage = Boolean(catalogItem?.voltageOptions && catalogItem.voltageOptions.length > 0)
+
+                return (
+                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
+                    {/* SL */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.srNo || String(ri + 1)}
+                        onChange={(e) => onUpdateVariant(ri, 'srNo', e.target.value)}
+                        placeholder={String(ri + 1)}
+                        className={GRID_CELL_MONO}
+                      />
+                    </td>
+
+                    {/* Item Name (Dropdown) */}
+                    <td className={GRID_TD}>
+                      <select
+                        value={item.materialName || ''}
+                        onChange={(e) => {
+                          const newName = e.target.value
+                          onChange(ri, 'materialName', newName)
+                          const catItem = CEILING_LIGHTING_CATALOG.find((c) => c.name === newName)
+                          if (catItem) {
+                            onChange(ri, 'specifications', catItem.defaultSpecs)
+                            onChange(ri, 'unit', catItem.unit)
+                            onChange(ri, 'remarks', catItem.defaultRemarks)
+                            if (catItem.defaultQty !== undefined) {
+                              onChange(ri, 'netQuantity', catItem.defaultQty)
+                              onChange(ri, 'finalQuantity', catItem.defaultQty)
+                            }
+                            onUpdateVariant(ri, 'colorTempSpecs', catItem.defaultSpecs)
+                            onUpdateVariant(ri, 'sizeDimension', catItem.defaultSize || '—')
+                            onUpdateVariant(ri, 'voltageWattage', catItem.defaultVoltage || '—')
+                          }
+                        }}
+                        className={`${GRID_CELL_SELECT} font-semibold`}
+                      >
+                        <option value="" disabled>-- Select Light Item --</option>
+                        {CEILING_LIGHTING_CATALOG.map((c) => (
+                          <option key={c.name} value={c.name}>{c.name}</option>
+                        ))}
+                        {item.materialName && !CEILING_LIGHTING_CATALOG.some(c => c.name.toLowerCase() === item.materialName.toLowerCase()) && (
+                          <option value={item.materialName}>{item.materialName}</option>
+                        )}
+                      </select>
+                    </td>
+
+                    {/* Color Temp / Specs */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.colorTempSpecs !== undefined ? String(attrs.colorTempSpecs) : (item.specifications || '')}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'colorTempSpecs', val)
+                          onChange(ri, 'specifications', val)
+                        }}
+                        placeholder="e.g. 4000 K"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* Size / Dimension */}
+                    <td className={GRID_TD}>
+                      {hasSize ? (
+                        <select
+                          value={attrs.sizeDimension || catalogItem?.defaultSize || ''}
+                          onChange={(e) => {
+                            const newSize = e.target.value
+                            onUpdateVariant(ri, 'sizeDimension', newSize)
+                            if (catalogItem?.name === 'T-5 Light') {
+                              const newRemark = newSize === '4 Feet' ? 'Main Profile Light' : 'Profile Light'
+                              onChange(ri, 'remarks', newRemark)
+                            }
+                          }}
+                          className={GRID_CELL_SELECT}
+                        >
+                          {catalogItem?.sizeOptions?.map((sz) => (
+                            <option key={sz} value={sz}>{sz}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="w-full px-2.5 py-1.5 text-xs text-center text-muted-foreground/40 bg-muted/20 select-none font-mono">
+                          —
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Voltage / Wattage */}
+                    <td className={GRID_TD}>
+                      {hasVoltage ? (
+                        catalogItem?.voltageOptions && catalogItem.voltageOptions.length > 1 ? (
+                          <select
+                            value={attrs.voltageWattage || catalogItem?.defaultVoltage || ''}
+                            onChange={(e) => {
+                              const newVolt = e.target.value
+                              onUpdateVariant(ri, 'voltageWattage', newVolt)
+                              if (catalogItem?.name === 'Silicon Light') {
+                                const newRemark = newVolt === '220V AC' ? 'Flexible Strip' : 'Low Volt Strip'
+                                onChange(ri, 'remarks', newRemark)
+                              }
+                            }}
+                            className={GRID_CELL_SELECT}
+                          >
+                            {catalogItem.voltageOptions.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={attrs.voltageWattage !== undefined ? String(attrs.voltageWattage) : (catalogItem?.defaultVoltage || '')}
+                            onChange={(e) => onUpdateVariant(ri, 'voltageWattage', e.target.value)}
+                            placeholder="e.g. 15 Watt"
+                            className={GRID_CELL_INPUT}
+                          />
+                        )
+                      ) : (
+                        <div className="w-full px-2.5 py-1.5 text-xs text-center text-muted-foreground/40 bg-muted/20 select-none font-mono">
+                          —
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Quantity */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="number"
+                        step="any"
+                        value={attrs.qtyLabel !== undefined && attrs.qtyLabel !== '' ? attrs.qtyLabel : (Number(item.netQuantity) === 0 && attrs.sourceQuantityStatus === 'NEEDS_CONFIRMATION' ? '' : (item.netQuantity ?? ''))}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'qtyLabel', val)
+                          const num = parseFloat(val)
+                          const validNum = isNaN(num) ? 0 : num
+                          onChange(ri, 'netQuantity', validNum)
+                          onChange(ri, 'finalQuantity', validNum)
+                        }}
+                        placeholder="0"
+                        className={GRID_CELL_NUM}
+                      />
+                    </td>
+
+                    {/* Unit */}
+                    <td className={GRID_TD}>
+                      <select
+                        value={item.unit || 'pcs'}
+                        onChange={(e) => onChange(ri, 'unit', e.target.value)}
+                        className={`${GRID_CELL_SELECT} text-center font-medium`}
+                      >
+                        <option value="pcs">pcs</option>
+                        <option value="rft">rft</option>
+                        <option value="set">set</option>
+                        <option value="Nos">Nos</option>
+                        <option value="Pcs">Pcs</option>
+                      </select>
+                    </td>
+
+                    {/* Remarks */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={item.remarks || ''}
+                        onChange={(e) => onChange(ri, 'remarks', e.target.value)}
+                        placeholder="Remarks"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* Delete */}
+                    <td className="p-0 w-8 text-center align-middle">
+                      <button
+                        onClick={() => onRemoveRow(ri)}
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                        title="Remove row"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : viewMode === 'CEILING_ELECTRICAL_SPEC' ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left min-w-[1050px] border-collapse divide-y divide-border/60">
+            <thead className="bg-amber-500/10 border-b border-amber-500/20 text-amber-950 dark:text-amber-200">
+              <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-14`}>SL</th>
+                <th className={`${GRID_TH} min-w-[200px]`}>Item Name</th>
+                <th className={`${GRID_TH} min-w-[160px]`}>Specification / Type</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Rating / Dimension</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Voltage / Wattage</th>
+                <th className={`${GRID_TH} w-24 text-center`}>Quantity</th>
+                <th className={`${GRID_TH} w-24 text-center`}>Unit</th>
+                <th className={`${GRID_TH} min-w-[180px]`}>Remarks</th>
+                <th className="px-2 py-2 w-8 text-center"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/40 bg-card">
+              {rows.map((item, ri) => {
+                const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                const catalogItem = CEILING_ELECTRICAL_CATALOG.find((c) => c.name.toLowerCase() === (item.materialName || '').toLowerCase())
+                const hasRating = catalogItem ? catalogItem.hasRating : Boolean(attrs.ratingDimension && attrs.ratingDimension !== '—')
+                const hasVoltage = catalogItem ? catalogItem.hasVoltage : Boolean(attrs.voltageWattage && attrs.voltageWattage !== '—')
+
+                return (
+                  <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
+                    {/* SL */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.srNo || String(ri + 1)}
+                        onChange={(e) => onUpdateVariant(ri, 'srNo', e.target.value)}
+                        placeholder={String(ri + 1)}
+                        className={GRID_CELL_MONO}
+                      />
+                    </td>
+
+                    {/* Item Name (Dropdown) */}
+                    <td className={GRID_TD}>
+                      <select
+                        value={item.materialName || ''}
+                        onChange={(e) => {
+                          const newName = e.target.value
+                          onChange(ri, 'materialName', newName)
+                          const catItem = CEILING_ELECTRICAL_CATALOG.find((c) => c.name === newName)
+                          if (catItem) {
+                            onChange(ri, 'specifications', catItem.defaultSpecs)
+                            onChange(ri, 'unit', catItem.unit)
+                            onChange(ri, 'remarks', catItem.defaultRemarks)
+                            if (catItem.defaultQty !== undefined) {
+                              onChange(ri, 'netQuantity', catItem.defaultQty)
+                              onChange(ri, 'finalQuantity', catItem.defaultQty)
+                            }
+                            onUpdateVariant(ri, 'ratingDimension', catItem.defaultRating || '—')
+                            onUpdateVariant(ri, 'voltageWattage', catItem.defaultVoltage || '—')
+                          }
+                        }}
+                        className={`${GRID_CELL_SELECT} font-semibold`}
+                      >
+                        <option value="" disabled>-- Select Electrical Item --</option>
+                        {CEILING_ELECTRICAL_CATALOG.map((c) => (
+                          <option key={c.name} value={c.name}>{c.name}</option>
+                        ))}
+                        {item.materialName && !CEILING_ELECTRICAL_CATALOG.some(c => c.name.toLowerCase() === item.materialName.toLowerCase()) && (
+                          <option value={item.materialName}>{item.materialName}</option>
+                        )}
+                      </select>
+                    </td>
+
+                    {/* Specification / Type */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={item.specifications || ''}
+                        onChange={(e) => onChange(ri, 'specifications', e.target.value)}
+                        placeholder="e.g. 12V DC Output"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* Rating / Dimension */}
+                    <td className={GRID_TD}>
+                      {hasRating ? (
+                        <input
+                          type="text"
+                          value={attrs.ratingDimension !== undefined ? String(attrs.ratingDimension) : (catalogItem?.defaultRating || '')}
+                          onChange={(e) => onUpdateVariant(ri, 'ratingDimension', e.target.value)}
+                          placeholder="e.g. Standard"
+                          className={GRID_CELL_INPUT}
+                        />
+                      ) : (
+                        <div className="w-full px-2.5 py-1.5 text-xs text-center text-muted-foreground/40 bg-muted/20 select-none font-mono">
+                          —
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Voltage / Wattage */}
+                    <td className={GRID_TD}>
+                      {hasVoltage ? (
+                        catalogItem?.voltageOptions && catalogItem.voltageOptions.length > 0 ? (
+                          <select
+                            value={attrs.voltageWattage || catalogItem?.defaultVoltage || ''}
+                            onChange={(e) => onUpdateVariant(ri, 'voltageWattage', e.target.value)}
+                            className={GRID_CELL_SELECT}
+                          >
+                            {catalogItem.voltageOptions.map((opt) => (
+                              <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={attrs.voltageWattage !== undefined ? String(attrs.voltageWattage) : (catalogItem?.defaultVoltage || '')}
+                            onChange={(e) => onUpdateVariant(ri, 'voltageWattage', e.target.value)}
+                            placeholder="e.g. 60 Watt"
+                            className={GRID_CELL_INPUT}
+                          />
+                        )
+                      ) : (
+                        <div className="w-full px-2.5 py-1.5 text-xs text-center text-muted-foreground/40 bg-muted/20 select-none font-mono">
+                          —
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Quantity */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="number"
+                        step="any"
+                        value={attrs.qtyLabel !== undefined && attrs.qtyLabel !== '' ? attrs.qtyLabel : (Number(item.netQuantity) === 0 && attrs.sourceQuantityStatus === 'NEEDS_CONFIRMATION' ? '' : (item.netQuantity ?? ''))}
+                        onChange={(e) => {
+                          const val = e.target.value
+                          onUpdateVariant(ri, 'qtyLabel', val)
+                          const num = parseFloat(val)
+                          const validNum = isNaN(num) ? 0 : num
+                          onChange(ri, 'netQuantity', validNum)
+                          onChange(ri, 'finalQuantity', validNum)
+                        }}
+                        placeholder="0"
+                        className={GRID_CELL_NUM}
+                      />
+                    </td>
+
+                    {/* Unit */}
+                    <td className={GRID_TD}>
+                      <select
+                        value={item.unit || 'pcs'}
+                        onChange={(e) => onChange(ri, 'unit', e.target.value)}
+                        className={`${GRID_CELL_SELECT} text-center font-medium`}
+                      >
+                        <option value="pcs">pcs</option>
+                        <option value="coil/rft">coil/rft</option>
+                        <option value="roll">roll</option>
+                        <option value="rft">rft</option>
+                        <option value="set">set</option>
+                        <option value="Nos">Nos</option>
+                        <option value="Pcs">Pcs</option>
+                      </select>
+                    </td>
+
+                    {/* Remarks */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={item.remarks || ''}
+                        onChange={(e) => onChange(ri, 'remarks', e.target.value)}
+                        placeholder="Remarks"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* Delete */}
+                    <td className="p-0 w-8 text-center align-middle">
+                      <button
+                        onClick={() => onRemoveRow(ri)}
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                        title="Remove row"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         /* ── 8. Standard 8-Column Material Table ── */
         <div className="overflow-x-auto">
@@ -5208,6 +6062,24 @@ function MaterialRowsTable({
               + Add Core Appliances
             </button>
           )}
+          {onLoadCeilingLightingPreset && rows.length > 0 && (
+            <button
+              onClick={onLoadCeilingLightingPreset}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors border border-purple-200 dark:border-purple-800"
+            >
+              <Lightbulb className="w-3 h-3 text-purple-600" />
+              + Add Ceiling Lights (17 Items)
+            </button>
+          )}
+          {onLoadCeilingElectricalPreset && rows.length > 0 && (
+            <button
+              onClick={onLoadCeilingElectricalPreset}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors border border-amber-200 dark:border-amber-800"
+            >
+              <Zap className="w-3 h-3 text-amber-600" />
+              + Add Drivers & Switches (20 Items)
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -5228,6 +6100,7 @@ function SectionBlock({
   onLoadCabinetPreset,
   onLoadAccessoryPreset,
   onLoadAppliancePreset,
+  onLoadCeilingPreset,
   onToggleCollapse,
   onRemove,
   boqSavedAccessories,
@@ -5244,6 +6117,7 @@ function SectionBlock({
   onLoadCabinetPreset?: (subType: CabinetSubType) => void
   onLoadAccessoryPreset?: (subType: AccessoriesSubType) => void
   onLoadAppliancePreset?: (subType: ApplianceSubType) => void
+  onLoadCeilingPreset?: (subType: CeilingSubType) => void
   onToggleCollapse: () => void
   onRemove: () => void
   boqSavedAccessories?: BoqSavedAccessoryItem[]
@@ -5260,7 +6134,9 @@ function SectionBlock({
     ? ACCESSORIES_SUBTYPES.find((s) => s.key === section.accessoriesSubType)
     : section.applianceSubType
     ? APPLIANCE_SUBTYPES.find((s) => s.key === section.applianceSubType)
-    : null
+    : section.ceilingSubType
+    ? CEILING_SUBTYPES.find((s) => s.key === section.ceilingSubType)
+    : (section.category === 'CEILING' ? CEILING_SUBTYPES[0] : section.category === 'ELECTRICAL_WORK' ? CEILING_SUBTYPES[1] : null)
   const colors = CATEGORY_COLORS[section.category]
   const importedRows = rows.filter((item) => item.variantAttributes?.sourceScheduleKey)
   const pendingImportedRows = importedRows.filter((item) => item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION')
@@ -5348,6 +6224,8 @@ function SectionBlock({
             onLoadAccessoryHardwarePreset={section.accessoriesSubType === 'HARDWARE_ACCESSORIES' && onLoadAccessoryPreset ? () => onLoadAccessoryPreset('HARDWARE_ACCESSORIES') : undefined}
             onLoadAccessoryServicesPreset={section.accessoriesSubType === 'SERVICES_DELIVERABLES' && onLoadAccessoryPreset ? () => onLoadAccessoryPreset('SERVICES_DELIVERABLES') : undefined}
             onLoadAppliancePreset={section.applianceSubType === 'CORE_APPLIANCES' && onLoadAppliancePreset ? () => onLoadAppliancePreset('CORE_APPLIANCES') : undefined}
+            onLoadCeilingLightingPreset={viewMode === 'CEILING_LIGHTING_SPEC' && onLoadCeilingPreset ? () => onLoadCeilingPreset('CEILING_LIGHTING') : undefined}
+            onLoadCeilingElectricalPreset={viewMode === 'CEILING_ELECTRICAL_SPEC' && onLoadCeilingPreset ? () => onLoadCeilingPreset('ELECTRICAL_DEVICES') : undefined}
             boqSavedAccessories={boqSavedAccessories}
             onSelectSavedAccessory={onSelectSavedAccessory}
             onSaveNewSavedAccessory={onSaveNewSavedAccessory}
@@ -5362,7 +6240,7 @@ function SectionBlock({
    Sub-component: "Add Section" inline form
 ───────────────────────────────────────────── */
 function AddSectionForm({ onAdd, onCancel }: {
-  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, includeSourceSchedule?: boolean) => void
+  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, ceilingSubType?: CeilingSubType, includeSourceSchedule?: boolean) => void
   onCancel: () => void
 }) {
   const [cat, setCat] = useState<RequisitionWorkCategory>('WALL_PANELING')
@@ -5370,6 +6248,7 @@ function AddSectionForm({ onAdd, onCancel }: {
   const [cabSub, setCabSub] = useState<CabinetSubType>('BOARD_SPEC')
   const [accSub, setAccSub] = useState<AccessoriesSubType>('HARDWARE_ACCESSORIES')
   const [appSub, setAppSub] = useState<ApplianceSubType>('CORE_APPLIANCES')
+  const [ceilingSub, setCeilingSub] = useState<CeilingSubType>('CEILING_LIGHTING')
   const [includeSourceSchedule, setIncludeSourceSchedule] = useState(false)
 
   return (
@@ -5436,7 +6315,19 @@ function AddSectionForm({ onAdd, onCancel }: {
         </select>
       )}
 
-      <ScheduleSelection category={cat} checked={includeSourceSchedule} onChange={setIncludeSourceSchedule} />
+      {cat === 'CEILING' && (
+        <select
+          value={ceilingSub}
+          onChange={(e) => setCeilingSub(e.target.value as CeilingSubType)}
+          className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-purple-500 font-medium shadow-xs"
+        >
+          {CEILING_SUBTYPES.map((s) => (
+            <option key={s.key} value={s.key}>{s.label}</option>
+          ))}
+        </select>
+      )}
+
+      <ScheduleSelection category={cat} ceilingSubType={ceilingSub} checked={includeSourceSchedule} onChange={setIncludeSourceSchedule} />
 
       <button
         onClick={() => onAdd(
@@ -5445,6 +6336,7 @@ function AddSectionForm({ onAdd, onCancel }: {
           cat === 'CABINETS_CLOSETS' ? cabSub : undefined,
           cat === 'ACCESSORIES' ? accSub : undefined,
           cat === 'APPLIANCES' ? appSub : undefined,
+          cat === 'CEILING' ? ceilingSub : cat === 'ELECTRICAL_WORK' ? 'ELECTRICAL_DEVICES' : undefined,
           includeSourceSchedule
         )}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-xs"
@@ -5458,14 +6350,16 @@ function AddSectionForm({ onAdd, onCancel }: {
   )
 }
 
-function ScheduleSelection({ category, checked, onChange }: {
+function ScheduleSelection({ category, ceilingSubType, checked, onChange }: {
   category: RequisitionWorkCategory
+  ceilingSubType?: CeilingSubType
   checked: boolean
   onChange: (checked: boolean) => void
 }) {
   if (category !== 'CEILING' && category !== 'ELECTRICAL_WORK') return null
-  const label = category === 'CEILING' ? 'Ceiling Light XL list' : 'Electrical devices list'
-  const count = category === 'CEILING' ? CEILING_LIGHTING_SCHEDULE.length : ELECTRICAL_WORK_SCHEDULE.length
+  const isLighting = category === 'CEILING' && ceilingSubType !== 'ELECTRICAL_DEVICES'
+  const label = isLighting ? 'Ceiling Lighting list' : 'Drivers, Switches & Sockets list'
+  const count = isLighting ? CEILING_LIGHTING_SCHEDULE.length : CEILING_ELECTRICAL_SCHEDULE.length
   return (
     <label className="flex basis-full cursor-pointer items-start gap-2 rounded-lg border border-sky-500/25 bg-sky-500/5 px-3 py-2 text-xs">
       <input type="checkbox" className="mt-0.5 accent-sky-700" checked={checked} onChange={(event) => onChange(event.target.checked)} />
@@ -5486,13 +6380,14 @@ function AddSectionModal({
   isOpen: boolean
   onClose: () => void
   productTitle: string
-  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, includeSourceSchedule?: boolean) => void
+  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, ceilingSubType?: CeilingSubType, includeSourceSchedule?: boolean) => void
 }) {
   const [cat, setCat] = useState<RequisitionWorkCategory>('WALL_PANELING')
   const [sub, setSub] = useState<WallPanelingSubType>('CORE_BOARDS')
   const [cabSub, setCabSub] = useState<CabinetSubType>('BOARD_SPEC')
   const [accSub, setAccSub] = useState<AccessoriesSubType>('HARDWARE_ACCESSORIES')
   const [appSub, setAppSub] = useState<ApplianceSubType>('CORE_APPLIANCES')
+  const [ceilingSub, setCeilingSub] = useState<CeilingSubType>('CEILING_LIGHTING')
   const [includeSourceSchedule, setIncludeSourceSchedule] = useState(false)
 
   if (!isOpen) return null
@@ -5588,7 +6483,22 @@ function AddSectionModal({
             </div>
           )}
 
-          <ScheduleSelection category={cat} checked={includeSourceSchedule} onChange={setIncludeSourceSchedule} />
+          {cat === 'CEILING' && (
+            <div>
+              <label className="text-xs font-bold text-foreground block mb-1.5">Ceiling Sub-Type</label>
+              <select
+                value={ceilingSub}
+                onChange={(e) => setCeilingSub(e.target.value as CeilingSubType)}
+                className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 font-medium focus:ring-1 focus:ring-purple-500 shadow-xs"
+              >
+                {CEILING_SUBTYPES.map((s) => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <ScheduleSelection category={cat} ceilingSubType={ceilingSub} checked={includeSourceSchedule} onChange={setIncludeSourceSchedule} />
         </div>
 
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/70">
@@ -5606,6 +6516,7 @@ function AddSectionModal({
                 cat === 'CABINETS_CLOSETS' ? cabSub : undefined,
                 cat === 'ACCESSORIES' ? accSub : undefined,
                 cat === 'APPLIANCES' ? appSub : undefined,
+                cat === 'CEILING' ? ceilingSub : cat === 'ELECTRICAL_WORK' ? 'ELECTRICAL_DEVICES' : undefined,
                 includeSourceSchedule
               )
               onClose()
@@ -5655,7 +6566,7 @@ function QuotationLineItemCard({
   onLoadCabinetPreset: (sectionId: string, subType: CabinetSubType) => void
   onLoadAccessoryPreset?: (sectionId: string, subType: AccessoriesSubType) => void
   onLoadAppliancePreset?: (sectionId: string, subType: ApplianceSubType) => void
-  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, includeSourceSchedule?: boolean) => void
+  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, ceilSubType?: CeilingSubType, includeSourceSchedule?: boolean) => void
   onRemoveSection: (sectionId: string) => void
   onToggleSectionCollapse: (sectionId: string) => void
   boqSavedAccessories?: BoqSavedAccessoryItem[]
@@ -5769,8 +6680,8 @@ function QuotationLineItemCard({
           {/* Add Section form or trigger */}
           {showAddSection ? (
             <AddSectionForm
-              onAdd={(cat, wpSub, cabSub, accSub, appSub, includeSchedule) => {
-                onAddSection(cat, wpSub, cabSub, accSub, appSub, includeSchedule)
+              onAdd={(cat, wpSub, cabSub, accSub, appSub, ceilSub, includeSchedule) => {
+                onAddSection(cat, wpSub, cabSub, accSub, appSub, ceilSub, includeSchedule)
                 setShowAddSection(false)
               }}
               onCancel={() => setShowAddSection(false)}
@@ -5822,7 +6733,7 @@ function ExtraCard({
   onLoadCabinetPreset: (sectionId: string, subType: CabinetSubType) => void
   onLoadAccessoryPreset?: (sectionId: string, subType: AccessoriesSubType) => void
   onLoadAppliancePreset?: (sectionId: string, subType: ApplianceSubType) => void
-  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, includeSourceSchedule?: boolean) => void
+  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, ceilSubType?: CeilingSubType, includeSourceSchedule?: boolean) => void
   onRemoveSection: (sectionId: string) => void
   onToggleSectionCollapse: (sectionId: string) => void
   boqSavedAccessories?: BoqSavedAccessoryItem[]
@@ -5889,8 +6800,8 @@ function ExtraCard({
 
           {showAddSection ? (
             <AddSectionForm
-              onAdd={(cat, wpSub, cabSub, accSub, appSub, includeSchedule) => {
-                onAddSection(cat, wpSub, cabSub, accSub, appSub, includeSchedule)
+              onAdd={(cat, wpSub, cabSub, accSub, appSub, ceilSub, includeSchedule) => {
+                onAddSection(cat, wpSub, cabSub, accSub, appSub, ceilSub, includeSchedule)
                 setShowAddSection(false)
               }}
               onCancel={() => setShowAddSection(false)}
@@ -6167,24 +7078,27 @@ export function RequisitionBuilderClient({
     cabinetSubType?: CabinetSubType,
     accessoriesSubType?: AccessoriesSubType,
     applianceSubType?: ApplianceSubType,
+    ceilingSubType?: CeilingSubType,
     quotationLineItemId?: string,
     includeSourceSchedule = false,
   ) => {
-    const scheduleKey = category === 'CEILING' ? 'ceiling-light-xl-v1' : category === 'ELECTRICAL_WORK' ? 'ceiling-electrical-xl-v1' : null
+    const isElectrical = category === 'ELECTRICAL_WORK' || (category === 'CEILING' && ceilingSubType === 'ELECTRICAL_DEVICES')
+    const isLighting = category === 'CEILING' && ceilingSubType !== 'ELECTRICAL_DEVICES'
+    const scheduleKey = isLighting ? 'ceiling-light-xl-v2' : isElectrical ? 'ceiling-electrical-xl-v1' : null
     if (includeSourceSchedule && scheduleKey) {
       const alreadyLoaded = (sectionsMap[cardKey] ?? []).some((section) =>
         (itemsMap[sectionItemKey(cardKey, section.id)] ?? []).some((item) => item.variantAttributes?.sourceScheduleKey === scheduleKey),
       )
       if (alreadyLoaded) {
-        setSaveError(`The ${category === 'CEILING' ? 'ceiling lighting' : 'electrical'} schedule is already loaded for this quotation item. Add rows to the existing section instead of importing it again.`)
+        setSaveError(`The ${isLighting ? 'ceiling lighting' : 'electrical devices'} schedule is already loaded for this quotation item. Add rows to the existing section instead of importing it again.`)
         return
       }
     }
     const sectionId = `section-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-    const initialRows = includeSourceSchedule && category === 'CEILING'
-      ? CEILING_LIGHTING_SCHEDULE.map((item) => ({ ...item, quotationLineItemId }))
-      : includeSourceSchedule && category === 'ELECTRICAL_WORK'
-      ? ELECTRICAL_WORK_SCHEDULE.map((item) => ({ ...item, quotationLineItemId }))
+    const initialRows = includeSourceSchedule && isLighting
+      ? CEILING_LIGHTING_SCHEDULE.map((item) => ({ ...item, quotationLineItemId, variantAttributes: { ...(item.variantAttributes || {}), ceilingSubType: 'CEILING_LIGHTING' } }))
+      : includeSourceSchedule && isElectrical
+      ? ELECTRICAL_WORK_SCHEDULE.map((item) => ({ ...item, quotationLineItemId, variantAttributes: { ...(item.variantAttributes || {}), ceilingSubType: 'ELECTRICAL_DEVICES' } }))
       : category === 'APPLIANCES' && applianceSubType === 'CORE_APPLIANCES'
       ? SAMPLE_CORE_APPLIANCE_ITEMS.map((item) => ({
           ...item,
@@ -6192,7 +7106,7 @@ export function RequisitionBuilderClient({
           variantAttributes: { ...(item.variantAttributes || {}), applianceSubType },
         }))
       : (() => {
-          const item = blankItem(category, wallPanelingSubType, cabinetSubType, accessoriesSubType, applianceSubType, quotationLineItemId)
+          const item = blankItem(category, wallPanelingSubType, cabinetSubType, accessoriesSubType, applianceSubType, ceilingSubType, quotationLineItemId)
           // Auto-set srNo '1' for first cabinet row
           if (category === 'CABINETS_CLOSETS') {
             item.variantAttributes = { ...item.variantAttributes, srNo: '1', lineNo: '1' }
@@ -6202,7 +7116,7 @@ export function RequisitionBuilderClient({
 
     setSectionsMap((prev) => ({
       ...prev,
-      [cardKey]: [...(prev[cardKey] ?? []), { id: sectionId, category, wallPanelingSubType, cabinetSubType, accessoriesSubType, applianceSubType, collapsed: false }],
+      [cardKey]: [...(prev[cardKey] ?? []), { id: sectionId, category, wallPanelingSubType, cabinetSubType, accessoriesSubType, applianceSubType, ceilingSubType, collapsed: false }],
     }))
     setItemsMap((prev) => ({
       ...prev,
@@ -6285,6 +7199,7 @@ export function RequisitionBuilderClient({
         sectionInfo?.cabinetSubType,
         sectionInfo?.accessoriesSubType,
         sectionInfo?.applianceSubType,
+        sectionInfo?.ceilingSubType,
         quotationLineItemId
       )
       // Auto-increment srNo for cabinet rows
@@ -6408,6 +7323,17 @@ export function RequisitionBuilderClient({
       quotationLineItemId,
       variantAttributes: { ...(item.variantAttributes || {}), applianceSubType: subType },
     }))
+    const key = sectionItemKey(cardKey, sectionId)
+    setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
+  }
+
+  const loadCeilingPresetForSection = (cardKey: string, sectionId: string, subType: CeilingSubType, quotationLineItemId?: string) => {
+    const presetItems = (subType === 'ELECTRICAL_DEVICES' ? CEILING_ELECTRICAL_SCHEDULE : CEILING_LIGHTING_SCHEDULE)
+      .map((item) => ({
+        ...item,
+        quotationLineItemId,
+        variantAttributes: { ...(item.variantAttributes || {}), ceilingSubType: subType },
+      }))
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
   }
@@ -6930,7 +7856,7 @@ export function RequisitionBuilderClient({
         isOpen={isAddSectionModalOpen}
         onClose={() => setIsAddSectionModalOpen(false)}
         productTitle={currentSlide?.title ?? 'Quotation Product'}
-        onAdd={(cat, wpSub, cabSub, accSub, appSub, includeSchedule) => {
+        onAdd={(cat, wpSub, cabSub, accSub, appSub, ceilSub, includeSchedule) => {
           addSection(
             currentCardKey,
             cat,
@@ -6938,6 +7864,7 @@ export function RequisitionBuilderClient({
             cabSub,
             accSub,
             appSub,
+            ceilSub,
             currentSlide?.type === 'LINE_ITEM' ? currentSlide.item?.id : undefined,
             includeSchedule
           )
@@ -7284,6 +8211,7 @@ export function RequisitionBuilderClient({
                       onLoadCabinetPreset={(subType) => loadCabinetPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
                       onLoadAccessoryPreset={(subType) => loadAccessoryPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
                       onLoadAppliancePreset={(subType) => loadAppliancePresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
+                      onLoadCeilingPreset={(subType) => loadCeilingPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
                       onToggleCollapse={() => toggleSectionCollapse(currentCardKey, section.id)}
                       onRemove={() => removeSection(currentCardKey, section.id)}
                       boqSavedAccessories={boqSavedAccessories}
@@ -7371,6 +8299,7 @@ export function RequisitionBuilderClient({
                       onLoadCabinetPreset={(subType) => loadCabinetPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
                       onLoadAccessoryPreset={(subType) => loadAccessoryPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
                       onLoadAppliancePreset={(subType) => loadAppliancePresetForSection(EXTRA_KEY, section.id, subType, undefined)}
+                      onLoadCeilingPreset={(subType) => loadCeilingPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
                       onToggleCollapse={() => toggleSectionCollapse(EXTRA_KEY, section.id)}
                       onRemove={() => removeSection(EXTRA_KEY, section.id)}
                       boqSavedAccessories={boqSavedAccessories}
@@ -7435,7 +8364,7 @@ export function RequisitionBuilderClient({
                             onLoadCabinetPreset={(sectionId, subType) => loadCabinetPresetForSection(li.id, sectionId, subType, li.id)}
                             onLoadAccessoryPreset={(sectionId, subType) => loadAccessoryPresetForSection(li.id, sectionId, subType, li.id)}
                             onLoadAppliancePreset={(sectionId, subType) => loadAppliancePresetForSection(li.id, sectionId, subType, li.id)}
-                            onAddSection={(cat, wpSub, cabSub, accSub, appSub, includeSchedule) => addSection(li.id, cat, wpSub, cabSub, accSub, appSub, li.id, includeSchedule)}
+                            onAddSection={(cat, wpSub, cabSub, accSub, appSub, ceilSub, includeSchedule) => addSection(li.id, cat, wpSub, cabSub, accSub, appSub, ceilSub, li.id, includeSchedule)}
                             onRemoveSection={(sectionId) => removeSection(li.id, sectionId)}
                             onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(li.id, sectionId)}
                             boqSavedAccessories={boqSavedAccessories}
@@ -7463,7 +8392,7 @@ export function RequisitionBuilderClient({
             onLoadCabinetPreset={(sectionId, subType) => loadCabinetPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
             onLoadAccessoryPreset={(sectionId, subType) => loadAccessoryPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
             onLoadAppliancePreset={(sectionId, subType) => loadAppliancePresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
-            onAddSection={(cat, wpSub, cabSub, accSub, appSub, includeSchedule) => addSection(EXTRA_KEY, cat, wpSub, cabSub, accSub, appSub, undefined, includeSchedule)}
+            onAddSection={(cat, wpSub, cabSub, accSub, appSub, ceilSub, includeSchedule) => addSection(EXTRA_KEY, cat, wpSub, cabSub, accSub, appSub, ceilSub, undefined, includeSchedule)}
             onRemoveSection={(sectionId) => removeSection(EXTRA_KEY, sectionId)}
             onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(EXTRA_KEY, sectionId)}
             boqSavedAccessories={boqSavedAccessories}
