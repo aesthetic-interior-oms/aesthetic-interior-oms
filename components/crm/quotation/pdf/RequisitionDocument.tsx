@@ -384,6 +384,8 @@ export type RequisitionAggregatedMaterial = {
   finalQuantity: number
   unit: string
   usedInProducts: string[]
+  productType?: string
+  materialDescription?: string
 }
 
 export type RequisitionProductSection = {
@@ -414,6 +416,8 @@ export type RequisitionPdfData = {
   aggregatedMaterials: RequisitionAggregatedMaterial[]
   productGroups: RequisitionProductGroup[]
   notes?: string
+  summaryOnly?: boolean
+  isWallPanelingFormat?: boolean
 }
 
 export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
@@ -429,8 +433,11 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
     aggregatedMaterials,
     productGroups,
     notes,
+    summaryOnly = false,
+    isWallPanelingFormat = false,
   } = data
 
+  const isWallPanelingScope = isWallPanelingFormat || aggregatedMaterials.some((m) => Boolean(m.productType))
   const totalAggregatedItems = aggregatedMaterials.length
   const totalProjectQty = aggregatedMaterials.reduce((sum, item) => sum + (Number(item.finalQuantity) || 0), 0)
 
@@ -454,63 +461,130 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
 
         {/* Aggregated Project Summary Banner */}
         <View style={styles.summaryTitleBox}>
-          <Text style={styles.summaryTitleText}>Full Project Material Aggregation Summary</Text>
+          <Text style={styles.summaryTitleText}>Requisition Summary</Text>
           <Text style={styles.summarySubtitleText}>
-            {totalAggregatedItems} Unique Material{totalAggregatedItems === 1 ? '' : 's'} across full project
+            {totalAggregatedItems} Material Item{totalAggregatedItems === 1 ? '' : 's'} across project
           </Text>
         </View>
 
         {/* Aggregated Summary Table */}
         <View style={styles.table}>
-          <View style={styles.tHead}>
-            <Text style={[styles.thCol, { width: '5%', textAlign: 'center' }]}>SL</Text>
-            <Text style={[styles.thCol, { width: '38%' }]}>Material Name &amp; Specification</Text>
-            <Text style={[styles.thCol, { width: '18%' }]}>Type / Section</Text>
-            <Text style={[styles.thCol, { width: '10%', textAlign: 'center' }]}>Net Qty</Text>
-            <Text style={[styles.thCol, { width: '8%', textAlign: 'center' }]}>Waste</Text>
-            <Text style={[styles.thCol, { width: '12%', textAlign: 'center', color: '#fbd38d' }]}>Project Qty</Text>
-            <Text style={[styles.thCol, { width: '9%', textAlign: 'center', borderRightWidth: 0 }]}>Unit</Text>
-          </View>
-
-          {aggregatedMaterials.length === 0 ? (
-            <View style={[styles.tRow, { padding: 8, justifyContent: 'center' }]}>
-              <Text style={{ fontSize: 8, color: '#718096' }}>No requisition materials specified in this category.</Text>
-            </View>
-          ) : (
-            aggregatedMaterials.map((mat, idx) => (
-              <View key={mat.key || idx} style={[styles.tRow, idx % 2 === 1 ? styles.tRowAlt : {}]} wrap={false}>
-                <Text style={[styles.tdCol, { width: '5%', textAlign: 'center' }]}>
-                  {String(idx + 1).padStart(2, '0')}
-                </Text>
-                <View style={[styles.tdCol, { width: '38%' }]}>
-                  <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8.5 }}>{mat.name}</Text>
-                  {mat.specifications ? (
-                    <Text style={{ fontSize: 7, color: '#4a5568', marginTop: 1 }}>{mat.specifications}</Text>
-                  ) : null}
-                  {mat.usedInProducts.length > 0 ? (
-                    <Text style={{ fontSize: 6.5, color: '#718096', marginTop: 1 }}>
-                      Used in: {mat.usedInProducts.slice(0, 3).join(', ')}
-                      {mat.usedInProducts.length > 3 ? ` +${mat.usedInProducts.length - 3} more` : ''}
-                    </Text>
-                  ) : null}
-                </View>
-                <View style={[styles.tdCol, { width: '18%' }]}>
-                  <Text style={{ fontSize: 7.5, color: '#2d3748' }}>{mat.subTypeLabel || mat.category}</Text>
-                </View>
-                <Text style={[styles.tdCol, { width: '10%', textAlign: 'center' }]}>
-                  {Number(mat.netQuantity).toFixed(1).replace(/\.0$/, '')}
-                </Text>
-                <Text style={[styles.tdCol, { width: '8%', textAlign: 'center', color: '#718096' }]}>
-                  {mat.wastagePercent ? `${mat.wastagePercent}%` : '0%'}
-                </Text>
-                <Text style={[styles.tdCol, { width: '12%', textAlign: 'center', fontWeight: 'bold', color: PRIMARY }]}>
-                  {Number(mat.finalQuantity).toFixed(1).replace(/\.0$/, '')}
-                </Text>
-                <Text style={[styles.tdCol, { width: '9%', textAlign: 'center', borderRightWidth: 0, textTransform: 'capitalize' }]}>
-                  {mat.unit || 'pcs'}
-                </Text>
+          {isWallPanelingScope ? (
+            /* 4-Column Layout: SL NO | Product Type | Material Description | Unit */
+            <>
+              <View style={styles.tHead}>
+                <Text style={[styles.thCol, { width: '7%', textAlign: 'center' }]}>SL NO</Text>
+                <Text style={[styles.thCol, { width: '26%' }]}>Product Type</Text>
+                <Text style={[styles.thCol, { width: '50%' }]}>Material Description</Text>
+                <Text style={[styles.thCol, { width: '17%', textAlign: 'center', borderRightWidth: 0 }]}>Unit</Text>
               </View>
-            ))
+
+              {aggregatedMaterials.length === 0 ? (
+                <View style={[styles.tRow, { padding: 8, justifyContent: 'center' }]}>
+                  <Text style={{ fontSize: 8, color: '#718096' }}>No requisition materials specified in this category.</Text>
+                </View>
+              ) : (
+                aggregatedMaterials.map((mat, idx) => {
+                  const isNewGroup = idx === 0 || (mat.productType || mat.subTypeLabel) !== (aggregatedMaterials[idx - 1].productType || aggregatedMaterials[idx - 1].subTypeLabel)
+                  const displayQty = `${Number(mat.finalQuantity).toFixed(1).replace(/\.0$/, '')} ${mat.unit || 'Pcs'}`
+
+                  return (
+                    <View
+                      key={mat.key || idx}
+                      style={[
+                        styles.tRow,
+                        idx % 2 === 1 ? styles.tRowAlt : {},
+                        isNewGroup && idx > 0 ? { borderTopWidth: 1.25, borderTopColor: '#cbd5e1' } : {},
+                      ]}
+                      wrap={false}
+                    >
+                      <Text style={[styles.tdCol, { width: '7%', textAlign: 'center', fontWeight: 'bold' }]}>
+                        {String(idx + 1).padStart(2, '0')}
+                      </Text>
+                      <View style={[styles.tdCol, { width: '26%' }]}>
+                        {isNewGroup ? (
+                          <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8 }}>
+                            {mat.productType || mat.subTypeLabel || mat.category}
+                          </Text>
+                        ) : (
+                          <Text style={{ fontSize: 7, color: '#94a3b8', paddingLeft: 4 }}>↳</Text>
+                        )}
+                      </View>
+                      <View style={[styles.tdCol, { width: '50%' }]}>
+                        <Text style={{ fontWeight: 'bold', color: '#1a202c', fontSize: 8 }}>
+                          {mat.materialDescription || mat.name}
+                        </Text>
+                        {mat.usedInProducts && mat.usedInProducts.length > 0 ? (
+                          <Text style={{ fontSize: 6.5, color: '#718096', marginTop: 1 }}>
+                            Used in: {mat.usedInProducts.slice(0, 3).join(', ')}
+                            {mat.usedInProducts.length > 3 ? ` +${mat.usedInProducts.length - 3} more` : ''}
+                          </Text>
+                        ) : null}
+                      </View>
+                      <View style={[styles.tdCol, { width: '17%', textAlign: 'center', borderRightWidth: 0 }]}>
+                        <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8.5 }}>
+                          {displayQty}
+                        </Text>
+                      </View>
+                    </View>
+                  )
+                })
+              )}
+            </>
+          ) : (
+            /* Standard 7-Column Layout */
+            <>
+              <View style={styles.tHead}>
+                <Text style={[styles.thCol, { width: '5%', textAlign: 'center' }]}>SL</Text>
+                <Text style={[styles.thCol, { width: '38%' }]}>Material Name &amp; Specification</Text>
+                <Text style={[styles.thCol, { width: '18%' }]}>Type / Section</Text>
+                <Text style={[styles.thCol, { width: '10%', textAlign: 'center' }]}>Net Qty</Text>
+                <Text style={[styles.thCol, { width: '8%', textAlign: 'center' }]}>Waste</Text>
+                <Text style={[styles.thCol, { width: '12%', textAlign: 'center', color: '#fbd38d' }]}>Project Qty</Text>
+                <Text style={[styles.thCol, { width: '9%', textAlign: 'center', borderRightWidth: 0 }]}>Unit</Text>
+              </View>
+
+              {aggregatedMaterials.length === 0 ? (
+                <View style={[styles.tRow, { padding: 8, justifyContent: 'center' }]}>
+                  <Text style={{ fontSize: 8, color: '#718096' }}>No requisition materials specified in this category.</Text>
+                </View>
+              ) : (
+                aggregatedMaterials.map((mat, idx) => (
+                  <View key={mat.key || idx} style={[styles.tRow, idx % 2 === 1 ? styles.tRowAlt : {}]} wrap={false}>
+                    <Text style={[styles.tdCol, { width: '5%', textAlign: 'center' }]}>
+                      {String(idx + 1).padStart(2, '0')}
+                    </Text>
+                    <View style={[styles.tdCol, { width: '38%' }]}>
+                      <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8.5 }}>{mat.name}</Text>
+                      {mat.specifications ? (
+                        <Text style={{ fontSize: 7, color: '#4a5568', marginTop: 1 }}>{mat.specifications}</Text>
+                      ) : null}
+                      {mat.usedInProducts.length > 0 ? (
+                        <Text style={{ fontSize: 6.5, color: '#718096', marginTop: 1 }}>
+                          Used in: {mat.usedInProducts.slice(0, 3).join(', ')}
+                          {mat.usedInProducts.length > 3 ? ` +${mat.usedInProducts.length - 3} more` : ''}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <View style={[styles.tdCol, { width: '18%' }]}>
+                      <Text style={{ fontSize: 7.5, color: '#2d3748' }}>{mat.subTypeLabel || mat.category}</Text>
+                    </View>
+                    <Text style={[styles.tdCol, { width: '10%', textAlign: 'center' }]}>
+                      {Number(mat.netQuantity).toFixed(1).replace(/\.0$/, '')}
+                    </Text>
+                    <Text style={[styles.tdCol, { width: '8%', textAlign: 'center', color: '#718096' }]}>
+                      {mat.wastagePercent ? `${mat.wastagePercent}%` : '0%'}
+                    </Text>
+                    <Text style={[styles.tdCol, { width: '12%', textAlign: 'center', fontWeight: 'bold', color: PRIMARY }]}>
+                      {Number(mat.finalQuantity).toFixed(1).replace(/\.0$/, '')}
+                    </Text>
+                    <Text style={[styles.tdCol, { width: '9%', textAlign: 'center', borderRightWidth: 0, textTransform: 'capitalize' }]}>
+                      {mat.unit || 'pcs'}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </>
           )}
 
           {aggregatedMaterials.length > 0 && (
@@ -529,134 +603,134 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
         <GlobalFooter requisitionNo={requisitionNo} generatedAt={generatedAt} />
       </Page>
 
-      {/* ─── DETAIL PAGES: ORGANIZED BY QUOTATION PRODUCT ─── */}
-      {productGroups.map((pg, pIdx) => {
-        const hasItems = pg.sections.some((s) => s.items.length > 0)
-        if (!hasItems) return null
+      {/* ─── DETAIL PAGES: ORGANIZED BY QUOTATION PRODUCT (Skipped if summaryOnly is active) ─── */}
+      {!summaryOnly &&
+        productGroups.map((pg, pIdx) => {
+          const hasItems = pg.sections.some((s) => s.items.length > 0)
+          if (!hasItems) return null
 
-        return (
-          <Page key={pg.quotationLineItemId ?? `extra-${pIdx}`} size="A4" style={styles.page}>
-            <WatermarkBackground />
-            <GlobalHeader requisitionNo={requisitionNo} categoryTitle={categoryTitle} date={date} />
+          return (
+            <Page key={pg.quotationLineItemId ?? `extra-${pIdx}`} size="A4" style={styles.page}>
+              <WatermarkBackground />
+              <GlobalHeader requisitionNo={requisitionNo} categoryTitle={categoryTitle} date={date} />
 
-            {/* Quotation Product Header Banner */}
-            <View style={styles.productCardHeader}>
-              <View style={{ flex: 1 }}>
-                {pg.areaName ? <Text style={styles.productAreaBadge}>{pg.areaName}</Text> : null}
-                <Text style={styles.productTitle}>{pg.productTitle}</Text>
+              {/* Quotation Product Header Banner */}
+              <View style={styles.productCardHeader}>
+                <View style={{ flex: 1 }}>
+                  {pg.areaName ? <Text style={styles.productAreaBadge}>{pg.areaName}</Text> : null}
+                  <Text style={styles.productTitle}>{pg.productTitle}</Text>
+                </View>
+                {pg.dimensionsOrSqft ? (
+                  <View>
+                    <Text style={styles.productDimensions}>{pg.dimensionsOrSqft}</Text>
+                  </View>
+                ) : null}
               </View>
-              {pg.dimensionsOrSqft ? (
-                <View>
-                  <Text style={styles.productDimensions}>{pg.dimensionsOrSqft}</Text>
+
+              {pg.productSpecs ? (
+                <View style={styles.productQuotationSpec}>
+                  <Text>Quotation Material Specs: {pg.productSpecs}</Text>
                 </View>
               ) : null}
-            </View>
 
-            {pg.productSpecs ? (
-              <View style={styles.productQuotationSpec}>
-                <Text>Quotation Material Specs: {pg.productSpecs}</Text>
-              </View>
-            ) : null}
+              {/* Sections under this Product */}
+              {pg.sections.map((sec) => {
+                if (sec.items.length === 0) return null
 
-            {/* Sections under this Product */}
-            {pg.sections.map((sec) => {
-              if (sec.items.length === 0) return null
-
-              return (
-                <View key={sec.sectionId} style={{ marginTop: 6 }} wrap={false}>
-                  {/* Sub-section Title */}
-                  <View style={styles.subSectionBanner}>
-                    <Text style={styles.subSectionTitle}>{sec.subTypeLabel}</Text>
-                    <Text style={{ fontSize: 7, color: '#718096' }}>
-                      {sec.items.length} item{sec.items.length === 1 ? '' : 's'}
-                    </Text>
-                  </View>
-
-                  {/* Section Material Table */}
-                  <View style={styles.table}>
-                    <View style={styles.tHead}>
-                      <Text style={[styles.thCol, { width: '5%', textAlign: 'center' }]}>SL</Text>
-                      <Text style={[styles.thCol, { width: '35%' }]}>Material Name</Text>
-                      <Text style={[styles.thCol, { width: '26%' }]}>Specification / Details</Text>
-                      <Text style={[styles.thCol, { width: '9%', textAlign: 'center' }]}>Net</Text>
-                      <Text style={[styles.thCol, { width: '7%', textAlign: 'center' }]}>Waste</Text>
-                      <Text style={[styles.thCol, { width: '10%', textAlign: 'center', color: '#fbd38d' }]}>Final</Text>
-                      <Text style={[styles.thCol, { width: '8%', textAlign: 'center', borderRightWidth: 0 }]}>Unit</Text>
+                return (
+                  <View key={sec.sectionId} style={{ marginTop: 6 }} wrap={false}>
+                    {/* Sub-section Title */}
+                    <View style={styles.subSectionBanner}>
+                      <Text style={styles.subSectionTitle}>{sec.subTypeLabel}</Text>
+                      <Text style={{ fontSize: 7, color: '#718096' }}>
+                        {sec.items.length} item{sec.items.length === 1 ? '' : 's'}
+                      </Text>
                     </View>
 
-                    {sec.items.map((it, itIdx) => {
-                      const attrs = it.variantAttributes || {}
-                      const dimText = (attrs.dimW || attrs.dimD || attrs.dimH)
-                        ? `W${attrs.dimW || '—'} × D${attrs.dimD || '—'} × H${attrs.dimH || '—'} mm`
-                        : (attrs.outerDimensions as string)
+                    {/* Section Material Table */}
+                    <View style={styles.table}>
+                      <View style={styles.tHead}>
+                        <Text style={[styles.thCol, { width: '5%', textAlign: 'center' }]}>SL</Text>
+                        <Text style={[styles.thCol, { width: '35%' }]}>Material Name</Text>
+                        <Text style={[styles.thCol, { width: '26%' }]}>Specification / Details</Text>
+                        <Text style={[styles.thCol, { width: '9%', textAlign: 'center' }]}>Net</Text>
+                        <Text style={[styles.thCol, { width: '7%', textAlign: 'center' }]}>Waste</Text>
+                        <Text style={[styles.thCol, { width: '10%', textAlign: 'center', color: '#fbd38d' }]}>Final</Text>
+                        <Text style={[styles.thCol, { width: '8%', textAlign: 'center', borderRightWidth: 0 }]}>Unit</Text>
+                      </View>
 
-                      // Build helpful spec string based on section type
-                      const extraSpecs = [
-                        attrs.brandModelCode ? `Brand: ${attrs.brandModelCode}` : null,
-                        attrs.itemCode ? `Code: ${attrs.itemCode}` : null,
-                        dimText ? `Dim: ${dimText}` : null,
-                        attrs.cabinetNicheCutOutSize && attrs.cabinetNicheCutOutSize !== '—' ? `Niche: ${attrs.cabinetNicheCutOutSize}` : null,
-                        attrs.coreThickness,
-                        attrs.laminateTopSurface,
-                        attrs.surfaceCodeFinish,
-                        attrs.sheetSize,
-                        attrs.sizeDimension,
-                        attrs.voltageWattage,
-                        attrs.ratingDimension,
-                        attrs.colorTempSpecs,
-                        attrs.accentFinish,
-                        attrs.codeVariant,
-                        it.productionPhase,
-                        it.remarks,
-                      ]
-                        .filter(Boolean)
-                        .filter((v) => v !== '—' && v !== '-')
-                        .join(' | ')
+                      {sec.items.map((it, itIdx) => {
+                        const attrs = it.variantAttributes || {}
+                        const dimText = (attrs.dimW || attrs.dimD || attrs.dimH)
+                          ? `W${attrs.dimW || '—'} × D${attrs.dimD || '—'} × H${attrs.dimH || '—'} mm`
+                          : (attrs.outerDimensions as string)
 
-                      const displaySpec = it.specifications || extraSpecs || 'Standard Specification'
+                        const extraSpecs = [
+                          attrs.brandModelCode ? `Brand: ${attrs.brandModelCode}` : null,
+                          attrs.itemCode ? `Code: ${attrs.itemCode}` : null,
+                          dimText ? `Dim: ${dimText}` : null,
+                          attrs.cabinetNicheCutOutSize && attrs.cabinetNicheCutOutSize !== '—' ? `Niche: ${attrs.cabinetNicheCutOutSize}` : null,
+                          attrs.coreThickness,
+                          attrs.laminateTopSurface,
+                          attrs.surfaceCodeFinish,
+                          attrs.sheetSize,
+                          attrs.sizeDimension,
+                          attrs.voltageWattage,
+                          attrs.ratingDimension,
+                          attrs.colorTempSpecs,
+                          attrs.accentFinish,
+                          attrs.codeVariant,
+                          it.productionPhase,
+                          it.remarks,
+                        ]
+                          .filter(Boolean)
+                          .filter((v) => v !== '—' && v !== '-')
+                          .join(' | ')
 
-                      return (
-                        <View key={itIdx} style={[styles.tRow, itIdx % 2 === 1 ? styles.tRowAlt : {}]}>
-                          <Text style={[styles.tdCol, { width: '5%', textAlign: 'center' }]}>
-                            {String(itIdx + 1).padStart(2, '0')}
-                          </Text>
-                          <View style={[styles.tdCol, { width: '35%' }]}>
-                            <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8 }}>
-                              {it.materialName || 'Unnamed Material'}
+                        const displaySpec = it.specifications || extraSpecs || 'Standard Specification'
+
+                        return (
+                          <View key={itIdx} style={[styles.tRow, itIdx % 2 === 1 ? styles.tRowAlt : {}]}>
+                            <Text style={[styles.tdCol, { width: '5%', textAlign: 'center' }]}>
+                              {String(itIdx + 1).padStart(2, '0')}
                             </Text>
-                            {attrs.functionalUsage ? (
-                              <Text style={{ fontSize: 6.5, color: '#718096', marginTop: 1 }}>
-                                Usage: {String(attrs.functionalUsage)}
+                            <View style={[styles.tdCol, { width: '35%' }]}>
+                              <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8 }}>
+                                {it.materialName || 'Unnamed Material'}
                               </Text>
-                            ) : null}
+                              {attrs.functionalUsage ? (
+                                <Text style={{ fontSize: 6.5, color: '#718096', marginTop: 1 }}>
+                                  Usage: {String(attrs.functionalUsage)}
+                                </Text>
+                              ) : null}
+                            </View>
+                            <View style={[styles.tdCol, { width: '26%' }]}>
+                              <Text style={{ fontSize: 7, color: '#4a5568' }}>{displaySpec}</Text>
+                            </View>
+                            <Text style={[styles.tdCol, { width: '9%', textAlign: 'center' }]}>
+                              {Number(it.netQuantity) || 0}
+                            </Text>
+                            <Text style={[styles.tdCol, { width: '7%', textAlign: 'center', color: '#718096' }]}>
+                              {it.wastagePercent ? `${it.wastagePercent}%` : '0%'}
+                            </Text>
+                            <Text style={[styles.tdCol, { width: '10%', textAlign: 'center', fontWeight: 'bold', color: PRIMARY }]}>
+                              {Number(it.finalQuantity) || 0}
+                            </Text>
+                            <Text style={[styles.tdCol, { width: '8%', textAlign: 'center', borderRightWidth: 0, textTransform: 'capitalize' }]}>
+                              {it.unit || 'pcs'}
+                            </Text>
                           </View>
-                          <View style={[styles.tdCol, { width: '26%' }]}>
-                            <Text style={{ fontSize: 7, color: '#4a5568' }}>{displaySpec}</Text>
-                          </View>
-                          <Text style={[styles.tdCol, { width: '9%', textAlign: 'center' }]}>
-                            {Number(it.netQuantity) || 0}
-                          </Text>
-                          <Text style={[styles.tdCol, { width: '7%', textAlign: 'center', color: '#718096' }]}>
-                            {it.wastagePercent ? `${it.wastagePercent}%` : '0%'}
-                          </Text>
-                          <Text style={[styles.tdCol, { width: '10%', textAlign: 'center', fontWeight: 'bold', color: PRIMARY }]}>
-                            {Number(it.finalQuantity) || 0}
-                          </Text>
-                          <Text style={[styles.tdCol, { width: '8%', textAlign: 'center', borderRightWidth: 0, textTransform: 'capitalize' }]}>
-                            {it.unit || 'pcs'}
-                          </Text>
-                        </View>
-                      )
-                    })}
+                        )
+                      })}
+                    </View>
                   </View>
-                </View>
-              )
-            })}
+                )
+              })}
 
-            <GlobalFooter requisitionNo={requisitionNo} generatedAt={generatedAt} />
-          </Page>
-        )
-      })}
+              <GlobalFooter requisitionNo={requisitionNo} generatedAt={generatedAt} />
+            </Page>
+          )
+        })}
 
       {/* Optional Factory Remarks Page if notes exist */}
       {notes && notes.trim() ? (

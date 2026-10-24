@@ -165,6 +165,97 @@ function cleanString(str?: string | null): string {
   return (str || '').trim().replace(/\s+/g, ' ')
 }
 
+const PRODUCT_TYPE_SORT_ORDER: Record<string, number> = {
+  '🪵 Boards': 1,
+  '✨ Decorative Panels': 2,
+  '🔩 Hardware ( Screw )': 3,
+  '📌 Nails, Pins & Masonry Anchors': 4,
+  '🧪 Adhesives & Chemical Solvents': 5,
+}
+
+export function formatMaterialItem(
+  item: RequisitionItemInput,
+  section?: CardSection
+): { productType: string; materialDescription: string; unit: string } {
+  const attrs = (item.variantAttributes || {}) as Record<string, unknown>
+  const wpSub = (section?.wallPanelingSubType || attrs.wpSubType || '') as string
+  const unit = cleanString(item.unit) || 'Pcs'
+
+  // 1. BOARDS
+  if (wpSub === 'CORE_BOARDS' || (item.workCategory === 'WALL_PANELING' && (attrs.baseMaterial || attrs.laminateTopSurface))) {
+    const productType = '🪵 Boards'
+    const thk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || '12mm'
+    const base = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string) || item.materialName) || 'Garjon Plywood'
+    const rawFl = cleanString((attrs.laminateTopSurface as string) || (attrs.frontLaminateCode as string))
+    const rawBl = cleanString((attrs.surfaceCodeFinish as string) || (attrs.backLaminateCode as string))
+
+    const fl = rawFl
+      ? (rawFl.toUpperCase().includes('F/L') ? rawFl : `${rawFl} (F/L)`)
+      : 'Raw Board (F/L)'
+    const bl = rawBl
+      ? (rawBl.toUpperCase().includes('B/L') ? rawBl : `${rawBl} (B/L)`)
+      : 'Raw Board (B/L)'
+
+    const materialDescription = `${thk} + ${base} + ${fl} + ${bl}`
+    return { productType, materialDescription, unit }
+  }
+
+  // 2. DECORATIVE PANELS
+  if (wpSub === 'LOUVERS_PROFILES') {
+    const productType = '✨ Decorative Panels'
+    const panel = cleanString((attrs.material as string) || item.materialName) || 'Decorative Panel'
+    const code = cleanString(attrs.codeVariant as string)
+    const thk = cleanString((attrs.thickness as string) || (attrs.coreThickness as string))
+    const accent = cleanString(attrs.accentFinish as string)
+    const isReady = attrs.decorativeType === 'READYMADE' || (code !== '' && thk === '' && accent === '')
+
+    let materialDescription = ''
+    if (code && (isReady || (thk === '' && accent === ''))) {
+      // Readymade: Panel + Code
+      materialDescription = `${panel} + ${code}`
+    } else if (thk || accent) {
+      // Customize: Thickness + Accent Profile + Panel
+      materialDescription = [thk, accent, panel].filter(Boolean).join(' + ')
+    } else if (code) {
+      materialDescription = `${panel} + ${code}`
+    } else {
+      materialDescription = panel
+    }
+
+    return { productType, materialDescription, unit }
+  }
+
+  // 3. HARDWARE ( SCREW )
+  if (wpSub === 'SCREWS_FASTENERS') {
+    const productType = '🔩 Hardware ( Screw )'
+    const length = cleanString((attrs.lengthInches as string) || item.specifications)
+    const itemType = cleanString(item.materialName || (attrs.fastenerType as string)) || 'Screw'
+    const materialDescription = [length, itemType].filter(Boolean).join(' + ')
+    return { productType, materialDescription, unit }
+  }
+
+  // 4. NAILS, PINS & MASONRY ANCHORS
+  if (wpSub === 'NAILS_PINS') {
+    const productType = '📌 Nails, Pins & Masonry Anchors'
+    const length = cleanString((attrs.lengthSpec as string) || item.specifications)
+    const itemType = cleanString(item.materialName || (attrs.nailType as string)) || 'Nail'
+    const materialDescription = [length, itemType].filter(Boolean).join(' + ')
+    return { productType, materialDescription, unit }
+  }
+
+  // 5. ADHESIVES & CHEMICAL SOLVENTS
+  if (wpSub === 'ADHESIVES') {
+    const productType = '🧪 Adhesives & Chemical Solvents'
+    const chemicalName = cleanString(item.materialName || (attrs.adhesiveType as string)) || 'Adhesive'
+    return { productType, materialDescription: chemicalName, unit }
+  }
+
+  // GENERAL / FALLBACK
+  const productType = section ? getSectionLabel(section) : cleanString(item.workCategory) || 'General Material'
+  const materialDescription = [cleanString(item.materialName), cleanString(item.specifications)].filter(Boolean).join(' | ') || 'Standard Item'
+  return { productType, materialDescription, unit }
+}
+
 export function RequisitionPdfExportModal({
   isOpen,
   onClose,
@@ -190,6 +281,7 @@ export function RequisitionPdfExportModal({
   const [isDownloading, setIsDownloading] = useState(false)
   const [activeTab, setActiveTab] = useState<'categories' | 'preview'>('categories')
   const [manualMerges, setManualMerges] = useState<Record<string, string>>({})
+  const [includeQuotationBreakdown, setIncludeQuotationBreakdown] = useState(false)
 
   const areaMap = useMemo(() => {
     const map = new Map<string, QuotationArea>()
@@ -262,13 +354,13 @@ export function RequisitionPdfExportModal({
 
         // Accumulate into project-wide material summary
         for (const it of validItems) {
+          const { productType, materialDescription, unit } = formatMaterialItem(it, sec)
           const rawName = cleanString(it.materialName) || 'Standard Material'
           const rawSpec = cleanString(it.specifications)
-          const unit = cleanString(it.unit).toLowerCase() || 'pcs'
           const subTypeLabel = getSectionLabel(sec)
 
-          // Key grouping
-          const naturalKey = `${it.workCategory}::${rawName.toLowerCase()}::${unit}`
+          // Key grouping: merges common items with same product type, specification & unit across products
+          const naturalKey = `${it.workCategory}::${productType.toLowerCase()}::${materialDescription.toLowerCase()}::${unit.toLowerCase()}`
           const canonicalKey = manualMerges[naturalKey] || naturalKey
 
           const net = Number(it.netQuantity) || 0
@@ -287,6 +379,8 @@ export function RequisitionPdfExportModal({
               finalQuantity: final,
               unit,
               usedInProducts: [cardInfo.productTitle],
+              productType,
+              materialDescription,
             })
           } else {
             const existing = aggMap.get(canonicalKey)!
@@ -308,9 +402,16 @@ export function RequisitionPdfExportModal({
       }
     }
 
+    const sortedAggregated = Array.from(aggMap.values()).sort((a, b) => {
+      const orderA = PRODUCT_TYPE_SORT_ORDER[a.productType || ''] ?? 99
+      const orderB = PRODUCT_TYPE_SORT_ORDER[b.productType || ''] ?? 99
+      if (orderA !== orderB) return orderA - orderB
+      return (a.materialDescription || a.name || '').localeCompare(b.materialDescription || b.name || '')
+    })
+
     return {
       productGroups: pGroups,
-      aggregatedMaterials: Array.from(aggMap.values()),
+      aggregatedMaterials: sortedAggregated,
     }
   }, [
     lineItems,
@@ -353,6 +454,7 @@ export function RequisitionPdfExportModal({
         hour12: true,
       }).format(new Date())
 
+      const isWallPaneling = selectedCategory === 'WALL_PANELING'
       const pdfData: RequisitionPdfData = {
         clientName: lead.name || 'Client',
         clientAddress: lead.location || 'Dhaka, Bangladesh',
@@ -364,6 +466,8 @@ export function RequisitionPdfExportModal({
         aggregatedMaterials,
         productGroups,
         notes,
+        summaryOnly: !includeQuotationBreakdown,
+        isWallPanelingFormat: isWallPaneling || selectedCategory === 'ALL',
       }
 
       const safeName = (lead.name || 'Client').replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '')
@@ -547,62 +651,67 @@ export function RequisitionPdfExportModal({
                     <thead className="bg-[#1f363d] text-white uppercase text-[10px] tracking-wider sticky top-0 z-10">
                       <tr>
                         <th className="py-2.5 px-3 w-10 text-center">#</th>
-                        <th className="py-2.5 px-3">Material Name &amp; Specification</th>
-                        <th className="py-2.5 px-3">Section Type</th>
-                        <th className="py-2.5 px-3 text-center">Net Qty</th>
-                        <th className="py-2.5 px-3 text-center">Waste %</th>
-                        <th className="py-2.5 px-3 text-center font-bold text-amber-300">Project Qty</th>
-                        <th className="py-2.5 px-3 text-center">Unit</th>
-                        <th className="py-2.5 px-3">Used In Products</th>
+                        <th className="py-2.5 px-3 w-1/4">Product Type</th>
+                        <th className="py-2.5 px-3">Material Description</th>
+                        <th className="py-2.5 px-3 text-center w-28">Unit / Qty</th>
+                        <th className="py-2.5 px-3 w-48">Used In Products</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border/60 bg-card">
                       {aggregatedMaterials.length === 0 ? (
                         <tr>
-                          <td colSpan={8} className="py-8 text-center text-muted-foreground">
+                          <td colSpan={5} className="py-8 text-center text-muted-foreground">
                             No materials found for the current selection.
                           </td>
                         </tr>
                       ) : (
-                        aggregatedMaterials.map((mat, idx) => (
-                          <tr key={mat.key || idx} className="hover:bg-muted/30 transition-colors">
-                            <td className="py-2.5 px-3 text-center font-mono text-muted-foreground">
-                              {String(idx + 1).padStart(2, '0')}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <span className="font-bold text-foreground block">{mat.name}</span>
-                              {mat.specifications ? (
-                                <span className="text-[11px] text-muted-foreground block truncate max-w-xs">
-                                  {mat.specifications}
-                                </span>
-                              ) : null}
-                            </td>
-                            <td className="py-2.5 px-3 text-muted-foreground font-medium">{mat.subTypeLabel}</td>
-                            <td className="py-2.5 px-3 text-center font-mono">{mat.netQuantity}</td>
-                            <td className="py-2.5 px-3 text-center text-muted-foreground">
-                              {mat.wastagePercent ? `${mat.wastagePercent}%` : '0%'}
-                            </td>
-                            <td className="py-2.5 px-3 text-center font-bold text-primary text-sm">
-                              {Math.round(mat.finalQuantity * 10) / 10}
-                            </td>
-                            <td className="py-2.5 px-3 text-center capitalize font-medium text-muted-foreground">
-                              {mat.unit}
-                            </td>
-                            <td className="py-2.5 px-3 text-[11px] text-muted-foreground">
-                              <div className="flex flex-wrap gap-1">
-                                {mat.usedInProducts.map((p, pIdx) => (
-                                  <span
-                                    key={pIdx}
-                                    className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-medium text-foreground truncate max-w-[140px]"
-                                    title={p}
-                                  >
-                                    {p}
+                        aggregatedMaterials.map((mat, idx) => {
+                          const isNewGroup = idx === 0 || (mat.productType || mat.subTypeLabel) !== (aggregatedMaterials[idx - 1].productType || aggregatedMaterials[idx - 1].subTypeLabel)
+                          const displayQty = `${Math.round(mat.finalQuantity * 10) / 10} ${mat.unit || 'Pcs'}`
+
+                          return (
+                            <tr
+                              key={mat.key || idx}
+                              className={`hover:bg-muted/30 transition-colors ${
+                                isNewGroup && idx > 0 ? 'border-t-2 border-border/90' : ''
+                              }`}
+                            >
+                              <td className="py-2.5 px-3 text-center font-mono text-muted-foreground">
+                                {String(idx + 1).padStart(2, '0')}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                {isNewGroup ? (
+                                  <span className="font-bold text-foreground block text-xs">
+                                    {mat.productType || mat.subTypeLabel || mat.category}
                                   </span>
-                                ))}
-                              </div>
-                            </td>
-                          </tr>
-                        ))
+                                ) : (
+                                  <span className="text-muted-foreground/50 text-xs pl-2 font-mono">↳</span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span className="font-bold text-foreground block text-xs">
+                                  {mat.materialDescription || mat.name}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-center font-bold text-primary text-xs whitespace-nowrap">
+                                {displayQty}
+                              </td>
+                              <td className="py-2.5 px-3 text-[11px] text-muted-foreground">
+                                <div className="flex flex-wrap gap-1">
+                                  {mat.usedInProducts.map((p, pIdx) => (
+                                    <span
+                                      key={pIdx}
+                                      className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-medium text-foreground truncate max-w-[140px]"
+                                      title={p}
+                                    >
+                                      {p}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })
                       )}
                     </tbody>
                   </table>
@@ -614,12 +723,23 @@ export function RequisitionPdfExportModal({
 
         {/* Footer Actions */}
         <div className="flex items-center justify-between border-t border-border/80 px-5 py-3.5 bg-muted/20">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Cancel
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
+            </button>
+            <label className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={includeQuotationBreakdown}
+                onChange={(e) => setIncludeQuotationBreakdown(e.target.checked)}
+                className="rounded border-border text-primary focus:ring-0"
+              />
+              Include quotation breakdown pages (detailed product cards)
+            </label>
+          </div>
           <div className="flex items-center gap-2.5">
             <button
               onClick={handleDownload}
