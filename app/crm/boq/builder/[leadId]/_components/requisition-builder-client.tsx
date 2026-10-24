@@ -84,7 +84,79 @@ const WORK_CATEGORIES: { key: RequisitionWorkCategory; label: string }[] = [
   { key: 'APPLIANCES', label: 'Appliances' },
 ]
 
-const UOM_OPTIONS = ['Pcs', 'Nos', 'Sheets', 'Meters', 'RFT', 'Kg', 'Rolls', 'Pack', 'Boxes', 'Sets', 'Liters', 'Tube', 'Roll']
+const UOM_OPTIONS = ['Pcs', 'Nos', 'Sheets', 'Meters', 'RFT', 'Kg', 'Rolls', 'Pack', 'Boxes', 'Sets', 'Liters', 'Tube', 'Roll', 'Not specified']
+
+/** Lighting and electrical schedule transcribed from the client-provided sheet.
+ * Unknown quantities are represented as 0 so they remain visibly unfilled and
+ * can be completed by the BOQ user instead of being guessed.
+ */
+function scheduleItem(
+  workCategory: RequisitionWorkCategory,
+  materialName: string,
+  specifications: string,
+  quantity: number,
+  unit = 'Pcs',
+  group?: { key: string; total: number },
+): RequisitionItemInput {
+  const scheduleKey = workCategory === 'CEILING' ? 'ceiling-light-xl-v1' : 'ceiling-electrical-xl-v1'
+  return {
+    workCategory,
+    materialName,
+    specifications,
+    netQuantity: quantity,
+    wastagePercent: 0,
+    finalQuantity: quantity,
+    unit,
+    productionPhase: workCategory === 'CEILING' ? 'Ceiling Lighting' : 'Electrical Work',
+    remarks: quantity === 0 ? 'Quantity not specified in source list; confirm before requisition.' : '',
+    variantAttributes: {
+      sourceScheduleKey: scheduleKey,
+      sourceQuantityStatus: quantity === 0 ? 'NEEDS_CONFIRMATION' : 'CONFIRMED',
+      ...(group ? { sourceQuantityGroup: group.key, sourceQuantityGroupTotal: group.total } : {}),
+    },
+  }
+}
+
+const CEILING_LIGHTING_SCHEDULE: RequisitionItemInput[] = [
+  scheduleItem('CEILING', 'T5 Light', '4000 K | 1\' length', 15),
+  scheduleItem('CEILING', 'T5 Light', '4000 K | 2\' length', 10),
+  scheduleItem('CEILING', 'T5 Light', '4000 K | 3\' length', 5),
+  scheduleItem('CEILING', 'T5 Light', '4000 K | 4\' length', 80),
+  scheduleItem('CEILING', 'Surface Panel Light', '4000 K | 15 W | quantity split from the 95-light total is not stated.', 0, 'Pcs', { key: 'spot-light-allocation', total: 95 }),
+  scheduleItem('CEILING', 'Surface Spot Light', '4000 K | 10 W | quantity split from the 95-light total is not stated.', 0, 'Pcs', { key: 'spot-light-allocation', total: 95 }),
+  scheduleItem('CEILING', 'Magnetic Flat Light', '6\' length', 0),
+  scheduleItem('CEILING', 'Magnetic Flat Light', '12" length', 14),
+  scheduleItem('CEILING', 'Magnetic Flat Light', '24" length', 0),
+  scheduleItem('CEILING', 'Magnetic Channel', '6\' length', 5),
+  scheduleItem('CEILING', 'Magnetic Channel', '10\' length', 2),
+  scheduleItem('CEILING', 'Magnetic Focus Light', 'Quantity listed as 7 pcs.', 7),
+  scheduleItem('CEILING', 'Silicon Light', '8 mm | 220 V AC', 60, 'RFT'),
+  scheduleItem('CEILING', 'Silicon Light', '8 mm | 12 V DC', 0, 'RFT'),
+  scheduleItem('CEILING', 'Power Supply', '12 V DC | 60 W | part of the 5-unit total; wattage split is not stated.', 0, 'Pcs', { key: 'power-supply-allocation', total: 5 }),
+  scheduleItem('CEILING', 'Power Supply', '12 V DC | 100 W | part of the 5-unit total; wattage split is not stated.', 0, 'Pcs', { key: 'power-supply-allocation', total: 5 }),
+  scheduleItem('CEILING', 'Power Supply', '12 V DC | 200 W | part of the 5-unit total; wattage split is not stated.', 0, 'Pcs', { key: 'power-supply-allocation', total: 5 }),
+  scheduleItem('CEILING', 'Cylinder Light', 'Quantity listed as 15 pcs.', 15),
+  scheduleItem('CEILING', 'Silicon Cover', 'Quantity not specified in the sheet.', 0),
+]
+
+const ELECTRICAL_WORK_SCHEDULE: RequisitionItemInput[] = [
+  scheduleItem('ELECTRICAL_WORK', 'Cable', 'Dimension 14/76 | quantity not specified in the sheet.', 0, 'Not specified'),
+  scheduleItem('ELECTRICAL_WORK', 'Switch', 'DP', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Switch', '1 Gang', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Switch', '2 Gang', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Switch', '3 Gang', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Switch', '4 Gang', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Switch', 'Fan Dimmer', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Socket', '15 Amp', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Socket', '13 Amp', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Socket', 'Dish', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Socket', 'Internet', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Socket', 'Intercom', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Electrical Tape', 'Spelling normalized from source sheet.', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Calling Bell', '', 0),
+  scheduleItem('ELECTRICAL_WORK', 'Calling Bell Push', '', 0),
+  scheduleItem('ELECTRICAL_WORK', 'False Cover', '', 0),
+]
 
 /** Base material options for Wall Paneling and Cabinet/Closet sections */
 const BOARD_BASE_MATERIAL_GROUPS: { group: string; items: string[] }[] = [
@@ -1880,6 +1952,7 @@ function pdfAttr(item: RequisitionItemInput, key: keyof BoardVariantAttributes):
 }
 
 function pdfQty(item: RequisitionItemInput): string {
+  if (item.variantAttributes?.sourceScheduleKey && item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION') return 'Needs quantity'
   const label = pdfAttr(item, 'qtyLabel') || pdfAttr(item, 'quantityUnit')
   if (label) return safePdfText(label)
   return Number(item.finalQuantity || item.netQuantity || 0).toLocaleString('en-IN')
@@ -2080,9 +2153,9 @@ function buildSectionPdfTable(section: CardSection, rows: RequisitionItemInput[]
       text(getWorkCategoryLabel(item.workCategory)),
       text(item.materialName),
       text(item.specifications),
-      Number(item.netQuantity || 0).toLocaleString('en-IN'),
+      pdfQty(item),
       Number(item.wastagePercent || 0).toLocaleString('en-IN'),
-      Number(item.finalQuantity || 0).toLocaleString('en-IN'),
+      item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION' ? 'Needs quantity' : Number(item.finalQuantity || 0).toLocaleString('en-IN'),
       text(item.unit),
       text(item.productionPhase),
       text(item.remarks),
@@ -2177,6 +2250,10 @@ function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: Sect
       materialName: it.materialName || '',
       specifications: it.specifications || '',
       variantAttributes: {
+        sourceScheduleKey: attrs.sourceScheduleKey || '',
+        sourceQuantityStatus: attrs.sourceQuantityStatus || '',
+        sourceQuantityGroup: attrs.sourceQuantityGroup || '',
+        sourceQuantityGroupTotal: attrs.sourceQuantityGroupTotal ?? '',
         itemId: attrs.itemId || '',
         coreThickness: attrs.coreThickness || '',
         baseMaterial: attrs.baseMaterial || '',
@@ -2234,9 +2311,11 @@ function seedFromExisting(rawItems: SavedRequisitionItem[]): { sectionsMap: Sect
         mepUtilityRequirements: attrs.mepUtilityRequirements || '',
         applianceSubType: attrs.applianceSubType || '',
       },
-      netQuantity: Number(it.netQuantity) || 1,
+      netQuantity: Number.isFinite(Number(it.netQuantity)) ? Number(it.netQuantity) : 1,
       wastagePercent: Number(it.wastagePercent) || 0,
-      finalQuantity: Number(it.finalQuantity) || Number(it.netQuantity) || 1,
+      finalQuantity: Number.isFinite(Number(it.finalQuantity))
+        ? Number(it.finalQuantity)
+        : Number.isFinite(Number(it.netQuantity)) ? Number(it.netQuantity) : 1,
       unit: it.unit || 'Pcs',
       productionPhase: it.productionPhase || attrs.functionalUsage || attrs.primaryUsage || attrs.usagePurpose || attrs.applicationMethod || attrs.sideSpecification || attrs.accessoryCategory || attrs.serviceCategory || attrs.applianceSubType || '',
       remarks: it.remarks || '',
@@ -4959,10 +5038,13 @@ function MaterialRowsTable({
                     <input
                       type="number"
                       step="any"
-                      value={item.netQuantity}
+                      value={item.variantAttributes?.sourceScheduleKey && item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION' && Number(item.netQuantity) === 0 ? '' : item.netQuantity}
                       onChange={(e) => onChange(ri, 'netQuantity', e.target.value)}
                       className={GRID_CELL_NUM}
                     />
+                    {item.variantAttributes?.sourceScheduleKey && item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION' && (
+                      <span className="mt-1 block text-[9px] font-semibold text-amber-700">Needs qty</span>
+                    )}
                   </td>
 
                   {/* Wastage */}
@@ -4977,7 +5059,9 @@ function MaterialRowsTable({
                   </td>
 
                   {/* Final Qty */}
-                  <td className="px-2.5 py-1.5 text-center font-bold text-foreground text-xs">{item.finalQuantity}</td>
+                  <td className="px-2.5 py-1.5 text-center font-bold text-foreground text-xs">
+                    {item.variantAttributes?.sourceScheduleKey && item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION' ? <span className="text-amber-700">Needs qty</span> : item.finalQuantity}
+                  </td>
 
                   {/* UOM */}
                   <td className={GRID_TD}>
@@ -5178,6 +5262,9 @@ function SectionBlock({
     ? APPLIANCE_SUBTYPES.find((s) => s.key === section.applianceSubType)
     : null
   const colors = CATEGORY_COLORS[section.category]
+  const importedRows = rows.filter((item) => item.variantAttributes?.sourceScheduleKey)
+  const pendingImportedRows = importedRows.filter((item) => item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION')
+  const importedGroups = Array.from(new Set(importedRows.map((item) => String(item.variantAttributes?.sourceQuantityGroup || '')).filter(Boolean)))
 
   return (
     <div
@@ -5232,6 +5319,18 @@ function SectionBlock({
       {/* Section body */}
       {!section.collapsed && (
         <div className="bg-background/70 p-3">
+          {importedRows.length > 0 && (
+            <p className="mb-3 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200">
+              Imported schedule rows: {importedRows.length}. {pendingImportedRows.length} quantities still need confirmation. Open cells are intentionally blank; complete them before submitting.
+              {importedGroups.map((group) => {
+                const groupRows = importedRows.filter((item) => item.variantAttributes?.sourceQuantityGroup === group)
+                const total = Number(groupRows[0]?.variantAttributes?.sourceQuantityGroupTotal || 0)
+                const entered = groupRows.reduce((sum, item) => sum + Number(item.netQuantity || 0), 0)
+                const label = group === 'spot-light-allocation' ? 'Panel + spot light allocation' : group === 'power-supply-allocation' ? 'Power supply allocation' : group
+                return <span key={group} className="mt-1 block">{label}: {entered} / {total} pcs{groupRows.every((item) => item.variantAttributes?.sourceQuantityStatus !== 'NEEDS_CONFIRMATION') && Math.abs(entered - total) > 0.001 ? ' — total must match' : ''}</span>
+              })}
+            </p>
+          )}
           <MaterialRowsTable
             rows={rows}
             viewMode={viewMode}
@@ -5263,7 +5362,7 @@ function SectionBlock({
    Sub-component: "Add Section" inline form
 ───────────────────────────────────────────── */
 function AddSectionForm({ onAdd, onCancel }: {
-  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType) => void
+  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, includeSourceSchedule?: boolean) => void
   onCancel: () => void
 }) {
   const [cat, setCat] = useState<RequisitionWorkCategory>('WALL_PANELING')
@@ -5271,6 +5370,7 @@ function AddSectionForm({ onAdd, onCancel }: {
   const [cabSub, setCabSub] = useState<CabinetSubType>('BOARD_SPEC')
   const [accSub, setAccSub] = useState<AccessoriesSubType>('HARDWARE_ACCESSORIES')
   const [appSub, setAppSub] = useState<ApplianceSubType>('CORE_APPLIANCES')
+  const [includeSourceSchedule, setIncludeSourceSchedule] = useState(false)
 
   return (
     <div className="flex flex-wrap items-center gap-2.5 px-4 py-3 bg-muted/20 border-t border-border/70">
@@ -5280,7 +5380,7 @@ function AddSectionForm({ onAdd, onCancel }: {
       </div>
       <select
         value={cat}
-        onChange={(e) => setCat(e.target.value as RequisitionWorkCategory)}
+        onChange={(e) => { setCat(e.target.value as RequisitionWorkCategory); setIncludeSourceSchedule(false) }}
         className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-primary font-medium shadow-xs"
       >
         {WORK_CATEGORIES.map((c) => (
@@ -5336,13 +5436,16 @@ function AddSectionForm({ onAdd, onCancel }: {
         </select>
       )}
 
+      <ScheduleSelection category={cat} checked={includeSourceSchedule} onChange={setIncludeSourceSchedule} />
+
       <button
         onClick={() => onAdd(
           cat,
           cat === 'WALL_PANELING' ? sub : undefined,
           cat === 'CABINETS_CLOSETS' ? cabSub : undefined,
           cat === 'ACCESSORIES' ? accSub : undefined,
-          cat === 'APPLIANCES' ? appSub : undefined
+          cat === 'APPLIANCES' ? appSub : undefined,
+          includeSourceSchedule
         )}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-xs"
       >
@@ -5352,6 +5455,22 @@ function AddSectionForm({ onAdd, onCancel }: {
         Cancel
       </button>
     </div>
+  )
+}
+
+function ScheduleSelection({ category, checked, onChange }: {
+  category: RequisitionWorkCategory
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
+  if (category !== 'CEILING' && category !== 'ELECTRICAL_WORK') return null
+  const label = category === 'CEILING' ? 'Ceiling Light XL list' : 'Electrical devices list'
+  const count = category === 'CEILING' ? CEILING_LIGHTING_SCHEDULE.length : ELECTRICAL_WORK_SCHEDULE.length
+  return (
+    <label className="flex basis-full cursor-pointer items-start gap-2 rounded-lg border border-sky-500/25 bg-sky-500/5 px-3 py-2 text-xs">
+      <input type="checkbox" className="mt-0.5 accent-sky-700" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <span><span className="font-semibold text-foreground">Start with {label}</span><span className="ml-1 text-muted-foreground">({count} rows). Unspecified quantities stay blank and must be resolved before submission.</span></span>
+    </label>
   )
 }
 
@@ -5367,13 +5486,14 @@ function AddSectionModal({
   isOpen: boolean
   onClose: () => void
   productTitle: string
-  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType) => void
+  onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, includeSourceSchedule?: boolean) => void
 }) {
   const [cat, setCat] = useState<RequisitionWorkCategory>('WALL_PANELING')
   const [sub, setSub] = useState<WallPanelingSubType>('CORE_BOARDS')
   const [cabSub, setCabSub] = useState<CabinetSubType>('BOARD_SPEC')
   const [accSub, setAccSub] = useState<AccessoriesSubType>('HARDWARE_ACCESSORIES')
   const [appSub, setAppSub] = useState<ApplianceSubType>('CORE_APPLIANCES')
+  const [includeSourceSchedule, setIncludeSourceSchedule] = useState(false)
 
   if (!isOpen) return null
 
@@ -5399,7 +5519,7 @@ function AddSectionModal({
             <label className="text-xs font-bold text-foreground block mb-1.5">Work Category</label>
             <select
               value={cat}
-              onChange={(e) => setCat(e.target.value as RequisitionWorkCategory)}
+              onChange={(e) => { setCat(e.target.value as RequisitionWorkCategory); setIncludeSourceSchedule(false) }}
               className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 font-medium focus:ring-1 focus:ring-primary shadow-xs"
             >
               {WORK_CATEGORIES.map((c) => (
@@ -5467,6 +5587,8 @@ function AddSectionModal({
               </select>
             </div>
           )}
+
+          <ScheduleSelection category={cat} checked={includeSourceSchedule} onChange={setIncludeSourceSchedule} />
         </div>
 
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/70">
@@ -5483,7 +5605,8 @@ function AddSectionModal({
                 cat === 'WALL_PANELING' ? sub : undefined,
                 cat === 'CABINETS_CLOSETS' ? cabSub : undefined,
                 cat === 'ACCESSORIES' ? accSub : undefined,
-                cat === 'APPLIANCES' ? appSub : undefined
+                cat === 'APPLIANCES' ? appSub : undefined,
+                includeSourceSchedule
               )
               onClose()
             }}
@@ -5532,7 +5655,7 @@ function QuotationLineItemCard({
   onLoadCabinetPreset: (sectionId: string, subType: CabinetSubType) => void
   onLoadAccessoryPreset?: (sectionId: string, subType: AccessoriesSubType) => void
   onLoadAppliancePreset?: (sectionId: string, subType: ApplianceSubType) => void
-  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType) => void
+  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, includeSourceSchedule?: boolean) => void
   onRemoveSection: (sectionId: string) => void
   onToggleSectionCollapse: (sectionId: string) => void
   boqSavedAccessories?: BoqSavedAccessoryItem[]
@@ -5646,8 +5769,8 @@ function QuotationLineItemCard({
           {/* Add Section form or trigger */}
           {showAddSection ? (
             <AddSectionForm
-              onAdd={(cat, wpSub, cabSub, accSub, appSub) => {
-                onAddSection(cat, wpSub, cabSub, accSub, appSub)
+              onAdd={(cat, wpSub, cabSub, accSub, appSub, includeSchedule) => {
+                onAddSection(cat, wpSub, cabSub, accSub, appSub, includeSchedule)
                 setShowAddSection(false)
               }}
               onCancel={() => setShowAddSection(false)}
@@ -5699,7 +5822,7 @@ function ExtraCard({
   onLoadCabinetPreset: (sectionId: string, subType: CabinetSubType) => void
   onLoadAccessoryPreset?: (sectionId: string, subType: AccessoriesSubType) => void
   onLoadAppliancePreset?: (sectionId: string, subType: ApplianceSubType) => void
-  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType) => void
+  onAddSection: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, includeSourceSchedule?: boolean) => void
   onRemoveSection: (sectionId: string) => void
   onToggleSectionCollapse: (sectionId: string) => void
   boqSavedAccessories?: BoqSavedAccessoryItem[]
@@ -5739,7 +5862,7 @@ function ExtraCard({
             <div className="rounded-xl border border-dashed border-border/80 bg-background px-4 py-8 text-center text-xs text-muted-foreground space-y-2">
               <Package className="w-6 h-6 mx-auto text-muted-foreground/40" />
               <p className="font-semibold text-foreground/80">No general sections added yet.</p>
-              <p className="text-[11px] text-muted-foreground">Add a Wall Paneling, Closet/Cabinet, Accessories, or Appliance section below to specify catalog materials.</p>
+              <p className="text-[11px] text-muted-foreground">Add a Ceiling, Electrical Work, Wall Paneling, Closet/Cabinet, Accessories, or Appliance section below to specify materials.</p>
             </div>
           )}
 
@@ -5766,8 +5889,8 @@ function ExtraCard({
 
           {showAddSection ? (
             <AddSectionForm
-              onAdd={(cat, wpSub, cabSub, accSub, appSub) => {
-                onAddSection(cat, wpSub, cabSub, accSub, appSub)
+              onAdd={(cat, wpSub, cabSub, accSub, appSub, includeSchedule) => {
+                onAddSection(cat, wpSub, cabSub, accSub, appSub, includeSchedule)
                 setShowAddSection(false)
               }}
               onCancel={() => setShowAddSection(false)}
@@ -6044,10 +6167,25 @@ export function RequisitionBuilderClient({
     cabinetSubType?: CabinetSubType,
     accessoriesSubType?: AccessoriesSubType,
     applianceSubType?: ApplianceSubType,
-    quotationLineItemId?: string
+    quotationLineItemId?: string,
+    includeSourceSchedule = false,
   ) => {
+    const scheduleKey = category === 'CEILING' ? 'ceiling-light-xl-v1' : category === 'ELECTRICAL_WORK' ? 'ceiling-electrical-xl-v1' : null
+    if (includeSourceSchedule && scheduleKey) {
+      const alreadyLoaded = (sectionsMap[cardKey] ?? []).some((section) =>
+        (itemsMap[sectionItemKey(cardKey, section.id)] ?? []).some((item) => item.variantAttributes?.sourceScheduleKey === scheduleKey),
+      )
+      if (alreadyLoaded) {
+        setSaveError(`The ${category === 'CEILING' ? 'ceiling lighting' : 'electrical'} schedule is already loaded for this quotation item. Add rows to the existing section instead of importing it again.`)
+        return
+      }
+    }
     const sectionId = `section-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-    const initialRows = category === 'APPLIANCES' && applianceSubType === 'CORE_APPLIANCES'
+    const initialRows = includeSourceSchedule && category === 'CEILING'
+      ? CEILING_LIGHTING_SCHEDULE.map((item) => ({ ...item, quotationLineItemId }))
+      : includeSourceSchedule && category === 'ELECTRICAL_WORK'
+      ? ELECTRICAL_WORK_SCHEDULE.map((item) => ({ ...item, quotationLineItemId }))
+      : category === 'APPLIANCES' && applianceSubType === 'CORE_APPLIANCES'
       ? SAMPLE_CORE_APPLIANCE_ITEMS.map((item) => ({
           ...item,
           quotationLineItemId,
@@ -6097,6 +6235,11 @@ export function RequisitionBuilderClient({
     setItemsMap((prev) => {
       const rows = [...(prev[key] ?? [])]
       const current = { ...rows[rowIndex], [field]: rawValue }
+      if (field === 'netQuantity' && current.variantAttributes?.sourceScheduleKey) {
+        const confirmed = rawValue !== '' && rawValue !== null && rawValue !== undefined && Number.isFinite(Number(rawValue))
+        current.variantAttributes = { ...current.variantAttributes, sourceQuantityStatus: confirmed ? 'CONFIRMED' : 'NEEDS_CONFIRMATION' }
+        if (confirmed && current.remarks?.includes('Quantity not specified in source list')) current.remarks = ''
+      }
       if (field === 'netQuantity' || field === 'wastagePercent') {
         const net = Number(field === 'netQuantity' ? rawValue : current.netQuantity) || 0
         const waste = Number(field === 'wastagePercent' ? rawValue : current.wastagePercent) || 0
@@ -6325,10 +6468,37 @@ export function RequisitionBuilderClient({
   }, [detailQuotation?.id, lead.id, notes, requisitionItems, router])
 
   const handleSave = useCallback((status: SaveStatus = 'DRAFT') => {
+    if (status === 'SUBMITTED') {
+      const pending = requisitionItems.filter((item) => item.variantAttributes?.sourceScheduleKey && item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION')
+      if (pending.length) {
+        setSaveError(`${pending.length} imported schedule ${pending.length === 1 ? 'quantity needs' : 'quantities need'} confirmation. Fill those quantities before submitting.`)
+        setSaveSuccess(null)
+        return
+      }
+      const groups = new Map<string, { label: string; expected: number; actual: number }>()
+      for (const item of requisitionItems) {
+        const attrs = item.variantAttributes
+        if (!attrs?.sourceScheduleKey || !attrs.sourceQuantityGroup) continue
+        const groupKey = `${item.quotationLineItemId || EXTRA_KEY}:${attrs.sourceScheduleKey}:${attrs.sourceQuantityGroup}`
+        const group = groups.get(groupKey) ?? {
+          label: attrs.sourceQuantityGroup === 'spot-light-allocation' ? 'Panel and spot light split' : 'Power supply split',
+          expected: Number(attrs.sourceQuantityGroupTotal || 0),
+          actual: 0,
+        }
+        group.actual += Number(item.netQuantity || 0)
+        groups.set(groupKey, group)
+      }
+      const mismatch = [...groups.values()].find((group) => Math.abs(group.actual - group.expected) > 0.001)
+      if (mismatch) {
+        setSaveError(`${mismatch.label} must total ${mismatch.expected} pcs; current total is ${mismatch.actual} pcs.`)
+        setSaveSuccess(null)
+        return
+      }
+    }
     startTransition(() => {
       void saveRequisition(status)
     })
-  }, [saveRequisition, startTransition])
+  }, [requisitionItems, saveRequisition, startTransition])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -6760,7 +6930,7 @@ export function RequisitionBuilderClient({
         isOpen={isAddSectionModalOpen}
         onClose={() => setIsAddSectionModalOpen(false)}
         productTitle={currentSlide?.title ?? 'Quotation Product'}
-        onAdd={(cat, wpSub, cabSub, accSub, appSub) => {
+        onAdd={(cat, wpSub, cabSub, accSub, appSub, includeSchedule) => {
           addSection(
             currentCardKey,
             cat,
@@ -6768,7 +6938,8 @@ export function RequisitionBuilderClient({
             cabSub,
             accSub,
             appSub,
-            currentSlide?.type === 'LINE_ITEM' ? currentSlide.item?.id : undefined
+            currentSlide?.type === 'LINE_ITEM' ? currentSlide.item?.id : undefined,
+            includeSchedule
           )
         }}
       />
@@ -7264,7 +7435,7 @@ export function RequisitionBuilderClient({
                             onLoadCabinetPreset={(sectionId, subType) => loadCabinetPresetForSection(li.id, sectionId, subType, li.id)}
                             onLoadAccessoryPreset={(sectionId, subType) => loadAccessoryPresetForSection(li.id, sectionId, subType, li.id)}
                             onLoadAppliancePreset={(sectionId, subType) => loadAppliancePresetForSection(li.id, sectionId, subType, li.id)}
-                            onAddSection={(cat, wpSub, cabSub, accSub, appSub) => addSection(li.id, cat, wpSub, cabSub, accSub, appSub, li.id)}
+                            onAddSection={(cat, wpSub, cabSub, accSub, appSub, includeSchedule) => addSection(li.id, cat, wpSub, cabSub, accSub, appSub, li.id, includeSchedule)}
                             onRemoveSection={(sectionId) => removeSection(li.id, sectionId)}
                             onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(li.id, sectionId)}
                             boqSavedAccessories={boqSavedAccessories}
@@ -7292,7 +7463,7 @@ export function RequisitionBuilderClient({
             onLoadCabinetPreset={(sectionId, subType) => loadCabinetPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
             onLoadAccessoryPreset={(sectionId, subType) => loadAccessoryPresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
             onLoadAppliancePreset={(sectionId, subType) => loadAppliancePresetForSection(EXTRA_KEY, sectionId, subType, undefined)}
-            onAddSection={(cat, wpSub, cabSub, accSub, appSub) => addSection(EXTRA_KEY, cat, wpSub, cabSub, accSub, appSub, undefined)}
+            onAddSection={(cat, wpSub, cabSub, accSub, appSub, includeSchedule) => addSection(EXTRA_KEY, cat, wpSub, cabSub, accSub, appSub, undefined, includeSchedule)}
             onRemoveSection={(sectionId) => removeSection(EXTRA_KEY, sectionId)}
             onToggleSectionCollapse={(sectionId) => toggleSectionCollapse(EXTRA_KEY, sectionId)}
             boqSavedAccessories={boqSavedAccessories}

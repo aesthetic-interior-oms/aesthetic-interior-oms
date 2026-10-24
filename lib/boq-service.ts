@@ -318,20 +318,27 @@ export async function saveMaterialRequisition(input: {
     // Insert line items
     if (requisitionId && input.items.length > 0) {
       await prisma.materialRequisitionItem.createMany({
-        data: input.items.map((item) => ({
-          requisitionId: requisitionId!,
-          quotationLineItemId: item.quotationLineItemId,
-          workCategory: item.workCategory,
-          materialName: item.materialName,
-          specifications: item.specifications,
-          variantAttributes: (item.variantAttributes || {}) as Prisma.InputJsonValue,
-          netQuantity: Number(item.netQuantity) || 1,
-          wastagePercent: Number(item.wastagePercent) || 0,
-          finalQuantity: Number(item.finalQuantity) || Number(item.netQuantity) || 1,
-          unit: item.unit || 'Pcs',
-          productionPhase: item.productionPhase,
-          remarks: item.remarks,
-        })),
+        data: input.items.map((item) => {
+          const parsedNetQuantity = Number(item.netQuantity)
+          const netQuantity = Number.isFinite(parsedNetQuantity) ? parsedNetQuantity : 1
+          const parsedWastagePercent = Number(item.wastagePercent)
+          const parsedFinalQuantity = Number(item.finalQuantity)
+          return {
+            requisitionId: requisitionId!,
+            quotationLineItemId: item.quotationLineItemId,
+            workCategory: item.workCategory,
+            materialName: item.materialName,
+            specifications: item.specifications,
+            variantAttributes: (item.variantAttributes || {}) as Prisma.InputJsonValue,
+            // Zero is used for schedule items whose quantity still needs confirmation.
+            netQuantity,
+            wastagePercent: Number.isFinite(parsedWastagePercent) ? parsedWastagePercent : 0,
+            finalQuantity: Number.isFinite(parsedFinalQuantity) ? parsedFinalQuantity : netQuantity,
+            unit: item.unit || 'Pcs',
+            productionPhase: item.productionPhase,
+            remarks: item.remarks,
+          }
+        }),
       })
     }
 
