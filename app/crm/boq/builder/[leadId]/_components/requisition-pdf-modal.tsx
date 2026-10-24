@@ -230,7 +230,7 @@ export function RequisitionPdfExportModal({
     }
 
     // Process all cards
-    const cardKeys = Array.from(new Set([...lineItems.map((li) => li.id), '__extra__']))
+    const cardKeys = Array.from(new Set([...Object.keys(sectionsMap), ...lineItems.map((li) => li.id), '__extra__']))
 
     for (const cardKey of cardKeys) {
       const sections = (sectionsMap[cardKey] ?? []).filter((s) =>
@@ -246,7 +246,10 @@ export function RequisitionPdfExportModal({
         const rawItems = itemsMap[itemKey] ?? []
         // Filter out empty rows
         const validItems = rawItems.filter(
-          (it) => cleanString(it.materialName) !== '' || (Number(it.finalQuantity) || 0) > 0,
+          (it) =>
+            cleanString(it.materialName) !== '' ||
+            cleanString(it.specifications) !== '' ||
+            (Number(it.finalQuantity) || 0) > 0,
         )
         if (validItems.length === 0) continue
 

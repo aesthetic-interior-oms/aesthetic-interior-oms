@@ -28,18 +28,25 @@ const DETAIL_ROW_VERTICAL_PADDING = 3
 
 const isBrowser = typeof window !== 'undefined'
 
-const getBaseUrl = () => {
-  if (typeof window !== 'undefined') return window.location.origin
-  return 'https://www.aestheticinteriortech.com'
-}
+const fontRegular = isBrowser
+  ? '/fonts/NotoSansBengali-Regular.ttf'
+  : typeof process !== 'undefined' && process.cwd
+    ? `${process.cwd()}/public/fonts/NotoSansBengali-Regular.ttf`
+    : '/fonts/NotoSansBengali-Regular.ttf'
+
+const fontBold = isBrowser
+  ? '/fonts/NotoSansBengali-Bold.ttf'
+  : typeof process !== 'undefined' && process.cwd
+    ? `${process.cwd()}/public/fonts/NotoSansBengali-Bold.ttf`
+    : '/fonts/NotoSansBengali-Bold.ttf'
 
 Font.register({
   family: 'Noto Sans Bengali',
   fonts: [
-    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Regular.ttf` },
-    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Regular.ttf`, fontStyle: 'italic' },
-    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold' },
-    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold', fontStyle: 'italic' },
+    { src: fontRegular },
+    { src: fontRegular, fontStyle: 'italic' },
+    { src: fontBold, fontWeight: 'bold' },
+    { src: fontBold, fontWeight: 'bold', fontStyle: 'italic' },
   ],
 })
 
@@ -49,13 +56,13 @@ const logoSrc = isBrowser
   ? '/Logo/HeaderLogo.png'
   : typeof process !== 'undefined' && process.cwd
     ? `${process.cwd()}/public/Logo/HeaderLogo.png`
-    : `${getBaseUrl()}/Logo/HeaderLogo.png`
+    : '/Logo/HeaderLogo.png'
 
 const watermarkSrc = isBrowser
   ? '/android-chrome-512x512.png'
   : typeof process !== 'undefined' && process.cwd
     ? `${process.cwd()}/public/android-chrome-512x512.png`
-    : `${getBaseUrl()}/android-chrome-512x512.png`
+    : '/android-chrome-512x512.png'
 
 const styles = StyleSheet.create({
   page: {
@@ -81,12 +88,10 @@ const styles = StyleSheet.create({
   },
   watermark: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
+    top: 220,
+    left: 98,
+    width: 400,
+    height: 400,
     zIndex: -1,
     opacity: 0.05,
   },
@@ -126,6 +131,7 @@ const styles = StyleSheet.create({
     bottom: 12,
     left: PAGE_PADDING,
     right: PAGE_PADDING,
+    height: 38,
     backgroundColor: '#ffffff',
     zIndex: 10,
   },

@@ -3,18 +3,39 @@
 import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { RequisitionItemInput } from '@/lib/boq-service'
 
-const getBaseUrl = () => {
-  if (typeof window !== 'undefined') return window.location.origin
-  return 'https://www.aestheticinteriortech.com'
-}
+const isBrowser = typeof window !== 'undefined'
+
+const fontRegular = isBrowser
+  ? '/fonts/NotoSansBengali-Regular.ttf'
+  : typeof process !== 'undefined' && process.cwd
+    ? `${process.cwd()}/public/fonts/NotoSansBengali-Regular.ttf`
+    : '/fonts/NotoSansBengali-Regular.ttf'
+
+const fontBold = isBrowser
+  ? '/fonts/NotoSansBengali-Bold.ttf'
+  : typeof process !== 'undefined' && process.cwd
+    ? `${process.cwd()}/public/fonts/NotoSansBengali-Bold.ttf`
+    : '/fonts/NotoSansBengali-Bold.ttf'
+
+const logoSrc = isBrowser
+  ? '/Logo/HeaderLogo.png'
+  : typeof process !== 'undefined' && process.cwd
+    ? `${process.cwd()}/public/Logo/HeaderLogo.png`
+    : '/Logo/HeaderLogo.png'
+
+const watermarkSrc = isBrowser
+  ? '/android-chrome-512x512.png'
+  : typeof process !== 'undefined' && process.cwd
+    ? `${process.cwd()}/public/android-chrome-512x512.png`
+    : '/android-chrome-512x512.png'
 
 Font.register({
   family: 'Noto Sans Bengali',
   fonts: [
-    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Regular.ttf` },
-    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Regular.ttf`, fontStyle: 'italic' },
-    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold' },
-    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold', fontStyle: 'italic' },
+    { src: fontRegular },
+    { src: fontRegular, fontStyle: 'italic' },
+    { src: fontBold, fontWeight: 'bold' },
+    { src: fontBold, fontWeight: 'bold', fontStyle: 'italic' },
   ],
 })
 
@@ -41,12 +62,10 @@ const styles = StyleSheet.create({
   },
   watermark: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
+    top: 220,
+    left: 98,
+    width: 400,
+    height: 400,
     zIndex: -1,
     opacity: 0.05,
   },
@@ -268,6 +287,7 @@ const styles = StyleSheet.create({
     left: PAGE_SIDE_PADDING,
     right: PAGE_SIDE_PADDING,
     backgroundColor: '#ffffff',
+    height: 38,
   },
   footerText: {
     fontSize: 6.5,
@@ -283,7 +303,7 @@ const styles = StyleSheet.create({
 // ── Watermark ──
 const WatermarkBackground = () => (
   <View style={styles.watermark} fixed>
-    <Image src={`${getBaseUrl()}/android-chrome-512x512.png`} style={{ width: 380, height: 380 }} />
+    <Image src={watermarkSrc} style={{ width: 400, height: 400 }} />
   </View>
 )
 
@@ -298,7 +318,6 @@ const GlobalHeader = ({
   date: string
 }) => (
   <View style={styles.header} fixed>
-    <Image src={`${getBaseUrl()}/backgrounddata.svg`} style={styles.headerPattern} />
     <View style={{ paddingTop: 2 }}>
       <View style={styles.headerRuleRow}>
         <View style={[styles.headerRule, { flexGrow: 1.4 }]} />
@@ -307,7 +326,7 @@ const GlobalHeader = ({
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flex: 1 }}>
-          <Image src={`${getBaseUrl()}/Logo/HeaderLogo.png`} style={{ width: 142 }} />
+          <Image src={logoSrc} style={{ width: 142 }} />
         </View>
         <View style={styles.datePanel}>
           <Text style={styles.metaLabel}>Requisition Code</Text>
