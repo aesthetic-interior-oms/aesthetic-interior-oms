@@ -5,7 +5,7 @@ import { Document, Page, StyleSheet, Text, View, Image, Font } from '@react-pdf/
 
 const getBaseUrl = () => {
   if (typeof window !== 'undefined') return window.location.origin
-  return 'https://www.aestheticinteriorbd.com'
+  return 'https://www.aestheticinteriortech.com'
 }
 
 Font.register({
