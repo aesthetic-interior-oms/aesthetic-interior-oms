@@ -1,13 +1,16 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Download, Loader2, Search, UserRound } from 'lucide-react'
+import Link from 'next/link'
+import { Download, FileText, Loader2, Search, UserRound } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { DetailQuotationDocument } from '@/components/crm/quotation/pdf/DetailQuotationDocument'
+import { AgreementDocumentPdf } from '@/components/crm/quotation/pdf/AgreementDocument'
 import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
 import { withDetailQuotationDefaults } from '@/lib/detail-quotation-format'
 import { calculateQuotationTotals } from '@/lib/quotation-calculations'
+import type { AgreementContent } from '@/lib/agreement-template'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -68,9 +71,11 @@ function boqEligible(_lead: AgreementLead) {
 export function AgreementLeadsBoard({
   title = 'Agreement Leads',
   subtitle = 'Confirmed agreements with quotation totals, discounts, settled values, and detail quotation downloads.',
+  editorBasePath = '/crm/admin/agreement-leads',
 }: {
   title?: string
   subtitle?: string
+  editorBasePath?: string
 }) {
   const [leads, setLeads] = useState<AgreementLead[]>([])
   const [staff, setStaff] = useState<Staff[]>([])
@@ -81,6 +86,7 @@ export function AgreementLeadsBoard({
   const [staffLoading, setStaffLoading] = useState(true)
   const [savingBoqId, setSavingBoqId] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [downloadingAgreementId, setDownloadingAgreementId] = useState<string | null>(null)
   const [assignError, setAssignError] = useState<Record<string, string>>({})
 
   const loadLeads = useCallback(async () => {
@@ -210,6 +216,28 @@ export function AgreementLeadsBoard({
     }
   }
 
+  const downloadAgreement = async (lead: AgreementLead) => {
+    setDownloadingAgreementId(lead.id)
+    try {
+      const response = await fetch(`/api/agreement-leads/${lead.id}`, { cache: 'no-store' })
+      const payload = await response.json()
+      if (!response.ok || !payload.success || !payload.data) throw new Error(payload.error ?? 'Failed to load agreement')
+      const data = payload.data as {
+        agreement: AgreementContent
+        quotation: Parameters<typeof AgreementDocumentPdf>[0]['quotation']
+        totals: Parameters<typeof AgreementDocumentPdf>[0]['totals']
+      }
+      const safeName = lead.name.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'Client'
+      await downloadPdfFromDocument(
+        <AgreementDocumentPdf agreement={data.agreement} quotation={data.quotation} totals={data.totals} clientName={lead.name} agreementValue={lead.settledAgreementValue} />,
+        `Agreement_${safeName}_${data.agreement.agreementDate}.pdf`,
+      )
+      toast.success('Agreement PDF downloaded')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to download agreement')
+    } finally { setDownloadingAgreementId(null) }
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <CrmPageHeader title={title} subtitle={subtitle} />
@@ -332,6 +360,13 @@ export function AgreementLeadsBoard({
 
                       <TableCell className="min-w-[250px] text-right">
                         <div className="flex flex-col items-end gap-2">
+                          <Button size="sm" variant="outline" asChild>
+                            <Link href={`${editorBasePath}/${lead.id}`}><FileText className="mr-1.5 h-4 w-4" />Edit Agreement</Link>
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => void downloadAgreement(lead)} disabled={downloadingAgreementId === lead.id}>
+                            {downloadingAgreementId === lead.id ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
+                            Download Agreement PDF
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
