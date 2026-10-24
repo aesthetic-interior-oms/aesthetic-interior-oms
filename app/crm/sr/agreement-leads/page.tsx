@@ -1,5 +1,5 @@
 import { AgreementLeadsBoard } from '@/components/crm/shared/agreement-leads-board'
 
 export default function SeniorCrmAgreementLeadsPage() {
-  return <AgreementLeadsBoard title="Agreement Leads" />
+  return <AgreementLeadsBoard title="Agreement Leads" editorBasePath="/crm/sr/agreement-leads" />
 }
