@@ -173,9 +173,9 @@ const styles = StyleSheet.create({
   wSumName: { width: '72%', paddingLeft: 10 },
   wSumTotal: { width: '22%', textAlign: 'right' },
 
-  summaryFloorRow: { backgroundColor: '#f3f8f7' },
+  summaryFloorRow: {},
   summaryTdCol: { borderRightWidth: 0 },
-  areaTotalRow: { backgroundColor: '#fff8e6' },
+  areaTotalRow: {},
 
   // Grand total & in-words
   grandTotalRow: {
@@ -405,7 +405,7 @@ export function SummaryDocument({
           {floorSummaries.map((entry) => {
             sl += 1
             return (
-              <View key={entry.floor.id} style={[styles.tRow, styles.summaryFloorRow]} wrap={false}>
+              <View key={entry.floor.id} style={styles.tRow} wrap={false}>
                 <Text style={[styles.tdCol, styles.wSl]}>{sl}</Text>
                 <Text style={[styles.tdCol, styles.wSumName]}>{entry.floor.name}</Text>
                 <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>
@@ -420,7 +420,7 @@ export function SummaryDocument({
             (() => {
               sl += 1
               return (
-                <View style={[styles.tRow, { backgroundColor: '#fff8e6' }]} wrap={false}>
+                <View style={styles.tRow} wrap={false}>
                   <Text style={[styles.tdCol, styles.wSl]}>{sl}</Text>
                   <Text style={[styles.tdCol, styles.wSumName]}>Furniture Works</Text>
                   <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>
@@ -436,7 +436,7 @@ export function SummaryDocument({
             (() => {
               sl += 1
               return (
-                <View style={[styles.tRow, { backgroundColor: '#f0f8ff' }]} wrap={false}>
+                <View style={styles.tRow} wrap={false}>
                   <Text style={[styles.tdCol, styles.wSl]}>{sl}</Text>
                   <Text style={[styles.tdCol, styles.wSumName]}>
                     Electrical Works{electricalIsApprox ? ' (approx.)' : ''}
