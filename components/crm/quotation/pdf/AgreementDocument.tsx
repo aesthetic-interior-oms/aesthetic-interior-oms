@@ -9,6 +9,8 @@ import {
   formatDetailQtyCell,
   formatDetailUnitPriceCell,
   formatDetailTotalCell,
+  isPackageLine,
+  isRateOnlyLine,
 } from '@/lib/detail-quotation-format'
 import { amountInWordsTaka } from '@/lib/number-to-words'
 
@@ -19,48 +21,74 @@ const BG_LIGHT = '#f7faf9'
 const BG_ALT = '#fffdfa'
 const TEXT_DARK = '#1a202c'
 const TEXT_MUTED = '#64748b'
-const PAGE_PADDING = 36
+const PAGE_PADDING = 28
+const BDT_SYMBOL = '৳'
+const DETAIL_ROW_LINE_HEIGHT = 1.15
+const DETAIL_ROW_VERTICAL_PADDING = 3
 
 const isBrowser = typeof window !== 'undefined'
 
-const fontRegular = isBrowser
-  ? '/fonts/NotoSansBengali-Regular.ttf'
-  : typeof process !== 'undefined' && process.cwd
-    ? `${process.cwd()}/public/fonts/NotoSansBengali-Regular.ttf`
-    : '/fonts/NotoSansBengali-Regular.ttf'
-
-const fontBold = isBrowser
-  ? '/fonts/NotoSansBengali-Bold.ttf'
-  : typeof process !== 'undefined' && process.cwd
-    ? `${process.cwd()}/public/fonts/NotoSansBengali-Bold.ttf`
-    : '/fonts/NotoSansBengali-Bold.ttf'
-
-const logoSrc = isBrowser
-  ? '/Logo/HeaderLogo.png'
-  : typeof process !== 'undefined' && process.cwd
-    ? `${process.cwd()}/public/Logo/HeaderLogo.png`
-    : '/Logo/HeaderLogo.png'
+const getBaseUrl = () => {
+  if (typeof window !== 'undefined') return window.location.origin
+  return 'https://www.aestheticinteriortech.com'
+}
 
 Font.register({
   family: 'Noto Sans Bengali',
   fonts: [
-    { src: fontRegular },
-    { src: fontBold, fontWeight: 'bold' },
+    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Regular.ttf` },
+    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Regular.ttf`, fontStyle: 'italic' },
+    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold' },
+    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold', fontStyle: 'italic' },
   ],
 })
 
 Font.registerHyphenationCallback((word) => [word])
 
+const logoSrc = isBrowser
+  ? '/Logo/HeaderLogo.png'
+  : typeof process !== 'undefined' && process.cwd
+    ? `${process.cwd()}/public/Logo/HeaderLogo.png`
+    : `${getBaseUrl()}/Logo/HeaderLogo.png`
+
+const watermarkSrc = isBrowser
+  ? '/android-chrome-512x512.png'
+  : typeof process !== 'undefined' && process.cwd
+    ? `${process.cwd()}/public/android-chrome-512x512.png`
+    : `${getBaseUrl()}/android-chrome-512x512.png`
+
 const styles = StyleSheet.create({
   page: {
     paddingTop: 80,
-    paddingBottom: 68,
+    paddingBottom: 72,
     paddingHorizontal: PAGE_PADDING,
     fontFamily: 'Noto Sans Bengali',
     fontSize: 9.5,
     color: TEXT_DARK,
     backgroundColor: '#ffffff',
     lineHeight: 1.5,
+  },
+  detailPage: {
+    paddingTop: 80,
+    paddingBottom: 72,
+    paddingLeft: 14,
+    paddingRight: 14,
+    fontFamily: 'Noto Sans Bengali',
+    fontSize: 9,
+    color: '#000000',
+    backgroundColor: '#ffffff',
+    lineHeight: 1.4,
+  },
+  watermark: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: -1,
+    opacity: 0.05,
   },
   header: {
     position: 'absolute',
@@ -93,23 +121,21 @@ const styles = StyleSheet.create({
     color: TEXT_MUTED,
     marginTop: 1,
   },
-  footer: {
+  footerFixed: {
     position: 'absolute',
-    bottom: 16,
+    bottom: 12,
     left: PAGE_PADDING,
     right: PAGE_PADDING,
-    borderTopWidth: 1,
-    borderTopColor: GOLD,
-    paddingTop: 6,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    fontSize: 7.5,
-    color: TEXT_MUTED,
+    backgroundColor: '#ffffff',
+    zIndex: 10,
   },
-  footerCompany: {
-    fontWeight: 'bold',
-    color: PRIMARY,
+  footerText: {
+    fontSize: 7.5,
+    color: '#666666',
+  },
+  footerMeta: {
+    fontSize: 6.5,
+    color: '#888888',
   },
   titleBanner: {
     backgroundColor: BG_LIGHT,
@@ -144,6 +170,23 @@ const styles = StyleSheet.create({
     borderLeftColor: GOLD,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  detailSectionTitle: {
+    fontSize: 11.5,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    backgroundColor: '#f3f8f7',
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+    marginTop: 4,
+    marginBottom: 6,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    borderLeftWidth: 3,
+    borderLeftColor: GOLD,
+    borderRightWidth: 3,
+    borderRightColor: GOLD,
   },
   paragraph: {
     marginBottom: 6,
@@ -284,6 +327,131 @@ const styles = StyleSheet.create({
     backgroundColor: '#fffdfa',
     borderRadius: 3,
   },
+
+  // Detail Quotation specific styles (identical to DetailQuotationDocument)
+  detailTableWrapper: {
+    width: '100%',
+  },
+  detailTHead: {
+    flexDirection: 'row',
+    borderTopWidth: 0.75,
+    borderLeftWidth: 0.75,
+    borderRightWidth: 0.75,
+    borderBottomWidth: 0.75,
+    borderColor: '#d7d7d7',
+    backgroundColor: '#f3f8f7',
+  },
+  detailThCol: {
+    fontSize: 9.5,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    textTransform: 'uppercase',
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    borderRightWidth: 0.5,
+    borderRightColor: '#d7d7d7',
+  },
+  thColLast: {
+    borderRightWidth: 0,
+  },
+  detailTRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    borderLeftWidth: 0.75,
+    borderRightWidth: 0.75,
+    borderBottomWidth: 0.5,
+    borderColor: '#d7d7d7',
+  },
+  detailTRowAlt: {
+    backgroundColor: '#fffdfa',
+  },
+  detailTdCol: {
+    fontSize: 9,
+    lineHeight: DETAIL_ROW_LINE_HEIGHT,
+    paddingTop: DETAIL_ROW_VERTICAL_PADDING,
+    paddingBottom: DETAIL_ROW_VERTICAL_PADDING,
+    paddingHorizontal: 4,
+    borderRightWidth: 0.5,
+    borderRightColor: '#d7d7d7',
+    color: '#000000',
+  },
+  wSl: { width: '6%', textAlign: 'center' },
+  wName: { width: '16%' },
+  wMats: { width: '44%' },
+  wQty: { width: '10%', textAlign: 'center' },
+  wPrice: { width: '12%', textAlign: 'center' },
+  wTotal: { width: '12%', textAlign: 'center' },
+
+  areaTitleRow: {
+    backgroundColor: '#f3f8f7',
+    borderLeftWidth: 0.75,
+    borderRightWidth: 0.75,
+    borderBottomWidth: 0.5,
+    borderColor: '#d7d7d7',
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+  },
+  areaTitleText: {
+    fontSize: 9.5,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+  },
+  areaTotalRow: {
+    backgroundColor: '#fff8e6',
+    borderLeftWidth: 0.75,
+    borderRightWidth: 0.75,
+    borderBottomWidth: 0.5,
+    borderColor: '#d7d7d7',
+  },
+  areaTotalLabel: {
+    textAlign: 'right',
+    color: PRIMARY,
+    textTransform: 'uppercase',
+  },
+  matText: {
+    fontSize: 8.5,
+    color: '#444444',
+    lineHeight: DETAIL_ROW_LINE_HEIGHT,
+    marginBottom: 0,
+  },
+  matCell: {
+    lineHeight: DETAIL_ROW_LINE_HEIGHT,
+  },
+  grandTotalRow: {
+    flexDirection: 'row',
+    paddingTop: 8,
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: PRIMARY,
+  },
+  grandTotalLabel: {
+    width: '76%',
+    textAlign: 'right',
+    paddingRight: 10,
+    fontWeight: 'bold',
+    fontSize: 9.5,
+    color: PRIMARY,
+    textTransform: 'uppercase',
+  },
+  grandTotalValue: {
+    width: '24%',
+    textAlign: 'right',
+    fontWeight: 'bold',
+    fontSize: 9.5,
+    color: PRIMARY,
+  },
+  inWords: {
+    fontSize: 9,
+    color: '#000000',
+    marginTop: 6,
+    textAlign: 'left',
+    fontFamily: 'Noto Sans Bengali',
+    fontWeight: 'bold',
+    textDecoration: 'underline',
+  },
 })
 
 function formatDateString(dateString: string | undefined | null) {
@@ -304,21 +472,9 @@ function formatDateString(dateString: string | undefined | null) {
   }
 }
 
-const PageWatermark = () => (
-  <View
-    fixed
-    style={{
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-    }}
-  >
-    <Image src={logoSrc} style={{ width: 340, opacity: 0.06 }} />
+const WatermarkBackground = () => (
+  <View style={styles.watermark} fixed>
+    <Image src={watermarkSrc} style={{ width: 400, height: 400 }} />
   </View>
 )
 
@@ -326,12 +482,14 @@ const GlobalHeader = ({
   code,
   date,
   title = 'Agreement Paper',
+  sidePadding = PAGE_PADDING,
 }: {
   code: string
   date: string
   title?: string
+  sidePadding?: number
 }) => (
-  <View style={styles.header} fixed>
+  <View style={[styles.header, { left: sidePadding, right: sidePadding }]} fixed>
     <View style={styles.headerBrand}>
       <Image src={logoSrc} style={{ width: 130 }} />
     </View>
@@ -346,25 +504,162 @@ const GlobalHeader = ({
 const GlobalFooter = ({
   workOrderId,
   reference,
+  sidePadding = PAGE_PADDING,
 }: {
   workOrderId: string
   reference: string
+  sidePadding?: number
 }) => (
-  <View style={styles.footer} fixed>
-    <View style={{ width: '40%' }}>
-      <Text style={styles.footerCompany}>Aesthetic Interior Studio</Text>
-      <Text>183 East Senpara, Mirpur-10, Dhaka-1216</Text>
-    </View>
-    <View style={{ width: '35%', alignItems: 'center' }}>
-      <Text>01329-694660 · 01329-694661</Text>
-      <Text>www.aestheticinteriortech.com</Text>
-    </View>
-    <View style={{ width: '25%', alignItems: 'flex-end' }}>
-      <Text render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`} />
-      <Text style={{ fontSize: 5.5, color: '#94a3b8' }}>{reference || workOrderId}</Text>
+  <View style={[styles.footerFixed, { left: sidePadding, right: sidePadding }]} fixed>
+    <View
+      style={{
+        borderTopWidth: 1,
+        borderTopColor: GOLD,
+        paddingTop: 6,
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+      }}
+    >
+      <View style={{ width: '35%' }}>
+        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold', fontSize: 8 }]}>
+          Aesthetic Interior Studio
+        </Text>
+        <Text style={styles.footerText}>183, East Senpara, Mirpur-10, Dhaka-1216</Text>
+      </View>
+      <View style={{ width: '30%', alignItems: 'center' }}>
+        <Text style={styles.footerText}>+88 0132969 4663 · +88 0132969 4660</Text>
+        <Text style={[styles.footerText, { color: PRIMARY, fontWeight: 'bold' }]}>
+          www.aestheticinteriortech.com
+        </Text>
+      </View>
+      <View style={{ width: '35%', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
+        <Text
+          style={styles.footerText}
+          render={({ pageNumber, totalPages }) => `Page ${pageNumber} of ${totalPages}`}
+        />
+        <Text style={[styles.footerMeta, { marginTop: 2 }]}>
+          Ref: {reference || workOrderId} · WO: {workOrderId}
+        </Text>
+      </View>
     </View>
   </View>
 )
+
+function softWrapPdfText(value: string | null | undefined, chunkSize = 24) {
+  if (!value) return ''
+  return value
+    .split(/(\s+)/)
+    .map((part) => {
+      if (/^\s+$/.test(part) || part.length <= chunkSize) return part
+      const chunks = part.match(new RegExp(`.{1,${chunkSize}}`, 'g')) ?? [part]
+      return chunks.join('\u200B')
+    })
+    .join('')
+}
+
+function splitPdfTableLines(value: string | null | undefined, lineLength: number) {
+  if (!value) return ['']
+  const rawLines = value.split(/\r?\n/)
+  if (rawLines.length === 0) return ['']
+
+  const result: string[] = []
+
+  for (const rawLine of rawLines) {
+    if (rawLine === '') {
+      result.push('')
+      continue
+    }
+
+    const words = rawLine.split(' ')
+    let current = ''
+
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i]
+      const wordChunks =
+        word.length > lineLength
+          ? word.match(new RegExp(`.{1,${lineLength}}`, 'g')) ?? [word]
+          : [word]
+
+      for (let j = 0; j < wordChunks.length; j++) {
+        const chunk = wordChunks[j]
+        if (!current) {
+          current = chunk
+        } else if (current.length + 1 + chunk.length > lineLength) {
+          result.push(current)
+          current = chunk
+        } else {
+          current = `${current} ${chunk}`
+        }
+      }
+    }
+
+    if (current || rawLine !== '') {
+      result.push(current)
+    }
+  }
+
+  return result.length > 0 ? result : ['']
+}
+
+function parseMarkdownBoldPdf(text: string, defaultBold = false) {
+  if (!text) return null
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+      return (
+        <Text key={idx} style={styles.bold}>
+          {softWrapPdfText(part.slice(2, -2))}
+        </Text>
+      )
+    }
+    return (
+      <Text key={idx} style={defaultBold ? styles.bold : {}}>
+        {softWrapPdfText(part)}
+      </Text>
+    )
+  })
+}
+
+function SingleMaterialLine({ text, isFirstRowAndEmpty }: { text: string; isFirstRowAndEmpty?: boolean }) {
+  if (!text) {
+    if (isFirstRowAndEmpty) {
+      return <Text wrap={false} style={styles.matText}>—</Text>
+    }
+    return <Text wrap={false} style={styles.matText}>{'\u00A0'}</Text>
+  }
+  const match = text.match(/^(\d{2}\.[^:]+:|[^:*]+:|\*[^:]+:)/)
+  const isWithoutWiring =
+    text.toLowerCase().includes('without supplying wiring') ||
+    text.toLowerCase().includes('without suppling wiring')
+  if (!match) {
+    return (
+      <Text wrap={false} style={styles.matText}>
+        {parseMarkdownBoldPdf(text, isWithoutWiring)}
+      </Text>
+    )
+  }
+  const prefix = match[1]
+  const rest = text.substring(prefix.length)
+  return (
+    <Text wrap={false} style={styles.matText}>
+      <Text style={styles.bold}>{softWrapPdfText(prefix)}</Text>
+      {parseMarkdownBoldPdf(rest, isWithoutWiring)}
+    </Text>
+  )
+}
+
+function formatDetailUnitPriceCurrency(line: QuotationDraftContent['lineItems'][number]) {
+  if (isRateOnlyLine(line)) return formatDetailAmount(line.rate)
+  if (line.rate <= 0) return formatDetailUnitPriceCell(line)
+  return formatDetailAmount(line.rate)
+}
+
+function formatDetailTotalCurrency(line: QuotationDraftContent['lineItems'][number]) {
+  if (isRateOnlyLine(line)) return formatDetailTotalCell(line)
+  if (!line.amount || line.amount <= 0) return '---'
+  return formatDetailAmount(line.amount)
+}
 
 export function AgreementDocumentPdf({
   agreement,
@@ -393,11 +688,51 @@ export function AgreementDocumentPdf({
     0,
   )
 
+  const getAreaGroups = (entry: ReturnType<typeof buildDetailFloorSummaries>[number]) => {
+    const isFinishingElectrical =
+      entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
+      entry.floor.id === 'finishing-electrical-works-section' ||
+      Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name))
+
+    if (isFinishingElectrical) {
+      return [{ id: `fe-${entry.floor.id}`, name: '', lines: entry.lines }]
+    }
+
+    const floorAreas = [...(quotation?.areas ?? [])]
+      .filter((area) => area.floorId === entry.floor.id)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+
+    const unassignedLines = entry.lines.filter((line) => !line.areaId)
+    if (floorAreas.length === 0) return [{ id: `general-${entry.floor.id}`, name: 'General Area', lines: entry.lines }]
+
+    return [
+      { id: `general-${entry.floor.id}`, name: 'General Area', lines: unassignedLines },
+      ...floorAreas.map((area) => ({
+        id: area.id,
+        name: area.name || 'Area',
+        lines: entry.lines.filter((line) => line.areaId === area.id),
+      })),
+    ].filter((area) => area.lines.length > 0)
+  }
+
+  // Precompute continuous global SL numbers across all sections
+  const lineSlMap = new Map<string, number>()
+  let globalSlCounter = 0
+  rows.forEach((entry) => {
+    const areaGroups = getAreaGroups(entry)
+    areaGroups.forEach((area) => {
+      area.lines.forEach((line) => {
+        globalSlCounter += 1
+        lineSlMap.set(line.id, globalSlCounter)
+      })
+    })
+  })
+
   return (
     <Document title={`Agreement - ${clientName}`} author="Aesthetic Interior">
       {/* ─── PAGE 1: WORK ORDER FOR INTERIOR WORKS ─────────────────── */}
       <Page size="A4" style={styles.page}>
-        <PageWatermark />
+        <WatermarkBackground />
         <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Work Order" />
 
         <View style={styles.titleBanner}>
@@ -446,7 +781,7 @@ export function AgreementDocumentPdf({
 
       {/* ─── PAGE 2: AGREEMENT AND RECITALS ───────────────────────── */}
       <Page size="A4" style={styles.page}>
-        <PageWatermark />
+        <WatermarkBackground />
         <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Agreement Paper" />
 
         <View style={styles.titleBanner}>
@@ -463,7 +798,7 @@ export function AgreementDocumentPdf({
           <Text style={[styles.paragraph, { marginBottom: 5 }]}>
             <Text style={styles.bold}>{agreement.ownerName || clientName}</Text>, Owner of the Apartment at{' '}
             {agreement.ownerAddress || agreement.projectAddress || 'Dhaka, Bangladesh'}. (Hereinafter referred to as the{' '}
-            <Text style={styles.bold}>"Owner"</Text>)
+            <Text style={styles.bold}>&quot;Owner&quot;</Text>)
           </Text>
 
           <Text style={[styles.bold, { fontSize: 8.5, color: GOLD, marginBottom: 2, textTransform: 'uppercase' }]}>
@@ -474,7 +809,7 @@ export function AgreementDocumentPdf({
             Begum Rokeya Sarani, Mirpur-10, Trade License No: <Text style={styles.bold}>TRAD/DNCC/037755/2025</Text>,
             Represented by <Text style={styles.bold}>{agreement.companyRepresentative || 'Md. Nazrul Islam'}</Text>,
             Designation: {agreement.companyRepresentativeTitle || 'General Manager'}, (hereinafter referred to as the{' '}
-            <Text style={styles.bold}>"Consultant"</Text> which expression shall, unless it be repugnant to the context or meaning
+            <Text style={styles.bold}>&quot;Consultant&quot;</Text> which expression shall, unless it be repugnant to the context or meaning
             thereof, be deemed to mean and include its successors and assigns) of the other part.
           </Text>
         </View>
@@ -536,7 +871,7 @@ export function AgreementDocumentPdf({
 
       {/* ─── PAGE 3: QUOTATION SUMMARY & PAYMENT SCHEDULE ─────────── */}
       <Page size="A4" style={styles.page}>
-        <PageWatermark />
+        <WatermarkBackground />
         <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Quotation & Payment" />
 
         <Text style={styles.sectionTitle}>Quotation Summary</Text>
@@ -653,74 +988,238 @@ export function AgreementDocumentPdf({
         <GlobalFooter workOrderId={agreement.workOrderId} reference={agreement.reference} />
       </Page>
 
-      {/* ─── PAGE 4 (new position): DETAIL QUOTATION BREAKDOWN ──────── */}
-      {quotation && rows.length > 0 ? (
-        <Page size="A4" style={styles.page}>
-          <PageWatermark />
-          <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Quotation Detail" />
+      {/* ─── PAGES 4+: DETAIL QUOTATION (EXACT DETAILQUOTATION DESIGN) ─── */}
+      {quotation && rows.length > 0
+        ? rows.map((entry) => (
+            <Page key={entry.floor.id} size="A4" style={styles.detailPage}>
+              <WatermarkBackground />
+              <GlobalHeader
+                code={agreement.workOrderId}
+                date={agreement.agreementDate}
+                title="Schedule of Rates"
+                sidePadding={14}
+              />
 
-          <View style={styles.titleBanner}>
-            <Text style={styles.docTitle}>SCHEDULE OF RATES & DETAIL BREAKDOWN</Text>
-            <Text style={styles.docSubTitle}>
-              {quotation.subject || 'Interior Works'} · Reference: {agreement.workOrderId}
-            </Text>
-          </View>
+              <Text style={styles.detailSectionTitle}>{softWrapPdfText(entry.floor.name)}</Text>
 
-          {rows.map((section) => (
-            <View key={section.floor.id} style={{ marginBottom: 8 }} wrap>
-              <Text style={[styles.sectionTitle, { marginTop: 4, marginBottom: 3 }]}>{section.floor.name}</Text>
-              <View style={styles.table}>
-                <View style={styles.tHead}>
-                  <Text style={[styles.thCol, { width: '6%', textAlign: 'center' }]}>SL</Text>
-                  <Text style={[styles.thCol, { width: '48%' }]}>Description / Specification</Text>
-                  <Text style={[styles.thCol, { width: '12%', textAlign: 'center' }]}>Qty</Text>
-                  <Text style={[styles.thCol, { width: '16%', textAlign: 'right' }]}>Rate (৳)</Text>
-                  <Text style={[styles.thCol, { width: '18%', textAlign: 'right' }]}>Total (৳)</Text>
+              <View style={styles.detailTableWrapper}>
+                <View style={styles.detailTHead}>
+                  <Text style={[styles.detailThCol, styles.wSl]}>SL</Text>
+                  <Text style={[styles.detailThCol, styles.wName]}>Name</Text>
+                  <Text style={[styles.detailThCol, styles.wMats]}>Material Description</Text>
+                  <Text style={[styles.detailThCol, styles.wQty]}>Qty/Sft</Text>
+                  <Text style={[styles.detailThCol, styles.wPrice]}>U/P ({BDT_SYMBOL})</Text>
+                  <Text style={[styles.detailThCol, styles.wTotal, styles.thColLast]}>Total ({BDT_SYMBOL})</Text>
                 </View>
 
-                {section.lines.map((line, idx) => (
-                  <View key={line.id} style={[styles.tRow, idx % 2 ? styles.tRowAlt : {}]} wrap={false}>
-                    <Text style={[styles.tdCol, { width: '6%', textAlign: 'center' }]}>{String(idx + 1).padStart(2, '0')}</Text>
-                    <View style={{ width: '48%', paddingRight: 4 }}>
-                      <Text style={[styles.tdCol, { fontWeight: 'bold' }]}>{line.description}</Text>
-                      {line.materials ? (
-                        <Text style={{ fontSize: 6.5, color: TEXT_MUTED, marginTop: 1 }}>{line.materials}</Text>
-                      ) : null}
-                    </View>
-                    <Text style={[styles.tdCol, { width: '12%', textAlign: 'center' }]}>{formatDetailQtyCell(line)}</Text>
-                    <Text style={[styles.tdCol, { width: '16%', textAlign: 'right' }]}>{formatDetailUnitPriceCell(line)}</Text>
-                    <Text style={[styles.tdCol, { width: '18%', textAlign: 'right', fontWeight: 'bold' }]}>
-                      {formatDetailTotalCell(line)}
-                    </Text>
+                {getAreaGroups(entry).map((area) => (
+                  <View key={area.id}>
+                    {area.name ? (
+                      <View style={styles.areaTitleRow} wrap={false}>
+                        <Text style={styles.areaTitleText}>{softWrapPdfText(area.name)}</Text>
+                      </View>
+                    ) : null}
+
+                    {area.lines.map((line, lineIndex) => {
+                      const isPkg = isPackageLine(line)
+                      const nameLines = splitPdfTableLines(line.description, 14)
+                      const materialLines = splitPdfTableLines(line.materials, 50)
+
+                      let priceTextRaw = ''
+                      if (isPkg) {
+                        const userWritten = line.unitPriceLabel?.trim()
+                        priceTextRaw = userWritten && userWritten !== 'as per project design' ? userWritten : '--'
+                      } else {
+                        priceTextRaw = formatDetailUnitPriceCurrency(line)
+                      }
+
+                      const priceLines = isPkg
+                        ? splitPdfTableLines(priceTextRaw, 18)
+                        : splitPdfTableLines(priceTextRaw, 9)
+
+                      const isFinishingElectricalEntry =
+                        Boolean(line.isFinishingElectrical) ||
+                        entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
+                        entry.floor.id === 'finishing-electrical-works-section' ||
+                        Boolean(entry.floor.name && /finishing|electrical/i.test(entry.floor.name)) ||
+                        Boolean(area.name && /finishing|electrical/i.test(area.name))
+
+                      const feRate = Number.isFinite(line.rate) ? line.rate : 0
+                      const feQty = Number.isFinite(line.quantity) ? line.quantity : 0
+                      const isFEPackageMode =
+                        isFinishingElectricalEntry && line.amount > 0 && !(feRate > 0 && feQty > 0)
+
+                      let totalTextRaw = ''
+                      if (isFinishingElectricalEntry) {
+                        if (line.amount && line.amount > 0) {
+                          totalTextRaw = `${formatDetailAmount(line.amount)}\n(approx.)`
+                        } else {
+                          totalTextRaw = '---'
+                        }
+                      } else if (isPkg) {
+                        if (line.amount && line.amount > 0) {
+                          totalTextRaw = formatDetailAmount(line.amount)
+                        } else {
+                          totalTextRaw = '---'
+                        }
+                      } else {
+                        totalTextRaw = formatDetailTotalCurrency(line)
+                      }
+                      const totalLines = splitPdfTableLines(totalTextRaw, 9)
+
+                      const tableLineCount = Math.max(
+                        nameLines.length,
+                        materialLines.length,
+                        priceLines.length,
+                        totalLines.length,
+                      )
+                      const rowCellStyle = {
+                        paddingTop: DETAIL_ROW_VERTICAL_PADDING,
+                        paddingBottom: DETAIL_ROW_VERTICAL_PADDING,
+                      }
+                      const slNumber = String(lineSlMap.get(line.id) ?? lineIndex + 1).padStart(2, '0')
+
+                      return Array.from({ length: tableLineCount }, (_, rowIndex) => {
+                        const isFirstMaterialRow = rowIndex === 0
+                        const isLastSubRow = rowIndex === tableLineCount - 1
+                        const nameText = nameLines[rowIndex] ?? ''
+                        const matText = materialLines[rowIndex] ?? ''
+                        const priceText = priceLines[rowIndex] ?? ''
+                        const totalText = totalLines[rowIndex] ?? ''
+
+                        return (
+                          <View
+                            key={`${line.id}-${rowIndex}`}
+                            wrap={false}
+                            style={[
+                              styles.detailTRow,
+                              lineIndex % 2 === 1 ? styles.detailTRowAlt : {},
+                              !isLastSubRow ? { borderBottomWidth: 0 } : {},
+                            ]}
+                          >
+                            <Text style={[styles.detailTdCol, styles.wSl, styles.bold, rowCellStyle]}>
+                              {isFirstMaterialRow ? slNumber : ''}
+                            </Text>
+                            <Text wrap={false} style={[styles.detailTdCol, styles.wName, rowCellStyle]}>
+                              {nameText ? softWrapPdfText(nameText) : ''}
+                            </Text>
+                            <View style={[styles.detailTdCol, styles.wMats, styles.matCell, rowCellStyle]}>
+                              <SingleMaterialLine
+                                text={matText}
+                                isFirstRowAndEmpty={isFirstMaterialRow && !line.materials?.trim()}
+                              />
+                            </View>
+                            {isFEPackageMode ? (
+                              <Text
+                                style={[
+                                  styles.detailTdCol,
+                                  { width: '22%', textAlign: 'center' },
+                                  rowCellStyle,
+                                  { fontSize: 8.5 },
+                                ]}
+                              >
+                                {isFirstMaterialRow ? 'Package' : ''}
+                              </Text>
+                            ) : (
+                              <>
+                                <Text
+                                  style={[
+                                    styles.detailTdCol,
+                                    styles.wQty,
+                                    rowCellStyle,
+                                    { fontSize: 8.5 },
+                                  ]}
+                                >
+                                  {isFirstMaterialRow ? (isPkg ? 'Package' : formatDetailQtyCell(line)) : ''}
+                                </Text>
+                                <Text
+                                  style={[
+                                    styles.detailTdCol,
+                                    styles.wPrice,
+                                    rowCellStyle,
+                                    { fontSize: 8.5 },
+                                  ]}
+                                >
+                                  {isFirstMaterialRow ? (priceText ? softWrapPdfText(priceText) : '') : ''}
+                                </Text>
+                              </>
+                            )}
+                            <Text
+                              style={[
+                                styles.detailTdCol,
+                                styles.wTotal,
+                                styles.thColLast,
+                                styles.bold,
+                                { color: PRIMARY },
+                                rowCellStyle,
+                              ]}
+                            >
+                              {totalText ? softWrapPdfText(totalText) : ''}
+                            </Text>
+                          </View>
+                        )
+                      })
+                    })}
+
+                    {area.name &&
+                    area.name !== 'Finishing & Electrical Works' &&
+                    area.name !== 'Finishing & Electrical' ? (
+                      <View style={[styles.detailTRow, styles.areaTotalRow]} wrap={false}>
+                        <Text style={[styles.detailTdCol, styles.wSl]} />
+                        <Text style={[styles.detailTdCol, styles.wName]} />
+                        <Text style={[styles.detailTdCol, styles.wMats, styles.bold, styles.areaTotalLabel]}>
+                          TOTAL FOR {softWrapPdfText(area.name).toUpperCase()}
+                        </Text>
+                        <Text style={[styles.detailTdCol, styles.wQty]} />
+                        <Text style={[styles.detailTdCol, styles.wPrice]} />
+                        <Text
+                          style={[
+                            styles.detailTdCol,
+                            styles.wTotal,
+                            styles.thColLast,
+                            styles.bold,
+                            { color: PRIMARY },
+                          ]}
+                        >
+                          ৳ {formatDetailAmount(area.lines.reduce((s, l) => s + l.amount, 0))}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
                 ))}
-
-                <View style={styles.totalsRow}>
-                  <Text style={[styles.thCol, { width: '6%' }]} />
-                  <Text style={[styles.thCol, { width: '60%', color: PRIMARY }]}>{section.floor.name} Subtotal</Text>
-                  <Text style={[styles.thCol, { width: '34%', textAlign: 'right', color: PRIMARY }]}>
-                    ৳ {formatDetailAmount(section.total)}
-                  </Text>
-                </View>
               </View>
-            </View>
-          ))}
 
-          <View style={[styles.totalsRow, { paddingVertical: 5, marginBottom: 6 }]}>
-            <Text style={[styles.thCol, { width: '50%', color: PRIMARY, fontSize: 8.5 }]}>Schedule Total Agreement Value</Text>
-            <Text style={[styles.thCol, { width: '50%', textAlign: 'right', color: PRIMARY, fontSize: 9.5 }]}>
-              ৳ {formatDetailAmount(finalValue)}
-            </Text>
-          </View>
+              {entry.total > 0 ? (
+                <>
+                  <View style={[styles.grandTotalRow, { marginTop: 12 }]} wrap={false}>
+                    <Text style={styles.grandTotalLabel}>
+                      TOTAL FOR {softWrapPdfText(entry.floor.name).toUpperCase()}
+                    </Text>
+                    <Text style={styles.grandTotalValue}>
+                      ৳ {formatDetailAmount(entry.total)}
+                      {entry.floor.sectionType === 'FINISHING_ELECTRICAL' ||
+                      entry.floor.name === 'Finishing & Electrical Works'
+                        ? ' (approx.)'
+                        : ''}
+                    </Text>
+                  </View>
+                  <Text style={styles.inWords}>In Words: {amountInWordsTaka(entry.total)}</Text>
+                </>
+              ) : null}
 
-          <GlobalFooter workOrderId={agreement.workOrderId} reference={agreement.reference} />
-        </Page>
-      ) : null}
+              <GlobalFooter
+                workOrderId={agreement.workOrderId}
+                reference={agreement.reference}
+                sidePadding={14}
+              />
+            </Page>
+          ))
+        : null}
 
-      {/* ─── PAGES 5+: AGREEMENT CLAUSES ───────────────────────────── */}
+      {/* ─── PAGES AFTER DETAIL QUOTATION: AGREEMENT CLAUSES ───────── */}
       {agreement.clauseGroups.map((group, groupIndex) => (
         <Page key={group.title || groupIndex} size="A4" style={styles.page}>
-          <PageWatermark />
+          <WatermarkBackground />
           <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Agreement Clauses" />
 
           <View style={styles.titleBanner}>
@@ -755,7 +1254,7 @@ export function AgreementDocumentPdf({
 
       {/* ─── FINAL PAGE: SIGNATURES, WITNESSES & ACKNOWLEDGEMENT ──── */}
       <Page size="A4" style={styles.page}>
-        <PageWatermark />
+        <WatermarkBackground />
         <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Signatures" />
 
         <View style={styles.titleBanner}>
@@ -800,7 +1299,7 @@ export function AgreementDocumentPdf({
           </View>
         </View>
 
-        {/* General Manager Official Acknowledgment Block verbatim from docx */}
+        {/* General Manager Official Acknowledgment Block */}
         <View style={styles.gmCard}>
           <Text style={[styles.bold, { fontSize: 8, color: PRIMARY, marginBottom: 3, textTransform: 'uppercase' }]}>
             Consultant Declaration &amp; Acknowledgment
