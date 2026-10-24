@@ -7,6 +7,7 @@ import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { QuotationWorkspace } from '@/components/crm/quotation/quotation-workspace'
 import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
+import { SummaryPdfButton } from '@/components/crm/quotation/pdf/summary-pdf-button'
 
 type LeadDetail = {
   id: string
@@ -103,6 +104,7 @@ export default function QuotationLeadWorkspacePage() {
                   >
                     Checklist PDF
                   </Link>
+                  <SummaryPdfButton leadId={lead.id} leadName={lead.name} />
                 </div>
               </CardContent>
             </Card>
