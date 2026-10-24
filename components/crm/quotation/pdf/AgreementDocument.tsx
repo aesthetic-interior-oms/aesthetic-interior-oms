@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     paddingBottom: 68,
     paddingHorizontal: PAGE_PADDING,
     fontFamily: 'Noto Sans Bengali',
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: TEXT_DARK,
     backgroundColor: '#ffffff',
     lineHeight: 1.5,
@@ -82,14 +82,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   headerDocTitle: {
-    fontSize: 9,
+    fontSize: 10.5,
     fontWeight: 'bold',
     color: PRIMARY,
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
   headerSubText: {
-    fontSize: 7,
+    fontSize: 8,
     color: TEXT_MUTED,
     marginTop: 1,
   },
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    fontSize: 6.5,
+    fontSize: 7.5,
     color: TEXT_MUTED,
   },
   footerCompany: {
@@ -120,19 +120,19 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   docTitle: {
-    fontSize: 12,
+    fontSize: 13.5,
     fontWeight: 'bold',
     color: PRIMARY,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
   docSubTitle: {
-    fontSize: 7.5,
+    fontSize: 8.5,
     color: TEXT_MUTED,
     marginTop: 2,
   },
   sectionTitle: {
-    fontSize: 9.5,
+    fontSize: 11,
     fontWeight: 'bold',
     color: PRIMARY,
     backgroundColor: BG_LIGHT,
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   paragraph: {
     marginBottom: 6,
     lineHeight: 1.5,
-    fontSize: 8.5,
+    fontSize: 9.5,
     color: '#2d3748',
   },
   bold: {
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   thCol: {
-    fontSize: 7.5,
+    fontSize: 8.5,
     fontWeight: 'bold',
     color: '#ffffff',
     textTransform: 'uppercase',
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     backgroundColor: BG_ALT,
   },
   tdCol: {
-    fontSize: 8,
+    fontSize: 9,
     color: TEXT_DARK,
   },
   totalsRow: {
@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   inWordsText: {
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: 'bold',
     color: PRIMARY,
   },
@@ -232,13 +232,13 @@ const styles = StyleSheet.create({
   },
   clauseNum: {
     width: 24,
-    fontSize: 7.5,
+    fontSize: 8.5,
     fontWeight: 'bold',
     color: GOLD,
   },
   clauseBody: {
     flex: 1,
-    fontSize: 8,
+    fontSize: 9,
     lineHeight: 1.45,
     color: '#2d3748',
   },
@@ -254,13 +254,13 @@ const styles = StyleSheet.create({
     paddingTop: 5,
   },
   sigName: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     fontWeight: 'bold',
     color: PRIMARY,
     marginBottom: 1.5,
   },
   sigRole: {
-    fontSize: 7.5,
+    fontSize: 8.5,
     color: TEXT_MUTED,
     lineHeight: 1.3,
   },
@@ -303,6 +303,24 @@ function formatDateString(dateString: string | undefined | null) {
     return dateString
   }
 }
+
+const PageWatermark = () => (
+  <View
+    fixed
+    style={{
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}
+  >
+    <Image src={logoSrc} style={{ width: 340, opacity: 0.06 }} />
+  </View>
+)
 
 const GlobalHeader = ({
   code,
@@ -379,6 +397,7 @@ export function AgreementDocumentPdf({
     <Document title={`Agreement - ${clientName}`} author="Aesthetic Interior">
       {/* ─── PAGE 1: WORK ORDER FOR INTERIOR WORKS ─────────────────── */}
       <Page size="A4" style={styles.page}>
+        <PageWatermark />
         <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Work Order" />
 
         <View style={styles.titleBanner}>
@@ -427,6 +446,7 @@ export function AgreementDocumentPdf({
 
       {/* ─── PAGE 2: AGREEMENT AND RECITALS ───────────────────────── */}
       <Page size="A4" style={styles.page}>
+        <PageWatermark />
         <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Agreement Paper" />
 
         <View style={styles.titleBanner}>
@@ -443,7 +463,7 @@ export function AgreementDocumentPdf({
           <Text style={[styles.paragraph, { marginBottom: 5 }]}>
             <Text style={styles.bold}>{agreement.ownerName || clientName}</Text>, Owner of the Apartment at{' '}
             {agreement.ownerAddress || agreement.projectAddress || 'Dhaka, Bangladesh'}. (Hereinafter referred to as the{' '}
-            <Text style={styles.bold}>“Owner”</Text>)
+            <Text style={styles.bold}>"Owner"</Text>)
           </Text>
 
           <Text style={[styles.bold, { fontSize: 8.5, color: GOLD, marginBottom: 2, textTransform: 'uppercase' }]}>
@@ -454,7 +474,7 @@ export function AgreementDocumentPdf({
             Begum Rokeya Sarani, Mirpur-10, Trade License No: <Text style={styles.bold}>TRAD/DNCC/037755/2025</Text>,
             Represented by <Text style={styles.bold}>{agreement.companyRepresentative || 'Md. Nazrul Islam'}</Text>,
             Designation: {agreement.companyRepresentativeTitle || 'General Manager'}, (hereinafter referred to as the{' '}
-            <Text style={styles.bold}>“Consultant”</Text> which expression shall, unless it be repugnant to the context or meaning
+            <Text style={styles.bold}>"Consultant"</Text> which expression shall, unless it be repugnant to the context or meaning
             thereof, be deemed to mean and include its successors and assigns) of the other part.
           </Text>
         </View>
@@ -516,6 +536,7 @@ export function AgreementDocumentPdf({
 
       {/* ─── PAGE 3: QUOTATION SUMMARY & PAYMENT SCHEDULE ─────────── */}
       <Page size="A4" style={styles.page}>
+        <PageWatermark />
         <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Quotation & Payment" />
 
         <Text style={styles.sectionTitle}>Quotation Summary</Text>
@@ -632,44 +653,10 @@ export function AgreementDocumentPdf({
         <GlobalFooter workOrderId={agreement.workOrderId} reference={agreement.reference} />
       </Page>
 
-      {/* ─── PAGES 4+: AGREEMENT CLAUSES ──────────────────────────── */}
-      {agreement.clauseGroups.map((group, groupIndex) => (
-        <Page key={group.title || groupIndex} size="A4" style={styles.page}>
-          <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Agreement Clauses" />
-
-          <View style={styles.titleBanner}>
-            <Text style={styles.docTitle}>AGREEMENT CLAUSES</Text>
-            <Text style={styles.docSubTitle}>
-              Section {groupIndex + 1}: {group.title}
-            </Text>
-          </View>
-
-          {group.clauses.map((clause, index) => {
-            const colonIndex = clause.indexOf(':')
-            const hasHeader = colonIndex > 0 && colonIndex < 40
-            const header = hasHeader ? clause.slice(0, colonIndex + 1) : null
-            const body = hasHeader ? clause.slice(colonIndex + 1).trim() : clause
-
-            return (
-              <View key={index} style={styles.clauseRow} wrap={false}>
-                <Text style={styles.clauseNum}>
-                  {groupIndex + 1}.{index + 1}
-                </Text>
-                <Text style={styles.clauseBody}>
-                  {header ? <Text style={styles.bold}>{header} </Text> : null}
-                  {body}
-                </Text>
-              </View>
-            )
-          })}
-
-          <GlobalFooter workOrderId={agreement.workOrderId} reference={agreement.reference} />
-        </Page>
-      ))}
-
-      {/* ─── OPTIONAL: DETAIL QUOTATION BREAKDOWN (if items exist) ─── */}
+      {/* ─── PAGE 4 (new position): DETAIL QUOTATION BREAKDOWN ──────── */}
       {quotation && rows.length > 0 ? (
         <Page size="A4" style={styles.page}>
+          <PageWatermark />
           <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Quotation Detail" />
 
           <View style={styles.titleBanner}>
@@ -730,8 +717,45 @@ export function AgreementDocumentPdf({
         </Page>
       ) : null}
 
+      {/* ─── PAGES 5+: AGREEMENT CLAUSES ───────────────────────────── */}
+      {agreement.clauseGroups.map((group, groupIndex) => (
+        <Page key={group.title || groupIndex} size="A4" style={styles.page}>
+          <PageWatermark />
+          <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Agreement Clauses" />
+
+          <View style={styles.titleBanner}>
+            <Text style={styles.docTitle}>AGREEMENT CLAUSES</Text>
+            <Text style={styles.docSubTitle}>
+              Section {groupIndex + 1}: {group.title}
+            </Text>
+          </View>
+
+          {group.clauses.map((clause, index) => {
+            const colonIndex = clause.indexOf(':')
+            const hasHeader = colonIndex > 0 && colonIndex < 40
+            const header = hasHeader ? clause.slice(0, colonIndex + 1) : null
+            const body = hasHeader ? clause.slice(colonIndex + 1).trim() : clause
+
+            return (
+              <View key={index} style={styles.clauseRow} wrap={false}>
+                <Text style={styles.clauseNum}>
+                  {groupIndex + 1}.{index + 1}
+                </Text>
+                <Text style={styles.clauseBody}>
+                  {header ? <Text style={styles.bold}>{header} </Text> : null}
+                  {body}
+                </Text>
+              </View>
+            )
+          })}
+
+          <GlobalFooter workOrderId={agreement.workOrderId} reference={agreement.reference} />
+        </Page>
+      ))}
+
       {/* ─── FINAL PAGE: SIGNATURES, WITNESSES & ACKNOWLEDGEMENT ──── */}
       <Page size="A4" style={styles.page}>
+        <PageWatermark />
         <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Signatures" />
 
         <View style={styles.titleBanner}>
@@ -756,7 +780,7 @@ export function AgreementDocumentPdf({
             <View key={index} style={styles.witnessCol}>
               <Text style={{ fontSize: 6.5, color: TEXT_MUTED, marginBottom: 10 }}>Witness {index + 1}</Text>
               <Text style={styles.sigName}>{name || `1. __________________`}</Text>
-              <Text style={styles.sigRole}>Signature & Date</Text>
+              <Text style={styles.sigRole}>Signature &amp; Date</Text>
             </View>
           ))}
         </View>
@@ -766,14 +790,12 @@ export function AgreementDocumentPdf({
             <View style={styles.sigBlock}>
               <Text style={styles.sigName}>{agreement.ownerName || clientName}</Text>
               <Text style={styles.sigRole}>Owner (Project)</Text>
-              <Text style={styles.sigRole}>Client Signature: ____________________</Text>
               <Text style={styles.sigRole}>Date: {agreement.agreementDate}</Text>
             </View>
             <View style={styles.sigBlock}>
               <Text style={styles.sigName}>{agreement.ceoName || 'Md Johirul Islam'}</Text>
               <Text style={styles.sigRole}>Chief Executive Officer (CEO)</Text>
               <Text style={styles.sigRole}>Aesthetic Interior</Text>
-              <Text style={styles.sigRole}>Authorized Signature: ____________________</Text>
             </View>
           </View>
         </View>
@@ -781,7 +803,7 @@ export function AgreementDocumentPdf({
         {/* General Manager Official Acknowledgment Block verbatim from docx */}
         <View style={styles.gmCard}>
           <Text style={[styles.bold, { fontSize: 8, color: PRIMARY, marginBottom: 3, textTransform: 'uppercase' }]}>
-            Consultant Declaration & Acknowledgment
+            Consultant Declaration &amp; Acknowledgment
           </Text>
           <Text style={[styles.paragraph, { fontSize: 7, color: '#333333', marginBottom: 6, lineHeight: 1.4 }]}>
             I, <Text style={styles.bold}>{agreement.companyRepresentative || 'Md. Nazrul Islam'}</Text>,{' '}
