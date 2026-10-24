@@ -12,7 +12,9 @@ Font.register({
   family: 'Noto Sans Bengali',
   fonts: [
     { src: `${getBaseUrl()}/fonts/NotoSansBengali-Regular.ttf` },
+    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Regular.ttf`, fontStyle: 'italic' },
     { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold' },
+    { src: `${getBaseUrl()}/fonts/NotoSansBengali-Bold.ttf`, fontWeight: 'bold', fontStyle: 'italic' },
   ],
 })
 
@@ -146,7 +148,6 @@ const styles = StyleSheet.create({
   summarySubtitleText: {
     fontSize: 7,
     color: '#64748b',
-    fontStyle: 'italic',
   },
   table: {
     width: '100%',
@@ -234,7 +235,6 @@ const styles = StyleSheet.create({
     borderRightWidth: 0.75,
     borderBottomWidth: 0.5,
     borderColor: BORDER,
-    fontStyle: 'italic',
   },
   subSectionBanner: {
     backgroundColor: '#eef4f3',
@@ -469,7 +469,7 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                     <Text style={{ fontSize: 7, color: '#4a5568', marginTop: 1 }}>{mat.specifications}</Text>
                   ) : null}
                   {mat.usedInProducts.length > 0 ? (
-                    <Text style={{ fontSize: 6.5, color: '#718096', fontStyle: 'italic', marginTop: 1 }}>
+                    <Text style={{ fontSize: 6.5, color: '#718096', marginTop: 1 }}>
                       Used in: {mat.usedInProducts.slice(0, 3).join(', ')}
                       {mat.usedInProducts.length > 3 ? ` +${mat.usedInProducts.length - 3} more` : ''}
                     </Text>
