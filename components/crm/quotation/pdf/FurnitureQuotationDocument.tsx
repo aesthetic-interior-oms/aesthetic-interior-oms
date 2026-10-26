@@ -173,7 +173,11 @@ export function FurnitureQuotationDocument({ content, leadName, leadLocation }: 
       <GlobalHeader date={content.quotationDate} />
       <Footer />
       <View style={styles.client}>
-        <Text style={styles.clientLabel}>Prepared For</Text><Text style={styles.clientName}>{leadName}</Text>{leadLocation ? <Text style={styles.clientAddress}>{leadLocation}</Text> : null}
+        <Text style={styles.clientLabel}>Prepared For</Text>
+        <Text style={styles.clientName}>{content.clientName?.trim() || leadName}</Text>
+        {(content.clientAddress !== undefined ? content.clientAddress?.trim() : leadLocation) ? (
+          <Text style={styles.clientAddress}>{content.clientAddress?.trim() || leadLocation}</Text>
+        ) : null}
       </View>
       {content.subject ? <Text style={styles.subject}><Text style={{ fontWeight: 'bold', color: PRIMARY }}>Subject: </Text>{content.subject}</Text> : null}
       {sections.map(({ name, items }) => {

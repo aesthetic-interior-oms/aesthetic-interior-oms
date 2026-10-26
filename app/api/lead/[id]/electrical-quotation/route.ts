@@ -80,7 +80,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     ? (draft.content as unknown as ElectricalQuotationContent)
     : buildDefaultElectricalQuotationContent({ clientName: result.lead.name, clientAddress: result.lead.location })
 
-  if (content && !content.clientName) {
+  if (content && content.clientName === undefined) {
     content.clientName = result.lead.name
   }
   if (content && content.clientAddress === undefined) {

@@ -47,6 +47,8 @@ export const FURNITURE_QUOTATION_TEMPLATE: FurnitureQuotationItem[] = [
 ]
 
 export type FurnitureQuotationContent = {
+  clientName?: string
+  clientAddress?: string
   quotationDate: string
   subject: string
   notes: string
@@ -56,8 +58,13 @@ export type FurnitureQuotationContent = {
 
 export const FURNITURE_QUOTATION_UNITS = ['Nos', 'Set', 'Sft', 'Sqft', 'Rft', 'Rmt', 'Yard', 'Seater', 'Coil', 'Package', 'Lump sum', 'Other'] as const
 
-export function buildDefaultFurnitureQuotationContent(): FurnitureQuotationContent {
+export function buildDefaultFurnitureQuotationContent(initial?: {
+  clientName?: string
+  clientAddress?: string | null
+}): FurnitureQuotationContent {
   return {
+    clientName: initial?.clientName || '',
+    clientAddress: initial?.clientAddress || '',
     quotationDate: new Date().toISOString().slice(0, 10),
     subject: 'Quotation for interior Furniture work.',
     notes: '',

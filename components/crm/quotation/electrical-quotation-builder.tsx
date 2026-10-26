@@ -313,7 +313,7 @@ export function ElectricalQuotationBuilder({ leadId, leadName, leadLocation, onD
       .then(([draftPayload, savedPayload]) => {
         if (!active) return
         const fetchedContent = draftPayload.data.content as ElectricalQuotationContent
-        if (!fetchedContent.clientName) {
+        if (fetchedContent.clientName === undefined) {
           fetchedContent.clientName = leadName
         }
         if (fetchedContent.clientAddress === undefined || fetchedContent.clientAddress === null) {

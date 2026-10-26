@@ -129,7 +129,9 @@ function SortableItemRow({ item, index, disabled, units, onPatch, onRemove, onSa
 }
 
 export function FurnitureQuotationBuilder({ leadId, leadName, leadLocation, onDraftSaved }: Props) {
-  const [content, setContent] = useState<FurnitureQuotationContent>(() => buildDefaultFurnitureQuotationContent())
+  const [content, setContent] = useState<FurnitureQuotationContent>(() =>
+    buildDefaultFurnitureQuotationContent({ clientName: leadName, clientAddress: leadLocation })
+  )
   const [savedItems, setSavedItems] = useState<SavedItem[]>([])
   const [canEdit, setCanEdit] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -166,7 +168,14 @@ export function FurnitureQuotationBuilder({ leadId, leadName, leadLocation, onDr
       }),
     ]).then(([draftPayload, savedPayload]) => {
       if (!active) return
-      setContent(draftPayload.data.content)
+      const fetchedContent = draftPayload.data.content as FurnitureQuotationContent
+      if (fetchedContent.clientName === undefined) {
+        fetchedContent.clientName = leadName
+      }
+      if (fetchedContent.clientAddress === undefined) {
+        fetchedContent.clientAddress = leadLocation ?? ''
+      }
+      setContent(fetchedContent)
       setCanEdit(Boolean(draftPayload.data.canEdit))
       setHasDraft(Boolean(draftPayload.data.draft))
       setSavedItems(savedPayload.items as SavedItem[])
@@ -253,7 +262,13 @@ export function FurnitureQuotationBuilder({ leadId, leadName, leadLocation, onDr
   async function downloadPdf() {
     setDownloading(true)
     try {
-      await downloadPdfFromDocument(<FurnitureQuotationDocument content={content} leadName={leadName} leadLocation={leadLocation} />, `Furniture-Quotation-${leadName.replace(/[^a-z0-9]+/gi, '-')}.pdf`)
+      const displayName = content.clientName?.trim() || leadName
+      const displayLocation = content.clientAddress !== undefined ? content.clientAddress : leadLocation
+      const cleanName = displayName.replace(/[^a-z0-9]+/gi, '-')
+      await downloadPdfFromDocument(
+        <FurnitureQuotationDocument content={content} leadName={displayName} leadLocation={displayLocation} />,
+        `Furniture-Quotation-${cleanName}.pdf`
+      )
       toast.success('Furniture quotation downloaded')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to download quotation')
@@ -306,12 +321,49 @@ export function FurnitureQuotationBuilder({ leadId, leadName, leadLocation, onDr
     </div>
 
     <Card>
-      <CardHeader className="flex flex-row items-start justify-between gap-4"><div><CardTitle>Furniture Quotation</CardTitle><p className="mt-1 text-sm text-muted-foreground">Start with an empty quotation, then add reusable items from the saved list.</p></div></CardHeader>
+      <CardHeader className="flex flex-row items-start justify-between gap-4 pb-4">
+        <div>
+          <CardTitle>Furniture Quotation</CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">Start with an empty quotation, then add reusable items from the saved list.</p>
+        </div>
+      </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-3">
-        <label className="space-y-1 text-sm"><span className="font-medium">Quotation for</span><Input value={leadName} readOnly /></label>
-        <label className="space-y-1 text-sm"><span className="font-medium">Address</span><Input value={leadLocation ?? ''} readOnly placeholder="No address on lead" /></label>
-        <label className="space-y-1 text-sm"><span className="font-medium">Date</span><Input type="date" value={content.quotationDate} disabled={!canEdit} onChange={(e) => setContent((c) => ({ ...c, quotationDate: e.target.value }))} /></label>
-        <label className="space-y-1 text-sm sm:col-span-3"><span className="font-medium">Subject</span><Input value={content.subject} disabled={!canEdit} onChange={(e) => setContent((c) => ({ ...c, subject: e.target.value }))} /></label>
+        <label className="space-y-1 text-sm font-medium">
+          <span>Quotation for</span>
+          <Input
+            value={content.clientName ?? leadName}
+            disabled={!canEdit}
+            placeholder="Client / company name"
+            onChange={(e) => setContent((c) => ({ ...c, clientName: e.target.value }))}
+          />
+        </label>
+        <label className="space-y-1 text-sm font-medium">
+          <span>Address</span>
+          <Input
+            value={content.clientAddress ?? leadLocation ?? ''}
+            disabled={!canEdit}
+            placeholder="Client address / site location"
+            onChange={(e) => setContent((c) => ({ ...c, clientAddress: e.target.value }))}
+          />
+        </label>
+        <label className="space-y-1 text-sm font-medium">
+          <span>Date</span>
+          <Input
+            type="date"
+            value={content.quotationDate}
+            disabled={!canEdit}
+            onChange={(e) => setContent((c) => ({ ...c, quotationDate: e.target.value }))}
+          />
+        </label>
+        <label className="space-y-1 text-sm font-medium sm:col-span-3">
+          <span>Subject</span>
+          <Input
+            value={content.subject}
+            disabled={!canEdit}
+            placeholder="Quotation subject"
+            onChange={(e) => setContent((c) => ({ ...c, subject: e.target.value }))}
+          />
+        </label>
       </CardContent>
     </Card>
 
