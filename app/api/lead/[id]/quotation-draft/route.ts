@@ -281,7 +281,7 @@ function toDetailQuotationContent(value: unknown): QuotationDraftContent | null 
         rate: toOptionalNumber(line.rate) ?? 0,
         quantity: toOptionalNumber(line.quantity) ?? 0,
         amount: toOptionalNumber(line.amount) ?? 0,
-        included: Boolean(line.included),
+        included: line.included === false ? false : true,
         isCustom: Boolean(line.isCustom),
       }
       if (typeof line.templateId === 'string' && line.templateId.trim()) {

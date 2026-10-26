@@ -544,7 +544,7 @@ function AgreementEditModal({
                   <SectionHeading>Detail Quotation (linked)</SectionHeading>
                   <div className="rounded-md bg-muted/40 border border-border/60 px-4 py-3 text-xs text-muted-foreground">
                     <span className="font-medium text-foreground">
-                      {data.quotation.lineItems.filter((li) => li.included).length} included lines
+                      {data.quotation.lineItems.filter((li) => li.included !== false).length} included lines
                     </span>
                     {' · '}৳ {Math.round(data.totals?.grandTotal ?? 0).toLocaleString('en-IN')} grand total
                     <p className="mt-1 text-[11px]">The detail quotation table is automatically included in the PDF from saved quotation data. No editing needed here.</p>

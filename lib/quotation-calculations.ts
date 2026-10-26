@@ -50,7 +50,7 @@ export function normalizeQuotationContent(content: QuotationDraftContent): Quota
 
 export function calculateQuotationTotals(content: QuotationDraftContent): QuotationTotals {
   const lineItems = Array.isArray(content?.lineItems) ? content.lineItems : []
-  const includedItems = lineItems.filter((line) => line?.included)
+  const includedItems = lineItems.filter((line) => line?.included !== false)
   const subtotal = includedItems.reduce((sum, line) => sum + (line?.amount ?? 0), 0)
 
   const discountPercent = Number.isFinite(content.discountPercent)

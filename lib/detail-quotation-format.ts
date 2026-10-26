@@ -101,7 +101,7 @@ export function buildDetailFloorSummaries(content: QuotationDraftContent): Detai
 
   return floors
     .map((floor) => {
-      const lines = content.lineItems.filter((line) => line.sectionId === floor.id && line.included)
+      const lines = content.lineItems.filter((line) => line.sectionId === floor.id && line.included !== false)
       const total = Math.round(
         lines.reduce((sum, line) => {
           if (isRateOnlyLine(line)) return sum
