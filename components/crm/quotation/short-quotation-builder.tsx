@@ -2,13 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { BookOpen, CopyCheck, Download, ExternalLink, GripVertical, Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { BookOpen, CopyCheck, Download, ExternalLink, GripVertical, History, Loader2, Plus, Save, SaveAll, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CollapsibleCard } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { searchShortQuotationNames } from '@/lib/short-quotation-names'
 import { ShortQuotationDocument } from '@/components/crm/quotation/pdf/ShortQuotationDocument'
 import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
@@ -173,6 +180,34 @@ export function ShortQuotationBuilder({
     }
     return listQuotationTemplates().map((t) => ({ key: t.key, name: t.name }))
   }, [fullTemplates])
+
+  // ─── Version management state ────────────────────────────────────────────────
+  // "Active version" tracking: null = working on the live base draft; string = draftKey of a named version
+  const [activeVersionKey, setActiveVersionKey] = useState<string | null>(null)
+
+  // Versions list dialog
+  type VersionSummary = {
+    id: string
+    draftKey: string
+    versionTitle: string
+    documentType: string
+    packageTier: string | null
+    quotationType: string
+    grandTotal: number
+    sqft: number | null
+    updatedAt: string
+  }
+  const [versionsDialogOpen, setVersionsDialogOpen] = useState(false)
+  const [versionsList, setVersionsList] = useState<VersionSummary[]>([])
+  const [loadingVersions, setLoadingVersions] = useState(false)
+
+  // "Save As" dialog
+  const [saveAsDialogOpen, setSaveAsDialogOpen] = useState(false)
+  const [saveAsName, setSaveAsName] = useState('')
+  const [savingAs, setSavingAs] = useState(false)
+
+  // "Save version" (saving updates to an already-loaded named version)
+  const [savingVersion, setSavingVersion] = useState(false)
 
 
   const dndSensors = useSensors(
@@ -444,6 +479,174 @@ export function ShortQuotationBuilder({
       setSavingAllPackages(false)
     }
   }, [canEdit, content, isPlayground, persistShortQuotationContent, onDraftSaved, selectedPackageTier])
+
+  // ─── Version: Load versions list ─────────────────────────────────────────────
+  const loadVersionsList = useCallback(async () => {
+    if (isPlayground) return
+    setLoadingVersions(true)
+    try {
+      const res = await fetch(`/api/lead/${leadId}/quotation-versions`, { cache: 'no-store' })
+      const payload = await res.json()
+      if (res.ok && payload?.success && Array.isArray(payload.data?.versions)) {
+        // Show only short quotation versions in this builder
+        setVersionsList(payload.data.versions.filter((v: { documentType: string }) => v.documentType === 'short'))
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingVersions(false) }
+  }, [isPlayground, leadId])
+
+  const openVersionsDialog = () => {
+    setVersionsDialogOpen(true)
+    void loadVersionsList()
+  }
+
+  // ─── Version: Load a named version into the editor ───────────────────────────
+  const loadVersion = async (version: { draftKey: string; versionTitle: string }) => {
+    setVersionsDialogOpen(false)
+    setLoading(true)
+    try {
+      const res = await fetch(
+        `/api/lead/${leadId}/quotation-versions?draftKey=${encodeURIComponent(version.draftKey)}`,
+        { cache: 'no-store' },
+      )
+      const payload = await res.json()
+      if (!res.ok || !payload?.success || !payload.data?.draft) {
+        throw new Error(payload?.error ?? 'Failed to load version')
+      }
+      const draftContent = payload.data.draft.content
+      if (draftContent && isShortQuotationContent(draftContent)) {
+        setContent(copyShortQuotationToPackage(draftContent, selectedPackageTier))
+        setActiveVersionKey(version.draftKey)
+        toast.success(`Loaded version: "${version.versionTitle}"`)
+      } else {
+        toast.error('Version content could not be parsed as short quotation.')
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load version')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ─── Version: Create a New Blank Version (starts from blank template) ────────
+  const [newVersionDialogOpen, setNewVersionDialogOpen] = useState(false)
+  const [newVersionName, setNewVersionName] = useState('')
+  const [newVersionPackage, setNewVersionPackage] = useState<ShortQuotationPackage>('PREMIUM')
+  const [creatingBlankVersion, setCreatingBlankVersion] = useState(false)
+
+  const handleCreateBlankVersion = async () => {
+    if (!newVersionName.trim() || !canEdit) return
+    setCreatingBlankVersion(true)
+    try {
+      const blankContent = buildDefaultShortQuotationContent({
+        clientName: leadName,
+        clientAddress: leadLocation,
+        packageTier: newVersionPackage,
+      })
+      blankContent.versionTitle = newVersionName.trim()
+      const res = await fetch(`/api/lead/${leadId}/quotation-versions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          versionTitle: newVersionName.trim(),
+          documentType: 'short',
+          quotationType: newVersionPackage,
+          content: blankContent,
+        }),
+      })
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        if (payload?.error === 'DUPLICATE_NAME') {
+          toast.error(payload.message ?? 'A version with that name already exists. Please choose a different name.')
+        } else {
+          throw new Error(payload?.error ?? 'Failed to create new version')
+        }
+        return
+      }
+      setActiveVersionKey(payload.data.draftKey)
+      setSelectedPackageTier(newVersionPackage)
+      setContent(blankContent)
+      setNewVersionDialogOpen(false)
+      setNewVersionName('')
+      setVersionsDialogOpen(false)
+      toast.success(`Created new version "${newVersionName.trim()}" from blank template`)
+      onDraftSaved?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create version')
+    } finally {
+      setCreatingBlankVersion(false)
+    }
+  }
+
+  // ─── Version: Save As (create a new named version) ───────────────────────────
+  const handleSaveAs = async () => {
+    if (!content || !canEdit || !saveAsName.trim()) return
+    setSavingAs(true)
+    try {
+      const normalized = copyShortQuotationToPackage(content, selectedPackageTier)
+      const res = await fetch(`/api/lead/${leadId}/quotation-versions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          versionTitle: saveAsName.trim(),
+          documentType: 'short',
+          quotationType: selectedPackageTier,
+          content: normalized,
+        }),
+      })
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        if (payload?.error === 'DUPLICATE_NAME') {
+          toast.error(payload.message ?? 'A version with that name already exists.')
+        } else {
+          throw new Error(payload?.error ?? 'Failed to save version')
+        }
+        return
+      }
+      setActiveVersionKey(payload.data.draftKey)
+      setSaveAsDialogOpen(false)
+      setSaveAsName('')
+      toast.success(`Version "${saveAsName.trim()}" saved`)
+      onDraftSaved?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save version')
+    } finally {
+      setSavingAs(false)
+    }
+  }
+
+  // ─── Version: Save (update an already-open named version) ────────────────────
+  const handleSaveVersion = useCallback(async () => {
+    if (!content || !canEdit || !activeVersionKey) return
+    setSavingVersion(true)
+    try {
+      const normalized = copyShortQuotationToPackage(content, selectedPackageTier)
+      const res = await fetch(`/api/lead/${leadId}/quotation-versions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          draftKey: activeVersionKey,
+          documentType: 'short',
+          quotationType: selectedPackageTier,
+          content: normalized,
+        }),
+      })
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to update version')
+      }
+      toast.success('Version saved')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save version')
+    } finally {
+      setSavingVersion(false)
+    }
+  }, [content, canEdit, activeVersionKey, leadId, selectedPackageTier])
+
+  // ─── Version: Re-enable a disabled line in a named version ───────────────────
+  const enableLine = (roomId: string, lineId: string) => {
+    updateLine(roomId, lineId, { included: true })
+  }
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -817,6 +1020,19 @@ export function ShortQuotationBuilder({
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {activeVersionKey ? (
+                <div className="flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100/90 px-3 py-1 text-xs font-semibold text-amber-950 shadow-sm dark:border-amber-700 dark:bg-amber-950/70 dark:text-amber-200">
+                  <span>Version: {content.versionTitle || 'Custom Version'}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveVersionKey(null); void loadDraft(); }}
+                    className="ml-1 rounded px-1 text-amber-800 hover:bg-amber-200/80 hover:text-black dark:text-amber-300 dark:hover:bg-amber-900 font-bold cursor-pointer"
+                    title="Switch back to main working draft"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : null}
               <Badge variant="outline">{content.packageTier}</Badge>
               {isPlayground ? (
                 <Badge variant="secondary">Playground</Badge>
@@ -1042,10 +1258,37 @@ export function ShortQuotationBuilder({
               <Plus className="mr-2 h-4 w-4" />
               Add Floor
             </Button>
-            <Button type="button" disabled={!canEdit || saving || savingAllPackages} onClick={() => void saveDraft()}>
-              <Save className="mr-2 h-4 w-4" />
-              {saving ? 'Saving...' : `Save ${selectedPackageTier.charAt(0) + selectedPackageTier.slice(1).toLowerCase()}`}
-            </Button>
+
+            {/* ── Save / Save As ── */}
+            {activeVersionKey ? (
+              <>
+                <Button
+                  type="button"
+                  disabled={!canEdit || savingVersion}
+                  onClick={() => void handleSaveVersion()}
+                  title={`Save changes to the current version`}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {savingVersion ? 'Saving Version...' : 'Save Version'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canEdit || saving || savingAllPackages}
+                  onClick={() => void saveDraft()}
+                  title="Also save changes to the base package draft"
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {saving ? 'Saving...' : `Save ${selectedPackageTier.charAt(0) + selectedPackageTier.slice(1).toLowerCase()}`}
+                </Button>
+              </>
+            ) : (
+              <Button type="button" disabled={!canEdit || saving || savingAllPackages} onClick={() => void saveDraft()}>
+                <Save className="mr-2 h-4 w-4" />
+                {saving ? 'Saving...' : `Save ${selectedPackageTier.charAt(0) + selectedPackageTier.slice(1).toLowerCase()}`}
+              </Button>
+            )}
+
             <Button
               type="button"
               variant="outline"
@@ -1056,6 +1299,34 @@ export function ShortQuotationBuilder({
               <CopyCheck className="mr-2 h-4 w-4" />
               {savingAllPackages ? 'Saving all...' : 'Save Same to All Packages'}
             </Button>
+
+            {/* ── Save As (create a named version) ── */}
+            {!isPlayground && canEdit ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving || savingAllPackages || savingAs}
+                onClick={() => { setSaveAsName(''); setSaveAsDialogOpen(true) }}
+                title="Save a named copy of the current quotation state"
+              >
+                <SaveAll className="mr-2 h-4 w-4" />
+                Save As Version
+              </Button>
+            ) : null}
+
+            {/* ── Quotation Versions ── */}
+            {!isPlayground ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={openVersionsDialog}
+                title="View and load saved quotation versions"
+              >
+                <History className="mr-2 h-4 w-4" />
+                Quotation Versions
+              </Button>
+            ) : null}
+
             <Button type="button" variant="secondary" onClick={openLivePreviewTab}>
               <ExternalLink className="mr-2 h-4 w-4" />
               Live Preview
@@ -1282,6 +1553,272 @@ export function ShortQuotationBuilder({
         onPickCatalogItem={handlePickCatalogItem}
         onPickBundle={handlePickBundle}
       />
+
+      {/* ── Dialog: Save As Version ── */}
+      <Dialog open={saveAsDialogOpen} onOpenChange={setSaveAsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save As New Quotation Version</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <p className="text-xs text-muted-foreground">
+              Enter a unique version name for this lead (e.g. &quot;Option B - Minimal&quot;, &quot;Client Review Draft&quot;).
+              Any unchecked items will remain disabled in this version.
+            </p>
+            <div className="space-y-1.5">
+              <label htmlFor="save-as-name-input" className="text-xs font-semibold">Version Name</label>
+              <Input
+                id="save-as-name-input"
+                autoFocus
+                placeholder="e.g. Option B - Without False Ceiling"
+                value={saveAsName}
+                onChange={(e) => setSaveAsName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && saveAsName.trim() && !savingAs) {
+                    void handleSaveAs()
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={savingAs}
+              onClick={() => setSaveAsDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!saveAsName.trim() || savingAs}
+              onClick={() => void handleSaveAs()}
+            >
+              {savingAs ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Version'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Quotation Versions List ── */}
+      <Dialog open={versionsDialogOpen} onOpenChange={setVersionsDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
+              <div>
+                <DialogTitle className="text-lg font-bold">Quotation Versions</DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Select any saved quotation version to load and review in the studio.
+                </p>
+              </div>
+              {canEdit ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => {
+                    setNewVersionName('')
+                    setNewVersionDialogOpen(true)
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  New Version (Blank)
+                </Button>
+              ) : null}
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            {activeVersionKey ? (
+              <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+                <span>
+                  Currently editing version: <strong className="font-semibold">{content.versionTitle || activeVersionKey}</strong>
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs text-amber-900 hover:bg-amber-200/60 dark:text-amber-200"
+                  onClick={() => {
+                    setActiveVersionKey(null)
+                    void loadDraft()
+                    setVersionsDialogOpen(false)
+                  }}
+                >
+                  Switch back to Main Working Draft
+                </Button>
+              </div>
+            ) : null}
+
+            {loadingVersions ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading saved versions...
+              </div>
+            ) : versionsList.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                <p className="font-medium">No named versions saved yet.</p>
+                <p className="mt-1 text-xs">
+                  Click &quot;Save As Version&quot; in the studio toolbar to snapshot your current quotation as a version.
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[380px] overflow-auto rounded-lg border">
+                <table className="w-full text-left text-xs">
+                  <thead className="sticky top-0 bg-muted/60 text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2.5 font-semibold">Version Name</th>
+                      <th className="px-3 py-2.5 font-semibold">Type</th>
+                      <th className="px-3 py-2.5 font-semibold">Project Sqft</th>
+                      <th className="px-3 py-2.5 font-semibold">Total Amount</th>
+                      <th className="px-3 py-2.5 font-semibold">Last Saved</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {versionsList.map((ver) => {
+                      const isCurrent = activeVersionKey === ver.draftKey
+                      return (
+                        <tr
+                          key={ver.id}
+                          className={`hover:bg-muted/30 transition-colors ${
+                            isCurrent ? 'bg-amber-50/70 dark:bg-amber-950/20 font-medium' : ''
+                          }`}
+                        >
+                          <td className="px-3 py-2.5 font-medium">
+                            <div className="flex items-center gap-1.5">
+                              <span>{ver.versionTitle}</span>
+                              {isCurrent ? (
+                                <Badge variant="secondary" className="bg-amber-200/80 text-amber-900 text-[10px] py-0 px-1.5">
+                                  Active
+                                </Badge>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <Badge variant="outline" className="text-[10px] capitalize">
+                              {ver.packageTier ? `${ver.packageTier.toLowerCase()} short` : ver.documentType}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2.5 text-muted-foreground">
+                            {ver.sqft ? `${ver.sqft} sqft` : '—'}
+                          </td>
+                          <td className="px-3 py-2.5 font-semibold text-foreground">
+                            ৳{ver.grandTotal.toLocaleString()}
+                          </td>
+                          <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                            {new Date(ver.updatedAt).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="px-3 py-2.5 text-right">
+                            {isCurrent ? (
+                              <span className="text-[11px] font-semibold text-emerald-600">Loaded</span>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                onClick={() => void loadVersion(ver)}
+                              >
+                                Open
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setVersionsDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Create New Version from Blank Template (Quotation Team) ── */}
+      <Dialog open={newVersionDialogOpen} onOpenChange={setNewVersionDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New Version (Blank Template)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <p className="text-xs text-muted-foreground">
+              Create a fresh quotation version from scratch with a blank template and start adding floors &amp; items.
+            </p>
+            <div className="space-y-1.5">
+              <label htmlFor="new-version-name-input" className="text-xs font-semibold">Version Name</label>
+              <Input
+                id="new-version-name-input"
+                autoFocus
+                placeholder="e.g. Option C - Budget Friendly"
+                value={newVersionName}
+                onChange={(e) => setNewVersionName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">Package Tier</label>
+              <Select
+                value={newVersionPackage}
+                onValueChange={(val) => setNewVersionPackage(val as ShortQuotationPackage)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PLATINUM">Platinum</SelectItem>
+                  <SelectItem value="PREMIUM">Premium</SelectItem>
+                  <SelectItem value="LUXURY">Luxury</SelectItem>
+                  <SelectItem value="MIX">Mix</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={creatingBlankVersion}
+              onClick={() => setNewVersionDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!newVersionName.trim() || creatingBlankVersion}
+              onClick={() => void handleCreateBlankVersion()}
+            >
+              {creatingBlankVersion ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Version'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -1382,6 +1919,7 @@ function SortableRoomCard({
           <thead className="bg-muted/40 text-left">
             <tr>
               {canEdit && <th className="w-6 px-1 py-2" />}
+              <th className="w-10 px-2 py-2 text-center" title="Include in quotation">Inc</th>
               <th className="px-2 py-2">Name</th>
               <th className="px-2 py-2">Qty Sft</th>
               <th className="px-2 py-2">Unit Price</th>
@@ -1466,15 +2004,28 @@ function SortableShortRow({
 }: SortableShortRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: line.id })
 
+  const isIncluded = line.included !== false
+
   const rowStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    backgroundColor: isDragging ? 'hsl(var(--muted))' : undefined,
+    opacity: isDragging ? 0.5 : isIncluded ? 1 : 0.38,
+    backgroundColor: isDragging
+      ? 'hsl(var(--muted))'
+      : !isIncluded
+        ? 'rgba(0, 0, 0, 0.04)'
+        : undefined,
   }
 
   return (
-    <tr id={`short-line-${line.id}`} ref={setNodeRef} style={rowStyle} className="border-t align-top scroll-mt-28">
+    <tr
+      id={`short-line-${line.id}`}
+      ref={setNodeRef}
+      style={rowStyle}
+      className={`border-t align-top scroll-mt-28 transition-all duration-150 ${
+        !isIncluded ? 'opacity-40 bg-slate-100/60 dark:bg-slate-900/40 line-through-label' : ''
+      }`}
+    >
       {canEdit && (
         <td className="px-1 py-2 text-muted-foreground">
           <button
@@ -1488,12 +2039,30 @@ function SortableShortRow({
           </button>
         </td>
       )}
-      <td className="px-2 py-2">
-        <Input
-          value={line.name}
+      <td className="px-2 py-2 text-center align-middle">
+        <input
+          type="checkbox"
+          checked={isIncluded}
           disabled={!canEdit}
-          onChange={(event) => updateLine(roomId, line.id, { name: event.target.value })}
+          onChange={(event) => updateLine(roomId, line.id, { included: event.target.checked })}
+          className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+          title={isIncluded ? 'Uncheck to temporarily disable product' : 'Check to enable product'}
         />
+      </td>
+      <td className="px-2 py-2">
+        <div className="space-y-0.5">
+          <Input
+            value={line.name}
+            disabled={!canEdit}
+            onChange={(event) => updateLine(roomId, line.id, { name: event.target.value })}
+            className={!isIncluded ? 'text-muted-foreground' : ''}
+          />
+          {!isIncluded && (
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Disabled in this version
+            </p>
+          )}
+        </div>
       </td>
       <td className="px-2 py-2">
         {line.isLumpSum ? (
@@ -1560,15 +2129,31 @@ function SortableShortRow({
         ) : (line.unitPrice ?? 0) > 0 && (line.quantitySqft ?? 0) === 0 ? (
           <span className="font-medium text-muted-foreground">--</span>
         ) : (
-          <span className="font-medium">{formatAmount(line.total)}</span>
+          <span className={`font-medium ${!isIncluded ? 'text-muted-foreground line-through' : ''}`}>
+            {formatAmount(line.total)}
+          </span>
         )}
       </td>
       <td className="px-2 py-2">
-        {canEdit ? (
-          <Button type="button" size="icon" variant="ghost" onClick={() => removeLine(roomId, line.id)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        ) : null}
+        <div className="flex items-center gap-1">
+          {!isIncluded && canEdit && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 px-2 text-xs border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400"
+              onClick={() => updateLine(roomId, line.id, { included: true })}
+              title="Re-enable this item in this quotation"
+            >
+              Enable
+            </Button>
+          )}
+          {canEdit ? (
+            <Button type="button" size="icon" variant="ghost" onClick={() => removeLine(roomId, line.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          ) : null}
+        </div>
       </td>
     </tr>
   )

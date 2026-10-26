@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Sparkles } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { QuotationMaker } from '@/components/crm/quotation/quotation-maker'
@@ -15,13 +16,20 @@ type QuotationWorkspaceProps = {
   leadSubStatus: string | null
 }
 
-export function QuotationWorkspace({
+function QuotationWorkspaceContent({
   leadId,
   leadName,
   leadLocation,
   leadSubStatus,
 }: QuotationWorkspaceProps) {
-  const [activeTab, setActiveTab] = useState<'short' | 'detail' | 'furniture' | 'electrical'>('short')
+  const searchParams = useSearchParams()
+  const tabParam = searchParams?.get('tab') as 'short' | 'detail' | 'furniture' | 'electrical' | null
+
+  const [activeTab, setActiveTab] = useState<'short' | 'detail' | 'furniture' | 'electrical'>(
+    tabParam === 'detail' || tabParam === 'short' || tabParam === 'furniture' || tabParam === 'electrical'
+      ? tabParam
+      : 'short',
+  )
   const [sqftSummary, setSqftSummary] = useState<{
     avgDetailSqft: number
     avgShortSqft: number
@@ -38,6 +46,10 @@ export function QuotationWorkspace({
         setSqftSummary(payload.data.sqftSummary)
       }
       if (options?.updateActiveTab === false) return
+      if (tabParam) {
+        setActiveTab(tabParam)
+        return
+      }
       const documentType = payload.data.documentType as 'short' | 'detail' | undefined
       if (payload.data.draft && documentType === 'detail') {
         setActiveTab('detail')
@@ -46,10 +58,11 @@ export function QuotationWorkspace({
       }
     } catch {
       if (options?.updateActiveTab !== false) {
-        setActiveTab('short')
+        if (tabParam) setActiveTab(tabParam)
+        else setActiveTab('short')
       }
     }
-  }, [leadId])
+  }, [leadId, tabParam])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -160,5 +173,13 @@ export function QuotationWorkspace({
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+export function QuotationWorkspace(props: QuotationWorkspaceProps) {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading quotation workspace...</div>}>
+      <QuotationWorkspaceContent {...props} />
+    </Suspense>
   )
 }

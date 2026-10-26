@@ -39,7 +39,7 @@ export function extractDraftSqft(draft: QuotationDraftLike, _fallbackSqft = 0): 
       for (const room of c.rooms as any[]) {
         if (room && Array.isArray(room.lines)) {
           shortSqft += (room.lines as any[]).reduce(
-            (sum: number, line: any) => sum + (Number(line.quantitySqft) || 0),
+            (sum: number, line: any) => sum + (line && line.included !== false ? (Number(line.quantitySqft) || 0) : 0),
             0,
           )
         }

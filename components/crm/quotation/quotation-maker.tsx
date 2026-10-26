@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ArrowDownToLine, Bold, Download, Edit2, ExternalLink, GripVertical, Loader2, Plus, Printer, Save, Trash2 } from 'lucide-react'
+import { ArrowDownToLine, Bold, Download, Edit2, ExternalLink, GripVertical, History, Loader2, Plus, Printer, Save, SaveAll, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -81,7 +82,7 @@ import type {
   QuotationUnit,
 } from '@/lib/quotation-types'
 import { convertShortToDetailContent, shortPackageTierLabel } from '@/lib/short-to-detail-import'
-import { isShortQuotationContent } from '@/lib/quotation-document'
+import { isShortQuotationContent, isDetailQuotationContent } from '@/lib/quotation-document'
 import type { ShortQuotationPackage } from '@/lib/short-quotation-types'
 
 type QuotationMakerProps = {
@@ -165,6 +166,35 @@ export function QuotationMaker({
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [importingShort, setImportingShort] = useState(false)
 
+  // ─── Version management state ────────────────────────────────────────────────
+  const [activeVersionKey, setActiveVersionKey] = useState<string | null>(null)
+  type VersionSummary = {
+    id: string
+    draftKey: string
+    versionTitle: string
+    documentType: string
+    packageTier: string | null
+    quotationType: string
+    grandTotal: number
+    sqft: number | null
+    updatedAt: string
+  }
+  const [versionsDialogOpen, setVersionsDialogOpen] = useState(false)
+  const [versionsList, setVersionsList] = useState<VersionSummary[]>([])
+  const [loadingVersions, setLoadingVersions] = useState(false)
+  const [saveAsDialogOpen, setSaveAsDialogOpen] = useState(false)
+  const [saveAsName, setSaveAsName] = useState('')
+  const [savingAs, setSavingAs] = useState(false)
+  const [savingVersion, setSavingVersion] = useState(false)
+  const [newVersionDialogOpen, setNewVersionDialogOpen] = useState(false)
+  const [newVersionName, setNewVersionName] = useState('')
+  const [newVersionType, setNewVersionType] = useState<QuotationFileType>('STANDARD')
+  const [creatingBlankVersion, setCreatingBlankVersion] = useState(false)
+
+  // Short versions for Import modal
+  const [shortVersionsList, setShortVersionsList] = useState<VersionSummary[]>([])
+  const [loadingShortVersions, setLoadingShortVersions] = useState(false)
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [startingWork, setStartingWork] = useState(false)
@@ -195,8 +225,8 @@ export function QuotationMaker({
     if (!over || active.id === over.id) return
     setContent((prev) => {
       if (!prev) return prev
-      const floorItems = prev.lineItems.filter((l) => l.sectionId === floorId && l.included)
-      const otherItems = prev.lineItems.filter((l) => !(l.sectionId === floorId && l.included))
+      const floorItems = prev.lineItems.filter((l) => l.sectionId === floorId)
+      const otherItems = prev.lineItems.filter((l) => l.sectionId !== floorId)
       const oldIndex = floorItems.findIndex((l) => l.id === active.id)
       const newIndex = floorItems.findIndex((l) => l.id === over.id)
       const reordered = arrayMove(floorItems, oldIndex, newIndex)
@@ -300,14 +330,14 @@ export function QuotationMaker({
       const floorAreas = [...(content.areas ?? [])]
         .filter((area) => area.floorId === floor.id)
         .sort((a, b) => a.sortOrder - b.sortOrder)
-      const unassignedLines = lineItems.filter((line) => line.sectionId === floor.id && !line.areaId && line.included)
-      const namedAreaGroups = floorAreas.map((area) => ({ area, lines: lineItems.filter((line) => line.sectionId === floor.id && line.areaId === area.id && line.included) }))
+      const unassignedLines = lineItems.filter((line) => line.sectionId === floor.id && !line.areaId)
+      const namedAreaGroups = floorAreas.map((area) => ({ area, lines: lineItems.filter((line) => line.sectionId === floor.id && line.areaId === area.id) }))
       const generalAreaGroup = { area: { id: `general-${floor.id}`, floorId: floor.id, name: 'General Area', sortOrder: 0 }, lines: unassignedLines }
       const areaGroups = isFE
-        ? [{ area: { id: `fe-${floor.id}`, floorId: floor.id, name: '', sortOrder: 0 }, lines: lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
+        ? [{ area: { id: `fe-${floor.id}`, floorId: floor.id, name: '', sortOrder: 0 }, lines: lineItems.filter((line) => line.sectionId === floor.id) }]
         : floorAreas.length > 0
           ? [generalAreaGroup, ...namedAreaGroups].filter((group) => group.lines.length > 0 || !group.area.id.startsWith('general-'))
-          : [{ ...generalAreaGroup, lines: lineItems.filter((line) => line.sectionId === floor.id && line.included) }]
+          : [{ ...generalAreaGroup, lines: lineItems.filter((line) => line.sectionId === floor.id) }]
 
       areaGroups.forEach((group) => {
         group.lines.forEach((line) => {
@@ -754,22 +784,218 @@ export function QuotationMaker({
     }
   }
 
-  const importFromShortQuotation = async (packageTier: ShortQuotationPackage) => {
+  // ─── Version: Load versions list ─────────────────────────────────────────────
+  const loadVersionsList = useCallback(async () => {
+    if (isPlayground) return
+    setLoadingVersions(true)
+    try {
+      const res = await fetch(`/api/lead/${leadId}/quotation-versions`, { cache: 'no-store' })
+      const payload = await res.json()
+      if (res.ok && payload?.success && Array.isArray(payload.data?.versions)) {
+        // Show detail versions in this builder
+        setVersionsList(payload.data.versions.filter((v: { documentType: string }) => v.documentType === 'detail'))
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingVersions(false) }
+  }, [isPlayground, leadId])
+
+  const openVersionsDialog = () => {
+    setVersionsDialogOpen(true)
+    void loadVersionsList()
+  }
+
+  // ─── Version: Load named version into detail builder ─────────────────────────
+  const loadVersion = async (version: { draftKey: string; versionTitle: string }) => {
+    setVersionsDialogOpen(false)
+    setLoading(true)
+    try {
+      const res = await fetch(
+        `/api/lead/${leadId}/quotation-versions?draftKey=${encodeURIComponent(version.draftKey)}`,
+        { cache: 'no-store' },
+      )
+      const payload = await res.json()
+      if (!res.ok || !payload?.success || !payload.data?.draft) {
+        throw new Error(payload?.error ?? 'Failed to load version')
+      }
+      const draftContent = payload.data.draft.content
+      if (draftContent && isDetailQuotationContent(draftContent)) {
+        const norm = normalizeQuotationContent(withDetailQuotationDefaults(draftContent))
+        norm.versionTitle = version.versionTitle
+        setContent(norm)
+        setActiveVersionKey(version.draftKey)
+        if (payload.data.draft.quotationType) {
+          const qType = payload.data.draft.quotationType
+          if (qType === 'BASIC' || qType === 'STANDARD' || qType === 'PREMIUM' || qType === 'MIXED') {
+            setQuotationType(qType)
+          }
+        }
+        toast.success(`Loaded version: "${version.versionTitle}"`)
+      } else {
+        toast.error('Version content could not be parsed as detail quotation.')
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load version')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ─── Version: Save As (new named version) ───────────────────────────────────
+  const handleSaveAs = async () => {
+    if (!content || !canEdit || !saveAsName.trim()) return
+    setSavingAs(true)
+    try {
+      const normalized = normalizeQuotationContent(content)
+      const projectSqftValue = projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null
+      const res = await fetch(`/api/lead/${leadId}/quotation-versions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          versionTitle: saveAsName.trim(),
+          documentType: 'detail',
+          quotationType,
+          projectSqft: projectSqftValue,
+          content: normalized,
+        }),
+      })
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        if (payload?.error === 'DUPLICATE_NAME') {
+          toast.error(payload.message ?? 'A version with that name already exists. Please choose a different name.')
+        } else {
+          throw new Error(payload?.error ?? 'Failed to save version')
+        }
+        return
+      }
+      setActiveVersionKey(payload.data.draftKey)
+      setSaveAsDialogOpen(false)
+      setSaveAsName('')
+      toast.success(`Version "${saveAsName.trim()}" saved`)
+      onDraftSaved?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save version')
+    } finally {
+      setSavingAs(false)
+    }
+  }
+
+  // ─── Version: Save (update existing named version) ──────────────────────────
+  const handleSaveVersion = useCallback(async () => {
+    if (!content || !canEdit || !activeVersionKey) return
+    setSavingVersion(true)
+    try {
+      const normalized = normalizeQuotationContent(content)
+      const projectSqftValue = projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null
+      const res = await fetch(`/api/lead/${leadId}/quotation-versions`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          draftKey: activeVersionKey,
+          documentType: 'detail',
+          quotationType,
+          projectSqft: projectSqftValue,
+          content: normalized,
+        }),
+      })
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to update version')
+      }
+      toast.success('Version updated successfully')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save version')
+    } finally {
+      setSavingVersion(false)
+    }
+  }, [content, canEdit, activeVersionKey, leadId, quotationType, projectSqft])
+
+  // ─── Version: Create New Blank Version (Quotation Team) ─────────────────────
+  const handleCreateBlankVersion = async () => {
+    if (!newVersionName.trim() || !canEdit) return
+    setCreatingBlankVersion(true)
+    try {
+      const def = buildDefaultFloorDetailContent()
+      def.versionTitle = newVersionName.trim()
+      const projectSqftValue = projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null
+      const res = await fetch(`/api/lead/${leadId}/quotation-versions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          versionTitle: newVersionName.trim(),
+          documentType: 'detail',
+          quotationType: newVersionType,
+          projectSqft: projectSqftValue,
+          content: def,
+        }),
+      })
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        if (payload?.error === 'DUPLICATE_NAME') {
+          toast.error(payload.message ?? 'A version with that name already exists. Please choose a different name.')
+        } else {
+          throw new Error(payload?.error ?? 'Failed to create new version')
+        }
+        return
+      }
+      setActiveVersionKey(payload.data.draftKey)
+      setQuotationType(newVersionType)
+      setContent(def)
+      setNewVersionDialogOpen(false)
+      setNewVersionName('')
+      setVersionsDialogOpen(false)
+      toast.success(`Created new version "${newVersionName.trim()}" from blank template`)
+      onDraftSaved?.()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create version')
+    } finally {
+      setCreatingBlankVersion(false)
+    }
+  }
+
+  // ─── Import from Short Quotation (with versions support) ─────────────────────
+  const openImportDialog = async () => {
+    setImportDialogOpen(true)
+    if (!leadId || isPlayground) return
+    setLoadingShortVersions(true)
+    try {
+      const res = await fetch(`/api/lead/${leadId}/quotation-versions?documentType=short`, { cache: 'no-store' })
+      const payload = await res.json()
+      if (res.ok && payload?.success && Array.isArray(payload.data?.versions)) {
+        setShortVersionsList(payload.data.versions)
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingShortVersions(false) }
+  }
+
+  const importFromShortQuotation = async (packageTier?: ShortQuotationPackage, versionDraftKey?: string) => {
     if (!leadId || isPlayground) return
     setImportingShort(true)
     setImportDialogOpen(false)
     try {
-      const response = await fetch(
-        `/api/lead/${leadId}/quotation-draft?documentType=short&packageTier=${packageTier}`,
-        { cache: 'no-store' },
-      )
-      const payload = await response.json()
-      if (!response.ok || !payload?.success || !payload?.data) {
-        throw new Error(payload?.error ?? 'Failed to load short quotation')
+      let shortContent: any
+      if (versionDraftKey) {
+        const res = await fetch(
+          `/api/lead/${leadId}/quotation-versions?draftKey=${encodeURIComponent(versionDraftKey)}`,
+          { cache: 'no-store' },
+        )
+        const payload = await res.json()
+        if (!res.ok || !payload?.success || !payload.data?.draft) {
+          throw new Error(payload?.error ?? 'Failed to load short quotation version')
+        }
+        shortContent = payload.data.draft.content
+      } else if (packageTier) {
+        const response = await fetch(
+          `/api/lead/${leadId}/quotation-draft?documentType=short&packageTier=${packageTier}`,
+          { cache: 'no-store' },
+        )
+        const payload = await response.json()
+        if (!response.ok || !payload?.success || !payload?.data) {
+          throw new Error(payload?.error ?? 'Failed to load short quotation')
+        }
+        shortContent = payload.data.draft?.content ?? payload.data.defaultDraft?.content
       }
-      const shortContent = payload.data.draft?.content ?? payload.data.defaultDraft?.content
       if (!shortContent || !isShortQuotationContent(shortContent)) {
-        toast.error(`No saved ${shortPackageTierLabel(packageTier)} short quotation found for this lead`)
+        toast.error(`No valid short quotation content found to import`)
         return
       }
       const detailContent = convertShortToDetailContent(shortContent, { preserveHeader: true, fullTemplates })
@@ -781,7 +1007,7 @@ export function QuotationMaker({
       }
       setContent(normalizeQuotationContent(withDetailQuotationDefaults(merged)))
       toast.success(
-        `Imported ${shortPackageTierLabel(packageTier)} short quotation — review and save when ready`,
+        `Imported short quotation — review and save when ready`,
       )
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to import short quotation')
@@ -862,6 +1088,19 @@ return (
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              {activeVersionKey ? (
+                <div className="flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-100/90 px-3 py-1 text-xs font-semibold text-amber-950 shadow-sm dark:border-amber-700 dark:bg-amber-950/70 dark:text-amber-200">
+                  <span>Version: {content?.versionTitle || activeVersionKey}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveVersionKey(null); void loadDraft(); }}
+                    className="ml-1 rounded px-1 text-amber-800 hover:bg-amber-200/80 hover:text-black dark:text-amber-300 dark:hover:bg-amber-900 font-bold cursor-pointer"
+                    title="Switch back to standard working slot"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : null}
               {isPlayground ? (
                 <Badge variant="outline">Playground</Badge>
               ) : (
@@ -995,7 +1234,7 @@ return (
                 variant="outline"
                 className="border-sky-500 text-sky-700 hover:bg-sky-50 dark:border-sky-600 dark:text-sky-300 dark:hover:bg-sky-950/40"
                 disabled={!canEdit || importingShort}
-                onClick={() => setImportDialogOpen(true)}
+                onClick={() => void openImportDialog()}
                 title="Load data from the saved short quotation for this lead into the detail quotation editor"
               >
                 {importingShort ? (
@@ -1006,6 +1245,20 @@ return (
                 {importingShort ? 'Importing...' : 'Import from Short Quotation'}
               </Button>
             )}
+
+            {/* ── Version Save / Save As buttons ── */}
+            {activeVersionKey ? (
+              <Button
+                type="button"
+                disabled={!canEdit || savingVersion}
+                onClick={() => void handleSaveVersion()}
+                title="Save updates to the currently loaded version"
+              >
+                <Save className="mr-1.5 h-4 w-4" />
+                {savingVersion ? 'Saving Version...' : 'Save Version'}
+              </Button>
+            ) : null}
+
             <Button type="button" variant="outline" disabled={!canEdit || saving} onClick={() => void saveDraft(false)}>
               <Save className="mr-1.5 h-4 w-4" />
               {saving ? 'Saving...' : 'Save'}
@@ -1024,6 +1277,31 @@ return (
               <Save className="mr-1.5 h-4 w-4" />
               {saving ? 'Saving...' : 'Save in All'}
             </Button>
+
+            {!isPlayground && canEdit ? (
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving || savingAs}
+                onClick={() => { setSaveAsName(''); setSaveAsDialogOpen(true) }}
+                title="Save a named copy of the current quotation state"
+              >
+                <SaveAll className="mr-1.5 h-4 w-4" />
+                Save As Version
+              </Button>
+            ) : null}
+
+            {!isPlayground ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={openVersionsDialog}
+                title="View and load saved quotation versions"
+              >
+                <History className="mr-1.5 h-4 w-4" />
+                Quotation Versions
+              </Button>
+            ) : null}
             <Button type="button" variant="outline" onClick={openLivePreviewTab}>
               <ExternalLink className="mr-1.5 h-4 w-4" />
               Live Preview
@@ -1155,14 +1433,14 @@ return (
             .filter((area) => area.floorId === floor.id)
             .sort((a, b) => a.sortOrder - b.sortOrder)
           const allLineItems = Array.isArray(content.lineItems) ? content.lineItems : []
-          const unassignedLines = allLineItems.filter((line) => line.sectionId === floor.id && !line.areaId && line.included)
-          const namedAreaGroups = floorAreas.map((area) => ({ area, lines: allLineItems.filter((line) => line.sectionId === floor.id && line.areaId === area.id && line.included) }))
+          const unassignedLines = allLineItems.filter((line) => line.sectionId === floor.id && !line.areaId)
+          const namedAreaGroups = floorAreas.map((area) => ({ area, lines: allLineItems.filter((line) => line.sectionId === floor.id && line.areaId === area.id) }))
           const generalAreaGroup = { area: { id: `general-${floor.id}`, floorId: floor.id, name: 'General Area', sortOrder: 0 }, lines: unassignedLines }
           const areaGroups = isFE
-            ? [{ area: { id: `fe-${floor.id}`, floorId: floor.id, name: '', sortOrder: 0 }, lines: allLineItems.filter((line) => line.sectionId === floor.id && line.included) }]
+            ? [{ area: { id: `fe-${floor.id}`, floorId: floor.id, name: '', sortOrder: 0 }, lines: allLineItems.filter((line) => line.sectionId === floor.id) }]
             : floorAreas.length > 0
               ? [generalAreaGroup, ...namedAreaGroups].filter((group) => group.lines.length > 0 || !group.area.id.startsWith('general-'))
-              : [{ ...generalAreaGroup, lines: allLineItems.filter((line) => line.sectionId === floor.id && line.included) }]
+              : [{ ...generalAreaGroup, lines: allLineItems.filter((line) => line.sectionId === floor.id) }]
           const floorLineCount = areaGroups.reduce((sum, group) => sum + group.lines.length, 0)
 
           return (
@@ -1263,7 +1541,7 @@ return (
                     {lines.length === 0 ? <div className="px-4 py-6 text-center text-sm text-muted-foreground">No items in this area yet.</div> : (
                       <div className="overflow-x-auto">
                         <table className="w-full min-w-[980px] text-sm">
-                          <thead className="bg-muted/50 text-left"><tr>{canEdit && <th className="w-6 px-1 py-2" />}<th className="w-12 px-3 py-2 font-medium">SL</th><th className="min-w-[160px] px-3 py-2 font-medium">Name</th><th className="min-w-[280px] px-3 py-2 font-medium">Materials</th><th className="px-3 py-2 font-medium">Unit price</th><th className="px-3 py-2 font-medium">Qty / SFT</th><th className="px-3 py-2 text-right font-medium">Total</th><th className="px-3 py-2" /></tr></thead>
+                          <thead className="bg-muted/50 text-left"><tr>{canEdit && <th className="w-6 px-1 py-2" />}<th className="w-10 px-2 py-2 text-center font-medium" title="Include in quotation">Inc</th><th className="w-12 px-3 py-2 font-medium">SL</th><th className="min-w-[160px] px-3 py-2 font-medium">Name</th><th className="min-w-[280px] px-3 py-2 font-medium">Materials</th><th className="px-3 py-2 font-medium">Unit price</th><th className="px-3 py-2 font-medium">Qty / SFT</th><th className="px-3 py-2 text-right font-medium">Total</th><th className="px-3 py-2" /></tr></thead>
                           <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(event) => reorderFloorLines(floor.id, event)}>
                             <SortableContext items={lines.map((l) => l.id)} strategy={verticalListSortingStrategy}>
                               <tbody>{lines.map((line, lineIndex) => <SortableRow key={line.id} line={line} lineIndex={lineIndex} slNumber={editorLineSlMap.get(line.id)} isPkg={isPackageLine(line)} canEdit={canEdit} updateLineItem={updateLineItem} removeLine={removeLine} lineNeedsManualPrice={lineNeedsManualPrice} />)}</tbody>
@@ -1594,33 +1872,84 @@ return (
         </DialogContent>
       </Dialog>
 
-      {/* ── Import from Short Quotation dialog ── */}
+      {/* ── Import from Short Quotation dialog (supports versions) ── */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold">Import from Short Quotation</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2 text-sm">
-            <p className="text-muted-foreground">
-              Select a package tier. All floors, rooms, and line items from that short quotation will be loaded into the detail editor.
+          <div className="space-y-4 py-2 text-sm">
+            <p className="text-xs text-muted-foreground">
+              Select a saved short quotation version or a standard package tier. All floors, rooms, and items (including disabled items) will be imported into this detail editor.
             </p>
             <p className="text-xs text-amber-700 dark:text-amber-400 rounded border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-3 py-2">
               ⚠ This will replace the current content in the editor. Your changes will NOT be auto-saved — click Save after reviewing.
             </p>
-            <div className="flex flex-col gap-2 pt-1">
-              {(['PLATINUM', 'PREMIUM', 'LUXURY', 'MIX'] as const).map((tier) => (
-                <Button
-                  key={tier}
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-start gap-2 font-medium"
-                  disabled={importingShort}
-                  onClick={() => void importFromShortQuotation(tier)}
-                >
-                  <ArrowDownToLine className="h-4 w-4 shrink-0 text-sky-600" />
-                  Import {shortPackageTierLabel(tier)} Package
-                </Button>
-              ))}
+
+            {/* Saved Short Quotation Versions */}
+            <div className="space-y-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Saved Short Quotation Versions
+              </span>
+              {loadingShortVersions ? (
+                <div className="flex items-center justify-center py-4 text-xs text-muted-foreground">
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                  Loading versions...
+                </div>
+              ) : shortVersionsList.length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">No named short versions saved yet.</p>
+              ) : (
+                <div className="max-h-48 space-y-1.5 overflow-auto pr-1">
+                  {shortVersionsList.map((ver) => (
+                    <div
+                      key={ver.id}
+                      className="flex items-center justify-between rounded-lg border bg-background p-2.5 transition hover:border-sky-300 hover:bg-sky-50/50 dark:hover:bg-sky-950/20"
+                    >
+                      <div className="min-w-0 pr-2">
+                        <p className="truncate text-xs font-semibold">{ver.versionTitle}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {ver.packageTier ? `${ver.packageTier} • ` : ''}
+                          ৳{ver.grandTotal.toLocaleString()}
+                          {ver.sqft ? ` • ${ver.sqft} sqft` : ''}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-sky-500 text-sky-700 hover:bg-sky-100 dark:text-sky-300"
+                        disabled={importingShort}
+                        onClick={() => void importFromShortQuotation(undefined, ver.draftKey)}
+                      >
+                        <ArrowDownToLine className="mr-1 h-3.5 w-3.5" />
+                        Import
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Standard Package Tiers */}
+            <div className="space-y-2 border-t pt-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Or Import Base Package Tier
+              </span>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                {(['PLATINUM', 'PREMIUM', 'LUXURY', 'MIX'] as const).map((tier) => (
+                  <Button
+                    key={tier}
+                    type="button"
+                    variant="outline"
+                    className="justify-start gap-1.5 text-xs font-medium"
+                    disabled={importingShort}
+                    onClick={() => void importFromShortQuotation(tier)}
+                  >
+                    <ArrowDownToLine className="h-3.5 w-3.5 shrink-0 text-sky-600" />
+                    {shortPackageTierLabel(tier)}
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
           <div className="flex justify-end pt-1">
@@ -1628,6 +1957,272 @@ return (
               Cancel
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Save As Version ── */}
+      <Dialog open={saveAsDialogOpen} onOpenChange={setSaveAsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save As New Detail Quotation Version</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <p className="text-xs text-muted-foreground">
+              Enter a unique version name for this lead (e.g. &quot;Option B - Minimal Work&quot;, &quot;Revised BOQ&quot;).
+              Any unchecked items will remain disabled in this version.
+            </p>
+            <div className="space-y-1.5">
+              <label htmlFor="save-as-name-detail-input" className="text-xs font-semibold">Version Name</label>
+              <Input
+                id="save-as-name-detail-input"
+                autoFocus
+                placeholder="e.g. Option B - Without Modular Kitchen"
+                value={saveAsName}
+                onChange={(e) => setSaveAsName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && saveAsName.trim() && !savingAs) {
+                    void handleSaveAs()
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={savingAs}
+              onClick={() => setSaveAsDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!saveAsName.trim() || savingAs}
+              onClick={() => void handleSaveAs()}
+            >
+              {savingAs ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Version'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Quotation Versions List ── */}
+      <Dialog open={versionsDialogOpen} onOpenChange={setVersionsDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
+              <div>
+                <DialogTitle className="text-lg font-bold">Detail Quotation Versions</DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Select any saved version to load and review in the editor.
+                </p>
+              </div>
+              {canEdit ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => {
+                    setNewVersionName('')
+                    setNewVersionDialogOpen(true)
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  New Version (Blank)
+                </Button>
+              ) : null}
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            {activeVersionKey ? (
+              <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+                <span>
+                  Currently editing version: <strong className="font-semibold">{content?.versionTitle || activeVersionKey}</strong>
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs text-amber-900 hover:bg-amber-200/60 dark:text-amber-200"
+                  onClick={() => {
+                    setActiveVersionKey(null)
+                    void loadDraft(slotIndex)
+                    setVersionsDialogOpen(false)
+                  }}
+                >
+                  Switch back to Slot {slotIndex} Draft
+                </Button>
+              </div>
+            ) : null}
+
+            {loadingVersions ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading saved versions...
+              </div>
+            ) : versionsList.length === 0 ? (
+              <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+                <p className="font-medium">No named versions saved yet.</p>
+                <p className="mt-1 text-xs">
+                  Click &quot;Save As Version&quot; in the studio toolbar to snapshot your current quotation as a version.
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[380px] overflow-auto rounded-lg border">
+                <table className="w-full text-left text-xs">
+                  <thead className="sticky top-0 bg-muted/60 text-muted-foreground">
+                    <tr>
+                      <th className="px-3 py-2.5 font-semibold">Version Name</th>
+                      <th className="px-3 py-2.5 font-semibold">Rate Type</th>
+                      <th className="px-3 py-2.5 font-semibold">Project Sqft</th>
+                      <th className="px-3 py-2.5 font-semibold">Total Amount</th>
+                      <th className="px-3 py-2.5 font-semibold">Last Saved</th>
+                      <th className="px-3 py-2.5 text-right font-semibold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {versionsList.map((ver) => {
+                      const isCurrent = activeVersionKey === ver.draftKey
+                      return (
+                        <tr
+                          key={ver.id}
+                          className={`hover:bg-muted/30 transition-colors ${
+                            isCurrent ? 'bg-amber-50/70 dark:bg-amber-950/20 font-medium' : ''
+                          }`}
+                        >
+                          <td className="px-3 py-2.5 font-medium">
+                            <div className="flex items-center gap-1.5">
+                              <span>{ver.versionTitle}</span>
+                              {isCurrent ? (
+                                <Badge variant="secondary" className="bg-amber-200/80 text-amber-900 text-[10px] py-0 px-1.5">
+                                  Active
+                                </Badge>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <Badge variant="outline" className="text-[10px] capitalize">
+                              {ver.quotationType ? ver.quotationType.toLowerCase() : 'standard'}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2.5 text-muted-foreground">
+                            {ver.sqft ? `${ver.sqft} sqft` : '—'}
+                          </td>
+                          <td className="px-3 py-2.5 font-semibold text-foreground">
+                            ৳{ver.grandTotal.toLocaleString()}
+                          </td>
+                          <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
+                            {new Date(ver.updatedAt).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="px-3 py-2.5 text-right">
+                            {isCurrent ? (
+                              <span className="text-[11px] font-semibold text-emerald-600">Loaded</span>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-7 text-xs"
+                                onClick={() => void loadVersion(ver)}
+                              >
+                                Open
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => setVersionsDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Create New Version from Blank Template (Detail) ── */}
+      <Dialog open={newVersionDialogOpen} onOpenChange={setNewVersionDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>New Detail Version (Blank Template)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <p className="text-xs text-muted-foreground">
+              Create a fresh detail quotation version from scratch with a blank template and start adding floors &amp; items.
+            </p>
+            <div className="space-y-1.5">
+              <label htmlFor="new-version-name-detail-input" className="text-xs font-semibold">Version Name</label>
+              <Input
+                id="new-version-name-detail-input"
+                autoFocus
+                placeholder="e.g. Option C - Budget Friendly"
+                value={newVersionName}
+                onChange={(e) => setNewVersionName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">Rate Type</label>
+              <Select
+                value={newVersionType}
+                onValueChange={(val) => setNewVersionType(val as QuotationFileType)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BASIC">Low</SelectItem>
+                  <SelectItem value="STANDARD">Mid</SelectItem>
+                  <SelectItem value="PREMIUM">High</SelectItem>
+                  <SelectItem value="MIXED">Mixed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={creatingBlankVersion}
+              onClick={() => setNewVersionDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!newVersionName.trim() || creatingBlankVersion}
+              onClick={() => void handleCreateBlankVersion()}
+            >
+              {creatingBlankVersion ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Version'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
@@ -1649,11 +2244,17 @@ function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: line.id })
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  const isIncluded = line.included !== false
+
   const rowStyle = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
-    backgroundColor: isDragging ? 'hsl(var(--muted))' : undefined,
+    opacity: isDragging ? 0.5 : isIncluded ? 1 : 0.38,
+    backgroundColor: isDragging
+      ? 'hsl(var(--muted))'
+      : !isIncluded
+        ? 'rgba(0, 0, 0, 0.04)'
+        : undefined,
   }
 
   function fmt(v: number) {
@@ -1703,7 +2304,14 @@ function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem
   }
 
   return (
-    <tr id={`detail-line-${line.id}`} ref={setNodeRef} style={rowStyle} className="border-t align-top scroll-mt-28">
+    <tr
+      id={`detail-line-${line.id}`}
+      ref={setNodeRef}
+      style={rowStyle}
+      className={`border-t align-top scroll-mt-28 transition-all duration-150 ${
+        !isIncluded ? 'opacity-40 bg-slate-100/60 dark:bg-slate-900/40' : ''
+      }`}
+    >
       {canEdit && (
         <td className="px-1 py-2 text-muted-foreground">
           <button
@@ -1716,11 +2324,43 @@ function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem
           </button>
         </td>
       )}
+      <td className="px-2 py-2 text-center align-middle">
+        <input
+          type="checkbox"
+          checked={isIncluded}
+          disabled={!canEdit}
+          onChange={(e) => updateLineItem(line.id, { included: e.target.checked })}
+          className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
+          title={isIncluded ? 'Uncheck to temporarily exclude from this version' : 'Check to enable product'}
+        />
+      </td>
       <td className="px-3 py-2 text-muted-foreground">{slNumber ?? (lineIndex + 1)}</td>
       <td className="px-3 py-2 max-w-[200px]">
         {canEdit ? (
-          <Input value={line.description} className="break-words" onChange={(e) => updateLineItem(line.id, { description: e.target.value })} />
-        ) : <span className="break-words">{line.description}</span>}
+          <div className="space-y-0.5">
+            <Input
+              value={line.description}
+              className={`break-words ${!isIncluded ? 'text-muted-foreground' : ''}`}
+              onChange={(e) => updateLineItem(line.id, { description: e.target.value })}
+            />
+            {!isIncluded && (
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Disabled in version
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-0.5">
+            <span className={`break-words ${!isIncluded ? 'line-through text-muted-foreground' : ''}`}>
+              {line.description}
+            </span>
+            {!isIncluded && (
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Disabled in version
+              </p>
+            )}
+          </div>
+        )}
       </td>
       <td className="px-3 py-2 max-w-[350px]">
         {canEdit ? (
@@ -1823,15 +2463,29 @@ function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem
               value={line.amount > 0 ? String(line.amount) : ''}
               placeholder="Total"
               onChange={(e) => updateLineItem(line.id, { amount: Number(e.target.value.replace(/,/g, '')) || 0 })} />
-          ) : <span className="break-all">{fmt(line.amount)}</span>
+          ) : <span className={`break-all ${!isIncluded ? 'line-through text-muted-foreground' : ''}`}>{fmt(line.amount)}</span>
         })()}
       </td>
       <td className="px-3 py-2">
-        {canEdit && (
-          <Button type="button" size="icon" variant="ghost" onClick={() => removeLine(line.id)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {!isIncluded && canEdit && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400"
+              onClick={() => updateLineItem(line.id, { included: true })}
+              title="Click to re-enable product"
+            >
+              Enable
+            </Button>
+          )}
+          {canEdit && (
+            <Button type="button" size="icon" variant="ghost" onClick={() => removeLine(line.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </td>
     </tr>
   )

@@ -136,6 +136,8 @@ function toShortQuotationLine(value: unknown): ShortQuotationLine | null {
     unitPrice: toOptionalNumber(line.unitPrice),
     total: toOptionalNumber(line.total) ?? 0,
     isLumpSum: Boolean(line.isLumpSum),
+    // Preserve included flag — false means temporarily disabled by SR CRM / quotation team
+    included: line.included === false ? false : true,
     unitPriceLabel: typeof line.unitPriceLabel === 'string' ? line.unitPriceLabel : undefined,
     catalogItemId: typeof line.catalogItemId === 'string' ? line.catalogItemId : undefined,
     catalogTemplateKey: typeof line.catalogTemplateKey === 'string' ? line.catalogTemplateKey : undefined,
@@ -212,6 +214,8 @@ function toShortQuotationContent(value: unknown): ShortQuotationContent | null {
     floors,
     rooms,
     footerNotes,
+    // Preserve version title from user-named "Save As" versions
+    versionTitle: typeof record.versionTitle === 'string' && record.versionTitle.trim() ? record.versionTitle.trim() : undefined,
   }
 }
 

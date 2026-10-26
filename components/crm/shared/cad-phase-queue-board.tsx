@@ -1536,9 +1536,21 @@ export function CadPhaseQueueBoard({
                 </DropdownMenuItem>
               </>
             ) : lead.stage === 'BUDGET_PHASE' && lead.subStatus === 'BUDGET_MEETING_SET' ? (
-              <DropdownMenuItem onClick={() => void openCompleteMeetingDialog(lead)}>
-                Complete Meeting
-              </DropdownMenuItem>
+              <>
+                <DropdownMenuItem onClick={() => void openCompleteMeetingDialog(lead)}>
+                  Complete Meeting
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/crm/sr/quotation/${lead.id}?tab=short`}>
+                    Change Quotation (Short)
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/crm/sr/quotation/${lead.id}?tab=detail`}>
+                    Change Quotation (Detail)
+                  </Link>
+                </DropdownMenuItem>
+              </>
             ) : null}
           </>
         ) : null}
@@ -1972,6 +1984,26 @@ export function CadPhaseQueueBoard({
                           ) : lead.stage === 'BUDGET_PHASE' &&
                             lead.subStatus === 'BUDGET_MEETING_SET' ? (
                             <>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="sm" variant="outline">
+                                    <FileText className="mr-1 h-4 w-4" />
+                                    Change Quotation
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/crm/sr/quotation/${lead.id}?tab=short`}>
+                                      Short Quotation
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/crm/sr/quotation/${lead.id}?tab=detail`}>
+                                      Detail Quotation
+                                    </Link>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                               <Button
                                 size="sm"
                                 onClick={() =>
@@ -2228,6 +2260,26 @@ export function CadPhaseQueueBoard({
                           ) : lead.stage === 'BUDGET_PHASE' &&
                             lead.subStatus === 'BUDGET_MEETING_SET' ? (
                             <>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button size="sm" variant="outline">
+                                    <FileText className="mr-1 h-4 w-4" />
+                                    Change Quotation
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/crm/sr/quotation/${lead.id}?tab=short`}>
+                                      Short Quotation
+                                    </Link>
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem asChild>
+                                    <Link href={`/crm/sr/quotation/${lead.id}?tab=detail`}>
+                                      Detail Quotation
+                                    </Link>
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                               <Button
                                 size="sm"
                                 onClick={() =>

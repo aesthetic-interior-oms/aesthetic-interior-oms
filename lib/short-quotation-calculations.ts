@@ -19,7 +19,7 @@ export function calculateShortLineTotal(line: ShortQuotationLine): number {
 
 export function normalizeShortLine(line: ShortQuotationLine): ShortQuotationLine {
   const total = calculateShortLineTotal(line)
-  return { ...line, total }
+  return { ...line, total, included: line.included !== false }
 }
 
 export function normalizeShortQuotationContent(content: ShortQuotationContent): ShortQuotationContent {
@@ -62,7 +62,7 @@ export function buildShortQuotationSummary(content: ShortQuotationContent): Shor
           allLines.push(withSerial)
           return withSerial
         })
-        const total = lines.reduce((sum, line) => sum + line.total, 0)
+        const total = lines.reduce((sum, line) => sum + (line.included !== false ? line.total : 0), 0)
         return { room, floorName: floor.name, lines, total }
       })
 

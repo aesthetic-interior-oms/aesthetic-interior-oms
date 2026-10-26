@@ -7,6 +7,7 @@ export type ShortQuotationLine = {
   unitPrice: number | null
   total: number
   isLumpSum: boolean
+  included?: boolean
   unitPriceLabel?: string
   /** Reference to a detail-quotation catalog item (informational only, not shown in PDF) */
   catalogItemId?: string
@@ -34,6 +35,7 @@ export type ShortQuotationContent = {
   version: 1
   documentType: 'short'
   packageTier: ShortQuotationPackage
+  versionTitle?: string
   quotationDate: string
   quotationCode?: string
   downloadedAt?: string

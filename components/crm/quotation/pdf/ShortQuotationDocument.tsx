@@ -165,7 +165,14 @@ const FooterFixed = ({ content }: { content: ShortQuotationContent }) => (
 )
 
 export function ShortQuotationDocument({ content }: { content: ShortQuotationContent }) {
-  const summary = buildShortQuotationSummary(content)
+  const filteredContent: ShortQuotationContent = {
+    ...content,
+    rooms: content.rooms.map((room) => ({
+      ...room,
+      lines: room.lines.filter((line) => line.included !== false),
+    })),
+  }
+  const summary = buildShortQuotationSummary(filteredContent)
   const cleanIntro = (content.introLetter || '').replace('Dear Sir,\n', '').replace('Dear Sir,', '').trim()
   const lineSerials = new Map<string, number>()
   summary.floors.forEach((floor) => {

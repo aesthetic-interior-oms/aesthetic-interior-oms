@@ -77,7 +77,7 @@ export function convertShortToDetailContent(
         rate,
         quantity,
         amount,
-        included: true,
+        included: line.included !== false,
         isCustom: !materials,
         ...(line.unitPriceLabel ? { unitPriceLabel: line.unitPriceLabel } : {}),
         ...(line.catalogItemId ? { templateId: line.catalogItemId } : {}),
