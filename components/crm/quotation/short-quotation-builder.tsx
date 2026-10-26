@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -1610,21 +1611,21 @@ export function ShortQuotationBuilder({
 
       {/* ── Dialog: Quotation Versions List ── */}
       <Dialog open={versionsDialogOpen} onOpenChange={setVersionsDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
+        <DialogContent className="sm:max-w-3xl w-full max-h-[85vh] flex flex-col p-6 overflow-hidden">
+          <DialogHeader className="pb-3 border-b pr-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <DialogTitle className="text-lg font-bold">Quotation Versions</DialogTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <DialogTitle className="text-lg font-bold">Short Quotation Versions</DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
                   Select any saved quotation version to load and review in the studio.
-                </p>
+                </DialogDescription>
               </div>
               {canEdit ? (
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="gap-1.5"
+                  className="gap-1.5 shrink-0 h-8 text-xs font-medium"
                   onClick={() => {
                     setNewVersionName('')
                     setNewVersionDialogOpen(true)
@@ -1637,117 +1638,118 @@ export function ShortQuotationBuilder({
             </div>
           </DialogHeader>
 
-          <div className="space-y-3 py-2">
+          <div className="flex-1 overflow-y-auto space-y-3 py-3 pr-1">
             {activeVersionKey ? (
-              <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
-                <span>
-                  Currently editing version: <strong className="font-semibold">{content.versionTitle || activeVersionKey}</strong>
-                </span>
+              <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200">
+                <div className="flex items-center gap-2 truncate">
+                  <span className="font-semibold shrink-0">Currently editing:</span>
+                  <span className="truncate font-bold">{content.versionTitle || activeVersionKey}</span>
+                </div>
                 <Button
                   type="button"
                   size="sm"
                   variant="ghost"
-                  className="h-7 text-xs text-amber-900 hover:bg-amber-200/60 dark:text-amber-200"
+                  className="h-7 shrink-0 text-xs font-semibold text-amber-900 hover:bg-amber-200/60 dark:text-amber-200"
                   onClick={() => {
                     setActiveVersionKey(null)
                     void loadDraft()
                     setVersionsDialogOpen(false)
                   }}
                 >
-                  Switch back to Main Working Draft
+                  Switch to Main Working Draft
                 </Button>
               </div>
             ) : null}
 
             {loadingVersions ? (
-              <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
+              <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading saved versions...
               </div>
             ) : versionsList.length === 0 ? (
               <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                <p className="font-medium">No named versions saved yet.</p>
+                <p className="font-medium text-foreground">No named versions saved yet.</p>
                 <p className="mt-1 text-xs">
                   Click &quot;Save As Version&quot; in the studio toolbar to snapshot your current quotation as a version.
                 </p>
               </div>
             ) : (
-              <div className="max-h-[380px] overflow-auto rounded-lg border">
-                <table className="w-full text-left text-xs">
-                  <thead className="sticky top-0 bg-muted/60 text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-2.5 font-semibold">Version Name</th>
-                      <th className="px-3 py-2.5 font-semibold">Type</th>
-                      <th className="px-3 py-2.5 font-semibold">Project Sqft</th>
-                      <th className="px-3 py-2.5 font-semibold">Total Amount</th>
-                      <th className="px-3 py-2.5 font-semibold">Last Saved</th>
-                      <th className="px-3 py-2.5 text-right font-semibold">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {versionsList.map((ver) => {
-                      const isCurrent = activeVersionKey === ver.draftKey
-                      return (
-                        <tr
-                          key={ver.id}
-                          className={`hover:bg-muted/30 transition-colors ${
-                            isCurrent ? 'bg-amber-50/70 dark:bg-amber-950/20 font-medium' : ''
-                          }`}
-                        >
-                          <td className="px-3 py-2.5 font-medium">
-                            <div className="flex items-center gap-1.5">
-                              <span>{ver.versionTitle}</span>
-                              {isCurrent ? (
-                                <Badge variant="secondary" className="bg-amber-200/80 text-amber-900 text-[10px] py-0 px-1.5">
-                                  Active
-                                </Badge>
-                              ) : null}
-                            </div>
-                          </td>
-                          <td className="px-3 py-2.5">
-                            <Badge variant="outline" className="text-[10px] capitalize">
-                              {ver.packageTier ? `${ver.packageTier.toLowerCase()} short` : ver.documentType}
+              <div className="space-y-2">
+                {versionsList.map((ver) => {
+                  const isCurrent = activeVersionKey === ver.draftKey
+                  return (
+                    <div
+                      key={ver.id}
+                      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border p-3.5 transition-colors ${
+                        isCurrent
+                          ? 'border-amber-300 bg-amber-50/70 shadow-xs dark:border-amber-800 dark:bg-amber-950/30'
+                          : 'border-border bg-card hover:border-muted-foreground/30 hover:bg-muted/30'
+                      }`}
+                    >
+                      {/* Left info */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-semibold text-sm text-foreground truncate max-w-[280px]" title={ver.versionTitle}>
+                            {ver.versionTitle}
+                          </span>
+                          {isCurrent ? (
+                            <Badge variant="secondary" className="bg-amber-200/90 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200 text-[10px] py-0 px-1.5 font-semibold">
+                              Active
                             </Badge>
-                          </td>
-                          <td className="px-3 py-2.5 text-muted-foreground">
-                            {ver.sqft ? `${ver.sqft} sqft` : '—'}
-                          </td>
-                          <td className="px-3 py-2.5 font-semibold text-foreground">
-                            ৳{ver.grandTotal.toLocaleString()}
-                          </td>
-                          <td className="px-3 py-2.5 text-muted-foreground whitespace-nowrap">
-                            {new Date(ver.updatedAt).toLocaleDateString('en-GB', {
+                          ) : null}
+                          <Badge variant="outline" className="text-[10px] capitalize px-1.5 py-0">
+                            {ver.packageTier ? `${ver.packageTier.toLowerCase()} short` : ver.documentType}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
+                          <span>
+                            Saved {new Date(ver.updatedAt).toLocaleDateString('en-GB', {
                               day: '2-digit',
                               month: 'short',
                               year: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit',
                             })}
-                          </td>
-                          <td className="px-3 py-2.5 text-right">
-                            {isCurrent ? (
-                              <span className="text-[11px] font-semibold text-emerald-600">Loaded</span>
-                            ) : (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs"
-                                onClick={() => void loadVersion(ver)}
-                              >
-                                Open
-                              </Button>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                          </span>
+                          {ver.sqft ? (
+                            <span>• {ver.sqft.toLocaleString()} sqft</span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {/* Right metrics & action */}
+                      <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+                        <div className="text-left sm:text-right">
+                          <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Total Amount</div>
+                          <div className="text-sm font-bold text-foreground">
+                            ৳ {ver.grandTotal.toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                        <div>
+                          {isCurrent ? (
+                            <Button size="sm" variant="secondary" disabled className="h-8 text-xs font-semibold cursor-default opacity-80">
+                              Loaded
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs font-semibold hover:bg-primary hover:text-primary-foreground transition-colors"
+                              onClick={() => void loadVersion(ver)}
+                            >
+                              Open Version
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
-          <DialogFooter>
+
+          <DialogFooter className="pt-3 border-t">
             <Button type="button" variant="ghost" onClick={() => setVersionsDialogOpen(false)}>
               Close
             </Button>
