@@ -170,8 +170,8 @@ const styles = StyleSheet.create({
 
   // Summary column widths
   wSl: { width: '6%', textAlign: 'center' },
-  wSumName: { width: '72%', paddingLeft: 10 },
-  wSumTotal: { width: '22%', textAlign: 'right' },
+  wSumName: { width: '70%', paddingLeft: 10, textTransform: 'uppercase' },
+  wSumTotal: { width: '24%', textAlign: 'right' },
 
   summaryFloorRow: {},
   summaryTdCol: { borderRightWidth: 0 },
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     borderTopColor: PRIMARY,
   },
   grandTotalLabel: {
-    width: '78%',
+    width: '76%',
     textAlign: 'right',
     paddingRight: 10,
     fontWeight: 'bold',
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   grandTotalValue: {
-    width: '22%',
+    width: '24%',
     textAlign: 'right',
     fontWeight: 'bold',
     fontSize: 10,
@@ -395,7 +395,7 @@ export function SummaryDocument({
           {/* Table Header */}
           <View style={styles.tHead}>
             <Text style={[styles.thCol, styles.wSl]}>SL</Text>
-            <Text style={[styles.thCol, styles.wSumName]}>Description</Text>
+            <Text style={[styles.thCol, styles.wSumName]}>DESCRIPTION</Text>
             <Text style={[styles.thCol, styles.wSumTotal, styles.thColLast]}>
               Amount ({BDT_SYMBOL})
             </Text>
@@ -407,7 +407,7 @@ export function SummaryDocument({
             return (
               <View key={entry.floor.id} style={styles.tRow} wrap={false}>
                 <Text style={[styles.tdCol, styles.wSl]}>{sl}</Text>
-                <Text style={[styles.tdCol, styles.wSumName]}>{entry.floor.name}</Text>
+                <Text style={[styles.tdCol, styles.wSumName]}>{(entry.floor.name || '').toUpperCase()}</Text>
                 <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>
                   {formatDetailAmount(entry.total)}
                 </Text>
@@ -422,7 +422,7 @@ export function SummaryDocument({
               return (
                 <View style={styles.tRow} wrap={false}>
                   <Text style={[styles.tdCol, styles.wSl]}>{sl}</Text>
-                  <Text style={[styles.tdCol, styles.wSumName]}>Furniture Works</Text>
+                  <Text style={[styles.tdCol, styles.wSumName]}>FURNITURE WORKS</Text>
                   <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>
                     {formatDetailAmount(furnitureTotal)}
                   </Text>
@@ -439,10 +439,10 @@ export function SummaryDocument({
                 <View style={styles.tRow} wrap={false}>
                   <Text style={[styles.tdCol, styles.wSl]}>{sl}</Text>
                   <Text style={[styles.tdCol, styles.wSumName]}>
-                    Electrical Works{electricalIsApprox ? ' (approx.)' : ''}
+                    ELECTRICAL WORKS
                   </Text>
                   <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>
-                    {formatDetailAmount(electricalTotal)}
+                    {formatDetailAmount(electricalTotal)}{electricalIsApprox ? ' (approx.)' : ''}
                   </Text>
                 </View>
               )
