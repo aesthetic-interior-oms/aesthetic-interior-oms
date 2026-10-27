@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { uploadDirectBlobFile } from '@/lib/client-blob-upload'
+import { uploadDirectGCSFile } from '@/lib/client-gcs-upload'
 import type { WebsiteProject } from '@/lib/website-projects'
 
 type ProjectForm = {
@@ -116,12 +116,12 @@ export function WebsiteProjectManager() {
     try {
       const uploaded: string[] = []
       for (const file of Array.from(files)) {
-        const blob = await uploadDirectBlobFile({
+        const uploadedFile = await uploadDirectGCSFile({
           file,
           context: 'website-project',
           ownerId: form.id || form.slug || slugify(form.title) || 'new-project',
         })
-        uploaded.push(blob.url)
+        uploaded.push(uploadedFile.url)
       }
       setForm((current) => ({
         ...current,
@@ -281,7 +281,7 @@ export function WebsiteProjectManager() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <Label>Project images</Label>
-                <p className="text-xs text-muted-foreground">Upload one or multiple images to Vercel Blob. First upload becomes thumbnail unless changed.</p>
+                <p className="text-xs text-muted-foreground">Upload one or multiple images to Google Cloud Storage. First upload becomes thumbnail unless changed.</p>
               </div>
               <Button type="button" variant="outline" disabled={uploading} asChild>
                 <label className="cursor-pointer">

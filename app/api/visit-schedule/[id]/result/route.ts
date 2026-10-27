@@ -674,16 +674,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
       )
     }
 
-    if (error instanceof Error && error.message.includes('BLOB_READ_WRITE_TOKEN')) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Blob storage is not configured. Set BLOB_READ_WRITE_TOKEN in environment variables.',
-        },
-        { status: 503 },
-      )
-    }
-
     console.error('[visit-schedule/:id/result][POST] Error:', error)
     return NextResponse.json({ success: false, error: 'Failed to submit visit result' }, { status: 500 })
   }

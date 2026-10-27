@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { uploadDirectBlobFile } from '@/lib/client-blob-upload'
+import { uploadDirectGCSFile } from '@/lib/client-gcs-upload'
 import type { WebsiteTestimonial } from '@/lib/website-testimonials'
 
 type TestimonialForm = { id?: string; quote: string; author: string; project: string; image: string; isPublished: boolean; sortOrder: number }
@@ -53,13 +53,13 @@ export function WebsiteTestimonialManager() {
     setUploading(true)
     setMessage(null)
     try {
-      const blob = await uploadDirectBlobFile({
+      const uploadedFile = await uploadDirectGCSFile({
         file,
         context: 'website-testimonial',
         ownerId: form.id || slugify(form.author) || 'new-testimonial',
       })
-      updateField('image', blob.url)
-      setMessage('Image uploaded to Vercel Blob. Save the testimonial to keep this image.')
+      updateField('image', uploadedFile.url)
+      setMessage('Image uploaded to Google Cloud Storage. Save the testimonial to keep this image.')
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Image upload failed')
     } finally {
@@ -146,7 +146,7 @@ export function WebsiteTestimonialManager() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <Label>Client image</Label>
-                <p className="text-xs text-muted-foreground">Upload an image to Vercel Blob. The saved Blob URL will be used on the public website.</p>
+                <p className="text-xs text-muted-foreground">Upload an image to Google Cloud Storage. The saved URL will be used on the public website.</p>
               </div>
               <Button type="button" variant="outline" disabled={uploading} asChild>
                 <label className="cursor-pointer">

@@ -27,6 +27,8 @@ type UploadDirectGCSInput = {
   file: File
   context: ClientGCSUploadContext
   ownerId: string
+  cadFileType?: string
+  quotationFileType?: string
   onProgress?: (percentage: number) => void
 }
 

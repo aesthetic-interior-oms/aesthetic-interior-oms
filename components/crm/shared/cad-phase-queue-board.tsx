@@ -1775,7 +1775,7 @@ export function CadPhaseQueueBoard({
                         <TableHead className="w-[18%]">Address</TableHead>
                         <TableHead className="w-[11%]">Visit Date</TableHead>
                         <TableHead className="w-[13%]">
-                          {isCadQueue ? 'JR Architect' : isDesignQueue ? '3D Visualizer' : 'Quotation'}
+                          {isCadQueue || isHistoryView ? 'JR Architect' : isDesignQueue ? '3D Visualizer' : 'Quotation'}
                         </TableHead>
                         <TableHead className="w-[11%]">SR CRM / Visit</TableHead>
                         <TableHead className="w-[10%]">Project Size</TableHead>
@@ -1803,11 +1803,11 @@ export function CadPhaseQueueBoard({
                           </TableCell>
                           <TableCell>{formatDate(lead.latestCompletedVisit?.scheduledAt)}</TableCell>
                           <TableCell className="truncate" title={
-                            isCadQueue || isDesignQueue
+                            isCadQueue || isDesignQueue || isHistoryView
                               ? (lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned')
                               : (lead.quotationAssignment?.user.fullName ?? 'Unassigned')
                           }>
-                            {isCadQueue || isDesignQueue
+                            {isCadQueue || isDesignQueue || isHistoryView
                               ? (lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned')
                               : (lead.quotationAssignment?.user.fullName ?? 'Unassigned')}
                           </TableCell>

@@ -24,8 +24,8 @@ import { LeadFollowupsTab } from '@/components/crm/junior/lead-followups-tab'
 import { LeadActionsPanel } from '@/components/crm/junior/lead-actions-panel'
 import { fetchMeCached } from '@/lib/client-me'
 import { FacebookMessagesDialog } from '@/components/crm/shared/facebook-messages-dialog'
-import { uploadDirectBlobFile } from '@/lib/client-blob-upload'
-import { DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE, DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
+import { uploadDirectGCSFile } from '@/lib/client-gcs-upload'
+import { DIRECT_GCS_UPLOAD_LIMIT_MESSAGE, DIRECT_GCS_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
 import ProjectVendorsTab from '@/components/vendors/project-vendors-tab'
 import { BoqDepartmentAssignmentPanel } from '@/components/crm/admin/boq-department-assignment-panel'
 
@@ -628,9 +628,9 @@ export default function LeadDetailPage() {
       return
     }
 
-    if (attachmentFile.size > DIRECT_BLOB_UPLOAD_MAX_BYTES) {
+    if (attachmentFile.size > DIRECT_GCS_UPLOAD_MAX_BYTES) {
       setAddAttachmentError(
-        `"${attachmentFile.name}" is ${formatBytesToMbLabel(attachmentFile.size)}. Direct browser upload supports up to ${formatBytesToMbLabel(DIRECT_BLOB_UPLOAD_MAX_BYTES)} per file.`,
+        `"${attachmentFile.name}" is ${formatBytesToMbLabel(attachmentFile.size)}. Direct browser upload supports up to ${formatBytesToMbLabel(DIRECT_GCS_UPLOAD_MAX_BYTES)} per file.`,
       )
       return
     }
@@ -639,7 +639,7 @@ export default function LeadDetailPage() {
     setAddAttachmentError(null)
 
     try {
-      const uploadedFile = await uploadDirectBlobFile({
+      const uploadedFile = await uploadDirectGCSFile({
         file: attachmentFile,
         context: 'lead-attachment',
         ownerId: leadId,
@@ -1238,7 +1238,7 @@ export default function LeadDetailPage() {
                 }}
               />
             </div>
-            <p className="text-xs text-amber-700">{DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE}</p>
+            <p className="text-xs text-amber-700">{DIRECT_GCS_UPLOAD_LIMIT_MESSAGE}</p>
             {addAttachmentError ? (
               <p className="text-sm text-destructive">{addAttachmentError}</p>
             ) : null}

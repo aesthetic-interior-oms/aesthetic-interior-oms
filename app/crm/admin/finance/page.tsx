@@ -67,7 +67,7 @@ import {
   Trash2,
   Warehouse,
 } from "lucide-react"
-import { uploadDirectBlobFile } from "@/lib/client-blob-upload"
+import { uploadDirectGCSFile } from "@/lib/client-gcs-upload"
 import { downloadMoneyReceiptPDF } from "@/lib/money-receipt-pdf"
 
 // Category display mapping
@@ -540,7 +540,7 @@ export default function FinanceDashboard() {
       
       if (imageFile) {
         const tempId = `receipt-${Date.now()}`
-        const uploaded = await uploadDirectBlobFile({
+        const uploaded = await uploadDirectGCSFile({
           file: imageFile,
           context: 'transaction-receipt',
           ownerId: tempId,

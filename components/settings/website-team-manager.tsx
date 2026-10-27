@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { uploadDirectBlobFile } from '@/lib/client-blob-upload'
+import { uploadDirectGCSFile } from '@/lib/client-gcs-upload'
 import type { WebsiteTeamMember } from '@/lib/website-team'
 
 type TeamForm = {
@@ -87,12 +87,12 @@ export function WebsiteTeamManager() {
     setUploading(true)
     setMessage(null)
     try {
-      const blob = await uploadDirectBlobFile({
+      const uploadedFile = await uploadDirectGCSFile({
         file,
         context: 'website-team',
         ownerId: form.id || slugify(form.name) || 'new-member',
       })
-      updateField('image', blob.url)
+      updateField('image', uploadedFile.url)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Image upload failed')
     } finally {
@@ -217,7 +217,7 @@ export function WebsiteTeamManager() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <Label>Profile image</Label>
-                <p className="text-xs text-muted-foreground">Upload the team member image to Vercel Blob.</p>
+                <p className="text-xs text-muted-foreground">Upload the team member image to Google Cloud Storage.</p>
               </div>
               <Button type="button" variant="outline" disabled={uploading} asChild>
                 <label className="cursor-pointer">

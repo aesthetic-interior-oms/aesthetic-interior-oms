@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { uploadDirectBlobFile, type UploadedBlobFileMeta } from "@/lib/client-blob-upload";
+import { uploadDirectGCSFile, type UploadedGCSFileMeta } from "@/lib/client-gcs-upload";
 import {
   Dialog,
   DialogContent,
@@ -145,11 +145,11 @@ export default function QuotationTeamMyWorkPage() {
     setBusyId(submitLead.id);
     try {
       setUploadingFiles(true);
-      const uploadedFiles: UploadedBlobFileMeta[] = [];
+      const uploadedFiles: UploadedGCSFileMeta[] = [];
       for (const attachment of validAttachments) {
         const file = attachment.file;
         if (!file) continue;
-        const uploaded = await uploadDirectBlobFile({
+        const uploaded = await uploadDirectGCSFile({
           file,
           context: "quotation-work",
           ownerId: submitLead.id,
