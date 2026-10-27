@@ -3,11 +3,13 @@ export type CabinetCatalogConfig = {
   solidShades: string[]
   hplBrands: string[]
   coreThicknesses: string[]
+  shutterBodyThicknesses: string[]
+  backPlyThicknesses: string[]
   baseMaterials: string[]
 }
 
 export const DEFAULT_CABINET_CATALOG: CabinetCatalogConfig = {
-  usageOptions: ['Shutter', 'Top Cabinet', 'Backply'],
+  usageOptions: ['Shutter', 'Body', 'Back Ply'],
   solidShades: ['Champagne Gold', 'Starlight White', 'Rose Gold', 'White Duco'],
   hplBrands: [
     'Luxury 8193',
@@ -20,7 +22,9 @@ export const DEFAULT_CABINET_CATALOG: CabinetCatalogConfig = {
     'Elegant A-7112',
     'Advance 14081',
   ],
-  coreThicknesses: ['6mm', '9mm', '12mm', '16mm', '18mm', '25mm'],
+  coreThicknesses: ['18mm', '16mm', '9mm', '6mm'],
+  shutterBodyThicknesses: ['16mm', '18mm'],
+  backPlyThicknesses: ['6mm', '9mm'],
   baseMaterials: [
     'Garjon Plywood (Garjon Ply)',
     'Marine Plywood (BWP / Merin Ply)',
@@ -35,4 +39,27 @@ export const DEFAULT_CABINET_CATALOG: CabinetCatalogConfig = {
     'Blockboard',
     'WPC (Wood Plastic Composite) Board',
   ],
+}
+
+/**
+ * Returns allowed board thickness options based on cabinet component usage:
+ * - Shutter / Body: 16mm, 18mm
+ * - Back Ply: 6mm, 9mm
+ */
+export function getCabinetThicknessOptions(usage?: string): string[] {
+  const norm = (usage || '').trim().toLowerCase()
+  if (norm.includes('back')) {
+    return ['6mm', '9mm']
+  }
+  if (
+    norm.includes('shutter') ||
+    norm.includes('body') ||
+    norm.includes('top') ||
+    norm.includes('bottom') ||
+    norm.includes('carcass') ||
+    norm.includes('shelves')
+  ) {
+    return ['16mm', '18mm']
+  }
+  return ['16mm', '18mm', '6mm', '9mm']
 }

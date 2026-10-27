@@ -33,7 +33,7 @@ import {
   X,
 } from 'lucide-react'
 import { saveMaterialRequisition, RequisitionItemInput } from '@/lib/boq-service'
-import { DEFAULT_CABINET_CATALOG, type CabinetCatalogConfig } from '@/lib/boq-cabinet-catalog'
+import { DEFAULT_CABINET_CATALOG, getCabinetThicknessOptions } from '@/lib/boq-cabinet-catalog'
 import { RequisitionPdfExportModal } from './requisition-pdf-modal'
 import type {
   QuotationDraftContent,
@@ -1328,12 +1328,12 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'MR Board',
-    specifications: '18mm | Champagne Gold (Both Side) | Backply',
+    specifications: '9mm | Champagne Gold (Both Side) | Back Ply',
     variantAttributes: {
       srNo: '1',
-      usage: 'Backply',
+      usage: 'Back Ply',
       baseMaterial: 'MR Board',
-      coreThickness: '18mm',
+      coreThickness: '9mm',
       isHplPasting: false,
       frontLaminateCode: 'Champagne Gold',
       backLaminateCode: 'Same as Front (Both Side)',
@@ -1346,17 +1346,17 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 89,
     unit: 'Pcs',
-    productionPhase: 'Backply',
+    productionPhase: 'Back Ply',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'MR Board',
-    specifications: '6mm | Champagne Gold | Shutter | Edging: 5 Roll (Edging)',
+    specifications: '18mm | Champagne Gold | Shutter | Edging: 5 Roll (Edging)',
     variantAttributes: {
       srNo: '1.1',
       usage: 'Shutter',
       baseMaterial: 'MR Board',
-      coreThickness: '6mm',
+      coreThickness: '18mm',
       isHplPasting: false,
       frontLaminateCode: 'Champagne Gold',
       backLaminateCode: 'Single Side Liner',
@@ -1374,10 +1374,10 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Elegant Board',
-    specifications: '18mm | Code: A-7123 | Top Cabinet',
+    specifications: '18mm | Code: A-7123 | Body',
     variantAttributes: {
       srNo: '2',
-      usage: 'Top Cabinet',
+      usage: 'Body',
       baseMaterial: 'Elegant Board',
       coreThickness: '18mm',
       isHplPasting: false,
@@ -1392,17 +1392,17 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 2,
     unit: 'Pcs',
-    productionPhase: 'Top Cabinet',
+    productionPhase: 'Body',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Elegant Board',
-    specifications: '9mm | Code: A-7123 | Shutter | Edging: 1 Roll (Edging)',
+    specifications: '18mm | Code: A-7123 | Shutter | Edging: 1 Roll (Edging)',
     variantAttributes: {
       srNo: '2.1',
       usage: 'Shutter',
       baseMaterial: 'Elegant Board',
-      coreThickness: '9mm',
+      coreThickness: '18mm',
       isHplPasting: false,
       frontLaminateCode: 'Code: A-7123',
       backLaminateCode: '',
@@ -1420,12 +1420,12 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Elegant Board',
-    specifications: '18mm | Code: A-7112 | Backply',
+    specifications: '6mm | Code: A-7112 | Back Ply',
     variantAttributes: {
       srNo: '3',
-      usage: 'Backply',
+      usage: 'Back Ply',
       baseMaterial: 'Elegant Board',
-      coreThickness: '18mm',
+      coreThickness: '6mm',
       isHplPasting: false,
       frontLaminateCode: 'Code: A-7112',
       backLaminateCode: '',
@@ -1438,17 +1438,17 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 8,
     unit: 'Pcs',
-    productionPhase: 'Backply',
+    productionPhase: 'Back Ply',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Elegant Board',
-    specifications: '9mm | Code: A-7112 | Top Cabinet | Edging: 1 Roll (Edging)',
+    specifications: '16mm | Code: A-7112 | Body | Edging: 1 Roll (Edging)',
     variantAttributes: {
       srNo: '3.1',
-      usage: 'Top Cabinet',
+      usage: 'Body',
       baseMaterial: 'Elegant Board',
-      coreThickness: '9mm',
+      coreThickness: '16mm',
       isHplPasting: false,
       frontLaminateCode: 'Code: A-7112',
       backLaminateCode: '',
@@ -1461,7 +1461,7 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 3,
     unit: 'Pcs',
-    productionPhase: 'Top Cabinet',
+    productionPhase: 'Body',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
@@ -1489,12 +1489,12 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Starlight Board',
-    specifications: '18mm | White Matt Finish | Backply',
+    specifications: '9mm | White Matt Finish | Back Ply',
     variantAttributes: {
       srNo: '5',
-      usage: 'Backply',
+      usage: 'Back Ply',
       baseMaterial: 'Starlight Board',
-      coreThickness: '18mm',
+      coreThickness: '9mm',
       isHplPasting: false,
       frontLaminateCode: 'White Matt Finish',
       backLaminateCode: '',
@@ -1507,30 +1507,30 @@ const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 5,
     unit: 'Pcs',
-    productionPhase: 'Backply',
+    productionPhase: 'Back Ply',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Starlight Board',
-    specifications: '6mm | White Matt Finish | Top Cabinet | Edging: 1 Role (Edging)',
+    specifications: '18mm | White Matt Finish | Body | Edging: 1 Roll (Edging)',
     variantAttributes: {
       srNo: '5.1',
-      usage: 'Top Cabinet',
+      usage: 'Body',
       baseMaterial: 'Starlight Board',
-      coreThickness: '6mm',
+      coreThickness: '18mm',
       isHplPasting: false,
       frontLaminateCode: 'White Matt Finish',
       backLaminateCode: '',
       laminateFinishDetails: 'White Matt Finish',
       qtyLabel: '1 pcs',
-      edgingTapeQty: '1 Role (Edging)',
+      edgingTapeQty: '1 Roll (Edging)',
       cabinetSubType: 'BOARD_SPEC',
     },
     netQuantity: 1,
     wastagePercent: 0,
     finalQuantity: 1,
     unit: 'Pcs',
-    productionPhase: 'Top Cabinet',
+    productionPhase: 'Body',
   },
 ]
 
@@ -1539,14 +1539,14 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'MR Board HPL Pasting',
-    specifications: '18mm | Front: MR Champagne Gold | Back: Luxury 8193 | Backply',
+    specifications: '9mm | Front: MR Champagne Gold | Back: Luxury 8193 | Back Ply',
     variantAttributes: {
       srNo: 'HPL-1',
       lineNo: 'HPL-1',
-      usage: 'Backply',
+      usage: 'Back Ply',
       baseMaterial: 'MR Board',
       coreSubstrateType: 'MR Board',
-      coreThickness: '18mm',
+      coreThickness: '9mm',
       isHplPasting: true,
       frontLaminateCode: 'MR Champagne Gold',
       backLaminateCode: 'Luxury 8193',
@@ -1558,7 +1558,7 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 40,
     unit: 'Pcs',
-    productionPhase: 'Backply',
+    productionPhase: 'Back Ply',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
@@ -1587,11 +1587,11 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '16mm | Front: Super 101 | Back: Luxury 8193 | Top Cabinet',
+    specifications: '16mm | Front: Super 101 | Back: Luxury 8193 | Body',
     variantAttributes: {
       srNo: 'HPL-3',
       lineNo: 'HPL-3',
-      usage: 'Top Cabinet',
+      usage: 'Body',
       baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
       coreThickness: '16mm',
@@ -1606,19 +1606,19 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 21,
     unit: 'Pcs',
-    productionPhase: 'Top Cabinet',
+    productionPhase: 'Body',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '16mm | Front: Super 101 | Back: Super 101 (Both Side) | Backply | Edging: 2 Roll',
+    specifications: '6mm | Front: Super 101 | Back: Super 101 (Both Side) | Back Ply | Edging: 2 Roll',
     variantAttributes: {
       srNo: 'HPL-4',
       lineNo: 'HPL-4',
-      usage: 'Backply',
+      usage: 'Back Ply',
       baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
-      coreThickness: '16mm',
+      coreThickness: '6mm',
       isHplPasting: true,
       frontLaminateCode: 'Super 101',
       backLaminateCode: 'Super 101 (Both Side)',
@@ -1630,19 +1630,19 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 11,
     unit: 'Pcs',
-    productionPhase: 'Backply',
+    productionPhase: 'Back Ply',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '6mm | Front: Super 101 | Back: Single Side Liner | Shutter',
+    specifications: '18mm | Front: Super 101 | Back: Single Side Liner | Shutter',
     variantAttributes: {
       srNo: 'HPL-5',
       lineNo: 'HPL-5',
       usage: 'Shutter',
       baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
-      coreThickness: '6mm',
+      coreThickness: '18mm',
       isHplPasting: true,
       frontLaminateCode: 'Super 101',
       backLaminateCode: 'Single Side Liner',
@@ -1659,14 +1659,14 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '16mm | Front: Super 111 | Back: Luxury 8193 | Backply | Edging: 1 Roll',
+    specifications: '9mm | Front: Super 111 | Back: Luxury 8193 | Back Ply | Edging: 1 Roll',
     variantAttributes: {
       srNo: 'HPL-6',
       lineNo: 'HPL-6',
-      usage: 'Backply',
+      usage: 'Back Ply',
       baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
-      coreThickness: '16mm',
+      coreThickness: '9mm',
       isHplPasting: true,
       frontLaminateCode: 'Super 111',
       backLaminateCode: 'Luxury 8193',
@@ -1678,7 +1678,7 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 6,
     unit: 'Pcs',
-    productionPhase: 'Backply',
+    productionPhase: 'Back Ply',
   },
   {
     workCategory: 'CABINETS_CLOSETS',
@@ -1707,14 +1707,14 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
     materialName: 'Marine Plywood HPL Pasting',
-    specifications: '6mm | Front: Super 111 | Back: Single Side Liner | Top Cabinet | Edging: 1 Roll',
+    specifications: '18mm | Front: Super 111 | Back: Single Side Liner | Body | Edging: 1 Roll',
     variantAttributes: {
       srNo: 'HPL-8',
       lineNo: 'HPL-8',
-      usage: 'Top Cabinet',
+      usage: 'Body',
       baseMaterial: 'Marine Plywood',
       coreSubstrateType: 'Marine Plywood',
-      coreThickness: '6mm',
+      coreThickness: '18mm',
       isHplPasting: true,
       frontLaminateCode: 'Super 111',
       backLaminateCode: 'Single Side Liner',
@@ -1726,7 +1726,7 @@ const SAMPLE_CABINET_HPL_PASTING_ITEMS: RequisitionItemInput[] = [
     wastagePercent: 0,
     finalQuantity: 3,
     unit: 'Pcs',
-    productionPhase: 'Top Cabinet',
+    productionPhase: 'Body',
   },
 ]
 
@@ -3136,8 +3136,9 @@ function BoardDatalists() {
       {/* ── Closet / Cabinet Datalists ── */}
       <datalist id="cabinet-usage-list">
         <option value="Shutter" />
-        <option value="Top Cabinet" />
         <option value="Body" />
+        <option value="Back Ply" />
+        <option value="Top Cabinet" />
         <option value="Bottom Cabinet" />
         <option value="Carcass / Internal" />
         <option value="Shelves" />
@@ -3160,13 +3161,20 @@ function BoardDatalists() {
       </datalist>
 
       <datalist id="cabinet-thickness-list">
-        <option value="6mm" />
+        <option value="18mm" />
+        <option value="16mm" />
         <option value="9mm" />
-        <option value="12mm" />
-        <option value="15mm" />
+        <option value="6mm" />
+      </datalist>
+
+      <datalist id="cabinet-shutter-body-thickness-list">
         <option value="16mm" />
         <option value="18mm" />
-        <option value="25mm" />
+      </datalist>
+
+      <datalist id="cabinet-back-ply-thickness-list">
+        <option value="6mm" />
+        <option value="9mm" />
       </datalist>
 
       <datalist id="cabinet-laminate-finish-list">
@@ -3257,6 +3265,7 @@ function BoardDatalists() {
 function CabinetCombobox({
   value,
   onChange,
+  onBlur,
   options = [],
   groups,
   placeholder,
@@ -3264,6 +3273,7 @@ function CabinetCombobox({
 }: {
   value: string
   onChange: (val: string) => void
+  onBlur?: () => void
   options?: string[]
   groups?: { group: string; items: string[] }[]
   placeholder?: string
@@ -3355,6 +3365,7 @@ function CabinetCombobox({
             setQuery('')
             openDropdown()
           }}
+          onBlur={onBlur}
           placeholder={placeholder}
           className={`${className || GRID_CELL_INPUT} pr-5`}
         />
@@ -5089,7 +5100,7 @@ function MaterialRowsTable({
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-14 text-center`}>Sr. No</th>
                 <th className={`${GRID_TH} w-36`}>Usage</th>
-                <th className={`${GRID_TH} w-24`}>Thickness</th>
+                <th className={`${GRID_TH} w-24`} title="Shutter/Body: 16mm, 18mm | Back Ply: 6mm, 9mm">Thickness</th>
                 <th className={`${GRID_TH} min-w-[150px]`}>Base Material / Core</th>
                 <th className={`${GRID_TH} min-w-[190px]`}>Front Laminate / Finish</th>
                 <th className={`${GRID_TH} min-w-[190px]`}>Back Laminate / Liner</th>
@@ -5122,7 +5133,7 @@ function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 2. Usage (Dropdown with Shutter, Top Cabinet, Backply) */}
+                    {/* 2. Usage (Dropdown with Shutter, Body, Back Ply) */}
                     <td className={GRID_TD}>
                       <CabinetCombobox
                         value={attrs.usage || attrs.functionalUsage || item.productionPhase || ''}
@@ -5130,19 +5141,76 @@ function MaterialRowsTable({
                           onUpdateVariant(ri, 'usage', val)
                           onUpdateVariant(ri, 'functionalUsage', val)
                           onChange(ri, 'productionPhase', val)
+
+                          // Auto-sync thickness when usage changes:
+                          // Back ply => only 6mm or 9mm (default 6mm if invalid)
+                          // Shutter / Body => 16mm or 18mm (default 18mm if invalid)
+                          const norm = val.trim().toLowerCase()
+                          const currentThk = attrs.coreThickness || ''
+                          if (norm.includes('back')) {
+                            if (currentThk !== '6mm' && currentThk !== '9mm') {
+                              onUpdateVariant(ri, 'coreThickness', '6mm')
+                            }
+                          } else if (
+                            norm.includes('shutter') ||
+                            norm.includes('body') ||
+                            norm.includes('top') ||
+                            norm.includes('bottom') ||
+                            norm.includes('carcass')
+                          ) {
+                            if (currentThk !== '16mm' && currentThk !== '18mm') {
+                              onUpdateVariant(ri, 'coreThickness', '18mm')
+                            }
+                          }
                         }}
                         options={DEFAULT_CABINET_CATALOG.usageOptions}
-                        placeholder="Shutter / Top / Backply"
+                        placeholder="Shutter / Body / Back Ply"
                       />
                     </td>
 
-                    {/* 3. Core Thickness (Dropdown + Manual) */}
+                    {/* 3. Core Thickness (Usage-specific: 16mm/18mm for Shutter & Body, 6mm/9mm for Back Ply) */}
                     <td className={GRID_TD}>
                       <CabinetCombobox
                         value={attrs.coreThickness || ''}
                         onChange={(val) => onUpdateVariant(ri, 'coreThickness', val)}
-                        options={DEFAULT_CABINET_CATALOG.coreThicknesses}
-                        placeholder="18mm"
+                        onBlur={() => {
+                          const currentUsage = (attrs.usage || attrs.functionalUsage || item.productionPhase || '').toLowerCase()
+                          const thk = (attrs.coreThickness || '').trim()
+                          if (!thk) return
+                          if (currentUsage.includes('back')) {
+                            // Back ply: only 6mm or 9mm
+                            if (thk !== '6mm' && thk !== '9mm') {
+                              if (thk === '6') onUpdateVariant(ri, 'coreThickness', '6mm')
+                              else if (thk === '9') onUpdateVariant(ri, 'coreThickness', '9mm')
+                              else {
+                                const num = parseFloat(thk)
+                                onUpdateVariant(ri, 'coreThickness', num >= 8 ? '9mm' : '6mm')
+                              }
+                            }
+                          } else if (
+                            currentUsage.includes('shutter') ||
+                            currentUsage.includes('body') ||
+                            currentUsage.includes('top') ||
+                            currentUsage.includes('bottom') ||
+                            currentUsage.includes('carcass')
+                          ) {
+                            // Shutter / Body: 16mm or 18mm
+                            if (thk !== '16mm' && thk !== '18mm') {
+                              if (thk === '16') onUpdateVariant(ri, 'coreThickness', '16mm')
+                              else if (thk === '18') onUpdateVariant(ri, 'coreThickness', '18mm')
+                              else {
+                                const num = parseFloat(thk)
+                                onUpdateVariant(ri, 'coreThickness', num <= 16 ? '16mm' : '18mm')
+                              }
+                            }
+                          }
+                        }}
+                        options={getCabinetThicknessOptions(attrs.usage || attrs.functionalUsage || item.productionPhase)}
+                        placeholder={
+                          (attrs.usage || attrs.functionalUsage || item.productionPhase || '').toLowerCase().includes('back')
+                            ? '6mm'
+                            : '18mm'
+                        }
                       />
                     </td>
 
