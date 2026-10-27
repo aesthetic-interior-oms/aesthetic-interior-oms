@@ -34,6 +34,11 @@ import {
 } from 'lucide-react'
 import { saveMaterialRequisition, RequisitionItemInput } from '@/lib/boq-service'
 import { DEFAULT_CABINET_CATALOG, getCabinetThicknessOptions } from '@/lib/boq-cabinet-catalog'
+import {
+  inferProductCategoryRule,
+  UI_SECTION_CATEGORIES,
+  type UiSectionCategory,
+} from '@/lib/boq-product-category-map'
 import { RequisitionPdfExportModal } from './requisition-pdf-modal'
 import type {
   QuotationDraftContent,
@@ -2042,6 +2047,25 @@ const WALL_PANELING_SUBTYPES: { key: WallPanelingSubType; label: string; viewMod
   { key: 'NAILS_PINS',       label: '📌 Nails, Pins & Masonry Anchors',             viewMode: 'NAIL_SPEC'     },
   { key: 'ADHESIVES',        label: '🧪 Adhesives & Chemical Solvents',             viewMode: 'ADHESIVE_SPEC' },
 ]
+
+const WALL_PANEL_ONLY_SUBTYPES: { key: WallPanelingSubType; label: string; viewMode: ViewModeType }[] = [
+  { key: 'CORE_BOARDS',      label: '🪵 Boards',            viewMode: 'BOARD_SPEC'  },
+  { key: 'LOUVERS_PROFILES', label: '✨ Decorative Panels', viewMode: 'LOUVER_SPEC' },
+]
+
+const HARDWARE_ONLY_SUBTYPES: { key: WallPanelingSubType; label: string; viewMode: ViewModeType }[] = [
+  { key: 'SCREWS_FASTENERS', label: '🔩 Hardware ( Screw )',            viewMode: 'SCREW_SPEC'    },
+  { key: 'NAILS_PINS',       label: '📌 Nails, Pins & Masonry Anchors', viewMode: 'NAIL_SPEC'     },
+  { key: 'ADHESIVES',        label: '🧪 Adhesives & Chemical Solvents', viewMode: 'ADHESIVE_SPEC' },
+]
+
+const HARDWARE_COLORS = {
+  bg: 'bg-orange-50/70 dark:bg-orange-950/20',
+  text: 'text-orange-950 dark:text-orange-200',
+  border: 'border-orange-200/80 dark:border-orange-900/60',
+  pill: 'bg-orange-100 text-orange-800 dark:bg-orange-900/60 dark:text-orange-200 border-orange-300 dark:border-orange-700',
+  leftBorder: 'border-l-4 border-l-orange-500',
+}
 
 const CABINET_SUBTYPES: { key: CabinetSubType; label: string; viewMode: ViewModeType }[] = [
   { key: 'BOARD_SPEC', label: '🪵 Cabinet / Closet Board Specification', viewMode: 'CABINET_CORE_SPEC' },
@@ -6474,7 +6498,10 @@ function SectionBlock({
   onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
 }) {
   const viewMode = getViewModeForSection(section)
-  const catLabel = WORK_CATEGORIES.find((c) => c.key === section.category)?.label ?? section.category
+  const isHardwareSection = section.wallPanelingSubType === 'SCREWS_FASTENERS' || section.wallPanelingSubType === 'NAILS_PINS' || section.wallPanelingSubType === 'ADHESIVES'
+  const catLabel = isHardwareSection
+    ? 'Hardware'
+    : (WORK_CATEGORIES.find((c) => c.key === section.category)?.label ?? section.category)
   const subTypeInfo = section.wallPanelingSubType
     ? WALL_PANELING_SUBTYPES.find((s) => s.key === section.wallPanelingSubType)
     : section.cabinetSubType
@@ -6486,7 +6513,7 @@ function SectionBlock({
     : section.ceilingSubType
     ? CEILING_SUBTYPES.find((s) => s.key === section.ceilingSubType)
     : (section.category === 'CEILING' ? CEILING_SUBTYPES[0] : section.category === 'ELECTRICAL_WORK' ? CEILING_SUBTYPES[1] : null)
-  const colors = CATEGORY_COLORS[section.category]
+  const colors = isHardwareSection ? HARDWARE_COLORS : CATEGORY_COLORS[section.category]
   const importedRows = rows.filter((item) => item.variantAttributes?.sourceScheduleKey)
   const pendingImportedRows = importedRows.filter((item) => item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION')
   const importedGroups = Array.from(new Set(importedRows.map((item) => String(item.variantAttributes?.sourceQuantityGroup || '')).filter(Boolean)))
@@ -6588,17 +6615,51 @@ function SectionBlock({
 /* ─────────────────────────────────────────────
    Sub-component: "Add Section" inline form
 ───────────────────────────────────────────── */
-function AddSectionForm({ onAdd, onCancel }: {
+function AddSectionForm({
+  onAdd,
+  onCancel,
+  lineItem,
+}: {
   onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, ceilingSubType?: CeilingSubType, includeSourceSchedule?: boolean) => void
   onCancel: () => void
+  lineItem?: QuotationLineItem | null
 }) {
-  const [cat, setCat] = useState<RequisitionWorkCategory>('WALL_PANELING')
-  const [sub, setSub] = useState<WallPanelingSubType>('CORE_BOARDS')
+  const rule = useMemo(
+    () => inferProductCategoryRule(lineItem?.description, lineItem?.materials, lineItem?.catalogTemplateKey),
+    [lineItem]
+  )
+  const [showAll, setShowAll] = useState(false)
+  const [selectedUiCat, setSelectedUiCat] = useState<UiSectionCategory | null>(null)
+  const uiCat = selectedUiCat ?? rule.defaultUiCategory
+  const [wpSub, setWpSub] = useState<WallPanelingSubType>('CORE_BOARDS')
+  const [hwSub, setHwSub] = useState<WallPanelingSubType>('SCREWS_FASTENERS')
   const [cabSub, setCabSub] = useState<CabinetSubType>('BOARD_SPEC')
   const [accSub, setAccSub] = useState<AccessoriesSubType>('HARDWARE_ACCESSORIES')
   const [appSub, setAppSub] = useState<ApplianceSubType>('CORE_APPLIANCES')
   const [ceilingSub, setCeilingSub] = useState<CeilingSubType>('CEILING_LIGHTING')
   const [includeSourceSchedule, setIncludeSourceSchedule] = useState(false)
+
+  const visibleCategories = showAll
+    ? UI_SECTION_CATEGORIES
+    : UI_SECTION_CATEGORIES.filter((c) => rule.allowedUiCategories.includes(c.key))
+
+  const handleConfirm = () => {
+    if (uiCat === 'HARDWARE') {
+      onAdd('WALL_PANELING', hwSub, undefined, undefined, undefined, undefined, false)
+    } else if (uiCat === 'WALL_PANELING') {
+      onAdd('WALL_PANELING', wpSub, undefined, undefined, undefined, undefined, false)
+    } else if (uiCat === 'CABINETS_CLOSETS') {
+      onAdd('CABINETS_CLOSETS', undefined, cabSub, undefined, undefined, undefined, false)
+    } else if (uiCat === 'ACCESSORIES') {
+      onAdd('ACCESSORIES', undefined, undefined, accSub, undefined, undefined, false)
+    } else if (uiCat === 'APPLIANCES') {
+      onAdd('APPLIANCES', undefined, undefined, undefined, appSub, undefined, false)
+    } else if (uiCat === 'CEILING') {
+      onAdd('CEILING', undefined, undefined, undefined, undefined, ceilingSub, includeSourceSchedule)
+    } else if (uiCat === 'ELECTRICAL_WORK') {
+      onAdd('ELECTRICAL_WORK', undefined, undefined, undefined, undefined, 'ELECTRICAL_DEVICES', includeSourceSchedule)
+    }
+  }
 
   return (
     <div className="flex flex-wrap items-center gap-2.5 px-4 py-3 bg-muted/20 border-t border-border/70">
@@ -6607,28 +6668,43 @@ function AddSectionForm({ onAdd, onCancel }: {
         <span>New Section:</span>
       </div>
       <select
-        value={cat}
-        onChange={(e) => { setCat(e.target.value as RequisitionWorkCategory); setIncludeSourceSchedule(false) }}
+        value={uiCat}
+        onChange={(e) => {
+          setSelectedUiCat(e.target.value as UiSectionCategory)
+          setIncludeSourceSchedule(false)
+        }}
         className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-primary font-medium shadow-xs"
       >
-        {WORK_CATEGORIES.map((c) => (
+        {visibleCategories.map((c) => (
           <option key={c.key} value={c.key}>{c.label}</option>
         ))}
       </select>
 
-      {cat === 'WALL_PANELING' && (
+      {uiCat === 'HARDWARE' && (
         <select
-          value={sub}
-          onChange={(e) => setSub(e.target.value as WallPanelingSubType)}
-          className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-primary font-medium shadow-xs"
+          value={hwSub}
+          onChange={(e) => setHwSub(e.target.value as WallPanelingSubType)}
+          className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-orange-500 font-medium shadow-xs"
         >
-          {WALL_PANELING_SUBTYPES.map((s) => (
+          {HARDWARE_ONLY_SUBTYPES.map((s) => (
             <option key={s.key} value={s.key}>{s.label}</option>
           ))}
         </select>
       )}
 
-      {cat === 'CABINETS_CLOSETS' && (
+      {uiCat === 'WALL_PANELING' && (
+        <select
+          value={wpSub}
+          onChange={(e) => setWpSub(e.target.value as WallPanelingSubType)}
+          className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-primary font-medium shadow-xs"
+        >
+          {WALL_PANEL_ONLY_SUBTYPES.map((s) => (
+            <option key={s.key} value={s.key}>{s.label}</option>
+          ))}
+        </select>
+      )}
+
+      {uiCat === 'CABINETS_CLOSETS' && (
         <select
           value={cabSub}
           onChange={(e) => setCabSub(e.target.value as CabinetSubType)}
@@ -6640,7 +6716,7 @@ function AddSectionForm({ onAdd, onCancel }: {
         </select>
       )}
 
-      {cat === 'ACCESSORIES' && (
+      {uiCat === 'ACCESSORIES' && (
         <select
           value={accSub}
           onChange={(e) => setAccSub(e.target.value as AccessoriesSubType)}
@@ -6652,7 +6728,7 @@ function AddSectionForm({ onAdd, onCancel }: {
         </select>
       )}
 
-      {cat === 'APPLIANCES' && (
+      {uiCat === 'APPLIANCES' && (
         <select
           value={appSub}
           onChange={(e) => setAppSub(e.target.value as ApplianceSubType)}
@@ -6664,7 +6740,7 @@ function AddSectionForm({ onAdd, onCancel }: {
         </select>
       )}
 
-      {cat === 'CEILING' && (
+      {uiCat === 'CEILING' && (
         <select
           value={ceilingSub}
           onChange={(e) => setCeilingSub(e.target.value as CeilingSubType)}
@@ -6676,22 +6752,30 @@ function AddSectionForm({ onAdd, onCancel }: {
         </select>
       )}
 
-      <ScheduleSelection category={cat} ceilingSubType={ceilingSub} checked={includeSourceSchedule} onChange={setIncludeSourceSchedule} />
+      <ScheduleSelection
+        category={uiCat === 'CEILING' ? 'CEILING' : uiCat === 'ELECTRICAL_WORK' ? 'ELECTRICAL_WORK' : 'WALL_PANELING'}
+        ceilingSubType={ceilingSub}
+        checked={includeSourceSchedule}
+        onChange={setIncludeSourceSchedule}
+      />
 
       <button
-        onClick={() => onAdd(
-          cat,
-          cat === 'WALL_PANELING' ? sub : undefined,
-          cat === 'CABINETS_CLOSETS' ? cabSub : undefined,
-          cat === 'ACCESSORIES' ? accSub : undefined,
-          cat === 'APPLIANCES' ? appSub : undefined,
-          cat === 'CEILING' ? ceilingSub : cat === 'ELECTRICAL_WORK' ? 'ELECTRICAL_DEVICES' : undefined,
-          includeSourceSchedule
-        )}
+        onClick={handleConfirm}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors shadow-xs"
       >
         <Plus className="w-3.5 h-3.5" /> Confirm Add Section
       </button>
+
+      {rule.tier !== 3 && (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          className="text-[11px] text-muted-foreground/80 hover:text-foreground underline transition-colors px-1"
+        >
+          {showAll ? 'Show recommended' : 'Show all'}
+        </button>
+      )}
+
       <button onClick={onCancel} className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5">
         Cancel
       </button>
@@ -6724,15 +6808,24 @@ function AddSectionModal({
   isOpen,
   onClose,
   productTitle,
+  lineItem,
   onAdd,
 }: {
   isOpen: boolean
   onClose: () => void
   productTitle: string
+  lineItem?: QuotationLineItem | null
   onAdd: (category: RequisitionWorkCategory, wpSubType?: WallPanelingSubType, cabSubType?: CabinetSubType, accSubType?: AccessoriesSubType, appSubType?: ApplianceSubType, ceilingSubType?: CeilingSubType, includeSourceSchedule?: boolean) => void
 }) {
-  const [cat, setCat] = useState<RequisitionWorkCategory>('WALL_PANELING')
-  const [sub, setSub] = useState<WallPanelingSubType>('CORE_BOARDS')
+  const rule = useMemo(
+    () => inferProductCategoryRule(lineItem?.description, lineItem?.materials, lineItem?.catalogTemplateKey),
+    [lineItem]
+  )
+  const [showAll, setShowAll] = useState(false)
+  const [selectedUiCat, setSelectedUiCat] = useState<UiSectionCategory | null>(null)
+  const uiCat = selectedUiCat ?? rule.defaultUiCategory
+  const [wpSub, setWpSub] = useState<WallPanelingSubType>('CORE_BOARDS')
+  const [hwSub, setHwSub] = useState<WallPanelingSubType>('SCREWS_FASTENERS')
   const [cabSub, setCabSub] = useState<CabinetSubType>('BOARD_SPEC')
   const [accSub, setAccSub] = useState<AccessoriesSubType>('HARDWARE_ACCESSORIES')
   const [appSub, setAppSub] = useState<ApplianceSubType>('CORE_APPLIANCES')
@@ -6741,53 +6834,117 @@ function AddSectionModal({
 
   if (!isOpen) return null
 
+  const handleClose = () => {
+    setSelectedUiCat(null)
+    setShowAll(false)
+    setIncludeSourceSchedule(false)
+    onClose()
+  }
+
+  const visibleCategories = showAll
+    ? UI_SECTION_CATEGORIES
+    : UI_SECTION_CATEGORIES.filter((c) => rule.allowedUiCategories.includes(c.key))
+
+  const handleConfirm = () => {
+    if (uiCat === 'HARDWARE') {
+      onAdd('WALL_PANELING', hwSub, undefined, undefined, undefined, undefined, false)
+    } else if (uiCat === 'WALL_PANELING') {
+      onAdd('WALL_PANELING', wpSub, undefined, undefined, undefined, undefined, false)
+    } else if (uiCat === 'CABINETS_CLOSETS') {
+      onAdd('CABINETS_CLOSETS', undefined, cabSub, undefined, undefined, undefined, false)
+    } else if (uiCat === 'ACCESSORIES') {
+      onAdd('ACCESSORIES', undefined, undefined, accSub, undefined, undefined, false)
+    } else if (uiCat === 'APPLIANCES') {
+      onAdd('APPLIANCES', undefined, undefined, undefined, appSub, undefined, false)
+    } else if (uiCat === 'CEILING') {
+      onAdd('CEILING', undefined, undefined, undefined, undefined, ceilingSub, includeSourceSchedule)
+    } else if (uiCat === 'ELECTRICAL_WORK') {
+      onAdd('ELECTRICAL_WORK', undefined, undefined, undefined, undefined, 'ELECTRICAL_DEVICES', includeSourceSchedule)
+    }
+    handleClose()
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={handleClose} />
       <div className="relative z-50 w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
         <div className="flex items-center justify-between pb-4 border-b border-border/70">
           <div>
             <div className="flex items-center gap-1.5 mb-1">
               <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">New Section</span>
+              {rule.tier !== 3 && rule.productLabel && (
+                <span className="rounded bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-200">
+                  Guided: {rule.productLabel}
+                </span>
+              )}
             </div>
             <h3 className="text-base font-bold text-foreground">Add Material Section</h3>
             <p className="text-xs text-muted-foreground truncate max-w-sm mt-0.5">Target: {productTitle}</p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
+          <button onClick={handleClose} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="space-y-4 py-4">
           <div>
-            <label className="text-xs font-bold text-foreground block mb-1.5">Work Category</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-foreground">Work Category</label>
+              {rule.tier !== 3 && (
+                <button
+                  type="button"
+                  onClick={() => setShowAll((v) => !v)}
+                  className="text-[11px] font-medium text-primary hover:underline"
+                >
+                  {showAll ? 'Show recommended' : 'Show all categories'}
+                </button>
+              )}
+            </div>
             <select
-              value={cat}
-              onChange={(e) => { setCat(e.target.value as RequisitionWorkCategory); setIncludeSourceSchedule(false) }}
+              value={uiCat}
+              onChange={(e) => {
+                setSelectedUiCat(e.target.value as UiSectionCategory)
+                setIncludeSourceSchedule(false)
+              }}
               className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 font-medium focus:ring-1 focus:ring-primary shadow-xs"
             >
-              {WORK_CATEGORIES.map((c) => (
+              {visibleCategories.map((c) => (
                 <option key={c.key} value={c.key}>{c.label}</option>
               ))}
             </select>
           </div>
 
-          {cat === 'WALL_PANELING' && (
+          {uiCat === 'HARDWARE' && (
             <div>
-              <label className="text-xs font-bold text-foreground block mb-1.5">Wall Paneling Sub-Type</label>
+              <label className="text-xs font-bold text-foreground block mb-1.5">Hardware Sub-Type</label>
               <select
-                value={sub}
-                onChange={(e) => setSub(e.target.value as WallPanelingSubType)}
-                className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 font-medium focus:ring-1 focus:ring-primary shadow-xs"
+                value={hwSub}
+                onChange={(e) => setHwSub(e.target.value as WallPanelingSubType)}
+                className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 font-medium focus:ring-1 focus:ring-orange-500 shadow-xs"
               >
-                {WALL_PANELING_SUBTYPES.map((s) => (
+                {HARDWARE_ONLY_SUBTYPES.map((s) => (
                   <option key={s.key} value={s.key}>{s.label}</option>
                 ))}
               </select>
             </div>
           )}
 
-          {cat === 'CABINETS_CLOSETS' && (
+          {uiCat === 'WALL_PANELING' && (
+            <div>
+              <label className="text-xs font-bold text-foreground block mb-1.5">Wall Paneling Sub-Type</label>
+              <select
+                value={wpSub}
+                onChange={(e) => setWpSub(e.target.value as WallPanelingSubType)}
+                className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 font-medium focus:ring-1 focus:ring-primary shadow-xs"
+              >
+                {WALL_PANEL_ONLY_SUBTYPES.map((s) => (
+                  <option key={s.key} value={s.key}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {uiCat === 'CABINETS_CLOSETS' && (
             <div>
               <label className="text-xs font-bold text-foreground block mb-1.5">Cabinet / Closet Sub-Type</label>
               <select
@@ -6802,7 +6959,7 @@ function AddSectionModal({
             </div>
           )}
 
-          {cat === 'ACCESSORIES' && (
+          {uiCat === 'ACCESSORIES' && (
             <div>
               <label className="text-xs font-bold text-foreground block mb-1.5">Hardware / Accessories Sub-Type</label>
               <select
@@ -6817,7 +6974,7 @@ function AddSectionModal({
             </div>
           )}
 
-          {cat === 'APPLIANCES' && (
+          {uiCat === 'APPLIANCES' && (
             <div>
               <label className="text-xs font-bold text-foreground block mb-1.5">Appliance Sub-Type</label>
               <select
@@ -6832,7 +6989,7 @@ function AddSectionModal({
             </div>
           )}
 
-          {cat === 'CEILING' && (
+          {uiCat === 'CEILING' && (
             <div>
               <label className="text-xs font-bold text-foreground block mb-1.5">Ceiling Sub-Type</label>
               <select
@@ -6847,29 +7004,23 @@ function AddSectionModal({
             </div>
           )}
 
-          <ScheduleSelection category={cat} ceilingSubType={ceilingSub} checked={includeSourceSchedule} onChange={setIncludeSourceSchedule} />
+          <ScheduleSelection
+            category={uiCat === 'CEILING' ? 'CEILING' : uiCat === 'ELECTRICAL_WORK' ? 'ELECTRICAL_WORK' : 'WALL_PANELING'}
+            ceilingSubType={ceilingSub}
+            checked={includeSourceSchedule}
+            onChange={setIncludeSourceSchedule}
+          />
         </div>
 
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/70">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
           >
             Cancel
           </button>
           <button
-            onClick={() => {
-              onAdd(
-                cat,
-                cat === 'WALL_PANELING' ? sub : undefined,
-                cat === 'CABINETS_CLOSETS' ? cabSub : undefined,
-                cat === 'ACCESSORIES' ? accSub : undefined,
-                cat === 'APPLIANCES' ? appSub : undefined,
-                cat === 'CEILING' ? ceilingSub : cat === 'ELECTRICAL_WORK' ? 'ELECTRICAL_DEVICES' : undefined,
-                includeSourceSchedule
-              )
-              onClose()
-            }}
+            onClick={handleConfirm}
             className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
           >
             <Plus className="w-4 h-4" /> Confirm Add Section
@@ -7029,6 +7180,7 @@ function QuotationLineItemCard({
           {/* Add Section form or trigger */}
           {showAddSection ? (
             <AddSectionForm
+              lineItem={item}
               onAdd={(cat, wpSub, cabSub, accSub, appSub, ceilSub, includeSchedule) => {
                 onAddSection(cat, wpSub, cabSub, accSub, appSub, ceilSub, includeSchedule)
                 setShowAddSection(false)
@@ -8206,6 +8358,7 @@ export function RequisitionBuilderClient({
         isOpen={isAddSectionModalOpen}
         onClose={() => setIsAddSectionModalOpen(false)}
         productTitle={currentSlide?.title ?? 'Quotation Product'}
+        lineItem={currentSlide?.type === 'LINE_ITEM' ? currentSlide.item : undefined}
         onAdd={(cat, wpSub, cabSub, accSub, appSub, ceilSub, includeSchedule) => {
           addSection(
             currentCardKey,
