@@ -1,13 +1,43 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import {
+  CalendarClock,
+  CheckCircle,
+  ClipboardList,
+  ExternalLink,
+  FileText,
+  Layers,
+  Loader2,
+  MapPin,
+  PenTool,
+  Phone,
+  Play,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Sparkles,
+  Trash2,
+  Upload,
+  UserRound,
+  X,
+} from 'lucide-react'
+import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { toast } from 'sonner'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import {
   Dialog,
   DialogContent,
@@ -17,240 +47,257 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Search,
-  Phone,
-  ImageIcon,
-  FileText,
-  Loader2,
-  Play,
-  MapPin,
-  Clock3,
-  Upload,
-  Plus,
-  X,
-} from 'lucide-react'
-import { CrmPageHeader } from '@/components/crm/shared/page-header'
-import { toast } from 'sonner'
-import {
   CAD_SUBMISSION_FILE_TYPE_OPTIONS,
   type CadSubmissionFileTypeValue,
   formatCadSubmissionFileType,
 } from '@/lib/cad-work'
 import { uploadDirectGCSFile, type UploadedGCSFileMeta } from '@/lib/client-gcs-upload'
-import { DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE, DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
+import {
+  CAD_WORK_UPLOAD_LIMIT_MESSAGE,
+  CAD_WORK_UPLOAD_MAX_BYTES,
+  formatBytesToMbLabel,
+} from '@/lib/upload-limits'
 
-const PAGE_SIZE = 20
-
-
-function formatDistanceToNow(date: Date): string {
-  const now = Date.now()
-  const diffMs = now - date.getTime()
-  if (!Number.isFinite(diffMs) || diffMs < 0) return 'just now'
-
-  const minute = 60 * 1000
-  const hour = 60 * minute
-  const day = 24 * hour
-
-  if (diffMs < minute) return 'just now'
-  if (diffMs < hour) {
-    const minutes = Math.floor(diffMs / minute)
-    return `${minutes} minute${minutes === 1 ? '' : 's'} ago`
-  }
-  if (diffMs < day) {
-    const hours = Math.floor(diffMs / hour)
-    return `${hours} hour${hours === 1 ? '' : 's'} ago`
-  }
-
-  const days = Math.floor(diffMs / day)
-  return `${days} day${days === 1 ? '' : 's'} ago`
-}
-
-type LeadSummary = {
+type CadTaskLead = {
   id: string
   name: string
   phone: string | null
+  location: string | null
   stage: string
   subStatus: string | null
-  location: string | null
-  created_at: string
-  phaseTasks?: Array<{
+  updatedAt: string
+  createdAt: string
+  budget: number | null
+  visitDate: string | null
+  visitMonthKey: string | null
+  projectSqft: number | null
+  srCrmAssignee: {
+    id: string
+    fullName: string
+    email: string
+  } | null
+  jrArchitectAssignee: {
+    id: string
+    fullName: string
+    email: string
+  } | null
+  latestFirstMeeting: {
+    id: string
+    title: string
+    notes: string | null
+    startsAt: string
+  } | null
+  latestPhaseTask: {
     id: string
     status: string
     currentReviewRound: number
-  }>
+    dueAt: string | null
+    completedAt: string | null
+    workDetails: string | null
+  } | null
+  isRework: boolean
+  canStart: boolean
+  canSubmit: boolean
   attachments?: Array<{
     id: string
-    url: string
     fileName: string
-    fileType: string
-    category: string
-    sizeBytes: number | null
-    createdAt: string
+    url: string
+    fileType: string | null
+    category?: string
+    sizeBytes?: number | null
+    createdAt?: string
+  }>
+  submissions?: Array<{
+    id: string
+    note: string | null
+    submittedAt: string
+    files: Array<{
+      id: string
+      fileName: string
+      url: string
+      fileType: string
+      cadFileType: string
+      sizeBytes: number | null
+    }>
   }>
 }
 
-type LeadAttachmentPreview = NonNullable<LeadSummary['attachments']>[number]
-
-type LeadsResponse = {
-  success: boolean
-  data?: LeadSummary[]
-  meta?: {
-    total: number
-    nextOffset: number | null
-    hasMore: boolean
-  }
-}
-
-type CadSubmissionRow = {
+type SubmissionRow = {
   id: string
   cadFileType: CadSubmissionFileTypeValue
   file: File | null
 }
 
-function createCadSubmissionRow(initialType: CadSubmissionFileTypeValue = 'FLOOR_PLAN'): CadSubmissionRow {
+function createCadSubmissionRow(
+  cadFileType: CadSubmissionFileTypeValue = 'FLOOR_PLAN',
+): SubmissionRow {
   return {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-    cadFileType: initialType,
+    id: crypto.randomUUID(),
+    cadFileType,
     file: null,
   }
 }
 
 function formatLabel(value: string | null | undefined): string {
   if (!value) return 'N/A'
-  if (value === 'DISCOVERY') return 'Consulting Phase'
-  if (value === 'PROPOSAL_SENT') return 'Quotation Sent'
+  if (value === 'CAD_ASSIGNED') return 'CAD Assigned'
+  if (value === 'CAD_WORKING') return 'CAD Working'
+  if (value === 'CAD_COMPLETED') return 'In Review'
+  if (value === 'CAD_APPROVED') return 'CAD Approved'
   return value
     .replace(/_/g, ' ')
     .toLowerCase()
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-function isImageAttachment(attachment: LeadAttachmentPreview): boolean {
-  return attachment.fileType?.toLowerCase().startsWith('image/')
+function getRecentMonthsList() {
+  const months: { label: string; value: string }[] = [
+    { label: 'All Visit Months', value: 'ALL' },
+    { label: 'No Visit Date', value: 'NO_VISIT' },
+  ]
+  const now = new Date()
+
+  for (let i = 0; i < 12; i += 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const yyyy = d.getFullYear()
+    const mm = String(d.getMonth() + 1).padStart(2, '0')
+    months.push({
+      label: d.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
+      value: `${yyyy}-${mm}`,
+    })
+  }
+
+  return months
 }
 
-function canShowQuickPreview(lead: LeadSummary): boolean {
-  if (lead.stage !== 'CAD_PHASE') return false
-  return lead.subStatus === 'CAD_WORKING' || lead.subStatus === 'CAD_COMPLETED' || lead.subStatus === 'CAD_APPROVED'
-}
+export default function JrArchitectAssignedWorkPage() {
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [leads, setLeads] = useState<CadTaskLead[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
+  const availableMonths = useMemo(() => getRecentMonthsList(), [])
+  const [selectedMonth, setSelectedMonth] = useState('ALL')
+  const selectedMonthLabel =
+    availableMonths.find((month) => month.value === selectedMonth)?.label ?? 'All Visit Months'
 
-function isReturnedForCorrection(lead: LeadSummary): boolean {
-  const latestCadTask = lead.phaseTasks?.[0]
-  if (!latestCadTask) return false
-  const isCadReworkStatus = lead.subStatus === 'CAD_ASSIGNED' || lead.subStatus === 'CAD_WORKING'
-  return isCadReworkStatus && latestCadTask.currentReviewRound > 0
-}
+  const [selectedStatFilter, setSelectedStatFilter] = useState<string>('total')
 
-export default function JrArchLeadsPage() {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const leadListQuery = useMemo(() => searchParams.toString(), [searchParams])
-
-  const initialSearch = useMemo(() => searchParams.get('q')?.trim() || '', [searchParams])
-  const [leads, setLeads] = useState<LeadSummary[]>([])
-  const [loadingInitial, setLoadingInitial] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [searchInput, setSearchInput] = useState(initialSearch)
-  const [search, setSearch] = useState(initialSearch)
-  const [nextOffset, setNextOffset] = useState<number | null>(0)
-  const [hasMore, setHasMore] = useState(true)
+  // Start work dialog states
   const [startWorkOpen, setStartWorkOpen] = useState(false)
-  const [startWorkLead, setStartWorkLead] = useState<LeadSummary | null>(null)
+  const [startWorkLead, setStartWorkLead] = useState<CadTaskLead | null>(null)
   const [startingWork, setStartingWork] = useState(false)
+
+  // Submit work dialog states
   const [submitWorkOpen, setSubmitWorkOpen] = useState(false)
-  const [submitWorkLead, setSubmitWorkLead] = useState<LeadSummary | null>(null)
+  const [submitWorkLead, setSubmitWorkLead] = useState<CadTaskLead | null>(null)
   const [submittingWork, setSubmittingWork] = useState(false)
   const [submissionNote, setSubmissionNote] = useState('')
   const [submissionProjectSqft, setSubmissionProjectSqft] = useState('')
-  const [submissionRows, setSubmissionRows] = useState<CadSubmissionRow[]>([createCadSubmissionRow()])
-  const getLeadHref = useCallback(
-    (leadId: string) => {
-      const query = leadListQuery
-      return `/crm/jr-architecture/leads/${leadId}${query ? `?${query}` : ''}`
-    },
-    [leadListQuery],
-  )
+  const [submissionRows, setSubmissionRows] = useState<SubmissionRow[]>([createCadSubmissionRow()])
 
-  const sentinelRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    const params = new URLSearchParams()
-    if (search) params.set('q', search)
-    const nextQuery = params.toString()
-    const currentQuery = searchParams.toString()
-    if (nextQuery === currentQuery) return
-    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false })
-  }, [pathname, router, search, searchParams])
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setSearch(searchInput.trim())
-    }, 500)
-    return () => window.clearTimeout(timer)
-  }, [searchInput])
-
-  const fetchLeads = useCallback(async (offset: number, replace: boolean) => {
+  const loadTasks = useCallback(async (monthKey = 'ALL', silent = false) => {
+    if (!silent) setLoading(true)
     try {
-      if (replace) setLoadingInitial(true)
-      else setLoadingMore(true)
+      const params = new URLSearchParams()
+      if (monthKey && monthKey !== 'ALL') params.set('month', monthKey)
 
-      const params = new URLSearchParams({
-        limit: PAGE_SIZE.toString(),
-        offset: offset.toString(),
-        includeAttachmentPreview: '1',
-        includeCadCorrectionFlag: '1',
-        stage: 'CAD_PHASE',
+      const response = await fetch(`/api/cad-work/assigned-tasks?${params.toString()}`, {
+        cache: 'no-store',
       })
-      if (search) params.set('search', search)
-
-      const response = await fetch(`/api/lead?${params.toString()}`)
-      const payload = (await response.json()) as LeadsResponse
-
-      if (!response.ok || !payload.success) {
-        throw new Error('Failed to load assigned leads')
+      const payload = await response.json()
+      if (!response.ok || !payload?.success || !Array.isArray(payload.data)) {
+        throw new Error(payload?.error ?? 'Failed to load assigned CAD tasks')
       }
-
-      const pageData = payload.data ?? []
-      setLeads((prev) => (replace ? pageData : [...prev, ...pageData]))
-      setNextOffset(payload.meta?.nextOffset ?? null)
-      setHasMore(Boolean(payload.meta?.hasMore))
+      setLeads(payload.data as CadTaskLead[])
     } catch (error) {
-      console.error(error)
-      toast.error(error instanceof Error ? error.message : 'Failed to load assigned leads')
-      if (replace) {
+      if (!silent) {
+        toast.error(
+          error instanceof Error ? error.message : 'Failed to load assigned CAD tasks',
+        )
         setLeads([])
-        setHasMore(false)
-        setNextOffset(null)
       }
     } finally {
-      setLoadingInitial(false)
-      setLoadingMore(false)
+      if (!silent) setLoading(false)
     }
-  }, [search])
+  }, [])
 
   useEffect(() => {
-    fetchLeads(0, true)
-  }, [fetchLeads])
+    void loadTasks(selectedMonth)
 
-  useEffect(() => {
-    if (!sentinelRef.current || !hasMore || loadingInitial || loadingMore || nextOffset === null) return
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting && !loadingMore) fetchLeads(nextOffset, false) },
-      { rootMargin: '200px 0px' }
-    )
-    observer.observe(sentinelRef.current)
-    return () => observer.disconnect()
-  }, [fetchLeads, hasMore, loadingInitial, loadingMore, nextOffset])
+    // Auto-refresh tasks every 30 seconds when tab is active so changes from team sync live
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void loadTasks(selectedMonth, true)
+      }
+    }, 30000)
 
-  const openStartWorkDialog = useCallback((lead: LeadSummary) => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadTasks(selectedMonth, true)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      window.clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [loadTasks, selectedMonth])
+
+  const summary = useMemo(
+    () => ({
+      total: leads.length,
+      assigned: leads.filter((lead) => lead.subStatus === 'CAD_ASSIGNED').length,
+      working: leads.filter((lead) => lead.subStatus === 'CAD_WORKING' && !lead.isRework).length,
+      inReview: leads.filter((lead) => lead.subStatus === 'CAD_COMPLETED').length,
+      corrections: leads.filter((lead) => lead.isRework).length,
+      totalSqft: leads.reduce((sum, l) => sum + (l.projectSqft ?? 0), 0),
+    }),
+    [leads],
+  )
+
+  const filteredLeads = useMemo(() => {
+    let result = leads
+
+    const q = searchQuery.trim().toLowerCase()
+    if (q) {
+      result = result.filter((lead) => {
+        const nameMatch = lead.name?.toLowerCase().includes(q)
+        const phoneMatch = lead.phone?.toLowerCase().includes(q)
+        const locationMatch = lead.location?.toLowerCase().includes(q)
+        const stageMatch = formatLabel(lead.stage).toLowerCase().includes(q)
+        const subStatusMatch = formatLabel(lead.subStatus).toLowerCase().includes(q)
+        const srMatch = lead.srCrmAssignee?.fullName?.toLowerCase().includes(q)
+        const jrMatch = lead.jrArchitectAssignee?.fullName?.toLowerCase().includes(q)
+        return (
+          nameMatch ||
+          phoneMatch ||
+          locationMatch ||
+          stageMatch ||
+          subStatusMatch ||
+          srMatch ||
+          jrMatch
+        )
+      })
+    }
+
+    if (selectedStatFilter === 'assigned') {
+      result = result.filter((lead) => lead.subStatus === 'CAD_ASSIGNED')
+    } else if (selectedStatFilter === 'working') {
+      result = result.filter((lead) => lead.subStatus === 'CAD_WORKING' && !lead.isRework)
+    } else if (selectedStatFilter === 'inReview') {
+      result = result.filter((lead) => lead.subStatus === 'CAD_COMPLETED')
+    } else if (selectedStatFilter === 'corrections') {
+      result = result.filter((lead) => lead.isRework)
+    } else if (selectedStatFilter === 'sqft') {
+      result = result.filter((lead) => (lead.projectSqft ?? 0) > 0)
+    }
+
+    return result
+  }, [leads, searchQuery, selectedStatFilter])
+
+  const openStartWorkDialog = useCallback((lead: CadTaskLead) => {
     setStartWorkLead(lead)
     setStartWorkOpen(true)
   }, [])
@@ -258,45 +305,47 @@ export default function JrArchLeadsPage() {
   const handleStartWork = useCallback(async () => {
     if (!startWorkLead) return
     setStartingWork(true)
+    setBusyId(startWorkLead.id)
     try {
       const response = await fetch(`/api/lead/${startWorkLead.id}/cad-work/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          reason: 'Started from JR Architect assigned lead list',
+          reason: 'Started from JR Architect assigned task board',
         }),
       })
-      const contentType = response.headers.get('content-type') ?? ''
-      const payload = (contentType.includes('application/json') ? await response.json() : null) as { success?: boolean; message?: string; error?: string }
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.error ?? 'Failed to start work')
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to start CAD work')
       }
-
-      toast.success(payload.message ?? 'Work started')
+      toast.success(payload.message ?? 'CAD work started')
       setStartWorkOpen(false)
       setStartWorkLead(null)
-      await fetchLeads(0, true)
+      await loadTasks(selectedMonth)
     } catch (error) {
-      console.error(error)
-      toast.error(error instanceof Error ? error.message : 'Failed to start work')
+      toast.error(error instanceof Error ? error.message : 'Failed to start CAD work')
     } finally {
       setStartingWork(false)
+      setBusyId(null)
     }
-  }, [fetchLeads, startWorkLead])
+  }, [loadTasks, selectedMonth, startWorkLead])
 
-  const openSubmitWorkDialog = useCallback((lead: LeadSummary) => {
+  const openSubmitWorkDialog = useCallback((lead: CadTaskLead) => {
     setSubmitWorkLead(lead)
     setSubmissionRows([createCadSubmissionRow()])
     setSubmissionNote('')
-    setSubmissionProjectSqft('')
+    setSubmissionProjectSqft(lead.projectSqft ? String(lead.projectSqft) : '')
     setSubmitWorkOpen(true)
   }, [])
 
-  const updateSubmissionType = useCallback((rowId: string, value: CadSubmissionFileTypeValue) => {
-    setSubmissionRows((prev) =>
-      prev.map((row) => (row.id === rowId ? { ...row, cadFileType: value } : row)),
-    )
-  }, [])
+  const updateSubmissionType = useCallback(
+    (rowId: string, value: CadSubmissionFileTypeValue) => {
+      setSubmissionRows((prev) =>
+        prev.map((row) => (row.id === rowId ? { ...row, cadFileType: value } : row)),
+      )
+    },
+    [],
+  )
 
   const updateSubmissionFile = useCallback((rowId: string, file: File | null) => {
     setSubmissionRows((prev) =>
@@ -317,22 +366,29 @@ export default function JrArchLeadsPage() {
 
     const parsedProjectSqft = Number(submissionProjectSqft.replace(/,/g, '').trim())
     if (!Number.isFinite(parsedProjectSqft) || parsedProjectSqft <= 0) {
-      toast.error('Please enter a valid project sqft before submitting work')
+      toast.error('Please enter a valid project sqft before submitting CAD work')
       return
     }
 
     const rowsWithFiles = submissionRows.filter((row) => Boolean(row.file))
+    if (rowsWithFiles.length === 0) {
+      toast.error('Please select at least one CAD file or drawing to upload')
+      return
+    }
 
-    const oversizeRow = rowsWithFiles.find((row) => row.file && row.file.size > DIRECT_BLOB_UPLOAD_MAX_BYTES)
+    const oversizeRow = rowsWithFiles.find(
+      (row) => row.file && row.file.size > CAD_WORK_UPLOAD_MAX_BYTES,
+    )
     if (oversizeRow?.file) {
       toast.error(
-        `"${oversizeRow.file.name}" is ${formatBytesToMbLabel(oversizeRow.file.size)}. Direct browser upload supports up to ${formatBytesToMbLabel(DIRECT_BLOB_UPLOAD_MAX_BYTES)} per file.`,
+        `"${oversizeRow.file.name}" is ${formatBytesToMbLabel(oversizeRow.file.size)}. Direct upload supports up to ${formatBytesToMbLabel(CAD_WORK_UPLOAD_MAX_BYTES)} per file.`,
       )
       return
     }
 
+    setSubmittingWork(true)
+    setBusyId(submitWorkLead.id)
     try {
-      setSubmittingWork(true)
       const uploadedFiles: Array<UploadedGCSFileMeta & { cadFileType: CadSubmissionFileTypeValue }> = []
       for (const row of rowsWithFiles) {
         if (!row.file) continue
@@ -353,240 +409,645 @@ export default function JrArchLeadsPage() {
           files: uploadedFiles,
         }),
       })
-      const contentType = response.headers.get('content-type') ?? ''
-      const payload = (contentType.includes('application/json') ? await response.json() : null) as {
-        success?: boolean
-        message?: string
-        error?: string
-        data?: {
-          uploadWarnings?: {
-            failedCount: number
-            failedFiles: string[]
-          } | null
-        }
-      }
+
+      const payload = await response.json()
       if (!response.ok || !payload?.success) {
         if (response.status === 413) {
-          throw new Error(
-            `Upload request is too large. ${DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE}`,
-          )
+          throw new Error(`Upload request too large. ${CAD_WORK_UPLOAD_LIMIT_MESSAGE}`)
         }
-        throw new Error(payload?.error ?? `Failed to submit CAD work (HTTP ${response.status})`)
+        throw new Error(payload?.error ?? 'Failed to submit CAD work')
       }
 
-      toast.success(payload.message ?? 'CAD work submitted successfully')
-      if (payload.data?.uploadWarnings?.failedCount) {
-        toast.warning(
-          `${payload.data.uploadWarnings.failedCount} file upload(s) failed and were skipped.`,
-        )
-      }
+      toast.success(payload.message ?? 'CAD work submitted to Senior CRM Review Center')
       setSubmitWorkOpen(false)
       setSubmitWorkLead(null)
       setSubmissionRows([createCadSubmissionRow()])
       setSubmissionNote('')
       setSubmissionProjectSqft('')
-      await fetchLeads(0, true)
+      await loadTasks(selectedMonth)
     } catch (error) {
-      console.error(error)
       toast.error(error instanceof Error ? error.message : 'Failed to submit CAD work')
     } finally {
       setSubmittingWork(false)
+      setBusyId(null)
     }
-  }, [fetchLeads, submissionNote, submissionProjectSqft, submissionRows, submitWorkLead])
+  }, [loadTasks, selectedMonth, submissionNote, submissionProjectSqft, submissionRows, submitWorkLead])
 
   return (
     <div className="min-h-screen bg-background">
       <CrmPageHeader
-        title="Assigned Work"
-        subtitle="CAD phase leads assigned to you. Start, continue, and submit architectural work."
+        title="Assigned CAD Work"
+        subtitle="Manage and execute active CAD phase assignments with direct 200MB Google Cloud uploads."
       />
-      <main className="mx-auto max-w-[1440px] px-4 py-6">
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search assigned leads by name..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-10"
-            />
+
+      <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-4">
+        {/* Metric Overview Section */}
+        <div className="rounded-[1.35rem] border border-border/70 bg-gradient-to-br from-background via-muted/20 to-background p-3.5 shadow-sm mb-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
+            <div>
+              <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">
+                <Sparkles className="h-3.5 w-3.5" />
+                Active CAD Phase Metrics
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Overview of current active CAD tasks in your department. Completed/approved tasks leave this queue automatically.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex items-center min-w-[220px] max-w-[320px]">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by client, phone, location, CRM..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-10 pl-9 pr-8 text-sm"
+                />
+                {searchQuery ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    title="Clear search"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                ) : null}
+              </div>
+              <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
+                {selectedMonthLabel}
+              </Badge>
+              <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-background px-2 py-1">
+                <CalendarClock className="h-4 w-4 text-muted-foreground" />
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="h-9 w-[180px] border-0 px-2 shadow-none focus:ring-0">
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMonths.map((month) => (
+                      <SelectItem key={month.value} value={month.value}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 gap-2"
+                disabled={loading}
+                onClick={() => void loadTasks(selectedMonth)}
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {[
+              {
+                key: 'total',
+                label: 'Active CAD Leads',
+                value: summary.total,
+                isSqft: false,
+                Icon: ClipboardList,
+                className:
+                  'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950',
+                iconClass:
+                  'bg-white/15 text-white ring-white/25 dark:bg-slate-950/10 dark:text-slate-950 dark:ring-slate-950/15',
+                accentClass: 'from-primary to-blue-400',
+              },
+              {
+                key: 'assigned',
+                label: 'CAD Assigned',
+                value: summary.assigned,
+                isSqft: false,
+                Icon: UserRound,
+                className:
+                  'border-blue-200/70 from-blue-50 via-white to-sky-50 text-blue-800 dark:border-blue-500/30 dark:from-blue-950/60 dark:via-slate-950 dark:to-sky-950/40 dark:text-blue-100',
+                iconClass:
+                  'bg-blue-100 text-blue-700 ring-blue-200 dark:bg-blue-500/15 dark:text-blue-200 dark:ring-blue-400/20',
+                accentClass: 'from-blue-500 to-sky-500',
+              },
+              {
+                key: 'working',
+                label: 'CAD Working',
+                value: summary.working,
+                isSqft: false,
+                Icon: PenTool,
+                className:
+                  'border-amber-200/70 from-amber-50 via-white to-orange-50 text-amber-800 dark:border-amber-500/30 dark:from-amber-950/60 dark:via-slate-950 dark:to-orange-950/40 dark:text-amber-100',
+                iconClass:
+                  'bg-amber-100 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20',
+                accentClass: 'from-amber-500 to-orange-500',
+              },
+              {
+                key: 'inReview',
+                label: 'Under Review',
+                value: summary.inReview,
+                isSqft: false,
+                Icon: CheckCircle,
+                className:
+                  'border-emerald-200/70 from-emerald-50 via-white to-teal-50 text-emerald-800 dark:border-emerald-500/30 dark:from-emerald-950/60 dark:via-slate-950 dark:to-teal-950/40 dark:text-emerald-100',
+                iconClass:
+                  'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20',
+                accentClass: 'from-emerald-500 to-teal-500',
+              },
+              {
+                key: 'corrections',
+                label: 'Corrections',
+                value: summary.corrections,
+                isSqft: false,
+                Icon: RotateCcw,
+                className:
+                  'border-rose-200/70 from-rose-50 via-white to-pink-50 text-rose-800 dark:border-rose-500/30 dark:from-rose-950/60 dark:via-slate-950 dark:to-pink-950/40 dark:text-rose-100',
+                iconClass:
+                  'bg-rose-100 text-rose-700 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200 dark:ring-rose-400/20',
+                accentClass: 'from-rose-500 to-pink-500',
+              },
+              {
+                key: 'sqft',
+                label: 'Total Project SQFT',
+                value: summary.totalSqft,
+                isSqft: true,
+                Icon: Layers,
+                className:
+                  'border-purple-200/70 from-purple-50 via-white to-indigo-50 text-purple-900 dark:border-purple-500/30 dark:from-purple-950/60 dark:via-slate-950 dark:to-indigo-950/40 dark:text-purple-100',
+                iconClass:
+                  'bg-purple-100 text-purple-700 ring-purple-200 dark:bg-purple-500/15 dark:text-purple-200 dark:ring-purple-400/20',
+                accentClass: 'from-purple-500 to-indigo-500',
+              },
+            ].map((stat) => {
+              const percentage =
+                summary.total > 0 && !stat.isSqft
+                  ? Math.round((Number(stat.value) / summary.total) * 100)
+                  : 0
+              const isSelected = selectedStatFilter === stat.key
+              return (
+                <button
+                  type="button"
+                  key={stat.key}
+                  onClick={() =>
+                    setSelectedStatFilter((prev) =>
+                      prev === stat.key && stat.key !== 'total' ? 'total' : stat.key,
+                    )
+                  }
+                  className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-3.5 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer ${
+                    isSelected
+                      ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-950 shadow-md scale-[1.02]'
+                      : 'opacity-90 hover:opacity-100'
+                  } ${stat.className}`}
+                >
+                  <span className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/30 blur-2xl transition group-hover:scale-125 dark:bg-white/10" />
+                  <span
+                    className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${stat.accentClass}`}
+                  />
+
+                  <div className="relative flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">
+                        {stat.label}
+                      </p>
+                      <div className="mt-2.5 flex items-end gap-1.5">
+                        <p className="text-2xl font-black leading-none tracking-tight">
+                          {stat.isSqft ? Number(stat.value).toLocaleString() : stat.value}
+                        </p>
+                        {!stat.isSqft ? (
+                          <span className="mb-0.5 rounded-full bg-white/45 px-1.5 py-0.5 text-[9px] font-bold shadow-sm ring-1 ring-black/5 dark:bg-black/15 dark:ring-white/10">
+                            {percentage}%
+                          </span>
+                        ) : (
+                          <span className="mb-0.5 text-[10px] font-bold opacity-75">sqft</span>
+                        )}
+                      </div>
+                    </div>
+                    <span className={`rounded-xl p-2 shadow-sm ring-1 ${stat.iconClass}`}>
+                      <stat.Icon className="h-4 w-4" />
+                    </span>
+                  </div>
+
+                  {!stat.isSqft ? (
+                    <div className="relative mt-3 h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
+                      <span
+                        className={`block h-full rounded-full bg-gradient-to-r ${stat.accentClass} transition-all duration-500`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  ) : null}
+                </button>
+              )
+            })}
           </div>
         </div>
 
-        {loadingInitial ? (
-          <div className="space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-24 bg-muted animate-pulse rounded-xl" />
-            ))}
+        {/* Filters and View Mode Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {searchQuery ? (
+              <Badge variant="secondary" className="gap-1.5 px-3 py-1 text-xs font-semibold">
+                <span>Search:</span>
+                <span className="font-bold text-primary">&quot;{searchQuery}&quot;</span>
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  className="ml-1 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            ) : null}
+            {selectedStatFilter !== 'total' ? (
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="gap-1.5 px-3 py-1 text-xs font-semibold">
+                  <span>Filter:</span>
+                  <span className="font-bold text-primary uppercase">{selectedStatFilter}</span>
+                  <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px]">
+                    {filteredLeads.length} leads
+                  </span>
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={() => setSelectedStatFilter('total')}
+                >
+                  <X className="mr-1 h-3 w-3" /> Clear Filter
+                </Button>
+              </div>
+            ) : null}
+            {!searchQuery && selectedStatFilter === 'total' ? (
+              <span className="text-xs font-medium text-muted-foreground">
+                Showing all <strong>{leads.length}</strong> active CAD tasks
+              </span>
+            ) : null}
+          </div>
+
+          <div className="flex items-center gap-2 rounded-md border p-1 bg-muted/20">
+            <Button
+              variant={viewMode === 'card' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-8 px-3 text-xs"
+              onClick={() => setViewMode('card')}
+            >
+              Card View
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
+              size="sm"
+              className="h-8 px-3 text-xs"
+              onClick={() => setViewMode('table')}
+            >
+              Table View
+            </Button>
+          </div>
+        </div>
+
+        {/* Content Body */}
+        {loading ? (
+          <div className="flex items-center justify-center rounded-lg border border-border bg-card py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
         ) : leads.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            No active CAD leads found.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {leads.map((lead) => (
-              <Card
-                key={lead.id}
-                className={`overflow-hidden border-border/70 shadow-sm transition hover:border-primary/40 hover:shadow-md ${
-                  isReturnedForCorrection(lead) ? 'bg-amber-50/60 border-amber-300/80' : ''
-                }`}
-              >
-                <CardContent className="p-4 sm:p-5">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 flex-1 space-y-3">
-                      <div className="flex flex-wrap items-center gap-2">
+          <Card>
+            <CardContent className="py-12 text-center text-sm text-muted-foreground space-y-2">
+              <p className="font-medium text-foreground">No active CAD tasks found for {selectedMonthLabel}.</p>
+              <p className="text-xs">
+                Tasks automatically leave this page once approved or transitioned out of the CAD phase. Check{' '}
+                <Link href="/crm/jr-architecture/my-work" className="text-primary underline">
+                  My Work
+                </Link>{' '}
+                to access historical projects and past submissions.
+              </p>
+            </CardContent>
+          </Card>
+        ) : filteredLeads.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-sm text-muted-foreground space-y-3">
+              <p>No CAD tasks match your search or selected filter.</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {searchQuery ? (
+                  <Button variant="outline" size="sm" onClick={() => setSearchQuery('')}>
+                    Clear Search
+                  </Button>
+                ) : null}
+                {selectedStatFilter !== 'total' ? (
+                  <Button variant="outline" size="sm" onClick={() => setSelectedStatFilter('total')}>
+                    Clear Filter
+                  </Button>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+        ) : viewMode === 'table' ? (
+          /* Table View */
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="border-b bg-muted/40 text-left text-xs font-semibold text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3">Client / Project</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Location & SQFT</th>
+                    <th className="px-4 py-3">Visit Date</th>
+                    <th className="px-4 py-3">Senior CRM</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {filteredLeads.map((lead) => (
+                    <tr key={lead.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3">
                         <Link
-                          href={getLeadHref(lead.id)}
-                          className="truncate text-base font-semibold text-foreground hover:text-primary hover:underline"
+                          href={`/crm/jr-architecture/leads/${lead.id}`}
+                          className="font-bold text-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5"
                         >
                           {lead.name}
+                          <ExternalLink className="h-3.5 w-3.5 opacity-60" />
                         </Link>
-                        <Badge variant="secondary">{formatLabel(lead.stage)}</Badge>
-                        {lead.subStatus ? <Badge variant="outline">{formatLabel(lead.subStatus)}</Badge> : null}
-                        {isReturnedForCorrection(lead) ? (
-                          <Badge className="border-amber-500/60 bg-amber-100 text-amber-900 hover:bg-amber-100">
-                            Correction Required
+                        {lead.phone ? (
+                          <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <Phone className="h-3 w-3" />
+                            <a href={`tel:${lead.phone}`} className="hover:underline">
+                              {lead.phone}
+                            </a>
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1 items-start">
+                          <Badge
+                            variant={
+                              lead.isRework
+                                ? 'destructive'
+                                : lead.subStatus === 'CAD_WORKING'
+                                  ? 'secondary'
+                                  : 'outline'
+                            }
+                            className={`text-[10px] font-semibold ${
+                              lead.subStatus === 'CAD_WORKING' && !lead.isRework
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
+                                : lead.subStatus === 'CAD_COMPLETED'
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
+                                  : ''
+                            }`}
+                          >
+                            {lead.isRework ? 'Correction Required' : formatLabel(lead.subStatus)}
                           </Badge>
-                        ) : null}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-                        <span className="inline-flex items-center gap-1">
-                          <Phone className="h-3.5 w-3.5" />
-                          {lead.phone || 'No phone number'}
-                        </span>
-                        {lead.location ? (
-                          <span className="inline-flex items-center gap-1">
-                            <MapPin className="h-3.5 w-3.5" />
-                            {lead.location}
-                          </span>
-                        ) : null}
-                        <span className="inline-flex items-center gap-1">
-                          <Clock3 className="h-3.5 w-3.5" />
-                          Created {formatDistanceToNow(new Date(lead.created_at))}
-                        </span>
-                      </div>
-
-                      <div className="space-y-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Quick Preview
-                        </p>
-                        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                          {canShowQuickPreview(lead)
-                            ? (lead.attachments ?? []).slice(0, 6).map((attachment) => {
-                                const isImage = isImageAttachment(attachment)
-                                if (isImage) {
-                                  return (
-                                    <a
-                                      key={attachment.id}
-                                      href={attachment.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="relative h-14 w-20 shrink-0 overflow-hidden rounded-md border border-border/60 bg-muted transition hover:border-primary/40"
-                                      title={attachment.fileName}
-                                    >
-                                      <span
-                                        className="absolute inset-0 block bg-cover bg-center"
-                                        style={{ backgroundImage: `url("${attachment.url}")` }}
-                                      />
-                                    </a>
-                                  )
-                                }
-
-                                return (
-                                  <a
-                                    key={attachment.id}
-                                    href={attachment.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex h-14 min-w-[170px] shrink-0 items-center gap-2 rounded-md border border-border/60 bg-card px-3 text-xs text-foreground transition hover:border-primary/40 hover:bg-secondary/30"
-                                    title={attachment.fileName}
-                                  >
-                                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-                                    <span className="truncate">{attachment.fileName}</span>
-                                  </a>
-                                )
-                              })
-                            : null}
-
-                          {canShowQuickPreview(lead) && (lead.attachments?.length ?? 0) === 0 ? (
-                            <div className="inline-flex h-14 min-w-[190px] items-center gap-2 rounded-md border border-dashed border-border/70 px-3 text-xs text-muted-foreground">
-                              <ImageIcon className="h-3.5 w-3.5" />
-                              No media or files uploaded yet
-                            </div>
-                          ) : null}
-
-                          {!canShowQuickPreview(lead) ? (
-                            <div className="inline-flex h-14 min-w-[250px] items-center gap-2 rounded-md border border-dashed border-border/70 bg-muted/35 px-3 text-xs text-muted-foreground">
-                              <Play className="h-3.5 w-3.5 text-primary" />
-                              Click Start Work to unlock preview
-                            </div>
+                          {lead.latestPhaseTask && lead.latestPhaseTask.currentReviewRound > 0 ? (
+                            <span className="text-[10px] text-muted-foreground">
+                              Round {lead.latestPhaseTask.currentReviewRound}
+                            </span>
                           ) : null}
                         </div>
-                      </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-xs truncate max-w-[180px]" title={lead.location ?? ''}>
+                          {lead.location ?? '—'}
+                        </div>
+                        <div className="text-xs font-semibold text-primary mt-0.5">
+                          {lead.projectSqft ? `${lead.projectSqft.toLocaleString()} sqft` : 'No SQFT'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {lead.visitDate
+                          ? new Date(lead.visitDate).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })
+                          : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {lead.srCrmAssignee ? (
+                          <span className="font-medium text-foreground">
+                            {lead.srCrmAssignee.fullName}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground italic">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {lead.canStart ? (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="h-8 gap-1 text-xs"
+                              disabled={busyId === lead.id}
+                              onClick={() => openStartWorkDialog(lead)}
+                            >
+                              <Play className="h-3.5 w-3.5" />
+                              Start Work
+                            </Button>
+                          ) : null}
+                          {lead.canSubmit ? (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              className="h-8 gap-1 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                              disabled={busyId === lead.id}
+                              onClick={() => openSubmitWorkDialog(lead)}
+                            >
+                              <Upload className="h-3.5 w-3.5" />
+                              Submit Work
+                            </Button>
+                          ) : null}
+                          {lead.subStatus === 'CAD_COMPLETED' ? (
+                            <Badge variant="outline" className="text-xs py-1 px-2 text-emerald-700 border-emerald-300">
+                              In Review
+                            </Badge>
+                          ) : null}
+                          <Button asChild size="sm" variant="outline" className="h-8 px-2.5 text-xs">
+                            <Link href={`/crm/jr-architecture/leads/${lead.id}`}>
+                              Workspace
+                            </Link>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          /* Card View */
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredLeads.map((lead) => (
+              <Card
+                key={lead.id}
+                className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg border-border/80 ${
+                  lead.isRework
+                    ? 'border-rose-300 dark:border-rose-900/60 bg-gradient-to-br from-rose-50/20 via-background to-background'
+                    : lead.subStatus === 'CAD_WORKING'
+                      ? 'border-amber-300 dark:border-amber-900/60'
+                      : ''
+                }`}
+              >
+                <div
+                  className={`absolute top-0 left-0 right-0 h-1 ${
+                    lead.isRework
+                      ? 'bg-rose-500'
+                      : lead.subStatus === 'CAD_WORKING'
+                        ? 'bg-amber-500'
+                        : lead.subStatus === 'CAD_COMPLETED'
+                          ? 'bg-emerald-500'
+                          : 'bg-primary'
+                  }`}
+                />
+
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/crm/jr-architecture/leads/${lead.id}`}
+                        className="text-base font-bold hover:text-primary transition-colors flex items-center gap-1.5 truncate group"
+                      >
+                        <span className="truncate">{lead.name}</span>
+                        <ExternalLink className="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 flex-shrink-0" />
+                      </Link>
+                      {lead.phone ? (
+                        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Phone className="h-3 w-3" />
+                          <a href={`tel:${lead.phone}`} className="hover:underline">
+                            {lead.phone}
+                          </a>
+                        </div>
+                      ) : null}
                     </div>
 
-                    <div className="flex shrink-0 flex-wrap items-center gap-2 lg:flex-col lg:items-end">
-                      {lead.stage === 'CAD_PHASE' && lead.subStatus === 'CAD_WORKING' ? (
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <Badge
+                        variant={
+                          lead.isRework
+                            ? 'destructive'
+                            : lead.subStatus === 'CAD_WORKING'
+                              ? 'secondary'
+                              : 'outline'
+                        }
+                        className={`text-[10px] font-bold ${
+                          lead.subStatus === 'CAD_WORKING' && !lead.isRework
+                            ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
+                            : lead.subStatus === 'CAD_COMPLETED'
+                              ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
+                              : ''
+                        }`}
+                      >
+                        {lead.isRework ? 'Correction' : formatLabel(lead.subStatus)}
+                      </Badge>
+                      {lead.latestPhaseTask && lead.latestPhaseTask.currentReviewRound > 0 ? (
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                          Round {lead.latestPhaseTask.currentReviewRound}
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/30 p-2.5 text-xs">
+                    <div>
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                        Location
+                      </span>
+                      <p className="font-medium truncate flex items-center gap-1 mt-0.5" title={lead.location ?? ''}>
+                        <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="truncate">{lead.location ?? 'Not specified'}</span>
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                        Project SQFT
+                      </span>
+                      <p className="font-bold text-foreground mt-0.5">
+                        {lead.projectSqft ? `${lead.projectSqft.toLocaleString()} sqft` : '—'}
+                      </p>
+                    </div>
+                    <div className="mt-1">
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                        Visit Date
+                      </span>
+                      <p className="font-medium mt-0.5">
+                        {lead.visitDate
+                          ? new Date(lead.visitDate).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })
+                          : 'No visit date'}
+                      </p>
+                    </div>
+                    <div className="mt-1">
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                        Senior CRM
+                      </span>
+                      <p className="font-medium truncate mt-0.5">
+                        {lead.srCrmAssignee?.fullName ?? 'Unassigned'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Correction note or meeting note banner */}
+                  {lead.isRework && lead.latestPhaseTask?.workDetails ? (
+                    <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-2.5 text-xs text-rose-900 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-200">
+                      <span className="font-bold block text-[10px] uppercase tracking-wide">
+                        Senior CRM Correction Note:
+                      </span>
+                      <p className="mt-0.5 line-clamp-2">{lead.latestPhaseTask.workDetails}</p>
+                    </div>
+                  ) : lead.latestFirstMeeting?.notes ? (
+                    <div className="rounded-lg border border-border/50 bg-background/50 p-2.5 text-xs text-muted-foreground">
+                      <span className="font-semibold block text-[10px] uppercase tracking-wide text-foreground">
+                        Meeting Note:
+                      </span>
+                      <p className="mt-0.5 line-clamp-2">{lead.latestFirstMeeting.notes}</p>
+                    </div>
+                  ) : null}
+
+                  {/* Actions */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-border/40">
+                    <Button asChild size="sm" variant="ghost" className="h-8 text-xs px-2.5">
+                      <Link href={`/crm/jr-architecture/leads/${lead.id}`}>
+                        Open Workspace
+                      </Link>
+                    </Button>
+
+                    <div className="flex items-center gap-1.5 ml-auto">
+                      {lead.canStart ? (
                         <Button
-                          variant="default"
                           size="sm"
-                          disabled={submittingWork && submitWorkLead?.id === lead.id}
+                          variant="default"
+                          className="h-8 gap-1.5 text-xs"
+                          disabled={busyId === lead.id}
+                          onClick={() => openStartWorkDialog(lead)}
+                        >
+                          <Play className="h-3.5 w-3.5" />
+                          Start CAD Work
+                        </Button>
+                      ) : null}
+
+                      {lead.canSubmit ? (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-8 gap-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                          disabled={busyId === lead.id}
                           onClick={() => openSubmitWorkDialog(lead)}
                         >
-                          {submittingWork && submitWorkLead?.id === lead.id ? (
-                            <>
-                              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                              Submitting...
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="mr-1 h-4 w-4" />
-                              Submit Work
-                            </>
-                          )}
+                          <Upload className="h-3.5 w-3.5" />
+                          Submit CAD Work
                         </Button>
                       ) : null}
-                      {lead.stage === 'CAD_PHASE' &&
-                      (lead.subStatus === 'CAD_COMPLETED' || lead.subStatus === 'CAD_APPROVED') ? (
-                        <Button variant="secondary" size="sm" disabled>
-                          <Upload className="mr-1 h-4 w-4" />
-                          Work Submitted
-                        </Button>
+
+                      {lead.subStatus === 'CAD_COMPLETED' ? (
+                        <Badge
+                          variant="secondary"
+                          className="h-8 px-3 text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                        >
+                          Work Under Review
+                        </Badge>
                       ) : null}
-                      <Button asChild size="sm">
-                        <Link href={getLeadHref(lead.id)} prefetch={false}>Workspace</Link>
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={
-                          (startingWork && startWorkLead?.id === lead.id) ||
-                          (lead.stage === 'CAD_PHASE' &&
-                            (lead.subStatus === 'CAD_WORKING' ||
-                              lead.subStatus === 'CAD_COMPLETED' ||
-                              lead.subStatus === 'CAD_APPROVED'))
-                        }
-                        onClick={() => openStartWorkDialog(lead)}
-                      >
-                        {startingWork && startWorkLead?.id === lead.id ? (
-                          <>
-                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                            Starting...
-                          </>
-                        ) : lead.stage === 'CAD_PHASE' &&
-                          (lead.subStatus === 'CAD_WORKING' ||
-                            lead.subStatus === 'CAD_COMPLETED' ||
-                            lead.subStatus === 'CAD_APPROVED') ? (
-                          'Work Started'
-                        ) : (
-                          <>
-                            <Play className="mr-1 h-4 w-4" />
-                            Start Work
-                          </>
-                        )}
-                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -594,9 +1055,9 @@ export default function JrArchLeadsPage() {
             ))}
           </div>
         )}
-        <div ref={sentinelRef} className="h-10 mt-4" />
       </main>
 
+      {/* Start Work Confirmation Dialog */}
       <Dialog
         open={startWorkOpen}
         onOpenChange={(open) => {
@@ -610,37 +1071,36 @@ export default function JrArchLeadsPage() {
             <DialogTitle>Start CAD Work?</DialogTitle>
             <DialogDescription>
               {startWorkLead
-                ? `Confirm starting work for ${startWorkLead.name}. This will update the lead to CAD Phase -> CAD Working.`
-                : 'This action will update the lead to CAD Working.'}
+                ? `Confirm starting CAD design work for ${startWorkLead.name}. This will update the lead status to "CAD Working".`
+                : 'This action will update the lead status to CAD Working.'}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button
               type="button"
               variant="outline"
+              disabled={startingWork}
               onClick={() => {
-                if (startingWork) return
                 setStartWorkOpen(false)
                 setStartWorkLead(null)
               }}
-              disabled={startingWork}
             >
               Cancel
             </Button>
-            <Button type="button" onClick={handleStartWork} disabled={startingWork || !startWorkLead}>
-              {startingWork ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                'Yes, Start Work'
-              )}
+            <Button
+              type="button"
+              disabled={startingWork}
+              onClick={() => void handleStartWork()}
+              className="gap-2"
+            >
+              {startingWork ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
+              Confirm Start
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Submit Work Dialog (Supports up to 200MB Google Cloud Upload) */}
       <Dialog
         open={submitWorkOpen}
         onOpenChange={(open) => {
@@ -649,156 +1109,151 @@ export default function JrArchLeadsPage() {
           if (!open) {
             setSubmitWorkLead(null)
             setSubmissionRows([createCadSubmissionRow()])
-            setSubmissionNote('')
-            setSubmissionProjectSqft('')
           }
         }}
       >
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Submit CAD Work</DialogTitle>
             <DialogDescription>
-              {submitWorkLead
-                ? `Upload completed files (optional) and add notes for ${submitWorkLead.name}. This will move the lead to CAD Completed and send it to Senior CRM Review Center.`
-                : 'Upload completed CAD files (optional) with file types.'}
+              Upload CAD drawings and documents for {submitWorkLead?.name ?? 'client'}. Files upload
+              directly to Google Cloud Storage (supports up to {formatBytesToMbLabel(CAD_WORK_UPLOAD_MAX_BYTES)} per file).
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Project Sqft
-              </p>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">
+                Project SQFT <span className="text-destructive">*</span>
+              </label>
               <Input
                 type="number"
-                min="1"
-                inputMode="decimal"
+                placeholder="Enter final measured/designed square footage (e.g. 1850)"
                 value={submissionProjectSqft}
-                onChange={(event) => setSubmissionProjectSqft(event.target.value)}
-                placeholder="Enter project sqft"
+                onChange={(e) => setSubmissionProjectSqft(e.target.value)}
+                disabled={submittingWork}
               />
-              <p className="text-[11px] text-muted-foreground">
-                This value will update the lead&apos;s project sqft when CAD work is submitted.
-              </p>
             </div>
 
-            <div className="space-y-2 rounded-md border border-border/70 bg-muted/30 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Files & Types
-              </p>
-              {submissionRows.map((row, index) => (
-                <div
-                  key={row.id}
-                  className="grid gap-2 rounded-md border border-border/60 bg-background p-3 md:grid-cols-[1fr_1.4fr_auto]"
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs font-semibold text-foreground">
+                  CAD Drawings & Files <span className="text-destructive">*</span>
+                </label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addSubmissionRow}
+                  disabled={submittingWork || submissionRows.length >= 12}
+                  className="h-7 text-xs gap-1"
                 >
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-medium text-muted-foreground">File Type</p>
-                    <Select
-                      value={row.cadFileType}
-                      onValueChange={(value) =>
-                        updateSubmissionType(row.id, value as CadSubmissionFileTypeValue)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select file type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CAD_SUBMISSION_FILE_TYPE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Plus className="h-3 w-3" /> Add Another File
+                </Button>
+              </div>
 
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-medium text-muted-foreground">File</p>
-                    <Input
-                      type="file"
-                      accept=".pdf,.ppt,.pptx,.dwg,.dxf"
-                      onChange={(event) => updateSubmissionFile(row.id, event.target.files?.[0] ?? null)}
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      {row.file
-                        ? `${row.file.name} • ${formatCadSubmissionFileType(row.cadFileType)}`
-                        : 'Upload PDF, PPT, PPTX, DWG, or DXF file'}
-                    </p>
-                  </div>
+              <div className="space-y-2.5">
+                {submissionRows.map((row) => (
+                  <div
+                    key={row.id}
+                    className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 rounded-lg border bg-muted/20"
+                  >
+                    <div className="w-full sm:w-[200px]">
+                      <Select
+                        value={row.cadFileType}
+                        onValueChange={(val) =>
+                          updateSubmissionType(row.id, val as CadSubmissionFileTypeValue)
+                        }
+                        disabled={submittingWork}
+                      >
+                        <SelectTrigger className="h-9 text-xs">
+                          <SelectValue placeholder="File Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CAD_SUBMISSION_FILE_TYPE_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div className="flex items-end">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeSubmissionRow(row.id)}
-                      title="Remove file row"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
+                    <div className="flex-1">
+                      <Input
+                        type="file"
+                        className="h-9 text-xs cursor-pointer"
+                        disabled={submittingWork}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null
+                          updateSubmissionFile(row.id, file)
+                        }}
+                      />
+                    </div>
 
-                  <p className="md:col-span-3 text-[11px] text-muted-foreground">
-                    Row {index + 1}: {formatCadSubmissionFileType(row.cadFileType)}
-                  </p>
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={addSubmissionRow}
-              >
-                <Plus className="h-4 w-4" />
-                Add Another File
-              </Button>
-              <p className="text-[11px] text-muted-foreground">
-                {submissionRows.filter((row) => row.file).length} file(s) ready to upload
-                {submittingWork ? ' • Uploading in progress...' : ''}
-              </p>
-              <p className="text-[11px] text-amber-700">
-                {DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE}
+                    {submissionRows.length > 1 ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-muted-foreground hover:text-destructive flex-shrink-0"
+                        disabled={submittingWork}
+                        onClick={() => removeSubmissionRow(row.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1.5">
+                Supported formats: DWG, DXF, PDF, PPTX, Images. Up to {formatBytesToMbLabel(CAD_WORK_UPLOAD_MAX_BYTES)} per file.
               </p>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Optional Note
-              </p>
+            <div>
+              <label className="text-xs font-semibold text-foreground block mb-1">
+                Submission Note / Instructions (Optional)
+              </label>
               <Textarea
+                placeholder="Include key notes for Senior CRM or Quotation team regarding this revision..."
                 value={submissionNote}
-                onChange={(event) => setSubmissionNote(event.target.value)}
+                onChange={(e) => setSubmissionNote(e.target.value)}
+                disabled={submittingWork}
                 rows={3}
-                placeholder="Add short summary or handoff note for Senior CRM..."
+                className="text-xs"
               />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button
               type="button"
               variant="outline"
               disabled={submittingWork}
               onClick={() => {
-                if (submittingWork) return
                 setSubmitWorkOpen(false)
                 setSubmitWorkLead(null)
-                setSubmissionRows([createCadSubmissionRow()])
-                setSubmissionNote('')
-                setSubmissionProjectSqft('')
               }}
             >
               Cancel
             </Button>
-            <Button type="button" onClick={handleSubmitWork} disabled={submittingWork || !submitWorkLead || !submissionProjectSqft.trim()}>
+            <Button
+              type="button"
+              disabled={submittingWork}
+              onClick={() => void handleSubmitWork()}
+              className="gap-2 bg-primary"
+            >
               {submittingWork ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Uploading & Submitting...
                 </>
               ) : (
-                'Submit CAD Work'
+                <>
+                  <Upload className="h-4 w-4" />
+                  Submit CAD Work
+                </>
               )}
             </Button>
           </DialogFooter>

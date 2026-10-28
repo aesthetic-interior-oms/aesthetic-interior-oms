@@ -30,7 +30,7 @@ export const CAD_SUBMISSION_FILE_TYPE_OPTIONS = CAD_SUBMISSION_FILE_TYPE_VALUES.
 }))
 
 export const MAX_CAD_SUBMISSION_FILES = 12
-export const MAX_CAD_SUBMISSION_FILE_SIZE_BYTES = 30 * 1024 * 1024
+export const MAX_CAD_SUBMISSION_FILE_SIZE_BYTES = 200 * 1024 * 1024 // 200MB limit for CAD uploads to Google Cloud Storage
 
 export const ALLOWED_CAD_UPLOAD_MIME_TYPES = new Set([
   'application/pdf',

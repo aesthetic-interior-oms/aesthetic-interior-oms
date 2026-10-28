@@ -1,4 +1,5 @@
 import {
+  CAD_WORK_UPLOAD_MAX_BYTES,
   DIRECT_BLOB_UPLOAD_MAX_BYTES,
   VISUALIZER_WORK_UPLOAD_MAX_BYTES,
   formatBytesToMbLabel,
@@ -33,9 +34,9 @@ type UploadDirectGCSInput = {
 }
 
 function getUploadMaxBytes(context: ClientGCSUploadContext): number {
-  return context === 'visualizer-work'
-    ? VISUALIZER_WORK_UPLOAD_MAX_BYTES
-    : DIRECT_BLOB_UPLOAD_MAX_BYTES
+  if (context === 'visualizer-work') return VISUALIZER_WORK_UPLOAD_MAX_BYTES
+  if (context === 'cad-work') return CAD_WORK_UPLOAD_MAX_BYTES
+  return DIRECT_BLOB_UPLOAD_MAX_BYTES
 }
 
 /**
