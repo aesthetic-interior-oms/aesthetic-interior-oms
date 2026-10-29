@@ -293,6 +293,12 @@ export function MaterialRowsTable({
                         onChange={(val, fType) => {
                           onUpdateVariant(ri, 'laminateTopSurface', val)
                           onUpdateVariant(ri, 'boardLaminateType', fType)
+                          const isChampaign = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
+                          if (isChampaign) {
+                            const mrMdf = 'MR MDF (Moisture-Resistant Medium-Density Fiberboard)'
+                            onUpdateVariant(ri, 'baseMaterial', mrMdf)
+                            onChange(ri, 'materialName', mrMdf)
+                          }
                         }}
                         placeholder="Raw Board (None)"
                       />
@@ -1116,8 +1122,16 @@ export function MaterialRowsTable({
                           const frontHpl = fType === 'HPL' || DEFAULT_CABINET_CATALOG.hplBrands.includes(val)
                           const rowHpl = frontHpl || isBackHpl
                           onUpdateVariant(ri, 'isHplPasting', rowHpl ? 'true' : 'false')
-                          const baseMat = (attrs.baseMaterial || attrs.coreSubstrateType || item.materialName || 'Board').replace(/\s+HPL\s+Pasting$/i, '')
-                          onChange(ri, 'materialName', rowHpl ? `${baseMat} HPL Pasting` : baseMat)
+                          const isChampaign = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
+                          if (isChampaign) {
+                            const mrMdf = 'MR MDF (Moisture-Resistant Medium-Density Fiberboard)'
+                            onUpdateVariant(ri, 'baseMaterial', mrMdf)
+                            onUpdateVariant(ri, 'coreSubstrateType', mrMdf)
+                            onChange(ri, 'materialName', rowHpl ? `${mrMdf} HPL Pasting` : mrMdf)
+                          } else {
+                            const baseMat = (attrs.baseMaterial || attrs.coreSubstrateType || item.materialName || 'Board').replace(/\s+HPL\s+Pasting$/i, '')
+                            onChange(ri, 'materialName', rowHpl ? `${baseMat} HPL Pasting` : baseMat)
+                          }
                         }}
                         placeholder="Select front finish..."
                       />

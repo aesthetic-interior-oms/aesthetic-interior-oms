@@ -180,6 +180,7 @@ import {
   GRID_TD,
 } from './constants/boq-grid-styles'
 import { QuotationProductsDrawer } from './drawer/quotation-products-drawer'
+import { UsedMaterialsPalette } from './palette/used-materials-palette'
 import { EdgingTapeInput } from './inputs/edging-tape-input'
 import { BoardDatalists } from './inputs/board-datalists'
 import { CabinetCombobox } from './inputs/cabinet-combobox'
@@ -361,6 +362,7 @@ export function RequisitionBuilderClient({
   const [viewModePreference, setViewModePreference] = useState<'SLIDE' | 'ALL'>('SLIDE')
   const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false)
   const [isPdfModalOpen, setIsPdfModalOpen] = useState(false)
+  const [isUsedPaletteOpen, setIsUsedPaletteOpen] = useState(false)
 
   // Helper: navigate slides with direction tracking
   const goToSlide = useCallback((indexOrUpdater: number | ((prev: number) => number)) => {
@@ -566,6 +568,26 @@ export function RequisitionBuilderClient({
       if (field === 'dimW' || field === 'dimH' || field === 'dimD') {
         nextAttrs.dimensions = formatDimensions(nextAttrs.dimW, nextAttrs.dimD, nextAttrs.dimH)
       }
+      // Auto-select MR MDF for Champagne Gold prelaminated finish in Wall Paneling & Cabinets
+      if (
+        field === 'laminateTopSurface' ||
+        field === 'frontLaminateCode' ||
+        field === 'laminateFinishDetails'
+      ) {
+        const lower = (value || '').toLowerCase()
+        if (lower.includes('champaign') || lower.includes('champagne')) {
+          const mrMdfFull = 'MR MDF (Moisture-Resistant Medium-Density Fiberboard)'
+          nextAttrs.baseMaterial = mrMdfFull
+          const cardSecs = sectionsMap[cardKey] ?? []
+          const sec = cardSecs.find((s) => s.id === sectionId)
+          if (sec?.category === 'CABINETS_CLOSETS' || nextAttrs.coreSubstrateType !== undefined) {
+            nextAttrs.coreSubstrateType = mrMdfFull
+          }
+          if (!current.materialName || current.materialName === 'Board' || current.materialName === 'MR Board') {
+            current.materialName = mrMdfFull
+          }
+        }
+      }
       current.variantAttributes = nextAttrs
       const specParts = [
         nextAttrs.coreThickness || nextAttrs.profileType || nextAttrs.fastenerType || nextAttrs.nailType || nextAttrs.chemicalClass || nextAttrs.accessoryCategory || nextAttrs.serviceCategory || nextAttrs.brandModelCode,
@@ -602,6 +624,57 @@ export function RequisitionBuilderClient({
     })
   }
 
+  const handlePasteItemToSection = useCallback((item: RequisitionItemInput, targetSectionId?: string, targetCardKey?: string) => {
+    const cardKey = targetCardKey || currentCardKey
+    const cardSections = sectionsMap[cardKey] ?? []
+    const secId = targetSectionId || activeSectionObj?.id || cardSections[0]?.id
+
+    if (!secId) {
+      setSaveError('Please add a section first before pasting materials.')
+      return
+    }
+
+    const key = sectionItemKey(cardKey, secId)
+    setItemsMap((prev) => {
+      const existingRows = prev[key] ?? []
+      const clonedItem: RequisitionItemInput = {
+        ...item,
+        id: `copied-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        quotationLineItemId: cardKey !== EXTRA_KEY ? cardKey : undefined,
+        variantAttributes: {
+          ...(item.variantAttributes || {}),
+        },
+      }
+
+      // If cabinet row, ensure appropriate srNo
+      const secInfo = cardSections.find((s) => s.id === secId)
+      if (secInfo?.category === 'CABINETS_CLOSETS') {
+        const nextSrNo = String(existingRows.length + 1)
+        clonedItem.variantAttributes = { ...clonedItem.variantAttributes, srNo: nextSrNo, lineNo: nextSrNo }
+      }
+
+      // If existing section has only 1 empty row, replace it
+      const firstRow = existingRows[0]
+      const isFirstEmpty = existingRows.length === 1 && (
+        !firstRow?.materialName || firstRow?.materialName.trim() === '' || firstRow?.materialName === 'Board'
+      ) && (
+        !firstRow?.variantAttributes?.baseMaterial &&
+        !firstRow?.variantAttributes?.laminateTopSurface &&
+        !firstRow?.variantAttributes?.profileType &&
+        !firstRow?.variantAttributes?.fastenerType &&
+        !firstRow?.variantAttributes?.itemCode
+      )
+
+      if (isFirstEmpty) {
+        return { ...prev, [key]: [clonedItem] }
+      }
+
+      return { ...prev, [key]: [...existingRows, clonedItem] }
+    })
+
+    setSaveSuccess(`Copied "${item.materialName || 'Material'}" into section!`)
+    setTimeout(() => setSaveSuccess(null), 3000)
+  }, [activeSectionObj, currentCardKey, sectionsMap])
 
   const removeRow = (cardKey: string, sectionId: string, rowIndex: number) => {
     const key = sectionItemKey(cardKey, sectionId)
@@ -1299,6 +1372,19 @@ export function RequisitionBuilderClient({
         getRowsForSection={getRowsForSection}
       />
 
+      {/* ── Used Materials Palette (Project Scope Reuse with Drag & Drop) ── */}
+      <UsedMaterialsPalette
+        isOpen={isUsedPaletteOpen}
+        onClose={() => setIsUsedPaletteOpen(false)}
+        leadId={lead.id}
+        itemsMap={itemsMap}
+        sectionsMap={sectionsMap}
+        productSlides={productSlides}
+        activeSection={activeSectionObj}
+        currentCardKey={currentCardKey}
+        onInsertItem={(item, targetSectionId) => handlePasteItemToSection(item, targetSectionId)}
+      />
+
       {/* ── Floating Side Navigation Chevrons (Desktop) ── */}
       {viewModePreference === 'SLIDE' && (
         <>
@@ -1325,16 +1411,25 @@ export function RequisitionBuilderClient({
 
       {/* ── Product Navigation Bar (Slide Stepper & Drawer Trigger) ── */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/80 bg-card p-3 shadow-xs">
-        {/* Left: Product list drawer trigger */}
+        {/* Left: Product list drawer trigger & Used Materials Palette trigger */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary shadow-2xs hover:bg-primary/20 transition-colors"
+            className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary shadow-2xs hover:bg-primary/20 transition-colors cursor-pointer"
             title="Open Product Navigator"
           >
             <Layers className="w-4 h-4" />
             <span>Product List ({safeSlideIndex + 1}/{productSlides.length})</span>
             <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+          </button>
+
+          <button
+            onClick={() => setIsUsedPaletteOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-800 dark:text-amber-300 shadow-2xs hover:bg-amber-500/20 transition-colors cursor-pointer"
+            title="Open Used Materials in this Project (Drag & Drop to reuse)"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span>Used Materials</span>
           </button>
         </div>
 
@@ -1512,6 +1607,7 @@ export function RequisitionBuilderClient({
                       boqSavedAccessories={boqSavedAccessories}
                       onSelectSavedAccessory={(ri, item) => handleSelectSavedAccessory(currentCardKey, section.id, ri, item)}
                       onSaveNewSavedAccessory={handleSaveNewAccessory}
+                      onPasteItem={(item) => handlePasteItemToSection(item, section.id, currentCardKey)}
                     />
                   ))
                 )}
@@ -1600,6 +1696,7 @@ export function RequisitionBuilderClient({
                       boqSavedAccessories={boqSavedAccessories}
                       onSelectSavedAccessory={(ri, item) => handleSelectSavedAccessory(EXTRA_KEY, section.id, ri, item)}
                       onSaveNewSavedAccessory={handleSaveNewAccessory}
+                      onPasteItem={(item) => handlePasteItemToSection(item, section.id, EXTRA_KEY)}
                     />
                   ))
                 )}
@@ -1665,6 +1762,7 @@ export function RequisitionBuilderClient({
                             boqSavedAccessories={boqSavedAccessories}
                             onSelectSavedAccessory={(sectionId, ri, item) => handleSelectSavedAccessory(li.id, sectionId, ri, item)}
                             onSaveNewSavedAccessory={handleSaveNewAccessory}
+                            onPasteItem={(sectionId, pItem) => handlePasteItemToSection(pItem, sectionId, li.id)}
                           />
                         )
                       })}
@@ -1693,6 +1791,7 @@ export function RequisitionBuilderClient({
             boqSavedAccessories={boqSavedAccessories}
             onSelectSavedAccessory={(sectionId, ri, item) => handleSelectSavedAccessory(EXTRA_KEY, sectionId, ri, item)}
             onSaveNewSavedAccessory={handleSaveNewAccessory}
+            onPasteItem={(sectionId, pItem) => handlePasteItemToSection(pItem, sectionId, EXTRA_KEY)}
           />
         </div>
       )}
@@ -1802,12 +1901,22 @@ export function RequisitionBuilderClient({
             ) : (
               <button
                 onClick={() => setIsAddSectionModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-1.5 text-xs font-bold shadow-sm transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground px-4 py-1.5 text-xs font-bold shadow-sm transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add First Section to this Product</span>
               </button>
             )}
+
+            {/* Used Materials trigger in Bottom Bar */}
+            <button
+              onClick={() => setIsUsedPaletteOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-800 dark:text-amber-300 transition-colors shadow-2xs cursor-pointer"
+              title="Open Used Materials in this Project (Drag & drop to reuse)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span className="hidden sm:inline">Used Materials</span>
+            </button>
           </div>
 
           {/* Right: Save / Submit / PDF */}

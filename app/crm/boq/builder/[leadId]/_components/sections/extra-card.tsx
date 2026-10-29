@@ -35,6 +35,7 @@ export function ExtraCard({
   boqSavedAccessories,
   onSelectSavedAccessory,
   onSaveNewSavedAccessory,
+  onPasteItem,
 }: {
   sections: CardSection[]
   getRowsForSection: (sectionId: string) => RequisitionItemInput[]
@@ -52,6 +53,7 @@ export function ExtraCard({
   boqSavedAccessories?: BoqSavedAccessoryItem[]
   onSelectSavedAccessory?: (sectionId: string, ri: number, item: BoqSavedAccessoryItem) => void
   onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
+  onPasteItem?: (sectionId: string, item: RequisitionItemInput) => void
 }) {
   const [expanded, setExpanded] = useState(true)
   const [showAddSection, setShowAddSection] = useState(false)
@@ -108,6 +110,7 @@ export function ExtraCard({
               boqSavedAccessories={boqSavedAccessories}
               onSelectSavedAccessory={(ri, item) => onSelectSavedAccessory?.(section.id, ri, item)}
               onSaveNewSavedAccessory={onSaveNewSavedAccessory}
+              onPasteItem={(pItem) => onPasteItem?.(section.id, pItem)}
             />
           ))}
 

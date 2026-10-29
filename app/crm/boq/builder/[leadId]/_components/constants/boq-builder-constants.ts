@@ -198,6 +198,7 @@ export const BOARD_BASE_MATERIAL_GROUPS: { group: string; items: string[] }[] = 
   {
     group: '2. Engineered & Fiber Boards',
     items: [
+      'MR MDF (Moisture-Resistant Medium-Density Fiberboard)',
       'MDF (Medium Density Fiberboard)',
       'Particle Board (Plain Raw)',
       'High Moisture-Resistant (HMR) Board',

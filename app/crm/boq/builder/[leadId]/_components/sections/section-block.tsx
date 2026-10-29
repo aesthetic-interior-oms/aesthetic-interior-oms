@@ -1,6 +1,7 @@
 'use client'
 
-import { ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronDown, ChevronRight, Trash2, Sparkles } from 'lucide-react'
 import type { RequisitionItemInput } from '@/lib/boq-service'
 import type {
   WallPanelingSubType,
@@ -43,6 +44,7 @@ export function SectionBlock({
   boqSavedAccessories,
   onSelectSavedAccessory,
   onSaveNewSavedAccessory,
+  onPasteItem,
 }: {
   section: CardSection
   rows: RequisitionItemInput[]
@@ -60,6 +62,7 @@ export function SectionBlock({
   boqSavedAccessories?: BoqSavedAccessoryItem[]
   onSelectSavedAccessory?: (ri: number, item: BoqSavedAccessoryItem) => void
   onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
+  onPasteItem?: (item: RequisitionItemInput) => void
 }) {
   const viewMode = getViewModeForSection(section)
   const isHardwareSection = section.wallPanelingSubType === 'SCREWS_FASTENERS' || section.wallPanelingSubType === 'NAILS_PINS' || section.wallPanelingSubType === 'ADHESIVES'
@@ -82,11 +85,43 @@ export function SectionBlock({
   const pendingImportedRows = importedRows.filter((item) => item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION')
   const importedGroups = Array.from(new Set(importedRows.map((item) => String(item.variantAttributes?.sourceQuantityGroup || '')).filter(Boolean)))
 
+  const [isDragOver, setIsDragOver] = useState(false)
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const json = e.dataTransfer.getData('application/boq-item') || e.dataTransfer.getData('text/plain')
+    if (!json || !onPasteItem) return
+    try {
+      const item = JSON.parse(json) as RequisitionItemInput
+      if (item) onPasteItem(item)
+    } catch {
+      // ignore
+    }
+  }
+
   return (
     <div
       id={`section-dom-${section.id}`}
       data-boq-section-id={section.id}
-      className={`rounded-2xl border-2 bg-card shadow-xs transition-all ${colors.border} ${colors.leftBorder}`}
+      onDragOver={(e) => {
+        if (onPasteItem) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'copy'
+          if (!isDragOver) setIsDragOver(true)
+        }
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+          setIsDragOver(false)
+        }
+      }}
+      onDrop={handleDrop}
+      className={`rounded-2xl border-2 bg-card shadow-xs transition-all ${
+        isDragOver
+          ? 'border-dashed border-primary ring-4 ring-primary/25 scale-[1.002]'
+          : `${colors.border} ${colors.leftBorder}`
+      }`}
     >
       {/* Centered Section Header */}
       <div className={`px-4 py-3.5 ${colors.bg} border-b ${colors.border}`}>
@@ -135,6 +170,12 @@ export function SectionBlock({
       {/* Section body */}
       {!section.collapsed && (
         <div className="bg-background/70 p-3">
+          {isDragOver && (
+            <div className="mb-3 rounded-xl border-2 border-dashed border-primary bg-primary/10 p-3 text-center text-xs font-bold text-primary animate-pulse flex items-center justify-center gap-2 shadow-sm">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span>Release to paste material into {catLabel} section</span>
+            </div>
+          )}
           {importedRows.length > 0 && (
             <p className="mb-3 rounded-lg border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-800 dark:text-amber-200">
               Imported schedule rows: {importedRows.length}. {pendingImportedRows.length} quantities still need confirmation. Open cells are intentionally blank; complete them before submitting.

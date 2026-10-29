@@ -39,6 +39,7 @@ export function QuotationLineItemCard({
   boqSavedAccessories,
   onSelectSavedAccessory,
   onSaveNewSavedAccessory,
+  onPasteItem,
 }: {
   item: QuotationLineItem
   area?: QuotationArea
@@ -58,6 +59,7 @@ export function QuotationLineItemCard({
   boqSavedAccessories?: BoqSavedAccessoryItem[]
   onSelectSavedAccessory?: (sectionId: string, ri: number, item: BoqSavedAccessoryItem) => void
   onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
+  onPasteItem?: (sectionId: string, item: RequisitionItemInput) => void
 }) {
   const [cardExpanded, setCardExpanded] = useState(true)
   const [showAddSection, setShowAddSection] = useState(false)
@@ -160,6 +162,7 @@ export function QuotationLineItemCard({
               boqSavedAccessories={boqSavedAccessories}
               onSelectSavedAccessory={(ri, item) => onSelectSavedAccessory?.(section.id, ri, item)}
               onSaveNewSavedAccessory={onSaveNewSavedAccessory}
+              onPasteItem={(pItem) => onPasteItem?.(section.id, pItem)}
             />
           ))}
 

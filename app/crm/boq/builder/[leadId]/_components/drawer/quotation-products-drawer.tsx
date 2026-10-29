@@ -251,7 +251,9 @@ export function QuotationProductsDrawer({
           <button
             type="button"
             onClick={() => {
-              const anyCollapsed = groupedFloorSlides.some((f) => !!collapsedFloors[f.floorId])
+              const anyCollapsed =
+                groupedFloorSlides.some((f) => !!collapsedFloors[f.floorId]) ||
+                groupedFloorSlides.some((f) => f.areas.some((a) => !!collapsedAreas[`${f.floorId}::${a.areaId}`]))
               if (anyCollapsed) {
                 setCollapsedFloors({})
                 setCollapsedAreas({})
@@ -268,9 +270,12 @@ export function QuotationProductsDrawer({
                 setCollapsedAreas(nextAreas)
               }
             }}
-            className="font-semibold text-primary hover:underline hover:text-primary/80 transition-colors"
+            className="font-semibold text-primary hover:underline hover:text-primary/80 transition-colors cursor-pointer"
           >
-            {groupedFloorSlides.some((f) => !!collapsedFloors[f.floorId]) ? 'Expand All' : 'Collapse All'}
+            {groupedFloorSlides.some((f) => !!collapsedFloors[f.floorId]) ||
+            groupedFloorSlides.some((f) => f.areas.some((a) => !!collapsedAreas[`${f.floorId}::${a.areaId}`]))
+              ? 'Expand All'
+              : 'Collapse All'}
           </button>
         </div>
 
@@ -292,10 +297,10 @@ export function QuotationProductsDrawer({
                   onClick={() =>
                     setCollapsedFloors((prev) => ({
                       ...prev,
-                      [floor.floorId]: !isFloorOpen,
+                      [floor.floorId]: !prev[floor.floorId],
                     }))
                   }
-                  className="w-full flex items-center justify-between px-3 py-2.5 bg-muted/50 hover:bg-muted/80 transition-colors text-left"
+                  className="w-full flex items-center justify-between px-3 py-2.5 bg-muted/50 hover:bg-muted/80 transition-colors text-left cursor-pointer"
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="p-1 rounded-md bg-background text-muted-foreground border border-border/50 shrink-0">
@@ -347,10 +352,10 @@ export function QuotationProductsDrawer({
                             onClick={() =>
                               setCollapsedAreas((prev) => ({
                                 ...prev,
-                                [areaKey]: !isAreaOpen,
+                                [areaKey]: !prev[areaKey],
                               }))
                             }
-                            className="w-full flex items-center justify-between px-2.5 py-1.5 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+                            className="w-full flex items-center justify-between px-2.5 py-1.5 bg-muted/30 hover:bg-muted/50 transition-colors text-left cursor-pointer"
                           >
                             <div className="flex items-center gap-1.5 min-w-0">
                               <div className="text-muted-foreground shrink-0">
@@ -406,7 +411,7 @@ export function QuotationProductsDrawer({
                                   >
                                     <div className="flex items-start justify-between gap-2">
                                       <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-1.5 mb-1">
+                                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
                                           <span
                                             className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
                                               isSelected
@@ -416,6 +421,18 @@ export function QuotationProductsDrawer({
                                           >
                                             #{slide.index}
                                           </span>
+                                          {slide.areaName && (
+                                            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/25">
+                                              <Folder className="w-2.5 h-2.5" />
+                                              {slide.areaName}
+                                            </span>
+                                          )}
+                                          {slide.sectionName && (
+                                            <span className="inline-flex items-center gap-1 text-[9px] font-medium px-1.5 py-0.5 rounded bg-muted/80 text-muted-foreground border border-border/50">
+                                              <Building className="w-2.5 h-2.5 opacity-70" />
+                                              {slide.sectionName}
+                                            </span>
+                                          )}
                                         </div>
                                         <p className="text-xs font-bold text-foreground line-clamp-2 leading-tight">
                                           {slide.title}
