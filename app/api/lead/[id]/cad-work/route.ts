@@ -4,7 +4,7 @@ import { requireDatabaseRoles } from '@/lib/authz'
 import { getJrArchitectWorkflowControlState } from '@/lib/jr-architect-workflow-control'
 import { LeadStage } from '@/generated/prisma/client'
 
-type RouteContext = { params: { id: string } | Promise<{ id: string }> }
+type RouteContext = { params: Promise<{ id: string }> }
 
 const LOCKED_STAGES_FOR_RESUBMISSION = new Set<LeadStage>([
   LeadStage.QUOTATION_PHASE,

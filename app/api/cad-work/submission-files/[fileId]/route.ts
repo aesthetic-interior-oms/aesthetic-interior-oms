@@ -6,7 +6,7 @@ import { deleteFromGCSUrl } from '@/lib/gcs-storage'
 import { logActivity } from '@/lib/activity-log-service'
 import { ActivityType } from '@/generated/prisma/client'
 
-type RouteContext = { params: { fileId: string } | Promise<{ fileId: string }> }
+type RouteContext = { params: Promise<{ fileId: string }> }
 
 async function resolveFileId(context: RouteContext): Promise<string | null> {
   const resolvedParams = await context.params
