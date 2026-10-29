@@ -64,6 +64,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { CadSubmissionDialog } from '@/components/crm/junior/cad-submission-dialog'
 
 type LeadRecord = {
   id: string
@@ -107,6 +108,8 @@ type LeadRecord = {
   cadWorkSubmissions?: Array<{
     id: string
     note: string | null
+    versionNumber?: number
+    versionName?: string | null
     submittedAt: string
     submittedBy: { id: string; fullName: string }
     files: Array<{
@@ -343,6 +346,7 @@ function LeadFilesSection({ lead }: { lead: LeadRecord }) {
       fileType: file.fileType,
       cadFileType: file.cadFileType,
       submittedBy: sub.submittedBy?.fullName,
+      versionName: sub.versionName || (sub.versionNumber ? `V${sub.versionNumber}` : null),
     })),
   )
 
@@ -353,6 +357,7 @@ function LeadFilesSection({ lead }: { lead: LeadRecord }) {
     fileType: att.fileType,
     cadFileType: 'ATTACHMENT',
     submittedBy: 'Team File',
+    versionName: null,
   }))
 
   const combinedFiles = [...allSubFiles, ...allLeadAtts]
@@ -392,6 +397,11 @@ function LeadFilesSection({ lead }: { lead: LeadRecord }) {
               >
                 <FileText className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
                 <span className="max-w-[180px] truncate">{file.fileName}</span>
+                {file.versionName ? (
+                  <Badge variant="outline" className="px-1.5 py-0 text-[9px] font-semibold border-sky-300 text-sky-800 dark:border-sky-700 dark:text-sky-300">
+                    {file.versionName}
+                  </Badge>
+                ) : null}
                 <Badge variant="secondary" className="px-1.5 py-0 text-[9px] font-semibold bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
                   {file.cadFileType}
                 </Badge>
@@ -556,6 +566,7 @@ export function CadPhaseQueueBoard({
   const [viewMode, setViewMode] = useState<'table' | 'card'>('table')
   const [projectSizeOpen, setProjectSizeOpen] = useState(false)
   const [projectSizeValue, setProjectSizeValue] = useState('')
+  const [viewFilesLead, setViewFilesLead] = useState<LeadRecord | null>(null)
 
   const closedSubStatusOptions = [
     'PROJECT_DROPPED',
@@ -1475,6 +1486,9 @@ export function CadPhaseQueueBoard({
         <DropdownMenuItem asChild>
           <Link href={`${leadBasePath}/${lead.id}`}>Open Lead</Link>
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setViewFilesLead(lead)}>
+          View Files & Versions
+        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => openProjectSizeDialog(lead)}>
           {lead.latestCompletedVisit?.projectSqft ? 'Change' : 'Add'} Project Size
         </DropdownMenuItem>
@@ -1830,7 +1844,19 @@ export function CadPhaseQueueBoard({
                             </button>
                           </TableCell>
                           <TableCell className="text-right">
-                            {renderLeadActionMenu(lead)}
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2 text-xs"
+                                onClick={() => setViewFilesLead(lead)}
+                                title="View Files & Versions"
+                              >
+                                <FileText className="mr-1 h-3.5 w-3.5" />
+                                Files
+                              </Button>
+                              {renderLeadActionMenu(lead)}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1875,6 +1901,14 @@ export function CadPhaseQueueBoard({
                         <Link href={`${leadBasePath}/${lead.id}`}>
                           Open Lead
                         </Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setViewFilesLead(lead)}
+                      >
+                        <FileText className="mr-1 h-4 w-4" />
+                        Files & Versions
                       </Button>
                       <Button
                         size="sm"
@@ -2151,6 +2185,14 @@ export function CadPhaseQueueBoard({
                         <Link href={`${leadBasePath}/${lead.id}`}>
                           Open Lead
                         </Link>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setViewFilesLead(lead)}
+                      >
+                        <FileText className="mr-1 h-4 w-4" />
+                        Files & Versions
                       </Button>
                       <Button
                         size="sm"
@@ -2947,6 +2989,16 @@ export function CadPhaseQueueBoard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <CadSubmissionDialog
+        open={Boolean(viewFilesLead)}
+        onOpenChange={(open) => {
+          if (!open) setViewFilesLead(null)
+        }}
+        leadId={viewFilesLead?.id ?? null}
+        leadName={viewFilesLead?.name}
+        onSubmitted={() => void loadLeads()}
+      />
     </div>
   )
 }

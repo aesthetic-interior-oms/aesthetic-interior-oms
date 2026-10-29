@@ -10,6 +10,7 @@ import {
   Plug,
   SlidersHorizontal,
   BarChart3,
+  DraftingCompass,
 } from 'lucide-react'
 import { UserManagement } from '@/components/settings/user-management'
 import { RolePermissions } from '@/components/settings/role-permissions'
@@ -18,6 +19,7 @@ import { ActivityLog } from '@/components/settings/activity-log'
 import { SrCrmRotationSettings } from '@/components/settings/sr-crm-rotation-settings'
 import { IntegrationSettings } from '@/components/settings/integration-settings'
 import { VisitWorkflowSettings } from '@/components/settings/visit-workflow-settings'
+import { JrArchitectWorkflowSettings } from '@/components/settings/jr-architect-workflow-settings'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import QuotationSettingsPage from '@/app/quotation-team/settings/page'
 
@@ -64,6 +66,10 @@ export default function SettingsPage() {
               <SlidersHorizontal className="w-4 h-4" />
               <span>Visit Workflow</span>
             </TabsTrigger>
+            <TabsTrigger value="jr-architect" className="flex items-center justify-start gap-3 px-3 py-2.5 w-full text-left font-medium">
+              <DraftingCompass className="w-4 h-4" />
+              <span>JR Architect</span>
+            </TabsTrigger>
             <TabsTrigger value="performance" className="flex items-center justify-start gap-3 px-3 py-2.5 w-full text-left font-medium">
               <BarChart3 className="w-4 h-4" />
               <span>Performance</span>
@@ -103,6 +109,10 @@ export default function SettingsPage() {
 
             <TabsContent value="visit-workflow" className="space-y-6 mt-0">
               <VisitWorkflowSettings />
+            </TabsContent>
+
+            <TabsContent value="jr-architect" className="space-y-6 mt-0">
+              <JrArchitectWorkflowSettings />
             </TabsContent>
 
             <TabsContent value="performance" className="space-y-6 mt-0">

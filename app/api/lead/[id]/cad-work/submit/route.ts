@@ -20,6 +20,16 @@ import {
 } from '@/lib/cad-work'
 import { logActivity, logLeadStageChanged, logLeadSubStatusChanged } from '@/lib/activity-log-service'
 import { sendPushToUser } from '@/lib/fcm-service'
+import { getJrArchitectWorkflowControlState } from '@/lib/jr-architect-workflow-control'
+
+const LOCKED_STAGES_FOR_RESUBMISSION = new Set<LeadStage>([
+  LeadStage.QUOTATION_PHASE,
+  LeadStage.PARTIAL_QUOTATION_PHASE,
+  LeadStage.BUDGET_PHASE,
+  LeadStage.VISUALIZATION_PHASE,
+  LeadStage.CONVERSION,
+  LeadStage.CLOSED,
+])
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -124,9 +134,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
       )
     }
 
-    const body = (await request.json()) as { note?: unknown; files?: unknown; projectSqft?: unknown }
+    const body = (await request.json()) as {
+      note?: unknown
+      files?: unknown
+      projectSqft?: unknown
+      versionName?: unknown
+    }
     const note = toOptionalString(body.note)
-    const projectSqft = toPositiveNumber(body.projectSqft)
+    const versionNameInput = toOptionalString(body.versionName)
+    let projectSqft = toPositiveNumber(body.projectSqft)
 
     const uploadedFiles: UploadedCadFileMeta[] = Array.isArray(body.files)
       ? body.files.map((item) => toUploadedCadFileMeta(item)).filter((item): item is UploadedCadFileMeta => Boolean(item))
@@ -145,10 +161,6 @@ export async function POST(request: NextRequest, context: RouteContext) {
           { status: 400 },
         )
       }
-    }
-
-    if (!projectSqft) {
-      return NextResponse.json({ success: false, error: 'Project sqft is required and must be greater than 0' }, { status: 400 })
     }
 
     const lead = await prisma.lead.findFirst({
@@ -181,25 +193,40 @@ export async function POST(request: NextRequest, context: RouteContext) {
       throw new Error('LEAD_NOT_FOUND')
     }
 
-    if (lead.subStatus === LeadSubStatus.CAD_COMPLETED || lead.subStatus === LeadSubStatus.CAD_APPROVED) {
-      throw new Error('ALREADY_SUBMITTED')
+    const workflowControl = await getJrArchitectWorkflowControlState()
+    const completeResubmissionEnabled = workflowControl.completeResubmissionEnabled
+
+    if (!completeResubmissionEnabled) {
+      if (LOCKED_STAGES_FOR_RESUBMISSION.has(lead.stage)) {
+        throw new Error('RESUBMISSION_LOCKED')
+      }
+      if (lead.stage === LeadStage.CAD_PHASE && lead.subStatus === LeadSubStatus.CAD_ASSIGNED) {
+        const existingSubmissions = await prisma.cadWorkSubmission.count({ where: { leadId: lead.id } })
+        if (existingSubmissions === 0) {
+          throw new Error('WORK_NOT_STARTED')
+        }
+      }
     }
 
-    if (!(lead.stage === LeadStage.CAD_PHASE && lead.subStatus === LeadSubStatus.CAD_WORKING)) {
-      throw new Error('WORK_NOT_STARTED')
+    if (!projectSqft) {
+      const latestVisit = await prisma.visit.findFirst({
+        where: { leadId: lead.id },
+        orderBy: { scheduledAt: 'desc' },
+        select: { projectSqft: true },
+      })
+      if (latestVisit?.projectSqft && latestVisit.projectSqft > 0) {
+        projectSqft = latestVisit.projectSqft
+      } else {
+        return NextResponse.json({ success: false, error: 'Project sqft is required and must be greater than 0' }, { status: 400 })
+      }
     }
 
     const failedUploads: FailedCadUploadMeta[] = []
 
-
     const payload = await prisma.$transaction(
       async (tx) => {
         const scopedLead = await tx.lead.findFirst({
-          where: {
-            id: lead.id,
-            stage: LeadStage.CAD_PHASE,
-            subStatus: LeadSubStatus.CAD_WORKING,
-          },
+          where: { id: lead.id },
           select: {
             id: true,
             name: true,
@@ -216,11 +243,22 @@ export async function POST(request: NextRequest, context: RouteContext) {
           throw new Error('WORK_STATE_CHANGED')
         }
 
+        const existingCount = await tx.cadWorkSubmission.count({
+          where: { leadId: scopedLead.id },
+        })
+        const versionNumber = existingCount + 1
+        const autoVersionName = `Version ${versionNumber}`
+        const versionName = versionNameInput
+          ? (versionNameInput.toLowerCase().startsWith('v') ? versionNameInput : `V${versionNumber} - ${versionNameInput}`)
+          : autoVersionName
+
         const submission = await tx.cadWorkSubmission.create({
           data: {
             leadId: scopedLead.id,
             submittedById: authResult.actorUserId,
             note,
+            versionNumber,
+            versionName,
           },
         })
 
@@ -263,54 +301,56 @@ export async function POST(request: NextRequest, context: RouteContext) {
           })
         }
 
-        await tx.leadPhaseTask.updateMany({
-          where: {
-            leadId: scopedLead.id,
-            phaseType: LeadPhaseType.CAD,
-            status: LeadPhaseTaskStatus.OPEN,
-          },
-          data: {
-            status: LeadPhaseTaskStatus.IN_REVIEW,
-            updatedAt: now,
-          },
-        })
+        const isCadPhase = scopedLead.stage === LeadStage.CAD_PHASE
+        let updatedLead = scopedLead
 
-        const updatedLead = await tx.lead.update({
-          where: { id: scopedLead.id },
-          data: {
-            stage: LeadStage.CAD_PHASE,
-            subStatus: LeadSubStatus.CAD_COMPLETED,
-          },
-          select: {
-            id: true,
-            stage: true,
-            subStatus: true,
-          },
-        })
-
-        if (scopedLead.stage !== LeadStage.CAD_PHASE) {
-          await logLeadStageChanged(tx, {
-            leadId: scopedLead.id,
-            userId: authResult.actorUserId,
-            from: scopedLead.stage,
-            to: LeadStage.CAD_PHASE,
-            reason: 'CAD work submitted for review',
+        if (isCadPhase) {
+          await tx.leadPhaseTask.updateMany({
+            where: {
+              leadId: scopedLead.id,
+              phaseType: LeadPhaseType.CAD,
+              status: LeadPhaseTaskStatus.OPEN,
+            },
+            data: {
+              status: LeadPhaseTaskStatus.IN_REVIEW,
+              updatedAt: now,
+            },
           })
-        }
 
-        await logLeadSubStatusChanged(tx, {
-          leadId: scopedLead.id,
-          userId: authResult.actorUserId,
-          from: scopedLead.subStatus,
-          to: LeadSubStatus.CAD_COMPLETED,
-          reason: 'JR Architect submitted CAD files',
-        })
+          updatedLead = await tx.lead.update({
+            where: { id: scopedLead.id },
+            data: {
+              stage: LeadStage.CAD_PHASE,
+              subStatus: LeadSubStatus.CAD_COMPLETED,
+            },
+            select: {
+              id: true,
+              name: true,
+              stage: true,
+              subStatus: true,
+              assignments: {
+                where: { department: LeadAssignmentDepartment.SR_CRM },
+                select: { userId: true },
+              },
+            },
+          })
+
+          if (scopedLead.subStatus !== LeadSubStatus.CAD_COMPLETED) {
+            await logLeadSubStatusChanged(tx, {
+              leadId: scopedLead.id,
+              userId: authResult.actorUserId,
+              from: scopedLead.subStatus,
+              to: LeadSubStatus.CAD_COMPLETED,
+              reason: `JR Architect submitted CAD files (${versionName})`,
+            })
+          }
+        }
 
         await logActivity(tx, {
           leadId: scopedLead.id,
           userId: authResult.actorUserId,
           type: ActivityType.NOTE,
-          description: `CAD work submitted with ${uploadedFiles.length} file${uploadedFiles.length === 1 ? '' : 's'} for Senior CRM review.`,
+          description: `CAD files (${versionName}) submitted with ${uploadedFiles.length} file${uploadedFiles.length === 1 ? '' : 's'}${isCadPhase ? ' for Senior CRM review' : ''}.`,
         })
 
         const startOfToday = new Date()
@@ -338,7 +378,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
               userId: { in: targetUserIds },
               leadId: scopedLead.id,
               type: NotificationType.LEAD_ASSIGNED_TO_YOU,
-              title: 'CAD work submitted for review',
+              title: `CAD work submitted (${versionName})`,
               createdAt: { gte: startOfToday },
             },
             select: { userId: true },
@@ -351,8 +391,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
               userId,
               leadId: scopedLead.id,
               type: NotificationType.LEAD_ASSIGNED_TO_YOU,
-              title: 'CAD work submitted for review',
-              message: `${scopedLead.name} CAD files are ready in Review Center.`,
+              title: `CAD work submitted (${versionName})`,
+              message: isCadPhase
+                ? `${scopedLead.name} CAD files (${versionName}) are ready in Review Center.`
+                : `${scopedLead.name} CAD files were updated to ${versionName}.`,
               scheduledFor: now,
             }))
 
@@ -364,17 +406,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
           for (const userId of targetUserIds) {
             sendPushToUser(
               userId,
-              'CAD Work Ready for Review ✏️',
-              `${scopedLead.name} CAD files are ready in the Review Center.`,
+              `CAD Work Submitted (${versionName}) ✏️`,
+              isCadPhase
+                ? `${scopedLead.name} CAD files (${versionName}) are ready in the Review Center.`
+                : `${scopedLead.name} CAD files were updated to ${versionName}.`,
               { type: 'review', leadId: scopedLead.id },
             ).catch(() => {})
           }
         }
 
         return {
-
           lead: updatedLead,
           submissionId: submission.id,
+          versionName,
+          versionNumber,
           uploadWarnings:
             failedUploads.length > 0
               ? {
@@ -394,7 +439,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
       {
         success: true,
         data: payload,
-        message: 'CAD files submitted successfully and moved to CAD Completed',
+        message:
+          payload.lead?.stage === LeadStage.CAD_PHASE
+            ? `CAD files (${payload.versionName}) submitted successfully and moved to Review Center`
+            : `CAD files (${payload.versionName}) updated successfully without affecting current stage`,
       },
       { status: 201 },
     )
@@ -403,6 +451,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json(
         { success: false, error: 'Lead not found or not assigned to you' },
         { status: 404 },
+      )
+    }
+
+    if (error instanceof Error && error.message === 'RESUBMISSION_LOCKED') {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'Resubmission is locked because this lead has reached Quotation or an upper phase. Enable Complete Resubmission in settings to upload for any stage.',
+        },
+        { status: 403 },
       )
     }
 

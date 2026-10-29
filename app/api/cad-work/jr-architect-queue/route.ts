@@ -47,6 +47,8 @@ type QueueLeadOptionalRelations = QueueLead & {
   cadWorkSubmissions?: Array<{
     id: string
     note: string | null
+    versionNumber?: number
+    versionName?: string | null
     submittedAt: Date
     submittedBy: { id: string; fullName: string }
     files: Array<{
@@ -113,11 +115,13 @@ async function fetchQueueLeads(where: Prisma.LeadWhereInput, includeOptionalRela
             },
           },
           cadWorkSubmissions: {
-            orderBy: { submittedAt: 'desc' },
-            take: 5,
+            orderBy: [{ submittedAt: 'desc' }, { versionNumber: 'desc' }],
+            take: 20,
             select: {
               id: true,
               note: true,
+              versionNumber: true,
+              versionName: true,
               submittedAt: true,
               submittedBy: {
                 select: {

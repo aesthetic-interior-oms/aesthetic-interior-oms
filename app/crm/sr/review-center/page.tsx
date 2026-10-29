@@ -1,5 +1,5 @@
 import { ReviewCenterView } from './view'
 
-export default function SeniorCrmReviewCenterPage() {
-  return <ReviewCenterView />
+export default function SrReviewCenterPage() {
+  return <ReviewCenterView basePath="/crm/sr/review-center" />
 }

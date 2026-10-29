@@ -66,6 +66,8 @@ type ReviewSubmission = {
   id: string
   note: string | null
   submittedAt: string
+  versionNumber?: number | null
+  versionName?: string | null
   lead: {
     id: string
     name: string
@@ -692,6 +694,12 @@ export function ReviewCenterView({
                         <Badge variant="secondary">{formatLabel(submission.lead.stage)}</Badge>
                         {submission.lead.subStatus ? (
                           <Badge variant="outline">{formatLabel(submission.lead.subStatus)}</Badge>
+                        ) : null}
+                        {submission.versionNumber ? (
+                          <Badge variant="outline" className="border-sky-300 text-sky-800 bg-sky-50 dark:border-sky-700 dark:text-sky-300 dark:bg-sky-950/40">
+                            V{submission.versionNumber}
+                            {submission.versionName ? `: ${submission.versionName}` : ''}
+                          </Badge>
                         ) : null}
                       </div>
                     </div>

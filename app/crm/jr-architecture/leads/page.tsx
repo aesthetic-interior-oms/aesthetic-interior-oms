@@ -51,12 +51,7 @@ import {
   type CadSubmissionFileTypeValue,
   formatCadSubmissionFileType,
 } from '@/lib/cad-work'
-import { uploadDirectGCSFile, type UploadedGCSFileMeta } from '@/lib/client-gcs-upload'
-import {
-  CAD_WORK_UPLOAD_LIMIT_MESSAGE,
-  CAD_WORK_UPLOAD_MAX_BYTES,
-  formatBytesToMbLabel,
-} from '@/lib/upload-limits'
+import { CadSubmissionDialog } from '@/components/crm/junior/cad-submission-dialog'
 
 type CadTaskLead = {
   id: string
@@ -122,21 +117,7 @@ type CadTaskLead = {
   }>
 }
 
-type SubmissionRow = {
-  id: string
-  cadFileType: CadSubmissionFileTypeValue
-  file: File | null
-}
 
-function createCadSubmissionRow(
-  cadFileType: CadSubmissionFileTypeValue = 'FLOOR_PLAN',
-): SubmissionRow {
-  return {
-    id: crypto.randomUUID(),
-    cadFileType,
-    file: null,
-  }
-}
 
 function formatLabel(value: string | null | undefined): string {
   if (!value) return 'N/A'
@@ -191,10 +172,6 @@ export default function JrArchitectAssignedWorkPage() {
   // Submit work dialog states
   const [submitWorkOpen, setSubmitWorkOpen] = useState(false)
   const [submitWorkLead, setSubmitWorkLead] = useState<CadTaskLead | null>(null)
-  const [submittingWork, setSubmittingWork] = useState(false)
-  const [submissionNote, setSubmissionNote] = useState('')
-  const [submissionProjectSqft, setSubmissionProjectSqft] = useState('')
-  const [submissionRows, setSubmissionRows] = useState<SubmissionRow[]>([createCadSubmissionRow()])
 
   const loadTasks = useCallback(async (monthKey = 'ALL', silent = false) => {
     if (!silent) setLoading(true)
@@ -332,107 +309,8 @@ export default function JrArchitectAssignedWorkPage() {
 
   const openSubmitWorkDialog = useCallback((lead: CadTaskLead) => {
     setSubmitWorkLead(lead)
-    setSubmissionRows([createCadSubmissionRow()])
-    setSubmissionNote('')
-    setSubmissionProjectSqft(lead.projectSqft ? String(lead.projectSqft) : '')
     setSubmitWorkOpen(true)
   }, [])
-
-  const updateSubmissionType = useCallback(
-    (rowId: string, value: CadSubmissionFileTypeValue) => {
-      setSubmissionRows((prev) =>
-        prev.map((row) => (row.id === rowId ? { ...row, cadFileType: value } : row)),
-      )
-    },
-    [],
-  )
-
-  const updateSubmissionFile = useCallback((rowId: string, file: File | null) => {
-    setSubmissionRows((prev) =>
-      prev.map((row) => (row.id === rowId ? { ...row, file } : row)),
-    )
-  }, [])
-
-  const addSubmissionRow = useCallback(() => {
-    setSubmissionRows((prev) => [...prev, createCadSubmissionRow('OTHERS')])
-  }, [])
-
-  const removeSubmissionRow = useCallback((rowId: string) => {
-    setSubmissionRows((prev) => prev.filter((row) => row.id !== rowId))
-  }, [])
-
-  const handleSubmitWork = useCallback(async () => {
-    if (!submitWorkLead) return
-
-    const parsedProjectSqft = Number(submissionProjectSqft.replace(/,/g, '').trim())
-    if (!Number.isFinite(parsedProjectSqft) || parsedProjectSqft <= 0) {
-      toast.error('Please enter a valid project sqft before submitting CAD work')
-      return
-    }
-
-    const rowsWithFiles = submissionRows.filter((row) => Boolean(row.file))
-    if (rowsWithFiles.length === 0) {
-      toast.error('Please select at least one CAD file or drawing to upload')
-      return
-    }
-
-    const oversizeRow = rowsWithFiles.find(
-      (row) => row.file && row.file.size > CAD_WORK_UPLOAD_MAX_BYTES,
-    )
-    if (oversizeRow?.file) {
-      toast.error(
-        `"${oversizeRow.file.name}" is ${formatBytesToMbLabel(oversizeRow.file.size)}. Direct upload supports up to ${formatBytesToMbLabel(CAD_WORK_UPLOAD_MAX_BYTES)} per file.`,
-      )
-      return
-    }
-
-    setSubmittingWork(true)
-    setBusyId(submitWorkLead.id)
-    try {
-      const uploadedFiles: Array<UploadedGCSFileMeta & { cadFileType: CadSubmissionFileTypeValue }> = []
-      for (const row of rowsWithFiles) {
-        if (!row.file) continue
-        const uploaded = await uploadDirectGCSFile({
-          file: row.file,
-          context: 'cad-work',
-          ownerId: submitWorkLead.id,
-        })
-        uploadedFiles.push({ ...uploaded, cadFileType: row.cadFileType })
-      }
-
-      const response = await fetch(`/api/lead/${submitWorkLead.id}/cad-work/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          note: submissionNote.trim() || null,
-          projectSqft: parsedProjectSqft,
-          files: uploadedFiles,
-        }),
-      })
-
-      const payload = await response.json()
-      if (!response.ok || !payload?.success) {
-        if (response.status === 413) {
-          throw new Error(`Upload request too large. ${CAD_WORK_UPLOAD_LIMIT_MESSAGE}`)
-        }
-        throw new Error(payload?.error ?? 'Failed to submit CAD work')
-      }
-
-      toast.success(payload.message ?? 'CAD work submitted to Senior CRM Review Center')
-      setSubmitWorkOpen(false)
-      setSubmitWorkLead(null)
-      setSubmissionRows([createCadSubmissionRow()])
-      setSubmissionNote('')
-      setSubmissionProjectSqft('')
-      await loadTasks(selectedMonth)
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to submit CAD work')
-    } finally {
-      setSubmittingWork(false)
-      setBusyId(null)
-    }
-  }, [loadTasks, selectedMonth, submissionNote, submissionProjectSqft, submissionRows, submitWorkLead])
-
   return (
     <div className="min-h-screen bg-background">
       <CrmPageHeader
@@ -1040,13 +918,16 @@ export default function JrArchitectAssignedWorkPage() {
                         </Button>
                       ) : null}
 
-                      {lead.subStatus === 'CAD_COMPLETED' ? (
-                        <Badge
-                          variant="secondary"
-                          className="h-8 px-3 text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                      {lead.subStatus === 'CAD_COMPLETED' || lead.subStatus === 'CAD_APPROVED' ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 gap-1.5 text-xs"
+                          onClick={() => openSubmitWorkDialog(lead)}
                         >
-                          Work Under Review
-                        </Badge>
+                          <Upload className="h-3.5 w-3.5" />
+                          Resubmit / Files
+                        </Button>
                       ) : null}
                     </div>
                   </div>
@@ -1100,165 +981,16 @@ export default function JrArchitectAssignedWorkPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Submit Work Dialog (Supports up to 200MB Google Cloud Upload) */}
-      <Dialog
+      <CadSubmissionDialog
         open={submitWorkOpen}
         onOpenChange={(open) => {
-          if (submittingWork) return
           setSubmitWorkOpen(open)
-          if (!open) {
-            setSubmitWorkLead(null)
-            setSubmissionRows([createCadSubmissionRow()])
-          }
+          if (!open) setSubmitWorkLead(null)
         }}
-      >
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Submit CAD Work</DialogTitle>
-            <DialogDescription>
-              Upload CAD drawings and documents for {submitWorkLead?.name ?? 'client'}. Files upload
-              directly to Google Cloud Storage (supports up to {formatBytesToMbLabel(CAD_WORK_UPLOAD_MAX_BYTES)} per file).
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div>
-              <label className="text-xs font-semibold text-foreground block mb-1">
-                Project SQFT <span className="text-destructive">*</span>
-              </label>
-              <Input
-                type="number"
-                placeholder="Enter final measured/designed square footage (e.g. 1850)"
-                value={submissionProjectSqft}
-                onChange={(e) => setSubmissionProjectSqft(e.target.value)}
-                disabled={submittingWork}
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-semibold text-foreground">
-                  CAD Drawings & Files <span className="text-destructive">*</span>
-                </label>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={addSubmissionRow}
-                  disabled={submittingWork || submissionRows.length >= 12}
-                  className="h-7 text-xs gap-1"
-                >
-                  <Plus className="h-3 w-3" /> Add Another File
-                </Button>
-              </div>
-
-              <div className="space-y-2.5">
-                {submissionRows.map((row) => (
-                  <div
-                    key={row.id}
-                    className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2.5 rounded-lg border bg-muted/20"
-                  >
-                    <div className="w-full sm:w-[200px]">
-                      <Select
-                        value={row.cadFileType}
-                        onValueChange={(val) =>
-                          updateSubmissionType(row.id, val as CadSubmissionFileTypeValue)
-                        }
-                        disabled={submittingWork}
-                      >
-                        <SelectTrigger className="h-9 text-xs">
-                          <SelectValue placeholder="File Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CAD_SUBMISSION_FILE_TYPE_OPTIONS.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex-1">
-                      <Input
-                        type="file"
-                        className="h-9 text-xs cursor-pointer"
-                        disabled={submittingWork}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] ?? null
-                          updateSubmissionFile(row.id, file)
-                        }}
-                      />
-                    </div>
-
-                    {submissionRows.length > 1 ? (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 text-muted-foreground hover:text-destructive flex-shrink-0"
-                        disabled={submittingWork}
-                        onClick={() => removeSubmissionRow(row.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-              <p className="text-[11px] text-muted-foreground mt-1.5">
-                Supported formats: DWG, DXF, PDF, PPTX, Images. Up to {formatBytesToMbLabel(CAD_WORK_UPLOAD_MAX_BYTES)} per file.
-              </p>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-foreground block mb-1">
-                Submission Note / Instructions (Optional)
-              </label>
-              <Textarea
-                placeholder="Include key notes for Senior CRM or Quotation team regarding this revision..."
-                value={submissionNote}
-                onChange={(e) => setSubmissionNote(e.target.value)}
-                disabled={submittingWork}
-                rows={3}
-                className="text-xs"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={submittingWork}
-              onClick={() => {
-                setSubmitWorkOpen(false)
-                setSubmitWorkLead(null)
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              disabled={submittingWork}
-              onClick={() => void handleSubmitWork()}
-              className="gap-2 bg-primary"
-            >
-              {submittingWork ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Uploading & Submitting...
-                </>
-              ) : (
-                <>
-                  <Upload className="h-4 w-4" />
-                  Submit CAD Work
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        leadId={submitWorkLead?.id ?? null}
+        leadName={submitWorkLead?.name}
+        onSubmitted={() => void loadTasks(selectedMonth)}
+      />
     </div>
   )
 }

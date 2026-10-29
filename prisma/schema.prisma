@@ -311,6 +311,8 @@ model CadWorkSubmission {
   leadId        String
   submittedById String
   note          String?
+  versionNumber Int                     @default(1)
+  versionName   String?
   submittedAt   DateTime                @default(now())
   createdAt     DateTime                @default(now())
   updatedAt     DateTime                @updatedAt
@@ -724,6 +726,13 @@ model VisitWorkflowControl {
   weeklySeniorCrmUserId            String?
   weeklySeniorCrmWeekStart         DateTime?
   weeklySeniorCrmAutomationEnabled Boolean   @default(true)
+}
+
+model JrArchitectWorkflowControl {
+  id                          String   @id @default("singleton")
+  completeResubmissionEnabled Boolean  @default(false)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
 }
 
 model WhatsAppWebhookEvent {

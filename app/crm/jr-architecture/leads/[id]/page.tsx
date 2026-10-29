@@ -5,10 +5,11 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { ArrowLeft, MessageSquare, MapPin, FileText, ImageIcon, Video, Home } from 'lucide-react'
+import { ArrowLeft, MessageSquare, MapPin, FileText, ImageIcon, Video, Home, Upload } from 'lucide-react'
 import { LeadNotesTab } from '@/components/crm/junior/lead-notes-tab'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { fetchMeCached } from '@/lib/client-me'
+import { CadSubmissionDialog } from '@/components/crm/junior/cad-submission-dialog'
 
 // Minimal interfaces for rendering
 type LeadAttachment = {
@@ -59,6 +60,7 @@ export default function JrArcLeadDetailsPage() {
   const [stage, setStage] = useState('CAD_PHASE')
   const [subStatus, setSubStatus] = useState<string | null>(null)
   const [updatingStage, setUpdatingStage] = useState(false)
+  const [submitWorkOpen, setSubmitWorkOpen] = useState(false)
 
   useEffect(() => {
     fetchMeCached().then(data => {
@@ -183,9 +185,12 @@ export default function JrArcLeadDetailsPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="p-3 sm:p-4 lg:p-6 space-y-6 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <Button onClick={() => router.push(backHref())} variant="outline" size="sm" className="gap-2">
             <ArrowLeft className="w-4 h-4" /> Back to List
+          </Button>
+          <Button onClick={() => setSubmitWorkOpen(true)} size="sm" className="gap-2">
+            <Upload className="w-4 h-4" /> Submit / Resubmit CAD Work
           </Button>
         </div>
 
@@ -389,6 +394,14 @@ export default function JrArcLeadDetailsPage() {
           </div>
         </div>
       </div>
+
+      <CadSubmissionDialog
+        open={submitWorkOpen}
+        onOpenChange={setSubmitWorkOpen}
+        leadId={leadId}
+        leadName={lead?.name}
+        onSubmitted={() => void refreshLeadDetails()}
+      />
     </div>
   )
 }

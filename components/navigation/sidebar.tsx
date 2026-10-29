@@ -426,6 +426,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'My Work',
           href: '/crm/jr-architecture/my-work',
         },
+        {
+          icon: Settings,
+          label: 'Settings',
+          href: '/crm/jr-architecture/settings',
+        },
       ],
     },
   ],
@@ -839,6 +844,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
                   '/crm/jr-architecture/cad-phase-queue',
                   '/crm/jr-architecture/projects',
                   '/crm/jr-architecture/visits',
+                  '/crm/jr-architecture/settings',
                 ].includes(item.href),
             ),
           }

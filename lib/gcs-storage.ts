@@ -119,6 +119,37 @@ export async function downloadFromGCSUrl(url: string): Promise<{
 }
 
 /**
+ * Deletes an object from Google Cloud Storage by its public URL.
+ * Silently succeeds if the file is already deleted or not found.
+ */
+export async function deleteFromGCSUrl(url: string): Promise<boolean> {
+  if (!isGCSUploadUrl(url)) {
+    return false
+  }
+
+  const storage = getGCSStorage()
+  const creds = getGCSCredentials()
+  if (!storage || !creds) {
+    console.warn('[deleteFromGCSUrl] Google Cloud Storage credentials not configured')
+    return false
+  }
+
+  const parts = getGCSUrlParts(url)
+  if (!parts) {
+    return false
+  }
+
+  try {
+    const file = storage.bucket(creds.bucketName).file(parts.objectName)
+    await file.delete({ ignoreNotFound: true })
+    return true
+  } catch (error) {
+    console.warn(`[deleteFromGCSUrl] Failed to delete file ${parts.objectName}:`, error)
+    return false
+  }
+}
+
+/**
  * Upload a File or Buffer to Google Cloud Storage.
  * Returns public URL and metadata.
  */

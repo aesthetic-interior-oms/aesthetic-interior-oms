@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  Upload,
   UserRound,
   X,
 } from 'lucide-react'
@@ -46,6 +47,7 @@ import {
 import { toast } from 'sonner'
 import { formatCadSubmissionFileType } from '@/lib/cad-work'
 import { formatBytesToMbLabel } from '@/lib/upload-limits'
+import { CadSubmissionDialog } from '@/components/crm/junior/cad-submission-dialog'
 
 type SubmissionFile = {
   id: string
@@ -167,6 +169,7 @@ export default function JrArchitectMyWorkPage() {
 
   // Detailed inspect modal for past submissions
   const [inspectLead, setInspectLead] = useState<MyWorkLead | null>(null)
+  const [submitWorkLead, setSubmitWorkLead] = useState<MyWorkLead | null>(null)
 
   const loadTasks = useCallback(async (monthKey = 'ALL', silent = false) => {
     if (!silent) setLoading(true)
@@ -634,6 +637,15 @@ export default function JrArchitectMyWorkPage() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1 text-xs"
+                              onClick={() => setSubmitWorkLead(lead)}
+                            >
+                              <Upload className="h-3.5 w-3.5" />
+                              Upload
+                            </Button>
                             {lead.submissions.length > 0 ? (
                               <Button
                                 size="sm"
@@ -834,17 +846,29 @@ export default function JrArchitectMyWorkPage() {
                         </Link>
                       </Button>
 
-                      {lead.submissions.length > 0 ? (
+                      <div className="flex items-center gap-1.5">
                         <Button
                           size="sm"
                           variant="outline"
                           className="h-8 text-xs gap-1.5"
-                          onClick={() => setInspectLead(lead)}
+                          onClick={() => setSubmitWorkLead(lead)}
                         >
-                          <Eye className="h-3.5 w-3.5" />
-                          View Full History
+                          <Upload className="h-3.5 w-3.5" />
+                          Upload / Resubmit
                         </Button>
-                      ) : null}
+
+                        {lead.submissions.length > 0 ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="h-8 text-xs gap-1.5"
+                            onClick={() => setInspectLead(lead)}
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            History
+                          </Button>
+                        ) : null}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -965,6 +989,16 @@ export default function JrArchitectMyWorkPage() {
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <CadSubmissionDialog
+        open={Boolean(submitWorkLead)}
+        onOpenChange={(open) => {
+          if (!open) setSubmitWorkLead(null)
+        }}
+        leadId={submitWorkLead?.id ?? null}
+        leadName={submitWorkLead?.name}
+        onSubmitted={() => void loadTasks(selectedMonth)}
+      />
     </div>
   )
 }
