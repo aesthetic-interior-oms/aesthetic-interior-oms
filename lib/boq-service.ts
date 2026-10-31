@@ -203,6 +203,12 @@ export async function getLeadRequisitionData(leadId: string) {
             items: {
               orderBy: { id: 'asc' },
             },
+            amendments: {
+              orderBy: { requestedAt: 'desc' },
+              include: {
+                requestedBy: { select: { fullName: true } },
+              },
+            },
           },
         },
       },
@@ -238,7 +244,10 @@ export async function getLeadRequisitionData(leadId: string) {
             requisitionNo: existingRequisition.requisitionNo,
             status: existingRequisition.status,
             notes: existingRequisition.notes,
+            rejectionReason: existingRequisition.rejectionReason,
+            cancellationReason: existingRequisition.cancellationReason,
             items: existingRequisition.items,
+            amendments: existingRequisition.amendments,
           }
         : null,
     }
@@ -279,6 +288,15 @@ export async function saveMaterialRequisition(input: {
     let requisitionId = existing?.id
 
     if (existing) {
+      // Guard against deleting purchase lines while in procurement or fulfilled (Question 9)
+      if (existing.status === 'IN_PROCUREMENT' || existing.status === 'FULFILLED') {
+        return {
+          success: false,
+          error:
+            'This requisition is currently in procurement. Active supplier orders are attached. Please use "Request Amendment" to propose changes.',
+        }
+      }
+
       // Update header
       await prisma.materialRequisition.update({
         where: { id: existing.id },
@@ -286,6 +304,7 @@ export async function saveMaterialRequisition(input: {
           status: input.status || existing.status,
           notes: input.notes,
           quotationDraftId: input.quotationDraftId || existing.quotationDraftId,
+          ...(input.status === 'SUBMITTED' ? { rejectionReason: null } : {}),
         },
       })
       // Clear old items and recreate
@@ -354,5 +373,39 @@ export type { CabinetCatalogConfig }
 
 export async function getBoqCabinetCatalog(): Promise<CabinetCatalogConfig> {
   return DEFAULT_CABINET_CATALOG
+}
+
+export async function createBoqAmendment(leadId: string, changeDescription: string) {
+  try {
+    const authResult = await requireDatabaseRoles([])
+    if (!authResult.ok) return { success: false, error: 'Unauthorized' }
+
+    if (!changeDescription.trim()) {
+      return { success: false, error: 'Change description is required.' }
+    }
+
+    const requisition = await prisma.materialRequisition.findFirst({
+      where: { leadId },
+      select: { id: true },
+    })
+
+    if (!requisition) {
+      return { success: false, error: 'No requisition found for this project.' }
+    }
+
+    const amendment = await prisma.requisitionAmendment.create({
+      data: {
+        requisitionId: requisition.id,
+        changeDescription: changeDescription.trim(),
+        requestedById: authResult.actorUserId,
+        status: 'PENDING',
+      },
+    })
+
+    return { success: true, data: amendment }
+  } catch (error) {
+    console.error('Error creating BOQ amendment:', error)
+    return { success: false, error: 'Failed to submit amendment request.' }
+  }
 }
 

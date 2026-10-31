@@ -33,8 +33,9 @@ import {
   Zap,
   Check,
   X,
+  Truck,
 } from 'lucide-react'
-import { saveMaterialRequisition, RequisitionItemInput } from '@/lib/boq-service'
+import { saveMaterialRequisition, createBoqAmendment, RequisitionItemInput } from '@/lib/boq-service'
 import { DEFAULT_CABINET_CATALOG, getCabinetThicknessOptions } from '@/lib/boq-cabinet-catalog'
 import {
   inferProductCategoryRule,
@@ -238,6 +239,9 @@ export function RequisitionBuilderClient({
     existingRequisition?.status === 'SUBMITTED' ? 'SUBMITTED' : existingRequisition ? 'DRAFT' : null
   )
   const [isPdfGenerating, setIsPdfGenerating] = useState(false)
+  const [isAmendmentModalOpen, setIsAmendmentModalOpen] = useState(false)
+  const [amendmentText, setAmendmentText] = useState('')
+  const [isSubmittingAmendment, setIsSubmittingAmendment] = useState(false)
   const [notes, setNotes] = useState<string>(existingRequisition?.notes || '')
   const [boqSavedAccessories, setBoqSavedAccessories] = useState<BoqSavedAccessoryItem[]>(DEFAULT_SAVED_ACCESSORIES)
 
@@ -1226,6 +1230,43 @@ export function RequisitionBuilderClient({
         </div>
       )}
 
+      {/* ── Procurement Rejection Banner ── */}
+      {existingRequisition?.status === 'REJECTED' && (
+        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-900 dark:text-rose-200 text-sm space-y-1">
+          <div className="flex items-center gap-2 font-bold text-rose-700 dark:text-rose-300">
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <span>Requisition Rejected by Procurement Department</span>
+          </div>
+          <p className="text-xs pl-7">
+            Reason: <strong className="font-semibold">{existingRequisition.rejectionReason || 'Please review and adjust specifications before resubmitting.'}</strong>
+          </p>
+          <p className="text-[11px] pl-7 text-muted-foreground">
+            Update the material rows and click &quot;Submit Requisition&quot; again to resend for procurement review.
+          </p>
+        </div>
+      )}
+
+      {/* ── In Procurement Active Banner & Amendment ── */}
+      {existingRequisition?.status === 'IN_PROCUREMENT' && (
+        <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-900 dark:text-blue-200 text-sm space-y-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 font-bold text-blue-700 dark:text-blue-300">
+              <Truck className="w-5 h-5 flex-shrink-0" />
+              <span>Requisition is In Active Procurement</span>
+            </div>
+            <button
+              onClick={() => setIsAmendmentModalOpen(true)}
+              className="px-3 py-1 text-xs font-semibold rounded bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+            >
+              + Propose BOQ Amendment
+            </button>
+          </div>
+          <p className="text-xs">
+            Purchase orders are currently active. Direct overwrite is locked. If site engineer or architect changed requirements, click &quot;Propose BOQ Amendment&quot; to notify the procurement team.
+          </p>
+        </div>
+      )}
+
       {/* ── Executive KPI Summary Strip ── */}
       {detailQuotation ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
@@ -1348,6 +1389,76 @@ export function RequisitionBuilderClient({
         itemsMap={itemsMap}
         notes={notes}
       />
+
+      {/* ── BOQ Requisition Amendment Modal (Question 9) ── */}
+      {isAmendmentModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-xl space-y-4">
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-foreground">
+                Propose BOQ Requisition Amendment
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                This requisition is already under active procurement. Submit an amendment note detailing what material specifications or quantities have changed so the procurement team can adjust orders.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Change Description / Reason *
+              </label>
+              <textarea
+                rows={4}
+                value={amendmentText}
+                onChange={(e) => setAmendmentText(e.target.value)}
+                placeholder="e.g. Project engineer increased tile requirement from 100 to 120 pcs due to pattern layout change."
+                className="w-full rounded-md border border-input bg-background p-2.5 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAmendmentModalOpen(false)
+                  setAmendmentText('')
+                }}
+                disabled={isSubmittingAmendment}
+                className="rounded-lg border border-input px-3 py-1.5 text-xs font-semibold hover:bg-accent"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!amendmentText.trim()) return
+                  setIsSubmittingAmendment(true)
+                  try {
+                    const res = await createBoqAmendment(lead.id, amendmentText)
+                    if (res.success) {
+                      setSaveSuccess('Amendment request submitted to Procurement team.')
+                      setIsAmendmentModalOpen(false)
+                      setAmendmentText('')
+                      router.refresh()
+                    } else {
+                      setSaveError(res.error || 'Failed to submit amendment.')
+                    }
+                  } catch (e) {
+                    setSaveError(e instanceof Error ? e.message : 'Error submitting amendment.')
+                  } finally {
+                    setIsSubmittingAmendment(false)
+                  }
+                }}
+                disabled={isSubmittingAmendment || !amendmentText.trim()}
+                className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {isSubmittingAmendment ? 'Submitting...' : 'Submit Amendment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Left Product Drawer ── */}
       <QuotationProductsDrawer

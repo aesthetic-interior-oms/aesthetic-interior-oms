@@ -204,6 +204,14 @@ export interface RequisitionBuilderProps {
     requisitionNo: string
     status: string
     notes: string | null
+    rejectionReason?: string | null
+    cancellationReason?: string | null
+    amendments?: Array<{
+      id: string
+      changeDescription: string
+      status: string
+      requestedAt: Date
+    }>
     items: SavedRequisitionItem[]
   } | null
 }
