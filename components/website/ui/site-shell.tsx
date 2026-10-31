@@ -11,6 +11,7 @@ const APP_ROUTES_WITHOUT_WEBSITE_CHROME = [
   "/visit-team",
   "/quotation-team",
   "/onboarding",
+  "/procurement",
 ];
 
 function shouldHideWebsiteChrome(pathname: string) {
