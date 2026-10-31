@@ -112,6 +112,26 @@ function determineGroup(item: RequisitionItemInput): { key: string; label: strin
   return { key: 'OTHER', label: '📦 Materials' }
 }
 
+function matchesActiveSection(entry: UsedMaterialEntry, section: CardSection | null): boolean {
+  if (!section) return true
+
+  const itemCeilingSubType = entry.item.variantAttributes?.ceilingSubType
+  if (section.category === 'CEILING') {
+    if (section.ceilingSubType === 'ELECTRICAL_DEVICES') {
+      return entry.category === 'ELECTRICAL_WORK' ||
+        (entry.category === 'CEILING' && itemCeilingSubType === 'ELECTRICAL_DEVICES')
+    }
+    return entry.category === 'CEILING' && itemCeilingSubType !== 'ELECTRICAL_DEVICES'
+  }
+
+  if (section.category === 'ELECTRICAL_WORK') {
+    return entry.category === 'ELECTRICAL_WORK' ||
+      (entry.category === 'CEILING' && itemCeilingSubType === 'ELECTRICAL_DEVICES')
+  }
+
+  return entry.category === section.category
+}
+
 function buildDisplayDetails(item: RequisitionItemInput): {
   displayTitle: string
   tags: { label: string; value: string; color?: string }[]
@@ -201,6 +221,10 @@ export function UsedMaterialsPalette({
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [persistedItems, setPersistedItems] = useState<RequisitionItemInput[]>([])
 
+  useEffect(() => {
+    setSelectedGroup('ALL')
+  }, [activeSection?.id])
+
   // Load project-persisted used items from localStorage
   const storageKey = `boq_lead_used_items_${leadId}`
   useEffect(() => {
@@ -281,6 +305,11 @@ export function UsedMaterialsPalette({
     return list
   }, [itemsMap, sectionsMap, productSlides, persistedItems])
 
+  const targetEntries = useMemo(
+    () => usedEntries.filter((entry) => matchesActiveSection(entry, activeSection)),
+    [usedEntries, activeSection]
+  )
+
   // Save current project items to localStorage
   useEffect(() => {
     if (usedEntries.length === 0) return
@@ -295,7 +324,7 @@ export function UsedMaterialsPalette({
   // Available groups for filtering
   const groups = useMemo(() => {
     const m = new Map<string, { key: string; label: string; count: number }>()
-    for (const entry of usedEntries) {
+    for (const entry of targetEntries) {
       const existing = m.get(entry.groupKey)
       if (existing) {
         existing.count++
@@ -304,11 +333,11 @@ export function UsedMaterialsPalette({
       }
     }
     return Array.from(m.values()).sort((a, b) => b.count - a.count)
-  }, [usedEntries])
+  }, [targetEntries])
 
   // Filter entries
   const filteredEntries = useMemo(() => {
-    let result = usedEntries
+    let result = targetEntries
 
     if (selectedGroup !== 'ALL') {
       result = result.filter((e) => e.groupKey === selectedGroup)
@@ -325,7 +354,7 @@ export function UsedMaterialsPalette({
     }
 
     return result
-  }, [usedEntries, selectedGroup, search])
+  }, [targetEntries, selectedGroup, search])
 
   // Target section name label
   const activeSectionLabel = useMemo(() => {
@@ -368,11 +397,11 @@ export function UsedMaterialsPalette({
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-foreground">Used Materials</h3>
                 <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                  {usedEntries.length} in Project
+                  {targetEntries.length} for Target
                 </span>
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Drag & drop onto any section or click Insert
+                Showing materials for this target. Drag & drop or click Insert.
               </p>
             </div>
           </div>
@@ -428,7 +457,7 @@ export function UsedMaterialsPalette({
                 : 'bg-background hover:bg-muted text-muted-foreground border border-border/60'
             }`}
           >
-            All ({usedEntries.length})
+            All ({targetEntries.length})
           </button>
           {groups.map((g) => (
             <button
