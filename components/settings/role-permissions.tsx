@@ -81,6 +81,7 @@ const getDepartmentPermissionMap = (department: Department): RolePermissionMap =
     'SR_CRM': 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-200',
     'JR_ARCHITECT': 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-200',
     '3D_VISUALIZER': 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200',
+    'VISUALIZER_3D': 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200',
     'QUOTATION_TEAM': 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200',
     'VISIT_TEAM': 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200',
     'ACCOUNTS': 'bg-lime-100 dark:bg-lime-900/40 text-lime-800 dark:text-lime-200',

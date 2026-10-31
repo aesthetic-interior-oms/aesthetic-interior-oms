@@ -28,16 +28,17 @@ const DEPARTMENT_ROUTES: Record<string, string> = {
   ADMIN: "/crm/admin/dashboard",
   JR_CRM: "/crm/jr/dashboard",
   JR_ARCHITECT: "/crm/jr-architecture/dashboard",
-  VISUALIZER_3D: "/crm/visualizer/dashboard",
   "3D_VISUALIZER": "/crm/visualizer/dashboard",
-  QUOTATION: "/quotation-team/dashboard",
+  VISUALIZER_3D: "/crm/visualizer/dashboard",      // legacy alias
   QUOTATION_TEAM: "/quotation-team/dashboard",
+  QUOTATION: "/quotation-team/dashboard",           // legacy alias
   SR_CRM: "/crm/sr/dashboard",
   VISIT_TEAM: "/visit-team/visit-dashboard",
   SPECIALIST_DESIGN_CONSULTANTS: "/visit-team/visit-dashboard",
   FINANCE: "/crm/admin/finance",
   ACCOUNTS: "/crm/admin/finance",
-  PROJECT_COORDINATOR: "/crm/pc/dashboard",
+  PROJECT_CORDINATOR: "/crm/pc/dashboard",
+  PROJECT_COORDINATOR: "/crm/pc/dashboard",         // legacy alias
   BOQ: "/crm/boq/dashboard",
   HUMAN_RESOURCES: "/crm/hr/dashboard",
   HUMAN_RESOURCE: "/crm/hr/dashboard",

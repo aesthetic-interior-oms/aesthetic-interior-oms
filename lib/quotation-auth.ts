@@ -24,12 +24,13 @@ export function canAccessQuotationDraft(actorDepartments: string[]): boolean {
     isQuotationAdmin(actorDepartments) ||
     isQuotationDepartment(actorDepartments) ||
     actorDepartments.includes('ACCOUNTS') ||
-    actorDepartments.includes('PROJECT_COORDINATOR') ||
     actorDepartments.includes('PROJECT_CORDINATOR') ||
+    actorDepartments.includes('PROJECT_COORDINATOR') ||
     actorDepartments.includes('VISIT_TEAM') ||
     actorDepartments.includes('SPECIALIST_DESIGN_CONSULTANTS') ||
     actorDepartments.includes('JR_CRM') ||
     actorDepartments.includes('JR_ARCHITECT') ||
+    actorDepartments.includes('3D_VISUALIZER') ||
     actorDepartments.includes('VISUALIZER_3D') ||
     actorDepartments.includes('BOQ') ||
     actorDepartments.includes('PROCUREMENT')
@@ -45,12 +46,13 @@ export function canEditQuotationDraft(input: {
 }): boolean {
   if (
     isQuotationAdmin(input.actorDepartments) ||
-    input.actorDepartments.includes('PROJECT_COORDINATOR') ||
     input.actorDepartments.includes('PROJECT_CORDINATOR') ||
+    input.actorDepartments.includes('PROJECT_COORDINATOR') ||
     input.actorDepartments.includes('VISIT_TEAM') ||
     input.actorDepartments.includes('SPECIALIST_DESIGN_CONSULTANTS') ||
     input.actorDepartments.includes('JR_CRM') ||
     input.actorDepartments.includes('JR_ARCHITECT') ||
+    input.actorDepartments.includes('3D_VISUALIZER') ||
     input.actorDepartments.includes('VISUALIZER_3D')
   ) {
     return true

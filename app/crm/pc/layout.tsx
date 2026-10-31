@@ -42,6 +42,7 @@ export default async function ProjectCoordinatorLayout({
   )
 
   if (
+    departmentNames.has('PROJECT_CORDINATOR') ||
     departmentNames.has('PROJECT_COORDINATOR') ||
     departmentNames.has('ADMIN')
   ) {

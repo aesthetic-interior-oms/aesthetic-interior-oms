@@ -15,19 +15,21 @@ const VALID_DEPARTMENTS = [
   'SDC',
   'JR_ARCHITECT',
   '3D_VISUALIZER',
-  'VISUALIZER_3D',
   'ACCOUNTS',
-  'PROJECT_COORDINATOR',
+  'PROJECT_CORDINATOR',
   'BOQ',
   'PROCUREMENT',
 ] as const;
 
 function resolveDepartmentAliases(departmentName: string): string[] {
-  if (departmentName === '3D_VISUALIZER' || departmentName === 'VISUALIZER_3D') {
+  if (departmentName === '3D_VISUALIZER') {
     return ['3D_VISUALIZER', 'VISUALIZER_3D', '3d_visualizer', 'visualizer_3d']
   }
-  if (departmentName === 'QUOTATION_TEAM' || departmentName === 'QUOTATION') {
+  if (departmentName === 'QUOTATION_TEAM') {
     return ['QUOTATION_TEAM', 'QUOTATION', 'SR_CRM', 'quotation_team', 'quotation']
+  }
+  if (departmentName === 'PROJECT_CORDINATOR') {
+    return ['PROJECT_CORDINATOR', 'PROJECT_COORDINATOR']
   }
   if (departmentName === 'BOQ') {
     return [
