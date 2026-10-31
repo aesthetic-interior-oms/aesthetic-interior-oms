@@ -8,37 +8,42 @@ import {
   FileCheck,
   CheckCircle2,
   Package,
+  ExternalLink,
+  XCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import prisma from '@/lib/prisma'
 
 export const revalidate = 0
 
 export default async function ProcurementReviewCenterPage() {
-  const pendingReviewCount = await prisma.materialRequisition.count({
-    where: { status: 'SUBMITTED' },
-  })
-
-  const inProcurementCount = await prisma.materialRequisition.count({
-    where: { status: 'IN_PROCUREMENT' },
-  })
-
-  const submittedRequisitions = await prisma.materialRequisition.findMany({
-    where: { status: 'SUBMITTED' },
-    take: 10,
-    orderBy: { createdAt: 'desc' },
-    include: {
-      lead: {
-        select: { id: true, name: true, location: true },
+  const [
+    pendingReviewCount,
+    inProcurementCount,
+    rejectedCount,
+    submittedRequisitions,
+  ] = await Promise.all([
+    prisma.materialRequisition.count({ where: { status: 'SUBMITTED' } }),
+    prisma.materialRequisition.count({ where: { status: 'IN_PROCUREMENT' } }),
+    prisma.materialRequisition.count({ where: { status: 'REJECTED' } }),
+    prisma.materialRequisition.findMany({
+      where: { status: 'SUBMITTED' },
+      take: 20,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        lead: {
+          select: { id: true, name: true, location: true },
+        },
+        createdBy: {
+          select: { fullName: true },
+        },
+        _count: {
+          select: { items: true },
+        },
       },
-      createdBy: {
-        select: { fullName: true },
-      },
-      _count: {
-        select: { items: true },
-      },
-    },
-  })
+    }),
+  ])
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
@@ -95,20 +100,20 @@ export default async function ProcurementReviewCenterPage() {
           <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
             {inProcurementCount}
           </div>
-          <p className="text-xs text-muted-foreground">Currently being sourced</p>
+          <p className="text-xs text-muted-foreground">Currently being sourced & delivered</p>
         </div>
 
         <div className="rounded-xl border bg-card p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Quality Compliance
+              Rejected / Sent Back
             </span>
-            <ShieldCheck className="w-5 h-5 text-emerald-500" />
+            <XCircle className="w-5 h-5 text-rose-500" />
           </div>
-          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-            100%
+          <div className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+            {rejectedCount}
           </div>
-          <p className="text-xs text-muted-foreground">Spec matching requirement</p>
+          <p className="text-xs text-muted-foreground">Returned to BOQ for specs correction</p>
         </div>
       </div>
 
@@ -166,9 +171,10 @@ export default async function ProcurementReviewCenterPage() {
                       {new Date(req.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-                        <Link href={`/procurement/requisitions?search=${encodeURIComponent(req.requisitionNo)}`}>
-                          Review Items
+                      <Button asChild size="sm" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5">
+                        <Link href={`/procurement/requisitions/${req.id}`}>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          Review & Source
                         </Link>
                       </Button>
                     </td>

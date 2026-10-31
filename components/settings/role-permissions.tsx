@@ -351,9 +351,13 @@ export function RolePermissions() {
                     <div className="flex items-center gap-3 flex-1 min-w-0">
                       {/* System / Custom icon */}
                       {roleData.isSystem ? (
-                        <Shield className="w-4 h-4 text-muted-foreground shrink-0" title="System department" />
+                        <span title="System department">
+                          <Shield className="w-4 h-4 text-muted-foreground shrink-0" />
+                        </span>
                       ) : (
-                        <Building2 className="w-4 h-4 text-primary shrink-0" title="Custom department" />
+                        <span title="Custom department">
+                          <Building2 className="w-4 h-4 text-primary shrink-0" />
+                        </span>
                       )}
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">

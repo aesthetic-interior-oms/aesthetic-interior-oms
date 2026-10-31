@@ -189,6 +189,13 @@ model User {
   materialRequisitionsCreated MaterialRequisition[]      @relation("MaterialRequisitionCreatedBy")
   conveyanceRequests          ConveyanceRequest[]         @relation("ConveyanceRequester")
   conveyanceReviewed          ConveyanceRequest[]         @relation("ConveyanceReviewer")
+  purchaseLinesCreated        PurchaseLine[]             @relation("PurchaseLineCreatedBy")
+  purchaseLinesUpdated        PurchaseLine[]             @relation("PurchaseLineUpdatedBy")
+  deliveryBatchesReceived     DeliveryBatch[]            @relation("DeliveryBatchReceivedBy")
+  deliveryDateLogsCreated     DeliveryDateLog[]          @relation("DeliveryDateLogLoggedBy")
+  purchaseDocumentsUploaded   PurchaseDocument[]         @relation("PurchaseDocumentUploadedBy")
+  requisitionAmendmentsRequested RequisitionAmendment[]  @relation("RequisitionAmendmentRequestedBy")
+  requisitionAmendmentsAcknowledged RequisitionAmendment[] @relation("RequisitionAmendmentAcknowledgedBy")
 }
 
 model DeviceToken {
@@ -1497,25 +1504,30 @@ enum RequisitionWorkCategory {
 enum RequisitionStatus {
   DRAFT
   SUBMITTED
+  REJECTED
   IN_PROCUREMENT
   FULFILLED
+  CANCELLED
 }
 
 model MaterialRequisition {
-  id               String                    @id @default(cuid())
-  leadId           String
-  quotationDraftId String?
-  requisitionNo    String                    @unique
-  status           RequisitionStatus         @default(DRAFT)
-  createdById      String
-  notes            String?
-  createdAt        DateTime                  @default(now())
-  updatedAt        DateTime                  @updatedAt
+  id                 String                    @id @default(cuid())
+  leadId             String
+  quotationDraftId   String?
+  requisitionNo      String                    @unique
+  status             RequisitionStatus         @default(DRAFT)
+  createdById        String
+  notes              String?
+  rejectionReason    String?
+  cancellationReason String?
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
 
-  lead             Lead                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  quotationDraft   QuotationDraft?           @relation(fields: [quotationDraftId], references: [id])
-  createdBy        User                      @relation("MaterialRequisitionCreatedBy", fields: [createdById], references: [id])
-  items            MaterialRequisitionItem[]
+  lead               Lead                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  quotationDraft     QuotationDraft?           @relation(fields: [quotationDraftId], references: [id])
+  createdBy          User                      @relation("MaterialRequisitionCreatedBy", fields: [createdById], references: [id])
+  items              MaterialRequisitionItem[]
+  amendments         RequisitionAmendment[]
 
   @@index([leadId])
   @@index([quotationDraftId])
@@ -1540,6 +1552,7 @@ model MaterialRequisitionItem {
 
   requisition         MaterialRequisition     @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
   stockItem           StockItem?              @relation(fields: [stockItemId], references: [id])
+  purchaseLines       PurchaseLine[]
 
   @@index([requisitionId])
   @@index([stockItemId])
@@ -1558,5 +1571,138 @@ model BoqSavedAccessoryItem {
   updatedAt   DateTime @updatedAt
 
   @@index([isActive, serialNo])
+}
+
+enum PurchaseStockSource {
+  FROM_STOCK
+  PURCHASED
+}
+
+enum PurchasePaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+}
+
+enum PurchaseDeliveryStatus {
+  PENDING
+  PARTIALLY_DELIVERED
+  DELIVERED
+  RETURNED
+}
+
+enum PurchaseDocumentType {
+  DELIVERY_NOTE
+  TAX_INVOICE
+  RECEIPT
+  REPLACEMENT_RECEIPT
+  OTHER
+}
+
+model PurchaseLine {
+  id                   String                 @id @default(cuid())
+  requisitionItemId    String
+  stockSource          PurchaseStockSource    @default(PURCHASED)
+  supplierName         String?
+  supplierPhone        String?
+  supplierEmail        String?
+  quantityOrdered      Float                  @default(1)
+  quantityDelivered    Float                  @default(0)
+  quotedUnitPrice      Float?
+  negotiatedUnitPrice  Float?
+  materialTotal        Float                  @default(0)
+  transportCost        Float                  @default(0)
+  loadingCost          Float                  @default(0)
+  taxAmount            Float                  @default(0)
+  otherCosts           Float                  @default(0)
+  totalPurchaseCost    Float                  @default(0)
+  paymentStatus        PurchasePaymentStatus  @default(UNPAID)
+  paidAmount           Float                  @default(0)
+  deliveryStatus       PurchaseDeliveryStatus @default(PENDING)
+  returnReason         String?
+  replacementNote      String?
+  dateOrdered          DateTime?
+  expectedDeliveryDate DateTime?
+  notes                String?
+  createdById          String?
+  updatedById          String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  requisitionItem      MaterialRequisitionItem @relation(fields: [requisitionItemId], references: [id], onDelete: Cascade)
+  createdBy            User?                   @relation("PurchaseLineCreatedBy", fields: [createdById], references: [id])
+  updatedBy            User?                   @relation("PurchaseLineUpdatedBy", fields: [updatedById], references: [id])
+
+  deliveryBatches      DeliveryBatch[]
+  deliveryDateLogs     DeliveryDateLog[]
+  documents            PurchaseDocument[]
+
+  @@index([requisitionItemId])
+  @@index([deliveryStatus])
+  @@index([paymentStatus])
+}
+
+model DeliveryBatch {
+  id                String       @id @default(cuid())
+  purchaseLineId    String
+  quantityDelivered Float
+  deliveredAt       DateTime     @default(now())
+  receivedById      String?
+  notes             String?
+  createdAt         DateTime     @default(now())
+
+  purchaseLine      PurchaseLine @relation(fields: [purchaseLineId], references: [id], onDelete: Cascade)
+  receivedBy        User?        @relation("DeliveryBatchReceivedBy", fields: [receivedById], references: [id])
+
+  @@index([purchaseLineId])
+}
+
+model DeliveryDateLog {
+  id             String       @id @default(cuid())
+  purchaseLineId String
+  promisedDate   DateTime
+  reason         String?
+  loggedById     String?
+  loggedAt       DateTime     @default(now())
+
+  purchaseLine   PurchaseLine @relation(fields: [purchaseLineId], references: [id], onDelete: Cascade)
+  loggedBy       User?        @relation("DeliveryDateLogLoggedBy", fields: [loggedById], references: [id])
+
+  @@index([purchaseLineId])
+}
+
+model PurchaseDocument {
+  id             String               @id @default(cuid())
+  purchaseLineId String
+  documentType   PurchaseDocumentType @default(RECEIPT)
+  fileUrl        String
+  fileName       String?
+  fileSize       Int?
+  uploadedById   String?
+  notes          String?
+  uploadedAt     DateTime             @default(now())
+
+  purchaseLine   PurchaseLine         @relation(fields: [purchaseLineId], references: [id], onDelete: Cascade)
+  uploadedBy     User?                @relation("PurchaseDocumentUploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([purchaseLineId])
+}
+
+model RequisitionAmendment {
+  id                String              @id @default(cuid())
+  requisitionId     String
+  requestedById     String
+  changeDescription String
+  requestedAt       DateTime            @default(now())
+  status            String              @default("PENDING")
+  acknowledgedById  String?
+  acknowledgedAt    DateTime?
+
+  requisition       MaterialRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  requestedBy       User                @relation("RequisitionAmendmentRequestedBy", fields: [requestedById], references: [id])
+  acknowledgedBy    User?               @relation("RequisitionAmendmentAcknowledgedBy", fields: [acknowledgedById], references: [id])
+
+  @@index([requisitionId])
+  @@index([status])
 }
 

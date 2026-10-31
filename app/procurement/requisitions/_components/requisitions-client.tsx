@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import {
   Package,
   Search,
@@ -16,6 +17,8 @@ import {
   AlertCircle,
   Building2,
   Phone,
+  ExternalLink,
+  XCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -320,6 +323,13 @@ export function RequisitionsClient({
 
                       <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
+                          <Button asChild size="sm" variant="default" className="h-8 text-xs gap-1 bg-indigo-600 hover:bg-indigo-700 text-white">
+                            <Link href={`/procurement/requisitions/${req.id}`}>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              Manage
+                            </Link>
+                          </Button>
+
                           <Button
                             variant="outline"
                             size="sm"
@@ -327,7 +337,7 @@ export function RequisitionsClient({
                             onClick={() => setSelectedReq(req)}
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            Details
+                            Quick View
                           </Button>
 
                           {req.status !== 'FULFILLED' && (
@@ -383,6 +393,12 @@ export function RequisitionsClient({
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <Button asChild size="sm" className="h-8 text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5">
+                      <Link href={`/procurement/requisitions/${selectedReq.id}`}>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        Procurement Workspace
+                      </Link>
+                    </Button>
                     <Button variant="outline" size="sm" onClick={handlePrint} className="h-8 text-xs gap-1.5">
                       <Printer className="w-3.5 h-3.5" />
                       Print Slip
