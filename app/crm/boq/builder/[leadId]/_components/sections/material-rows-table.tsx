@@ -293,9 +293,9 @@ export function MaterialRowsTable({
                         onChange={(val, fType) => {
                           onUpdateVariant(ri, 'laminateTopSurface', val)
                           onUpdateVariant(ri, 'boardLaminateType', fType)
-                          const isChampaign = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
-                          if (isChampaign) {
-                            const mrMdf = 'MR MDF (Moisture-Resistant Medium-Density Fiberboard)'
+                          const isChampagne = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
+                          if (isChampagne) {
+                            const mrMdf = 'Architect Grade Boards Moisture Resistant(MR) MDF'
                             onUpdateVariant(ri, 'baseMaterial', mrMdf)
                             onChange(ri, 'materialName', mrMdf)
                           }
@@ -1122,9 +1122,9 @@ export function MaterialRowsTable({
                           const frontHpl = fType === 'HPL' || DEFAULT_CABINET_CATALOG.hplBrands.includes(val)
                           const rowHpl = frontHpl || isBackHpl
                           onUpdateVariant(ri, 'isHplPasting', rowHpl ? 'true' : 'false')
-                          const isChampaign = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
-                          if (isChampaign) {
-                            const mrMdf = 'MR MDF (Moisture-Resistant Medium-Density Fiberboard)'
+                          const isChampagne = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
+                          if (isChampagne) {
+                            const mrMdf = 'Architect Grade Boards Moisture Resistant(MR) MDF'
                             onUpdateVariant(ri, 'baseMaterial', mrMdf)
                             onUpdateVariant(ri, 'coreSubstrateType', mrMdf)
                             onChange(ri, 'materialName', rowHpl ? `${mrMdf} HPL Pasting` : mrMdf)

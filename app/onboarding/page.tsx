@@ -43,6 +43,9 @@ const DEPARTMENT_ROUTES: Record<string, string> = {
   HUMAN_RESOURCE: "/crm/hr/dashboard",
   Human_Resources: "/crm/hr/dashboard",
   HR: "/crm/hr/dashboard",
+  PROCUREMENT: "/procurement/dashboard",
+  PROCUREMENT_DEPARTMENT: "/procurement/dashboard",
+  PROCUREMENT_SUPPLY_CHAIN: "/procurement/dashboard",
 };
 
 type Department = {

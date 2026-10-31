@@ -556,12 +556,12 @@ export const SAMPLE_ADHESIVE_CHEMICAL_ITEMS: RequisitionItemInput[] = [
 export const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
   {
     workCategory: 'CABINETS_CLOSETS',
-    materialName: 'MR Board',
+    materialName: 'Architect Grade Boards Moisture Resistant(MR) MDF',
     specifications: '9mm | Champagne Gold (Both Side) | Back Ply',
     variantAttributes: {
       srNo: '1',
       usage: 'Back Ply',
-      baseMaterial: 'MR Board',
+      baseMaterial: 'Architect Grade Boards Moisture Resistant(MR) MDF',
       coreThickness: '9mm',
       isHplPasting: false,
       frontLaminateCode: 'Champagne Gold',
@@ -579,12 +579,12 @@ export const SAMPLE_CABINET_CORE_BOARD_ITEMS: RequisitionItemInput[] = [
   },
   {
     workCategory: 'CABINETS_CLOSETS',
-    materialName: 'MR Board',
+    materialName: 'Architect Grade Boards Moisture Resistant(MR) MDF',
     specifications: '18mm | Champagne Gold | Shutter | Edging: 5 Roll (Edging)',
     variantAttributes: {
       srNo: '1.1',
       usage: 'Shutter',
-      baseMaterial: 'MR Board',
+      baseMaterial: 'Architect Grade Boards Moisture Resistant(MR) MDF',
       coreThickness: '18mm',
       isHplPasting: false,
       frontLaminateCode: 'Champagne Gold',

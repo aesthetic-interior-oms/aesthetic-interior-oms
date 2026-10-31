@@ -22,6 +22,7 @@ import {
   BarChart3,
   Package,
   Wallet,
+  FolderKanban,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -767,6 +768,45 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
+  Procurement: [
+    {
+      id: 'procurement-overview',
+      label: 'Procurement',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/procurement/dashboard',
+        },
+        {
+          icon: Wallet,
+          label: 'Procurement Finance',
+          href: '/procurement/finance',
+        },
+        {
+          icon: CheckSquare,
+          label: 'Review Center',
+          href: '/procurement/review-center',
+        },
+        {
+          icon: Package,
+          label: 'Requisition',
+          href: '/procurement/requisitions',
+        },
+        {
+          icon: FolderKanban,
+          label: 'Project List',
+          href: '/procurement/projects',
+        },
+        {
+          icon: Settings,
+          label: 'Settings',
+          href: '/procurement/settings',
+        },
+      ],
+    },
+  ],
 }
 
 export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
@@ -798,12 +838,19 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
 
   // true for any route that lives under /visits
   const isVisits = pathname.startsWith('/visit-team')
+  const isProcurement =
+    pathname.startsWith('/procurement') ||
+    Boolean(role && role.toUpperCase().includes('PROCUREMENT'))
 
   const isSpecialistDesignConsultants =
     role === 'Specialist Design Consultants' ||
     role === 'SPECIALIST_DESIGN_CONSULTANTS'
 
   const groups = useMemo(() => {
+    if (isProcurement) {
+      return navigationGroups['Procurement'] || []
+    }
+
     const baseGroups = isVisits
       ? isSpecialistDesignConsultants
         ? navigationGroups['Specialist Design Consultants']

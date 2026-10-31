@@ -576,7 +576,7 @@ export function RequisitionBuilderClient({
       ) {
         const lower = (value || '').toLowerCase()
         if (lower.includes('champaign') || lower.includes('champagne')) {
-          const mrMdfFull = 'MR MDF (Moisture-Resistant Medium-Density Fiberboard)'
+          const mrMdfFull = 'Architect Grade Boards Moisture Resistant(MR) MDF'
           nextAttrs.baseMaterial = mrMdfFull
           const cardSecs = sectionsMap[cardKey] ?? []
           const sec = cardSecs.find((s) => s.id === sectionId)

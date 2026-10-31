@@ -226,6 +226,7 @@ export function BoardDatalists() {
       </datalist>
 
       <datalist id="cabinet-base-material-list">
+        <option value="Architect Grade Boards Moisture Resistant(MR) MDF" />
         <option value="MR MDF (Moisture-Resistant Medium-Density Fiberboard)" />
         <option value="MR Board" />
         <option value="Elegant Board" />
@@ -289,6 +290,7 @@ export function BoardDatalists() {
       </datalist>
 
       <datalist id="cabinet-core-substrate-list">
+        <option value="Architect Grade Boards Moisture Resistant(MR) MDF" />
         <option value="MR MDF (Moisture-Resistant Medium-Density Fiberboard)" />
         <option value="MR Board" />
         <option value="Marine Plywood" />

@@ -6,7 +6,7 @@ import { Check, ChevronDown } from 'lucide-react'
 import { GRID_CELL_INPUT } from '../constants/boq-grid-styles'
 import { DEFAULT_CABINET_CATALOG } from '@/lib/boq-cabinet-catalog'
 
-export const PRELAMINATED_OPTIONS = ['Champaign Gold', 'Champagne Gold', 'Elegent', 'Starlight']
+export const PRELAMINATED_OPTIONS = ['Champagne Gold', 'Elegent', 'Starlight']
 export const DUCO_PAINT_OPTIONS = ['Glossy', 'Soft matt']
 
 export interface LaminateFinishPickerProps {
