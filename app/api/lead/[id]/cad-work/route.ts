@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { getJrArchitectWorkflowControlState } from '@/lib/jr-architect-workflow-control'
-import { LeadStage } from '@/generated/prisma/client'
+import { LeadStage, LeadAssignmentDepartment } from '@/generated/prisma/client'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -50,7 +50,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
         },
       }),
       prisma.cadWorkSubmission.findMany({
-        where: { leadId },
+        where: {
+          leadId,
+          department: LeadAssignmentDepartment.JR_ARCHITECT,
+        },
         orderBy: [{ submittedAt: 'desc' }, { versionNumber: 'desc' }],
         include: {
           submittedBy: {

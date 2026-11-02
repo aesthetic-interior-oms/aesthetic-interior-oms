@@ -314,22 +314,24 @@ model LeadMeetingEvent {
 }
 
 model CadWorkSubmission {
-  id            String                  @id @default(cuid())
+  id            String                   @id @default(cuid())
   leadId        String
   submittedById String
   note          String?
-  versionNumber Int                     @default(1)
+  versionNumber Int                      @default(1)
   versionName   String?
-  submittedAt   DateTime                @default(now())
-  createdAt     DateTime                @default(now())
-  updatedAt     DateTime                @updatedAt
-  lead          Lead                    @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  submittedBy   User                    @relation("CadWorkSubmittedBy", fields: [submittedById], references: [id], onDelete: Cascade)
+  department    LeadAssignmentDepartment @default(JR_ARCHITECT)
+  submittedAt   DateTime                 @default(now())
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  lead          Lead                     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  submittedBy   User                     @relation("CadWorkSubmittedBy", fields: [submittedById], references: [id], onDelete: Cascade)
   files         CadWorkSubmissionFile[]
 
   @@index([leadId])
   @@index([submittedById])
   @@index([submittedAt])
+  @@index([department])
 }
 
 model QuotationDraft {

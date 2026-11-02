@@ -138,10 +138,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
       if (!lead) throw new Error('LEAD_NOT_FOUND_OR_NOT_WORKING')
 
+      const existingVisualizerCount = await tx.cadWorkSubmission.count({
+        where: {
+          leadId: lead.id,
+          department: LeadAssignmentDepartment.VISUALIZER_3D,
+        },
+      })
+      const versionNumber = existingVisualizerCount + 1
+
       const submission = await tx.cadWorkSubmission.create({
         data: {
           leadId: lead.id,
           submittedById: authResult.actorUserId,
+          department: LeadAssignmentDepartment.VISUALIZER_3D,
+          versionNumber,
+          versionName: `3D Visualizer Version ${versionNumber}`,
           note: note ?? null,
           ...(uploadedFiles.length > 0
             ? {

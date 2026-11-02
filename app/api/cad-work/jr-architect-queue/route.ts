@@ -115,6 +115,7 @@ async function fetchQueueLeads(where: Prisma.LeadWhereInput, includeOptionalRela
             },
           },
           cadWorkSubmissions: {
+            where: { department: LeadAssignmentDepartment.JR_ARCHITECT },
             orderBy: [{ submittedAt: 'desc' }, { versionNumber: 'desc' }],
             take: 20,
             select: {
@@ -192,7 +193,7 @@ export async function GET(request: NextRequest) {
     const phaseScope: Prisma.LeadWhereInput = queueType === 'history'
       ? {
           OR: [
-            { cadWorkSubmissions: { some: {} } },
+            { cadWorkSubmissions: { some: { department: LeadAssignmentDepartment.JR_ARCHITECT } } },
             { assignments: { some: { department: LeadAssignmentDepartment.JR_ARCHITECT } } },
           ],
         }
@@ -206,12 +207,12 @@ export async function GET(request: NextRequest) {
             {
               stage: LeadStage.DISCOVERY,
               subStatus: LeadSubStatus.FIRST_MEETING_SET,
-              cadWorkSubmissions: { some: {} },
+              cadWorkSubmissions: { some: { department: LeadAssignmentDepartment.JR_ARCHITECT } },
             },
             {
               stage: LeadStage.DISCOVERY,
               subStatus: LeadSubStatus.PROPOSAL_SENT,
-              cadWorkSubmissions: { some: {} },
+              cadWorkSubmissions: { some: { department: LeadAssignmentDepartment.JR_ARCHITECT } },
             },
           ],
         }

@@ -62,6 +62,8 @@ type SubmissionFile = {
 type CadSubmission = {
   id: string
   note: string | null
+  versionNumber?: number
+  versionName?: string | null
   submittedAt: string
   submittedById: string
   submittedBy: {
@@ -926,7 +928,7 @@ export default function JrArchitectMyWorkPage() {
                     <div className="flex items-start justify-between gap-2 border-b border-border/40 pb-2">
                       <div>
                         <span className="text-xs font-bold text-foreground">
-                          Round #{inspectLead.submissions.length - idx}
+                          {sub.versionName || `Version ${sub.versionNumber || (inspectLead.submissions.length - idx)}`}
                         </span>
                         <p className="text-[11px] text-muted-foreground">
                           Submitted on {new Date(sub.submittedAt).toLocaleString('en-US', {

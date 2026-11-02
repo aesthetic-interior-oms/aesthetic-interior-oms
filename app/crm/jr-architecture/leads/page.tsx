@@ -105,6 +105,8 @@ type CadTaskLead = {
   submissions?: Array<{
     id: string
     note: string | null
+    versionNumber?: number
+    versionName?: string | null
     submittedAt: string
     files: Array<{
       id: string
@@ -315,7 +317,7 @@ export default function JrArchitectAssignedWorkPage() {
     <div className="min-h-screen bg-background">
       <CrmPageHeader
         title="Assigned CAD Work"
-        subtitle="Manage and execute active CAD phase assignments with direct 200MB Google Cloud uploads."
+        subtitle="Manage and execute active CAD phase assignments with direct 200MB Google Cloud Bucket uploads."
       />
 
       <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-4">

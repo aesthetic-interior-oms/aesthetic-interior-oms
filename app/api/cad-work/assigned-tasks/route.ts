@@ -67,6 +67,7 @@ export async function GET(request: Request) {
               cadWorkSubmissions: {
                 some: {
                   submittedById: authResult.actorUserId,
+                  department: LeadAssignmentDepartment.JR_ARCHITECT,
                 },
               },
             },
@@ -169,12 +170,17 @@ export async function GET(request: Request) {
           },
         },
         cadWorkSubmissions: {
+          where: {
+            department: LeadAssignmentDepartment.JR_ARCHITECT,
+          },
           orderBy: { submittedAt: 'desc' },
           select: {
             id: true,
             note: true,
             submittedAt: true,
             submittedById: true,
+            versionNumber: true,
+            versionName: true,
             submittedBy: {
               select: { id: true, fullName: true, email: true },
             },
@@ -272,6 +278,8 @@ export async function GET(request: Request) {
         submissions: lead.cadWorkSubmissions.map((sub) => ({
           id: sub.id,
           note: sub.note,
+          versionNumber: sub.versionNumber,
+          versionName: sub.versionName,
           submittedAt: sub.submittedAt.toISOString(),
           submittedById: sub.submittedById,
           submittedBy: sub.submittedBy,

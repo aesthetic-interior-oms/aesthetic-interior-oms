@@ -1,7 +1,7 @@
 import {
-  CAD_WORK_UPLOAD_MAX_BYTES,
-  DIRECT_BLOB_UPLOAD_MAX_BYTES,
-  VISUALIZER_WORK_UPLOAD_MAX_BYTES,
+  CAD_BUCKET_UPLOAD_MAX_BYTES,
+  DIRECT_BUCKET_UPLOAD_MAX_BYTES,
+  VISUALIZER_BUCKET_UPLOAD_MAX_BYTES,
   formatBytesToMbLabel,
 } from '@/lib/upload-limits'
 
@@ -34,14 +34,13 @@ type UploadDirectGCSInput = {
 }
 
 function getUploadMaxBytes(context: ClientGCSUploadContext): number {
-  if (context === 'visualizer-work') return VISUALIZER_WORK_UPLOAD_MAX_BYTES
-  if (context === 'cad-work') return CAD_WORK_UPLOAD_MAX_BYTES
-  return DIRECT_BLOB_UPLOAD_MAX_BYTES
+  if (context === 'visualizer-work') return VISUALIZER_BUCKET_UPLOAD_MAX_BYTES
+  if (context === 'cad-work') return CAD_BUCKET_UPLOAD_MAX_BYTES
+  return DIRECT_BUCKET_UPLOAD_MAX_BYTES
 }
 
 /**
- * Upload a single file to Google Cloud Storage via the /api/gcs/upload endpoint.
- * Mirrors the API of uploadDirectBlobFile() from client-blob-upload.ts.
+ * Upload a single file to Google Cloud Storage Bucket via the /api/gcs/upload endpoint.
  */
 export async function uploadDirectGCSFile({
   file,
@@ -52,7 +51,7 @@ export async function uploadDirectGCSFile({
   const maxBytes = getUploadMaxBytes(context)
   if (file.size > maxBytes) {
     throw new Error(
-      `"${file.name}" is ${formatBytesToMbLabel(file.size)}. Upload supports up to ${formatBytesToMbLabel(maxBytes)} per file.`,
+      `"${file.name}" is ${formatBytesToMbLabel(file.size)}. Direct Google Cloud Bucket upload supports up to ${formatBytesToMbLabel(maxBytes)} per file.`,
     )
   }
 

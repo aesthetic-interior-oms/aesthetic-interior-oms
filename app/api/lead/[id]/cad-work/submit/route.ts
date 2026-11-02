@@ -201,7 +201,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
         throw new Error('RESUBMISSION_LOCKED')
       }
       if (lead.stage === LeadStage.CAD_PHASE && lead.subStatus === LeadSubStatus.CAD_ASSIGNED) {
-        const existingSubmissions = await prisma.cadWorkSubmission.count({ where: { leadId: lead.id } })
+        const existingSubmissions = await prisma.cadWorkSubmission.count({
+          where: {
+            leadId: lead.id,
+            department: LeadAssignmentDepartment.JR_ARCHITECT,
+          },
+        })
         if (existingSubmissions === 0) {
           throw new Error('WORK_NOT_STARTED')
         }
@@ -244,7 +249,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
         }
 
         const existingCount = await tx.cadWorkSubmission.count({
-          where: { leadId: scopedLead.id },
+          where: {
+            leadId: scopedLead.id,
+            department: LeadAssignmentDepartment.JR_ARCHITECT,
+          },
         })
         const versionNumber = existingCount + 1
         const autoVersionName = `Version ${versionNumber}`
@@ -256,6 +264,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
           data: {
             leadId: scopedLead.id,
             submittedById: authResult.actorUserId,
+            department: LeadAssignmentDepartment.JR_ARCHITECT,
             note,
             versionNumber,
             versionName,

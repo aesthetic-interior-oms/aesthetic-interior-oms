@@ -190,10 +190,21 @@ export async function POST(request: NextRequest, context: RouteContext) {
         actorUserId: authResult.actorUserId,
       });
 
+      const existingQuotationCount = await tx.cadWorkSubmission.count({
+        where: {
+          leadId: lead.id,
+          department: LeadAssignmentDepartment.QUOTATION,
+        },
+      });
+      const versionNumber = existingQuotationCount + 1;
+
       const submission = await tx.cadWorkSubmission.create({
         data: {
           leadId: lead.id,
           submittedById: authResult.actorUserId,
+          department: LeadAssignmentDepartment.QUOTATION,
+          versionNumber,
+          versionName: `Quotation Version ${versionNumber}`,
           note: note ?? null,
           ...(uploadedFiles.length > 0
             ? {

@@ -42,7 +42,7 @@ import {
   formatCadSubmissionFileType,
 } from '@/lib/cad-work'
 import { uploadDirectGCSFile, type UploadedGCSFileMeta } from '@/lib/client-gcs-upload'
-import { DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE, DIRECT_BLOB_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
+import { CAD_BUCKET_UPLOAD_LIMIT_MESSAGE, CAD_BUCKET_UPLOAD_MAX_BYTES, formatBytesToMbLabel } from '@/lib/upload-limits'
 import { getSmartDownloadUrl } from '@/lib/download-utils'
 
 export type CadSubmissionRow = {
@@ -232,10 +232,10 @@ export function CadSubmissionDialog({
     }
 
     const rowsWithFiles = submissionRows.filter((row) => Boolean(row.file))
-    const oversizeRow = rowsWithFiles.find((row) => row.file && row.file.size > DIRECT_BLOB_UPLOAD_MAX_BYTES)
+    const oversizeRow = rowsWithFiles.find((row) => row.file && row.file.size > CAD_BUCKET_UPLOAD_MAX_BYTES)
     if (oversizeRow?.file) {
       toast.error(
-        `"${oversizeRow.file.name}" is ${formatBytesToMbLabel(oversizeRow.file.size)}. Direct browser upload supports up to ${formatBytesToMbLabel(DIRECT_BLOB_UPLOAD_MAX_BYTES)} per file.`,
+        `"${oversizeRow.file.name}" is ${formatBytesToMbLabel(oversizeRow.file.size)}. Direct Google Cloud Bucket upload supports up to ${formatBytesToMbLabel(CAD_BUCKET_UPLOAD_MAX_BYTES)} per file.`,
       )
       return
     }
@@ -491,7 +491,7 @@ export function CadSubmissionDialog({
                     </div>
 
                     <p className="text-xs text-muted-foreground">
-                      Supported formats: PDF, PPT, PPTX, DWG, DXF, images. {DIRECT_BLOB_UPLOAD_LIMIT_MESSAGE}
+                      Supported formats: PDF, PPT, PPTX, DWG, DXF, images. {CAD_BUCKET_UPLOAD_LIMIT_MESSAGE}
                     </p>
                   </div>
 
