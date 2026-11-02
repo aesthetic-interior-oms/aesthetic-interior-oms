@@ -185,8 +185,33 @@ export function blankItem(
   }
 }
 
+/**
+ * Flatten all items from the itemsMap into a single array.
+ * Embeds `_sectionId` and `_cardKey` into each item's variantAttributes
+ * so that `seedFromExisting` can reconstruct the exact section structure on reload.
+ */
 export function flattenItems(map: ItemsMap): RequisitionItemInput[] {
-  return Object.values(map).flat()
+  const result: RequisitionItemInput[] = []
+  for (const [key, rows] of Object.entries(map)) {
+    const separatorIdx = key.indexOf('::')
+    if (separatorIdx === -1) {
+      result.push(...rows)
+      continue
+    }
+    const cardKey = key.slice(0, separatorIdx)
+    const sectionId = key.slice(separatorIdx + 2)
+    for (const row of rows) {
+      result.push({
+        ...row,
+        variantAttributes: {
+          ...(row.variantAttributes || {}),
+          _sectionId: sectionId,
+          _cardKey: cardKey,
+        },
+      })
+    }
+  }
+  return result
 }
 
 export function parseDimensions(dimStr?: string): { dimW: string; dimD: string; dimH: string } {
@@ -223,11 +248,12 @@ export function seedFromExisting(
 ): { sectionsMap: SectionsMap; itemsMap: ItemsMap } {
   const sectionsMap: SectionsMap = {}
   const itemsMap: ItemsMap = {}
-  const sectionRegistry: Record<string, string> = {}
+  // Maps registryKey → sectionId (for legacy items without _sectionId)
+  const legacyRegistry: Record<string, string> = {}
+  // Tracks which section IDs already added to each cardKey (for exact reconstruction)
+  const addedSections = new Set<string>()
 
   for (const it of rawItems) {
-    const cardKey: string = it.quotationLineItemId || EXTRA_KEY
-
     let attrs: BoardVariantAttributes = {}
     if (typeof it.variantAttributes === 'string') {
       try {
@@ -253,23 +279,48 @@ export function seedFromExisting(
           (category === 'ELECTRICAL_WORK' ? 'ELECTRICAL_DEVICES' : 'CEILING_LIGHTING')
         : undefined
 
-    const registryKey = `${cardKey}::${category}::${wpSubType ?? ''}::${cabSubType ?? ''}::${accSubType ?? ''}::${appSubType ?? ''}::${ceilingSubType ?? ''}`
+    // Determine the cardKey: prefer saved _cardKey, else fall back to quotationLineItemId
+    const savedCardKey = (attrs._cardKey as string | undefined) || it.quotationLineItemId || EXTRA_KEY
+    const cardKey = savedCardKey
 
-    let secId = sectionRegistry[registryKey]
-    if (!secId) {
-      secId = `sec-${cardKey}-${category}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
-      sectionRegistry[registryKey] = secId
-      if (!sectionsMap[cardKey]) sectionsMap[cardKey] = []
-      sectionsMap[cardKey].push({
-        id: secId,
-        category,
-        wallPanelingSubType: wpSubType,
-        cabinetSubType: cabSubType,
-        accessoriesSubType: accSubType,
-        applianceSubType: appSubType,
-        ceilingSubType,
-        collapsed: false,
-      })
+    // Determine the sectionId: prefer the exact saved _sectionId for lossless reconstruction
+    let secId: string | undefined = attrs._sectionId as string | undefined
+
+    if (secId) {
+      // Exact reconstruction: use the original sectionId
+      if (!addedSections.has(`${cardKey}::${secId}`)) {
+        addedSections.add(`${cardKey}::${secId}`)
+        if (!sectionsMap[cardKey]) sectionsMap[cardKey] = []
+        sectionsMap[cardKey].push({
+          id: secId,
+          category,
+          wallPanelingSubType: wpSubType,
+          cabinetSubType: cabSubType,
+          accessoriesSubType: accSubType,
+          applianceSubType: appSubType,
+          ceilingSubType,
+          collapsed: false,
+        })
+      }
+    } else {
+      // Legacy fallback: group by category+subtype as before
+      const registryKey = `${cardKey}::${category}::${wpSubType ?? ''}::${cabSubType ?? ''}::${accSubType ?? ''}::${appSubType ?? ''}::${ceilingSubType ?? ''}`
+      secId = legacyRegistry[registryKey]
+      if (!secId) {
+        secId = `sec-${cardKey.slice(-8)}-${category}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+        legacyRegistry[registryKey] = secId
+        if (!sectionsMap[cardKey]) sectionsMap[cardKey] = []
+        sectionsMap[cardKey].push({
+          id: secId,
+          category,
+          wallPanelingSubType: wpSubType,
+          cabinetSubType: cabSubType,
+          accessoriesSubType: accSubType,
+          applianceSubType: appSubType,
+          ceilingSubType,
+          collapsed: false,
+        })
+      }
     }
 
     const sKey = sectionItemKey(cardKey, secId)
@@ -278,6 +329,10 @@ export function seedFromExisting(
     const net = Number(it.netQuantity ?? 0)
     const waste = Number(it.wastagePercent ?? 0)
     const final_ = Number(it.finalQuantity ?? (net > 0 ? Math.ceil(net * (1 + waste / 100)) : 0))
+
+    // Strip internal tracking fields before storing in state
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { _sectionId: _s, _cardKey: _c, ...cleanAttrs } = attrs as BoardVariantAttributes & { _sectionId?: string; _cardKey?: string }
 
     itemsMap[sKey].push({
       quotationLineItemId: it.quotationLineItemId ?? undefined,
@@ -291,7 +346,7 @@ export function seedFromExisting(
       productionPhase: it.productionPhase ?? '',
       remarks: it.remarks ?? '',
       variantAttributes: {
-        ...attrs,
+        ...cleanAttrs,
         wpSubType,
         cabinetSubType: cabSubType,
         accessoriesSubType: accSubType,

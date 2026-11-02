@@ -1,20 +1,16 @@
 'use client'
 
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import {
   X,
   Search,
-  GripVertical,
   Plus,
   Sparkles,
-  Layers,
   Package,
   Check,
-  Building,
-  Folder,
   Trash2,
+  ChevronRight,
   Copy,
-  Info,
 } from 'lucide-react'
 import type { RequisitionItemInput } from '@/lib/boq-service'
 import type {
@@ -84,32 +80,32 @@ function getItemSignature(item: RequisitionItemInput): string {
   ].join(':::').toLowerCase()
 }
 
-function determineGroup(item: RequisitionItemInput): { key: string; label: string } {
+function determineGroup(item: RequisitionItemInput): { key: string; label: string; emoji: string } {
   const attrs = item.variantAttributes || {}
   const cat = item.workCategory
 
   if (cat === 'CABINETS_CLOSETS') {
-    return { key: 'CABINET', label: '🪵 Cabinet Specs' }
+    return { key: 'CABINET', label: 'Cabinet Specs', emoji: '🪵' }
   }
   if (cat === 'WALL_PANELING') {
     const wp = attrs.wpSubType
-    if (wp === 'LOUVERS_PROFILES' || attrs.profileType) return { key: 'LOUVER', label: '✨ Decorative Panels' }
-    if (wp === 'SCREWS_FASTENERS' || attrs.fastenerType) return { key: 'SCREW', label: '🔩 Screws & Fasteners' }
-    if (wp === 'NAILS_PINS' || attrs.nailType) return { key: 'NAIL', label: '📌 Nails & Pins' }
-    if (wp === 'ADHESIVES' || attrs.chemicalClass) return { key: 'ADHESIVE', label: '🧪 Adhesives' }
-    return { key: 'BOARD', label: '🪵 Core Boards' }
+    if (wp === 'LOUVERS_PROFILES' || attrs.profileType) return { key: 'LOUVER', label: 'Decorative Panels', emoji: '✨' }
+    if (wp === 'SCREWS_FASTENERS' || attrs.fastenerType) return { key: 'SCREW', label: 'Screws & Fasteners', emoji: '🔩' }
+    if (wp === 'NAILS_PINS' || attrs.nailType) return { key: 'NAIL', label: 'Nails & Pins', emoji: '📌' }
+    if (wp === 'ADHESIVES' || attrs.chemicalClass) return { key: 'ADHESIVE', label: 'Adhesives', emoji: '🧪' }
+    return { key: 'BOARD', label: 'Core Boards', emoji: '🪵' }
   }
   if (cat === 'ACCESSORIES') {
-    if (attrs.serviceCategory) return { key: 'SERVICES', label: '🚚 Deliverables & Services' }
-    return { key: 'ACCESSORY', label: '🍳 Hardware & Accessories' }
+    if (attrs.serviceCategory) return { key: 'SERVICES', label: 'Services', emoji: '🚚' }
+    return { key: 'ACCESSORY', label: 'Hardware', emoji: '🍳' }
   }
   if (cat === 'APPLIANCES') {
-    return { key: 'APPLIANCE', label: '❄️ Appliances' }
+    return { key: 'APPLIANCE', label: 'Appliances', emoji: '❄️' }
   }
   if (cat === 'CEILING' || cat === 'ELECTRICAL_WORK') {
-    return { key: 'ELECTRICAL', label: '💡 Lighting & Electrical' }
+    return { key: 'ELECTRICAL', label: 'Lighting & Electrical', emoji: '💡' }
   }
-  return { key: 'OTHER', label: '📦 Materials' }
+  return { key: 'OTHER', label: 'Materials', emoji: '📦' }
 }
 
 function matchesActiveSection(entry: UsedMaterialEntry, section: CardSection | null): boolean {
@@ -134,18 +130,19 @@ function matchesActiveSection(entry: UsedMaterialEntry, section: CardSection | n
 
 function buildDisplayDetails(item: RequisitionItemInput): {
   displayTitle: string
-  tags: { label: string; value: string; color?: string }[]
+  subtitle: string
+  tags: { label: string; value: string }[]
 } {
   const attrs = item.variantAttributes || {}
-  const tags: { label: string; value: string; color?: string }[] = []
-
+  const tags: { label: string; value: string }[] = []
   let displayTitle = item.materialName || ''
+  let subtitle = ''
 
   if (item.workCategory === 'CABINETS_CLOSETS') {
     const baseMat = attrs.baseMaterial || attrs.coreSubstrateType || 'Cabinet Board'
     const thk = attrs.coreThickness || ''
     displayTitle = `${thk ? `${thk} ` : ''}${baseMat}`
-    if (attrs.usage) tags.push({ label: 'Usage', value: String(attrs.usage) })
+    subtitle = attrs.usage ? String(attrs.usage) : ''
     if (attrs.frontLaminateCode || attrs.laminateFinishDetails) {
       tags.push({ label: 'Front', value: String(attrs.frontLaminateCode || attrs.laminateFinishDetails) })
     }
@@ -153,7 +150,7 @@ function buildDisplayDetails(item: RequisitionItemInput): {
       tags.push({ label: 'Back', value: String(attrs.backLaminateCode) })
     }
     if (attrs.edgingTapeQty) {
-      tags.push({ label: 'Edging', value: String(attrs.edgingTapeQty) })
+      tags.push({ label: 'Edge', value: String(attrs.edgingTapeQty) })
     }
   } else if (item.workCategory === 'WALL_PANELING') {
     const wp = attrs.wpSubType
@@ -163,7 +160,7 @@ function buildDisplayDetails(item: RequisitionItemInput): {
       displayTitle = `${thk ? `${thk} ` : ''}${baseMat}`
       if (attrs.laminateTopSurface) tags.push({ label: 'Top', value: String(attrs.laminateTopSurface) })
       if (attrs.surfaceCodeFinish) tags.push({ label: 'Bottom', value: String(attrs.surfaceCodeFinish) })
-      if (attrs.edgingTapeQty) tags.push({ label: 'Edging', value: String(attrs.edgingTapeQty) })
+      if (attrs.edgingTapeQty) tags.push({ label: 'Edge', value: String(attrs.edgingTapeQty) })
     } else if (wp === 'LOUVERS_PROFILES' || attrs.profileType) {
       displayTitle = String(attrs.profileType || item.materialName || 'Fluted Profile')
       if (attrs.material) tags.push({ label: 'Material', value: String(attrs.material) })
@@ -173,25 +170,21 @@ function buildDisplayDetails(item: RequisitionItemInput): {
       displayTitle = String(attrs.fastenerType || item.materialName || 'Screw')
       if (attrs.lengthInches) tags.push({ label: 'Length', value: String(attrs.lengthInches) })
       if (attrs.gaugeSize) tags.push({ label: 'Gauge', value: String(attrs.gaugeSize) })
-      if (attrs.materialFinish) tags.push({ label: 'Finish', value: String(attrs.materialFinish) })
     } else if (wp === 'NAILS_PINS' || attrs.nailType) {
       displayTitle = String(attrs.nailType || item.materialName || 'Nail / Pin')
       if (attrs.lengthSpec) tags.push({ label: 'Length', value: String(attrs.lengthSpec) })
-      if (attrs.functionalUsage) tags.push({ label: 'Usage', value: String(attrs.functionalUsage) })
     } else if (wp === 'ADHESIVES' || attrs.chemicalClass) {
       displayTitle = String(attrs.chemicalClass || item.materialName || 'Adhesive')
       if (attrs.applicationMethod) tags.push({ label: 'Method', value: String(attrs.applicationMethod) })
-      if (attrs.packagingUnit) tags.push({ label: 'Pack', value: String(attrs.packagingUnit) })
     }
   } else if (item.workCategory === 'ACCESSORIES') {
     displayTitle = item.materialName || 'Accessory Item'
     if (attrs.itemCode) tags.push({ label: 'Code', value: String(attrs.itemCode) })
-    if (attrs.accessoryCategory) tags.push({ label: 'Category', value: String(attrs.accessoryCategory) })
-    if (attrs.serviceCategory) tags.push({ label: 'Service', value: String(attrs.serviceCategory) })
+    if (attrs.accessoryCategory) tags.push({ label: 'Cat', value: String(attrs.accessoryCategory) })
     if (attrs.dimensions) tags.push({ label: 'Dim', value: String(attrs.dimensions) })
   } else if (item.workCategory === 'APPLIANCES') {
     displayTitle = item.materialName || 'Appliance'
-    if (attrs.brandModelCode) tags.push({ label: 'Brand/Model', value: String(attrs.brandModelCode) })
+    if (attrs.brandModelCode) tags.push({ label: 'Brand', value: String(attrs.brandModelCode) })
     if (attrs.cabinetNicheCutOutSize) tags.push({ label: 'Cutout', value: String(attrs.cabinetNicheCutOutSize) })
   } else {
     displayTitle = item.materialName || 'Material'
@@ -202,7 +195,7 @@ function buildDisplayDetails(item: RequisitionItemInput): {
     tags.push({ label: 'Unit', value: item.unit })
   }
 
-  return { displayTitle: displayTitle || 'Configured Material', tags }
+  return { displayTitle: displayTitle || 'Configured Material', subtitle, tags }
 }
 
 export function UsedMaterialsPalette({
@@ -218,12 +211,20 @@ export function UsedMaterialsPalette({
 }: UsedMaterialsPaletteProps) {
   const [search, setSearch] = useState('')
   const [selectedGroup, setSelectedGroup] = useState<string>('ALL')
-  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [justInsertedId, setJustInsertedId] = useState<string | null>(null)
   const [persistedItems, setPersistedItems] = useState<RequisitionItemInput[]>([])
+  const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setSelectedGroup('ALL')
   }, [activeSection?.id])
+
+  // Auto-focus search when opened
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => searchRef.current?.focus(), 150)
+    }
+  }, [isOpen])
 
   // Load project-persisted used items from localStorage
   const storageKey = `boq_lead_used_items_${leadId}`
@@ -262,14 +263,14 @@ export function UsedMaterialsPalette({
         seen.add(sig)
 
         const group = determineGroup(row)
-        const { displayTitle, tags } = buildDisplayDetails(row)
+        const { displayTitle, subtitle, tags } = buildDisplayDetails(row)
 
         list.push({
           id: `live-${cardKey}-${sectionId}-${ri}`,
           item: row,
           category: row.workCategory,
           groupKey: group.key,
-          groupLabel: group.label,
+          groupLabel: `${group.emoji} ${group.label}`,
           sourceProductName: slide?.title || 'Quotation Product',
           sourceSectionName: sec ? getSectionTypeLabel(sec) : 'Section',
           displayTitle,
@@ -287,14 +288,14 @@ export function UsedMaterialsPalette({
       seen.add(sig)
 
       const group = determineGroup(p)
-      const { displayTitle, tags } = buildDisplayDetails(p)
+      const { displayTitle, subtitle, tags } = buildDisplayDetails(p)
 
       list.push({
         id: `persisted-${i}`,
         item: p,
         category: p.workCategory,
         groupKey: group.key,
-        groupLabel: group.label,
+        groupLabel: `${group.emoji} ${group.label}`,
         sourceProductName: 'Saved in Project',
         sourceSectionName: group.label,
         displayTitle,
@@ -362,10 +363,14 @@ export function UsedMaterialsPalette({
     return getSectionTypeLabel(activeSection)
   }, [activeSection])
 
-  const handleCopyInsert = (entry: UsedMaterialEntry) => {
+  const handleInsert = (entry: UsedMaterialEntry) => {
     onInsertItem(entry.item, activeSection?.id)
-    setCopiedId(entry.id)
-    setTimeout(() => setCopiedId(null), 1800)
+    setJustInsertedId(entry.id)
+    // Auto-close after brief feedback delay so user can see the ✓ tick
+    setTimeout(() => {
+      setJustInsertedId(null)
+      onClose()
+    }, 700)
   }
 
   const handleClearProjectCache = () => {
@@ -381,64 +386,59 @@ export function UsedMaterialsPalette({
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-background/60 backdrop-blur-xs transition-opacity"
+        className="fixed inset-0 bg-black/30 backdrop-blur-xs transition-opacity"
         onClick={onClose}
       />
 
-      {/* Drawer Container */}
-      <div className="relative z-50 flex w-full max-w-md flex-col bg-card border-l border-border shadow-2xl animate-in slide-in-from-right duration-200">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/80 px-4 py-3.5 bg-muted/20">
-          <div className="flex items-center gap-2.5">
-            <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-              <Sparkles className="w-4 h-4" />
+      {/* Drawer Panel — narrower so main content remains visible */}
+      <div className="relative z-50 flex w-80 flex-col bg-card border-l border-border shadow-2xl animate-in slide-in-from-right duration-200">
+
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-gradient-to-r from-amber-500/10 to-card">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/25 shrink-0">
+              <Sparkles className="w-3.5 h-3.5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-bold text-foreground">Used Materials</h3>
-                <span className="text-[10px] font-black px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">
-                  {targetEntries.length} for Target
-                </span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Showing materials for this target. Drag & drop or click Insert.
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold text-foreground leading-tight">Used Materials</h3>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {targetEntries.length} reusable · click to insert &amp; close
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer shrink-0 ml-2"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Quick Context Helper */}
-        <div className="px-3.5 py-2 bg-primary/5 border-b border-primary/15 text-[11px] flex items-center justify-between text-muted-foreground">
-          <div className="flex items-center gap-1.5 truncate">
-            <span className="font-semibold text-primary">Target:</span>
-            <span className="font-bold text-foreground truncate max-w-[200px]">
-              {activeSectionLabel}
-            </span>
+        {/* ── Target Section Banner ── */}
+        <div className="px-3.5 py-2 bg-primary/5 border-b border-primary/10 flex items-center gap-2">
+          <ChevronRight className="w-3.5 h-3.5 text-primary shrink-0" />
+          <div className="min-w-0">
+            <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Inserting into: </span>
+            <span className="text-[11px] font-bold text-foreground truncate block">{activeSectionLabel}</span>
           </div>
-          <span className="text-[10px] text-muted-foreground shrink-0">Click &quot;Insert&quot; to copy</span>
         </div>
 
-        {/* Search */}
-        <div className="p-3 border-b border-border/60 bg-background">
+        {/* ── Search ── */}
+        <div className="px-3 pt-3 pb-2 border-b border-border/50">
           <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
             <input
+              ref={searchRef}
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search used materials, finishes, codes..."
-              className="w-full rounded-md border border-input bg-muted/30 pl-8 pr-7 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="Search materials, finishes, codes..."
+              className="w-full rounded-lg border border-input bg-muted/40 pl-8 pr-7 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-2 top-2 text-xs text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1.5 text-muted-foreground hover:text-foreground"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -446,141 +446,124 @@ export function UsedMaterialsPalette({
           </div>
         </div>
 
-        {/* Category Filter Pills */}
-        <div className="px-3 py-2 border-b border-border/60 bg-muted/30 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          <button
-            type="button"
-            onClick={() => setSelectedGroup('ALL')}
-            className={`px-2.5 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
-              selectedGroup === 'ALL'
-                ? 'bg-primary text-primary-foreground shadow-2xs'
-                : 'bg-background hover:bg-muted text-muted-foreground border border-border/60'
-            }`}
-          >
-            All ({targetEntries.length})
-          </button>
-          {groups.map((g) => (
+        {/* ── Group Filter Pills ── */}
+        {groups.length > 1 && (
+          <div className="px-3 py-2 border-b border-border/40 flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-wrap">
             <button
-              key={g.key}
               type="button"
-              onClick={() => setSelectedGroup(g.key)}
-              className={`px-2.5 py-1 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
-                selectedGroup === g.key
-                  ? 'bg-primary text-primary-foreground shadow-2xs'
-                  : 'bg-background hover:bg-muted text-muted-foreground border border-border/60'
+              onClick={() => setSelectedGroup('ALL')}
+              className={`px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                selectedGroup === 'ALL'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted hover:bg-muted/80 text-muted-foreground border border-border/60'
               }`}
             >
-              {g.label} ({g.count})
+              All {targetEntries.length}
             </button>
-          ))}
-        </div>
+            {groups.map((g) => (
+              <button
+                key={g.key}
+                type="button"
+                onClick={() => setSelectedGroup(g.key)}
+                className={`px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap transition-colors cursor-pointer ${
+                  selectedGroup === g.key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted hover:bg-muted/80 text-muted-foreground border border-border/60'
+                }`}
+              >
+                {g.label} {g.count}
+              </button>
+            ))}
+          </div>
+        )}
 
-        {/* List of Draggable Items */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+        {/* ── Material Cards List ── */}
+        <div className="flex-1 overflow-y-auto px-3 py-2.5 space-y-2">
           {filteredEntries.length === 0 ? (
-            <div className="text-center py-12 px-4 space-y-2 text-muted-foreground">
-              <Package className="w-8 h-8 mx-auto opacity-40" />
-              <p className="text-xs font-semibold text-foreground">No matching materials found</p>
-              <p className="text-[11px] leading-relaxed">
-                As you configure materials in any product of this lead, they will automatically appear here to be reused!
+            <div className="text-center py-10 px-4 space-y-2">
+              <Package className="w-7 h-7 mx-auto text-muted-foreground/30" />
+              <p className="text-xs font-semibold text-foreground">No materials found</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Materials you configure appear here for quick reuse across products.
               </p>
             </div>
           ) : (
             filteredEntries.map((entry) => {
-              const isRecentlyCopied = copiedId === entry.id
-
+              const isInserted = justInsertedId === entry.id
               return (
-                <div
+                <button
                   key={entry.id}
+                  type="button"
+                  onClick={() => handleInsert(entry)}
                   draggable={true}
                   onDragStart={(e) => {
                     e.dataTransfer.setData('application/boq-item', JSON.stringify(entry.item))
                     e.dataTransfer.setData('text/plain', JSON.stringify(entry.item))
                     e.dataTransfer.effectAllowed = 'copy'
                   }}
-                  className="group relative rounded-xl border border-border/80 bg-card p-3 shadow-2xs hover:border-primary/50 hover:shadow-sm transition-all cursor-grab active:cursor-grabbing"
+                  className={`w-full text-left rounded-xl border p-3 transition-all cursor-pointer group ${
+                    isInserted
+                      ? 'border-emerald-500/60 bg-emerald-500/10 scale-[0.98]'
+                      : 'border-border/70 bg-card hover:border-primary/50 hover:bg-primary/5 hover:shadow-sm active:scale-[0.97]'
+                  }`}
+                  title={`Insert "${entry.displayTitle}" into ${activeSectionLabel}`}
                 >
-                  {/* Top row: drag handle, category, and insert button */}
-                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <div
-                        className="text-muted-foreground/60 group-hover:text-primary transition-colors cursor-grab"
-                        title="Drag to section"
-                      >
-                        <GripVertical className="w-3.5 h-3.5" />
-                      </div>
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                        {entry.groupLabel}
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleCopyInsert(entry)}
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold transition-all cursor-pointer ${
-                        isRecentlyCopied
-                          ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border border-primary/20'
-                      }`}
-                      title="Insert to currently active section"
-                    >
-                      {isRecentlyCopied ? (
-                        <>
-                          <Check className="w-3 h-3" />
-                          <span>Added!</span>
-                        </>
+                  {/* Top row: group badge + insert indicator */}
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted/80 text-muted-foreground border border-border/40 whitespace-nowrap">
+                      {entry.groupLabel}
+                    </span>
+                    <span className={`shrink-0 flex items-center gap-0.5 text-[10px] font-bold transition-all ${
+                      isInserted ? 'text-emerald-600' : 'text-muted-foreground/50 group-hover:text-primary'
+                    }`}>
+                      {isInserted ? (
+                        <><Check className="w-3 h-3" /> Added</>
                       ) : (
-                        <>
-                          <Plus className="w-3 h-3" />
-                          <span>Insert</span>
-                        </>
+                        <><Plus className="w-3 h-3" /> Insert</>
                       )}
-                    </button>
+                    </span>
                   </div>
 
-                  {/* Main title */}
-                  <h4 className="text-xs font-black text-foreground leading-snug">
+                  {/* Material title */}
+                  <p className="text-xs font-bold text-foreground leading-snug line-clamp-2 mb-1.5">
                     {entry.displayTitle}
-                  </h4>
+                  </p>
 
-                  {/* Specification tags */}
+                  {/* Tags */}
                   {entry.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
+                    <div className="flex flex-wrap gap-1">
                       {entry.tags.map((tag, ti) => (
                         <span
                           key={ti}
-                          className="text-[9px] px-1.5 py-0.5 rounded bg-muted/60 text-foreground/80 border border-border/40 font-medium"
+                          className="text-[9px] px-1 py-0.5 rounded bg-muted/60 text-foreground/70 border border-border/30 font-medium"
                         >
-                          <span className="text-muted-foreground font-semibold">{tag.label}: </span>
-                          {tag.value}
+                          <span className="text-muted-foreground">{tag.label}:</span> {tag.value}
                         </span>
                       ))}
                     </div>
                   )}
 
-                  {/* Origin info footer */}
-                  <div className="mt-2 pt-1.5 border-t border-border/40 flex items-center justify-between text-[9px] text-muted-foreground">
-                    <span className="truncate max-w-[240px]">
-                      From: <span className="font-semibold text-foreground/70">{entry.sourceProductName}</span>
-                    </span>
-                    <span className="italic text-muted-foreground/60 hidden sm:inline">Drag to drop</span>
+                  {/* Source footer */}
+                  <div className="mt-2 pt-1.5 border-t border-border/30 text-[9px] text-muted-foreground/60 truncate">
+                    From: <span className="font-medium text-muted-foreground">{entry.sourceProductName}</span>
                   </div>
-                </div>
+                </button>
               )
             })
           )}
         </div>
 
-        {/* Footer info */}
-        <div className="p-3 border-t border-border/80 bg-muted/20 flex items-center justify-between text-[11px] text-muted-foreground">
-          <span>Project materials auto-saved</span>
+        {/* ── Footer ── */}
+        <div className="px-3 py-2 border-t border-border/60 bg-muted/10 flex items-center justify-between text-[10px] text-muted-foreground">
+          <span className="italic">Click card to insert &amp; close</span>
           {usedEntries.length > 0 && (
             <button
               onClick={handleClearProjectCache}
-              className="text-[10px] text-muted-foreground/70 hover:text-destructive flex items-center gap-1 cursor-pointer transition-colors"
+              className="flex items-center gap-1 text-muted-foreground/60 hover:text-destructive transition-colors cursor-pointer"
               title="Reset saved project material cache"
             >
-              <Trash2 className="w-3 h-3" /> Clear cache
+              <Trash2 className="w-3 h-3" />
+              Clear
             </button>
           )}
         </div>

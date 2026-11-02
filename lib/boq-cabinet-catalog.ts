@@ -26,7 +26,7 @@ export const DEFAULT_CABINET_CATALOG: CabinetCatalogConfig = {
   shutterBodyThicknesses: ['16mm', '18mm'],
   backPlyThicknesses: ['6mm', '9mm'],
   baseMaterials: [
-    'Architect Grade Boards Moisture Resistant(MR) MDF',
+    'MR MDF Architect Grade Board',
     'MR MDF (Moisture-Resistant Medium-Density Fiberboard)',
     'Garjon Plywood (Garjon Ply)',
     'Marine Plywood (BWP / Merin Ply)',

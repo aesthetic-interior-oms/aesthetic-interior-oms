@@ -576,11 +576,13 @@ export function RequisitionBuilderClient({
       if (
         field === 'laminateTopSurface' ||
         field === 'frontLaminateCode' ||
-        field === 'laminateFinishDetails'
+        field === 'laminateFinishDetails' ||
+        field === 'surfaceCodeFinish' ||
+        field === 'backLaminateCode'
       ) {
         const lower = (value || '').toLowerCase()
         if (lower.includes('champaign') || lower.includes('champagne')) {
-          const mrMdfFull = 'Architect Grade Boards Moisture Resistant(MR) MDF'
+          const mrMdfFull = 'MR MDF Architect Grade Board'
           nextAttrs.baseMaterial = mrMdfFull
           const cardSecs = sectionsMap[cardKey] ?? []
           const sec = cardSecs.find((s) => s.id === sectionId)
@@ -676,7 +678,18 @@ export function RequisitionBuilderClient({
       return { ...prev, [key]: [...existingRows, clonedItem] }
     })
 
-    setSaveSuccess(`Copied "${item.materialName || 'Material'}" into section!`)
+    const secInfo = cardSections.find((s) => s.id === secId)
+    if (secInfo?.collapsed) {
+      toggleSectionCollapse(cardKey, secId)
+    }
+    setTimeout(() => {
+      document.getElementById(`section-dom-${secId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      })
+    }, 150)
+
+    setSaveSuccess(`Inserted "${item.materialName || 'Material'}" into section!`)
     setTimeout(() => setSaveSuccess(null), 3000)
   }, [activeSectionObj, currentCardKey, sectionsMap])
 
@@ -829,6 +842,50 @@ export function RequisitionBuilderClient({
   }, [requisitionItems])
   const coveragePct = lineItems.length > 0 ? Math.round((coveredLineItems / lineItems.length) * 100) : 0
 
+  // ── Auto-save: debounced background save 30s after last change ──
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isAutoSavingRef = useRef(false)
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+
+  useEffect(() => {
+    // Don't auto-save if nothing has been added yet
+    if (requisitionItems.length === 0) return
+    // Don't auto-save if already submitted/in-procurement
+    if (lastSavedStatus === 'SUBMITTED') return
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(async () => {
+      if (isAutoSavingRef.current) return
+      isAutoSavingRef.current = true
+      setAutoSaveStatus('saving')
+      try {
+        const res = await saveMaterialRequisition({
+          leadId: lead.id,
+          quotationDraftId: detailQuotation?.id,
+          status: 'DRAFT',
+          notes,
+          items: requisitionItems,
+        })
+        if (res.success) {
+          setLastSavedAt(new Date())
+          setLastSavedStatus('DRAFT')
+          setAutoSaveStatus('saved')
+          setTimeout(() => setAutoSaveStatus('idle'), 3000)
+        } else {
+          setAutoSaveStatus('error')
+        }
+      } catch {
+        setAutoSaveStatus('error')
+      } finally {
+        isAutoSavingRef.current = false
+      }
+    }, 30000) // 30 seconds after last change
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    }
+  }, [requisitionItems, notes, lead.id, detailQuotation?.id, lastSavedStatus])
+
   // ── Save / Submit ──
   const saveRequisition = useCallback(async (status: SaveStatus = 'DRAFT', successMessage?: string) => {
     setSaveSuccess(null)
@@ -850,7 +907,12 @@ export function RequisitionBuilderClient({
             ? 'Material requisition submitted to Procurement team successfully!'
             : 'Material requisition draft saved successfully!')
         )
-        router.refresh()
+        // Only refresh server state for status changes (submit/amendment), not for routine draft saves.
+        // Refreshing on every draft save can cause Next.js to re-render server components and
+        // lose unsaved in-progress edits if the DB write and client state diverge momentarily.
+        if (status === 'SUBMITTED') {
+          router.refresh()
+        }
         return true
       }
       setSaveError(res.error || 'Failed to save material requisition.')
@@ -1187,6 +1249,20 @@ export function RequisitionBuilderClient({
 
         {/* Action buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Auto-save status indicator */}
+          {autoSaveStatus === 'saving' && (
+            <span className="text-[11px] text-muted-foreground animate-pulse">Auto-saving…</span>
+          )}
+          {autoSaveStatus === 'saved' && (
+            <span className="text-[11px] text-emerald-600 flex items-center gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Auto-saved
+            </span>
+          )}
+          {lastSavedAt && autoSaveStatus === 'idle' && (
+            <span className="text-[11px] text-muted-foreground hidden md:inline">
+              Last saved: {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
           <button
             onClick={() => handleSave('DRAFT')}
             disabled={isPending}

@@ -188,6 +188,7 @@ export function formatMaterialItem(
     const base = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string) || item.materialName) || 'Garjon Plywood'
     const rawFl = cleanString((attrs.laminateTopSurface as string) || (attrs.frontLaminateCode as string))
     const rawBl = cleanString((attrs.surfaceCodeFinish as string) || (attrs.backLaminateCode as string))
+    const makeType = attrs.boardMakeType === 'HANDMADE' ? ' [Handmade]' : attrs.boardMakeType === 'FACTORY_MADE' ? ' [Factory Made]' : ''
 
     const fl = rawFl
       ? (rawFl.toUpperCase().includes('F/L') ? rawFl : `${rawFl} (F/L)`)
@@ -196,7 +197,21 @@ export function formatMaterialItem(
       ? (rawBl.toUpperCase().includes('B/L') ? rawBl : `${rawBl} (B/L)`)
       : 'Raw Board (B/L)'
 
-    const materialDescription = `${thk} + ${base} + ${fl} + ${bl}`
+    const materialDescription = `${thk} + ${base}${makeType} + ${fl} + ${bl}`
+    return { productType, materialDescription, unit }
+  }
+
+  // 1b. CABINET / CLOSET BOARDS
+  if (item.workCategory === 'CABINETS_CLOSETS' || section?.category === 'CABINETS_CLOSETS') {
+    const productType = 'Cabinet / Closet Boards'
+    const thk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || '18mm'
+    const base = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string) || item.materialName) || 'Cabinet Board'
+    const fl = cleanString((attrs.frontLaminateCode as string) || (attrs.laminateFinishDetails as string)) || 'Raw Board'
+    const bl = cleanString(attrs.backLaminateCode as string) || 'Raw Board'
+    const makeType = attrs.boardMakeType === 'HANDMADE' ? ' [Handmade]' : attrs.boardMakeType === 'FACTORY_MADE' ? ' [Factory Made]' : ''
+    const usage = cleanString(attrs.usage as string)
+    const usagePrefix = usage ? `${usage}: ` : ''
+    const materialDescription = `${usagePrefix}${thk} + ${base}${makeType} + ${fl} (Front) + ${bl} (Back)`
     return { productType, materialDescription, unit }
   }
 

@@ -250,6 +250,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
                 <th className={`${GRID_TH} min-w-[150px]`}>Edging Tape Qty</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Functional Usage</th>
+                <th className={`${GRID_TH} w-32 text-center`} title="Handmade (site-fabricated) or Factory Made (pre-cut / ready)">Make Type</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
@@ -295,7 +296,7 @@ export function MaterialRowsTable({
                           onUpdateVariant(ri, 'boardLaminateType', fType)
                           const isChampagne = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
                           if (isChampagne) {
-                            const mrMdf = 'Architect Grade Boards Moisture Resistant(MR) MDF'
+                            const mrMdf = 'MR MDF Architect Grade Board'
                             onUpdateVariant(ri, 'baseMaterial', mrMdf)
                             onChange(ri, 'materialName', mrMdf)
                           }
@@ -313,6 +314,12 @@ export function MaterialRowsTable({
                         onChange={(val, fType) => {
                           onUpdateVariant(ri, 'surfaceCodeFinish', val)
                           onUpdateVariant(ri, 'boardBackLaminateType', fType)
+                          const isChampagne = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
+                          if (isChampagne) {
+                            const mrMdf = 'MR MDF Architect Grade Board'
+                            onUpdateVariant(ri, 'baseMaterial', mrMdf)
+                            onChange(ri, 'materialName', mrMdf)
+                          }
                         }}
                         isBack={true}
                         placeholder="Raw Board (None)"
@@ -374,6 +381,36 @@ export function MaterialRowsTable({
                         placeholder="Shutter / Exterior Cabinet"
                         className={GRID_CELL_INPUT}
                       />
+                    </td>
+
+                    {/* Make Type: Handmade / Factory Made */}
+                    <td className={`${GRID_TD} text-center px-1`}>
+                      <div className="flex gap-1 justify-center">
+                        <button
+                          type="button"
+                          onClick={() => onUpdateVariant(ri, 'boardMakeType', attrs.boardMakeType === 'HANDMADE' ? '' : 'HANDMADE')}
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide transition-colors border ${
+                            attrs.boardMakeType === 'HANDMADE'
+                              ? 'bg-orange-500/20 text-orange-800 dark:text-orange-200 border-orange-500/50'
+                              : 'bg-muted/40 text-muted-foreground border-border/40 hover:bg-orange-500/10 hover:text-orange-700'
+                          }`}
+                          title="Handmade — site-fabricated by carpenter"
+                        >
+                          HM
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onUpdateVariant(ri, 'boardMakeType', attrs.boardMakeType === 'FACTORY_MADE' ? '' : 'FACTORY_MADE')}
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide transition-colors border ${
+                            attrs.boardMakeType === 'FACTORY_MADE'
+                              ? 'bg-blue-500/20 text-blue-800 dark:text-blue-200 border-blue-500/50'
+                              : 'bg-muted/40 text-muted-foreground border-border/40 hover:bg-blue-500/10 hover:text-blue-700'
+                          }`}
+                          title="Factory Made — pre-cut or ready-made"
+                        >
+                          FM
+                        </button>
+                      </div>
                     </td>
 
                     {/* Delete */}
@@ -986,6 +1023,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} min-w-[190px]`}>Back Laminate / Liner</th>
                 <th className={`${GRID_TH} text-center w-28`}>Board Qty</th>
                 <th className={`${GRID_TH} min-w-[140px]`}>Edging Tape Qty</th>
+                <th className={`${GRID_TH} w-32 text-center`} title="Handmade (site-fabricated) or Factory Made (pre-cut / ready)">Make Type</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
@@ -1124,7 +1162,7 @@ export function MaterialRowsTable({
                           onUpdateVariant(ri, 'isHplPasting', rowHpl ? 'true' : 'false')
                           const isChampagne = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
                           if (isChampagne) {
-                            const mrMdf = 'Architect Grade Boards Moisture Resistant(MR) MDF'
+                            const mrMdf = 'MR MDF Architect Grade Board'
                             onUpdateVariant(ri, 'baseMaterial', mrMdf)
                             onUpdateVariant(ri, 'coreSubstrateType', mrMdf)
                             onChange(ri, 'materialName', rowHpl ? `${mrMdf} HPL Pasting` : mrMdf)
@@ -1148,8 +1186,16 @@ export function MaterialRowsTable({
                           const backHpl = fType === 'HPL' || DEFAULT_CABINET_CATALOG.hplBrands.includes(val)
                           const rowHpl = isFrontHpl || backHpl
                           onUpdateVariant(ri, 'isHplPasting', rowHpl ? 'true' : 'false')
-                          const baseMat = (attrs.baseMaterial || attrs.coreSubstrateType || item.materialName || 'Board').replace(/\s+HPL\s+Pasting$/i, '')
-                          onChange(ri, 'materialName', rowHpl ? `${baseMat} HPL Pasting` : baseMat)
+                          const isChampagne = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
+                          if (isChampagne) {
+                            const mrMdf = 'MR MDF Architect Grade Board'
+                            onUpdateVariant(ri, 'baseMaterial', mrMdf)
+                            onUpdateVariant(ri, 'coreSubstrateType', mrMdf)
+                            onChange(ri, 'materialName', rowHpl ? `${mrMdf} HPL Pasting` : mrMdf)
+                          } else {
+                            const baseMat = (attrs.baseMaterial || attrs.coreSubstrateType || item.materialName || 'Board').replace(/\s+HPL\s+Pasting$/i, '')
+                            onChange(ri, 'materialName', rowHpl ? `${baseMat} HPL Pasting` : baseMat)
+                          }
                         }}
                         isBack={true}
                         placeholder="Select back finish..."
@@ -1180,6 +1226,36 @@ export function MaterialRowsTable({
                         onChange={(val) => onUpdateVariant(ri, 'edgingTapeQty', val)}
                         defaultUnit="Roll"
                       />
+                    </td>
+
+                    {/* Make Type: Handmade / Factory Made */}
+                    <td className={`${GRID_TD} text-center px-1`}>
+                      <div className="flex gap-1 justify-center">
+                        <button
+                          type="button"
+                          onClick={() => onUpdateVariant(ri, 'boardMakeType', attrs.boardMakeType === 'HANDMADE' ? '' : 'HANDMADE')}
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide transition-colors border ${
+                            attrs.boardMakeType === 'HANDMADE'
+                              ? 'bg-orange-500/20 text-orange-800 dark:text-orange-200 border-orange-500/50'
+                              : 'bg-muted/40 text-muted-foreground border-border/40 hover:bg-orange-500/10 hover:text-orange-700'
+                          }`}
+                          title="Handmade — site-fabricated by carpenter"
+                        >
+                          HM
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onUpdateVariant(ri, 'boardMakeType', attrs.boardMakeType === 'FACTORY_MADE' ? '' : 'FACTORY_MADE')}
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide transition-colors border ${
+                            attrs.boardMakeType === 'FACTORY_MADE'
+                              ? 'bg-blue-500/20 text-blue-800 dark:text-blue-200 border-blue-500/50'
+                              : 'bg-muted/40 text-muted-foreground border-border/40 hover:bg-blue-500/10 hover:text-blue-700'
+                          }`}
+                          title="Factory Made — pre-cut or ready-made"
+                        >
+                          FM
+                        </button>
+                      </div>
                     </td>
 
                     {/* Delete */}

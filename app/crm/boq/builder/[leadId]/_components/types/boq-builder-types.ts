@@ -77,6 +77,7 @@ export interface BoardVariantAttributes {
   itemId?: string
   coreThickness?: string
   baseMaterial?: string
+  boardMakeType?: 'HANDMADE' | 'FACTORY_MADE' | string
   laminateTopSurface?: string
   surfaceCodeFinish?: string
   boardLaminateType?: 'SOLID' | 'HPL' | 'PRELAMINATED' | 'DUCO' | string
