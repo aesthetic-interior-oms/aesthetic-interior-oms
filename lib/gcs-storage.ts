@@ -1,8 +1,20 @@
 import { Storage } from '@google-cloud/storage'
 
+function cleanPrivateKey(key?: string): string | undefined {
+  if (!key) return undefined
+  let cleaned = key.trim()
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    cleaned = cleaned.slice(1, -1)
+  }
+  return cleaned.replace(/\\r/g, '').replace(/\\n/g, '\n').trim()
+}
+
 function getGCSCredentials() {
-  const clientEmail = process.env.GCS_CLIENT_EMAIL
-  const privateKey = process.env.GCS_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  const clientEmail = process.env.GCS_CLIENT_EMAIL?.trim()
+  const privateKey = cleanPrivateKey(process.env.GCS_PRIVATE_KEY)
   const projectId = process.env.GCS_PROJECT_ID || 'weighty-yew-413809'
   const bucketName = process.env.GCS_BUCKET_NAME || 'aesthetic-interior-database-storage'
 
@@ -255,6 +267,8 @@ export async function generateGCSSignedUploadUrl({
 export type GCSStatusResult = {
   configured: boolean
   connected: boolean
+  signingWorks?: boolean
+  signingError?: string
   projectId: string
   bucketName: string
   clientEmailConfigured: boolean
@@ -283,9 +297,25 @@ export async function checkGCSConnection(): Promise<GCSStatusResult> {
     }
 
     const [exists] = await storage.bucket(creds.bucketName).exists()
+
+    let signingWorks = false
+    let signingError: string | undefined
+    try {
+      await generateGCSSignedUploadUrl({
+        fileName: 'healthcheck-test.txt',
+        fileType: 'text/plain',
+        folder: 'healthcheck',
+      })
+      signingWorks = true
+    } catch (sErr) {
+      signingError = sErr instanceof Error ? sErr.message : String(sErr)
+    }
+
     return {
       configured: true,
       connected: exists,
+      signingWorks,
+      signingError,
       projectId: creds.projectId,
       bucketName: creds.bucketName,
       clientEmailConfigured: true,

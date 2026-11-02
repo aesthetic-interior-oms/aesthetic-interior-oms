@@ -43,11 +43,31 @@ export const ALLOWED_CAD_UPLOAD_MIME_TYPES = new Set([
   'application/dwg',
   'drawing/dwg',
   'image/vnd.dwg',
+  'image/x-dwg',
   'application/dxf',
   'image/vnd.dxf',
+  'image/x-dxf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/svg+xml',
+  'image/heic',
+  'application/octet-stream',
 ])
 
-export const ALLOWED_CAD_UPLOAD_EXTENSIONS = new Set(['pdf', 'ppt', 'pptx', 'dwg', 'dxf'])
+export const ALLOWED_CAD_UPLOAD_EXTENSIONS = new Set([
+  'pdf',
+  'ppt',
+  'pptx',
+  'dwg',
+  'dxf',
+  'jpg',
+  'jpeg',
+  'png',
+  'webp',
+  'svg',
+  'heic',
+])
 
 export const CAD_EXTENSION_CONTENT_TYPE_MAP: Record<string, string> = {
   pdf: 'application/pdf',
@@ -55,6 +75,12 @@ export const CAD_EXTENSION_CONTENT_TYPE_MAP: Record<string, string> = {
   pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   dwg: 'application/x-dwg',
   dxf: 'application/dxf',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+  heic: 'image/heic',
 }
 
 export function formatCadSubmissionFileType(value: string | null | undefined): string {

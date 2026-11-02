@@ -177,7 +177,10 @@ export async function POST(request: NextRequest) {
     }
     console.error('[api/gcs/upload][POST] Error:', error)
     return NextResponse.json(
-      { success: false, error: 'File upload to Google Cloud Storage failed' },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'File upload to Google Cloud Storage failed',
+      },
       { status: 500 },
     )
   }
