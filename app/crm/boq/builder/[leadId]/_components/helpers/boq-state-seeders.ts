@@ -144,6 +144,7 @@ export function blankItem(
         qtyLabel: '1',
         edgingTapeQty: '',
         cabinetSubType: 'BOARD_SPEC',
+        boardMakeType: 'FACTORY_MADE',
       },
     }
   }
@@ -181,7 +182,7 @@ export function blankItem(
     case 'ADHESIVES':
       return { ...base, unit: 'Kg', variantAttributes: { applicationMethod: '', qtyLabel: '1', column1: '', wpSubType: 'ADHESIVES' } }
     default:
-      return { ...base, unit: 'Pcs', variantAttributes: { baseMaterial: '', coreThickness: '12mm', laminateTopSurface: '', surfaceCodeFinish: '', sheetSize: "8' x 4'", edgingTapeQty: '', functionalUsage: '', qtyLabel: '1', wpSubType: wallPanelingSubType ?? 'CORE_BOARDS' } }
+      return { ...base, unit: 'Pcs', variantAttributes: { baseMaterial: '', coreThickness: '12mm', laminateTopSurface: '', surfaceCodeFinish: '', sheetSize: "8' x 4'", edgingTapeQty: '', functionalUsage: '', qtyLabel: '1', boardMakeType: 'FACTORY_MADE', wpSubType: wallPanelingSubType ?? 'CORE_BOARDS' } }
   }
 }
 

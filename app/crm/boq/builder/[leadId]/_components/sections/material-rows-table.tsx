@@ -383,34 +383,25 @@ export function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* Make Type: Handmade / Factory Made */}
+                    {/* Make Type: Factory / Hand (Default: Factory, click toggles to Hand) */}
                     <td className={`${GRID_TD} text-center px-1`}>
-                      <div className="flex gap-1 justify-center">
-                        <button
-                          type="button"
-                          onClick={() => onUpdateVariant(ri, 'boardMakeType', attrs.boardMakeType === 'HANDMADE' ? '' : 'HANDMADE')}
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide transition-colors border ${
-                            attrs.boardMakeType === 'HANDMADE'
-                              ? 'bg-orange-500/20 text-orange-800 dark:text-orange-200 border-orange-500/50'
-                              : 'bg-muted/40 text-muted-foreground border-border/40 hover:bg-orange-500/10 hover:text-orange-700'
-                          }`}
-                          title="Handmade — site-fabricated by carpenter"
-                        >
-                          HM
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onUpdateVariant(ri, 'boardMakeType', attrs.boardMakeType === 'FACTORY_MADE' ? '' : 'FACTORY_MADE')}
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide transition-colors border ${
-                            attrs.boardMakeType === 'FACTORY_MADE'
-                              ? 'bg-blue-500/20 text-blue-800 dark:text-blue-200 border-blue-500/50'
-                              : 'bg-muted/40 text-muted-foreground border-border/40 hover:bg-blue-500/10 hover:text-blue-700'
-                          }`}
-                          title="Factory Made — pre-cut or ready-made"
-                        >
-                          FM
-                        </button>
-                      </div>
+                      {(() => {
+                        const isHand = attrs.boardMakeType === 'HANDMADE'
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => onUpdateVariant(ri, 'boardMakeType', isHand ? 'FACTORY_MADE' : 'HANDMADE')}
+                            className={`w-full max-w-[76px] mx-auto py-1 px-2 rounded-md text-[11px] font-bold tracking-tight transition-all border shadow-2xs cursor-pointer ${
+                              isHand
+                                ? 'bg-amber-500/15 text-amber-900 dark:text-amber-200 border-amber-500/40 hover:bg-amber-500/25'
+                                : 'bg-blue-500/15 text-blue-900 dark:text-blue-200 border-blue-500/40 hover:bg-blue-500/25'
+                            }`}
+                            title={isHand ? 'Handmade (Site-fabricated) — Click to switch to Factory' : 'Factory Made — Click to switch to Hand'}
+                          >
+                            {isHand ? 'Hand' : 'Factory'}
+                          </button>
+                        )
+                      })()}
                     </td>
 
                     {/* Delete */}
@@ -1228,34 +1219,25 @@ export function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* Make Type: Handmade / Factory Made */}
+                    {/* Make Type: Factory / Hand (Default: Factory, click toggles to Hand) */}
                     <td className={`${GRID_TD} text-center px-1`}>
-                      <div className="flex gap-1 justify-center">
-                        <button
-                          type="button"
-                          onClick={() => onUpdateVariant(ri, 'boardMakeType', attrs.boardMakeType === 'HANDMADE' ? '' : 'HANDMADE')}
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide transition-colors border ${
-                            attrs.boardMakeType === 'HANDMADE'
-                              ? 'bg-orange-500/20 text-orange-800 dark:text-orange-200 border-orange-500/50'
-                              : 'bg-muted/40 text-muted-foreground border-border/40 hover:bg-orange-500/10 hover:text-orange-700'
-                          }`}
-                          title="Handmade — site-fabricated by carpenter"
-                        >
-                          HM
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onUpdateVariant(ri, 'boardMakeType', attrs.boardMakeType === 'FACTORY_MADE' ? '' : 'FACTORY_MADE')}
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide transition-colors border ${
-                            attrs.boardMakeType === 'FACTORY_MADE'
-                              ? 'bg-blue-500/20 text-blue-800 dark:text-blue-200 border-blue-500/50'
-                              : 'bg-muted/40 text-muted-foreground border-border/40 hover:bg-blue-500/10 hover:text-blue-700'
-                          }`}
-                          title="Factory Made — pre-cut or ready-made"
-                        >
-                          FM
-                        </button>
-                      </div>
+                      {(() => {
+                        const isHand = attrs.boardMakeType === 'HANDMADE'
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => onUpdateVariant(ri, 'boardMakeType', isHand ? 'FACTORY_MADE' : 'HANDMADE')}
+                            className={`w-full max-w-[76px] mx-auto py-1 px-2 rounded-md text-[11px] font-bold tracking-tight transition-all border shadow-2xs cursor-pointer ${
+                              isHand
+                                ? 'bg-amber-500/15 text-amber-900 dark:text-amber-200 border-amber-500/40 hover:bg-amber-500/25'
+                                : 'bg-blue-500/15 text-blue-900 dark:text-blue-200 border-blue-500/40 hover:bg-blue-500/25'
+                            }`}
+                            title={isHand ? 'Handmade (Site-fabricated) — Click to switch to Factory' : 'Factory Made — Click to switch to Hand'}
+                          >
+                            {isHand ? 'Hand' : 'Factory'}
+                          </button>
+                        )
+                      })()}
                     </td>
 
                     {/* Delete */}

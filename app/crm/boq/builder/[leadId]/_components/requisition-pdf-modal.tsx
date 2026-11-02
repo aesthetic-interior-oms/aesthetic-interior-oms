@@ -188,7 +188,7 @@ export function formatMaterialItem(
     const base = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string) || item.materialName) || 'Garjon Plywood'
     const rawFl = cleanString((attrs.laminateTopSurface as string) || (attrs.frontLaminateCode as string))
     const rawBl = cleanString((attrs.surfaceCodeFinish as string) || (attrs.backLaminateCode as string))
-    const makeType = attrs.boardMakeType === 'HANDMADE' ? ' [Handmade]' : attrs.boardMakeType === 'FACTORY_MADE' ? ' [Factory Made]' : ''
+    const makeType = attrs.boardMakeType === 'HANDMADE' ? ' [Hand]' : ' [Factory]'
 
     const fl = rawFl
       ? (rawFl.toUpperCase().includes('F/L') ? rawFl : `${rawFl} (F/L)`)
@@ -208,7 +208,7 @@ export function formatMaterialItem(
     const base = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string) || item.materialName) || 'Cabinet Board'
     const fl = cleanString((attrs.frontLaminateCode as string) || (attrs.laminateFinishDetails as string)) || 'Raw Board'
     const bl = cleanString(attrs.backLaminateCode as string) || 'Raw Board'
-    const makeType = attrs.boardMakeType === 'HANDMADE' ? ' [Handmade]' : attrs.boardMakeType === 'FACTORY_MADE' ? ' [Factory Made]' : ''
+    const makeType = attrs.boardMakeType === 'HANDMADE' ? ' [Hand]' : ' [Factory]'
     const usage = cleanString(attrs.usage as string)
     const usagePrefix = usage ? `${usage}: ` : ''
     const materialDescription = `${usagePrefix}${thk} + ${base}${makeType} + ${fl} (Front) + ${bl} (Back)`

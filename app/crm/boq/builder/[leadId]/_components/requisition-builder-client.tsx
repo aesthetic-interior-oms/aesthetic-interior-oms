@@ -359,8 +359,26 @@ export function RequisitionBuilderClient({
     return slides
   }, [sections, lineItems, areaMap])
 
-  // ── Slide view and drawer navigation state ──
-  const [activeSlideIndex, setActiveSlideIndex] = useState(0)
+  // ── Slide view and drawer navigation state (persisted across refresh) ──
+  const [activeSlideIndex, setActiveSlideIndex] = useState(() => {
+    if (typeof window === 'undefined') return 0
+    try {
+      const sp = new URLSearchParams(window.location.search)
+      const slideParam = sp.get('slide')
+      if (slideParam !== null) {
+        const parsed = parseInt(slideParam, 10)
+        if (!isNaN(parsed) && parsed >= 0) return parsed
+      }
+      const stored = localStorage.getItem(`boq_active_slide_${lead.id}`)
+      if (stored !== null) {
+        const parsed = parseInt(stored, 10)
+        if (!isNaN(parsed) && parsed >= 0) return parsed
+      }
+    } catch {
+      // ignore
+    }
+    return 0
+  })
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [viewModePreference, setViewModePreference] = useState<'SLIDE' | 'ALL'>('SLIDE')
@@ -382,6 +400,38 @@ export function RequisitionBuilderClient({
   const currentSlide = productSlides[safeSlideIndex] ?? productSlides[0]
   const currentCardKey = currentSlide?.id ?? EXTRA_KEY
   const currentSlideSections = sectionsMap[currentCardKey] ?? []
+
+  // Restore slide by product ID if products reordered or on fresh mount
+  useEffect(() => {
+    try {
+      const storedProdId = localStorage.getItem(`boq_active_product_${lead.id}`)
+      if (storedProdId) {
+        const idx = productSlides.findIndex((s) => s.id === storedProdId)
+        if (idx !== -1 && idx !== activeSlideIndex) {
+          setActiveSlideIndex(idx)
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [lead.id, productSlides])
+
+  // Sync active slide to localStorage & URL query param so refresh stays on this exact product
+  useEffect(() => {
+    try {
+      localStorage.setItem(`boq_active_slide_${lead.id}`, String(safeSlideIndex))
+      if (currentSlide?.id) {
+        localStorage.setItem(`boq_active_product_${lead.id}`, currentSlide.id)
+      }
+      const url = new URL(window.location.href)
+      if (url.searchParams.get('slide') !== String(safeSlideIndex)) {
+        url.searchParams.set('slide', String(safeSlideIndex))
+        window.history.replaceState({}, '', url.toString())
+      }
+    } catch {
+      // ignore
+    }
+  }, [safeSlideIndex, currentSlide?.id, lead.id])
 
   // ── Active section detection for bottom smart action bar (IntersectionObserver) ──
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null)

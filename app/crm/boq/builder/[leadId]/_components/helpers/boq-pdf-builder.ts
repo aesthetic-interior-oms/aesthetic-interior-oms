@@ -178,7 +178,7 @@ export function buildSectionPdfTable(
       ],
       body: rows.map((item, idx) => {
         const makeType = pdfAttr(item, 'boardMakeType')
-        const makeTypeLabel = makeType === 'HANDMADE' ? 'Handmade' : makeType === 'FACTORY_MADE' ? 'Factory' : '—'
+        const makeTypeLabel = makeType === 'HANDMADE' ? 'Hand' : 'Factory'
         return [
           String(idx + 1).padStart(2, '0'),
           text(pdfAttr(item, 'baseMaterial')),
@@ -349,7 +349,7 @@ export function buildSectionPdfTable(
       ],
       body: rows.map((item, idx) => {
         const makeType = pdfAttr(item, 'boardMakeType')
-        const makeTypeLabel = makeType === 'HANDMADE' ? 'Handmade' : makeType === 'FACTORY_MADE' ? 'Factory' : '—'
+        const makeTypeLabel = makeType === 'HANDMADE' ? 'Hand' : 'Factory'
         return [
           String(idx + 1).padStart(2, '0'),
           text(pdfAttr(item, 'usage') || item.productionPhase),
