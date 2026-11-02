@@ -1,16 +1,12 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useMemo } from 'react'
-import Link from 'next/link'
 import {
-  ArrowLeft,
   Package,
   Receipt,
   CheckCircle2,
-  Clock,
   Printer,
-  Building2,
-  Calendar,
   Layers,
   Send,
   Plus,
@@ -18,15 +14,17 @@ import {
   Trash2,
   Search,
   Check,
-  ShieldCheck,
-  Sparkles,
-  ArrowRight,
-  SlidersHorizontal,
-  X,
+  FileText,
+  Boxes,
+  Hammer,
+  Paperclip,
+  UploadCloud,
   FileCheck,
+  ExternalLink,
+  Truck,
+  Phone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import {
   Dialog,
@@ -36,7 +34,15 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Card, CardContent } from '@/components/ui/card'
+import {
+  saveItemPurchaseRecordAction,
+  removeItemPurchaseRecordAction,
+  attachItemDocumentAction,
+  removeAttachedDocumentAction,
+  dispatchBillingToAccountsAction,
+  ItemPurchaseRecord,
+  AttachedDocument,
+} from '../actions'
 
 export type RequisitionItemData = {
   id: string
@@ -55,16 +61,6 @@ export type RequisitionItemData = {
   remarks: string | null
 }
 
-export type ItemBillRecord = {
-  isBought: boolean
-  billQuantity: number
-  unitPrice: number
-  totalAmount: number
-  vendorName: string
-  invoiceNo: string
-  notes?: string
-}
-
 export type WallPanelingSubSection =
   | 'BOARDS'
   | 'DECORATIVE'
@@ -72,12 +68,21 @@ export type WallPanelingSubSection =
   | 'NAILS'
   | 'ADHESIVES'
 
+export type VendorOption = {
+  id: string
+  vendorName: string
+  vendorCompanyName: string | null
+  primaryPhone: string | null
+  primaryEmail: string | null
+}
+
 interface WallPanelingBillMakerProps {
   requisition: {
     id: string
     requisitionNo: string
     status: string
     createdAt: Date | string
+    notes: string | null
     lead: {
       id: string
       name: string
@@ -89,18 +94,24 @@ interface WallPanelingBillMakerProps {
       fullName: string | null
       email?: string | null
     }
-    notes: string | null
     items: RequisitionItemData[]
   }
+  vendors: VendorOption[]
 }
 
-// Helper to classify Wall Paneling items into sub-sections
+const SETTLEMENT_OPTIONS: { id: ItemPurchaseRecord['settlementMethod']; label: string }[] = [
+  { id: 'PETTY_CASH', label: 'Petty Cash Voucher' },
+  { id: 'PURCHASE_TEAM', label: 'Purchase Team Advance' },
+  { id: 'COMPANY_ACCOUNT', label: 'Office Bank / Cheque' },
+  { id: 'VENDOR_CREDIT', label: 'Vendor Credit (Pay Later)' },
+  { id: 'OTHER', label: 'Other Settlement' },
+]
+
 function classifyWallPanelingItem(item: RequisitionItemData): WallPanelingSubSection {
   const attrs = (item.variantAttributes || {}) as Record<string, any>
   const wpSub = String(attrs.wpSubType || '').toUpperCase()
   const matName = String(item.materialName || '').toLowerCase()
 
-  // 1. Boards
   if (
     wpSub === 'CORE_BOARDS' ||
     attrs.baseMaterial ||
@@ -116,7 +127,6 @@ function classifyWallPanelingItem(item: RequisitionItemData): WallPanelingSubSec
     return 'BOARDS'
   }
 
-  // 2. Decorative Panels / Louvers / Profiles
   if (
     wpSub === 'LOUVERS_PROFILES' ||
     attrs.codeVariant ||
@@ -132,7 +142,6 @@ function classifyWallPanelingItem(item: RequisitionItemData): WallPanelingSubSec
     return 'DECORATIVE'
   }
 
-  // 3. Screws & Fasteners
   if (
     wpSub === 'SCREWS_FASTENERS' ||
     attrs.fastenerType ||
@@ -143,7 +152,6 @@ function classifyWallPanelingItem(item: RequisitionItemData): WallPanelingSubSec
     return 'FASTENERS'
   }
 
-  // 4. Nails, Pins & Anchors
   if (
     wpSub === 'NAILS_PINS' ||
     attrs.lengthSpec ||
@@ -155,7 +163,6 @@ function classifyWallPanelingItem(item: RequisitionItemData): WallPanelingSubSec
     return 'NAILS'
   }
 
-  // 5. Adhesives & Chemical Solvents
   if (
     wpSub === 'ADHESIVES' ||
     attrs.chemicalClass ||
@@ -171,39 +178,62 @@ function classifyWallPanelingItem(item: RequisitionItemData): WallPanelingSubSec
   return 'BOARDS'
 }
 
-export function WallPanelingBillMaker({ requisition }: WallPanelingBillMakerProps) {
-  // Major section tabs
+export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBillMakerProps) {
   const [selectedMainSection, setSelectedMainSection] = useState<'WALL_PANELING' | 'CABINETS_CLOSETS' | 'ACCESSORIES' | 'OTHER'>('WALL_PANELING')
-
-  // Wall Paneling sub-section filter
   const [activeSubSection, setActiveSubSection] = useState<'ALL' | WallPanelingSubSection>('ALL')
-
-  // Search query inside Wall Paneling items
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Billing state keyed by item.id
-  const [bills, setBills] = useState<Record<string, ItemBillRecord>>({})
+  // Purchases keyed by item.id
+  const [purchases, setPurchases] = useState<Record<string, ItemPurchaseRecord>>(() => {
+    const initial: Record<string, ItemPurchaseRecord> = {}
+    requisition.items.forEach((item) => {
+      const attrs = (item.variantAttributes || {}) as Record<string, any>
+      const p = attrs.purchaseRecord || attrs.billingRecord
+      if (p && p.isBought) {
+        initial[item.id] = p
+      }
+    })
+    return initial
+  })
 
-  // Modal states for adding/editing bill
+  // Modal 1: Record / Edit Purchase
   const [editingItem, setEditingItem] = useState<RequisitionItemData | null>(null)
+  const [selectedVendorId, setSelectedVendorId] = useState<string>('')
+  const [formVendorName, setFormVendorName] = useState<string>('')
+  const [formVendorPhone, setFormVendorPhone] = useState<string>('')
+  const [formVendorEmail, setFormVendorEmail] = useState<string>('')
+  const [formInvoiceNo, setFormInvoiceNo] = useState<string>('')
+  const [formBillDate, setFormBillDate] = useState<string>(() => new Date().toISOString().split('T')[0])
   const [formBillQty, setFormBillQty] = useState<string>('')
   const [formUnitPrice, setFormUnitPrice] = useState<string>('')
-  const [formTotalAmount, setFormTotalAmount] = useState<string>('')
-  const [formVendorName, setFormVendorName] = useState<string>('')
-  const [formInvoiceNo, setFormInvoiceNo] = useState<string>('')
+  const [formTransportCost, setFormTransportCost] = useState<string>('0')
+  const [formOtherCost, setFormOtherCost] = useState<string>('0')
+  const [formPaidAmount, setFormPaidAmount] = useState<string>('0')
+  const [formSettlementMethod, setFormSettlementMethod] = useState<ItemPurchaseRecord['settlementMethod']>('PETTY_CASH')
+  const [formPurchasedBy, setFormPurchasedBy] = useState<string>('')
   const [formNotes, setFormNotes] = useState<string>('')
+  const [isSaving, setIsSaving] = useState(false)
 
-  // Order submission modal & status
+  // Modal 2: Documents & Invoices per item
+  const [documentItem, setDocumentItem] = useState<RequisitionItemData | null>(null)
+  const [newDocName, setNewDocName] = useState('')
+  const [newDocUrl, setNewDocUrl] = useState('')
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false)
+
+  // Modal 3: Dispatch to Accounts
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false)
   const [orderSubmittedSuccess, setOrderSubmittedSuccess] = useState<string | null>(null)
   const [orderNotes, setOrderNotes] = useState('')
+
+  // Modal 4: Print Slip
+  const [isPrintSlipOpen, setIsPrintSlipOpen] = useState(false)
 
   // Filter Wall Paneling items
   const wallPanelingItems = useMemo(() => {
     return requisition.items.filter((i) => i.workCategory === 'WALL_PANELING')
   }, [requisition.items])
 
-  // Sub-section items
+  // Sub-section counts
   const subSectionCounts = useMemo(() => {
     const counts: Record<WallPanelingSubSection, { total: number; bought: number }> = {
       BOARDS: { total: 0, bought: 0 },
@@ -216,15 +246,15 @@ export function WallPanelingBillMaker({ requisition }: WallPanelingBillMakerProp
     wallPanelingItems.forEach((item) => {
       const sub = classifyWallPanelingItem(item)
       counts[sub].total += 1
-      if (bills[item.id]?.isBought) {
+      if (purchases[item.id]?.isBought) {
         counts[sub].bought += 1
       }
     })
 
     return counts
-  }, [wallPanelingItems, bills])
+  }, [wallPanelingItems, purchases])
 
-  // Display items filtered by active sub-section & search
+  // Display items
   const displayedItems = useMemo(() => {
     return wallPanelingItems.filter((item) => {
       const sub = classifyWallPanelingItem(item)
@@ -239,16 +269,63 @@ export function WallPanelingBillMaker({ requisition }: WallPanelingBillMakerProp
     })
   }, [wallPanelingItems, activeSubSection, searchQuery])
 
-  // Overall Wall Paneling bill summary
+  // Dynamic calculations for the Record Purchase Modal
+  const calculatedBaseMaterial = useMemo(() => {
+    const qty = parseFloat(formBillQty) || 0
+    const price = parseFloat(formUnitPrice) || 0
+    return Math.round(qty * price)
+  }, [formBillQty, formUnitPrice])
+
+  const calculatedTotalSpend = useMemo(() => {
+    const transport = parseFloat(formTransportCost) || 0
+    const other = parseFloat(formOtherCost) || 0
+    return calculatedBaseMaterial + transport + other
+  }, [calculatedBaseMaterial, formTransportCost, formOtherCost])
+
+  const calculatedDueAmount = useMemo(() => {
+    const paid = parseFloat(formPaidAmount) || 0
+    return Math.max(0, calculatedTotalSpend - paid)
+  }, [calculatedTotalSpend, formPaidAmount])
+
+  const calculatedPaymentStatus: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' = useMemo(() => {
+    const paid = parseFloat(formPaidAmount) || 0
+    if (calculatedTotalSpend <= 0 || paid <= 0) return 'UNPAID'
+    if (paid >= calculatedTotalSpend) return 'PAID'
+    return 'PARTIALLY_PAID'
+  }, [calculatedTotalSpend, formPaidAmount])
+
+  // Overall Wall Paneling purchases summary
   const orderSummary = useMemo(() => {
     let totalBilledItems = 0
-    let totalBilledCost = 0
+    let totalMaterialSpend = 0
+    let totalPaidToSuppliers = 0
+    let totalDueAmount = 0
+    const settlementTotals = {
+      pettyCash: 0,
+      purchaseTeam: 0,
+      companyAccount: 0,
+      vendorCredit: 0,
+      other: 0,
+    }
 
     wallPanelingItems.forEach((item) => {
-      const b = bills[item.id]
-      if (b && b.isBought) {
+      const p = purchases[item.id]
+      if (p && p.isBought) {
         totalBilledItems += 1
-        totalBilledCost += b.totalAmount || 0
+        const total = Number(p.totalAmount) || 0
+        const paid = Number(p.paidAmount) || 0
+        const due = Number(p.dueAmount) || 0
+
+        totalMaterialSpend += total
+        totalPaidToSuppliers += paid
+        totalDueAmount += due
+
+        const method = p.settlementMethod || 'PETTY_CASH'
+        if (method === 'PETTY_CASH') settlementTotals.pettyCash += total
+        else if (method === 'PURCHASE_TEAM') settlementTotals.purchaseTeam += total
+        else if (method === 'COMPANY_ACCOUNT') settlementTotals.companyAccount += total
+        else if (method === 'VENDOR_CREDIT') settlementTotals.vendorCredit += total
+        else settlementTotals.other += total
       }
     })
 
@@ -256,518 +333,691 @@ export function WallPanelingBillMaker({ requisition }: WallPanelingBillMakerProp
       totalItems: wallPanelingItems.length,
       totalBilledItems,
       unbilledItems: wallPanelingItems.length - totalBilledItems,
-      totalBilledCost,
+      totalMaterialSpend,
+      totalPaidToSuppliers,
+      totalDueAmount,
+      settlementTotals,
     }
-  }, [wallPanelingItems, bills])
+  }, [wallPanelingItems, purchases])
 
-  // Open Add/Edit Bill Modal
-  const handleOpenBillModal = (item: RequisitionItemData) => {
-    const existing = bills[item.id]
+  // Vendor selection handler
+  const handleVendorSelect = (vendorId: string) => {
+    setSelectedVendorId(vendorId)
+    if (!vendorId || vendorId === 'CUSTOM') {
+      return
+    }
+    const found = vendors.find((v) => v.id === vendorId)
+    if (found) {
+      setFormVendorName(found.vendorCompanyName || found.vendorName)
+      setFormVendorPhone(found.primaryPhone || '')
+      setFormVendorEmail(found.primaryEmail || '')
+    }
+  }
+
+  // Open "Record Purchase" Modal
+  const handleOpenPurchaseModal = (item: RequisitionItemData) => {
+    const existing = purchases[item.id]
     setEditingItem(item)
+
     if (existing) {
-      setFormBillQty(String(existing.billQuantity))
-      setFormUnitPrice(String(existing.unitPrice || ''))
-      setFormTotalAmount(String(existing.totalAmount || ''))
+      setSelectedVendorId(existing.vendorId || 'CUSTOM')
       setFormVendorName(existing.vendorName || '')
+      setFormVendorPhone(existing.vendorPhone || '')
+      setFormVendorEmail(existing.vendorEmail || '')
       setFormInvoiceNo(existing.invoiceNo || '')
+      setFormBillDate(existing.billDate || new Date().toISOString().split('T')[0])
+      setFormBillQty(String(existing.billQuantity || item.finalQuantity))
+      setFormUnitPrice(String(existing.unitPrice || ''))
+      setFormTransportCost(String(existing.transportCost || 0))
+      setFormOtherCost(String(existing.otherCost || 0))
+      setFormPaidAmount(String(existing.paidAmount || 0))
+      setFormSettlementMethod(existing.settlementMethod || 'PETTY_CASH')
+      setFormPurchasedBy(existing.purchasedBy || '')
       setFormNotes(existing.notes || '')
     } else {
+      setSelectedVendorId('')
+      setFormVendorName('')
+      setFormVendorPhone('')
+      setFormVendorEmail('')
+      setFormInvoiceNo('')
+      setFormBillDate(new Date().toISOString().split('T')[0])
       setFormBillQty(String(item.finalQuantity))
       setFormUnitPrice('')
-      setFormTotalAmount('')
-      setFormVendorName('')
-      setFormInvoiceNo('')
+      setFormTransportCost('0')
+      setFormOtherCost('0')
+      setFormPaidAmount('0')
+      setFormSettlementMethod('PETTY_CASH')
+      setFormPurchasedBy('')
       setFormNotes('')
     }
   }
 
-  // Handle Qty or Unit Price change -> auto calc total
-  const handleUnitPriceChange = (val: string) => {
-    setFormUnitPrice(val)
-    const unitP = parseFloat(val)
-    const qty = parseFloat(formBillQty)
-    if (!isNaN(unitP) && !isNaN(qty)) {
-      setFormTotalAmount(String(Math.round(unitP * qty)))
-    }
-  }
-
-  const handleBillQtyChange = (val: string) => {
-    setFormBillQty(val)
-    const qty = parseFloat(val)
-    const unitP = parseFloat(formUnitPrice)
-    if (!isNaN(unitP) && !isNaN(qty)) {
-      setFormTotalAmount(String(Math.round(unitP * qty)))
-    }
-  }
-
-  // Save Bill for Item
-  const handleSaveBill = () => {
+  // Save Purchase Record
+  const handleSavePurchase = async () => {
     if (!editingItem) return
     const qty = parseFloat(formBillQty) || editingItem.finalQuantity
-    const unitP = parseFloat(formUnitPrice) || 0
-    const total = parseFloat(formTotalAmount) || (qty * unitP)
+    const price = parseFloat(formUnitPrice) || 0
+    const transport = parseFloat(formTransportCost) || 0
+    const other = parseFloat(formOtherCost) || 0
+    const total = (qty * price) + transport + other
+    const paid = parseFloat(formPaidAmount) || 0
+    const due = Math.max(0, total - paid)
 
-    setBills((prev) => ({
-      ...prev,
-      [editingItem.id]: {
-        isBought: true,
-        billQuantity: qty,
-        unitPrice: unitP,
-        totalAmount: total,
-        vendorName: formVendorName.trim(),
-        invoiceNo: formInvoiceNo.trim(),
-        notes: formNotes.trim(),
-      },
-    }))
+    let status: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' = 'UNPAID'
+    if (paid >= total && total > 0) status = 'PAID'
+    else if (paid > 0) status = 'PARTIALLY_PAID'
 
-    setEditingItem(null)
+    const existingDocs = purchases[editingItem.id]?.documents || []
+
+    const record: ItemPurchaseRecord = {
+      isBought: true,
+      vendorId: selectedVendorId === 'CUSTOM' ? null : selectedVendorId,
+      vendorName: formVendorName.trim() || 'Direct Supplier',
+      vendorPhone: formVendorPhone.trim(),
+      vendorEmail: formVendorEmail.trim(),
+      invoiceNo: formInvoiceNo.trim(),
+      billDate: formBillDate,
+      billQuantity: qty,
+      unitPrice: price,
+      materialTotal: qty * price,
+      transportCost: transport,
+      otherCost: other,
+      totalAmount: total,
+      paidAmount: paid,
+      dueAmount: due,
+      paymentStatus: status,
+      settlementMethod: formSettlementMethod,
+      purchasedBy: formPurchasedBy.trim(),
+      notes: formNotes.trim(),
+      documents: existingDocs,
+    }
+
+    setIsSaving(true)
+    try {
+      await saveItemPurchaseRecordAction({
+        itemId: editingItem.id,
+        requisitionId: requisition.id,
+        record,
+      })
+      setPurchases((prev) => ({
+        ...prev,
+        [editingItem.id]: record,
+      }))
+      setEditingItem(null)
+    } catch (err) {
+      console.error(err)
+      alert('Could not save purchase record.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  // Remove Bill
-  const handleRemoveBill = (itemId: string) => {
-    setBills((prev) => {
-      const next = { ...prev }
-      delete next[itemId]
-      return next
-    })
+  // Remove Purchase
+  const handleRemovePurchase = async (itemId: string) => {
+    if (!confirm('Are you sure you want to remove this purchase record?')) return
+    setIsSaving(true)
+    try {
+      await removeItemPurchaseRecordAction({
+        itemId,
+        requisitionId: requisition.id,
+      })
+      setPurchases((prev) => {
+        const next = { ...prev }
+        delete next[itemId]
+        return next
+      })
+    } catch (err) {
+      console.error(err)
+      alert('Could not remove purchase record.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
-  // Finalize Order & Forward to Accounts
-  const handleConfirmOrder = () => {
-    const poNumber = `PO-WP-${Date.now().toString().slice(-6)}`
-    setOrderSubmittedSuccess(poNumber)
-    setIsOrderModalOpen(false)
+  // Attach Document
+  const handleAttachDocument = async () => {
+    if (!documentItem || !newDocName.trim() || !newDocUrl.trim()) {
+      alert('Please enter document name and URL or attach file')
+      return
+    }
+
+    const doc: AttachedDocument = {
+      id: `DOC-${Date.now().toString().slice(-6)}`,
+      name: newDocName.trim(),
+      url: newDocUrl.trim(),
+      uploadedAt: new Date().toISOString(),
+    }
+
+    setIsUploadingDoc(true)
+    try {
+      await attachItemDocumentAction({
+        itemId: documentItem.id,
+        requisitionId: requisition.id,
+        target: 'PURCHASE',
+        document: doc,
+      })
+
+      // Update state
+      setPurchases((prev) => {
+        const p = prev[documentItem.id]
+        if (!p) return prev
+        const docs = [...(p.documents || []), doc]
+        return {
+          ...prev,
+          [documentItem.id]: { ...p, documents: docs },
+        }
+      })
+
+      setNewDocName('')
+      setNewDocUrl('')
+    } catch (err) {
+      console.error(err)
+      alert('Failed to attach document')
+    } finally {
+      setIsUploadingDoc(false)
+    }
+  }
+
+  // Remove Document
+  const handleRemoveDocument = async (docId: string) => {
+    if (!documentItem) return
+    try {
+      await removeAttachedDocumentAction({
+        itemId: documentItem.id,
+        requisitionId: requisition.id,
+        target: 'PURCHASE',
+        documentId: docId,
+      })
+
+      setPurchases((prev) => {
+        const p = prev[documentItem.id]
+        if (!p) return prev
+        const docs = (p.documents || []).filter((d) => d.id !== docId)
+        return {
+          ...prev,
+          [documentItem.id]: { ...p, documents: docs },
+        }
+      })
+    } catch (err) {
+      console.error(err)
+      alert('Failed to remove document')
+    }
+  }
+
+  // Dispatch to Accounts
+  const handleConfirmOrder = async () => {
+    setIsSaving(true)
+    try {
+      const res = await dispatchBillingToAccountsAction({
+        requisitionId: requisition.id,
+        orderNotes,
+        totalBilledAmount: orderSummary.totalMaterialSpend,
+        totalBilledItems: orderSummary.totalBilledItems,
+        settlementBreakdown: orderSummary.settlementTotals,
+      })
+      setOrderSubmittedSuccess(res.dispatchRef)
+      setIsOrderModalOpen(false)
+    } catch (err) {
+      console.error(err)
+      alert('Failed to dispatch order to accounts.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
     <div className="w-full space-y-6">
-      {/* Success Banner when Order is Created */}
+      {/* Success Notification Banner */}
       {orderSubmittedSuccess && (
-        <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/10 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-emerald-500 text-white shadow-sm">
-              <ShieldCheck className="w-6 h-6" />
+        <div className="rounded-lg border border-border bg-card p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2 rounded-md bg-foreground text-background shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
-              <div className="font-bold text-base text-foreground flex items-center gap-2">
-                <span>Order Created & Dispatched to Accounts!</span>
-                <Badge className="bg-emerald-600 text-white text-xs">{orderSubmittedSuccess}</Badge>
+              <div className="font-semibold text-sm text-foreground flex items-center gap-2">
+                <span>Billing Records Dispatched to Accounts</span>
+                <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-foreground border border-border font-medium">
+                  {orderSubmittedSuccess}
+                </span>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {orderSummary.totalBilledItems} items totaling ৳{orderSummary.totalBilledCost.toLocaleString('en-BD')} have been submitted to Accounts department for voucher clearance.
+                {orderSummary.totalBilledItems} items totaling ৳{orderSummary.totalMaterialSpend.toLocaleString('en-BD')} have been submitted to Accounts.
               </p>
             </div>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-emerald-500/30 text-emerald-700 dark:text-emerald-300"
-            onClick={() => setOrderSubmittedSuccess(null)}
-          >
-            Dismiss
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs gap-1.5"
+              onClick={() => setIsPrintSlipOpen(true)}
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print Voucher Slip
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-xs text-muted-foreground"
+              onClick={() => setOrderSubmittedSuccess(null)}
+            >
+              Dismiss
+            </Button>
+          </div>
         </div>
       )}
 
-      {/* Top Main Section Buttons */}
+      {/* Requisition Scope Selector */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Select Requisition Scope
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span className="font-semibold uppercase tracking-wider">
+            Requisition Work Scope
           </span>
-          <span className="text-xs text-muted-foreground">
-            Starting with Wall Paneling first as requested
-          </span>
+          <span>Starting with Wall Paneling as requested</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => setSelectedMainSection('WALL_PANELING')}
-            className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-sm ${
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold transition-colors border ${
               selectedMainSection === 'WALL_PANELING'
-                ? 'bg-indigo-600 text-white ring-2 ring-indigo-500 ring-offset-2'
-                : 'bg-card border hover:border-indigo-400 text-foreground'
+                ? 'bg-foreground text-background border-foreground shadow-xs'
+                : 'bg-card text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
             }`}
           >
-            <span>🖼️ Wall Paneling</span>
-            <Badge className={selectedMainSection === 'WALL_PANELING' ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'}>
-              {wallPanelingItems.length} Materials
-            </Badge>
+            <Layers className="w-3.5 h-3.5" />
+            <span>Wall Paneling</span>
+            <span className={`text-[11px] px-1.5 py-0.2 rounded font-mono ${
+              selectedMainSection === 'WALL_PANELING' ? 'bg-background/20 text-background' : 'bg-muted text-muted-foreground'
+            }`}>
+              {wallPanelingItems.length}
+            </span>
           </button>
 
           <button
             type="button"
             onClick={() => setSelectedMainSection('CABINETS_CLOSETS')}
-            className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold bg-muted/40 border border-dashed text-muted-foreground hover:bg-muted/60 transition-all opacity-70"
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-medium bg-card border border-border border-dashed text-muted-foreground/70 hover:text-muted-foreground transition-colors"
           >
-            <span>🚪 Cabinets & Closets</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted">Next Step</span>
+            <Boxes className="w-3.5 h-3.5" />
+            <span>Cabinets & Closets</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground">Next</span>
           </button>
 
           <button
             type="button"
             onClick={() => setSelectedMainSection('ACCESSORIES')}
-            className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold bg-muted/40 border border-dashed text-muted-foreground hover:bg-muted/60 transition-all opacity-70"
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-medium bg-card border border-border border-dashed text-muted-foreground/70 hover:text-muted-foreground transition-colors"
           >
-            <span>🧰 Accessories</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted">Next Step</span>
+            <Hammer className="w-3.5 h-3.5" />
+            <span>Accessories</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground">Next</span>
           </button>
 
           <button
             type="button"
             onClick={() => setSelectedMainSection('OTHER')}
-            className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold bg-muted/40 border border-dashed text-muted-foreground hover:bg-muted/60 transition-all opacity-70"
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-medium bg-card border border-border border-dashed text-muted-foreground/70 hover:text-muted-foreground transition-colors"
           >
-            <span>✨ Other Categories</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted">Next Step</span>
+            <FileText className="w-3.5 h-3.5" />
+            <span>Other Categories</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground">Next</span>
           </button>
         </div>
       </div>
 
-      {/* Main Section Content Area */}
+      {/* Main Section Area */}
       {selectedMainSection !== 'WALL_PANELING' ? (
-        <div className="rounded-2xl border bg-card p-12 text-center space-y-3">
-          <Layers className="w-10 h-10 text-muted-foreground/40 mx-auto" />
-          <h3 className="text-base font-semibold text-foreground">Next Stage Development</h3>
-          <p className="text-xs text-muted-foreground max-w-md mx-auto">
-            As requested, we are focusing on and perfecting the <strong>Wall Paneling</strong> bill maker first. Once finalized, this section will be activated.
+        <div className="rounded-lg border border-border bg-card p-12 text-center space-y-3">
+          <Layers className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+          <h3 className="text-sm font-semibold text-foreground">Under Staged Rollout</h3>
+          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+            Wall Paneling purchase entry is currently active.
           </p>
           <Button
             size="sm"
-            className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            variant="outline"
+            className="text-xs h-8"
             onClick={() => setSelectedMainSection('WALL_PANELING')}
           >
             Return to Wall Paneling
           </Button>
         </div>
       ) : (
-        <div className="space-y-6">
-          {/* Sub-section Filter Strip & Bill Maker Progress */}
-          <div className="rounded-2xl border bg-card p-4 sm:p-5 shadow-sm space-y-4">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="space-y-4">
+          {/* Sub-Section Filter Bar & Search */}
+          <div className="rounded-lg border border-border bg-card p-4 space-y-3 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                    <span>🖼️ Wall Paneling Material Scope</span>
+                  <h2 className="text-sm font-bold text-foreground">
+                    Wall Paneling Purchases & Vendor Billing
                   </h2>
-                  <Badge variant="outline" className="text-xs font-semibold">
-                    {orderSummary.totalBilledItems} / {orderSummary.totalItems} Bought
-                  </Badge>
+                  <span className="text-xs px-2 py-0.5 rounded border border-border font-mono font-medium text-foreground bg-muted/30">
+                    {orderSummary.totalBilledItems} of {orderSummary.totalItems} Purchases Logged
+                  </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Select items being purchased, add supplier bill/rates, and mark them as bought
+                  Select supplier, log purchase costs (transport & other), track paid amount, and attach invoices
                 </p>
               </div>
 
               {/* Quick Search */}
-              <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <div className="relative w-full sm:w-64">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search Wall Paneling material..."
-                  className="pl-9 h-9 text-xs"
+                  placeholder="Filter material by name or spec..."
+                  className="pl-8 h-8 text-xs bg-background border-border"
                 />
               </div>
             </div>
 
-            {/* Sub-Section Pills */}
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+            {/* Sub-Category Filter Buttons */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-border">
               <button
                 type="button"
                 onClick={() => setActiveSubSection('ALL')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
                   activeSubSection === 'ALL'
-                    ? 'bg-foreground text-background shadow-xs'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                    ? 'bg-foreground text-background font-semibold'
+                    : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
-                <span>All Wall Paneling</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-background/20 font-mono">
-                  {wallPanelingItems.length}
-                </span>
+                <span>All Materials</span>
+                <span className="text-[11px] font-mono opacity-80">({wallPanelingItems.length})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveSubSection('BOARDS')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
                   activeSubSection === 'BOARDS'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                    ? 'bg-foreground text-background font-semibold'
+                    : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
-                <span>🪵 Boards</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                  activeSubSection === 'BOARDS' ? 'bg-white/20 text-white' : 'bg-background text-muted-foreground'
-                }`}>
-                  {subSectionCounts.BOARDS.bought}/{subSectionCounts.BOARDS.total}
+                <span>Boards & Plywood</span>
+                <span className="text-[11px] font-mono opacity-80">
+                  ({subSectionCounts.BOARDS.bought}/{subSectionCounts.BOARDS.total})
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveSubSection('DECORATIVE')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
                   activeSubSection === 'DECORATIVE'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                    ? 'bg-foreground text-background font-semibold'
+                    : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
-                <span>✨ Decorative Panels</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                  activeSubSection === 'DECORATIVE' ? 'bg-white/20 text-white' : 'bg-background text-muted-foreground'
-                }`}>
-                  {subSectionCounts.DECORATIVE.bought}/{subSectionCounts.DECORATIVE.total}
+                <span>Louvers & Decorative</span>
+                <span className="text-[11px] font-mono opacity-80">
+                  ({subSectionCounts.DECORATIVE.bought}/{subSectionCounts.DECORATIVE.total})
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveSubSection('FASTENERS')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
                   activeSubSection === 'FASTENERS'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                    ? 'bg-foreground text-background font-semibold'
+                    : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
-                <span>🔩 Hardware (Screws)</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                  activeSubSection === 'FASTENERS' ? 'bg-white/20 text-white' : 'bg-background text-muted-foreground'
-                }`}>
-                  {subSectionCounts.FASTENERS.bought}/{subSectionCounts.FASTENERS.total}
+                <span>Screws & Hardware</span>
+                <span className="text-[11px] font-mono opacity-80">
+                  ({subSectionCounts.FASTENERS.bought}/{subSectionCounts.FASTENERS.total})
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveSubSection('NAILS')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
                   activeSubSection === 'NAILS'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                    ? 'bg-foreground text-background font-semibold'
+                    : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
-                <span>📌 Nails, Pins & Anchors</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                  activeSubSection === 'NAILS' ? 'bg-white/20 text-white' : 'bg-background text-muted-foreground'
-                }`}>
-                  {subSectionCounts.NAILS.bought}/{subSectionCounts.NAILS.total}
+                <span>Nails, Pins & Anchors</span>
+                <span className="text-[11px] font-mono opacity-80">
+                  ({subSectionCounts.NAILS.bought}/{subSectionCounts.NAILS.total})
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setActiveSubSection('ADHESIVES')}
-                className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors ${
                   activeSubSection === 'ADHESIVES'
-                    ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                    ? 'bg-foreground text-background font-semibold'
+                    : 'bg-muted/50 text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
-                <span>🧪 Adhesives & Chemicals</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
-                  activeSubSection === 'ADHESIVES' ? 'bg-white/20 text-white' : 'bg-background text-muted-foreground'
-                }`}>
-                  {subSectionCounts.ADHESIVES.bought}/{subSectionCounts.ADHESIVES.total}
+                <span>Adhesives & Chemicals</span>
+                <span className="text-[11px] font-mono opacity-80">
+                  ({subSectionCounts.ADHESIVES.bought}/{subSectionCounts.ADHESIVES.total})
                 </span>
               </button>
             </div>
           </div>
 
-          {/* Table Container */}
-          <div className="w-full rounded-2xl border bg-card shadow-sm overflow-hidden">
+          {/* Table Container: High Contrast, Clean Monochrome Design */}
+          <div className="w-full rounded-lg border border-border bg-card shadow-xs overflow-hidden">
             {displayedItems.length === 0 ? (
-              <div className="p-12 text-center space-y-3">
-                <Package className="w-10 h-10 text-muted-foreground/40 mx-auto" />
-                <h3 className="text-sm font-semibold text-foreground">No Wall Paneling materials found</h3>
+              <div className="p-12 text-center space-y-2">
+                <Package className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+                <h3 className="text-xs font-semibold text-foreground">No materials found</h3>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  {searchQuery ? 'No materials match your search query.' : 'There are currently no items in this sub-section.'}
+                  {searchQuery ? 'No materials match your search keyword.' : 'No materials in this sub-section.'}
                 </p>
               </div>
             ) : (
               <div className="w-full overflow-x-auto">
-                <table className="w-full text-xs sm:text-sm text-left">
-                  <thead className="bg-muted/70 text-muted-foreground uppercase text-[11px] font-bold border-b tracking-wider">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead className="bg-muted/50 text-foreground font-semibold border-b border-border text-[11px]">
                     <tr>
-                      <th className="py-3 px-4 w-12 text-center">Status</th>
-                      <th className="py-3 px-4 w-12 text-center">SL</th>
-                      <th className="py-3 px-4 min-w-[180px]">Material & Description</th>
-                      <th className="py-3 px-4 min-w-[160px]">Specifications / Attributes</th>
-                      <th className="py-3 px-4 text-center">Required Qty</th>
-                      <th className="py-3 px-4 text-center">Billed Qty</th>
-                      <th className="py-3 px-4 text-right">Unit Rate</th>
-                      <th className="py-3 px-4 text-right">Total Bill</th>
-                      <th className="py-3 px-4 min-w-[140px]">Vendor & Memo</th>
-                      <th className="py-3 px-4 text-right">Action</th>
+                      <th className="py-2.5 px-3 w-10 text-center">Status</th>
+                      <th className="py-2.5 px-3 w-10 text-center">SL</th>
+                      <th className="py-2.5 px-3 min-w-[200px]">Material & Scope</th>
+                      <th className="py-2.5 px-3 min-w-[150px]">Supplier & Contacts</th>
+                      <th className="py-2.5 px-3 text-center">Req. Qty</th>
+                      <th className="py-2.5 px-3 text-center">Purchased Qty</th>
+                      <th className="py-2.5 px-3 text-right">Unit Rate</th>
+                      <th className="py-2.5 px-3 text-right">Total Spend</th>
+                      <th className="py-2.5 px-3 text-right">Paid (৳)</th>
+                      <th className="py-2.5 px-3 text-center">Payment Status</th>
+                      <th className="py-2.5 px-3 text-center">Docs</th>
+                      <th className="py-2.5 px-3 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {displayedItems.map((item, idx) => {
-                      const bill = bills[item.id]
-                      const isBought = Boolean(bill?.isBought)
-                      const attrs = (item.variantAttributes || {}) as Record<string, any>
+                      const p = purchases[item.id]
+                      const isBought = Boolean(p?.isBought)
                       const subType = classifyWallPanelingItem(item)
-
-                      // Format specific details based on sub-section
-                      let detailDisplay = null
-                      if (subType === 'BOARDS') {
-                        detailDisplay = (
-                          <div className="space-y-0.5 text-[11px] text-muted-foreground">
-                            {attrs.coreThickness && <div>Thickness: <span className="text-foreground font-medium">{attrs.coreThickness}</span></div>}
-                            {attrs.laminateTopSurface && <div>Front: <span className="text-foreground">{attrs.laminateTopSurface}</span></div>}
-                            {attrs.surfaceCodeFinish && <div>Back: <span className="text-foreground">{attrs.surfaceCodeFinish}</span></div>}
-                            {attrs.edgingTapeQty && <div>Edging Tape: <span className="text-foreground">{attrs.edgingTapeQty}</span></div>}
-                          </div>
-                        )
-                      } else if (subType === 'DECORATIVE') {
-                        detailDisplay = (
-                          <div className="space-y-0.5 text-[11px] text-muted-foreground">
-                            {attrs.decorativeType && <div>Type: <span className="text-foreground capitalize">{attrs.decorativeType}</span></div>}
-                            {attrs.accentFinish && <div>Accent: <span className="text-foreground">{attrs.accentFinish}</span></div>}
-                            {attrs.codeVariant && <div>Code: <span className="text-foreground font-mono">{attrs.codeVariant}</span></div>}
-                          </div>
-                        )
-                      } else if (subType === 'FASTENERS') {
-                        detailDisplay = (
-                          <div className="space-y-0.5 text-[11px] text-muted-foreground">
-                            {attrs.lengthInches && <div>Length: <span className="text-foreground font-medium">{attrs.lengthInches} inches</span></div>}
-                            {attrs.fastenerType && <div>Type: <span className="text-foreground">{attrs.fastenerType}</span></div>}
-                          </div>
-                        )
-                      } else if (subType === 'NAILS') {
-                        detailDisplay = (
-                          <div className="space-y-0.5 text-[11px] text-muted-foreground">
-                            {attrs.lengthSpec && <div>Spec: <span className="text-foreground">{attrs.lengthSpec}</span></div>}
-                          </div>
-                        )
-                      } else {
-                        detailDisplay = (
-                          <div className="text-[11px] text-muted-foreground">
-                            {item.specifications || 'Standard specifications'}
-                          </div>
-                        )
-                      }
+                      const docCount = p?.documents?.length || 0
 
                       return (
                         <tr
                           key={item.id}
-                          className={`transition-colors ${
-                            isBought
-                              ? 'bg-emerald-500/[0.04] hover:bg-emerald-500/[0.08]'
-                              : 'hover:bg-muted/30'
+                          className={`transition-colors hover:bg-muted/20 ${
+                            isBought ? 'bg-muted/10' : ''
                           }`}
                         >
-                          {/* Bought Checkmark Status */}
-                          <td className="py-3 px-4 text-center">
+                          {/* Status Check Indicator */}
+                          <td className="py-2.5 px-3 text-center">
                             {isBought ? (
-                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-white shadow-xs">
-                                <Check className="w-3.5 h-3.5 stroke-[3]" />
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-foreground text-background">
+                                <Check className="w-3 h-3 stroke-[3]" />
                               </span>
                             ) : (
-                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground/40 text-[10px]">
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full border border-border text-muted-foreground/40 text-[10px]">
                                 —
                               </span>
                             )}
                           </td>
 
-                          {/* SL No */}
-                          <td className="py-3 px-4 text-center font-mono text-muted-foreground text-xs">
+                          {/* SL */}
+                          <td className="py-2.5 px-3 text-center font-mono text-muted-foreground text-xs">
                             {idx + 1}
                           </td>
 
-                          {/* Material & Description */}
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-foreground text-sm">
+                          {/* Material & Scope */}
+                          <td className="py-2.5 px-3">
+                            <div className="font-semibold text-foreground text-xs sm:text-sm">
                               {item.materialName}
                             </div>
                             <div className="flex items-center gap-1.5 mt-0.5">
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground font-medium">
                                 {subType}
-                              </Badge>
+                              </span>
                               {item.productionPhase && (
                                 <span className="text-[10px] text-muted-foreground">
-                                  Phase: {item.productionPhase}
+                                  {item.productionPhase}
                                 </span>
                               )}
                             </div>
                           </td>
 
-                          {/* Specific Attributes */}
-                          <td className="py-3 px-4">
-                            {detailDisplay}
-                          </td>
-
-                          {/* Required Qty */}
-                          <td className="py-3 px-4 text-center font-semibold text-foreground">
-                            {item.finalQuantity} <span className="text-xs text-muted-foreground">{item.unit}</span>
-                          </td>
-
-                          {/* Billed Qty */}
-                          <td className="py-3 px-4 text-center">
-                            {isBought ? (
-                              <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                                {bill.billQuantity} {item.unit}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">Not Billed</span>
-                            )}
-                          </td>
-
-                          {/* Unit Rate */}
-                          <td className="py-3 px-4 text-right">
-                            {isBought && bill.unitPrice > 0 ? (
-                              <span className="font-medium text-foreground">
-                                ৳{bill.unitPrice.toLocaleString('en-BD')}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
-                            )}
-                          </td>
-
-                          {/* Total Bill */}
-                          <td className="py-3 px-4 text-right">
-                            {isBought ? (
-                              <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-                                ৳{bill.totalAmount.toLocaleString('en-BD')}
-                              </span>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
-                            )}
-                          </td>
-
-                          {/* Vendor & Memo */}
-                          <td className="py-3 px-4 text-xs">
-                            {isBought && (bill.vendorName || bill.invoiceNo) ? (
+                          {/* Supplier & Contact Info */}
+                          <td className="py-2.5 px-3 text-xs">
+                            {isBought && p.vendorName ? (
                               <div className="space-y-0.5">
-                                {bill.vendorName && <div className="font-medium text-foreground">{bill.vendorName}</div>}
-                                {bill.invoiceNo && <div className="text-muted-foreground text-[10px]">Memo: {bill.invoiceNo}</div>}
+                                <div className="font-semibold text-foreground">{p.vendorName}</div>
+                                {p.vendorPhone && (
+                                  <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                    <Phone className="w-2.5 h-2.5" />
+                                    <span>{p.vendorPhone}</span>
+                                  </div>
+                                )}
+                                {p.invoiceNo && (
+                                  <div className="text-[10px] text-muted-foreground font-mono">
+                                    Memo: {p.invoiceNo}
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <span className="text-muted-foreground text-xs">—</span>
                             )}
                           </td>
 
-                          {/* Action Button */}
-                          <td className="py-3 px-4 text-right">
+                          {/* Required Qty */}
+                          <td className="py-2.5 px-3 text-center font-semibold text-foreground">
+                            {item.finalQuantity} <span className="text-xs text-muted-foreground font-normal">{item.unit}</span>
+                          </td>
+
+                          {/* Purchased Qty */}
+                          <td className="py-2.5 px-3 text-center">
                             {isBought ? (
-                              <div className="flex items-center justify-end gap-1.5">
+                              <span className="font-semibold text-foreground">
+                                {p.billQuantity} {item.unit}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </td>
+
+                          {/* Unit Rate */}
+                          <td className="py-2.5 px-3 text-right">
+                            {isBought && p.unitPrice > 0 ? (
+                              <span className="font-medium text-foreground">
+                                ৳{p.unitPrice.toLocaleString('en-BD')}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </td>
+
+                          {/* Total Spend */}
+                          <td className="py-2.5 px-3 text-right">
+                            {isBought ? (
+                              <div>
+                                <div className="font-bold text-foreground text-xs sm:text-sm font-mono">
+                                  ৳{p.totalAmount.toLocaleString('en-BD')}
+                                </div>
+                                {(p.transportCost > 0 || p.otherCost > 0) && (
+                                  <div className="text-[10px] text-muted-foreground">
+                                    +{p.transportCost + p.otherCost} fees
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </td>
+
+                          {/* Paid Amount */}
+                          <td className="py-2.5 px-3 text-right">
+                            {isBought ? (
+                              <div className="font-medium font-mono text-foreground">
+                                ৳{p.paidAmount.toLocaleString('en-BD')}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </td>
+
+                          {/* Payment Status (Auto) */}
+                          <td className="py-2.5 px-3 text-center">
+                            {isBought ? (
+                              p.paymentStatus === 'PAID' ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border border-emerald-300 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                  PAID
+                                </span>
+                              ) : p.paymentStatus === 'PARTIALLY_PAID' ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+                                  PARTIAL
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                                  UNPAID
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </td>
+
+                          {/* Documents Button */}
+                          <td className="py-2.5 px-3 text-center">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                              onClick={() => setDocumentItem(item)}
+                              title="Attach / View Invoices"
+                            >
+                              <Paperclip className="w-3.5 h-3.5" />
+                              <span className="font-mono text-[11px]">{docCount}</span>
+                            </Button>
+                          </td>
+
+                          {/* Action Button: "Record Purchase" */}
+                          <td className="py-2.5 px-3 text-right">
+                            {isBought ? (
+                              <div className="flex items-center justify-end gap-1">
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="h-7 text-xs gap-1 border-emerald-300 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                                  onClick={() => handleOpenBillModal(item)}
+                                  className="h-7 text-xs px-2 gap-1 font-medium"
+                                  onClick={() => handleOpenPurchaseModal(item)}
                                 >
                                   <Edit2 className="w-3 h-3" />
-                                  Edit Bill
+                                  Edit
                                 </Button>
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  className="w-7 h-7 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                                  onClick={() => handleRemoveBill(item.id)}
-                                  title="Clear Bill"
+                                  className="w-7 h-7 text-muted-foreground hover:text-foreground"
+                                  onClick={() => handleRemovePurchase(item.id)}
+                                  title="Clear record"
                                 >
                                   <Trash2 className="w-3 h-3" />
                                 </Button>
@@ -775,11 +1025,12 @@ export function WallPanelingBillMaker({ requisition }: WallPanelingBillMakerProp
                             ) : (
                               <Button
                                 size="sm"
-                                className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1 shadow-xs"
-                                onClick={() => handleOpenBillModal(item)}
+                                variant="outline"
+                                className="h-7 text-xs px-2.5 gap-1 bg-background hover:bg-muted font-medium text-foreground"
+                                onClick={() => handleOpenPurchaseModal(item)}
                               >
                                 <Plus className="w-3 h-3" />
-                                Add Bill
+                                Record Purchase
                               </Button>
                             )}
                           </td>
@@ -792,247 +1043,651 @@ export function WallPanelingBillMaker({ requisition }: WallPanelingBillMakerProp
             )}
           </div>
 
-          {/* Bottom Fixed Order Creation Card */}
-          <div className="rounded-2xl border-2 border-indigo-500/20 bg-card p-5 sm:p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-5">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
-                  Bill Maker Order Dispatch
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  Connects Procurement to Accounts
-                </span>
+          {/* Accounts Summary & Dispatch Card */}
+          <div className="rounded-lg border border-border bg-card p-4 sm:p-5 shadow-xs space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Purchase Line Spend Summary
+                  </span>
+                  <span className="text-xs text-muted-foreground">• Ready for Accounts</span>
+                </div>
+                <div className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+                  <span>Total Material Spend:</span>
+                  <span className="font-mono">৳{orderSummary.totalMaterialSpend.toLocaleString('en-BD')}</span>
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-3">
+                  <span>Paid: <strong className="text-foreground">৳{orderSummary.totalPaidToSuppliers.toLocaleString('en-BD')}</strong></span>
+                  <span>Due: <strong className="text-foreground">৳{orderSummary.totalDueAmount.toLocaleString('en-BD')}</strong></span>
+                  <span>({orderSummary.totalBilledItems} of {orderSummary.totalItems} logged)</span>
+                </div>
               </div>
-              <div className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-3">
-                <span>Total Billed Amount:</span>
-                <span className="text-emerald-600 dark:text-emerald-400">
-                  ৳{orderSummary.totalBilledCost.toLocaleString('en-BD')}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                <strong>{orderSummary.totalBilledItems}</strong> of <strong>{orderSummary.totalItems}</strong> Wall Paneling items have bills entered. Unbilled items will remain in the requisition for subsequent orders.
-              </p>
-            </div>
 
-            <div className="flex items-center gap-3">
-              <Button
-                size="lg"
-                disabled={orderSummary.totalBilledItems === 0}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 font-bold shadow-md px-6 disabled:opacity-50"
-                onClick={() => setIsOrderModalOpen(true)}
-              >
-                <Send className="w-4 h-4" />
-                Create Order (Send to Accounts)
-              </Button>
+              {/* Settlement Adjustment Breakdown Chips */}
+              <div className="flex flex-wrap items-center gap-2 bg-muted/40 p-2.5 rounded-lg border border-border text-xs">
+                <div className="px-2 py-1 bg-card rounded border border-border">
+                  <span className="text-muted-foreground">Petty Cash: </span>
+                  <strong className="text-foreground">৳{orderSummary.settlementTotals.pettyCash.toLocaleString('en-BD')}</strong>
+                </div>
+                <div className="px-2 py-1 bg-card rounded border border-border">
+                  <span className="text-muted-foreground">Purchase Team: </span>
+                  <strong className="text-foreground">৳{orderSummary.settlementTotals.purchaseTeam.toLocaleString('en-BD')}</strong>
+                </div>
+                {(orderSummary.settlementTotals.companyAccount > 0 || orderSummary.settlementTotals.vendorCredit > 0) && (
+                  <div className="px-2 py-1 bg-card rounded border border-border">
+                    <span className="text-muted-foreground">Bank/Credit: </span>
+                    <strong className="text-foreground">
+                      ৳{(orderSummary.settlementTotals.companyAccount + orderSummary.settlementTotals.vendorCredit).toLocaleString('en-BD')}
+                    </strong>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 gap-1.5 text-xs font-medium"
+                  disabled={orderSummary.totalBilledItems === 0}
+                  onClick={() => setIsPrintSlipOpen(true)}
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print Voucher
+                </Button>
+
+                <Button
+                  size="sm"
+                  disabled={orderSummary.totalBilledItems === 0 || isSaving}
+                  className="h-9 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 gap-1.5 font-medium text-xs px-4"
+                  onClick={() => setIsOrderModalOpen(true)}
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  Dispatch to Accounts
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL 1: ADD / EDIT BILL PER ITEM */}
+      {/* MODAL 1: RECORD PURCHASE PER ITEM */}
       <Dialog open={Boolean(editingItem)} onOpenChange={(open) => !open && setEditingItem(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold">
-              <Receipt className="w-5 h-5 text-indigo-600" />
-              {bills[editingItem?.id || '']?.isBought ? 'Edit Purchase Bill' : 'Add Bill for Material'}
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+              <Receipt className="w-4 h-4" />
+              Record Material Purchase
             </DialogTitle>
-            <DialogDescription className="text-xs">
-              Enter purchase and vendor billing details for this item. Marking as billed will automatically flag it as Bought.
+            <DialogDescription className="text-xs text-muted-foreground">
+              Select supplier from dropdown or add info, log purchase & transport costs, and record paid amount.
             </DialogDescription>
           </DialogHeader>
 
           {editingItem && (
-            <div className="space-y-4 py-2">
-              {/* Item Info Strip */}
-              <div className="p-3 rounded-xl bg-muted/40 border space-y-1">
-                <div className="font-semibold text-sm text-foreground">{editingItem.materialName}</div>
-                <div className="text-xs text-muted-foreground flex items-center justify-between">
-                  <span>Required Quantity: <strong>{editingItem.finalQuantity} {editingItem.unit}</strong></span>
+            <div className="space-y-3.5 py-1 text-xs">
+              {/* Item Info Summary */}
+              <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-1">
+                <div className="font-semibold text-foreground text-sm">{editingItem.materialName}</div>
+                <div className="text-muted-foreground flex items-center justify-between text-xs">
+                  <span>Required: <strong className="text-foreground">{editingItem.finalQuantity} {editingItem.unit}</strong></span>
                   {editingItem.productionPhase && <span>Phase: {editingItem.productionPhase}</span>}
                 </div>
               </div>
 
-              {/* Quantity to Buy */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">
-                    Quantity to Buy ({editingItem.unit})
+              {/* Supplier Selection with Dropdown */}
+              <div className="space-y-1.5">
+                <label className="font-semibold text-foreground flex items-center justify-between">
+                  <span>Supplier / Vendor (Select from Dropdown)</span>
+                  <span className="text-[10px] text-muted-foreground font-normal">Auto-fills contact details</span>
+                </label>
+                <select
+                  value={selectedVendorId}
+                  onChange={(e) => handleVendorSelect(e.target.value)}
+                  className="w-full h-8 text-xs rounded-md border border-border bg-background px-2.5 text-foreground focus:outline-none focus:ring-1 focus:ring-foreground"
+                >
+                  <option value="">-- Choose Supplier from list --</option>
+                  {vendors.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.vendorCompanyName ? `${v.vendorCompanyName} (${v.vendorName})` : v.vendorName}
+                    </option>
+                  ))}
+                  <option value="CUSTOM">+ Custom / Other Supplier</option>
+                </select>
+              </div>
+
+              {/* Supplier Contact Fields (Auto-filled or Custom) */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div className="space-y-1">
+                  <label className="font-medium text-muted-foreground text-[11px]">Supplier Name</label>
+                  <Input
+                    value={formVendorName}
+                    onChange={(e) => setFormVendorName(e.target.value)}
+                    placeholder="Supplier name"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-medium text-muted-foreground text-[11px]">Phone</label>
+                  <Input
+                    value={formVendorPhone}
+                    onChange={(e) => setFormVendorPhone(e.target.value)}
+                    placeholder="Phone number"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-medium text-muted-foreground text-[11px]">Email</label>
+                  <Input
+                    value={formVendorEmail}
+                    onChange={(e) => setFormVendorEmail(e.target.value)}
+                    placeholder="Email address"
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Purchase Qty & Unit Rate */}
+              <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border">
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">
+                    Purchased Qty ({editingItem.unit})
                   </label>
                   <Input
                     type="number"
                     step="any"
                     value={formBillQty}
-                    onChange={(e) => handleBillQtyChange(e.target.value)}
+                    onChange={(e) => setFormBillQty(e.target.value)}
                     placeholder={String(editingItem.finalQuantity)}
-                    className="text-xs h-9"
+                    className="h-8 text-xs"
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">
-                    Unit Price (৳)
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">
+                    Unit Rate (৳)
                   </label>
                   <Input
                     type="number"
                     step="any"
                     value={formUnitPrice}
-                    onChange={(e) => handleUnitPriceChange(e.target.value)}
-                    placeholder="e.g. 1450"
-                    className="text-xs h-9"
+                    onChange={(e) => setFormUnitPrice(e.target.value)}
+                    placeholder="Rate per unit"
+                    className="h-8 text-xs"
                   />
                 </div>
               </div>
 
-              {/* Total Amount */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Total Bill Amount (৳)
-                </label>
-                <Input
-                  type="number"
-                  step="any"
-                  value={formTotalAmount}
-                  onChange={(e) => setFormTotalAmount(e.target.value)}
-                  placeholder="Total calculated price"
-                  className="text-xs h-9 font-bold text-emerald-600 dark:text-emerald-400"
-                />
-              </div>
-
-              {/* Vendor & Invoice */}
+              {/* Transport & Other Costs */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">
-                    Supplier / Vendor Name
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground flex items-center gap-1">
+                    <Truck className="w-3 h-3 text-muted-foreground" />
+                    Transport Cost (৳)
                   </label>
                   <Input
-                    value={formVendorName}
-                    onChange={(e) => setFormVendorName(e.target.value)}
-                    placeholder="e.g. Partex Depot"
-                    className="text-xs h-9"
+                    type="number"
+                    step="any"
+                    value={formTransportCost}
+                    onChange={(e) => setFormTransportCost(e.target.value)}
+                    placeholder="0"
+                    className="h-8 text-xs font-mono"
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-foreground">
-                    Bill / Memo No.
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">
+                    Other Costs (৳)
+                  </label>
+                  <Input
+                    type="number"
+                    step="any"
+                    value={formOtherCost}
+                    onChange={(e) => setFormOtherCost(e.target.value)}
+                    placeholder="0"
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Financial Calculation Box: Total Material Spend, Paid, Due & Payment Status */}
+              <div className="p-3 rounded-lg border border-border bg-card space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Base Material Cost:</span>
+                  <span className="font-mono text-foreground">৳{calculatedBaseMaterial.toLocaleString('en-BD')}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs font-semibold border-t border-border pt-1">
+                  <span className="text-foreground">Total Material Spend:</span>
+                  <span className="font-mono text-base font-bold text-foreground">
+                    ৳{calculatedTotalSpend.toLocaleString('en-BD')}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-foreground text-[11px]">Paid Amount (৳)</label>
+                    <Input
+                      type="number"
+                      step="any"
+                      value={formPaidAmount}
+                      onChange={(e) => setFormPaidAmount(e.target.value)}
+                      placeholder="0"
+                      className="h-8 text-xs font-mono font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-foreground text-[11px]">Due Amount (৳)</label>
+                    <div className="h-8 px-2.5 rounded-md border border-border bg-muted/40 flex items-center font-mono font-bold text-foreground">
+                      ৳{calculatedDueAmount.toLocaleString('en-BD')}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Auto Selected Payment Status Display */}
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-border">
+                  <span className="text-muted-foreground">Auto-Selected Payment Status:</span>
+                  {calculatedPaymentStatus === 'PAID' ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      PAID (৳{calculatedTotalSpend.toLocaleString('en-BD')})
+                    </span>
+                  ) : calculatedPaymentStatus === 'PARTIALLY_PAID' ? (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-800 border border-blue-300 dark:bg-blue-950/40 dark:text-blue-300">
+                      PARTIALLY PAID (Due ৳{calculatedDueAmount.toLocaleString('en-BD')})
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300">
+                      UNPAID (Due ৳{calculatedTotalSpend.toLocaleString('en-BD')})
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Cash Memo & Settlement Source */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">
+                    Cash Memo / Invoice #
                   </label>
                   <Input
                     value={formInvoiceNo}
                     onChange={(e) => setFormInvoiceNo(e.target.value)}
-                    placeholder="e.g. INV-2026-09"
-                    className="text-xs h-9"
+                    placeholder="e.g. MEMO-4829"
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">
+                    Accounts Settlement Method
+                  </label>
+                  <select
+                    value={formSettlementMethod}
+                    onChange={(e) => setFormSettlementMethod(e.target.value as any)}
+                    className="w-full h-8 text-xs rounded-md border border-border bg-background px-2 text-foreground focus:outline-none"
+                  >
+                    {SETTLEMENT_OPTIONS.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Sourced By & Notes */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">Purchased By</label>
+                  <Input
+                    value={formPurchasedBy}
+                    onChange={(e) => setFormPurchasedBy(e.target.value)}
+                    placeholder="Staff name"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-semibold text-foreground">Bill Date</label>
+                  <Input
+                    type="date"
+                    value={formBillDate}
+                    onChange={(e) => setFormBillDate(e.target.value)}
+                    className="h-8 text-xs"
                   />
                 </div>
               </div>
 
-              {/* Notes */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground">
-                  Billing Notes / Specifications
-                </label>
+              <div className="space-y-1">
+                <label className="font-semibold text-foreground">Purchase Notes / Remarks</label>
                 <Input
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
-                  placeholder="Optional billing remarks"
-                  className="text-xs h-9"
+                  placeholder="e.g. Delivery challan copy stapled"
+                  className="h-8 text-xs"
                 />
               </div>
             </div>
           )}
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" onClick={() => setEditingItem(null)} className="text-xs">
+          <DialogFooter className="gap-2 pt-2 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditingItem(null)}
+              className="text-xs h-8"
+              disabled={isSaving}
+            >
               Cancel
             </Button>
-            <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5" onClick={handleSaveBill}>
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              Save Bill & Mark Bought
+            <Button
+              size="sm"
+              className="bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 text-xs h-8 gap-1.5"
+              onClick={handleSavePurchase}
+              disabled={isSaving}
+            >
+              <Check className="w-3.5 h-3.5" />
+              {isSaving ? 'Saving...' : 'Save Purchase Record'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* MODAL 2: CREATE ORDER (CONNECT TO ACCOUNTS) */}
-      <Dialog open={isOrderModalOpen} onOpenChange={setIsOrderModalOpen}>
-        <DialogContent className="sm:max-w-lg">
+      {/* MODAL 2: DOCUMENTS & INVOICES */}
+      <Dialog open={Boolean(documentItem)} onOpenChange={(open) => !open && setDocumentItem(null)}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-base font-bold">
-              <Send className="w-5 h-5 text-indigo-600" />
-              Dispatch Order to Accounts
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+              <Paperclip className="w-4 h-4" />
+              Documents & Invoices
             </DialogTitle>
-            <DialogDescription className="text-xs">
-              Review billed items before creating the purchase order and forwarding it to Accounts for payment approval.
+            <DialogDescription className="text-xs text-muted-foreground">
+              Attach or view supplier cash memos, invoices, and payment slips for {documentItem?.materialName}.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            {/* Project info card */}
-            <div className="p-3.5 rounded-xl bg-muted/40 border space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Project:</span>
-                <span className="font-bold text-sm text-foreground">{requisition.lead.name}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Requisition #:</span>
-                <span className="font-mono text-xs font-semibold">{requisition.requisitionNo}</span>
-              </div>
-              <div className="flex items-center justify-between border-t pt-1.5">
-                <span className="text-xs font-semibold text-foreground">Total Order Amount:</span>
-                <span className="text-base font-bold text-emerald-600 dark:text-emerald-400">
-                  ৳{orderSummary.totalBilledCost.toLocaleString('en-BD')}
+          {documentItem && (
+            <div className="space-y-4 py-2 text-xs">
+              {/* Existing Documents List */}
+              <div className="space-y-2">
+                <span className="font-semibold text-foreground uppercase tracking-wider text-[11px]">
+                  Attached Files ({purchases[documentItem.id]?.documents?.length || 0})
                 </span>
+                {(!purchases[documentItem.id]?.documents || purchases[documentItem.id]?.documents?.length === 0) ? (
+                  <div className="p-6 text-center border border-dashed border-border rounded-lg text-muted-foreground space-y-1">
+                    <FileText className="w-6 h-6 mx-auto opacity-40" />
+                    <div>No invoices or documents attached yet</div>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border border border-border rounded-lg max-h-48 overflow-y-auto">
+                    {purchases[documentItem.id]?.documents?.map((doc) => (
+                      <div key={doc.id} className="p-2.5 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 truncate">
+                          <FileCheck className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <div className="truncate">
+                            <a
+                              href={doc.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-medium text-foreground hover:underline flex items-center gap-1"
+                            >
+                              <span>{doc.name}</span>
+                              <ExternalLink className="w-3 h-3 text-muted-foreground" />
+                            </a>
+                            <div className="text-[10px] text-muted-foreground">
+                              {new Date(doc.uploadedAt).toLocaleDateString('en-GB')}
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="w-6 h-6 text-muted-foreground hover:text-foreground"
+                          onClick={() => handleRemoveDocument(doc.id)}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Add Document Link or Memo */}
+              <div className="p-3 rounded-lg border border-border bg-muted/30 space-y-2">
+                <span className="font-semibold text-foreground text-[11px] uppercase tracking-wider">
+                  Attach New Document
+                </span>
+                <div className="space-y-2">
+                  <Input
+                    value={newDocName}
+                    onChange={(e) => setNewDocName(e.target.value)}
+                    placeholder="Document Title (e.g. Partex Cash Memo #4829)"
+                    className="h-8 text-xs"
+                  />
+                  <Input
+                    value={newDocUrl}
+                    onChange={(e) => setNewDocUrl(e.target.value)}
+                    placeholder="File URL or Cloud storage link (https://...)"
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full h-8 text-xs gap-1.5 bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                  onClick={handleAttachDocument}
+                  disabled={isUploadingDoc}
+                >
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  {isUploadingDoc ? 'Attaching...' : 'Attach Document'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setDocumentItem(null)} className="h-8 text-xs">
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 3: DISPATCH TO ACCOUNTS CONFIRMATION */}
+      <Dialog open={isOrderModalOpen} onOpenChange={setIsOrderModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+              <Send className="w-4 h-4" />
+              Dispatch Purchases to Accounts
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Confirm compiled material purchases to forward to Accounts for voucher clearance.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3.5 py-1 text-xs">
+            {/* Project info card */}
+            <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Project / Client:</span>
+                <span className="font-semibold text-foreground">{requisition.lead.name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Requisition #:</span>
+                <span className="font-mono font-medium text-foreground">{requisition.requisitionNo}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-border">
+                <span className="font-semibold text-foreground">Total Material Spend:</span>
+                <span className="text-base font-bold font-mono text-foreground">
+                  ৳{orderSummary.totalMaterialSpend.toLocaleString('en-BD')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>Already Paid: ৳{orderSummary.totalPaidToSuppliers.toLocaleString('en-BD')}</span>
+                <span>Due Balance: ৳{orderSummary.totalDueAmount.toLocaleString('en-BD')}</span>
               </div>
             </div>
 
-            {/* Billed Items List Preview */}
-            <div className="space-y-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Billed Items ({orderSummary.totalBilledItems})
+            {/* Settlement Split Preview */}
+            <div className="space-y-1.5">
+              <span className="font-semibold text-foreground uppercase tracking-wider text-[11px]">
+                Accounts Settlement Split
               </span>
-              <div className="max-h-48 overflow-y-auto divide-y divide-border border rounded-xl p-2 bg-background text-xs">
-                {wallPanelingItems
-                  .filter((item) => bills[item.id]?.isBought)
-                  .map((item) => {
-                    const b = bills[item.id]
-                    return (
-                      <div key={item.id} className="py-2 flex items-center justify-between gap-3">
-                        <div>
-                          <div className="font-semibold text-foreground">{item.materialName}</div>
-                          <div className="text-[11px] text-muted-foreground">
-                            {b.billQuantity} {item.unit} @ ৳{b.unitPrice} {b.vendorName ? `• ${b.vendorName}` : ''}
-                          </div>
-                        </div>
-                        <div className="font-bold text-emerald-600 text-right shrink-0">
-                          ৳{b.totalAmount.toLocaleString('en-BD')}
-                        </div>
-                      </div>
-                    )
-                  })}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2 rounded border border-border bg-card">
+                  <div className="text-muted-foreground">Petty Cash Adjustment:</div>
+                  <div className="font-bold text-foreground font-mono">
+                    ৳{orderSummary.settlementTotals.pettyCash.toLocaleString('en-BD')}
+                  </div>
+                </div>
+                <div className="p-2 rounded border border-border bg-card">
+                  <div className="text-muted-foreground">Purchase Team Advance:</div>
+                  <div className="font-bold text-foreground font-mono">
+                    ৳{orderSummary.settlementTotals.purchaseTeam.toLocaleString('en-BD')}
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Order Notes */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground">
-                Order Notes for Accounts Team
+            <div className="space-y-1">
+              <label className="font-semibold text-foreground">
+                Note for Accounts Department
               </label>
               <Input
                 value={orderNotes}
                 onChange={(e) => setOrderNotes(e.target.value)}
-                placeholder="e.g. Urgent site delivery requested by Saturday"
-                className="text-xs h-9"
+                placeholder="e.g. Invoices verified and attached for petty cash clearance"
+                className="h-8 text-xs"
               />
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsOrderModalOpen(false)} className="text-xs">
-              Back to Editing
+          <DialogFooter className="gap-2 pt-2 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsOrderModalOpen(false)}
+              className="text-xs h-8"
+              disabled={isSaving}
+            >
+              Back
             </Button>
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5 shadow-sm" onClick={handleConfirmOrder}>
-              <ShieldCheck className="w-3.5 h-3.5" />
-              Confirm & Send to Accounts
+            <Button
+              size="sm"
+              className="bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 text-xs h-8 gap-1.5"
+              onClick={handleConfirmOrder}
+              disabled={isSaving}
+            >
+              <Send className="w-3.5 h-3.5" />
+              {isSaving ? 'Submitting...' : 'Confirm & Forward to Accounts'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 4: PRINTABLE VOUCHER */}
+      <Dialog open={isPrintSlipOpen} onOpenChange={setIsPrintSlipOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
+              <Printer className="w-4 h-4" />
+              Purchase & Billing Summary Voucher
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="p-4 border border-border rounded-lg bg-card text-foreground space-y-4 text-xs font-sans">
+            <div className="flex justify-between items-start border-b border-border pb-3">
+              <div>
+                <h3 className="text-base font-bold tracking-tight">AESTHETIC INTERIOR</h3>
+                <p className="text-[11px] text-muted-foreground">Procurement Material Purchase Voucher</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Requisition #: <strong className="font-mono text-foreground">{requisition.requisitionNo}</strong>
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-[11px] text-muted-foreground">Date: {new Date().toLocaleDateString('en-GB')}</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5">
+                  Client: <strong className="text-foreground">{requisition.lead.name}</strong>
+                </div>
+              </div>
+            </div>
+
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="bg-muted/40 border-b border-border text-[11px] font-semibold text-foreground">
+                <tr>
+                  <th className="py-1.5 px-2">SL</th>
+                  <th className="py-1.5 px-2">Material</th>
+                  <th className="py-1.5 px-2">Supplier & Memo</th>
+                  <th className="py-1.5 px-2 text-right">Spend (৳)</th>
+                  <th className="py-1.5 px-2 text-right">Paid (৳)</th>
+                  <th className="py-1.5 px-2 text-right">Due (৳)</th>
+                  <th className="py-1.5 px-2 text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {wallPanelingItems
+                  .filter((item) => purchases[item.id]?.isBought)
+                  .map((item, idx) => {
+                    const p = purchases[item.id]
+                    return (
+                      <tr key={item.id}>
+                        <td className="py-1.5 px-2 font-mono text-muted-foreground">{idx + 1}</td>
+                        <td className="py-1.5 px-2 font-medium">{item.materialName}</td>
+                        <td className="py-1.5 px-2 text-[11px] text-muted-foreground">
+                          {p.vendorName} {p.invoiceNo ? `(#${p.invoiceNo})` : ''}
+                        </td>
+                        <td className="py-1.5 px-2 text-right font-mono font-bold">৳{p.totalAmount.toLocaleString('en-BD')}</td>
+                        <td className="py-1.5 px-2 text-right font-mono">৳{p.paidAmount.toLocaleString('en-BD')}</td>
+                        <td className="py-1.5 px-2 text-right font-mono">৳{p.dueAmount.toLocaleString('en-BD')}</td>
+                        <td className="py-1.5 px-2 text-center text-[10px] font-semibold">{p.paymentStatus}</td>
+                      </tr>
+                    )
+                  })}
+              </tbody>
+              <tfoot className="border-t-2 border-border font-bold">
+                <tr>
+                  <td colSpan={3} className="py-2 px-2 text-right uppercase tracking-wider text-[11px]">
+                    Total Spend:
+                  </td>
+                  <td className="py-2 px-2 text-right font-mono text-sm">
+                    ৳{orderSummary.totalMaterialSpend.toLocaleString('en-BD')}
+                  </td>
+                  <td className="py-2 px-2 text-right font-mono">
+                    ৳{orderSummary.totalPaidToSuppliers.toLocaleString('en-BD')}
+                  </td>
+                  <td className="py-2 px-2 text-right font-mono">
+                    ৳{orderSummary.totalDueAmount.toLocaleString('en-BD')}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <div className="flex justify-between items-end pt-8 text-[10px] text-muted-foreground border-t border-border">
+              <div className="text-center">
+                <div className="w-24 border-b border-border pb-1"></div>
+                <span className="mt-1 block">Prepared By (Procurement)</span>
+              </div>
+              <div className="text-center">
+                <div className="w-24 border-b border-border pb-1"></div>
+                <span className="mt-1 block">Adjusted By (Accounts)</span>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsPrintSlipOpen(false)} className="text-xs h-8">
+              Close
+            </Button>
+            <Button
+              size="sm"
+              className="bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:text-zinc-900 text-xs h-8 gap-1.5"
+              onClick={() => window.print()}
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Print
             </Button>
           </DialogFooter>
         </DialogContent>
