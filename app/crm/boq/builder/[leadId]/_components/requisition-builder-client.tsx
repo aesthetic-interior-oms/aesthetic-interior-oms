@@ -452,15 +452,20 @@ export function RequisitionBuilderClient({
       } else if (event.altKey && event.key === 'ArrowRight') {
         event.preventDefault()
         goToSlide((prev) => Math.min(productSlides.length - 1, prev + 1))
-      } else if (event.key === 'Escape' && isDrawerOpen) {
-        event.preventDefault()
-        setIsDrawerOpen(false)
+      } else if (event.key === 'Escape') {
+        if (isDrawerOpen) {
+          event.preventDefault()
+          setIsDrawerOpen(false)
+        } else if (isUsedPaletteOpen) {
+          event.preventDefault()
+          setIsUsedPaletteOpen(false)
+        }
       }
     }
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [productSlides.length, isDrawerOpen])
+  }, [productSlides.length, isDrawerOpen, isUsedPaletteOpen])
 
   // ── Section helpers ──
   const getSectionsForCard = (cardKey: string): CardSection[] => sectionsMap[cardKey] ?? []

@@ -366,11 +366,10 @@ export function UsedMaterialsPalette({
   const handleInsert = (entry: UsedMaterialEntry) => {
     onInsertItem(entry.item, activeSection?.id)
     setJustInsertedId(entry.id)
-    // Auto-close after brief feedback delay so user can see the ✓ tick
+    // Keep sidebar open so user can insert more items; clear confirmation after 1.2s
     setTimeout(() => {
       setJustInsertedId(null)
-      onClose()
-    }, 700)
+    }, 1200)
   }
 
   const handleClearProjectCache = () => {
@@ -383,15 +382,9 @@ export function UsedMaterialsPalette({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/30 backdrop-blur-xs transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Drawer Panel — narrower so main content remains visible */}
-      <div className="relative z-50 flex w-80 flex-col bg-card border-l border-border shadow-2xl animate-in slide-in-from-right duration-200">
+    <div className="fixed top-0 bottom-0 right-0 z-40 flex justify-end pointer-events-none">
+      {/* Drawer Panel — no backdrop/blur overlay so page content is completely clear and visible */}
+      <div className="pointer-events-auto relative z-50 flex w-80 md:w-88 flex-col bg-card border-l border-border shadow-2xl animate-in slide-in-from-right duration-200">
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-gradient-to-r from-amber-500/10 to-card">
@@ -402,7 +395,7 @@ export function UsedMaterialsPalette({
             <div className="min-w-0">
               <h3 className="text-sm font-bold text-foreground leading-tight">Used Materials</h3>
               <p className="text-[10px] text-muted-foreground truncate">
-                {targetEntries.length} reusable · click to insert &amp; close
+                {targetEntries.length} reusable · click to insert
               </p>
             </div>
           </div>
@@ -555,7 +548,7 @@ export function UsedMaterialsPalette({
 
         {/* ── Footer ── */}
         <div className="px-3 py-2 border-t border-border/60 bg-muted/10 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span className="italic">Click card to insert &amp; close</span>
+          <span className="italic">Click card to insert</span>
           {usedEntries.length > 0 && (
             <button
               onClick={handleClearProjectCache}
