@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { revalidatePath } from 'next/cache'
+import { WallPanelingBillMaker } from './_components/wall-paneling-bill-maker'
 
 export const revalidate = 0
 
@@ -216,64 +217,8 @@ export default async function BillingRequisitionDetailPage({ params }: BillingRe
         </div>
       </div>
 
-      {/* Items Breakdown Table */}
-      <div className="w-full rounded-xl border bg-card shadow-sm overflow-hidden">
-        <div className="p-4 sm:p-5 border-b flex items-center justify-between">
-          <h3 className="font-semibold text-sm sm:text-base text-foreground flex items-center gap-2">
-            <Package className="w-4 h-4 text-indigo-600" />
-            Total Requisition Items ({requisition.items.length})
-          </h3>
-          <span className="text-xs text-muted-foreground">Full material specifications for billing</span>
-        </div>
-
-        <div className="w-full overflow-x-auto">
-          <table className="w-full text-xs sm:text-sm text-left">
-            <thead className="bg-muted/60 text-muted-foreground text-xs uppercase font-semibold border-b">
-              <tr>
-                <th className="px-5 py-3">#</th>
-                <th className="px-5 py-3">Category</th>
-                <th className="px-5 py-3">Material & Specifications</th>
-                <th className="px-5 py-3 text-center">Net Qty</th>
-                <th className="px-5 py-3 text-center">Wastage %</th>
-                <th className="px-5 py-3 text-center font-bold">Final Quantity</th>
-                <th className="px-5 py-3">Phase / Remarks</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {requisition.items.map((item, idx) => (
-                <tr key={item.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-5 py-3 font-mono text-muted-foreground text-xs">{idx + 1}</td>
-                  <td className="px-5 py-3 font-medium text-foreground capitalize">
-                    {item.workCategory.replace(/_/g, ' ').toLowerCase()}
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="font-semibold text-foreground">{item.materialName}</div>
-                    {item.specifications && (
-                      <div className="text-xs text-muted-foreground mt-0.5">{item.specifications}</div>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-center text-muted-foreground">
-                    {item.netQuantity} {item.unit}
-                  </td>
-                  <td className="px-5 py-3 text-center text-muted-foreground">
-                    {item.wastagePercent}%
-                  </td>
-                  <td className="px-5 py-3 text-center font-bold text-foreground">
-                    {item.finalQuantity} {item.unit}
-                  </td>
-                  <td className="px-5 py-3 text-muted-foreground text-xs">
-                    {item.productionPhase && (
-                      <span className="font-medium text-foreground block">{item.productionPhase}</span>
-                    )}
-                    {item.remarks && <span>{item.remarks}</span>}
-                    {!item.productionPhase && !item.remarks && <span>—</span>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      {/* Interactive Bill Maker Workspace (Starting with Wall Paneling) */}
+      <WallPanelingBillMaker requisition={requisition} />
     </div>
   )
 }
