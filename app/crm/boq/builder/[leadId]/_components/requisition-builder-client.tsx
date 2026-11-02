@@ -1473,27 +1473,36 @@ export function RequisitionBuilderClient({
       )}
 
 
-      {/* ── Saved Successfully Timed Alert Dialog ── */}
-      {isSavedDialogVisible && (
+      {/* ── Saved Successfully Timed Alert Dialog (Portaled to document.body for full-screen coverage) ── */}
+      {isSavedDialogVisible && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/25 backdrop-blur-xs animate-in fade-in duration-150"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
+          style={{ minHeight: '100dvh', width: '100vw' }}
           onClick={() => setIsSavedDialogVisible(false)}
         >
           <div
-            className="relative bg-card border border-emerald-500/40 rounded-2xl p-6 shadow-2xl flex flex-col items-center text-center max-w-xs w-full animate-in zoom-in-95 duration-150"
+            className="relative bg-card border-2 border-emerald-500/40 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col items-center text-center max-w-[340px] sm:max-w-sm w-full animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-12 h-12 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3 shadow-inner">
-              <CheckCircle2 className="w-7 h-7" />
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3.5 shadow-inner">
+              <CheckCircle2 className="w-8 h-8 sm:w-9 sm:h-9" />
             </div>
-            <h3 className="text-base font-bold text-foreground">
+            <h3 className="text-base sm:text-lg font-black text-foreground tracking-tight">
               {savedDialogMessage}
             </h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              All material changes are saved in backend.
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed">
+              All material changes are saved successfully.
             </p>
+            <button
+              type="button"
+              onClick={() => setIsSavedDialogVisible(false)}
+              className="mt-4 px-5 py-1.5 rounded-full text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer"
+            >
+              OK
+            </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Add Section Modal ── */}
@@ -1530,10 +1539,13 @@ export function RequisitionBuilderClient({
         notes={notes}
       />
 
-      {/* ── BOQ Requisition Amendment Modal (Question 9) ── */}
-      {isAmendmentModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md rounded-xl bg-card border border-border p-6 shadow-xl space-y-4">
+      {/* ── BOQ Requisition Amendment Modal (Portaled to document.body for full-screen coverage) ── */}
+      {isAmendmentModalOpen && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
+          style={{ minHeight: '100dvh', width: '100vw' }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-card border border-border p-6 shadow-2xl space-y-4">
             <div className="space-y-1">
               <h3 className="text-base font-bold text-foreground">
                 Propose BOQ Requisition Amendment
@@ -1597,7 +1609,8 @@ export function RequisitionBuilderClient({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Left Product Drawer ── */}
