@@ -31,6 +31,13 @@ export interface UsedMaterialEntry {
   sourceProductName: string
   sourceSectionName: string
   displayTitle: string
+  subtitle?: string
+  cabinetParts?: {
+    thickness: string
+    frontLaminate: string
+    backLaminate: string
+    baseMaterial: string
+  }
   tags: { label: string; value: string; color?: string }[]
 }
 
@@ -131,23 +138,37 @@ function matchesActiveSection(entry: UsedMaterialEntry, section: CardSection | n
 function buildDisplayDetails(item: RequisitionItemInput): {
   displayTitle: string
   subtitle: string
+  cabinetParts?: {
+    thickness: string
+    frontLaminate: string
+    backLaminate: string
+    baseMaterial: string
+  }
   tags: { label: string; value: string }[]
 } {
   const attrs = item.variantAttributes || {}
   const tags: { label: string; value: string }[] = []
   let displayTitle = item.materialName || ''
   let subtitle = ''
+  let cabinetParts: { thickness: string; frontLaminate: string; backLaminate: string; baseMaterial: string } | undefined
 
   if (item.workCategory === 'CABINETS_CLOSETS') {
-    const baseMat = attrs.baseMaterial || attrs.coreSubstrateType || 'Cabinet Board'
-    const thk = attrs.coreThickness || ''
-    displayTitle = `${thk ? `${thk} ` : ''}${baseMat}`
-    subtitle = attrs.usage ? String(attrs.usage) : ''
-    if (attrs.frontLaminateCode || attrs.laminateFinishDetails) {
-      tags.push({ label: 'Front', value: String(attrs.frontLaminateCode || attrs.laminateFinishDetails) })
+    const baseMat = attrs.baseMaterial || attrs.coreSubstrateType || 'MR MDF Architect Grade Board'
+    const thk = attrs.coreThickness ? String(attrs.coreThickness) : ''
+    const frontLam = (attrs.frontLaminateCode || attrs.laminateFinishDetails ? String(attrs.frontLaminateCode || attrs.laminateFinishDetails) : '') || 'Raw Board'
+    const backLam = (attrs.backLaminateCode ? String(attrs.backLaminateCode) : '') || 'Raw Board'
+
+    cabinetParts = {
+      thickness: thk,
+      frontLaminate: frontLam,
+      backLaminate: backLam,
+      baseMaterial: String(baseMat),
     }
-    if (attrs.backLaminateCode) {
-      tags.push({ label: 'Back', value: String(attrs.backLaminateCode) })
+
+    displayTitle = [thk, frontLam, backLam, baseMat].filter(Boolean).join(' ')
+    subtitle = attrs.usage ? String(attrs.usage) : ''
+    if (attrs.usage) {
+      tags.push({ label: 'Usage', value: String(attrs.usage) })
     }
     if (attrs.edgingTapeQty) {
       tags.push({ label: 'Edge', value: String(attrs.edgingTapeQty) })
@@ -263,7 +284,7 @@ export function UsedMaterialsPalette({
         seen.add(sig)
 
         const group = determineGroup(row)
-        const { displayTitle, subtitle, tags } = buildDisplayDetails(row)
+        const { displayTitle, subtitle, cabinetParts, tags } = buildDisplayDetails(row)
 
         list.push({
           id: `live-${cardKey}-${sectionId}-${ri}`,
@@ -274,6 +295,8 @@ export function UsedMaterialsPalette({
           sourceProductName: slide?.title || 'Quotation Product',
           sourceSectionName: sec ? getSectionTypeLabel(sec) : 'Section',
           displayTitle,
+          subtitle,
+          cabinetParts,
           tags,
         })
       }
@@ -288,7 +311,7 @@ export function UsedMaterialsPalette({
       seen.add(sig)
 
       const group = determineGroup(p)
-      const { displayTitle, subtitle, tags } = buildDisplayDetails(p)
+      const { displayTitle, subtitle, cabinetParts, tags } = buildDisplayDetails(p)
 
       list.push({
         id: `persisted-${i}`,
@@ -299,6 +322,8 @@ export function UsedMaterialsPalette({
         sourceProductName: 'Saved in Project',
         sourceSectionName: group.label,
         displayTitle,
+        subtitle,
+        cabinetParts,
         tags,
       })
     }
@@ -346,12 +371,18 @@ export function UsedMaterialsPalette({
 
     if (search.trim()) {
       const q = search.toLowerCase()
-      result = result.filter(
-        (e) =>
-          e.displayTitle.toLowerCase().includes(q) ||
-          e.sourceProductName.toLowerCase().includes(q) ||
-          e.tags.some((t) => t.label.toLowerCase().includes(q) || t.value.toLowerCase().includes(q))
-      )
+      result = result.filter((e) => {
+        if (e.displayTitle.toLowerCase().includes(q)) return true
+        if (e.sourceProductName.toLowerCase().includes(q)) return true
+        if (e.cabinetParts) {
+          if (e.cabinetParts.thickness.toLowerCase().includes(q)) return true
+          if (e.cabinetParts.frontLaminate.toLowerCase().includes(q)) return true
+          if (e.cabinetParts.backLaminate.toLowerCase().includes(q)) return true
+          if (e.cabinetParts.baseMaterial.toLowerCase().includes(q)) return true
+        }
+        if (e.tags.some((t) => t.label.toLowerCase().includes(q) || t.value.toLowerCase().includes(q))) return true
+        return false
+      })
     }
 
     return result
@@ -382,9 +413,19 @@ export function UsedMaterialsPalette({
   if (!isOpen) return null
 
   return (
-    <div className="fixed top-0 bottom-0 right-0 z-40 flex justify-end pointer-events-none">
-      {/* Drawer Panel — no backdrop/blur overlay so page content is completely clear and visible */}
-      <div className="pointer-events-auto relative z-50 flex w-80 md:w-88 flex-col bg-card border-l border-border shadow-2xl animate-in slide-in-from-right duration-200">
+    <div className="fixed inset-0 z-40 flex justify-end">
+      {/* Invisible Click-Outside Backdrop (No blur, 100% transparent and clear view) */}
+      <div
+        className="fixed inset-0 cursor-default"
+        onClick={onClose}
+        title="Click outside to close"
+      />
+
+      {/* Drawer Panel */}
+      <div
+        className="relative z-50 flex w-84 sm:w-92 flex-col bg-card border-l border-border shadow-2xl animate-in slide-in-from-right duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-gradient-to-r from-amber-500/10 to-card">
@@ -517,10 +558,31 @@ export function UsedMaterialsPalette({
                     </span>
                   </div>
 
-                  {/* Material title */}
-                  <p className="text-xs font-bold text-foreground leading-snug line-clamp-2 mb-1.5">
-                    {entry.displayTitle}
-                  </p>
+                  {/* Material title: Cabinet-specific (Thickness + Front Lam [Blue] + Back Lam [Orange] + Base Material) */}
+                  {entry.cabinetParts ? (
+                    <div className="space-y-1.5 mb-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {entry.cabinetParts.thickness && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted/80 text-foreground border border-border/60">
+                            {entry.cabinetParts.thickness}
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/35">
+                          {entry.cabinetParts.frontLaminate} (Front)
+                        </span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/35">
+                          {entry.cabinetParts.backLaminate} (Back)
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-foreground leading-snug">
+                        {entry.cabinetParts.baseMaterial}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs font-bold text-foreground leading-snug line-clamp-2 mb-1.5">
+                      {entry.displayTitle}
+                    </p>
+                  )}
 
                   {/* Tags */}
                   {entry.tags.length > 0 && (

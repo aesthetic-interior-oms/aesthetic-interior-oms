@@ -234,6 +234,8 @@ export function RequisitionBuilderClient({
   const [isPending, startTransition] = useTransition()
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [isSavedDialogVisible, setIsSavedDialogVisible] = useState(false)
+  const [savedDialogMessage, setSavedDialogMessage] = useState('Saved successfully')
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [lastSavedStatus, setLastSavedStatus] = useState<SaveStatus | null>(
     existingRequisition?.status === 'SUBMITTED' ? 'SUBMITTED' : existingRequisition ? 'DRAFT' : null
@@ -956,12 +958,16 @@ export function RequisitionBuilderClient({
       if (res.success) {
         setLastSavedAt(new Date())
         setLastSavedStatus(status)
-        setSaveSuccess(
-          successMessage ??
+        const msg = successMessage ??
           (status === 'SUBMITTED'
             ? 'Material requisition submitted to Procurement team successfully!'
-            : 'Material requisition draft saved successfully!')
-        )
+            : 'Saved successfully')
+        setSaveSuccess(msg)
+        setSavedDialogMessage(status === 'SUBMITTED' ? 'Requisition Submitted!' : 'Saved successfully')
+        setIsSavedDialogVisible(true)
+        setTimeout(() => {
+          setIsSavedDialogVisible(false)
+        }, 1800)
         // Only refresh server state for status changes (submit/amendment), not for routine draft saves.
         // Refreshing on every draft save can cause Next.js to re-render server components and
         // lose unsaved in-progress edits if the DB write and client state diverge momentarily.
@@ -1486,6 +1492,29 @@ export function RequisitionBuilderClient({
         </div>
       )}
 
+
+      {/* ── Saved Successfully Timed Alert Dialog ── */}
+      {isSavedDialogVisible && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/25 backdrop-blur-xs animate-in fade-in duration-150"
+          onClick={() => setIsSavedDialogVisible(false)}
+        >
+          <div
+            className="relative bg-card border border-emerald-500/40 rounded-2xl p-6 shadow-2xl flex flex-col items-center text-center max-w-xs w-full animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3 shadow-inner">
+              <CheckCircle2 className="w-7 h-7" />
+            </div>
+            <h3 className="text-base font-bold text-foreground">
+              {savedDialogMessage}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              All material changes are saved in backend.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Add Section Modal ── */}
       <AddSectionModal
