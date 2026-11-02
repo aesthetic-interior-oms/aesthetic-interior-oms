@@ -250,7 +250,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
                 <th className={`${GRID_TH} min-w-[150px]`}>Edging Tape Qty</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Functional Usage</th>
-                <th className={`${GRID_TH} w-32 text-center`} title="Handmade (site-fabricated) or Factory Made (pre-cut / ready)">Make Type</th>
+                <th className={`${GRID_TH} min-w-[140px] w-36 text-center`} title="Handmade (site-fabricated) or Factory Made (pre-cut / ready)">Make Type</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
@@ -384,17 +384,17 @@ export function MaterialRowsTable({
                     </td>
 
                     {/* Make Type: Factory / Hand (Default: Factory, click toggles to Hand) */}
-                    <td className={`${GRID_TD} text-center px-1`}>
+                    <td className={`${GRID_TD} text-center px-2 py-1.5`}>
                       {(() => {
                         const isHand = attrs.boardMakeType === 'HANDMADE'
                         return (
                           <button
                             type="button"
                             onClick={() => onUpdateVariant(ri, 'boardMakeType', isHand ? 'FACTORY_MADE' : 'HANDMADE')}
-                            className={`w-full max-w-[76px] mx-auto py-1 px-2 rounded-md text-[11px] font-bold tracking-tight transition-all border shadow-2xs cursor-pointer ${
+                            className={`w-full min-w-[96px] max-w-[120px] mx-auto py-1.5 px-3 rounded-lg text-xs font-black tracking-wide transition-all shadow-xs cursor-pointer ${
                               isHand
-                                ? 'bg-amber-500/15 text-amber-900 dark:text-amber-200 border-amber-500/40 hover:bg-amber-500/25'
-                                : 'bg-blue-500/15 text-blue-900 dark:text-blue-200 border-blue-500/40 hover:bg-blue-500/25'
+                                ? 'bg-orange-500 hover:bg-orange-600 text-white border border-orange-600 shadow-orange-500/25 active:scale-95'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 shadow-blue-500/25 active:scale-95'
                             }`}
                             title={isHand ? 'Handmade (Site-fabricated) — Click to switch to Factory' : 'Factory Made — Click to switch to Hand'}
                           >
@@ -1014,7 +1014,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} min-w-[190px]`}>Back Laminate / Liner</th>
                 <th className={`${GRID_TH} text-center w-28`}>Board Qty</th>
                 <th className={`${GRID_TH} min-w-[140px]`}>Edging Tape Qty</th>
-                <th className={`${GRID_TH} w-32 text-center`} title="Handmade (site-fabricated) or Factory Made (pre-cut / ready)">Make Type</th>
+                <th className={`${GRID_TH} min-w-[140px] w-36 text-center`} title="Handmade (site-fabricated) or Factory Made (pre-cut / ready)">Make Type</th>
                 <th className="px-2 py-2 w-8 text-center"></th>
               </tr>
             </thead>
@@ -1220,17 +1220,17 @@ export function MaterialRowsTable({
                     </td>
 
                     {/* Make Type: Factory / Hand (Default: Factory, click toggles to Hand) */}
-                    <td className={`${GRID_TD} text-center px-1`}>
+                    <td className={`${GRID_TD} text-center px-2 py-1.5`}>
                       {(() => {
                         const isHand = attrs.boardMakeType === 'HANDMADE'
                         return (
                           <button
                             type="button"
                             onClick={() => onUpdateVariant(ri, 'boardMakeType', isHand ? 'FACTORY_MADE' : 'HANDMADE')}
-                            className={`w-full max-w-[76px] mx-auto py-1 px-2 rounded-md text-[11px] font-bold tracking-tight transition-all border shadow-2xs cursor-pointer ${
+                            className={`w-full min-w-[96px] max-w-[120px] mx-auto py-1.5 px-3 rounded-lg text-xs font-black tracking-wide transition-all shadow-xs cursor-pointer ${
                               isHand
-                                ? 'bg-amber-500/15 text-amber-900 dark:text-amber-200 border-amber-500/40 hover:bg-amber-500/25'
-                                : 'bg-blue-500/15 text-blue-900 dark:text-blue-200 border-blue-500/40 hover:bg-blue-500/25'
+                                ? 'bg-orange-500 hover:bg-orange-600 text-white border border-orange-600 shadow-orange-500/25 active:scale-95'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white border border-blue-700 shadow-blue-500/25 active:scale-95'
                             }`}
                             title={isHand ? 'Handmade (Site-fabricated) — Click to switch to Factory' : 'Factory Made — Click to switch to Hand'}
                           >

@@ -1774,69 +1774,46 @@ export function RequisitionBuilderClient({
           {currentSlide.type === 'LINE_ITEM' && currentSlide.item ? (
             <div className="space-y-6">
               {/* Level 1 Hero Banner */}
-              <div className="rounded-2xl border-2 border-primary/25 bg-gradient-to-br from-primary/[0.04] via-card to-primary/[0.02] p-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-2 flex-1 min-w-0">
+              <div className="rounded-2xl border-2 border-primary/25 bg-gradient-to-br from-primary/[0.04] via-card to-primary/[0.02] p-5 md:p-6 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="space-y-2.5 flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
+                      <span className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary">
                         Quotation Product
                       </span>
-                      <span className="rounded-md border border-border bg-muted/50 px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                      <span className="rounded-md border border-border bg-muted/60 px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                         Slide {safeSlideIndex + 1} of {productSlides.length}
                       </span>
-                      {currentSlide.areaName && (
-                        <span className="rounded-md border border-blue-500/30 bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-300">
-                          {currentSlide.areaName}
+                      {currentSlide.sectionName && (
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/90 px-3 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 shadow-2xs">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">Floor:</span>
+                          <span>{currentSlide.sectionName}</span>
                         </span>
                       )}
-                      {currentSlide.sectionName && (
-                        <span className="text-[11px] font-medium text-muted-foreground">
-                          {currentSlide.sectionName}
+                      {currentSlide.areaName && (
+                        <span className="inline-flex items-center gap-1.5 rounded-md border border-blue-400/40 bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-700 dark:text-blue-300 shadow-2xs">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600/70 dark:text-blue-400/70">Area:</span>
+                          <span>{currentSlide.areaName}</span>
                         </span>
                       )}
                     </div>
 
-                    <h2 className="text-xl md:text-2xl font-black text-foreground tracking-tight">
+                    <h2 className="text-2xl md:text-3xl font-black text-foreground tracking-tight leading-snug">
                       {currentSlide.title}
                     </h2>
-
-                    {currentSlide.materials && (
-                      <div className="rounded-xl border border-border/70 bg-background/80 p-2.5 text-xs text-muted-foreground leading-relaxed">
-                        <span className="font-bold text-foreground/80 uppercase text-[10px] tracking-wider block mb-0.5">
-                          Quotation Material Spec:
-                        </span>
-                        {currentSlide.materials}
-                      </div>
-                    )}
                   </div>
 
-                  {/* Right stats */}
-                  <div className="flex flex-wrap items-center gap-3 lg:flex-col lg:items-end">
-                    {currentSlide.amount > 0 && (
-                      <div className="text-right">
-                        <span className="text-[11px] font-semibold text-muted-foreground block">Quotation Budget</span>
-                        <span className="text-lg md:text-xl font-black text-emerald-700 dark:text-emerald-300">
-                          {formatBdtRounded(currentSlide.amount)}
-                        </span>
-                        {currentSlide.quantity && (
-                          <span className="text-xs text-muted-foreground block font-medium">
-                            Qty: {currentSlide.quantity} {currentSlide.unit}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-2">
-                      <div className="rounded-lg border border-border/70 bg-card px-3 py-1.5 text-center shadow-2xs">
-                        <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sections</span>
-                        <span className="block text-sm font-black text-foreground">{currentSlideSections.length}</span>
-                      </div>
-                      <div className="rounded-lg border border-border/70 bg-card px-3 py-1.5 text-center shadow-2xs">
-                        <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Material Rows</span>
-                        <span className="block text-sm font-black text-foreground">{currentSlideRowsCount}</span>
-                      </div>
+                  {/* Right: Quantity / Sqft display (replaces quotation budget in the same design) */}
+                  {currentSlide.quantity != null && (
+                    <div className="lg:text-right shrink-0 bg-background/60 lg:bg-transparent p-3 lg:p-0 rounded-xl border lg:border-none border-border/60">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block">
+                        Quantity / Sqft
+                      </span>
+                      <span className="text-2xl md:text-3xl font-black text-foreground tracking-tight">
+                        {currentSlide.quantity} <span className="text-base md:text-lg font-bold text-muted-foreground">{currentSlide.unit || 'Sqft'}</span>
+                      </span>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -1915,17 +1892,6 @@ export function RequisitionBuilderClient({
                     <p className="text-xs text-muted-foreground">
                       Site supplies, general hardware, adhesives, and sundries not linked to a specific quotation product.
                     </p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <div className="rounded-lg border border-border/70 bg-card px-3 py-1.5 text-center shadow-2xs">
-                      <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sections</span>
-                      <span className="block text-sm font-black text-foreground">{currentSlideSections.length}</span>
-                    </div>
-                    <div className="rounded-lg border border-border/70 bg-card px-3 py-1.5 text-center shadow-2xs">
-                      <span className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Material Rows</span>
-                      <span className="block text-sm font-black text-foreground">{currentSlideRowsCount}</span>
-                    </div>
                   </div>
                 </div>
               </div>

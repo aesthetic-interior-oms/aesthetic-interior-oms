@@ -176,11 +176,21 @@ function buildDisplayDetails(item: RequisitionItemInput): {
   } else if (item.workCategory === 'WALL_PANELING') {
     const wp = attrs.wpSubType
     if (wp === 'CORE_BOARDS' || (!wp && (attrs.baseMaterial || attrs.laminateTopSurface))) {
-      const baseMat = attrs.baseMaterial || item.materialName || 'Board'
-      const thk = attrs.coreThickness || ''
-      displayTitle = `${thk ? `${thk} ` : ''}${baseMat}`
-      if (attrs.laminateTopSurface) tags.push({ label: 'Top', value: String(attrs.laminateTopSurface) })
-      if (attrs.surfaceCodeFinish) tags.push({ label: 'Bottom', value: String(attrs.surfaceCodeFinish) })
+      const baseMat = attrs.baseMaterial || item.materialName || 'MR MDF Architect Grade Board'
+      const thk = attrs.coreThickness ? String(attrs.coreThickness) : ''
+      const frontLam = (attrs.laminateTopSurface || attrs.frontLaminateCode ? String(attrs.laminateTopSurface || attrs.frontLaminateCode) : '') || 'Raw Board'
+      const backLam = (attrs.surfaceCodeFinish || attrs.backLaminateCode ? String(attrs.surfaceCodeFinish || attrs.backLaminateCode) : '') || 'Raw Board'
+
+      cabinetParts = {
+        thickness: thk,
+        frontLaminate: frontLam,
+        backLaminate: backLam,
+        baseMaterial: String(baseMat),
+      }
+
+      displayTitle = [thk, frontLam, backLam, baseMat].filter(Boolean).join(' ')
+      subtitle = attrs.functionalUsage ? String(attrs.functionalUsage) : ''
+      if (attrs.functionalUsage) tags.push({ label: 'Usage', value: String(attrs.functionalUsage) })
       if (attrs.edgingTapeQty) tags.push({ label: 'Edge', value: String(attrs.edgingTapeQty) })
     } else if (wp === 'LOUVERS_PROFILES' || attrs.profileType) {
       displayTitle = String(attrs.profileType || item.materialName || 'Fluted Profile')
@@ -558,19 +568,19 @@ export function UsedMaterialsPalette({
                     </span>
                   </div>
 
-                  {/* Material title: Cabinet-specific (Thickness + Front Lam [Blue] + Back Lam [Orange] + Base Material) */}
+                  {/* Material title: Board / Cabinet specific (Thickness + Front Lam [Blue] + Back Lam [Orange] + Base Material) */}
                   {entry.cabinetParts ? (
                     <div className="space-y-1.5 mb-2">
                       <div className="flex flex-wrap items-center gap-1.5">
                         {entry.cabinetParts.thickness && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted/80 text-foreground border border-border/60">
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-foreground border border-border/70">
                             {entry.cabinetParts.thickness}
                           </span>
                         )}
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-700 dark:text-blue-300 border border-blue-500/35">
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded bg-blue-600 text-white shadow-xs">
                           {entry.cabinetParts.frontLaminate} (Front)
                         </span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-700 dark:text-orange-300 border border-orange-500/35">
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded bg-orange-500 text-white shadow-xs">
                           {entry.cabinetParts.backLaminate} (Back)
                         </span>
                       </div>
