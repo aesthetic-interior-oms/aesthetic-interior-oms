@@ -40,9 +40,14 @@ import {
   attachItemDocumentAction,
   removeAttachedDocumentAction,
   dispatchBillingToAccountsAction,
+  recordPurchaseTeamPaymentAction,
   ItemPurchaseRecord,
   AttachedDocument,
 } from '../actions'
+import {
+  MaterialScopeDisplay,
+  getMaterialDisplayName,
+} from './material-scope-display'
 
 export type RequisitionItemData = {
   id: string
@@ -99,13 +104,16 @@ interface WallPanelingBillMakerProps {
   vendors: VendorOption[]
 }
 
-const SETTLEMENT_OPTIONS: { id: ItemPurchaseRecord['settlementMethod']; label: string }[] = [
-  { id: 'PETTY_CASH', label: 'Petty Cash Voucher' },
-  { id: 'PURCHASE_TEAM', label: 'Purchase Team Advance' },
-  { id: 'COMPANY_ACCOUNT', label: 'Office Bank / Cheque' },
-  { id: 'VENDOR_CREDIT', label: 'Vendor Credit (Pay Later)' },
-  { id: 'OTHER', label: 'Other Settlement' },
+const SETTLEMENT_OPTIONS: { id: ItemPurchaseRecord['settlementMethod']; label: string; procurementOnly?: boolean }[] = [
+  { id: 'PURCHASE_TEAM', label: 'Purchase Team Fund (Pay Now — Pending Auth)', procurementOnly: true },
+  { id: 'PETTY_CASH', label: 'Petty Cash — Accounts will process' },
+  { id: 'COMPANY_ACCOUNT', label: 'Office Bank / Cheque — Accounts will process' },
+  { id: 'VENDOR_CREDIT', label: 'Vendor Credit (Pay Later) — Accounts will process' },
+  { id: 'OTHER', label: 'Other — Accounts will process' },
 ]
+
+// Settlement methods that procurement can pay directly; others are Accounts-side only
+const PROCUREMENT_PAYABLE_METHODS: ItemPurchaseRecord['settlementMethod'][] = ['PURCHASE_TEAM']
 
 function classifyWallPanelingItem(item: RequisitionItemData): WallPanelingSubSection {
   const attrs = (item.variantAttributes || {}) as Record<string, any>
@@ -869,21 +877,9 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
                             {idx + 1}
                           </td>
 
-                          {/* Material & Scope */}
+                          {/* Material & Scope: thickness front laminate (blue) back laminate (orange) base material */}
                           <td className="py-2.5 px-3">
-                            <div className="font-semibold text-foreground text-xs sm:text-sm">
-                              {item.materialName}
-                            </div>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground font-medium">
-                                {subType}
-                              </span>
-                              {item.productionPhase && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  {item.productionPhase}
-                                </span>
-                              )}
-                            </div>
+                            <MaterialScopeDisplay item={item} subType={subType} />
                           </td>
 
                           {/* Supplier & Contact Info */}
@@ -1128,9 +1124,9 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
           {editingItem && (
             <div className="space-y-3.5 py-1 text-xs">
               {/* Item Info Summary */}
-              <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-1">
-                <div className="font-semibold text-foreground text-sm">{editingItem.materialName}</div>
-                <div className="text-muted-foreground flex items-center justify-between text-xs">
+              <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2">
+                <MaterialScopeDisplay item={editingItem} />
+                <div className="text-muted-foreground flex items-center justify-between text-xs pt-1 border-t border-border">
                   <span>Required: <strong className="text-foreground">{editingItem.finalQuantity} {editingItem.unit}</strong></span>
                   {editingItem.productionPhase && <span>Phase: {editingItem.productionPhase}</span>}
                 </div>
@@ -1634,7 +1630,7 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
                     return (
                       <tr key={item.id}>
                         <td className="py-1.5 px-2 font-mono text-muted-foreground">{idx + 1}</td>
-                        <td className="py-1.5 px-2 font-medium">{item.materialName}</td>
+                        <td className="py-1.5 px-2 font-medium">{getMaterialDisplayName(item)}</td>
                         <td className="py-1.5 px-2 text-[11px] text-muted-foreground">
                           {p.vendorName} {p.invoiceNo ? `(#${p.invoiceNo})` : ''}
                         </td>

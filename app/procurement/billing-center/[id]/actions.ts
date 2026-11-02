@@ -36,6 +36,17 @@ export type ItemPurchaseRecord = {
   documents?: AttachedDocument[]
   recordedAt?: string
   recordedBy?: string
+  // Purchase Team Fund payment — awaits Accounts authorization
+  purchaseTeamPayment?: {
+    amount: number
+    paidBy: string
+    paidAt: string
+    notes?: string
+    authorizationStatus: 'PENDING_AUTHORIZATION' | 'AUTHORIZED' | 'REJECTED'
+    authorizedBy?: string
+    authorizedAt?: string
+    rejectionReason?: string
+  }
 }
 
 export type DeliveryBatch = {
@@ -484,4 +495,126 @@ export async function dispatchBillingToAccountsAction(params: {
   revalidatePath('/procurement/dashboard')
 
   return { success: true, dispatchRef }
+}
+
+// -----------------------------------------------------------------
+// PURCHASE TEAM FUND PAYMENT
+// Procurement records a payment from their own cash fund.
+// This sits as PENDING_AUTHORIZATION until Accounts approves it.
+// -----------------------------------------------------------------
+export async function recordPurchaseTeamPaymentAction(params: {
+  itemId: string
+  requisitionId: string
+  amount: number
+  paidBy: string
+  notes?: string
+}) {
+  const { itemId, requisitionId, amount, paidBy, notes } = params
+  const actorName = await getActorName()
+
+  const item = await prisma.materialRequisitionItem.findUnique({
+    where: { id: itemId },
+    select: { variantAttributes: true },
+  })
+  if (!item) throw new Error('Item not found')
+
+  const attrs = (item.variantAttributes as Record<string, any>) || {}
+  const pRec: ItemPurchaseRecord = attrs.purchaseRecord || attrs.billingRecord
+  if (!pRec) throw new Error('No purchase record found — save bill first')
+
+  const updatedPRec: ItemPurchaseRecord = {
+    ...pRec,
+    settlementMethod: 'PURCHASE_TEAM',
+    paidAmount: amount,
+    dueAmount: Math.max(0, (pRec.totalAmount || 0) - amount),
+    paymentStatus:
+      amount >= (pRec.totalAmount || 0) && pRec.totalAmount > 0
+        ? 'PAID'
+        : amount > 0
+          ? 'PARTIALLY_PAID'
+          : 'UNPAID',
+    purchaseTeamPayment: {
+      amount,
+      paidBy: paidBy.trim() || actorName,
+      paidAt: new Date().toISOString(),
+      notes: notes?.trim(),
+      authorizationStatus: 'PENDING_AUTHORIZATION',
+    },
+  }
+
+  await prisma.materialRequisitionItem.update({
+    where: { id: itemId },
+    data: {
+      variantAttributes: {
+        ...attrs,
+        purchaseRecord: updatedPRec,
+        billingRecord: updatedPRec,
+      },
+    },
+  })
+
+  revalidatePath(`/procurement/billing-center/${requisitionId}`)
+  revalidatePath('/crm/accounts/procurement')
+  return { success: true }
+}
+
+// -----------------------------------------------------------------
+// ACCOUNTS: AUTHORIZE OR REJECT A PURCHASE TEAM PAYMENT
+// Only called from the Accounts procurement page.
+// -----------------------------------------------------------------
+export async function authorizePurchaseTeamPaymentAction(params: {
+  itemId: string
+  requisitionId: string
+  action: 'AUTHORIZE' | 'REJECT'
+  rejectionReason?: string
+}) {
+  const { itemId, requisitionId, action, rejectionReason } = params
+  const actorName = await getActorName()
+
+  const item = await prisma.materialRequisitionItem.findUnique({
+    where: { id: itemId },
+    select: { variantAttributes: true },
+  })
+  if (!item) throw new Error('Item not found')
+
+  const attrs = (item.variantAttributes as Record<string, any>) || {}
+  const pRec: ItemPurchaseRecord = attrs.purchaseRecord || attrs.billingRecord
+  if (!pRec?.purchaseTeamPayment) throw new Error('No purchase team payment found')
+
+  const updatedPayment = {
+    ...pRec.purchaseTeamPayment,
+    authorizationStatus: action === 'AUTHORIZE' ? ('AUTHORIZED' as const) : ('REJECTED' as const),
+    authorizedBy: actorName,
+    authorizedAt: new Date().toISOString(),
+    ...(action === 'REJECT' ? { rejectionReason: rejectionReason || 'Rejected by Accounts' } : {}),
+  }
+
+  // If rejected, revert payment amount to 0 and status back to unpaid
+  const updatedPRec: ItemPurchaseRecord = {
+    ...pRec,
+    ...(action === 'REJECT'
+      ? {
+          paidAmount: 0,
+          dueAmount: pRec.totalAmount,
+          paymentStatus: 'UNPAID' as const,
+        }
+      : {}),
+    purchaseTeamPayment: updatedPayment,
+  }
+
+  await prisma.materialRequisitionItem.update({
+    where: { id: itemId },
+    data: {
+      variantAttributes: {
+        ...attrs,
+        purchaseRecord: updatedPRec,
+        billingRecord: updatedPRec,
+      },
+    },
+  })
+
+  revalidatePath(`/procurement/billing-center/${requisitionId}`)
+  revalidatePath(`/procurement/billing-center/${requisitionId}/delivery`)
+  revalidatePath('/crm/accounts/procurement')
+  return { success: true }
 }

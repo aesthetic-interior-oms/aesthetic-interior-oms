@@ -35,6 +35,10 @@ import {
   DeliveryBatch,
   AttachedDocument,
 } from '../actions'
+import {
+  MaterialScopeDisplay,
+  getMaterialDisplayName,
+} from '../_components/material-scope-display'
 
 export type RequisitionItemWithRecords = {
   id: string
@@ -541,17 +545,14 @@ export function DeliveryWorkspace({ requisition }: DeliveryWorkspaceProps) {
                         {idx + 1}
                       </td>
 
-                      {/* Material Item */}
+                      {/* Material Item: thickness front laminate (blue) back laminate (orange) base material */}
                       <td className="py-3 px-3">
-                        <div className="font-semibold text-foreground text-xs sm:text-sm">
-                          {item.materialName}
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-muted-foreground">
-                          <span className="px-1.5 py-0.2 rounded bg-muted font-medium">
-                            {item.workCategory}
-                          </span>
-                          {p?.vendorName && <span>Supplier: {p.vendorName}</span>}
-                        </div>
+                        <MaterialScopeDisplay item={item} subType={item.workCategory} />
+                        {p?.vendorName && (
+                          <div className="text-[10px] text-muted-foreground mt-0.5">
+                            Supplier: <span className="font-medium text-foreground">{p.vendorName}</span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Required Qty */}
@@ -691,9 +692,9 @@ export function DeliveryWorkspace({ requisition }: DeliveryWorkspaceProps) {
           {batchModalItem && (
             <div className="space-y-3.5 py-1 text-xs">
               {/* Material Info */}
-              <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-1">
-                <div className="font-semibold text-foreground text-sm">{batchModalItem.materialName}</div>
-                <div className="text-muted-foreground flex items-center justify-between text-xs">
+              <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2">
+                <MaterialScopeDisplay item={batchModalItem} />
+                <div className="text-muted-foreground flex items-center justify-between text-xs pt-1 border-t border-border">
                   <span>Required: <strong className="text-foreground">{batchModalItem.finalQuantity} {batchModalItem.unit}</strong></span>
                   <span>
                     Received so far: <strong className="text-foreground">{batchModalItem.variantAttributes?.deliveryRecord?.totalDelivered || 0} {batchModalItem.unit}</strong>
@@ -831,6 +832,10 @@ export function DeliveryWorkspace({ requisition }: DeliveryWorkspaceProps) {
 
           {dateModalItem && (
             <div className="space-y-3.5 py-1 text-xs">
+              <div className="p-2.5 rounded-lg bg-muted/40 border border-border">
+                <MaterialScopeDisplay item={dateModalItem} />
+              </div>
+
               <div className="space-y-1">
                 <label className="font-semibold text-foreground">
                   Expected Delivery Date
