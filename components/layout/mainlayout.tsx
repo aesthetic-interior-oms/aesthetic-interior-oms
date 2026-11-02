@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { Header } from '@/components/navigation/header'
 import { Sidebar } from '@/components/navigation/sidebar'
 
@@ -16,25 +17,29 @@ export function MainLayout({
   role = 'JR CRM',
 }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const pathname = usePathname() || ''
+  const isBuilder = pathname.includes('/crm/boq/builder')
 
   useEffect(() => {
     setSidebarOpen(false)
-  }, [])
+  }, [pathname])
 
   const rootBgClass = 'bg-background'
 
   return (
     <div className={`flex h-screen ${rootBgClass}`}>
-      {/* shared sidebar – it determines its own links based on pathname */}
-      <Sidebar
-        open={sidebarOpen}
-        onOpenChange={setSidebarOpen}
-        role={role}
-      />
+      {/* shared sidebar – hidden when inside the BOQ builder focus mode */}
+      {!isBuilder && (
+        <Sidebar
+          open={sidebarOpen}
+          onOpenChange={setSidebarOpen}
+          role={role}
+        />
+      )}
 
       {/* main column */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => setSidebarOpen((o) => !o)} />
+        <Header onMenuClick={() => !isBuilder && setSidebarOpen((o) => !o)} />
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>

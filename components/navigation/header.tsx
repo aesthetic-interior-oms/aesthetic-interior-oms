@@ -22,6 +22,7 @@ export function Header({ onMenuClick }: HeaderProps) {
   const router = useRouter()
   const pathname = usePathname() || ''
   const isVisits = pathname.startsWith('/visits') || pathname.startsWith('/visit-team')
+  const isBuilder = pathname.includes('/crm/boq/builder')
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -40,18 +41,20 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <header className={headerClasses}>
-      {/** keep the mobile menu trigger in both modes */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onMenuClick}
-        className={iconButtonClass}
-      >
-        <Menu className="w-5 h-5" />
-      </Button>
+      {/** Hide menu trigger on BOQ builder pages so user stays focused */}
+      {!isBuilder && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onMenuClick}
+          className={iconButtonClass}
+        >
+          <Menu className="w-5 h-5" />
+        </Button>
+      )}
 
-      {/* push right‑hand controls to edge (visits header had an empty flex-1) */}
-      {isVisits && <div className="flex-1" />}
+      {/* push right‑hand controls to edge */}
+      {(isVisits || isBuilder) && <div className="flex-1" />}
 
       <div className="flex items-center gap-4 ml-auto">
         <SignedOut>

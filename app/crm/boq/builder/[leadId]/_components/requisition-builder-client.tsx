@@ -1282,7 +1282,7 @@ export function RequisitionBuilderClient({
 
   /* ── RENDER ── */
   return (
-    <div className="p-4 md:p-6 space-y-6 w-full pb-40">
+    <div className="p-4 md:p-6 space-y-4 w-full pb-40">
       {/* ── Global Autocomplete Lists ── */}
       <BoardDatalists />
 
@@ -1404,84 +1404,64 @@ export function RequisitionBuilderClient({
         </div>
       )}
 
-      {/* ── Executive KPI Summary Strip ── */}
+      {/* ── Executive KPI Summary Strip (Compact) ── */}
       {detailQuotation ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-          {/* KPI 1: Approved Quotation Total */}
-          <div className="rounded-xl border border-emerald-500/25 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-card p-4 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          {/* KPI 1: Requisition Coverage Progress - Compact */}
+          <div className="rounded-lg border border-blue-500/25 bg-blue-500/[0.04] px-3.5 py-2 flex items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-6 h-6 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300 flex items-center justify-center shrink-0">
+                <Layers className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-950 dark:text-blue-200">
+                    Line Item Coverage
+                  </span>
+                  <span className="text-[10px] font-bold text-blue-800 dark:text-blue-200 bg-blue-500/15 px-1.5 py-0.5 rounded">
+                    {coveragePct}%
+                  </span>
                 </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-950 dark:text-emerald-200">Approved Quotation</span>
+                <div className="w-32 sm:w-44 bg-blue-100 dark:bg-blue-950/50 rounded-full h-1.5 overflow-hidden border border-blue-200/50 dark:border-blue-800/40 mt-1">
+                  <div
+                    className="h-full transition-all duration-500 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full"
+                    style={{ width: `${coveragePct}%` }}
+                  />
+                </div>
               </div>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-800 dark:text-emerald-200 border border-emerald-500/30">
-                {detailQuotation.status}
-              </span>
             </div>
-            <div className="mt-3">
-              <div className="text-2xl font-bold tracking-tight text-emerald-950 dark:text-emerald-100">
-                {formatBdtRounded(detailQuotation.grandTotal)}
-              </div>
-              <p className="text-[11px] text-emerald-700/80 dark:text-emerald-300/80 mt-0.5 font-medium">
-                Rounded from saved quotation total for display
-              </p>
+            <div className="text-right shrink-0">
+              <span className="text-sm font-black text-blue-950 dark:text-blue-100">
+                {coveredLineItems} <span className="text-xs font-normal text-muted-foreground">/ {lineItems.length}</span>
+              </span>
+              <span className="block text-[10px] text-muted-foreground">
+                {lineItems.length - coveredLineItems} remaining
+              </span>
             </div>
           </div>
 
-          {/* KPI 2: Requisition Coverage Progress */}
-          <div className="rounded-xl border border-blue-500/25 bg-gradient-to-br from-blue-500/10 via-blue-500/5 to-card p-4 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-blue-500/20 text-blue-700 dark:text-blue-300 flex items-center justify-center">
-                  <Layers className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-blue-950 dark:text-blue-200">Line Item Coverage</span>
+          {/* KPI 2: Active Material Rows - Compact */}
+          <div className="rounded-lg border border-purple-500/25 bg-purple-500/[0.04] px-3.5 py-2 flex items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-6 h-6 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 flex items-center justify-center shrink-0">
+                <Package className="w-3.5 h-3.5" />
               </div>
-              <span className="text-xs font-bold text-blue-800 dark:text-blue-200 bg-blue-500/15 px-2.5 py-0.5 rounded-full border border-blue-500/30">
-                {coveragePct}%
-              </span>
-            </div>
-            <div className="mt-3 space-y-2">
-              <div className="flex items-baseline justify-between">
-                <span className="text-2xl font-bold tracking-tight text-blue-950 dark:text-blue-100">
-                  {coveredLineItems} <span className="text-sm font-normal text-muted-foreground">/ {lineItems.length} items</span>
+              <div className="min-w-0">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-purple-950 dark:text-purple-200 block">
+                  Material Specs
                 </span>
-                <span className="text-[11px] text-blue-700/80 dark:text-blue-300/80 font-medium">
-                  {lineItems.length - coveredLineItems} remaining
+                <span className="text-[10px] text-purple-700/80 dark:text-purple-300/80 font-medium truncate block">
+                  {totalMaterialRows - extraRowCount} linked · {extraRowCount} general
                 </span>
               </div>
-              {/* Vibrant multi-stop progress bar */}
-              <div className="w-full bg-blue-100 dark:bg-blue-950/50 rounded-full h-2 overflow-hidden border border-blue-200/50 dark:border-blue-800/40">
-                <div
-                  className="h-full transition-all duration-500 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500 rounded-full"
-                  style={{ width: `${coveragePct}%` }}
-                />
-              </div>
             </div>
-          </div>
-
-          {/* KPI 3: Active Material Rows */}
-          <div className="rounded-xl border border-purple-500/25 bg-gradient-to-br from-purple-500/10 via-purple-500/5 to-card p-4 shadow-xs flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-md bg-purple-500/20 text-purple-700 dark:text-purple-300 flex items-center justify-center">
-                  <Package className="w-3.5 h-3.5" />
-                </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-purple-950 dark:text-purple-200">Material Specs</span>
-              </div>
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-500/15 text-purple-800 dark:text-purple-200 border border-purple-500/30">
-                Live Requisition
+            <div className="text-right shrink-0">
+              <span className="text-sm font-black text-purple-950 dark:text-purple-100">
+                {totalMaterialRows} <span className="text-xs font-normal text-muted-foreground">rows</span>
               </span>
-            </div>
-            <div className="mt-3">
-              <div className="text-2xl font-bold tracking-tight text-purple-950 dark:text-purple-100">
-                {totalMaterialRows} <span className="text-sm font-normal text-muted-foreground">total rows</span>
-              </div>
-              <p className="text-[11px] text-purple-700/80 dark:text-purple-300/80 mt-0.5 font-medium">
-                {totalMaterialRows - extraRowCount} linked to BOQ · {extraRowCount} general site materials
-              </p>
+              <span className="block text-[10px] text-muted-foreground">
+                Active specs
+              </span>
             </div>
           </div>
         </div>
