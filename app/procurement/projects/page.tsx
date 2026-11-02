@@ -165,8 +165,8 @@ export default async function ProcurementProjectsPage() {
 
                       <td className="px-5 py-3 text-right">
                         <Button asChild size="sm" variant="outline" className="h-8 text-xs gap-1">
-                          <Link href={`/procurement/requisitions?search=${encodeURIComponent(lead.name)}`}>
-                            View Requisitions
+                          <Link href={`/procurement/billing-center?search=${encodeURIComponent(lead.name)}`}>
+                            View Billing
                             <ArrowRight className="w-3 h-3 ml-1" />
                           </Link>
                         </Button>

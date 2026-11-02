@@ -23,6 +23,7 @@ import {
   Package,
   Wallet,
   FolderKanban,
+  Receipt,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -785,14 +786,9 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/procurement/finance',
         },
         {
-          icon: CheckSquare,
-          label: 'Review Center',
-          href: '/procurement/review-center',
-        },
-        {
-          icon: Package,
-          label: 'Requisition',
-          href: '/procurement/requisitions',
+          icon: Receipt,
+          label: 'Billing Center',
+          href: '/procurement/billing-center',
         },
         {
           icon: FolderKanban,

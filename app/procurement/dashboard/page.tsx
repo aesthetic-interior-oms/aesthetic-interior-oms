@@ -5,14 +5,12 @@ import {
   Clock,
   Truck,
   CheckCircle2,
-  FileText,
   ArrowRight,
   ClipboardList,
   FolderKanban,
   Wallet,
-  CheckSquare,
+  Receipt,
   Building2,
-  Calendar,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -35,7 +33,7 @@ export default async function ProcurementDashboardPage() {
             Procurement Department Dashboard
           </h1>
           <p className="text-sm text-muted-foreground">
-            Material purchasing, vendor supply chain & requisition fulfillment
+            Material purchasing, vendor supply chain & requisition billing
           </p>
         </div>
 
@@ -47,9 +45,9 @@ export default async function ProcurementDashboardPage() {
             </Link>
           </Button>
           <Button asChild size="sm">
-            <Link href="/procurement/requisitions">
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              Completed Requisitions
+            <Link href="/procurement/billing-center">
+              <Receipt className="w-4 h-4 mr-2" />
+              Billing Center
               <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
             </Link>
           </Button>
@@ -129,68 +127,26 @@ export default async function ProcurementDashboardPage() {
         </div>
       </div>
 
-      {/* Spend & Payables Quick Glance */}
-      <div className="rounded-xl border bg-card p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400">
-            <Wallet className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Material Sourcing Spend
-            </div>
-            <div className="text-xl font-bold text-foreground">
-              ৳{stats.totalSpend.toLocaleString('en-BD')}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4 text-xs">
-          <div>
-            <span className="text-muted-foreground block">Disbursed to Suppliers</span>
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400 text-sm">
-              ৳{stats.totalPaid.toLocaleString('en-BD')}
-            </span>
-          </div>
-
-          <div className="border-l pl-4 border-border">
-            <span className="text-muted-foreground block">Pending Payables</span>
-            <span className="font-semibold text-rose-600 dark:text-rose-400 text-sm">
-              ৳{stats.totalOutstanding.toLocaleString('en-BD')}
-            </span>
-          </div>
-
-          <div className="border-l pl-4 border-border">
-            <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-              <Link href="/procurement/finance">
-                Finance Details
-                <ArrowRight className="w-3 h-3 ml-1" />
-              </Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* Quick Action Navigation Grid */}
       <div>
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
           Procurement Operations
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
           <Link
-            href="/procurement/requisitions"
+            href="/procurement/billing-center"
             className="group rounded-xl border bg-card p-4 hover:border-primary/50 hover:shadow-md transition-all space-y-2"
           >
             <div className="flex items-center justify-between">
               <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
-                <Package className="w-5 h-5" />
+                <Receipt className="w-5 h-5" />
               </div>
               <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
             </div>
             <div>
-              <div className="font-semibold text-sm text-foreground">Requisitions</div>
+              <div className="font-semibold text-sm text-foreground">Billing Center</div>
               <div className="text-xs text-muted-foreground mt-0.5">
-                Completed requisitions list & order fulfillment
+                Requisition billing, review & invoicing
               </div>
             </div>
           </Link>
@@ -209,24 +165,6 @@ export default async function ProcurementDashboardPage() {
               <div className="font-semibold text-sm text-foreground">Procurement Finance</div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 Vendor bills, purchase costs & budgets
-              </div>
-            </div>
-          </Link>
-
-          <Link
-            href="/procurement/review-center"
-            className="group rounded-xl border bg-card p-4 hover:border-primary/50 hover:shadow-md transition-all space-y-2"
-          >
-            <div className="flex items-center justify-between">
-              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
-                <CheckSquare className="w-5 h-5" />
-              </div>
-              <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-            </div>
-            <div>
-              <div className="font-semibold text-sm text-foreground">Review Center</div>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                Material approvals & vendor quotes review
               </div>
             </div>
           </Link>
@@ -281,8 +219,8 @@ export default async function ProcurementDashboardPage() {
             </p>
           </div>
           <Button asChild variant="outline" size="sm">
-            <Link href="/procurement/requisitions">
-              View All Requisitions
+            <Link href="/procurement/billing-center">
+              View In Billing Center
               <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
             </Link>
           </Button>
@@ -356,8 +294,8 @@ export default async function ProcurementDashboardPage() {
                       </td>
                       <td className="px-5 py-3 text-right">
                         <Button asChild size="sm" variant="outline" className="h-8 text-xs">
-                          <Link href={`/procurement/requisitions/${req.id}`}>
-                            Open
+                          <Link href={`/procurement/billing-center`}>
+                            View
                           </Link>
                         </Button>
                       </td>
