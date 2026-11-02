@@ -490,18 +490,31 @@ export function RequisitionBuilderClient({
     return getSectionTypeLabel(activeSectionObj)
   }, [activeSectionObj])
 
-  // ── Keyboard shortcuts: Alt + ArrowLeft / Right for slides, Esc for drawer ──
+  // ── Keyboard shortcuts: ArrowLeft / Right for slides, Esc for drawer ──
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const tag = (event.target as HTMLElement)?.tagName?.toLowerCase()
-      if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+      // Don't intercept if user is typing in an input, textarea, select, or editable element
+      const target = event.target as HTMLElement | null
+      const tag = target?.tagName?.toLowerCase()
+      if (
+        tag === 'input' ||
+        tag === 'textarea' ||
+        tag === 'select' ||
+        target?.isContentEditable ||
+        target?.closest('input, textarea, select, [contenteditable="true"]')
+      ) {
         return
       }
 
-      if (event.altKey && event.key === 'ArrowLeft') {
+      // If a modal or palette is open, don't navigate slides on arrow keys
+      if (isAddSectionModalOpen || isPdfModalOpen || isAmendmentModalOpen || isSavedDialogVisible) {
+        return
+      }
+
+      if (event.key === 'ArrowLeft') {
         event.preventDefault()
         goToSlide((prev) => Math.max(0, prev - 1))
-      } else if (event.altKey && event.key === 'ArrowRight') {
+      } else if (event.key === 'ArrowRight') {
         event.preventDefault()
         goToSlide((prev) => Math.min(productSlides.length - 1, prev + 1))
       } else if (event.key === 'Escape') {
@@ -517,7 +530,7 @@ export function RequisitionBuilderClient({
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [productSlides.length, isDrawerOpen, isUsedPaletteOpen])
+  }, [productSlides.length, isDrawerOpen, isUsedPaletteOpen, isAddSectionModalOpen, isPdfModalOpen, isAmendmentModalOpen, isSavedDialogVisible, goToSlide])
 
   // ── Section helpers ──
   const getSectionsForCard = (cardKey: string): CardSection[] => sectionsMap[cardKey] ?? []
@@ -1649,14 +1662,14 @@ export function RequisitionBuilderClient({
         onInsertItem={(item, targetSectionId) => handlePasteItemToSection(item, targetSectionId)}
       />
 
-      {/* ── Floating Side Navigation Chevrons (Desktop) ── */}
+      {/* ── Floating Side Navigation Chevrons (Desktop & Tablet) ── */}
       {viewModePreference === 'SLIDE' && (
         <>
           {safeSlideIndex > 0 && (
             <button
               onClick={() => goToSlide((prev) => Math.max(0, prev - 1))}
-              className="fixed left-3 top-1/2 -translate-y-1/2 z-20 hidden 2xl:flex h-12 w-12 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-xl backdrop-blur-sm transition-all hover:scale-110 hover:border-primary hover:bg-primary/10 hover:text-primary active:scale-95"
-              title={`Previous: ${productSlides[safeSlideIndex - 1]?.title} (Alt + Left)`}
+              className="fixed left-2 xl:left-4 top-1/2 -translate-y-1/2 z-20 hidden md:flex h-11 w-11 xl:h-12 xl:w-12 items-center justify-center rounded-full border border-border/80 bg-background/95 text-foreground shadow-2xl backdrop-blur-md transition-all hover:scale-110 hover:border-primary hover:bg-primary hover:text-primary-foreground active:scale-95 cursor-pointer"
+              title={`Previous Quotation: ${productSlides[safeSlideIndex - 1]?.title} (Left Arrow)`}
             >
               <ChevronLeft className="w-6 h-6" />
             </button>
@@ -1664,8 +1677,8 @@ export function RequisitionBuilderClient({
           {safeSlideIndex < productSlides.length - 1 && (
             <button
               onClick={() => goToSlide((prev) => Math.min(productSlides.length - 1, prev + 1))}
-              className="fixed right-3 top-1/2 -translate-y-1/2 z-20 hidden 2xl:flex h-12 w-12 items-center justify-center rounded-full border border-border/80 bg-background/90 text-foreground shadow-xl backdrop-blur-sm transition-all hover:scale-110 hover:border-primary hover:bg-primary/10 hover:text-primary active:scale-95"
-              title={`Next: ${productSlides[safeSlideIndex + 1]?.title} (Alt + Right)`}
+              className="fixed right-2 xl:right-4 top-1/2 -translate-y-1/2 z-20 hidden md:flex h-11 w-11 xl:h-12 xl:w-12 items-center justify-center rounded-full border border-border/80 bg-background/95 text-foreground shadow-2xl backdrop-blur-md transition-all hover:scale-110 hover:border-primary hover:bg-primary hover:text-primary-foreground active:scale-95 cursor-pointer"
+              title={`Next Quotation: ${productSlides[safeSlideIndex + 1]?.title} (Right Arrow)`}
             >
               <ChevronRight className="w-6 h-6" />
             </button>
@@ -1702,8 +1715,8 @@ export function RequisitionBuilderClient({
           <button
             onClick={() => goToSlide((prev) => Math.max(0, prev - 1))}
             disabled={safeSlideIndex === 0}
-            className="flex items-center gap-1 px-3 py-1 text-xs font-bold text-foreground rounded-lg hover:bg-background disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-            title="Previous Product (Alt + Left)"
+            className="flex items-center gap-1 px-3 py-1 text-xs font-bold text-foreground rounded-lg hover:bg-background disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+            title="Previous Quotation (Left Arrow)"
           >
             <ChevronLeft className="w-4 h-4" />
             <span className="hidden sm:inline">Prev</span>
@@ -1716,8 +1729,8 @@ export function RequisitionBuilderClient({
           <button
             onClick={() => goToSlide((prev) => Math.min(productSlides.length - 1, prev + 1))}
             disabled={safeSlideIndex === productSlides.length - 1}
-            className="flex items-center gap-1 px-3 py-1 text-xs font-bold text-foreground rounded-lg hover:bg-background disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
-            title="Next Product (Alt + Right)"
+            className="flex items-center gap-1 px-3 py-1 text-xs font-bold text-foreground rounded-lg hover:bg-background disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+            title="Next Quotation (Right Arrow)"
           >
             <span className="hidden sm:inline">Next</span>
             <ChevronRight className="w-4 h-4" />
@@ -1774,9 +1787,29 @@ export function RequisitionBuilderClient({
                       <span className="rounded-md border border-primary/30 bg-primary/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary">
                         Quotation Product
                       </span>
-                      <span className="rounded-md border border-border bg-muted/60 px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                        Slide {safeSlideIndex + 1} of {productSlides.length}
-                      </span>
+                      <div className="inline-flex items-center rounded-md border border-border bg-muted/60 overflow-hidden shadow-2xs">
+                        <button
+                          type="button"
+                          onClick={() => goToSlide((prev) => Math.max(0, prev - 1))}
+                          disabled={safeSlideIndex === 0}
+                          className="px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-background/80 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                          title="Previous Quotation (Left Arrow)"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-x border-border/60">
+                          Slide {safeSlideIndex + 1} of {productSlides.length}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => goToSlide((prev) => Math.min(productSlides.length - 1, prev + 1))}
+                          disabled={safeSlideIndex === productSlides.length - 1}
+                          className="px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-background/80 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                          title="Next Quotation (Right Arrow)"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                       {currentSlide.sectionName && (
                         <span className="inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/90 px-3 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 shadow-2xs">
                           <span className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">Floor:</span>
@@ -1871,12 +1904,32 @@ export function RequisitionBuilderClient({
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="space-y-1.5 flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                      <span className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300">
                         Extra & General Materials
                       </span>
-                      <span className="rounded-md border border-border bg-muted/50 px-2.5 py-0.5 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                        Slide {safeSlideIndex + 1} of {productSlides.length}
-                      </span>
+                      <div className="inline-flex items-center rounded-md border border-border bg-muted/60 overflow-hidden shadow-2xs">
+                        <button
+                          type="button"
+                          onClick={() => goToSlide((prev) => Math.max(0, prev - 1))}
+                          disabled={safeSlideIndex === 0}
+                          className="px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-background/80 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                          title="Previous Quotation (Left Arrow)"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="px-2.5 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-x border-border/60">
+                          Slide {safeSlideIndex + 1} of {productSlides.length}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => goToSlide((prev) => Math.min(productSlides.length - 1, prev + 1))}
+                          disabled={safeSlideIndex === productSlides.length - 1}
+                          className="px-2 py-1 text-muted-foreground hover:text-foreground hover:bg-background/80 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                          title="Next Quotation (Right Arrow)"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                     <h2 className="text-xl md:text-2xl font-black text-foreground tracking-tight flex items-center gap-2">
                       <Sparkles className="w-6 h-6 text-amber-500" />
