@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 
 export default function ProcurementSettingsPage() {
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -23,10 +23,11 @@ export default function ProcurementSettingsPage() {
             <span>/</span>
             <span className="text-foreground font-medium">Settings</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Settings className="w-7 h-7 text-slate-600 dark:text-slate-300 shrink-0" />
             Procurement Settings
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Configure department preferences, notifications and material categories
           </p>
         </div>
@@ -41,8 +42,8 @@ export default function ProcurementSettingsPage() {
         </div>
       </div>
 
-      {/* Settings Sections */}
-      <div className="space-y-6">
+      {/* Settings Sections Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Fulfillment Preferences */}
         <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-2.5">
@@ -54,44 +55,44 @@ export default function ProcurementSettingsPage() {
                 Requisition & Fulfillment Preferences
               </h3>
               <p className="text-xs text-muted-foreground">
-                Manage how completed requisitions and purchasing pipelines behave
+                Manage how completed requisitions and billing pipelines behave
               </p>
             </div>
           </div>
 
           <div className="divide-y divide-border pt-2 text-sm">
-            <div className="py-3 flex items-center justify-between">
+            <div className="py-3.5 flex items-center justify-between gap-4">
               <div>
                 <div className="font-medium text-foreground">Auto-notify BOQ on Fulfillment</div>
                 <div className="text-xs text-muted-foreground">
                   Send system notification when requisition items are marked as fulfilled
                 </div>
               </div>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
                 Enabled
               </span>
             </div>
 
-            <div className="py-3 flex items-center justify-between">
+            <div className="py-3.5 flex items-center justify-between gap-4">
               <div>
                 <div className="font-medium text-foreground">Default Requisition View</div>
                 <div className="text-xs text-muted-foreground">
-                  First tab displayed when opening the requisition module
+                  First tab displayed when opening the billing center module
                 </div>
               </div>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-foreground">
-                Completed Requisitions
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded bg-muted text-foreground shrink-0">
+                Billing Center
               </span>
             </div>
 
-            <div className="py-3 flex items-center justify-between">
+            <div className="py-3.5 flex items-center justify-between gap-4">
               <div>
                 <div className="font-medium text-foreground">Material Wastage Buffer Check</div>
                 <div className="text-xs text-muted-foreground">
                   Validate wastage allowances (typically 5% - 15%) on material takeoffs
                 </div>
               </div>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
                 Active
               </span>
             </div>
@@ -115,26 +116,26 @@ export default function ProcurementSettingsPage() {
           </div>
 
           <div className="divide-y divide-border pt-2 text-sm">
-            <div className="py-3 flex items-center justify-between">
+            <div className="py-3.5 flex items-center justify-between gap-4">
               <div>
                 <div className="font-medium text-foreground">New BOQ Submissions</div>
                 <div className="text-xs text-muted-foreground">
                   Notify procurement whenever a new material chart is finalized
                 </div>
               </div>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
                 Instant Alert
               </span>
             </div>
 
-            <div className="py-3 flex items-center justify-between">
+            <div className="py-3.5 flex items-center justify-between gap-4">
               <div>
                 <div className="font-medium text-foreground">Vendor Payment Reminders</div>
                 <div className="text-xs text-muted-foreground">
                   Reminders for pending vendor disbursements and delivery receipts
                 </div>
               </div>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">
                 Weekly Digest
               </span>
             </div>

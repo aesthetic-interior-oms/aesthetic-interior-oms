@@ -40,7 +40,7 @@ export default async function ProcurementProjectsPage() {
   })
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -51,11 +51,12 @@ export default async function ProcurementProjectsPage() {
             <span>/</span>
             <span className="text-foreground font-medium">Projects</span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Procurement Project List
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <FolderKanban className="w-7 h-7 text-purple-600 shrink-0" />
+            Active Procurement Projects
           </h1>
-          <p className="text-sm text-muted-foreground">
-            All client and site projects requiring material purchasing and site deliveries
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Client sites with active material requisitions and procurement workflows
           </p>
         </div>
 
@@ -69,81 +70,134 @@ export default async function ProcurementProjectsPage() {
         </div>
       </div>
 
-      {/* Projects Grid / Table */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <div className="p-5 border-b flex items-center justify-between">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">Active Projects</h2>
-            <p className="text-xs text-muted-foreground">
-              Projects with assigned material requisitions
-            </p>
+      {/* Metrics Banner */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="rounded-xl border bg-card p-5 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Projects with Requisitions
+            </span>
+            <Building2 className="w-5 h-5 text-purple-500" />
           </div>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground">
-            {leadsWithRequisitions.length} Projects
-          </span>
+          <div className="text-2xl sm:text-3xl font-bold text-foreground">
+            {leadsWithRequisitions.length}
+          </div>
+          <p className="text-xs text-muted-foreground">Sites requiring materials</p>
+        </div>
+
+        <div className="rounded-xl border bg-card p-5 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Total Active Requisitions
+            </span>
+            <Package className="w-5 h-5 text-indigo-500" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+            {leadsWithRequisitions.reduce((acc, lead) => acc + lead.materialRequisitions.length, 0)}
+          </div>
+          <p className="text-xs text-muted-foreground">Logged material lists</p>
+        </div>
+
+        <div className="rounded-xl border bg-card p-5 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Fulfillment Status
+            </span>
+            <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+            {
+              leadsWithRequisitions.filter((lead) =>
+                lead.materialRequisitions.some((r) => r.status === 'FULFILLED')
+              ).length
+            }{' '}
+            <span className="text-xs font-normal text-muted-foreground">completed</span>
+          </div>
+          <p className="text-xs text-muted-foreground">Projects with fulfilled orders</p>
+        </div>
+      </div>
+
+      {/* Projects Table */}
+      <div className="w-full rounded-xl border bg-card shadow-sm overflow-hidden">
+        <div className="p-4 sm:p-5 border-b">
+          <h2 className="text-base sm:text-lg font-semibold text-foreground">
+            Projects with assigned material requisitions
+          </h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Review site requisitions and material status per ongoing interior project
+          </p>
         </div>
 
         {leadsWithRequisitions.length === 0 ? (
           <div className="p-12 text-center space-y-3">
             <FolderKanban className="w-10 h-10 text-muted-foreground/40 mx-auto" />
-            <h3 className="text-sm font-semibold text-foreground">No projects found</h3>
+            <h3 className="text-sm font-semibold text-foreground">No active procurement projects</h3>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">
               Once material requisitions are created for client leads by BOQ, they will be listed here.
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="w-full overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-muted/50 text-xs uppercase font-medium text-muted-foreground border-b">
                 <tr>
-                  <th className="px-5 py-3">Project / Client</th>
-                  <th className="px-5 py-3">Contact & Location</th>
-                  <th className="px-5 py-3">Requisitions</th>
-                  <th className="px-5 py-3">Latest Status</th>
-                  <th className="px-5 py-3">Lead Owner</th>
-                  <th className="px-5 py-3 text-right">Actions</th>
+                  <th className="px-5 py-3.5">Client / Project</th>
+                  <th className="px-5 py-3.5">Contact & Location</th>
+                  <th className="px-5 py-3.5">Stage</th>
+                  <th className="px-5 py-3.5">Requisitions</th>
+                  <th className="px-5 py-3.5">Latest Status</th>
+                  <th className="px-5 py-3.5">Assigned To</th>
+                  <th className="px-5 py-3.5 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
                 {leadsWithRequisitions.map((lead) => {
                   const latestReq = lead.materialRequisitions[0]
-                  const hasCompleted = lead.materialRequisitions.some((r) => r.status === 'FULFILLED')
-
                   return (
-                    <tr key={lead.id} className="hover:bg-muted/30">
-                      <td className="px-5 py-3">
+                    <tr key={lead.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-5 py-3.5">
                         <div className="font-semibold text-foreground">{lead.name}</div>
-                        <div className="text-xs text-muted-foreground">Stage: {lead.stage}</div>
+                        <div className="text-xs text-muted-foreground font-mono">ID: {lead.id.slice(-6)}</div>
                       </td>
 
-                      <td className="px-5 py-3 text-xs text-muted-foreground">
-                        {lead.phone && (
-                          <div className="flex items-center gap-1.5">
-                            <Phone className="w-3 h-3" />
-                            {lead.phone}
-                          </div>
-                        )}
-                        {lead.location && (
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <MapPin className="w-3 h-3" />
-                            {lead.location}
-                          </div>
-                        )}
+                      <td className="px-5 py-3.5">
+                        <div className="space-y-0.5 text-xs">
+                          {lead.phone && (
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              <Phone className="w-3.5 h-3.5" />
+                              <span>{lead.phone}</span>
+                            </div>
+                          )}
+                          {lead.location && (
+                            <div className="flex items-center gap-1.5 text-muted-foreground">
+                              <MapPin className="w-3.5 h-3.5" />
+                              <span>{lead.location}</span>
+                            </div>
+                          )}
+                        </div>
                       </td>
 
-                      <td className="px-5 py-3">
-                        <span className="font-medium text-foreground">
-                          {lead.materialRequisitions.length}
-                        </span>{' '}
-                        <span className="text-xs text-muted-foreground">
-                          {lead.materialRequisitions.length === 1 ? 'requisition' : 'requisitions'}
+                      <td className="px-5 py-3.5">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                          {lead.stage.replace(/_/g, ' ')}
                         </span>
                       </td>
 
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3.5">
+                        <div className="text-xs">
+                          <span className="font-semibold text-foreground">
+                            {lead.materialRequisitions.length}
+                          </span>{' '}
+                          <span className="text-muted-foreground">
+                            {lead.materialRequisitions.length === 1 ? 'requisition' : 'requisitions'}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-3.5">
                         {latestReq ? (
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               latestReq.status === 'FULFILLED'
                                 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                                 : latestReq.status === 'IN_PROCUREMENT'
@@ -151,7 +205,6 @@ export default async function ProcurementProjectsPage() {
                                 : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                             }`}
                           >
-                            {latestReq.status === 'FULFILLED' && <CheckCircle2 className="w-3 h-3" />}
                             {latestReq.status}
                           </span>
                         ) : (
@@ -159,15 +212,15 @@ export default async function ProcurementProjectsPage() {
                         )}
                       </td>
 
-                      <td className="px-5 py-3 text-xs text-muted-foreground">
+                      <td className="px-5 py-3.5 text-xs text-muted-foreground">
                         {lead.assignee?.fullName || 'Unassigned'}
                       </td>
 
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-5 py-3.5 text-right">
                         <Button asChild size="sm" variant="outline" className="h-8 text-xs gap-1">
                           <Link href={`/procurement/billing-center?search=${encodeURIComponent(lead.name)}`}>
                             View Billing
-                            <ArrowRight className="w-3 h-3 ml-1" />
+                            <ArrowRight className="w-3.5 h-3.5 ml-1" />
                           </Link>
                         </Button>
                       </td>

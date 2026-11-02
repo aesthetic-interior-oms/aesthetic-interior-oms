@@ -20,7 +20,7 @@ export default async function ProcurementDashboardPage() {
   const stats = await getProcurementDashboardStats()
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -29,10 +29,10 @@ export default async function ProcurementDashboardPage() {
               Procurement Portal
             </span>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground mt-1">
             Procurement Department Dashboard
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Material purchasing, vendor supply chain & requisition billing
           </p>
         </div>
@@ -44,7 +44,7 @@ export default async function ProcurementDashboardPage() {
               Project List
             </Link>
           </Button>
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
             <Link href="/procurement/billing-center">
               <Receipt className="w-4 h-4 mr-2" />
               Billing Center
@@ -55,7 +55,7 @@ export default async function ProcurementDashboardPage() {
       </div>
 
       {/* KPI Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
         {/* Total Requisitions */}
         <div className="rounded-xl border bg-card p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between">
@@ -64,7 +64,7 @@ export default async function ProcurementDashboardPage() {
             </span>
             <Package className="w-5 h-5 text-blue-500" />
           </div>
-          <div className="text-2xl font-bold text-foreground">
+          <div className="text-2xl sm:text-3xl font-bold text-foreground">
             {stats.totalRequisitions}
           </div>
           <p className="text-xs text-muted-foreground">Across all stages</p>
@@ -78,7 +78,7 @@ export default async function ProcurementDashboardPage() {
             </span>
             <Clock className="w-5 h-5 text-amber-500" />
           </div>
-          <div className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+          <div className="text-2xl sm:text-3xl font-bold text-amber-600 dark:text-amber-400">
             {stats.submittedCount}
           </div>
           <p className="text-xs text-muted-foreground">Ready for procurement</p>
@@ -92,7 +92,7 @@ export default async function ProcurementDashboardPage() {
             </span>
             <Truck className="w-5 h-5 text-indigo-500" />
           </div>
-          <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+          <div className="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400">
             {stats.inProcurementCount}
           </div>
           <p className="text-xs text-muted-foreground">Purchasing in progress</p>
@@ -106,7 +106,7 @@ export default async function ProcurementDashboardPage() {
             </span>
             <CheckCircle2 className="w-5 h-5 text-emerald-500" />
           </div>
-          <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+          <div className="text-2xl sm:text-3xl font-bold text-emerald-600 dark:text-emerald-400">
             {stats.fulfilledCount}
           </div>
           <p className="text-xs text-muted-foreground">Fulfilled & verified</p>
@@ -120,7 +120,7 @@ export default async function ProcurementDashboardPage() {
             </span>
             <Building2 className="w-5 h-5 text-purple-500" />
           </div>
-          <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+          <div className="text-2xl sm:text-3xl font-bold text-purple-600 dark:text-purple-400">
             {stats.activeProjectsCount}
           </div>
           <p className="text-xs text-muted-foreground">With active requisitions</p>
@@ -129,22 +129,22 @@ export default async function ProcurementDashboardPage() {
 
       {/* Quick Action Navigation Grid */}
       <div>
-        <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+        <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
           Procurement Operations
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             href="/procurement/billing-center"
-            className="group rounded-xl border bg-card p-4 hover:border-primary/50 hover:shadow-md transition-all space-y-2"
+            className="group rounded-xl border bg-card p-5 hover:border-primary/50 hover:shadow-md transition-all space-y-2"
           >
             <div className="flex items-center justify-between">
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+              <div className="p-2.5 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
                 <Receipt className="w-5 h-5" />
               </div>
               <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
             </div>
             <div>
-              <div className="font-semibold text-sm text-foreground">Billing Center</div>
+              <div className="font-semibold text-sm sm:text-base text-foreground">Billing Center</div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 Requisition billing, review & invoicing
               </div>
@@ -153,16 +153,16 @@ export default async function ProcurementDashboardPage() {
 
           <Link
             href="/procurement/finance"
-            className="group rounded-xl border bg-card p-4 hover:border-primary/50 hover:shadow-md transition-all space-y-2"
+            className="group rounded-xl border bg-card p-5 hover:border-primary/50 hover:shadow-md transition-all space-y-2"
           >
             <div className="flex items-center justify-between">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
+              <div className="p-2.5 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
                 <Wallet className="w-5 h-5" />
               </div>
               <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
             </div>
             <div>
-              <div className="font-semibold text-sm text-foreground">Procurement Finance</div>
+              <div className="font-semibold text-sm sm:text-base text-foreground">Procurement Finance</div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 Vendor bills, purchase costs & budgets
               </div>
@@ -171,16 +171,16 @@ export default async function ProcurementDashboardPage() {
 
           <Link
             href="/procurement/projects"
-            className="group rounded-xl border bg-card p-4 hover:border-primary/50 hover:shadow-md transition-all space-y-2"
+            className="group rounded-xl border bg-card p-5 hover:border-primary/50 hover:shadow-md transition-all space-y-2"
           >
             <div className="flex items-center justify-between">
-              <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform">
+              <div className="p-2.5 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform">
                 <FolderKanban className="w-5 h-5" />
               </div>
               <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
             </div>
             <div>
-              <div className="font-semibold text-sm text-foreground">Project List</div>
+              <div className="font-semibold text-sm sm:text-base text-foreground">Project List</div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 Ongoing site projects & materials requested
               </div>
@@ -189,16 +189,16 @@ export default async function ProcurementDashboardPage() {
 
           <Link
             href="/procurement/settings"
-            className="group rounded-xl border bg-card p-4 hover:border-primary/50 hover:shadow-md transition-all space-y-2"
+            className="group rounded-xl border bg-card p-5 hover:border-primary/50 hover:shadow-md transition-all space-y-2"
           >
             <div className="flex items-center justify-between">
-              <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:scale-105 transition-transform">
+              <div className="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 group-hover:scale-105 transition-transform">
                 <ClipboardList className="w-5 h-5" />
               </div>
               <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
             </div>
             <div>
-              <div className="font-semibold text-sm text-foreground">Settings</div>
+              <div className="font-semibold text-sm sm:text-base text-foreground">Settings</div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 Department preferences & catalog configurations
               </div>
@@ -208,17 +208,17 @@ export default async function ProcurementDashboardPage() {
       </div>
 
       {/* Recent Requisitions Table */}
-      <div className="rounded-xl border bg-card overflow-hidden shadow-sm">
-        <div className="p-5 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="w-full rounded-xl border bg-card overflow-hidden shadow-sm">
+        <div className="p-4 sm:p-5 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold text-foreground">
+            <h2 className="text-base sm:text-lg font-semibold text-foreground">
               Recent Material Requisitions
             </h2>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Latest requisitions received and processed by procurement
             </p>
           </div>
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="outline" size="sm" className="h-8 text-xs">
             <Link href="/procurement/billing-center">
               View In Billing Center
               <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
@@ -235,17 +235,17 @@ export default async function ProcurementDashboardPage() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="w-full overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-muted/50 text-xs uppercase font-medium text-muted-foreground border-b">
                 <tr>
-                  <th className="px-5 py-3">Requisition #</th>
-                  <th className="px-5 py-3">Project / Client</th>
-                  <th className="px-5 py-3">Total Items</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Prepared By</th>
-                  <th className="px-5 py-3">Date</th>
-                  <th className="px-5 py-3 text-right">Action</th>
+                  <th className="px-5 py-3.5">Requisition #</th>
+                  <th className="px-5 py-3.5">Project / Client</th>
+                  <th className="px-5 py-3.5">Total Items</th>
+                  <th className="px-5 py-3.5">Status</th>
+                  <th className="px-5 py-3.5">Prepared By</th>
+                  <th className="px-5 py-3.5">Date</th>
+                  <th className="px-5 py-3.5 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -266,33 +266,33 @@ export default async function ProcurementDashboardPage() {
 
                   return (
                     <tr key={req.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-5 py-3 font-mono font-medium text-xs text-foreground">
+                      <td className="px-5 py-3.5 font-mono font-medium text-xs text-foreground">
                         {req.requisitionNo}
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3.5">
                         <div className="font-medium text-foreground">{req.lead.name}</div>
                         {req.lead.location && (
                           <div className="text-xs text-muted-foreground">{req.lead.location}</div>
                         )}
                       </td>
-                      <td className="px-5 py-3 font-medium">
+                      <td className="px-5 py-3.5 font-medium">
                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-muted text-xs">
                           <Package className="w-3 h-3 text-muted-foreground" />
                           {req.itemCount} {req.itemCount === 1 ? 'item' : 'items'}
                         </span>
                       </td>
-                      <td className="px-5 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass}`}>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass}`}>
                           {statusLabel}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-xs text-muted-foreground">
+                      <td className="px-5 py-3.5 text-xs text-muted-foreground">
                         {req.createdBy.fullName || 'System'}
                       </td>
-                      <td className="px-5 py-3 text-xs text-muted-foreground">
+                      <td className="px-5 py-3.5 text-xs text-muted-foreground">
                         {new Date(req.updatedAt).toLocaleDateString()}
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-5 py-3.5 text-right">
                         <Button asChild size="sm" variant="outline" className="h-8 text-xs">
                           <Link href={`/procurement/billing-center`}>
                             View
