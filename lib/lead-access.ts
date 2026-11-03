@@ -7,6 +7,7 @@ const SCOPED_DEPARTMENTS: LeadAssignmentDepartment[] = [
   LeadAssignmentDepartment.QUOTATION,
   LeadAssignmentDepartment.JR_ARCHITECT,
   LeadAssignmentDepartment.VISUALIZER_3D,
+  LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
 ]
 
 export function scopedAssignmentDepartments(userDepartments: string[]): LeadAssignmentDepartment[] {

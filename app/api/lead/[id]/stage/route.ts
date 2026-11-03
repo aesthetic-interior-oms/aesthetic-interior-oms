@@ -179,12 +179,30 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const existingLead = await prisma.lead.findFirst({
       where: leadWhere,
-      select: { id: true, stage: true, subStatus: true, primaryOwnerUserId: true },
+      select: {
+        id: true,
+        stage: true,
+        subStatus: true,
+        primaryOwnerUserId: true,
+        assignments: {
+          select: { department: true, userId: true },
+        },
+      },
     });
 
     if (!existingLead) {
       return NextResponse.json({ success: false, error: 'Lead not found' }, { status: 404 });
     }
+
+    const isSpecialistDesignConsultant = actorDepartments.includes('SPECIALIST_DESIGN_CONSULTANTS');
+    const isPartialWorkflowLead =
+      existingLead.stage === LeadStage.PARTIAL_VISIT_PHASE ||
+      existingLead.stage === LeadStage.PARTIAL_QUOTATION_PHASE ||
+      nextStage === LeadStage.PARTIAL_VISIT_PHASE ||
+      nextStage === LeadStage.PARTIAL_QUOTATION_PHASE ||
+      existingLead.assignments.some(
+        (a) => a.department === LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+      );
 
     const nextSubStatus =
       requestedSubStatus !== undefined
@@ -210,6 +228,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       existingLead.subStatus !== null &&
       cadSubStatuses.has(existingLead.subStatus);
     if (
+      !isPartialWorkflowLead &&
       nextStage === LeadStage.CAD_PHASE &&
       nextSubStatus &&
       nextSubStatus !== LeadSubStatus.CAD_ASSIGNED &&
@@ -220,7 +239,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         { status: 409 },
       );
     }
-    if (nextStage === LeadStage.CAD_PHASE && nextSubStatus === LeadSubStatus.CAD_ASSIGNED && !requestedJrArchitectUserId) {
+    if (!isPartialWorkflowLead && nextStage === LeadStage.CAD_PHASE && nextSubStatus === LeadSubStatus.CAD_ASSIGNED && !requestedJrArchitectUserId) {
       return NextResponse.json(
         { success: false, error: 'JR Architect assignment is required for CAD Assigned.' },
         { status: 400 },
@@ -259,6 +278,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       existingLead.subStatus !== null &&
       quotationSubStatuses.has(existingLead.subStatus);
     if (
+      !isPartialWorkflowLead &&
+      !isSpecialistDesignConsultant &&
       nextStage === LeadStage.QUOTATION_PHASE &&
       nextSubStatus &&
       nextSubStatus !== LeadSubStatus.QUOTATION_ASSIGNED &&
@@ -270,6 +291,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       );
     }
     if (
+      !isPartialWorkflowLead &&
+      !isSpecialistDesignConsultant &&
       nextStage === LeadStage.QUOTATION_PHASE &&
       nextSubStatus === LeadSubStatus.QUOTATION_ASSIGNED &&
       !requestedQuotationUserId
@@ -391,7 +414,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         });
       }
 
-      if (requiresSrCrmAssignment(nextStage)) {
+      if (requiresSrCrmAssignment(nextStage) && !isPartialWorkflowLead) {
         await ensureSeniorCrmAssignment({
           tx,
           leadId,
@@ -400,7 +423,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
 
       const autoHandoffDepartment = handoffDepartmentForSubStatus(nextSubStatus);
-      if (autoHandoffDepartment) {
+      if (
+        autoHandoffDepartment &&
+        (!isPartialWorkflowLead || autoHandoffDepartment !== 'QUOTATION' || requestedQuotationUserId)
+      ) {
         await ensureDepartmentAssignment({
           tx,
           leadId,
@@ -452,15 +478,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           subStatus: nextSubStatus,
           actorUserId: userId,
         });
-        await createSrCadReviewTodosForCadStart({
-          tx,
-          leadId,
-          fromStage: existingLead.stage,
-          fromSubStatus: existingLead.subStatus,
-          toStage: nextStage,
-          toSubStatus: nextSubStatus,
-          triggeredByUserId: userId,
-        });
+        if (!isPartialWorkflowLead) {
+          await createSrCadReviewTodosForCadStart({
+            tx,
+            leadId,
+            fromStage: existingLead.stage,
+            fromSubStatus: existingLead.subStatus,
+            toStage: nextStage,
+            toSubStatus: nextSubStatus,
+            triggeredByUserId: userId,
+          });
+        }
       } catch (error) {
         if (!isMissingOptionalRelationError(error)) throw error;
         console.warn('[lead/:id/stage][PATCH] Optional workflow relation unavailable, continuing stage update');

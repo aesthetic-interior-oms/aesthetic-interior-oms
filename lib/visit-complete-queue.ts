@@ -21,6 +21,7 @@ type QueuePermissionFlags = {
   isSeniorCrm: boolean
   isJrArchitect: boolean
   isVisitTeam: boolean
+  isSpecialistDesignConsultant: boolean
   isJrArchitectureLeader: boolean
 }
 
@@ -33,6 +34,7 @@ export type VisitCompleteQueueItem = {
   subStatus: LeadSubStatus | null
   jrArchitectAssignee: { id: string; fullName: string; email: string } | null
   srCrmAssignee: { id: string; fullName: string; email: string } | null
+  sdcAssignee?: { id: string; fullName: string; email: string } | null
   latestCompletedVisit: {
     id: string
     scheduledAt: Date
@@ -40,6 +42,7 @@ export type VisitCompleteQueueItem = {
     location: string
     projectSqft: number | null
     projectStatus: string | null
+    visitType?: string | null
     visitFee: number
     feeIsPaid: boolean
     feeIsPartiallyPaid: boolean
@@ -76,15 +79,22 @@ export function getQueuePermissionFlags(
     isSeniorCrm: departmentSet.has('SR_CRM'),
     isJrArchitect: departmentSet.has('JR_ARCHITECT'),
     isVisitTeam: departmentSet.has('VISIT_TEAM'),
+    isSpecialistDesignConsultant: departmentSet.has('SPECIALIST_DESIGN_CONSULTANTS'),
     isJrArchitectureLeader: hasJrArchitectureLeaderRole(actorRoles),
   }
 }
 
-export function canViewVisitCompleteQueue(flags: QueuePermissionFlags): boolean {
+export function canViewVisitCompleteQueue(flags: QueuePermissionFlags, visitType?: string): boolean {
+  if (visitType === 'PARTIAL_WORK_VISIT') {
+    return flags.isAdmin || flags.isSpecialistDesignConsultant || flags.isJrArchitectureLeader
+  }
   return flags.isAdmin || flags.isSeniorCrm || flags.isJrArchitectureLeader
 }
 
-export function canAssignJrArchitect(flags: QueuePermissionFlags): boolean {
+export function canAssignJrArchitect(flags: QueuePermissionFlags, visitType?: string): boolean {
+  if (visitType === 'PARTIAL_WORK_VISIT') {
+    return flags.isAdmin || flags.isSpecialistDesignConsultant || flags.isJrArchitectureLeader
+  }
   return flags.isAdmin || flags.isSeniorCrm || flags.isVisitTeam || flags.isJrArchitectureLeader
 }
 
@@ -195,21 +205,37 @@ async function ensureJrArchitectUser(tx: Prisma.TransactionClient, userId: strin
 
 export async function listVisitCompleteQueueItems(input?: {
   srAssigneeUserId?: string | null
+  visitType?: 'NORMAL' | 'PARTIAL_WORK_VISIT' | 'ALL'
 }): Promise<VisitCompleteQueueItem[]> {
+  const isPartial = input?.visitType === 'PARTIAL_WORK_VISIT'
+  const isNormal = !input?.visitType || input.visitType === 'NORMAL'
+
   const leads = await prisma.lead.findMany({
     where: {
-      stage: LeadStage.VISIT_PHASE,
-      subStatus: LeadSubStatus.VISIT_COMPLETED,
-      ...(input?.srAssigneeUserId
+      ...(isPartial
         ? {
-            assignments: {
-              some: {
-                department: LeadAssignmentDepartment.SR_CRM,
-                userId: input.srAssigneeUserId,
-              },
-            },
+            stage: LeadStage.PARTIAL_VISIT_PHASE,
+            subStatus: LeadSubStatus.VISIT_COMPLETED,
           }
-        : {}),
+        : isNormal
+        ? {
+            stage: LeadStage.VISIT_PHASE,
+            subStatus: LeadSubStatus.VISIT_COMPLETED,
+            ...(input?.srAssigneeUserId
+              ? {
+                  assignments: {
+                    some: {
+                      department: LeadAssignmentDepartment.SR_CRM,
+                      userId: input.srAssigneeUserId,
+                    },
+                  },
+                }
+              : {}),
+          }
+        : {
+            stage: { in: [LeadStage.VISIT_PHASE, LeadStage.PARTIAL_VISIT_PHASE] },
+            subStatus: LeadSubStatus.VISIT_COMPLETED,
+          }),
     },
     select: {
       id: true,
@@ -221,7 +247,11 @@ export async function listVisitCompleteQueueItems(input?: {
       assignments: {
         where: {
           department: {
-            in: [LeadAssignmentDepartment.JR_ARCHITECT, LeadAssignmentDepartment.SR_CRM],
+            in: [
+              LeadAssignmentDepartment.JR_ARCHITECT,
+              LeadAssignmentDepartment.SR_CRM,
+              LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+            ],
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -243,6 +273,7 @@ export async function listVisitCompleteQueueItems(input?: {
         select: {
           id: true,
           scheduledAt: true,
+          visitType: true,
           location: true,
           projectSqft: true,
           projectStatus: true,
@@ -316,6 +347,9 @@ export async function listVisitCompleteQueueItems(input?: {
     const srAssign = lead.assignments.find(
       (row) => row.department === LeadAssignmentDepartment.SR_CRM,
     )
+    const sdcAssign = lead.assignments.find(
+      (row) => row.department === LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+    )
     const latestVisit = lead.visits[0] ?? null
     const visitResult = latestVisit?.result ?? null
 
@@ -340,6 +374,7 @@ export async function listVisitCompleteQueueItems(input?: {
       subStatus: lead.subStatus,
       jrArchitectAssignee: jrAssign?.user ?? null,
       srCrmAssignee: srAssign?.user ?? null,
+      sdcAssignee: sdcAssign?.user ?? null,
       latestCompletedVisit: latestVisit
         ? {
             id: latestVisit.id,
@@ -348,6 +383,7 @@ export async function listVisitCompleteQueueItems(input?: {
             location: latestVisit.location,
             projectSqft: latestVisit.projectSqft ?? null,
             projectStatus: latestVisit.projectStatus ?? null,
+            visitType: latestVisit.visitType ?? null,
             visitFee,
             feeIsPaid,
             feeIsPartiallyPaid,
@@ -447,10 +483,6 @@ export async function createVisitCompleteRequest(input: {
 
 export async function assignJrArchitectFromVisitComplete(input: AssignJrArchitectInput) {
   const flags = getQueuePermissionFlags(input.actorDepartments, input.actorRoles)
-  if (!canAssignJrArchitect(flags)) {
-    throw new Error('FORBIDDEN')
-  }
-
   const reason = cleanText(input.reason)
   const requestId = cleanText(input.requestId)
 
@@ -466,7 +498,11 @@ export async function assignJrArchitectFromVisitComplete(input: AssignJrArchitec
           assignments: {
             where: {
               department: {
-                in: [LeadAssignmentDepartment.JR_ARCHITECT, LeadAssignmentDepartment.SR_CRM],
+                in: [
+                  LeadAssignmentDepartment.JR_ARCHITECT,
+                  LeadAssignmentDepartment.SR_CRM,
+                  LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+                ],
               },
             },
             select: {
@@ -481,11 +517,20 @@ export async function assignJrArchitectFromVisitComplete(input: AssignJrArchitec
     ])
 
     if (!lead) throw new Error('LEAD_NOT_FOUND')
-    if (lead.stage !== LeadStage.VISIT_PHASE || lead.subStatus !== LeadSubStatus.VISIT_COMPLETED) {
+
+    const isPartialLead = lead.stage === LeadStage.PARTIAL_VISIT_PHASE
+    if (
+      (lead.stage !== LeadStage.VISIT_PHASE && !isPartialLead) ||
+      lead.subStatus !== LeadSubStatus.VISIT_COMPLETED
+    ) {
       throw new Error('NOT_IN_VISIT_COMPLETED')
     }
 
-    if (flags.isVisitTeam && !flags.isAdmin && !flags.isSeniorCrm) {
+    if (!canAssignJrArchitect(flags, isPartialLead ? 'PARTIAL_WORK_VISIT' : 'NORMAL')) {
+      throw new Error('FORBIDDEN')
+    }
+
+    if (flags.isVisitTeam && !flags.isAdmin && !flags.isSeniorCrm && !flags.isSpecialistDesignConsultant) {
       const hasCompletedVisitByActor = await tx.visit.count({
         where: {
           leadId: input.leadId,
@@ -526,13 +571,15 @@ export async function assignJrArchitectFromVisitComplete(input: AssignJrArchitec
       data: { userId: jrArchitect.id },
     })
 
-    const preferActorAsSr = flags.isSeniorCrm || flags.isAdmin ? input.actorUserId : null
-    await ensureSeniorCrmAssignment({
-      tx,
-      leadId: input.leadId,
-      preferredUserId: preferActorAsSr,
-      actorUserId: input.actorUserId,
-    })
+    if (!isPartialLead) {
+      const preferActorAsSr = flags.isSeniorCrm || flags.isAdmin ? input.actorUserId : null
+      await ensureSeniorCrmAssignment({
+        tx,
+        leadId: input.leadId,
+        preferredUserId: preferActorAsSr,
+        actorUserId: input.actorUserId,
+      })
+    }
 
     await tx.lead.update({
       where: { id: input.leadId },
@@ -662,16 +709,18 @@ export async function assignJrArchitectFromVisitComplete(input: AssignJrArchitec
       )
     }
 
-    await createSrCadReviewTodosForCadStart({
-      tx,
-      leadId: input.leadId,
-      fromStage: lead.stage,
-      fromSubStatus: lead.subStatus,
-      toStage: LeadStage.CAD_PHASE,
-      toSubStatus: LeadSubStatus.CAD_ASSIGNED,
-      triggeredByUserId: input.actorUserId,
-      triggeredAt: now,
-    })
+    if (!isPartialLead) {
+      await createSrCadReviewTodosForCadStart({
+        tx,
+        leadId: input.leadId,
+        fromStage: lead.stage,
+        fromSubStatus: lead.subStatus,
+        toStage: LeadStage.CAD_PHASE,
+        toSubStatus: LeadSubStatus.CAD_ASSIGNED,
+        triggeredByUserId: input.actorUserId,
+        triggeredAt: now,
+      })
+    }
 
     await logUserAssigned(tx, {
       leadId: input.leadId,

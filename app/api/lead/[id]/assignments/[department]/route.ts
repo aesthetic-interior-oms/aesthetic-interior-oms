@@ -346,6 +346,7 @@ export async function PUT(
       'JR_CRM',
       'QUOTATION',
       'VISIT_TEAM',
+      'SPECIALIST_DESIGN_CONSULTANTS',
       'JR_ARCHITECT',
       'VISUALIZER_3D',
       'ACCOUNTS',
@@ -359,6 +360,28 @@ export async function PUT(
         },
         { status: 400 },
       )
+    }
+
+    if (department === 'SPECIALIST_DESIGN_CONSULTANTS') {
+      const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+      const actorRoles = authResult.actorRoles ?? []
+      const isJrArchitectLeader =
+        actorDepartments.has('JR_ARCHITECT') &&
+        hasJrArchitectureLeaderRole(actorRoles)
+      const canUpdateSdc =
+        actorDepartments.has('ADMIN') ||
+        actorDepartments.has('SPECIALIST_DESIGN_CONSULTANTS') ||
+        isJrArchitectLeader
+
+      if (!canUpdateSdc) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Only Admin, Specialist Design Consultant, or JR Architect leaders can reassign Special Design Consultant',
+          },
+          { status: 403 },
+        )
+      }
     }
 
     if (department === 'JR_ARCHITECT' || department === 'SR_CRM') {

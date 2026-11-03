@@ -144,6 +144,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
         { icon: Calendar, label: 'Visits', href: '/crm/admin/visits' },
         { icon: ClipboardList, label: 'Partial Visits', href: '/visit-team/partial-visits' },
         { icon: ClipboardList, label: 'Visit Queue', href: '/crm/admin/queue' },
+        { icon: ClipboardList, label: 'Partial Visit Queue', href: '/crm/admin/partial-queue' },
         {
           icon: ClipboardList,
           label: 'CAD Queue',
@@ -353,6 +354,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Partial Visits',
           href: '/visit-team/partial-visits',
         },
+        {
+          icon: ClipboardList,
+          label: 'Partial Visit Queue',
+          href: '/visit-team/partial-visit-queue',
+        },
         { icon: Calendar, label: 'Follow-ups', href: '/visit-team/followups' },
       ],
     },
@@ -375,6 +381,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: ClipboardList,
           label: 'Partial Visits',
           href: '/visit-team/partial-visits',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Partial Visit Queue',
+          href: '/visit-team/partial-visit-queue',
         },
         { icon: Calendar, label: 'Follow-ups', href: '/visit-team/followups' },
       ],
@@ -402,6 +413,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: ClipboardList,
           label: 'Visit Queue',
           href: '/crm/jr-architecture/queue',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Partial Visit Queue',
+          href: '/crm/jr-architecture/partial-queue',
         },
         {
           icon: ClipboardList,
@@ -884,6 +900,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
                 canViewJrArchitectLeaderPages ||
                 ![
                   '/crm/jr-architecture/queue',
+                  '/crm/jr-architecture/partial-queue',
                   '/crm/jr-architecture/cad-phase-queue',
                   '/crm/jr-architecture/projects',
                   '/crm/jr-architecture/visits',

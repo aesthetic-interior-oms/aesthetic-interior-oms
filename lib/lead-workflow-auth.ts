@@ -6,7 +6,11 @@ export function isAdminDepartment(actorDepartments: string[]): boolean {
 }
 
 export function isSrOrAdmin(actorDepartments: string[]): boolean {
-  return actorDepartments.includes('SR_CRM') || isAdminDepartment(actorDepartments)
+  return (
+    actorDepartments.includes('SR_CRM') ||
+    actorDepartments.includes('SPECIALIST_DESIGN_CONSULTANTS') ||
+    isAdminDepartment(actorDepartments)
+  )
 }
 
 export function canManagePrimaryLeadFlow(input: {
@@ -15,7 +19,12 @@ export function canManagePrimaryLeadFlow(input: {
   actorRoles?: string[]
   lead: Pick<Lead, 'primaryOwnerUserId'>
 }): boolean {
-  if (isSrOrAdmin(input.actorDepartments)) return true
+  if (
+    input.actorDepartments.includes('SPECIALIST_DESIGN_CONSULTANTS') ||
+    isSrOrAdmin(input.actorDepartments)
+  ) {
+    return true
+  }
   if (
     input.actorDepartments.includes('JR_ARCHITECT') &&
     hasJrArchitectureLeadershipRole(input.actorRoles)

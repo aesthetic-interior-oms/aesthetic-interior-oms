@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
             }
           : isGlobalVisitDashboardScope
             ? {}
-            : isAdmin || isJuniorCrm || isJrArchitectLeader
+            : isAdmin || isJuniorCrm || isJrArchitectLeader || (isSpecialistDesignConsultant && (scope === 'all' || accessContext === 'queue'))
             ? assignedToId
               ? { assignedToId }
               : {}
@@ -120,13 +120,17 @@ export async function GET(request: NextRequest) {
                     ],
                   }),
         ...(status ? { status } : {}),
-        ...(isSpecialistDesignConsultant
-          ? { visitType: VisitType.PARTIAL_WORK_VISIT }
-          : isVisitTeam && !isAdmin
-            ? { visitType: { not: VisitType.PARTIAL_WORK_VISIT } }
-            : visitTypeParam && Object.values(VisitType).includes(visitTypeParam as VisitType)
-              ? { visitType: visitTypeParam as VisitType }
-              : {}),
+        ...(visitTypeParam === 'NORMAL'
+          ? { visitType: { not: VisitType.PARTIAL_WORK_VISIT } }
+          : visitTypeParam === 'PARTIAL_WORK_VISIT'
+            ? { visitType: VisitType.PARTIAL_WORK_VISIT }
+            : isSpecialistDesignConsultant
+              ? { visitType: VisitType.PARTIAL_WORK_VISIT }
+              : isVisitTeam && !isAdmin
+                ? { visitType: { not: VisitType.PARTIAL_WORK_VISIT } }
+                : visitTypeParam && Object.values(VisitType).includes(visitTypeParam as VisitType)
+                  ? { visitType: visitTypeParam as VisitType }
+                  : {}),
       },
       select: {
         id: true,

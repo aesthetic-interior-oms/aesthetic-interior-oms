@@ -19,7 +19,12 @@ export function canManagePaymentStatus(input: {
 }): boolean {
   if (!isPaymentSubStatus(input.nextSubStatus)) return true
   const departments = new Set(input.actorDepartments)
-  return departments.has('SR_CRM') || departments.has('ACCOUNTS') || departments.has('ADMIN')
+  return (
+    departments.has('SR_CRM') ||
+    departments.has('SPECIALIST_DESIGN_CONSULTANTS') ||
+    departments.has('ACCOUNTS') ||
+    departments.has('ADMIN')
+  )
 }
 
 export function handoffDepartmentForSubStatus(

@@ -32,6 +32,7 @@ import {
   CheckCircle2,
   CalendarDays,
   Eye,
+  FileText,
   MapPin,
   User,
 } from 'lucide-react'
@@ -78,6 +79,7 @@ type QueueItem = {
   leadLocation: string | null
   jrArchitectAssignee: { id: string; fullName: string; email: string } | null
   srCrmAssignee: { id: string; fullName: string; email: string } | null
+  sdcAssignee?: { id: string; fullName: string; email: string } | null
   latestCompletedVisit: {
     id: string
     scheduledAt: string
@@ -85,6 +87,7 @@ type QueueItem = {
     location: string
     projectSqft: number | null
     projectStatus: string | null
+    visitType?: string | null
     visitFee: number
     feeIsPaid: boolean
     feeIsPartiallyPaid: boolean
@@ -134,6 +137,7 @@ export type VisitQueueCalendarProps = {
   subtitle: string
   leadHrefPrefix?: string | null
   visitScope?: 'all' | 'default'
+  mode?: 'normal' | 'partial'
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -190,7 +194,9 @@ export function VisitQueueCalendar({
   subtitle,
   leadHrefPrefix = null,
   visitScope = 'all',
+  mode = 'normal',
 }: VisitQueueCalendarProps) {
+  const isPartialMode = mode === 'partial'
   const now = new Date()
   const todayKey = getLocalDateKey(now)!
 
@@ -202,7 +208,7 @@ export function VisitQueueCalendar({
   const [queueItems, setQueueItems] = useState<QueueItem[]>([])
   const [scheduledVisits, setScheduledVisits] = useState<ScheduledVisit[]>([])
   const [jrArchitectUsers, setJrArchitectUsers] = useState<JrArchitectUser[]>([])
-  const [srCrmUsers, setSrCrmUsers] = useState<DepartmentUser[]>([])
+  const [leaderUsers, setLeaderUsers] = useState<DepartmentUser[]>([])
   const [loading, setLoading] = useState(true)
 
   // Permissions
@@ -217,11 +223,11 @@ export function VisitQueueCalendar({
   const [renameLeadId, setRenameLeadId] = useState('')
   const [renameValue, setRenameValue] = useState('')
 
-  // Dialog: SR CRM
-  const [srCrmOpen, setSrCrmOpen] = useState(false)
-  const [srCrmLeadId, setSrCrmLeadId] = useState('')
-  const [srCrmMemberId, setSrCrmMemberId] = useState('')
-  const [loadingSrCrmUsers, setLoadingSrCrmUsers] = useState(false)
+  // Dialog: Leader (SDC for partial, SR CRM for normal)
+  const [leaderOpen, setLeaderOpen] = useState(false)
+  const [leaderLeadId, setLeaderLeadId] = useState('')
+  const [leaderMemberId, setLeaderMemberId] = useState('')
+  const [loadingLeaderUsers, setLoadingLeaderUsers] = useState(false)
 
   // Dialog: drop
   const [dropOpen, setDropOpen] = useState(false)
@@ -239,12 +245,18 @@ export function VisitQueueCalendar({
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const visitUrl = visitScope === 'all'
-        ? '/api/visit-schedule?scope=all&accessContext=queue'
-        : '/api/visit-schedule'
+      const visitUrl = isPartialMode
+        ? '/api/visit-schedule?scope=all&accessContext=queue&visitType=PARTIAL_WORK_VISIT'
+        : visitScope === 'all'
+          ? '/api/visit-schedule?scope=all&accessContext=queue&visitType=NORMAL'
+          : '/api/visit-schedule?visitType=NORMAL'
+
+      const queueUrl = isPartialMode
+        ? '/api/visit-complete-queue?visitType=PARTIAL_WORK_VISIT'
+        : '/api/visit-complete-queue?visitType=NORMAL'
 
       const [queueRes, visitsRes] = await Promise.all([
-        fetch('/api/visit-complete-queue', { cache: 'no-store' }),
+        fetch(queueUrl, { cache: 'no-store' }),
         fetch(visitUrl, { cache: 'no-store' }),
       ])
 
@@ -383,42 +395,47 @@ export function VisitQueueCalendar({
     } finally { setBusyLeadId(null) }
   }, [queueItems, loadData])
 
-  const loadSrCrmUsers = async () => {
-    if (srCrmUsers.length > 0) return
-    setLoadingSrCrmUsers(true)
+  const loadLeaderUsers = async () => {
+    if (leaderUsers.length > 0) return
+    setLoadingLeaderUsers(true)
     try {
-      const res = await fetch('/api/department/available/SR_CRM', { cache: 'no-store' })
+      const deptName = isPartialMode ? 'SPECIALIST_DESIGN_CONSULTANTS' : 'SR_CRM'
+      const res = await fetch(`/api/department/available/${deptName}`, { cache: 'no-store' })
       const payload = (await res.json()) as DepartmentUsersResponse
-      if (!res.ok || !payload.success) throw new Error(payload.error ?? 'Failed to load SR CRM members')
-      setSrCrmUsers(Array.isArray(payload.users) ? payload.users : [])
+      if (!res.ok || !payload.success) throw new Error(payload.error ?? 'Failed to load members')
+      setLeaderUsers(Array.isArray(payload.users) ? payload.users : [])
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to load SR CRM members')
-    } finally { setLoadingSrCrmUsers(false) }
+      toast.error(error instanceof Error ? error.message : 'Failed to load members')
+    } finally { setLoadingLeaderUsers(false) }
   }
 
-  const openSrCrmDialog = async (item: QueueItem) => {
-    setSrCrmLeadId(item.leadId)
-    setSrCrmMemberId(item.srCrmAssignee?.id ?? '')
-    setSrCrmOpen(true)
-    await loadSrCrmUsers()
+  const openLeaderDialog = async (item: QueueItem) => {
+    setLeaderLeadId(item.leadId)
+    const currentId = isPartialMode
+      ? (item.sdcAssignee?.id ?? item.latestCompletedVisit?.assignedVisitLead?.id ?? '')
+      : (item.srCrmAssignee?.id ?? '')
+    setLeaderMemberId(currentId)
+    setLeaderOpen(true)
+    await loadLeaderUsers()
   }
 
-  const submitSrCrmChange = async () => {
-    if (!srCrmLeadId || !srCrmMemberId) return
-    setBusyLeadId(srCrmLeadId)
+  const submitLeaderChange = async () => {
+    if (!leaderLeadId || !leaderMemberId) return
+    setBusyLeadId(leaderLeadId)
     try {
-      const res = await fetch(`/api/lead/${srCrmLeadId}/assignments/SR_CRM`, {
+      const deptName = isPartialMode ? 'SPECIALIST_DESIGN_CONSULTANTS' : 'SR_CRM'
+      const res = await fetch(`/api/lead/${leaderLeadId}/assignments/${deptName}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: srCrmMemberId }),
+        body: JSON.stringify({ userId: leaderMemberId }),
       })
       const payload = await res.json()
-      if (!res.ok || !payload?.success) throw new Error(payload?.error ?? 'Failed to update SR CRM')
-      toast.success('SR CRM updated')
-      setSrCrmOpen(false); setSrCrmLeadId('')
+      if (!res.ok || !payload?.success) throw new Error(payload?.error ?? 'Failed to update assignment')
+      toast.success(isPartialMode ? 'Special Design Consultant updated' : 'SR CRM updated')
+      setLeaderOpen(false); setLeaderLeadId('')
       await loadData()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update SR CRM')
+      toast.error(error instanceof Error ? error.message : 'Failed to update assignment')
     } finally { setBusyLeadId(null) }
   }
 
@@ -472,17 +489,27 @@ export function VisitQueueCalendar({
   const renderScheduledVisitCard = (visit: ScheduledVisit) => {
     const location = visit.location || visit.lead?.location || 'N/A'
     const supportNames = (visit.supportAssignments ?? []).map(s => s.supportUser.fullName)
+    const cardHref = leadHrefPrefix
+      ? `${leadHrefPrefix}/${visit.leadId}`
+      : isPartialMode
+        ? `/visit-team/partial-visits/${visit.leadId}`
+        : null
+
     return (
       <div
         key={visit.id}
-        className="flex flex-col gap-2 rounded-lg border border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-800 px-4 py-3 sm:flex-row sm:items-start sm:justify-between"
+        className={`flex flex-col gap-2 rounded-lg border px-4 py-3 sm:flex-row sm:items-start sm:justify-between ${
+          isPartialMode
+            ? 'border-indigo-200 bg-indigo-50/50 dark:bg-indigo-950/20 dark:border-indigo-800'
+            : 'border-blue-200 bg-blue-50/50 dark:bg-blue-950/20 dark:border-blue-800'
+        }`}
       >
         <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:gap-5 sm:flex-wrap">
           {/* Client + observe badge */}
           <div className="min-w-[160px]">
-            {leadHrefPrefix ? (
+            {cardHref ? (
               <Link
-                href={`${leadHrefPrefix}/${visit.leadId}`}
+                href={cardHref}
                 className="text-sm font-semibold text-foreground hover:text-primary hover:underline"
               >
                 {visit.lead.name}
@@ -491,10 +518,17 @@ export function VisitQueueCalendar({
               <span className="text-sm font-semibold text-foreground">{visit.lead.name}</span>
             )}
             <div className="mt-1">
-              <Badge variant="secondary" className="text-xs text-blue-700 bg-blue-100 border-blue-200">
-                <Eye className="mr-1 h-3 w-3" />
-                Scheduled
-              </Badge>
+              {isPartialMode ? (
+                <Badge variant="secondary" className="text-xs text-indigo-700 bg-indigo-100 border-indigo-200">
+                  <Eye className="mr-1 h-3 w-3" />
+                  Partial Scheduled
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="text-xs text-blue-700 bg-blue-100 border-blue-200">
+                  <Eye className="mr-1 h-3 w-3" />
+                  Scheduled
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -527,7 +561,7 @@ export function VisitQueueCalendar({
 
           {/* Visit lead */}
           <div className="min-w-[140px]">
-            <p className="text-xs text-muted-foreground">Visit Lead</p>
+            <p className="text-xs text-muted-foreground">{isPartialMode ? 'Special Design Consultant' : 'Visit Lead'}</p>
             <p className="flex items-center gap-1 text-sm text-foreground">
               <User className="h-3 w-3 shrink-0 text-muted-foreground" />
               {visit.assignedTo?.fullName ?? 'Unassigned'}
@@ -553,27 +587,56 @@ export function VisitQueueCalendar({
     const supportMembers = item.latestCompletedVisit?.supportMembers ?? []
     const location = item.latestCompletedVisit?.location ?? item.leadLocation ?? 'N/A'
     const isAssigned = Boolean(item.jrArchitectAssignee)
+    const cardHref = leadHrefPrefix
+      ? `${leadHrefPrefix}/${item.leadId}`
+      : isPartialMode
+        ? `/visit-team/partial-visits/${item.leadId}`
+        : null
+
+    const leaderName = isPartialMode
+      ? (item.sdcAssignee?.fullName ?? item.latestCompletedVisit?.assignedVisitLead?.fullName ?? 'Unassigned')
+      : (item.srCrmAssignee?.fullName ?? 'Unassigned')
 
     return (
       <div
         key={item.leadId}
-        className="flex flex-col gap-2 rounded-lg border border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-800 px-4 py-3 sm:flex-row sm:items-start sm:justify-between"
+        className={`flex flex-col gap-2 rounded-lg border px-4 py-3 sm:flex-row sm:items-start sm:justify-between ${
+          isPartialMode
+            ? 'border-amber-300/80 bg-amber-50/50 dark:bg-amber-950/20 dark:border-amber-800'
+            : 'border-emerald-200 bg-emerald-50/50 dark:bg-emerald-950/20 dark:border-emerald-800'
+        }`}
       >
         <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:gap-5 sm:flex-wrap">
           {/* Client name + status */}
           <div className="min-w-[160px]">
-            <button
-              type="button"
-              onClick={() => openRenameDialog(item.leadId, item.leadName)}
-              className="text-left text-sm font-semibold text-foreground transition hover:text-primary hover:underline"
-            >
-              {item.leadName}
-            </button>
+            {cardHref ? (
+              <Link
+                href={cardHref}
+                className="text-left text-sm font-semibold text-foreground transition hover:text-primary hover:underline block"
+              >
+                {item.leadName}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openRenameDialog(item.leadId, item.leadName)}
+                className="text-left text-sm font-semibold text-foreground transition hover:text-primary hover:underline"
+              >
+                {item.leadName}
+              </button>
+            )}
             <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-              <Badge variant="secondary" className="text-xs text-emerald-700 bg-emerald-100 border-emerald-200">
-                <CheckCircle2 className="mr-1 h-3 w-3" />
-                Visit Completed
-              </Badge>
+              {isPartialMode ? (
+                <Badge variant="secondary" className="text-xs text-amber-800 bg-amber-100 border-amber-300">
+                  <CheckCircle2 className="mr-1 h-3 w-3" />
+                  Partial Completed
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="text-xs text-emerald-700 bg-emerald-100 border-emerald-200">
+                  <CheckCircle2 className="mr-1 h-3 w-3" />
+                  Visit Completed
+                </Badge>
+              )}
               {isAssigned ? (
                 <Badge variant="secondary" className="text-xs text-indigo-700 bg-indigo-50 border-indigo-200">
                   JR: {item.jrArchitectAssignee?.fullName}
@@ -615,7 +678,7 @@ export function VisitQueueCalendar({
 
           {/* Visit lead */}
           <div className="min-w-[140px]">
-            <p className="text-xs text-muted-foreground">Visit Lead</p>
+            <p className="text-xs text-muted-foreground">{isPartialMode ? 'Completed By' : 'Visit Lead'}</p>
             <p className="text-sm text-foreground">{visitLead?.fullName ?? 'N/A'}</p>
             {supportMembers.length > 0 && (
               <p className="text-xs text-muted-foreground truncate max-w-[200px]">
@@ -624,21 +687,36 @@ export function VisitQueueCalendar({
             )}
           </div>
 
-          {/* SR CRM */}
-          <div className="min-w-[120px]">
-            <p className="text-xs text-muted-foreground">SR CRM</p>
+          {/* Leader (SDC for partial, SR CRM for normal) */}
+          <div className="min-w-[140px]">
+            <p className="text-xs text-muted-foreground">{isPartialMode ? 'Special Design Consultant' : 'SR CRM'}</p>
             <button
               type="button"
-              onClick={() => void openSrCrmDialog(item)}
-              className="text-sm font-medium text-foreground transition hover:text-primary hover:underline text-left"
+              onClick={() => void openLeaderDialog(item)}
+              className="text-sm font-medium text-foreground transition hover:text-primary hover:underline text-left truncate max-w-[180px] block"
+              title={leaderName}
             >
-              {item.srCrmAssignee?.fullName ?? 'Unassigned'}
+              {leaderName}
             </button>
           </div>
         </div>
 
         {/* Actions dropdown */}
-        <div className="flex shrink-0 items-center justify-end">
+        <div className="flex shrink-0 items-center justify-end gap-1.5">
+          {isPartialMode && (
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1 text-xs border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-700"
+            >
+              <Link href={`/visit-team/partial-visits/${item.leadId}/quotation`}>
+                <FileText className="h-3.5 w-3.5" />
+                {item.jrArchitectAssignee ? 'Quotation' : 'Bypass CAD & Quote'}
+              </Link>
+            </Button>
+          )}
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" disabled={busyLeadId === item.leadId}>
@@ -649,16 +727,23 @@ export function VisitQueueCalendar({
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>{item.leadName}</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {leadHrefPrefix ? (
+              {cardHref ? (
                 <DropdownMenuItem asChild>
-                  <Link href={`${leadHrefPrefix}/${item.leadId}`}>Open Lead</Link>
+                  <Link href={cardHref}>{isPartialMode ? 'Open Partial Visit' : 'Open Lead'}</Link>
                 </DropdownMenuItem>
               ) : null}
+              {isPartialMode && (
+                <DropdownMenuItem asChild>
+                  <Link href={`/visit-team/partial-visits/${item.leadId}/quotation`}>
+                    Build Quotation (Bypass CAD)
+                  </Link>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => openRenameDialog(item.leadId, item.leadName)}>
                 Change Client Name
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => void openSrCrmDialog(item)}>
-                Change SR CRM
+              <DropdownMenuItem onClick={() => void openLeaderDialog(item)}>
+                {isPartialMode ? 'Change Special Design Consultant' : 'Change SR CRM'}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
@@ -942,29 +1027,33 @@ export function VisitQueueCalendar({
         </DialogContent>
       </Dialog>
 
-      {/* SR CRM dialog */}
-      <Dialog open={srCrmOpen} onOpenChange={setSrCrmOpen}>
+      {/* Leader dialog (SDC for partial, SR CRM for normal) */}
+      <Dialog open={leaderOpen} onOpenChange={setLeaderOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change SR CRM</DialogTitle>
-            <DialogDescription>Select the Senior CRM for this project.</DialogDescription>
+            <DialogTitle>{isPartialMode ? 'Change Special Design Consultant' : 'Change SR CRM'}</DialogTitle>
+            <DialogDescription>
+              {isPartialMode
+                ? 'Select the Special Design Consultant who leads this partial project.'
+                : 'Select the Senior CRM for this project.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>SR CRM Member</Label>
-            <Select value={srCrmMemberId} onValueChange={setSrCrmMemberId}>
+            <Label>{isPartialMode ? 'Special Design Consultant' : 'SR CRM Member'}</Label>
+            <Select value={leaderMemberId} onValueChange={setLeaderMemberId}>
               <SelectTrigger>
-                <SelectValue placeholder={loadingSrCrmUsers ? 'Loading...' : 'Select SR CRM member'} />
+                <SelectValue placeholder={loadingLeaderUsers ? 'Loading...' : `Select ${isPartialMode ? 'consultant' : 'SR CRM member'}`} />
               </SelectTrigger>
               <SelectContent>
-                {srCrmUsers.map(u => (
+                {leaderUsers.map(u => (
                   <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSrCrmOpen(false)}>Cancel</Button>
-            <Button onClick={submitSrCrmChange} disabled={loadingSrCrmUsers || !srCrmMemberId || busyLeadId === srCrmLeadId}>Save</Button>
+            <Button variant="outline" onClick={() => setLeaderOpen(false)}>Cancel</Button>
+            <Button onClick={submitLeaderChange} disabled={loadingLeaderUsers || !leaderMemberId || busyLeadId === leaderLeadId}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

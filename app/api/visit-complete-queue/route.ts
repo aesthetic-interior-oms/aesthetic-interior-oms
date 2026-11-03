@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireDatabaseRoles } from '@/lib/authz'
 import {
   canAssignJrArchitect,
@@ -9,7 +9,7 @@ import {
 } from '@/lib/visit-complete-queue'
 import prisma from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) return authResult.response
@@ -18,7 +18,11 @@ export async function GET() {
       authResult.actor.userDepartments ?? [],
       authResult.actorRoles ?? [],
     )
-    if (!canViewVisitCompleteQueue(flags)) {
+
+    const visitTypeParam = request.nextUrl.searchParams.get('visitType')
+    const visitType = visitTypeParam === 'PARTIAL_WORK_VISIT' ? 'PARTIAL_WORK_VISIT' : 'NORMAL'
+
+    if (!canViewVisitCompleteQueue(flags, visitType)) {
       return NextResponse.json(
         { success: false, error: 'Not authorized to view visit complete queue' },
         { status: 403 },
@@ -26,13 +30,16 @@ export async function GET() {
     }
 
     const [queue, jrArchitectUsers] = await Promise.all([
-      canViewVisitCompleteQueue(flags)
+      canViewVisitCompleteQueue(flags, visitType)
         ? listVisitCompleteQueueItems({
             srAssigneeUserId:
-              flags.isSeniorCrm && !flags.isAdmin ? authResult.actorUserId : null,
+              flags.isSeniorCrm && !flags.isAdmin && visitType !== 'PARTIAL_WORK_VISIT'
+                ? authResult.actorUserId
+                : null,
+            visitType,
           })
         : Promise.resolve([]),
-      canAssignJrArchitect(flags)
+      canAssignJrArchitect(flags, visitType)
         ? prisma.userDepartment.findMany({
             where: {
               department: {
@@ -70,10 +77,11 @@ export async function GET() {
       data: queue,
       jrArchitectUsers,
       permissions: {
-        canView: canViewVisitCompleteQueue(flags),
-        canAssign: canAssignJrArchitect(flags),
+        canView: canViewVisitCompleteQueue(flags, visitType),
+        canAssign: canAssignJrArchitect(flags, visitType),
         canRequest: canRequestJrArchitectWork(flags),
         isJrArchitectureLeader: flags.isJrArchitectureLeader,
+        isSpecialistDesignConsultant: flags.isSpecialistDesignConsultant,
       },
     })
   } catch (error) {
