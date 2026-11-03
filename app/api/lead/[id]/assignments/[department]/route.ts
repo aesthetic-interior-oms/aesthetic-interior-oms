@@ -186,9 +186,13 @@ export async function POST(
     }
 
     const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
-    if (!actorDepartments.has('ADMIN') && !actorDepartments.has('SR_CRM')) {
+    if (
+      !actorDepartments.has('ADMIN') &&
+      !actorDepartments.has('SR_CRM') &&
+      !actorDepartments.has('SPECIALIST_DESIGN_CONSULTANTS')
+    ) {
       return NextResponse.json(
-        { success: false, error: 'Only Admin or Senior CRM can assign a new quotation member' },
+        { success: false, error: 'Only Admin, Senior CRM, or Special Design Consultant can assign a new quotation member' },
         { status: 403 },
       )
     }
@@ -393,6 +397,7 @@ export async function PUT(
       const canUpdateAssignment =
         actorDepartments.has('ADMIN') ||
         actorDepartments.has('SR_CRM') ||
+        actorDepartments.has('SPECIALIST_DESIGN_CONSULTANTS') ||
         isJrArchitectLeader
 
       if (!canUpdateAssignment) {
@@ -401,8 +406,8 @@ export async function PUT(
             success: false,
             error:
               department === 'JR_ARCHITECT'
-                ? 'Only Admin, Senior CRM, or JR Architect leaders can reassign JR Architect'
-                : 'Only Admin, Senior CRM, or JR Architect leaders can reassign SR CRM',
+                ? 'Only Admin, Senior CRM, Special Design Consultant, or JR Architect leaders can reassign JR Architect'
+                : 'Only Admin, Senior CRM, Special Design Consultant, or JR Architect leaders can reassign SR CRM',
           },
           { status: 403 },
         )
@@ -412,7 +417,9 @@ export async function PUT(
     if (department === 'QUOTATION' || department === 'VISUALIZER_3D') {
       const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
       const canUpdateQuotationAssignment =
-        actorDepartments.has('ADMIN') || actorDepartments.has('SR_CRM')
+        actorDepartments.has('ADMIN') ||
+        actorDepartments.has('SR_CRM') ||
+        actorDepartments.has('SPECIALIST_DESIGN_CONSULTANTS')
       const canUpdateVisualizerAssignment =
         canUpdateQuotationAssignment || actorDepartments.has('JR_ARCHITECT')
       const canUpdateCrossDepartmentAssignment =
@@ -426,7 +433,7 @@ export async function PUT(
             success: false,
             error:
               department === 'QUOTATION'
-                ? 'Only Admin or Senior CRM can reassign quotation member'
+                ? 'Only Admin, Senior CRM, or Special Design Consultant can reassign quotation member'
                 : 'Only Admin, Senior CRM, or JR Architect can assign 3D Visualizer',
           },
           { status: 403 },
@@ -497,7 +504,8 @@ export async function PUT(
           department === 'QUOTATION' ||
           department === 'VISUALIZER_3D' ||
           department === 'JR_ARCHITECT' ||
-          department === 'SR_CRM'
+          department === 'SR_CRM' ||
+          department === 'SPECIALIST_DESIGN_CONSULTANTS'
 
         if (!canCreateMissingAssignment) {
           throw new Error('Assignment not found for this lead and department')
@@ -665,6 +673,7 @@ export async function DELETE(
       'JR_CRM',
       'QUOTATION',
       'VISIT_TEAM',
+      'SPECIALIST_DESIGN_CONSULTANTS',
       'JR_ARCHITECT',
       'VISUALIZER_3D',
       'ACCOUNTS',
