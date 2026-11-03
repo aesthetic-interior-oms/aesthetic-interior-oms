@@ -158,6 +158,7 @@ type ReviewCenterViewProps = {
   myLeadsOnly?: boolean
   leadBasePath?: string
   showSrCrmFilter?: boolean
+  mode?: 'normal' | 'partial'
 }
 
 function formatLabel(value: string | null | undefined): string {
@@ -344,6 +345,7 @@ export function ReviewCenterView({
   myLeadsOnly = true,
   leadBasePath = '/crm/sr/leads',
   showSrCrmFilter = false,
+  mode,
 }: ReviewCenterViewProps) {
   const [submissions, setSubmissions] = useState<ReviewSubmission[]>([])
   const [loading, setLoading] = useState(true)
@@ -370,6 +372,7 @@ export function ReviewCenterView({
         limit: '50',
         myLeadsOnly: myLeadsOnly ? '1' : '0',
       })
+      if (mode) params.set('leadType', mode)
       if (search) params.set('search', search)
       if (showSrCrmFilter && srCrmFilter !== ALL_MEMBER_FILTER) {
         params.set('srCrmId', srCrmFilter)
@@ -394,7 +397,7 @@ export function ReviewCenterView({
     } finally {
       setLoading(false)
     }
-  }, [myLeadsOnly, search, showSrCrmFilter, srCrmFilter, visitMonthFilter])
+  }, [mode, myLeadsOnly, search, showSrCrmFilter, srCrmFilter, visitMonthFilter])
 
   useEffect(() => {
     void fetchSubmissions()

@@ -169,12 +169,13 @@ export async function GET(request: NextRequest) {
     const actorRoles = authResult.actorRoles ?? []
     const isAdmin = actorDepartments.has('ADMIN')
     const isSeniorCrm = actorDepartments.has('SR_CRM')
+    const isSpecialistDesignConsultant = actorDepartments.has('SPECIALIST_DESIGN_CONSULTANTS')
     const isJrArchitectLeader =
       actorDepartments.has('JR_ARCHITECT') && hasJrArchitectureLeaderRole(actorRoles)
 
-    if (!isAdmin && !isSeniorCrm && !isJrArchitectLeader) {
+    if (!isAdmin && !isSeniorCrm && !isJrArchitectLeader && !isSpecialistDesignConsultant) {
       return NextResponse.json(
-        { success: false, error: 'Only Admin, Senior CRM, or JR Architect leaders can access this queue' },
+        { success: false, error: 'Only Admin, Senior CRM, Special Design Consultant, or JR Architect leaders can access this queue' },
         { status: 403 },
       )
     }
@@ -182,6 +183,11 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const search = toOptionalString(searchParams.get('search'))
     const queueTypeParam = toOptionalString(searchParams.get('queueType'))?.toLowerCase()
+    const leadTypeParam = toOptionalString(searchParams.get('leadType'))?.toLowerCase()
+    const isPartialLeadType =
+      leadTypeParam === 'partial' ||
+      (isSpecialistDesignConsultant && !isSeniorCrm && !isJrArchitectLeader)
+
     const legacyCadApprovedOnly = toBooleanParam(searchParams.get('cadApprovedOnly'))
     const queueType: 'cad' | 'meeting' | 'budget' | 'history' =
       queueTypeParam === 'meeting' || queueTypeParam === 'budget' || queueTypeParam === 'cad' || queueTypeParam === 'history'
@@ -189,6 +195,38 @@ export async function GET(request: NextRequest) {
         : legacyCadApprovedOnly
           ? 'meeting'
           : 'cad'
+
+    const partialLeadScope: Prisma.LeadWhereInput = {
+      OR: [
+        { stage: LeadStage.PARTIAL_VISIT_PHASE },
+        { stage: LeadStage.PARTIAL_QUOTATION_PHASE },
+        {
+          assignments: {
+            some: {
+              department: LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+            },
+          },
+        },
+        {
+          visits: {
+            some: {
+              visitType: 'PARTIAL_WORK_VISIT',
+            },
+          },
+        },
+      ],
+    }
+
+    const normalScope: Prisma.LeadWhereInput = {
+      stage: {
+        notIn: [LeadStage.PARTIAL_VISIT_PHASE, LeadStage.PARTIAL_QUOTATION_PHASE],
+      },
+      assignments: {
+        none: {
+          department: LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+        },
+      },
+    }
 
     const phaseScope: Prisma.LeadWhereInput = queueType === 'history'
       ? {
@@ -207,28 +245,52 @@ export async function GET(request: NextRequest) {
             {
               stage: LeadStage.DISCOVERY,
               subStatus: LeadSubStatus.FIRST_MEETING_SET,
-              cadWorkSubmissions: { some: { department: LeadAssignmentDepartment.JR_ARCHITECT } },
+              ...(isPartialLeadType ? {} : { cadWorkSubmissions: { some: { department: LeadAssignmentDepartment.JR_ARCHITECT } } }),
             },
             {
               stage: LeadStage.DISCOVERY,
               subStatus: LeadSubStatus.PROPOSAL_SENT,
-              cadWorkSubmissions: { some: { department: LeadAssignmentDepartment.JR_ARCHITECT } },
+              ...(isPartialLeadType ? {} : { cadWorkSubmissions: { some: { department: LeadAssignmentDepartment.JR_ARCHITECT } } }),
             },
+            ...(isPartialLeadType
+              ? [
+                  {
+                    stage: LeadStage.PARTIAL_QUOTATION_PHASE,
+                    subStatus: LeadSubStatus.BUDGET_MEETING_SET,
+                  },
+                ]
+              : []),
           ],
         }
       : queueType === 'budget'
         ? {
             OR: [
-              {
-                stage: LeadStage.QUOTATION_PHASE,
-                subStatus: {
-                  in: [
-                    LeadSubStatus.QUOTATION_ASSIGNED,
-                    LeadSubStatus.QUOTATION_WORKING,
-                    LeadSubStatus.QUOTATION_APPROVED,
-                  ],
-                },
-              },
+              ...(isPartialLeadType
+                ? [
+                    {
+                      stage: LeadStage.PARTIAL_QUOTATION_PHASE,
+                      subStatus: {
+                        in: [
+                          LeadSubStatus.QUOTATION_WORKING,
+                          LeadSubStatus.QUOTATION_COMPLETED,
+                          LeadSubStatus.QUOTATION_APPROVED,
+                          LeadSubStatus.BUDGET_MEETING_SET,
+                        ],
+                      },
+                    },
+                  ]
+                : [
+                    {
+                      stage: LeadStage.QUOTATION_PHASE,
+                      subStatus: {
+                        in: [
+                          LeadSubStatus.QUOTATION_ASSIGNED,
+                          LeadSubStatus.QUOTATION_WORKING,
+                          LeadSubStatus.QUOTATION_APPROVED,
+                        ],
+                      },
+                    },
+                  ]),
               {
                 stage: LeadStage.BUDGET_PHASE,
                 subStatus: LeadSubStatus.BUDGET_MEETING_SET,
@@ -261,8 +323,27 @@ export async function GET(request: NextRequest) {
           }
         : {}
 
+    const sdcScope: Prisma.LeadWhereInput =
+      isSpecialistDesignConsultant && !isAdmin
+        ? {
+            assignments: {
+              some: {
+                department: LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+                userId: authResult.actorUserId,
+              },
+            },
+          }
+        : {}
+
     const where: Prisma.LeadWhereInput = {
-      AND: [phaseScope, srScope, ...(searchScope ? [searchScope] : [])],
+      AND: [
+        phaseScope,
+        isPartialLeadType ? partialLeadScope : normalScope,
+        isPartialLeadType
+          ? isSpecialistDesignConsultant && !isAdmin ? sdcScope : {}
+          : srScope,
+        ...(searchScope ? [searchScope] : []),
+      ],
     }
 
     let leads: QueueLead[]

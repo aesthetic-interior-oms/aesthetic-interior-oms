@@ -52,9 +52,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
     const isAdmin = actorDepartments.has('ADMIN')
     const isSeniorCrm = actorDepartments.has('SR_CRM')
-    if (!isAdmin && !isSeniorCrm) {
+    const isSpecialistDesignConsultant = actorDepartments.has('SPECIALIST_DESIGN_CONSULTANTS')
+    if (!isAdmin && !isSeniorCrm && !isSpecialistDesignConsultant) {
       return NextResponse.json(
-        { success: false, error: 'Only Senior CRM or Admin can review submissions' },
+        { success: false, error: 'Only Senior CRM, Special Design Consultant, or Admin can review submissions' },
         { status: 403 },
       )
     }
@@ -85,14 +86,23 @@ export async function POST(request: NextRequest, context: RouteContext) {
             ],
             ...(isAdmin
               ? {}
-              : {
-                  assignments: {
-                    some: {
-                      userId: authResult.actorUserId,
-                      department: 'SR_CRM',
+              : isSpecialistDesignConsultant && !isSeniorCrm
+                ? {
+                    assignments: {
+                      some: {
+                        userId: authResult.actorUserId,
+                        department: 'SPECIALIST_DESIGN_CONSULTANTS',
+                      },
                     },
-                  },
-                }),
+                  }
+                : {
+                    assignments: {
+                      some: {
+                        userId: authResult.actorUserId,
+                        department: 'SR_CRM',
+                      },
+                    },
+                  }),
           },
         },
         select: {
@@ -108,7 +118,16 @@ export async function POST(request: NextRequest, context: RouteContext) {
               subStatus: true,
               assignments: {
                 where: {
-                  department: { in: ['JR_ARCHITECT', 'QUOTATION', 'VISUALIZER_3D', 'SR_CRM', 'ADMIN'] },
+                  department: {
+                    in: [
+                      'JR_ARCHITECT',
+                      'QUOTATION',
+                      'VISUALIZER_3D',
+                      'SR_CRM',
+                      'ADMIN',
+                      'SPECIALIST_DESIGN_CONSULTANTS',
+                    ],
+                  },
                 },
                 select: {
                   userId: true,
@@ -166,12 +185,14 @@ export async function POST(request: NextRequest, context: RouteContext) {
               ? LeadSubStatus.CAD_APPROVED
               : LeadSubStatus.CAD_WORKING
       const phaseType = isQuotationReview ? LeadPhaseType.QUOTATION : LeadPhaseType.CAD
+      const reviewerRole =
+        isSpecialistDesignConsultant && !isSeniorCrm ? 'Special Design Consultant' : 'Senior CRM'
       const reason =
         decision === 'APPROVE'
-          ? summary ?? `Senior CRM approved ${reviewLabel.toLowerCase()} submission from Review Center.`
+          ? summary ?? `${reviewerRole} approved ${reviewLabel.toLowerCase()} submission from Review Center.`
           : decision === 'DROP'
-            ? summary ?? `Senior CRM dropped project from Review Center.`
-            : summary ?? `Senior CRM sent ${reviewLabel.toLowerCase()} work back for correction.`
+            ? summary ?? `${reviewerRole} dropped project from Review Center.`
+            : summary ?? `${reviewerRole} sent ${reviewLabel.toLowerCase()} work back for correction.`
 
       const now = new Date()
       await tx.lead.update({
@@ -261,7 +282,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
             title: decision === 'APPROVE' ? `${reviewLabel} submission approved` : decision === 'DROP' ? 'Project dropped' : `${reviewLabel} correction required`,
             message:
               decision === 'APPROVE'
-                ? `${submission.lead.name} ${reviewLabel.toLowerCase()} submission was approved by Senior CRM.`
+                ? `${submission.lead.name} ${reviewLabel.toLowerCase()} submission was approved by ${reviewerRole}.`
                 : decision === 'DROP'
                   ? `${submission.lead.name} was dropped from Review Center. Summary: ${summary}`
                   : `${submission.lead.name} needs ${reviewLabel.toLowerCase()} correction. Summary: ${summary}`,

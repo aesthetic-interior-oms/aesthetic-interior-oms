@@ -150,6 +150,21 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'CAD Queue',
           href: '/crm/admin/cad-phase-queue',
         },
+        {
+          icon: ClipboardList,
+          label: 'Partial Review Center',
+          href: '/crm/admin/partial-review-center',
+        },
+        {
+          icon: CalendarClock,
+          label: 'Partial Meeting Queue',
+          href: '/crm/admin/partial-meeting-queue',
+        },
+        {
+          icon: CalendarClock,
+          label: 'Partial Budget Queue',
+          href: '/crm/admin/partial-budget-queue',
+        },
       ],
     },
     {
@@ -359,6 +374,21 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Partial Visit Queue',
           href: '/visit-team/partial-visit-queue',
         },
+        {
+          icon: ClipboardList,
+          label: 'Partial Review Center',
+          href: '/visit-team/partial-review-center',
+        },
+        {
+          icon: CalendarClock,
+          label: 'Partial Meeting Queue',
+          href: '/visit-team/partial-meeting-queue',
+        },
+        {
+          icon: CalendarClock,
+          label: 'Partial Budget Queue',
+          href: '/visit-team/partial-budget-queue',
+        },
         { icon: Calendar, label: 'Follow-ups', href: '/visit-team/followups' },
       ],
     },
@@ -386,6 +416,21 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: ClipboardList,
           label: 'Partial Visit Queue',
           href: '/visit-team/partial-visit-queue',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Partial Review Center',
+          href: '/visit-team/partial-review-center',
+        },
+        {
+          icon: CalendarClock,
+          label: 'Partial Meeting Queue',
+          href: '/visit-team/partial-meeting-queue',
+        },
+        {
+          icon: CalendarClock,
+          label: 'Partial Budget Queue',
+          href: '/visit-team/partial-budget-queue',
         },
         { icon: Calendar, label: 'Follow-ups', href: '/visit-team/followups' },
       ],

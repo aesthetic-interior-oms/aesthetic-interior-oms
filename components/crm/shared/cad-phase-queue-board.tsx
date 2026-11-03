@@ -498,6 +498,7 @@ export function CadPhaseQueueBoard({
   assigneeLabel = 'JR Architect',
   showAssigneeReassign = true,
   showSrCrmFilter = false,
+  mode = 'normal',
 }: {
   title: string
   subtitle: string
@@ -508,6 +509,7 @@ export function CadPhaseQueueBoard({
   assigneeLabel?: string
   showAssigneeReassign?: boolean
   showSrCrmFilter?: boolean
+  mode?: 'normal' | 'partial'
 }) {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
@@ -619,6 +621,7 @@ export function CadPhaseQueueBoard({
       const params = new URLSearchParams({
         queueType,
       })
+      if (mode === 'partial') params.set('leadType', 'partial')
       if (search) params.set('search', search)
       const response = await fetch(`${queueEndpoint}?${params.toString()}`, {
         cache: 'no-store',
@@ -636,7 +639,7 @@ export function CadPhaseQueueBoard({
     } finally {
       setLoading(false)
     }
-  }, [queueEndpoint, queueType, search])
+  }, [mode, queueEndpoint, queueType, search])
 
   useEffect(() => {
     void loadLeads()

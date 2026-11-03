@@ -43,13 +43,26 @@ export function canEditQuotationDraft(input: {
   leadSubStatus: LeadSubStatus | null
   assignedQuotationUserId: string | null
   leadStage?: LeadStage | null
+  isPartialLead?: boolean
 }): boolean {
+  if (isQuotationAdmin(input.actorDepartments)) {
+    return true
+  }
+
+  // SDC has full autonomous authority - no assignment needed to start/build quotation
+  if (input.actorDepartments.includes('SPECIALIST_DESIGN_CONSULTANTS')) {
+    return true
+  }
+
+  // For partial leads, a quotation department member MUST be assigned to generate/edit quotation
+  if (input.isPartialLead && isQuotationDepartment(input.actorDepartments)) {
+    return Boolean(input.assignedQuotationUserId && input.assignedQuotationUserId === input.actorUserId)
+  }
+
   if (
-    isQuotationAdmin(input.actorDepartments) ||
     input.actorDepartments.includes('PROJECT_CORDINATOR') ||
     input.actorDepartments.includes('PROJECT_COORDINATOR') ||
     input.actorDepartments.includes('VISIT_TEAM') ||
-    input.actorDepartments.includes('SPECIALIST_DESIGN_CONSULTANTS') ||
     input.actorDepartments.includes('JR_CRM') ||
     input.actorDepartments.includes('JR_ARCHITECT') ||
     input.actorDepartments.includes('3D_VISUALIZER') ||

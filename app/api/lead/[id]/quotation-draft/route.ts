@@ -507,7 +507,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         visits: {
           orderBy: { scheduledAt: 'desc' },
           take: 1,
-          select: { projectSqft: true },
+          select: { projectSqft: true, visitType: true },
         },
         assignments: {
           where: { department: LeadAssignmentDepartment.QUOTATION },
@@ -526,12 +526,18 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     const assignedQuotationUserId = lead.assignments[0]?.userId ?? null
+    const isPartialLead =
+      lead.stage === 'PARTIAL_VISIT_PHASE' ||
+      lead.stage === 'PARTIAL_QUOTATION_PHASE' ||
+      lead.visits[0]?.visitType === 'PARTIAL_WORK_VISIT'
+
     const canEdit = canEditQuotationDraft({
       actorDepartments,
       actorUserId: authResult.actorUserId,
       leadSubStatus: lead.subStatus,
       assignedQuotationUserId,
       leadStage: lead.stage,
+      isPartialLead,
     })
 
     const projectSqft = lead.visits[0]?.projectSqft ?? null
@@ -763,7 +769,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         visits: {
           orderBy: { scheduledAt: 'desc' },
           take: 1,
-          select: { projectSqft: true },
+          select: { projectSqft: true, visitType: true },
         },
         assignments: {
           where: { department: LeadAssignmentDepartment.QUOTATION },
@@ -779,12 +785,18 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     const assignedQuotationUserId = lead.assignments[0]?.userId ?? null
+    const isPartialLead =
+      lead.stage === 'PARTIAL_VISIT_PHASE' ||
+      lead.stage === 'PARTIAL_QUOTATION_PHASE' ||
+      lead.visits[0]?.visitType === 'PARTIAL_WORK_VISIT'
+
     const canEdit = canEditQuotationDraft({
       actorDepartments,
       actorUserId: authResult.actorUserId,
       leadSubStatus: lead.subStatus,
       assignedQuotationUserId,
       leadStage: lead.stage,
+      isPartialLead,
     })
 
     if (!canEdit) {

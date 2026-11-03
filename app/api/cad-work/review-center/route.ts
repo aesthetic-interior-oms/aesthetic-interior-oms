@@ -49,10 +49,11 @@ export async function GET(request: NextRequest) {
     const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
     const isAdmin = actorDepartments.has('ADMIN')
     const isSeniorCrm = actorDepartments.has('SR_CRM')
+    const isSpecialistDesignConsultant = actorDepartments.has('SPECIALIST_DESIGN_CONSULTANTS')
 
-    if (!isAdmin && !isSeniorCrm) {
+    if (!isAdmin && !isSeniorCrm && !isSpecialistDesignConsultant) {
       return NextResponse.json(
-        { success: false, error: 'Only Senior CRM or Admin can access review center' },
+        { success: false, error: 'Only Senior CRM, Special Design Consultant, or Admin can access review center' },
         { status: 403 },
       )
     }
@@ -63,6 +64,11 @@ export async function GET(request: NextRequest) {
     const search = toOptionalString(searchParams.get('search'))
     const myLeadsOnly = toBooleanParam(searchParams.get('myLeadsOnly'), true)
     const srCrmId = toOptionalString(searchParams.get('srCrmId'))
+    const leadTypeParam = toOptionalString(searchParams.get('leadType'))?.toLowerCase()
+    const isPartialReview =
+      leadTypeParam === 'partial' ||
+      (isSpecialistDesignConsultant && !isSeniorCrm)
+
     const visitMonth = toOptionalString(searchParams.get('visitMonth'))
     const visitMonthRange = parseVisitMonth(visitMonth)
 
@@ -70,7 +76,39 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid visitMonth' }, { status: 400 })
     }
 
-    const scopeToAssignedSrLeads = !isAdmin || myLeadsOnly
+    const scopeToAssignedLeads = !isAdmin || myLeadsOnly
+
+    const partialFilter: Prisma.LeadWhereInput = {
+      OR: [
+        { stage: LeadStage.PARTIAL_VISIT_PHASE },
+        { stage: LeadStage.PARTIAL_QUOTATION_PHASE },
+        {
+          assignments: {
+            some: {
+              department: LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+            },
+          },
+        },
+        {
+          visits: {
+            some: {
+              visitType: 'PARTIAL_WORK_VISIT',
+            },
+          },
+        },
+      ],
+    }
+
+    const normalFilter: Prisma.LeadWhereInput = {
+      stage: {
+        notIn: [LeadStage.PARTIAL_VISIT_PHASE, LeadStage.PARTIAL_QUOTATION_PHASE],
+      },
+      assignments: {
+        none: {
+          department: LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+        },
+      },
+    }
 
     const reviewableLeadScope: Prisma.LeadWhereInput = {
       OR: [
@@ -78,15 +116,25 @@ export async function GET(request: NextRequest) {
         { stage: LeadStage.QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_COMPLETED },
         { stage: LeadStage.VISUALIZATION_PHASE, subStatus: LeadSubStatus.VISUAL_COMPLETED },
       ],
-      ...(scopeToAssignedSrLeads
-        ? {
-            assignments: {
-              some: {
-                userId: authResult.actorUserId,
-                department: LeadAssignmentDepartment.SR_CRM,
+      ...(isPartialReview ? partialFilter : normalFilter),
+      ...(scopeToAssignedLeads
+        ? isSpecialistDesignConsultant && !isSeniorCrm
+          ? {
+              assignments: {
+                some: {
+                  userId: authResult.actorUserId,
+                  department: LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+                },
               },
-            },
-          }
+            }
+          : {
+              assignments: {
+                some: {
+                  userId: authResult.actorUserId,
+                  department: LeadAssignmentDepartment.SR_CRM,
+                },
+              },
+            }
         : srCrmId
           ? {
               assignments: {
@@ -149,7 +197,14 @@ export async function GET(request: NextRequest) {
               stage: true,
               subStatus: true,
               assignments: {
-                where: { department: LeadAssignmentDepartment.SR_CRM },
+                where: {
+                  department: {
+                    in: [
+                      LeadAssignmentDepartment.SR_CRM,
+                      LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+                    ],
+                  },
+                },
                 take: 1,
                 include: {
                   user: {
