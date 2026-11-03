@@ -41,8 +41,9 @@ export default async function CRMLayout({
     user.userDepartments.map((row) => row.department.name),
   );
 
-  if (departmentNames.has("JR_CRM")) {
-    return <MainLayout role="JR CRM">{children}</MainLayout>;
+  if (departmentNames.has("JR_CRM") || departmentNames.has("ADMIN")) {
+    const role = departmentNames.has("ADMIN") && !departmentNames.has("JR_CRM") ? "Admin" : "JR CRM";
+    return <MainLayout role={role}>{children}</MainLayout>;
   }
 
   if (departmentNames.has("VISIT_TEAM")) {

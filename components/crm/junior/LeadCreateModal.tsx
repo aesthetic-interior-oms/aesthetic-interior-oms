@@ -9,6 +9,9 @@ import { fetchMeCached } from '@/lib/client-me'
 
 type LeadCreateModalProps = {
   onCreated?: () => void
+  defaultVisitType?: string
+  defaultScheduleVisit?: boolean
+  buttonLabel?: string
 }
 
 type JrCrmUser = {
@@ -55,11 +58,22 @@ type ModalBootstrapCache = {
 const MODAL_BOOTSTRAP_CACHE_TTL_MS = 60_000
 let modalBootstrapCache: ModalBootstrapCache | null = null
 
-export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
+export default function LeadCreateModal({
+  onCreated,
+  defaultVisitType,
+  defaultScheduleVisit = false,
+  buttonLabel = 'Add Lead',
+}: LeadCreateModalProps) {
   const [open, setOpen] = useState(false)
   
   const handleOpenChange = (newOpen: boolean) => {
     setOpen(newOpen)
+    if (newOpen) {
+      if (defaultScheduleVisit) setScheduleVisit(true)
+      if (defaultVisitType) {
+        setVisitForm((prev) => ({ ...prev, visitType: defaultVisitType }))
+      }
+    }
   }
   const [form, setForm] = useState({
     name: '',
@@ -77,10 +91,10 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [isJuniorCrm, setIsJuniorCrm] = useState(false)
-  const [scheduleVisit, setScheduleVisit] = useState(false)
+  const [scheduleVisit, setScheduleVisit] = useState(defaultScheduleVisit)
   const [visitForm, setVisitForm] = useState({
     visitTeamUserId: '',
-    visitType: 'INITIAL_VISIT',
+    visitType: defaultVisitType || 'INITIAL_VISIT',
     scheduledAt: '',
     notes: '',
     visitFee: '',
@@ -283,7 +297,7 @@ export default function LeadCreateModal({ onCreated }: LeadCreateModalProps) {
       <DialogTrigger asChild>
         <Button className="gap-2 bg-foreground hover:bg-foreground/70 text-background">
           <Plus className="w-4 h-4" />
-          Add Lead
+          {buttonLabel}
         </Button>
       </DialogTrigger>
         <DialogContent className="max-w-md max-h-[calc(100vh-5rem)] overflow-y-auto">

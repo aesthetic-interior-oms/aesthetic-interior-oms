@@ -65,6 +65,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
       defaultOpen: true,
       items: [
         { icon: Users, label: 'Leads', href: '/crm/jr/leads' },
+        { icon: ClipboardList, label: 'Partial Leads', href: '/crm/jr/partial-leads' },
         { icon: CheckSquare, label: 'Followups', href: '/crm/jr/followups' },
         { icon: Calendar, label: 'Visits', href: '/crm/jr/visits' },
       ],
@@ -85,6 +86,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: Users,
           label: 'Leads',
           href: '/crm/admin/leads',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Partial Leads',
+          href: '/crm/admin/partial-leads',
         },
         {
           icon: ClipboardList,
@@ -142,6 +148,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
       defaultOpen: true,
       items: [
         { icon: Calendar, label: 'Visits', href: '/crm/admin/visits' },
+        { icon: ClipboardList, label: 'Partial Leads', href: '/crm/admin/partial-leads' },
         { icon: ClipboardList, label: 'Partial Visits', href: '/visit-team/partial-visits' },
         { icon: ClipboardList, label: 'Visit Queue', href: '/crm/admin/queue' },
         { icon: ClipboardList, label: 'Partial Visit Queue', href: '/crm/admin/partial-queue' },
