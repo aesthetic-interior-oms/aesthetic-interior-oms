@@ -60,6 +60,7 @@ import { fetchMeCached } from '@/lib/client-me'
 import { toast } from '@/components/ui/sonner'
 import { cn } from '@/lib/utils'
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles'
+import { normalizeDepartmentName } from '@/lib/department-normalization'
 import {
   budgetRangeOptions,
   clientMoodOptions,
@@ -252,7 +253,9 @@ export function VisitsPageView({
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [actorDepartments, setActorDepartments] = useState<Set<string>>(new Set())
   const [isAdminActor, setIsAdminActor] = useState(false)
+  const [isJrCrmActor, setIsJrCrmActor] = useState(false)
   const [isVisitTeamLeaderActor, setIsVisitTeamLeaderActor] = useState(false)
+  const canEditVisit = isAdminActor || isJrCrmActor
   const [requestOpen, setRequestOpen] = useState(false)
   const [requestVisitId, setRequestVisitId] = useState('')
   const [requestType, setRequestType] = useState<'RESCHEDULE' | 'CANCEL'>('RESCHEDULE')
@@ -442,16 +445,17 @@ export function VisitsPageView({
         }
         const departments = Array.isArray(data?.userDepartments)
           ? data.userDepartments
-              .map((row) => row?.department?.name)
+              .map((row) => normalizeDepartmentName(row?.department?.name) ?? row?.department?.name)
               .filter((name): name is string => Boolean(name))
           : []
         setActorDepartments(new Set(departments))
-        setIsAdminActor(departments.includes('ADMIN'))
         const roleNames = Array.isArray((data as { userRoles?: unknown }).userRoles)
           ? ((data as { userRoles?: Array<{ role?: { name?: string | null } | null } | null> }).userRoles ?? [])
               .map((item) => item?.role?.name)
               .filter((name): name is string => Boolean(name))
           : []
+        setIsAdminActor(departments.includes('ADMIN') || roleNames.some((r) => r.toUpperCase() === 'ADMIN'))
+        setIsJrCrmActor(departments.includes('JR_CRM') || roleNames.some((r) => r.toUpperCase() === 'JR_CRM'))
         setIsVisitTeamLeaderActor(hasVisitTeamLeadershipRole(roleNames))
       })
       .catch((error) => {
@@ -556,7 +560,7 @@ export function VisitsPageView({
     return Array.from(membersMap.entries())
       .map(([id, fullName]) => ({ id, fullName }))
       .sort((a, b) => a.fullName.localeCompare(b.fullName))
-  }, [visits, isAdminActor, isVisitTeamLeaderActor, currentUserId, blurUnassignedVisitDetails])
+  }, [visits, isAdminActor, isJrCrmActor, isVisitTeamLeaderActor, currentUserId, blurUnassignedVisitDetails])
 
   const listDateMemberFilteredVisits = useMemo(() => {
     return filteredVisits.filter((visit) => {
@@ -574,6 +578,7 @@ export function VisitsPageView({
     listMemberFilter,
     visitTeamView,
     isAdminActor,
+    isJrCrmActor,
     isVisitTeamLeaderActor,
     currentUserId,
     blurUnassignedVisitDetails,
@@ -606,6 +611,7 @@ export function VisitsPageView({
     listMemberFilter,
     visitTeamView,
     isAdminActor,
+    isJrCrmActor,
     isVisitTeamLeaderActor,
     currentUserId,
     blurUnassignedVisitDetails,
@@ -707,7 +713,7 @@ export function VisitsPageView({
 
   function canViewVisit(visit: VisitRecord) {
     if (visitTeamView) return getVisitRole(visit) !== 'NONE'
-    if (isAdminActor || isVisitTeamLeaderActor) return true
+    if (isAdminActor || isJrCrmActor || isVisitTeamLeaderActor) return true
     if (blurUnassignedVisitDetails) {
       return getVisitRole(visit) !== 'NONE'
     }
@@ -775,7 +781,7 @@ export function VisitsPageView({
 
   const canManageSupportForVisit = (visit: VisitRecord) => {
     if (!currentUserId) return false
-    if (isAdminActor || isVisitTeamLeaderActor) return true
+    if (isAdminActor || isJrCrmActor || isVisitTeamLeaderActor) return true
     return visit.assignedTo?.id === currentUserId
   }
   const canRequestVisitUpdate = (visit: VisitRecord) => {
@@ -1044,7 +1050,7 @@ export function VisitsPageView({
           projectSqft: editProjectSqft === '' ? undefined : Number(editProjectSqft),
           projectStatus: editProjectStatus || undefined,
           notes: editNotes,
-          reason: 'Admin edited visit data.',
+          reason: isAdminActor ? 'Admin edited visit data.' : 'Jr CRM edited visit data.',
         }),
       })
       const payload = await response.json()
@@ -1409,6 +1415,11 @@ export function VisitsPageView({
                     {!cardNavigatesToLead ? (
                       <Button size="sm" variant="outline" className="w-full sm:w-auto" asChild>
                         <Link href={leadHref}>Open Lead Details</Link>
+                      </Button>
+                    ) : null}
+                    {canEditVisit ? (
+                      <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={() => openEditDialog(visit)}>
+                        Edit Visit
                       </Button>
                     ) : null}
                     {allowManageAssignment || isAdminActor ? (
@@ -2321,7 +2332,7 @@ export function VisitsPageView({
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
-                                {isAdminActor ? (
+                                {canEditVisit ? (
                                   <Button size="sm" variant="outline" onClick={() => openEditDialog(visit)}>
                                     Edit Visit
                                   </Button>
@@ -2468,7 +2479,7 @@ export function VisitsPageView({
           <DialogHeader>
             <DialogTitle>Edit Visit Data</DialogTitle>
             <DialogDescription>
-              Admin-only edit form for visit schedule, address, fee, project data, and notes.
+              Admin and Jr CRM edit form for visit schedule, address, fee, project data, and notes.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2 sm:grid-cols-2">

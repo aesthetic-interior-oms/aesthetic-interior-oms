@@ -7,6 +7,7 @@ import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 import { findVisitConflict } from '@/lib/visit-guards';
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles';
 import { sendPushToUser } from '@/lib/fcm-service';
+import { normalizeDepartmentName } from '@/lib/department-normalization';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -206,9 +207,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           },
         },
       });
-      const departmentNames = new Set((actor?.userDepartments ?? []).map((row) => row.department.name));
-      const isAdmin = departmentNames.has('ADMIN');
-      const isJuniorCrm = departmentNames.has('JR_CRM');
+      const departmentNames = new Set(
+        (actor?.userDepartments ?? []).map((row) => normalizeDepartmentName(row.department.name) ?? row.department.name),
+      );
+      const isAdmin = departmentNames.has('ADMIN') || authResult.actorRoles.includes('ADMIN');
+      const isJuniorCrm = departmentNames.has('JR_CRM') || authResult.actorRoles.includes('JR_CRM');
       const isVisitTeam = departmentNames.has('VISIT_TEAM');
       const isSeniorCrm = departmentNames.has('SR_CRM');
       const isJrArchitect = departmentNames.has('JR_ARCHITECT');

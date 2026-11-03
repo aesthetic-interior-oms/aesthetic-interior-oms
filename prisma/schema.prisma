@@ -137,6 +137,7 @@ model User {
   fullName                    String
   email                       String                     @unique
   phone                       String
+  passwordHash                String?
   created_at                  DateTime                   @default(now())
   updated_at                  DateTime                   @updatedAt
   clerkUserId                 String?                    @unique

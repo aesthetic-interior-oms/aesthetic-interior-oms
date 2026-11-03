@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "JrArchitectWorkflowControl" ALTER COLUMN "updatedAt" DROP DEFAULT;
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "passwordHash" TEXT;
