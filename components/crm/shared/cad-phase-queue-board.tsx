@@ -1589,7 +1589,7 @@ export function CadPhaseQueueBoard({
     <div className="min-h-screen bg-background">
       <CrmPageHeader title={title} subtitle={subtitle} />
 
-      <main className="mx-auto max-w-[1440px] px-4 py-6">
+      <main className="w-full px-3 py-4 sm:px-6 lg:px-8">
         <Card className="mb-4 border-border/70">
           <CardContent className="space-y-4 p-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -1784,87 +1784,89 @@ export function CadPhaseQueueBoard({
                     <h3 className="text-sm font-semibold">{group.month}</h3>
                     <Badge variant="secondary">{group.leads.length} leads</Badge>
                   </div>
-                  <Table className="table-fixed text-sm w-full">
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[15%]">Lead Name</TableHead>
-                        <TableHead className="w-[15%]">Stage</TableHead>
-                        <TableHead className="w-[18%]">Address</TableHead>
-                        <TableHead className="w-[11%]">Visit Date</TableHead>
-                        <TableHead className="w-[13%]">
-                          {isCadQueue || isHistoryView ? 'JR Architect' : isDesignQueue ? '3D Visualizer' : 'Quotation'}
-                        </TableHead>
-                        <TableHead className="w-[11%]">SR CRM / Visit</TableHead>
-                        <TableHead className="w-[10%]">Project Size</TableHead>
-                        <TableHead className="w-[7%] text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {group.leads.map((lead) => (
-                        <TableRow key={lead.id}>
-                          <TableCell className="font-medium">
-                            <button
-                              type="button"
-                              onClick={() => openRenameDialog(lead)}
-                              className="max-w-full truncate text-left hover:text-primary hover:underline font-semibold"
-                              title={lead.name}
-                            >
-                              {lead.name}
-                            </button>
-                          </TableCell>
-                          <TableCell>{stageSubStatusBlock(lead)}</TableCell>
-                          <TableCell className="max-w-[200px] overflow-hidden truncate" title={lead.location || 'N/A'}>
-                            <span className="text-muted-foreground">
-                              {lead.location || 'N/A'}
-                            </span>
-                          </TableCell>
-                          <TableCell>{formatDate(lead.latestCompletedVisit?.scheduledAt)}</TableCell>
-                          <TableCell className="truncate" title={
-                            isCadQueue || isDesignQueue || isHistoryView
-                              ? (lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned')
-                              : (lead.quotationAssignment?.user.fullName ?? 'Unassigned')
-                          }>
-                            {isCadQueue || isDesignQueue || isHistoryView
-                              ? (lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned')
-                              : (lead.quotationAssignment?.user.fullName ?? 'Unassigned')}
-                          </TableCell>
-                          <TableCell>
-                            <button
-                              type="button"
-                              onClick={() => void openReassignSrCrm(lead)}
-                              className="max-w-full text-left transition hover:text-primary hover:underline"
-                            >
-                              {srCrmVisitTeamBlock(lead)}
-                            </button>
-                          </TableCell>
-                          <TableCell>
-                            <button
-                              type="button"
-                              onClick={() => openProjectSizeDialog(lead)}
-                              className="text-left transition hover:text-primary hover:underline"
-                            >
-                              {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
-                            </button>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 px-2 text-xs"
-                                onClick={() => setViewFilesLead(lead)}
-                                title="View Files & Versions"
-                              >
-                                <FileText className="mr-1 h-3.5 w-3.5" />
-                                Files
-                              </Button>
-                              {renderLeadActionMenu(lead)}
-                            </div>
-                          </TableCell>
+                  <div className="overflow-x-auto w-full">
+                    <Table className="min-w-[850px] sm:min-w-full table-fixed text-sm w-full">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[15%]">Lead Name</TableHead>
+                          <TableHead className="w-[15%]">Stage</TableHead>
+                          <TableHead className="w-[18%]">Address</TableHead>
+                          <TableHead className="w-[11%]">Visit Date</TableHead>
+                          <TableHead className="w-[13%]">
+                            {isCadQueue || isHistoryView ? 'JR Architect' : isDesignQueue ? '3D Visualizer' : 'Quotation'}
+                          </TableHead>
+                          <TableHead className="w-[11%]">SR CRM / Visit</TableHead>
+                          <TableHead className="w-[10%]">Project Size</TableHead>
+                          <TableHead className="w-[7%] text-right">Action</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {group.leads.map((lead) => (
+                          <TableRow key={lead.id}>
+                            <TableCell className="font-medium">
+                              <button
+                                type="button"
+                                onClick={() => openRenameDialog(lead)}
+                                className="max-w-full truncate text-left hover:text-primary hover:underline font-semibold"
+                                title={lead.name}
+                              >
+                                {lead.name}
+                              </button>
+                            </TableCell>
+                            <TableCell>{stageSubStatusBlock(lead)}</TableCell>
+                            <TableCell className="max-w-[200px] overflow-hidden truncate" title={lead.location || 'N/A'}>
+                              <span className="text-muted-foreground">
+                                {lead.location || 'N/A'}
+                              </span>
+                            </TableCell>
+                            <TableCell>{formatDate(lead.latestCompletedVisit?.scheduledAt)}</TableCell>
+                            <TableCell className="truncate" title={
+                              isCadQueue || isDesignQueue || isHistoryView
+                                ? (lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned')
+                                : (lead.quotationAssignment?.user.fullName ?? 'Unassigned')
+                            }>
+                              {isCadQueue || isDesignQueue || isHistoryView
+                                ? (lead.jrArchitectAssignment?.user.fullName ?? 'Unassigned')
+                                : (lead.quotationAssignment?.user.fullName ?? 'Unassigned')}
+                            </TableCell>
+                            <TableCell>
+                              <button
+                                type="button"
+                                onClick={() => void openReassignSrCrm(lead)}
+                                className="max-w-full text-left transition hover:text-primary hover:underline"
+                              >
+                                {srCrmVisitTeamBlock(lead)}
+                              </button>
+                            </TableCell>
+                            <TableCell>
+                              <button
+                                type="button"
+                                onClick={() => openProjectSizeDialog(lead)}
+                                className="text-left transition hover:text-primary hover:underline"
+                              >
+                                {formatProjectSqft(lead.latestCompletedVisit?.projectSqft)}
+                              </button>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 px-2 text-xs"
+                                  onClick={() => setViewFilesLead(lead)}
+                                  title="View Files & Versions"
+                                >
+                                  <FileText className="mr-1 h-3.5 w-3.5" />
+                                  Files
+                                </Button>
+                                {renderLeadActionMenu(lead)}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
             ))}

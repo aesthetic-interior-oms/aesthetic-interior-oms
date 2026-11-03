@@ -224,7 +224,7 @@ export default function SpecialistFollowupsPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+    <div className="w-full space-y-6 p-3 sm:p-5 md:p-6 lg:p-8">
       <div className="flex flex-col justify-between gap-4 border-b pb-4 sm:flex-row sm:items-center">
         <div>
           <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
@@ -310,12 +310,12 @@ export default function SpecialistFollowupsPage() {
                   <button
                     key={key}
                     onClick={() => setSelectedDate(key)}
-                    className={`min-h-16 rounded-md border p-1 text-left transition sm:min-h-20 ${isSelected ? "border-violet-600 bg-violet-50 ring-1 ring-violet-600 dark:bg-violet-950/30" : "border-transparent hover:bg-muted"} ${isToday ? "font-bold text-violet-700 dark:text-violet-300" : ""}`}
+                    className={`min-h-12 sm:min-h-16 md:min-h-20 rounded-md border p-0.5 sm:p-1 text-left transition ${isSelected ? "border-violet-600 bg-violet-50 ring-1 ring-violet-600 dark:bg-violet-950/30" : "border-transparent hover:bg-muted"} ${isToday ? "font-bold text-violet-700 dark:text-violet-300" : ""}`}
                   >
-                    <span className="block px-1 text-sm">{day}</span>
+                    <span className="block px-1 text-xs sm:text-sm">{day}</span>
                     {count > 0 ? (
-                      <span className="mx-1 mt-1 inline-flex rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                        {count} follow-up{count > 1 ? "s" : ""}
+                      <span className="mx-0.5 sm:mx-1 mt-0.5 sm:mt-1 inline-flex rounded-full bg-violet-600 px-1 sm:px-1.5 py-0.5 text-[9px] sm:text-[10px] font-semibold text-white leading-tight">
+                        {count}<span className="hidden sm:inline"> follow-up{count > 1 ? "s" : ""}</span>
                       </span>
                     ) : null}
                   </button>

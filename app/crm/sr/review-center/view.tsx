@@ -525,7 +525,7 @@ export function ReviewCenterView({
         subtitle={subtitle}
       />
 
-      <main className="mx-auto max-w-[1440px] px-4 py-6">
+      <main className="w-full px-3 py-4 sm:px-6 lg:px-8">
         <Card className="mb-4 border-border/70">
           <CardContent className="space-y-4 p-4">
             <div className="flex flex-wrap items-center gap-3">

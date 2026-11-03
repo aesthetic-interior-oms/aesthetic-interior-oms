@@ -801,7 +801,7 @@ export function VisitQueueCalendar({
     <div className="min-h-screen bg-background">
       <CrmPageHeader title={title} subtitle={subtitle} />
 
-      <main className="mx-auto max-w-[1440px] px-4 py-6 space-y-4 sm:px-6">
+      <main className="w-full px-3 py-4 sm:px-6 lg:px-8 space-y-4">
         <Card>
           <CardHeader className="border-b">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

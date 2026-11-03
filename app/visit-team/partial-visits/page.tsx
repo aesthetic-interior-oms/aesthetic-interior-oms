@@ -610,7 +610,7 @@ export default function PartialVisitsPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-7xl mx-auto">
+    <div className="w-full space-y-6 p-3 sm:p-5 md:p-6 lg:p-8">
       {/* Header */}
       <CrmPageHeader
         title="Partial Visits"
@@ -699,18 +699,18 @@ export default function PartialVisitsPage() {
 
       {/* Controls & Filter Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-muted/30 p-3 rounded-xl border">
-        <div className="flex flex-1 items-center gap-3">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-1 flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1 max-w-full sm:max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search by client, phone, location..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-9 text-sm"
+              className="pl-9 h-9 text-sm w-full"
             />
           </div>
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-muted-foreground hidden md:block" />
+            <Filter className="h-4 w-4 text-muted-foreground hidden md:block shrink-0" />
             <Select
               value={activeFilter !== 'ALL' ? activeFilter : statusFilter}
               onValueChange={(val) => {
@@ -718,7 +718,7 @@ export default function PartialVisitsPage() {
                 setActiveFilter(val)
               }}
             >
-              <SelectTrigger className="w-[150px] h-9 text-sm">
+              <SelectTrigger className="w-full sm:w-[160px] h-9 text-sm">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -734,7 +734,7 @@ export default function PartialVisitsPage() {
         </div>
 
         {/* View Mode Toggle */}
-        <div className="flex items-center gap-1.5 self-end sm:self-auto">
+        <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
           <Button
             size="sm"
             variant={viewMode === 'card' ? 'default' : 'outline'}
@@ -782,7 +782,7 @@ export default function PartialVisitsPage() {
         </div>
       ) : viewMode === 'card' ? (
         /* Cards View */
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
           {filteredVisits.map((visit) => {
             const statusConfig = getStatusConfig(visit.status)
             const StatusIcon = statusConfig.icon
@@ -963,8 +963,8 @@ export default function PartialVisitsPage() {
         </div>
       ) : (
         /* Table View */
-        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-          <Table>
+        <div className="rounded-xl border bg-card shadow-sm overflow-x-auto">
+          <Table className="w-full min-w-[700px] sm:min-w-full">
             <TableHeader className="bg-muted/50">
               <TableRow>
                 <TableHead className="font-bold">Client</TableHead>

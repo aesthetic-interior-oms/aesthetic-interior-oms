@@ -45,7 +45,7 @@ export function CrmPageHeader({ title, subtitle }: CrmPageHeaderProps) {
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur-sm">
-      <div className="mx-auto flex max-w-[1440px] items-center justify-between px-3 py-3 sm:px-4 sm:py-4 lg:px-6">
+      <div className="w-full flex items-center justify-between px-3 py-3 sm:px-5 sm:py-4 lg:px-8">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{title}</h1>
           <p className="text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
