@@ -140,6 +140,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/admin/overheads',
         },
         { icon: Wallet, label: 'Conveyance Bills', href: '/crm/accounts/conveyance' },
+        { icon: Receipt, label: 'Token Money', href: '/crm/admin/token-money' },
       ],
     },
     {
@@ -397,6 +398,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/visit-team/partial-budget-queue',
         },
         { icon: Calendar, label: 'Follow-ups', href: '/visit-team/followups' },
+        { icon: Receipt, label: 'Token Money', href: '/visit-team/token-money' },
       ],
     },
   ],
@@ -440,6 +442,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/visit-team/partial-budget-queue',
         },
         { icon: Calendar, label: 'Follow-ups', href: '/visit-team/followups' },
+        { icon: Receipt, label: 'Token Money', href: '/visit-team/token-money' },
       ],
     },
   ],
@@ -643,11 +646,8 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Overheads',
           href: '/crm/accounts/overheads',
         },
-        {
-          icon: ClipboardList,
-          label: 'Visit Payments',
-          href: '/crm/accounts/visit-payments',
-        },
+        { icon: ClipboardList, label: 'Visit Payments', href: '/crm/accounts/visit-payments' },
+        { icon: Receipt, label: 'Token Money', href: '/crm/accounts/token-money' },
         { icon: Wallet, label: 'Conveyance Bills', href: '/crm/accounts/conveyance' },
         {
           icon: Settings,

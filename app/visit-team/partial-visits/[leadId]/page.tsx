@@ -10,6 +10,7 @@ import {
   CalendarPlus,
   CheckCircle2,
   Clock,
+  Coins,
   ExternalLink,
   FileText,
   Image as ImageIcon,
@@ -18,6 +19,7 @@ import {
   Paperclip,
   Phone,
   Plus,
+  Receipt,
   RefreshCw,
   Sparkles,
   User,
@@ -108,6 +110,37 @@ type LeadInfo = {
   subStatus?: string | null
   source?: string | null
   remarks?: string | null
+}
+
+type TokenRecord = {
+  id: string
+  date: string
+  amount: number
+  particular: string | null
+  reference: string | null
+  collectedBy: {
+    id: string
+    fullName: string
+    email: string
+  } | null
+  financeAccount: {
+    id: string
+    name: string
+    accountNumber: string | null
+  } | null
+}
+
+type FinanceAccountOption = {
+  id: string
+  name: string
+  type: string
+  accountNumber: string | null
+}
+
+type SdcUserOption = {
+  id: string
+  fullName: string
+  email: string
 }
 
 /* ────────── Helpers ────────── */
@@ -231,16 +264,32 @@ export default function PartialVisitLeadDetailPage() {
   const [updatingSubStatus, setUpdatingSubStatus] = useState(false)
   const [openingQuotation, setOpeningQuotation] = useState(false)
 
+  // Token Money states
+  const [tokenTransactions, setTokenTransactions] = useState<TokenRecord[]>([])
+  const [tokenTotal, setTokenTotal] = useState(0)
+  const [financeAccounts, setFinanceAccounts] = useState<FinanceAccountOption[]>([])
+  const [sdcUsers, setSdcUsers] = useState<SdcUserOption[]>([])
+  const [tokenDialogOpen, setTokenDialogOpen] = useState(false)
+  const [tokenAmount, setTokenAmount] = useState('')
+  const [tokenCollectedById, setTokenCollectedById] = useState('')
+  const [tokenFinanceAccountId, setTokenFinanceAccountId] = useState('')
+  const [tokenDate, setTokenDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [tokenNotes, setTokenNotes] = useState('')
+  const [tokenReceiptNo, setTokenReceiptNo] = useState('')
+  const [submittingToken, setSubmittingToken] = useState(false)
+
   const fetchData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [leadRes, visitsRes] = await Promise.all([
+      const [leadRes, visitsRes, tokenRes] = await Promise.all([
         fetch(`/api/lead/${leadId}`),
         fetch(`/api/visit-schedule?visitType=PARTIAL_WORK_VISIT&leadId=${leadId}`),
+        fetch(`/api/crm/token-money?leadId=${leadId}`),
       ])
       const leadData = await leadRes.json()
       const visitsData = await visitsRes.json()
+      const tokenData = await tokenRes.json()
 
       if (leadData.success && leadData.data) {
         setLead(leadData.data)
@@ -251,12 +300,24 @@ export default function PartialVisitLeadDetailPage() {
       if (visitsData.success && Array.isArray(visitsData.data)) {
         setVisits(visitsData.data)
       }
+      if (tokenData.success && tokenData.data) {
+        setTokenTransactions(tokenData.data.transactions || [])
+        setTokenTotal(tokenData.data.totalAmount || 0)
+        setFinanceAccounts(tokenData.data.accounts || [])
+        setSdcUsers(tokenData.data.sdcUsers || [])
+        if (!tokenFinanceAccountId && tokenData.data.accounts?.length > 0) {
+          setTokenFinanceAccountId(tokenData.data.accounts[0].id)
+        }
+        if (!tokenCollectedById && tokenData.data.sdcUsers?.length > 0) {
+          setTokenCollectedById(tokenData.data.sdcUsers[0].id)
+        }
+      }
     } catch {
       setError('An error occurred while fetching data.')
     } finally {
       setLoading(false)
     }
-  }, [leadId])
+  }, [leadId, tokenFinanceAccountId, tokenCollectedById])
 
   useEffect(() => {
     fetchData()
@@ -498,6 +559,54 @@ export default function PartialVisitLeadDetailPage() {
     router.push(`/visit-team/partial-visits/${leadId}/quotation`)
   }
 
+  const handleTokenSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!tokenAmount || Number(tokenAmount) <= 0) {
+      toast.error('Please enter a valid token amount.')
+      return
+    }
+    if (!tokenCollectedById) {
+      toast.error('Please select the Special Design Consultant who collected the token.')
+      return
+    }
+    if (!tokenFinanceAccountId) {
+      toast.error('Please select the Accounts destination (Cash/Bank account).')
+      return
+    }
+
+    setSubmittingToken(true)
+    try {
+      const res = await fetch('/api/crm/token-money', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId,
+          amount: Number(tokenAmount),
+          collectedById: tokenCollectedById,
+          financeAccountId: tokenFinanceAccountId,
+          date: tokenDate,
+          notes: tokenNotes,
+          receiptNo: tokenReceiptNo,
+        }),
+      })
+      const result = await res.json()
+      if (result.success) {
+        toast.success(result.message || 'Token money recorded successfully!')
+        setTokenDialogOpen(false)
+        setTokenAmount('')
+        setTokenNotes('')
+        setTokenReceiptNo('')
+        fetchData()
+      } else {
+        toast.error(result.error || 'Failed to record token money.')
+      }
+    } catch {
+      toast.error('Network error while recording token money.')
+    } finally {
+      setSubmittingToken(false)
+    }
+  }
+
   /* ── Render ── */
   if (loading) {
     return (
@@ -520,7 +629,7 @@ export default function PartialVisitLeadDetailPage() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-5xl mx-auto">
+    <div className="space-y-6 p-4 md:p-6 w-full max-w-7xl mx-auto">
       {/* Back button */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => router.back()} className="gap-1.5">
@@ -600,6 +709,15 @@ export default function PartialVisitLeadDetailPage() {
               ) : null}
               <Button
                 size="sm"
+                variant="outline"
+                className="border-emerald-500/60 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 gap-1.5 shadow-xs font-semibold"
+                onClick={() => setTokenDialogOpen(true)}
+              >
+                <Coins className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                Receive Token Money
+              </Button>
+              <Button
+                size="sm"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 shadow-sm"
                 onClick={openPartialQuotation}
                 disabled={openingQuotation}
@@ -647,8 +765,89 @@ export default function PartialVisitLeadDetailPage() {
               <p className="text-xs text-muted-foreground italic">"{lead.remarks}"</p>
             </>
           )}
+
+          {tokenTotal > 0 && (
+            <div className="mt-4 p-3 rounded-lg border border-emerald-300 bg-emerald-50/90 dark:bg-emerald-950/40 dark:border-emerald-800 flex items-center justify-between flex-wrap gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span className="text-emerald-950 dark:text-emerald-100 font-medium">
+                  <strong>Token Money Received:</strong> ৳{tokenTotal.toLocaleString('en-BD')} (Verbal confirmation secured • Lead stage stays unchanged)
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-300 text-[11px] font-semibold">
+                  {tokenTransactions.length} receipt{tokenTransactions.length > 1 ? 's' : ''}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 text-xs text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 hover:bg-emerald-100/60 dark:hover:bg-emerald-900/60 px-2"
+                  onClick={() => setTokenDialogOpen(true)}
+                >
+                  + Add More Token
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Token Money History Section (if any) */}
+      {tokenTransactions.length > 0 && (
+        <Card className="border-emerald-200/60 bg-white dark:bg-card shadow-sm">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <CardTitle className="text-base font-bold">Token Money Receipts</CardTitle>
+              <Badge variant="secondary" className="ml-1 text-xs bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                Total: ৳{tokenTotal.toLocaleString('en-BD')}
+              </Badge>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-7 gap-1 border-emerald-400 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300"
+              onClick={() => setTokenDialogOpen(true)}
+            >
+              <Plus className="h-3 w-3" /> Add Token
+            </Button>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    <th className="p-2.5 font-semibold">Date</th>
+                    <th className="p-2.5 font-semibold">Amount</th>
+                    <th className="p-2.5 font-semibold">Special Design Consultant</th>
+                    <th className="p-2.5 font-semibold">Accounts Destination</th>
+                    <th className="p-2.5 font-semibold">Receipt / Ref</th>
+                    <th className="p-2.5 font-semibold">Particulars</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {tokenTransactions.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-muted/20">
+                      <td className="p-2.5 whitespace-nowrap">{formatDate(tx.date)}</td>
+                      <td className="p-2.5 font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                        ৳{tx.amount.toLocaleString('en-BD')}
+                      </td>
+                      <td className="p-2.5 font-medium whitespace-nowrap">
+                        {tx.collectedBy?.fullName || '—'}
+                      </td>
+                      <td className="p-2.5 whitespace-nowrap">
+                        {tx.financeAccount?.name || '—'}
+                      </td>
+                      <td className="p-2.5 font-mono text-[11px] text-muted-foreground">{tx.reference || '—'}</td>
+                      <td className="p-2.5 text-muted-foreground">{tx.particular || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Visit History */}
       <div className="space-y-3">
@@ -1272,6 +1471,144 @@ export default function PartialVisitLeadDetailPage() {
               <Button type="submit" disabled={submittingSchedule}>
                 {submittingSchedule && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Schedule Visit
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Token Money Dialog */}
+      <Dialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
+              <Coins className="h-5 w-5" />
+              Record Token Money (Verbal Confirmation)
+            </DialogTitle>
+            <DialogDescription>
+              Record token money from <strong>{lead.name}</strong>. This connects to Accounts as an inflow without altering the lead stage.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleTokenSubmit} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="tokenAmount" className="text-xs font-semibold">
+                Token Amount (BDT) <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="tokenAmount"
+                type="number"
+                min="1"
+                placeholder="e.g. 10000"
+                value={tokenAmount}
+                onChange={(e) => setTokenAmount(e.target.value)}
+                required
+                className="font-bold text-base"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="tokenCollectedBy" className="text-xs font-semibold">
+                Special Design Consultant (Collected By) <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={tokenCollectedById}
+                onValueChange={setTokenCollectedById}
+              >
+                <SelectTrigger id="tokenCollectedBy" className="h-9">
+                  <SelectValue placeholder="Select consultant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sdcUsers.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.fullName} ({u.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="tokenFinanceAccount" className="text-xs font-semibold">
+                Accounts Destination (Finance Account) <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={tokenFinanceAccountId}
+                onValueChange={setTokenFinanceAccountId}
+              >
+                <SelectTrigger id="tokenFinanceAccount" className="h-9">
+                  <SelectValue placeholder="Select Cash / Bank Account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {financeAccounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.name} ({acc.type}) {acc.accountNumber ? `— ${acc.accountNumber}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="tokenDate" className="text-xs font-semibold">
+                  Payment Date <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="tokenDate"
+                  type="date"
+                  value={tokenDate}
+                  onChange={(e) => setTokenDate(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="tokenReceiptNo" className="text-xs font-semibold">
+                  Receipt / Ref No.
+                </Label>
+                <Input
+                  id="tokenReceiptNo"
+                  placeholder="Optional receipt #"
+                  value={tokenReceiptNo}
+                  onChange={(e) => setTokenReceiptNo(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="tokenNotes" className="text-xs font-semibold">
+                Notes / Particulars
+              </Label>
+              <Textarea
+                id="tokenNotes"
+                rows={2}
+                placeholder="Verbal confirmation token money notes..."
+                value={tokenNotes}
+                onChange={(e) => setTokenNotes(e.target.value)}
+              />
+            </div>
+
+            <div className="p-2.5 rounded-md bg-muted/60 text-[11px] text-muted-foreground border">
+              ℹ️ <strong>Note:</strong> Token money confirms verbal client agreement. The partial lead stays in its current workflow stage.
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setTokenDialogOpen(false)}
+                disabled={submittingToken}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                disabled={submittingToken}
+              >
+                {submittingToken && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Confirm & Record Token
               </Button>
             </DialogFooter>
           </form>
