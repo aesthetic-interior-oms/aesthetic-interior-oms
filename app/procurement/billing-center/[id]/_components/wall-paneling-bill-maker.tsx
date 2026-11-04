@@ -48,6 +48,7 @@ import {
   MaterialScopeDisplay,
   getMaterialDisplayName,
 } from './material-scope-display'
+import { CabinetBillMaker } from './cabinet-bill-maker'
 
 export type RequisitionItemData = {
   id: string
@@ -186,6 +187,7 @@ function classifyWallPanelingItem(item: RequisitionItemData): WallPanelingSubSec
   return 'BOARDS'
 }
 
+
 export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBillMakerProps) {
   const [selectedMainSection, setSelectedMainSection] = useState<'WALL_PANELING' | 'CABINETS_CLOSETS' | 'ACCESSORIES' | 'OTHER'>('WALL_PANELING')
   const [activeSubSection, setActiveSubSection] = useState<'ALL' | WallPanelingSubSection>('ALL')
@@ -239,6 +241,11 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
   // Filter Wall Paneling items
   const wallPanelingItems = useMemo(() => {
     return requisition.items.filter((i) => i.workCategory === 'WALL_PANELING')
+  }, [requisition.items])
+
+  // Filter Cabinet / Closet items
+  const cabinetItems = useMemo(() => {
+    return requisition.items.filter((i) => i.workCategory === 'CABINETS_CLOSETS')
   }, [requisition.items])
 
   // Sub-section counts
@@ -348,7 +355,54 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
     }
   }, [wallPanelingItems, purchases])
 
-  // Vendor selection handler
+  // Cabinet / Closet order summary
+  const cabinetOrderSummary = useMemo(() => {
+    let totalBilledItems = 0
+    let totalMaterialSpend = 0
+    let totalPaidToSuppliers = 0
+    let totalDueAmount = 0
+    const settlementTotals = {
+      pettyCash: 0,
+      purchaseTeam: 0,
+      companyAccount: 0,
+      vendorCredit: 0,
+      other: 0,
+    }
+
+    cabinetItems.forEach((item) => {
+      const p = purchases[item.id]
+      if (p && p.isBought) {
+        totalBilledItems += 1
+        const total = Number(p.totalAmount) || 0
+        const paid = Number(p.paidAmount) || 0
+        const due = Number(p.dueAmount) || 0
+        totalMaterialSpend += total
+        totalPaidToSuppliers += paid
+        totalDueAmount += due
+        const method = p.settlementMethod || 'PETTY_CASH'
+        if (method === 'PETTY_CASH') settlementTotals.pettyCash += total
+        else if (method === 'PURCHASE_TEAM') settlementTotals.purchaseTeam += total
+        else if (method === 'COMPANY_ACCOUNT') settlementTotals.companyAccount += total
+        else if (method === 'VENDOR_CREDIT') settlementTotals.vendorCredit += total
+        else settlementTotals.other += total
+      }
+    })
+
+    return {
+      totalItems: cabinetItems.length,
+      totalBilledItems,
+      unbilledItems: cabinetItems.length - totalBilledItems,
+      totalMaterialSpend,
+      totalPaidToSuppliers,
+      totalDueAmount,
+      settlementTotals,
+    }
+  }, [cabinetItems, purchases])
+
+  // Active summary (based on selected main section)
+  const activeSummary = selectedMainSection === 'CABINETS_CLOSETS' ? cabinetOrderSummary : orderSummary
+  const activeItems = selectedMainSection === 'CABINETS_CLOSETS' ? cabinetItems : wallPanelingItems
+
   const handleVendorSelect = (vendorId: string) => {
     setSelectedVendorId(vendorId)
     if (!vendorId || vendorId === 'CUSTOM') {
@@ -559,9 +613,9 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
       const res = await dispatchBillingToAccountsAction({
         requisitionId: requisition.id,
         orderNotes,
-        totalBilledAmount: orderSummary.totalMaterialSpend,
-        totalBilledItems: orderSummary.totalBilledItems,
-        settlementBreakdown: orderSummary.settlementTotals,
+        totalBilledAmount: activeSummary.totalMaterialSpend,
+        totalBilledItems: activeSummary.totalBilledItems,
+        settlementBreakdown: activeSummary.settlementTotals,
       })
       setOrderSubmittedSuccess(res.dispatchRef)
       setIsOrderModalOpen(false)
@@ -647,11 +701,19 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
           <button
             type="button"
             onClick={() => setSelectedMainSection('CABINETS_CLOSETS')}
-            className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-medium bg-card border border-border border-dashed text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-colors border ${
+              selectedMainSection === 'CABINETS_CLOSETS'
+                ? 'bg-foreground text-background border-foreground shadow-xs'
+                : 'bg-card text-muted-foreground border-border hover:text-foreground hover:bg-muted/50'
+            }`}
           >
             <Boxes className="w-3.5 h-3.5" />
-            <span>Cabinets & Closets</span>
-            <span className="text-[10px] px-1.5 py-0.2 rounded bg-muted text-muted-foreground">Next</span>
+            <span>Cabinets &amp; Closets</span>
+            <span className={`text-[11px] px-1.5 py-0.2 rounded font-mono ${
+              selectedMainSection === 'CABINETS_CLOSETS' ? 'bg-background/20 text-background' : 'bg-muted text-muted-foreground'
+            }`}>
+              {cabinetItems.length}
+            </span>
           </button>
 
           <button
@@ -677,22 +739,33 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
       </div>
 
       {/* Main Section Area */}
-      {selectedMainSection !== 'WALL_PANELING' ? (
+      {selectedMainSection === 'ACCESSORIES' || selectedMainSection === 'OTHER' ? (
         <div className="rounded-lg border border-border bg-card p-12 text-center space-y-3">
           <Layers className="w-8 h-8 text-muted-foreground/40 mx-auto" />
-          <h3 className="text-sm font-semibold text-foreground">Under Staged Rollout</h3>
+          <h3 className="text-sm font-semibold text-foreground">Coming Soon</h3>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            Wall Paneling purchase entry is currently active.
+            Accessories &amp; Other categories will be enabled in a future update. Use Wall Paneling or Cabinets &amp; Closets for now.
           </p>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs h-8"
-            onClick={() => setSelectedMainSection('WALL_PANELING')}
-          >
-            Return to Wall Paneling
-          </Button>
+          <div className="flex items-center justify-center gap-2">
+            <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setSelectedMainSection('WALL_PANELING')}>
+              Wall Paneling
+            </Button>
+            <Button size="sm" variant="outline" className="text-xs h-8" onClick={() => setSelectedMainSection('CABINETS_CLOSETS')}>
+              Cabinets &amp; Closets
+            </Button>
+          </div>
         </div>
+      ) : selectedMainSection === 'CABINETS_CLOSETS' ? (
+        <CabinetBillMaker
+          items={cabinetItems}
+          purchases={purchases}
+          isSaving={isSaving}
+          onOpenPurchaseModal={handleOpenPurchaseModal}
+          onRemovePurchase={handleRemovePurchase}
+          onOpenDocumentModal={setDocumentItem}
+          onOpenOrderModal={() => setIsOrderModalOpen(true)}
+          onOpenPrintSlip={() => setIsPrintSlipOpen(true)}
+        />
       ) : (
         <div className="space-y-4">
           {/* Sub-Section Filter Bar & Search */}
@@ -1516,12 +1589,12 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
               <div className="flex items-center justify-between pt-1 border-t border-border">
                 <span className="font-semibold text-foreground">Total Material Spend:</span>
                 <span className="text-base font-bold font-mono text-foreground">
-                  ৳{orderSummary.totalMaterialSpend.toLocaleString('en-BD')}
+                  ৳{activeSummary.totalMaterialSpend.toLocaleString('en-BD')}
                 </span>
               </div>
               <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Already Paid: ৳{orderSummary.totalPaidToSuppliers.toLocaleString('en-BD')}</span>
-                <span>Due Balance: ৳{orderSummary.totalDueAmount.toLocaleString('en-BD')}</span>
+                <span>Already Paid: ৳{activeSummary.totalPaidToSuppliers.toLocaleString('en-BD')}</span>
+                <span>Due Balance: ৳{activeSummary.totalDueAmount.toLocaleString('en-BD')}</span>
               </div>
             </div>
 
@@ -1534,13 +1607,13 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
                 <div className="p-2 rounded border border-border bg-card">
                   <div className="text-muted-foreground">Petty Cash Adjustment:</div>
                   <div className="font-bold text-foreground font-mono">
-                    ৳{orderSummary.settlementTotals.pettyCash.toLocaleString('en-BD')}
+                    ৳{activeSummary.settlementTotals.pettyCash.toLocaleString('en-BD')}
                   </div>
                 </div>
                 <div className="p-2 rounded border border-border bg-card">
                   <div className="text-muted-foreground">Purchase Team Advance:</div>
                   <div className="font-bold text-foreground font-mono">
-                    ৳{orderSummary.settlementTotals.purchaseTeam.toLocaleString('en-BD')}
+                    ৳{activeSummary.settlementTotals.purchaseTeam.toLocaleString('en-BD')}
                   </div>
                 </div>
               </div>
@@ -1623,7 +1696,7 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {wallPanelingItems
+                {activeItems
                   .filter((item) => purchases[item.id]?.isBought)
                   .map((item, idx) => {
                     const p = purchases[item.id]

@@ -16,16 +16,19 @@ export function parseMaterialScope(item: {
   materialName: string
   specifications: string | null
   variantAttributes: any
+  workCategory?: string
+  quotationLineItemId?: string | null
 }): ParsedMaterialScope {
   const attrs = (item.variantAttributes || {}) as Record<string, any>
   const spec = item.specifications || ''
+  const isCabinet = item.workCategory === 'CABINETS_CLOSETS' || attrs.cabinetSubType === 'BOARD_SPEC'
 
   // 1. Base Material
   let baseMaterial = (
     attrs.baseMaterial ||
     attrs.coreSubstrateType ||
     item.materialName ||
-    'Board'
+    (isCabinet ? 'Cabinet Board' : 'Board')
   ).trim()
 
   // 2. Thickness
@@ -116,8 +119,16 @@ export function parseMaterialScope(item: {
     attrs.baseMaterial ||
     attrs.coreThickness ||
     attrs.wpSubType === 'CORE_BOARDS' ||
-    attrs.cabinetSubType === 'BOARD_SPEC'
+    attrs.cabinetSubType === 'BOARD_SPEC' ||
+    isCabinet
   )
+
+  let subTitle = attrs.functionalUsage || attrs.usage || attrs.productionPhase || undefined
+  if (!subTitle && isCabinet) {
+    if (spec.toLowerCase().includes('shutter')) subTitle = 'Shutter'
+    else if (spec.toLowerCase().includes('body')) subTitle = 'Body'
+    else if (spec.toLowerCase().includes('back')) subTitle = 'Back Ply'
+  }
 
   return {
     isBoardOrPanel,
@@ -125,7 +136,7 @@ export function parseMaterialScope(item: {
     frontLaminate,
     backLaminate,
     baseMaterial,
-    subTitle: attrs.functionalUsage || attrs.usage || attrs.productionPhase || undefined,
+    subTitle,
   }
 }
 
@@ -133,13 +144,15 @@ export function getMaterialDisplayName(item: {
   materialName: string
   specifications: string | null
   variantAttributes: any
+  workCategory?: string
+  quotationLineItemId?: string | null
 }): string {
   const parsed = parseMaterialScope(item)
   if (parsed.isBoardOrPanel) {
     const parts = [parsed.thickness, parsed.frontLaminate, parsed.backLaminate, parsed.baseMaterial].filter(Boolean)
     if (parts.length > 0) return parts.join(' ')
   }
-  return item.materialName
+  return item.materialName || (item.workCategory === 'CABINETS_CLOSETS' ? 'Cabinet Board' : 'Material')
 }
 
 interface MaterialScopeDisplayProps {
@@ -148,12 +161,26 @@ interface MaterialScopeDisplayProps {
     specifications: string | null
     variantAttributes: any
     productionPhase?: string | null
+    workCategory?: string
+    quotationLineItemId?: string | null
   }
   subType?: string
 }
 
 export function MaterialScopeDisplay({ item, subType }: MaterialScopeDisplayProps) {
   const parsed = parseMaterialScope(item)
+
+  let lineItemLabel = ''
+  if (item.quotationLineItemId) {
+    const cleanId = item.quotationLineItemId.replace(/-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, '')
+    if (cleanId) {
+      lineItemLabel = cleanId
+        .split('-')
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')
+    }
+  }
 
   if (parsed.isBoardOrPanel) {
     return (
@@ -189,8 +216,8 @@ export function MaterialScopeDisplay({ item, subType }: MaterialScopeDisplayProp
           </span>
         </div>
 
-        {/* Secondary Info: SubType Badge + Phase / Usage */}
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+        {/* Secondary Info: SubType Badge + Phase / Usage + Component */}
+        <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
           {subType && (
             <span className="px-1.5 py-0.2 rounded bg-muted font-medium text-muted-foreground">
               {subType}
@@ -199,6 +226,11 @@ export function MaterialScopeDisplay({ item, subType }: MaterialScopeDisplayProp
           {item.productionPhase && <span>{item.productionPhase}</span>}
           {parsed.subTitle && parsed.subTitle !== item.productionPhase && (
             <span>• {parsed.subTitle}</span>
+          )}
+          {lineItemLabel && (
+            <span className="text-muted-foreground/80 font-medium">
+              • {lineItemLabel}
+            </span>
           )}
         </div>
       </div>
@@ -209,7 +241,7 @@ export function MaterialScopeDisplay({ item, subType }: MaterialScopeDisplayProp
   return (
     <div className="space-y-0.5">
       <div className="font-semibold text-foreground text-xs sm:text-sm">
-        {item.materialName}
+        {item.materialName || 'Material Item'}
       </div>
       <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
         {subType && (
@@ -221,6 +253,11 @@ export function MaterialScopeDisplay({ item, subType }: MaterialScopeDisplayProp
           <span className="truncate max-w-[260px]">{item.specifications}</span>
         )}
         {item.productionPhase && <span>• {item.productionPhase}</span>}
+        {lineItemLabel && (
+          <span className="text-muted-foreground/80 font-medium">
+            • {lineItemLabel}
+          </span>
+        )}
       </div>
     </div>
   )

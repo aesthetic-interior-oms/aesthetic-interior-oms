@@ -21,7 +21,7 @@ interface BillingRequisitionDetailPageProps {
 export default async function BillingRequisitionDetailPage({ params }: BillingRequisitionDetailPageProps) {
   const { id } = await params
 
-  const [requisition, vendors] = await Promise.all([
+  const [requisition, rawSuppliers] = await Promise.all([
     prisma.materialRequisition.findUnique({
       where: { id },
       include: {
@@ -34,22 +34,29 @@ export default async function BillingRequisitionDetailPage({ params }: BillingRe
         items: {
           orderBy: { workCategory: 'asc' },
         },
-        amendments: {
-          orderBy: { requestedAt: 'desc' },
-        },
       },
     }),
-    prisma.vendor.findMany({
+    prisma.supplier.findMany({
+      where: { status: 'ACTIVE' },
       select: {
         id: true,
-        vendorName: true,
-        vendorCompanyName: true,
-        primaryPhone: true,
-        primaryEmail: true,
+        name: true,
+        companyName: true,
+        phone: true,
+        email: true,
       },
-      orderBy: { vendorName: 'asc' },
+      orderBy: { name: 'asc' },
     }),
   ])
+
+  // Map supplier fields into supplier options for bill maker
+  const suppliers = rawSuppliers.map((s) => ({
+    id: s.id,
+    vendorName: s.name,
+    vendorCompanyName: s.companyName,
+    primaryPhone: s.phone,
+    primaryEmail: s.email,
+  }))
 
   if (!requisition) {
     notFound()
@@ -224,12 +231,12 @@ export default async function BillingRequisitionDetailPage({ params }: BillingRe
           <div className="font-bold text-foreground text-xl sm:text-2xl">
             {uniqueCategories.length} categories
           </div>
-          <p className="text-xs text-muted-foreground">Wall Paneling active</p>
+          <p className="text-xs text-muted-foreground">Wall Paneling &amp; Cabinets active</p>
         </div>
       </div>
 
-      {/* Main Interactive Bill Maker Workspace with Vendor Dropdown */}
-      <WallPanelingBillMaker requisition={requisition} vendors={vendors} />
+      {/* Main Interactive Bill Maker Workspace with Supplier Dropdown */}
+      <WallPanelingBillMaker requisition={requisition} vendors={suppliers} />
     </div>
   )
 }

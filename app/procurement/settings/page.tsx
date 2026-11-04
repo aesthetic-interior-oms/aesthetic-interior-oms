@@ -1,16 +1,26 @@
 import Link from 'next/link'
+import prisma from '@/lib/prisma'
 import {
   Settings,
   ArrowLeft,
   Bell,
   Sliders,
-  Shield,
-  Layers,
-  Save,
+  Truck,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { SupplierManager, SupplierItem } from './_components/supplier-manager'
 
-export default function ProcurementSettingsPage() {
+export default async function ProcurementSettingsPage() {
+  const rawSuppliers = await prisma.supplier.findMany({
+    orderBy: { createdAt: 'desc' },
+  })
+
+  // Format dates for client component
+  const initialSuppliers: SupplierItem[] = rawSuppliers.map((s) => ({
+    ...s,
+    createdAt: s.createdAt.toISOString(),
+  }))
+
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       {/* Header */}
@@ -28,7 +38,7 @@ export default function ProcurementSettingsPage() {
             Procurement Settings
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Configure department preferences, notifications and material categories
+            Manage material suppliers, fulfillment preferences, and billing alerts
           </p>
         </div>
 
@@ -42,17 +52,20 @@ export default function ProcurementSettingsPage() {
         </div>
       </div>
 
+      {/* Primary Section: Supplier Management */}
+      <SupplierManager initialSuppliers={initialSuppliers} />
+
       {/* Settings Sections Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Fulfillment Preferences */}
-        <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
+        <div className="rounded-xl border bg-card p-6 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400">
               <Sliders className="w-4 h-4" />
             </div>
             <div>
               <h3 className="text-base font-semibold text-foreground">
-                Requisition & Fulfillment Preferences
+                Requisition &amp; Fulfillment Preferences
               </h3>
               <p className="text-xs text-muted-foreground">
                 Manage how completed requisitions and billing pipelines behave
@@ -100,14 +113,14 @@ export default function ProcurementSettingsPage() {
         </div>
 
         {/* Notifications */}
-        <div className="rounded-xl border bg-card p-6 shadow-sm space-y-4">
+        <div className="rounded-xl border bg-card p-6 shadow-xs space-y-4">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
               <Bell className="w-4 h-4" />
             </div>
             <div>
               <h3 className="text-base font-semibold text-foreground">
-                Alerts & Notifications
+                Alerts &amp; Notifications
               </h3>
               <p className="text-xs text-muted-foreground">
                 Control alert thresholds for newly submitted BOQ requisitions
@@ -130,9 +143,9 @@ export default function ProcurementSettingsPage() {
 
             <div className="py-3.5 flex items-center justify-between gap-4">
               <div>
-                <div className="font-medium text-foreground">Vendor Payment Reminders</div>
+                <div className="font-medium text-foreground">Supplier Billing Reminders</div>
                 <div className="text-xs text-muted-foreground">
-                  Reminders for pending vendor disbursements and delivery receipts
+                  Reminders for pending supplier disbursements and memo receipts
                 </div>
               </div>
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shrink-0">

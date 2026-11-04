@@ -10,6 +10,7 @@ datasource db {
 model Lead {
   id                     String                      @id @default(cuid())
   name                   String
+  clientId               String?
   phone                  String?                     @unique
   email                  String?
   assignedTo             String?
@@ -1586,5 +1587,32 @@ model RequisitionAmendment {
 
   @@index([requisitionId])
   @@index([status])
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Supplier {
+  id                 String         @id @default(cuid())
+  supplierCode       String         @unique
+  name               String         // Contact Person or Trade Name
+  companyName        String?        // Shop / Enterprise name (e.g. Akij Board Center)
+  phone              String?
+  email              String?
+  address            String?
+  supplyCategory     String?        // e.g. Board, Hardware, Glass, Paint, Electrical
+  bankName           String?
+  bankAccountNumber  String?
+  routingNumber      String?
+  notes              String?
+  status             SupplierStatus @default(ACTIVE)
+
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@index([status])
+  @@index([supplyCategory])
 }
 
