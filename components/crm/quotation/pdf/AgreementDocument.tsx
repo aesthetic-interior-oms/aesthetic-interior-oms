@@ -1,6 +1,6 @@
 'use client'
 
-import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { Circle, Document, Font, Image, Page, StyleSheet, Svg, Text, View } from '@react-pdf/renderer'
 import type { AgreementContent } from '@/lib/agreement-template'
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 import {
@@ -65,6 +65,93 @@ const watermarkSrc = isBrowser
     : '/android-chrome-512x512.png'
 
 const styles = StyleSheet.create({
+  // ─── Cover Page Styles ───
+  coverPage: {
+    position: 'relative',
+    paddingHorizontal: 40,
+    backgroundColor: '#ffffff',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    height: '100%',
+  },
+  coverContentWrapper: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  coverLogoSection: {
+    marginBottom: 40,
+    alignItems: 'center',
+  },
+  coverLogo: {
+    width: 175,
+  },
+  coverTitleSection: {
+    marginBottom: 40,
+    alignItems: 'center',
+  },
+  coverTitle: {
+    fontFamily: 'Times-Italic',
+    fontSize: 48,
+    color: PRIMARY,
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  coverGoldDivider: {
+    width: 46,
+    height: 1.5,
+    backgroundColor: GOLD,
+    marginTop: 10,
+    alignSelf: 'center',
+  },
+  coverSection: {
+    marginBottom: 40,
+    alignItems: 'center',
+  },
+  coverSectionLabel: {
+    fontSize: 8.5,
+    fontWeight: 'bold',
+    color: GOLD,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  coverClientName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    textAlign: 'center',
+  },
+  coverClientSub: {
+    fontSize: 9.5,
+    color: '#64748b',
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  coverCompanyName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    textAlign: 'center',
+  },
+  coverMetaSmall: {
+    fontSize: 8.5,
+    color: '#64748b',
+    marginTop: 5,
+    textAlign: 'center',
+  },
+  coverMetaSmallDate: {
+    fontSize: 8,
+    color: '#94a3b8',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+
   page: {
     paddingTop: 80,
     paddingBottom: 72,
@@ -914,7 +1001,53 @@ export function AgreementDocumentPdf({
 
   return (
     <Document title={`Agreement - ${clientName}`} author="Aesthetic Interior">
-      {/* ─── PAGE 1: WORK ORDER FOR INTERIOR WORKS ─────────────────── */}
+      {/* ─── FRONT COVER PAGE ────────────────────────────────────────── */}
+      <Page size="A4" style={styles.coverPage}>
+        {/* Top-Right 2 Arcs (Brand Colors with Opacity) */}
+        <Svg width={220} height={220} viewBox="0 0 220 220" style={{ position: 'absolute', top: 0, right: 0 }}>
+          <Circle cx={220} cy={0} r={180} stroke={PRIMARY} strokeWidth={14} fill="none" opacity={0.18} />
+          <Circle cx={220} cy={0} r={125} stroke={GOLD} strokeWidth={9} fill="none" opacity={0.35} />
+        </Svg>
+
+        {/* Bottom-Left 2 Arcs (Brand Colors with Opacity) */}
+        <Svg width={220} height={220} viewBox="0 0 220 220" style={{ position: 'absolute', bottom: 0, left: 0 }}>
+          <Circle cx={0} cy={220} r={180} stroke={PRIMARY} strokeWidth={14} fill="none" opacity={0.18} />
+          <Circle cx={0} cy={220} r={125} stroke={GOLD} strokeWidth={9} fill="none" opacity={0.35} />
+        </Svg>
+
+        {/* Centerwise Serial Content with Common Gap */}
+        <View style={styles.coverContentWrapper}>
+          {/* 1. Logo */}
+          <View style={styles.coverLogoSection}>
+            <Image src={logoSrc} style={styles.coverLogo} />
+          </View>
+
+          {/* 2. Agreement (Calligraphic Font) */}
+          <View style={styles.coverTitleSection}>
+            <Text style={styles.coverTitle}>Agreement</Text>
+            <View style={styles.coverGoldDivider} />
+          </View>
+
+          {/* 3. Prepared for (Client Name) */}
+          <View style={styles.coverSection}>
+            <Text style={styles.coverSectionLabel}>Prepared For</Text>
+            <Text style={styles.coverClientName}>{agreement.ownerName || clientName}</Text>
+            {agreement.projectAddress || agreement.projectName ? (
+              <Text style={styles.coverClientSub}>{agreement.projectAddress || agreement.projectName}</Text>
+            ) : null}
+          </View>
+
+          {/* 4. Prepared by (Company Name) in small website url and date */}
+          <View style={[styles.coverSection, { marginBottom: 0 }]}>
+            <Text style={styles.coverSectionLabel}>Prepared By</Text>
+            <Text style={styles.coverCompanyName}>Aesthetic Interior</Text>
+            <Text style={styles.coverMetaSmall}>www.aestheticinteriortech.com</Text>
+            <Text style={styles.coverMetaSmallDate}>{formatDateString(agreement.agreementDate)}</Text>
+          </View>
+        </View>
+      </Page>
+
+      {/* ─── PAGE 2: WORK ORDER FOR INTERIOR WORKS ─────────────────── */}
       <Page size="A4" style={styles.page}>
         <WatermarkBackground />
         <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Work Order" />
