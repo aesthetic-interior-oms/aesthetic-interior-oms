@@ -334,6 +334,232 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
 
+  // ─── Work Order Front Page (Page 1) Luxury Design ───
+  woPageContainer: {
+    height: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+  },
+  woTopSection: {
+    width: '100%',
+  },
+  woTitleContainer: {
+    borderBottomWidth: 1.2,
+    borderBottomColor: GOLD,
+    paddingBottom: 6,
+    marginBottom: 8,
+  },
+  woBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: PRIMARY,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 2,
+    marginBottom: 3,
+  },
+  woBadgeText: {
+    color: '#d4af37',
+    fontSize: 6.8,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+  },
+  woDocTitle: {
+    fontSize: 13.5,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  woMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 3,
+    alignItems: 'center',
+  },
+  woMetaText: {
+    fontSize: 7.2,
+    color: '#475569',
+  },
+  woMetaSep: {
+    fontSize: 7.2,
+    color: GOLD,
+    marginHorizontal: 4,
+  },
+  woDossierCard: {
+    flexDirection: 'row',
+    backgroundColor: BG_LIGHT,
+    borderWidth: 0.75,
+    borderColor: '#cbd5e1',
+    borderTopWidth: 2,
+    borderTopColor: GOLD,
+    borderRadius: 2,
+    padding: 7,
+    marginBottom: 8,
+  },
+  woPartyCol: {
+    flex: 1,
+  },
+  woPartyDivider: {
+    width: 0.75,
+    backgroundColor: '#cbd5e1',
+    marginHorizontal: 8,
+  },
+  woPartyTag: {
+    fontSize: 6.8,
+    fontWeight: 'bold',
+    color: GOLD,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
+  woPartyName: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    marginBottom: 1.5,
+  },
+  woPartyDetail: {
+    fontSize: 7.2,
+    color: '#475569',
+    lineHeight: 1.3,
+  },
+  woSummaryStrip: {
+    flexDirection: 'row',
+    backgroundColor: '#f8fafc',
+    borderWidth: 0.75,
+    borderColor: '#e2e8f0',
+    borderRadius: 2,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    marginBottom: 9,
+    justifyContent: 'space-between',
+  },
+  woSummaryItem: {
+    flex: 1,
+    paddingHorizontal: 4,
+  },
+  woSummaryItemBorder: {
+    borderRightWidth: 0.6,
+    borderRightColor: '#cbd5e1',
+  },
+  woSummaryLabel: {
+    fontSize: 6.5,
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 1.5,
+  },
+  woSummaryValue: {
+    fontSize: 7.8,
+    fontWeight: 'bold',
+    color: PRIMARY,
+  },
+  woSummaryValueHighlight: {
+    fontSize: 8.5,
+    fontWeight: 'bold',
+    color: GOLD,
+  },
+  woLetterArea: {
+    borderLeftWidth: 2,
+    borderLeftColor: GOLD,
+    paddingLeft: 8,
+    marginBottom: 8,
+  },
+  woSubjectRow: {
+    flexDirection: 'row',
+    marginBottom: 5,
+    paddingBottom: 3,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#e2e8f0',
+  },
+  woSubjectLabel: {
+    fontSize: 7.8,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    marginRight: 4,
+  },
+  woSubjectText: {
+    fontSize: 7.8,
+    fontWeight: 'bold',
+    color: '#334155',
+    flex: 1,
+  },
+  woSalutation: {
+    fontSize: 8.2,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    marginBottom: 4,
+  },
+  woParagraph: {
+    fontSize: 7.8,
+    lineHeight: 1.45,
+    color: '#334155',
+    marginBottom: 5,
+    textAlign: 'justify',
+  },
+  woClosing: {
+    fontSize: 7.8,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    marginTop: 2,
+  },
+  woBottomSection: {
+    marginTop: 'auto',
+    paddingTop: 6,
+  },
+  woCovenantText: {
+    fontSize: 6.8,
+    color: '#64748b',
+    fontStyle: 'italic',
+    lineHeight: 1.3,
+    marginBottom: 6,
+    textAlign: 'center',
+    paddingHorizontal: 10,
+  },
+  woSignGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  woSignBox: {
+    width: '48.5%',
+    borderWidth: 0.75,
+    borderColor: '#cbd5e1',
+    borderRadius: 2,
+    backgroundColor: '#ffffff',
+    padding: 7,
+  },
+  woSignBoxHeader: {
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#e2e8f0',
+    paddingBottom: 2.5,
+    marginBottom: 20,
+  },
+  woSignBoxTag: {
+    fontSize: 6.8,
+    fontWeight: 'bold',
+    color: GOLD,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  woSignLine: {
+    borderTopWidth: 0.75,
+    borderTopColor: PRIMARY,
+    paddingTop: 3.5,
+  },
+  woSignerName: {
+    fontSize: 8.5,
+    fontWeight: 'bold',
+    color: PRIMARY,
+    marginBottom: 1,
+  },
+  woSignerRole: {
+    fontSize: 7.2,
+    color: TEXT_MUTED,
+    lineHeight: 1.25,
+  },
+
   // Detail Quotation specific styles (identical to DetailQuotationDocument)
   detailTableWrapper: {
     width: '100%',
@@ -734,6 +960,12 @@ export function AgreementDocumentPdf({
     })
   })
 
+  // Clean letter paragraphs for Work Order front page
+  const cleanLetterLines = (agreement.letterBody || '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !/^thanking\s*you/i.test(line))
+
   return (
     <Document title={`Agreement - ${clientName}`} author="Aesthetic Interior">
       {/* ─── PAGE 1: WORK ORDER FOR INTERIOR WORKS ─────────────────── */}
@@ -741,43 +973,134 @@ export function AgreementDocumentPdf({
         <WatermarkBackground />
         <GlobalHeader code={agreement.workOrderId} date={agreement.agreementDate} title="Work Order" />
 
-        <View style={styles.titleBanner}>
-          <Text style={styles.docTitle}>WORK ORDER FOR INTERIOR WORKS</Text>
-          <Text style={styles.docSubTitle}>
-            Reference: {agreement.reference} · Sub Contract ID: {agreement.subContractId}
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={[styles.bold, { fontSize: 8, textTransform: 'uppercase', marginBottom: 2 }]}>
-            DEAR, AESTHETIC INTERIOR
-          </Text>
-          <Text style={{ fontSize: 7.5, color: '#4a5568' }}>
-            3rd Floor, 183 East Senpara Parbata, Begum Rokeya Sarani, Mirpur 10, Dhaka-1207, Bangladesh
-          </Text>
-          <Text style={{ fontSize: 7.5, color: '#4a5568' }}>
-            Phone No: 01329-694660, 01329-694661
-          </Text>
-        </View>
-
-        {agreement.letterBody.split('\n').filter(Boolean).map((line, index) => (
-          <Text key={index} style={styles.paragraph}>
-            {line}
-          </Text>
-        ))}
-
-        <View style={{ marginTop: 20 }}>
-          <Text style={[styles.paragraph, { marginBottom: 24 }]}>Thanking you—</Text>
-          <View style={styles.sigRow}>
-            <View style={styles.sigBlock}>
-              <Text style={styles.sigName}>{agreement.ownerName || clientName}</Text>
-              <Text style={styles.sigRole}>Owner (Project)</Text>
-              <Text style={styles.sigRole}>Signature: ______________________</Text>
+        <View style={styles.woPageContainer}>
+          <View style={styles.woTopSection}>
+            {/* 1. Executive Title & Document Reference Bar */}
+            <View style={styles.woTitleContainer}>
+              <View style={styles.woBadge}>
+                <Text style={styles.woBadgeText}>OFFICIAL WORK ORDER</Text>
+              </View>
+              <Text style={styles.woDocTitle}>WORK ORDER FOR INTERIOR WORKS</Text>
+              <View style={styles.woMetaRow}>
+                <Text style={styles.woMetaText}>
+                  Work Order ID: <Text style={styles.bold}>{agreement.workOrderId}</Text>
+                </Text>
+                <Text style={styles.woMetaSep}>·</Text>
+                <Text style={styles.woMetaText}>
+                  Reference: <Text style={styles.bold}>{agreement.reference}</Text>
+                </Text>
+                <Text style={styles.woMetaSep}>·</Text>
+                <Text style={styles.woMetaText}>
+                  Sub Contract ID: <Text style={styles.bold}>{agreement.subContractId}</Text>
+                </Text>
+                <Text style={styles.woMetaSep}>·</Text>
+                <Text style={styles.woMetaText}>
+                  Issuance Date: <Text style={styles.bold}>{formatDateString(agreement.agreementDate)}</Text>
+                </Text>
+              </View>
             </View>
-            <View style={styles.sigBlock}>
-              <Text style={styles.sigName}>{agreement.srCrmName || 'Assistant General Manager (AGM)'}</Text>
-              <Text style={styles.sigRole}>Assistant General Manager (AGM)</Text>
-              <Text style={styles.sigRole}>Aesthetic Interior</Text>
+
+            {/* 2. Dual-Party Executive Dossier (Client to Contractor) */}
+            <View style={styles.woDossierCard}>
+              <View style={styles.woPartyCol}>
+                <Text style={styles.woPartyTag}>ISSUED BY (EMPLOYER / CLIENT)</Text>
+                <Text style={styles.woPartyName}>{agreement.ownerName || clientName}</Text>
+                <Text style={styles.woPartyDetail}>
+                  Project Site: {agreement.projectAddress || agreement.ownerAddress || agreement.projectName || 'Dhaka, Bangladesh'}
+                </Text>
+                <Text style={styles.woPartyDetail}>Capacity: Authorized Property Owner / Client</Text>
+              </View>
+              <View style={styles.woPartyDivider} />
+              <View style={styles.woPartyCol}>
+                <Text style={styles.woPartyTag}>AWARDED TO (CONTRACTOR / EXECUTANT)</Text>
+                <Text style={styles.woPartyName}>AESTHETIC INTERIOR</Text>
+                <Text style={styles.woPartyDetail}>
+                  Head Office: 3rd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka-1216
+                </Text>
+                <Text style={styles.woPartyDetail}>
+                  Hotlines: 01329-694660, 01329-694661 · Trade Lic: TRAD/DNCC/037755/2025
+                </Text>
+              </View>
+            </View>
+
+            {/* 3. Project & Commercial Highlights Strip */}
+            <View style={styles.woSummaryStrip}>
+              <View style={[styles.woSummaryItem, styles.woSummaryItemBorder]}>
+                <Text style={styles.woSummaryLabel}>AGREED VALUE</Text>
+                <Text style={styles.woSummaryValueHighlight}>
+                  {finalValue > 0 ? `${BDT_SYMBOL} ${formatDetailAmount(finalValue)}` : 'As Approved'}
+                </Text>
+              </View>
+              <View style={[styles.woSummaryItem, styles.woSummaryItemBorder]}>
+                <Text style={styles.woSummaryLabel}>PROJECT LOCATION</Text>
+                <Text style={styles.woSummaryValue}>
+                  {agreement.projectName || agreement.ownerAddress || 'Turnkey Project Site'}
+                </Text>
+              </View>
+              <View style={[styles.woSummaryItem, styles.woSummaryItemBorder]}>
+                <Text style={styles.woSummaryLabel}>TIMELINE</Text>
+                <Text style={styles.woSummaryValue}>150 Working Days</Text>
+              </View>
+              <View style={styles.woSummaryItem}>
+                <Text style={styles.woSummaryLabel}>SCOPE</Text>
+                <Text style={styles.woSummaryValue}>Turnkey Interior Works</Text>
+              </View>
+            </View>
+
+            {/* 4. Formal Work Order Authorization Letter */}
+            <View style={styles.woLetterArea}>
+              <View style={styles.woSubjectRow}>
+                <Text style={styles.woSubjectLabel}>SUBJECT:</Text>
+                <Text style={styles.woSubjectText}>
+                  Work Order for Interior Fit-out &amp; Turnkey Execution of {agreement.projectName || 'the designated Project Site'}
+                </Text>
+              </View>
+
+              <Text style={styles.woSalutation}>Dear Aesthetic Interior,</Text>
+
+              {cleanLetterLines.map((line, index) => (
+                <Text key={index} style={styles.woParagraph}>
+                  {line}
+                </Text>
+              ))}
+
+              <Text style={styles.woClosing}>Thanking you,</Text>
+            </View>
+          </View>
+
+          {/* 5. Anchored Bottom Execution & Acceptance Section */}
+          <View style={styles.woBottomSection}>
+            <Text style={styles.woCovenantText}>
+              This document constitutes a binding Work Order. All works shall strictly conform to the approved quotation,
+              drawings, technical specifications, and mutual contract covenants.
+            </Text>
+
+            <View style={styles.woSignGrid}>
+              <View style={styles.woSignBox}>
+                <View style={styles.woSignBoxHeader}>
+                  <Text style={styles.woSignBoxTag}>WORK ORDER ISSUED BY</Text>
+                </View>
+                <View style={styles.woSignLine}>
+                  <Text style={styles.woSignerName}>{agreement.ownerName || clientName}</Text>
+                  <Text style={styles.woSignerRole}>Authorized Owner / Client</Text>
+                  <Text style={styles.woSignerRole}>Date: {formatDateString(agreement.agreementDate)}</Text>
+                </View>
+              </View>
+
+              <View style={styles.woSignBox}>
+                <View style={styles.woSignBoxHeader}>
+                  <Text style={styles.woSignBoxTag}>WORK ORDER ACCEPTED BY</Text>
+                </View>
+                <View style={styles.woSignLine}>
+                  <Text style={styles.woSignerName}>
+                    {agreement.companyRepresentative || agreement.srCrmName || 'Md. Nazrul Islam'}
+                  </Text>
+                  <Text style={styles.woSignerRole}>
+                    {agreement.companyRepresentativeTitle || 'General Manager'}, Aesthetic Interior
+                  </Text>
+                  <Text style={styles.woSignerRole}>Date: {formatDateString(agreement.agreementDate)}</Text>
+                </View>
+              </View>
             </View>
           </View>
         </View>
