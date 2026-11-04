@@ -471,28 +471,21 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   woTitleContainer: {
-    borderBottomWidth: 1.2,
-    borderBottomColor: GOLD,
-    paddingBottom: 6,
-    marginBottom: 8,
+    marginBottom: 14,
   },
   woBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: PRIMARY,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: 2,
     marginBottom: 3,
   },
   woBadgeText: {
-    color: '#d4af37',
-    fontSize: 6.8,
+    color: GOLD,
+    fontSize: 7.8,
     fontWeight: 'bold',
     textTransform: 'uppercase',
-    letterSpacing: 1.2,
+    letterSpacing: 2,
   },
   woDocTitle: {
-    fontSize: 13.5,
+    fontSize: 14,
     fontWeight: 'bold',
     color: PRIMARY,
     textTransform: 'uppercase',
@@ -501,15 +494,15 @@ const styles = StyleSheet.create({
   woMetaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: 3,
+    marginTop: 4,
     alignItems: 'center',
   },
   woMetaText: {
-    fontSize: 7.2,
+    fontSize: 7.5,
     color: '#475569',
   },
   woMetaSep: {
-    fontSize: 7.2,
+    fontSize: 7.5,
     color: GOLD,
     marginHorizontal: 4,
   },
@@ -520,46 +513,46 @@ const styles = StyleSheet.create({
     borderColor: '#cbd5e1',
     borderTopWidth: 2,
     borderTopColor: GOLD,
-    borderRadius: 2,
-    padding: 7,
-    marginBottom: 8,
+    borderRadius: 3,
+    padding: 9,
+    marginBottom: 14,
   },
   woPartyCol: {
     flex: 1,
   },
   woPartyDivider: {
-    width: 0.75,
+    width: 0.8,
     backgroundColor: '#cbd5e1',
     marginHorizontal: 8,
   },
   woPartyTag: {
-    fontSize: 6.8,
+    fontSize: 8,
     fontWeight: 'bold',
     color: GOLD,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 2,
+    letterSpacing: 1,
+    marginBottom: 3,
   },
   woPartyName: {
-    fontSize: 9,
+    fontSize: 11.5,
     fontWeight: 'bold',
     color: PRIMARY,
-    marginBottom: 1.5,
+    marginBottom: 3,
   },
   woPartyDetail: {
-    fontSize: 7.2,
+    fontSize: 8.2,
     color: '#475569',
-    lineHeight: 1.3,
+    lineHeight: 1.35,
   },
   woSummaryStrip: {
     flexDirection: 'row',
     backgroundColor: '#f8fafc',
     borderWidth: 0.75,
     borderColor: '#e2e8f0',
-    borderRadius: 2,
-    paddingVertical: 5,
-    paddingHorizontal: 6,
-    marginBottom: 9,
+    borderRadius: 3,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    marginBottom: 14,
     justifyContent: 'space-between',
   },
   woSummaryItem: {
@@ -571,19 +564,19 @@ const styles = StyleSheet.create({
     borderRightColor: '#cbd5e1',
   },
   woSummaryLabel: {
-    fontSize: 6.5,
+    fontSize: 7,
     color: '#64748b',
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
-    marginBottom: 1.5,
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
   woSummaryValue: {
-    fontSize: 7.8,
+    fontSize: 8.5,
     fontWeight: 'bold',
     color: PRIMARY,
   },
   woSummaryValueHighlight: {
-    fontSize: 8.5,
+    fontSize: 9.5,
     fontWeight: 'bold',
     color: GOLD,
   },
@@ -591,45 +584,45 @@ const styles = StyleSheet.create({
     borderLeftWidth: 2,
     borderLeftColor: GOLD,
     paddingLeft: 8,
-    marginBottom: 8,
+    marginBottom: 14,
   },
   woSubjectRow: {
     flexDirection: 'row',
-    marginBottom: 5,
-    paddingBottom: 3,
+    marginBottom: 8,
+    paddingBottom: 4,
     borderBottomWidth: 0.5,
     borderBottomColor: '#e2e8f0',
   },
   woSubjectLabel: {
-    fontSize: 7.8,
+    fontSize: 8.5,
     fontWeight: 'bold',
     color: PRIMARY,
     marginRight: 4,
   },
   woSubjectText: {
-    fontSize: 7.8,
+    fontSize: 8.5,
     fontWeight: 'bold',
     color: '#334155',
     flex: 1,
   },
   woSalutation: {
-    fontSize: 8.2,
+    fontSize: 8.8,
     fontWeight: 'bold',
     color: PRIMARY,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   woParagraph: {
-    fontSize: 7.8,
-    lineHeight: 1.45,
+    fontSize: 8.5,
+    lineHeight: 1.48,
     color: '#334155',
-    marginBottom: 5,
+    marginBottom: 6,
     textAlign: 'justify',
   },
   woClosing: {
-    fontSize: 7.8,
+    fontSize: 8.5,
     fontWeight: 'bold',
     color: PRIMARY,
-    marginTop: 2,
+    marginTop: 10,
   },
 
   // Detail Quotation specific styles (identical to DetailQuotationDocument)
@@ -1123,22 +1116,28 @@ export function AgreementDocumentPdf({
             {/* 2. Client and Executant Introduction - old one */}
             <View style={styles.woDossierCard}>
               <View style={styles.woPartyCol}>
-                <Text style={styles.woPartyTag}>ISSUED BY (EMPLOYER / CLIENT)</Text>
+                <Text style={styles.woPartyTag}>CLIENT</Text>
                 <Text style={styles.woPartyName}>{agreement.ownerName || clientName}</Text>
                 <Text style={styles.woPartyDetail}>
-                  Project Site: {agreement.projectAddress || agreement.ownerAddress || agreement.projectName || 'Dhaka, Bangladesh'}
+                  <Text style={styles.bold}>Project Site: </Text>
+                  {agreement.projectAddress || agreement.ownerAddress || agreement.projectName || 'Dhaka, Bangladesh'}
                 </Text>
-                <Text style={styles.woPartyDetail}>Capacity: Authorized Property Owner / Client</Text>
+                <Text style={styles.woPartyDetail}>
+                  <Text style={styles.bold}>Capacity: </Text>
+                  Authorized Property Owner / Client
+                </Text>
               </View>
               <View style={styles.woPartyDivider} />
               <View style={styles.woPartyCol}>
-                <Text style={styles.woPartyTag}>AWARDED TO (CONTRACTOR / EXECUTANT)</Text>
+                <Text style={styles.woPartyTag}>EXECUTANT</Text>
                 <Text style={styles.woPartyName}>AESTHETIC INTERIOR</Text>
                 <Text style={styles.woPartyDetail}>
-                  Head Office: 3rd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka-1216
+                  <Text style={styles.bold}>Head Office: </Text>
+                  3rd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka-1216
                 </Text>
                 <Text style={styles.woPartyDetail}>
-                  Hotlines: 01329-694660, 01329-694661 · Trade Lic: TRAD/DNCC/037755/2025
+                  <Text style={styles.bold}>Hotlines: </Text>
+                  01329-694660, 01329-694661 · <Text style={styles.bold}>Trade Lic: </Text>TRAD/DNCC/037755/2025
                 </Text>
               </View>
             </View>
@@ -1189,9 +1188,9 @@ export function AgreementDocumentPdf({
           </View>
 
           {/* 5. Anchored Bottom: Caption & Signatures - current one */}
-          <View style={{ marginTop: 'auto', paddingTop: 6 }}>
-            {/* a simple Caption ( in italic font ) - current one */}
-            <Text style={{ fontSize: 7.2, color: TEXT_MUTED, fontStyle: 'italic', textAlign: 'center', marginBottom: 12 }}>
+          <View style={{ marginTop: 'auto', paddingTop: 8 }}>
+            {/* a simple Caption ( in italic font ) - taken up from signature section */}
+            <Text style={{ fontSize: 7.5, color: TEXT_MUTED, fontStyle: 'italic', textAlign: 'center', marginBottom: 20 }}>
               This Work Order is formally executed by the Client and accepted by Aesthetic Interior as an integral part of the Agreement.
             </Text>
 
