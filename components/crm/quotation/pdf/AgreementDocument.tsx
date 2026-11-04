@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   coverLogoSection: {
-    marginBottom: 55,
+    marginBottom: 70,
     alignItems: 'center',
   },
   coverEmblem: {
@@ -116,12 +116,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 15.5,
     color: PRIMARY,
-    marginTop: 12,
+    marginTop: 9,
     letterSpacing: 1.2,
     textAlign: 'center',
   },
   coverTitleSection: {
-    marginBottom: 55,
+    marginBottom: 70,
     alignItems: 'center',
   },
   coverInteriorWorkSub: {
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     color: GOLD,
     textTransform: 'uppercase',
     letterSpacing: 6,
-    marginBottom: 8,
+    marginBottom: 4,
     textAlign: 'center',
   },
   coverTitle: {
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   coverSection: {
-    marginBottom: 55,
+    marginBottom: 70,
     alignItems: 'center',
   },
   coverSectionLabel: {
