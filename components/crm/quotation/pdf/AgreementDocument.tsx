@@ -50,6 +50,26 @@ Font.register({
   ],
 })
 
+const playfairRegular = isBrowser
+  ? '/fonts/PlayfairDisplay-Regular.ttf'
+  : typeof process !== 'undefined' && process.cwd
+    ? `${process.cwd()}/public/fonts/PlayfairDisplay-Regular.ttf`
+    : '/fonts/PlayfairDisplay-Regular.ttf'
+
+const playfairBold = isBrowser
+  ? '/fonts/PlayfairDisplay-Bold.ttf'
+  : typeof process !== 'undefined' && process.cwd
+    ? `${process.cwd()}/public/fonts/PlayfairDisplay-Bold.ttf`
+    : '/fonts/PlayfairDisplay-Bold.ttf'
+
+Font.register({
+  family: 'Playfair Display',
+  fonts: [
+    { src: playfairRegular },
+    { src: playfairBold, fontWeight: 'bold' },
+  ],
+})
+
 Font.registerHyphenationCallback((word) => [word])
 
 const logoSrc = isBrowser
@@ -84,15 +104,34 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   coverLogoSection: {
-    marginBottom: 40,
+    marginBottom: 55,
     alignItems: 'center',
   },
-  coverLogo: {
-    width: 175,
+  coverEmblem: {
+    width: 68,
+    height: 68,
+  },
+  coverStudioName: {
+    fontFamily: 'Playfair Display',
+    fontWeight: 'bold',
+    fontSize: 15.5,
+    color: PRIMARY,
+    marginTop: 12,
+    letterSpacing: 1.2,
+    textAlign: 'center',
   },
   coverTitleSection: {
-    marginBottom: 40,
+    marginBottom: 55,
     alignItems: 'center',
+  },
+  coverInteriorWorkSub: {
+    fontSize: 8.5,
+    fontWeight: 'bold',
+    color: GOLD,
+    textTransform: 'uppercase',
+    letterSpacing: 6,
+    marginBottom: 8,
+    textAlign: 'center',
   },
   coverTitle: {
     fontFamily: 'Times-Italic',
@@ -109,7 +148,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   coverSection: {
-    marginBottom: 40,
+    marginBottom: 55,
     alignItems: 'center',
   },
   coverSectionLabel: {
@@ -118,7 +157,7 @@ const styles = StyleSheet.create({
     color: GOLD,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    marginBottom: 6,
+    marginBottom: 7,
     textAlign: 'center',
   },
   coverClientName: {
@@ -1003,27 +1042,29 @@ export function AgreementDocumentPdf({
     <Document title={`Agreement - ${clientName}`} author="Aesthetic Interior">
       {/* ─── FRONT COVER PAGE ────────────────────────────────────────── */}
       <Page size="A4" style={styles.coverPage}>
-        {/* Top-Right 2 Arcs (Brand Colors with Opacity) */}
-        <Svg width={220} height={220} viewBox="0 0 220 220" style={{ position: 'absolute', top: 0, right: 0 }}>
-          <Circle cx={220} cy={0} r={180} stroke={PRIMARY} strokeWidth={14} fill="none" opacity={0.18} />
-          <Circle cx={220} cy={0} r={125} stroke={GOLD} strokeWidth={9} fill="none" opacity={0.35} />
+        {/* Top-Right 2 Filled Arcs (Same color, 60% and 100% opacity) */}
+        <Svg width={240} height={240} viewBox="0 0 240 240" style={{ position: 'absolute', top: 0, right: 0 }}>
+          <Circle cx={240} cy={0} r={210} fill={PRIMARY} opacity={0.6} />
+          <Circle cx={240} cy={0} r={130} fill={PRIMARY} opacity={1.0} />
         </Svg>
 
-        {/* Bottom-Left 2 Arcs (Brand Colors with Opacity) */}
-        <Svg width={220} height={220} viewBox="0 0 220 220" style={{ position: 'absolute', bottom: 0, left: 0 }}>
-          <Circle cx={0} cy={220} r={180} stroke={PRIMARY} strokeWidth={14} fill="none" opacity={0.18} />
-          <Circle cx={0} cy={220} r={125} stroke={GOLD} strokeWidth={9} fill="none" opacity={0.35} />
+        {/* Bottom-Left 2 Filled Arcs (Same color, 60% and 100% opacity) */}
+        <Svg width={240} height={240} viewBox="0 0 240 240" style={{ position: 'absolute', bottom: 0, left: 0 }}>
+          <Circle cx={0} cy={240} r={210} fill={PRIMARY} opacity={0.6} />
+          <Circle cx={0} cy={240} r={130} fill={PRIMARY} opacity={1.0} />
         </Svg>
 
-        {/* Centerwise Serial Content with Common Gap */}
+        {/* Centerwise Serial Content with Big Common Gap */}
         <View style={styles.coverContentWrapper}>
-          {/* 1. Logo */}
+          {/* 1. Logo / Emblem & Aesthetic Interior Studio */}
           <View style={styles.coverLogoSection}>
-            <Image src={logoSrc} style={styles.coverLogo} />
+            <Image src={watermarkSrc} style={styles.coverEmblem} />
+            <Text style={styles.coverStudioName}>Aesthetic Interior Studio</Text>
           </View>
 
-          {/* 2. Agreement (Calligraphic Font) */}
+          {/* 2. Interior Work & Agreement (Calligraphic Font) */}
           <View style={styles.coverTitleSection}>
+            <Text style={styles.coverInteriorWorkSub}>INTERIOR WORK</Text>
             <Text style={styles.coverTitle}>Agreement</Text>
             <View style={styles.coverGoldDivider} />
           </View>
