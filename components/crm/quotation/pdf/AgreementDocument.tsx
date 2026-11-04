@@ -219,7 +219,7 @@ const styles = StyleSheet.create({
     width: 400,
     height: 400,
     zIndex: -1,
-    opacity: 0.05,
+    opacity: 0.1,
   },
   header: {
     position: 'absolute',
@@ -508,7 +508,7 @@ const styles = StyleSheet.create({
   },
   woDossierCard: {
     flexDirection: 'row',
-    backgroundColor: BG_LIGHT,
+    backgroundColor: 'transparent',
     borderWidth: 0.75,
     borderColor: '#cbd5e1',
     borderTopWidth: 2,
@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
   },
   woSummaryStrip: {
     flexDirection: 'row',
-    backgroundColor: '#f8fafc',
+    backgroundColor: 'transparent',
     borderWidth: 0.75,
     borderColor: '#e2e8f0',
     borderRadius: 3,
@@ -1116,28 +1116,24 @@ export function AgreementDocumentPdf({
             {/* 2. Client and Executant Introduction - old one */}
             <View style={styles.woDossierCard}>
               <View style={styles.woPartyCol}>
-                <Text style={styles.woPartyTag}>CLIENT</Text>
+                <Text style={styles.woPartyTag}>ISSUED BY (CLIENT)</Text>
                 <Text style={styles.woPartyName}>{agreement.ownerName || clientName}</Text>
                 <Text style={styles.woPartyDetail}>
-                  <Text style={styles.bold}>Project Site: </Text>
-                  {agreement.projectAddress || agreement.ownerAddress || agreement.projectName || 'Dhaka, Bangladesh'}
+                  Project Site: {agreement.projectAddress || agreement.ownerAddress || agreement.projectName || 'Dhaka, Bangladesh'}
                 </Text>
                 <Text style={styles.woPartyDetail}>
-                  <Text style={styles.bold}>Capacity: </Text>
-                  Authorized Property Owner / Client
+                  Capacity: Authorized Property Owner / Client
                 </Text>
               </View>
               <View style={styles.woPartyDivider} />
               <View style={styles.woPartyCol}>
-                <Text style={styles.woPartyTag}>EXECUTANT</Text>
+                <Text style={styles.woPartyTag}>AWARDED TO (EXECUTANT)</Text>
                 <Text style={styles.woPartyName}>AESTHETIC INTERIOR</Text>
                 <Text style={styles.woPartyDetail}>
-                  <Text style={styles.bold}>Head Office: </Text>
-                  3rd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka-1216
+                  Head Office: 3rd Floor, 183 East Senpara Parbata, Mirpur 10, Dhaka-1216
                 </Text>
                 <Text style={styles.woPartyDetail}>
-                  <Text style={styles.bold}>Hotlines: </Text>
-                  01329-694660, 01329-694661 · <Text style={styles.bold}>Trade Lic: </Text>TRAD/DNCC/037755/2025
+                  Hotlines: 01329-694660, 01329-694661 · Trade Lic: TRAD/DNCC/037755/2025
                 </Text>
               </View>
             </View>
