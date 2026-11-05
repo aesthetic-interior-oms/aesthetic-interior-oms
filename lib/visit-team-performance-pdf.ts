@@ -47,11 +47,13 @@ export async function generateVisitTeamPerformancePdf({
   const monthLabel = formatMonthTitle(monthKey)
   const logoBase64 = await loadLogoBase64()
 
-  const totalMembers = members.length
-  const totalCompletedVisits = members.reduce((sum, m) => sum + (m.completed || 0), 0)
-  const totalSqftSum = members.reduce((sum, m) => sum + (m.totalSqft || 0), 0)
+  const activeMembers = members.filter((m) => m.isEnabled !== false)
+
+  const totalMembers = activeMembers.length
+  const totalCompletedVisits = activeMembers.reduce((sum, m) => sum + (m.completed || 0), 0)
+  const totalSqftSum = activeMembers.reduce((sum, m) => sum + (m.totalSqft || 0), 0)
   const avgPerformance = totalMembers
-    ? Math.round(members.reduce((sum, m) => sum + (m.performance || 0), 0) / totalMembers)
+    ? Math.round(activeMembers.reduce((sum, m) => sum + (m.performance || 0), 0) / totalMembers)
     : 0
 
   const drawHeader = () => {
@@ -154,9 +156,9 @@ export async function generateVisitTeamPerformancePdf({
       'Operational (/80)',
       'Performance (/100)',
     ]],
-    body: members.length === 0
+    body: activeMembers.length === 0
       ? [['-', 'No Visit Team records for this month', '-', '-', '-', '-', '-', '-', '-', '-']]
-      : members.map((m, idx) => {
+      : activeMembers.map((m, idx) => {
           const attendanceDisplay = `${m.absentDays}d abs (${m.attendanceScore}/10)`
           const tagDisplay = m.behaviourTag
             ? `${m.behaviourTag} (${m.behaviourScore >= 0 ? `+${m.behaviourScore}` : m.behaviourScore})`

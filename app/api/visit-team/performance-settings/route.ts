@@ -63,6 +63,7 @@ type AssessmentInput = {
   behaviourTag: string | null
   behaviourScore?: number
   notes?: string | null
+  isEnabled?: boolean
 }
 
 export async function POST(request: NextRequest) {
@@ -106,6 +107,7 @@ export async function POST(request: NextRequest) {
           : getBehaviourPointsForTag(behaviourTag)
 
         const notes = item.notes?.trim() || null
+        const isEnabled = typeof item.isEnabled === 'boolean' ? item.isEnabled : true
 
         return prisma.visitMemberMonthlyAssessment.upsert({
           where: {
@@ -122,6 +124,7 @@ export async function POST(request: NextRequest) {
             behaviourTag,
             behaviourScore,
             notes,
+            isEnabled,
             updatedById: authResult.actorUserId,
           },
           update: {
@@ -130,6 +133,7 @@ export async function POST(request: NextRequest) {
             behaviourTag,
             behaviourScore,
             notes,
+            isEnabled,
             updatedById: authResult.actorUserId,
           },
         })

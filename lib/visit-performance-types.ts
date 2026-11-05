@@ -29,6 +29,7 @@ export type MemberAssessmentData = {
   behaviourTag: string | null
   behaviourScore: number
   notes: string | null
+  isEnabled: boolean
 }
 
 export type VisitPerformanceRow = {
@@ -48,4 +49,5 @@ export type VisitPerformanceRow = {
   behaviourNote: string | null
   operationalScore: number
   performance: number
+  isEnabled: boolean
 }

@@ -498,6 +498,11 @@ function DepartmentLeaderboardCard({
   isLeader: boolean
   loading: boolean
 }) {
+  const visibleMembers = useMemo(
+    () => members.filter((m) => m.isEnabled !== false),
+    [members],
+  )
+
   return (
     <Card className="min-w-0 border-border">
       <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-3">
@@ -540,7 +545,7 @@ function DepartmentLeaderboardCard({
             variant="outline"
             size="sm"
             onClick={onDownloadPdf}
-            disabled={downloadingPdf || loading || members.length === 0}
+            disabled={downloadingPdf || loading || visibleMembers.length === 0}
             className="gap-1.5 h-8 text-xs font-semibold"
           >
             {downloadingPdf ? (
@@ -569,7 +574,7 @@ function DepartmentLeaderboardCard({
             <Loader2 className="size-4 animate-spin text-teal-600" />
             Loading performance leaderboard...
           </div>
-        ) : members.length === 0 ? (
+        ) : visibleMembers.length === 0 ? (
           <div className="py-8 text-center text-xs text-muted-foreground">
             No member performance records found for {formatMonthLabel(monthKey)}.
           </div>
@@ -589,7 +594,7 @@ function DepartmentLeaderboardCard({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {members.map((m, idx) => {
+                {visibleMembers.map((m, idx) => {
                   const tagColor = getTagBadgeClass(m.behaviourTag)
                   const isTop = idx === 0
                   return (
@@ -735,9 +740,9 @@ export default function DashboardPage() {
   }
 
   const handleDownloadPdf = async () => {
-    const members = performance?.members ?? []
+    const members = (performance?.members ?? []).filter((m) => m.isEnabled !== false)
     if (members.length === 0) {
-      toast.error('No performance records to generate PDF')
+      toast.error('No active performance records to generate PDF')
       return
     }
     try {

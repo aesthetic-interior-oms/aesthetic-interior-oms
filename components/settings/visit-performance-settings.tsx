@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   BEHAVIOUR_TAG_OPTIONS,
   getBehaviourPointsForTag,
@@ -31,6 +32,7 @@ type MemberDraft = {
   absentDays: number
   behaviourTag: string
   notes: string
+  isEnabled: boolean
 }
 
 function getTagBadgeColor(tag: string | null) {
@@ -107,6 +109,7 @@ export function VisitPerformanceSettings() {
           absentDays: m.absentDays ?? 0,
           behaviourTag: m.behaviourTag || 'NEUTRAL',
           notes: m.behaviourNote || '',
+          isEnabled: m.isEnabled ?? true,
         }
       }
       setDrafts(initialDrafts)
@@ -122,12 +125,22 @@ export function VisitPerformanceSettings() {
     void loadData(monthKey)
   }, [loadData, monthKey])
 
+  const handleToggleEnabled = (userId: string, isEnabled: boolean) => {
+    setDrafts((prev) => ({
+      ...prev,
+      [userId]: {
+        ...(prev[userId] ?? { absentDays: 0, behaviourTag: 'NEUTRAL', notes: '', isEnabled: true }),
+        isEnabled,
+      },
+    }))
+  }
+
   const handleAbsentDaysChange = (userId: string, valStr: string) => {
     const num = Math.max(0, parseInt(valStr, 10) || 0)
     setDrafts((prev) => ({
       ...prev,
       [userId]: {
-        ...(prev[userId] ?? { absentDays: 0, behaviourTag: 'NEUTRAL', notes: '' }),
+        ...(prev[userId] ?? { absentDays: 0, behaviourTag: 'NEUTRAL', notes: '', isEnabled: true }),
         absentDays: num,
       },
     }))
@@ -137,7 +150,7 @@ export function VisitPerformanceSettings() {
     setDrafts((prev) => ({
       ...prev,
       [userId]: {
-        ...(prev[userId] ?? { absentDays: 0, behaviourTag: 'NEUTRAL', notes: '' }),
+        ...(prev[userId] ?? { absentDays: 0, behaviourTag: 'NEUTRAL', notes: '', isEnabled: true }),
         behaviourTag: tag,
       },
     }))
@@ -147,7 +160,7 @@ export function VisitPerformanceSettings() {
     setDrafts((prev) => ({
       ...prev,
       [userId]: {
-        ...(prev[userId] ?? { absentDays: 0, behaviourTag: 'NEUTRAL', notes: '' }),
+        ...(prev[userId] ?? { absentDays: 0, behaviourTag: 'NEUTRAL', notes: '', isEnabled: true }),
         notes,
       },
     }))
@@ -159,7 +172,7 @@ export function VisitPerformanceSettings() {
       const payload = {
         monthKey,
         assessments: members.map((m) => {
-          const draft = drafts[m.id] ?? { absentDays: 0, behaviourTag: 'NEUTRAL', notes: '' }
+          const draft = drafts[m.id] ?? { absentDays: 0, behaviourTag: 'NEUTRAL', notes: '', isEnabled: true }
           return {
             userId: m.id,
             absentDays: draft.absentDays,
@@ -167,6 +180,7 @@ export function VisitPerformanceSettings() {
             behaviourTag: draft.behaviourTag,
             behaviourScore: getBehaviourPointsForTag(draft.behaviourTag),
             notes: draft.notes,
+            isEnabled: draft.isEnabled,
           }
         }),
       }
@@ -198,9 +212,21 @@ export function VisitPerformanceSettings() {
   const handleDownloadPdf = async () => {
     try {
       setDownloadingPdf(true)
+      // Only include enabled members in the generated PDF
+      const activeToPrint = previewedMembers
+        .filter((m) => m.draftIsEnabled)
+        .map((m) => ({
+          ...m,
+          absentDays: m.draftAbsentDays,
+          attendanceScore: m.draftAttendanceScore,
+          behaviourTag: m.draftBehaviourTag,
+          behaviourScore: m.draftBehaviourScore,
+          performance: m.previewPerformance,
+        }))
+
       await generateVisitTeamPerformancePdf({
         monthKey,
-        members,
+        members: activeToPrint,
       })
       toast.success('Performance PDF downloaded')
     } catch (err) {
@@ -215,6 +241,7 @@ export function VisitPerformanceSettings() {
   const previewedMembers = useMemo(() => {
     return members.map((m) => {
       const draft = drafts[m.id]
+      const isEnabled = draft?.isEnabled !== undefined ? draft.isEnabled : (m.isEnabled ?? true)
       const absentDays = draft ? draft.absentDays : (m.absentDays ?? 0)
       const attendanceScore = Math.max(0, 10 - absentDays * 2)
       const behaviourTag = draft ? draft.behaviourTag : (m.behaviourTag ?? 'NEUTRAL')
@@ -228,6 +255,7 @@ export function VisitPerformanceSettings() {
 
       return {
         ...m,
+        draftIsEnabled: isEnabled,
         draftAbsentDays: absentDays,
         draftAttendanceScore: attendanceScore,
         draftBehaviourTag: behaviourTag,
@@ -238,9 +266,10 @@ export function VisitPerformanceSettings() {
     })
   }, [members, drafts])
 
-  const topPerformer = previewedMembers[0] ?? null
-  const avgScore = previewedMembers.length
-    ? Math.round(previewedMembers.reduce((sum, m) => sum + m.previewPerformance, 0) / previewedMembers.length)
+  const activeMembers = useMemo(() => previewedMembers.filter((m) => m.draftIsEnabled), [previewedMembers])
+  const topPerformer = activeMembers[0] ?? null
+  const avgScore = activeMembers.length
+    ? Math.round(activeMembers.reduce((sum, m) => sum + m.previewPerformance, 0) / activeMembers.length)
     : 0
 
   return (
@@ -394,104 +423,135 @@ export function VisitPerformanceSettings() {
             </div>
           ) : (
             <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-              {previewedMembers.map((member, idx) => (
-                <div
-                  key={member.id}
-                  className="p-4 transition-colors hover:bg-muted/30 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"
-                >
-                  {/* Member identity & field metrics */}
-                  <div className="min-w-0 lg:w-[280px]">
-                    <div className="flex items-center gap-2">
-                      <span className="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-                        {idx + 1}
-                      </span>
-                      <h4 className="font-semibold text-foreground truncate text-sm">{member.name}</h4>
+              {previewedMembers.map((member, idx) => {
+                const isEnabled = member.draftIsEnabled
+                return (
+                  <div
+                    key={member.id}
+                    className={`p-4 transition-colors flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between ${
+                      isEnabled ? 'hover:bg-muted/30' : 'bg-muted/15 opacity-70 border-l-4 border-l-slate-400'
+                    }`}
+                  >
+                    {/* Member identity & field metrics */}
+                    <div className="min-w-0 lg:w-[260px]">
+                      <div className="flex items-center gap-2">
+                        <span className="flex size-6 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                          {idx + 1}
+                        </span>
+                        <h4 className={`font-semibold truncate text-sm ${isEnabled ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
+                          {member.name}
+                        </h4>
+                        {!isEnabled && (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground border-dashed">
+                            Hidden from PDF
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="text-[11px] font-normal">
+                          {member.completed}/{member.totalVisits} visits
+                        </Badge>
+                        <Badge variant="outline" className="text-[11px] font-normal">
+                          {member.totalSqft.toLocaleString()} SFT
+                        </Badge>
+                        <Badge variant="outline" className="text-[11px] font-normal">
+                          {member.reportCompleteness}% reports
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                      <Badge variant="outline" className="text-[11px] font-normal">
-                        {member.completed}/{member.totalVisits} visits
-                      </Badge>
-                      <Badge variant="outline" className="text-[11px] font-normal">
-                        {member.totalSqft.toLocaleString()} SFT
-                      </Badge>
-                      <Badge variant="outline" className="text-[11px] font-normal">
-                        {member.reportCompleteness}% reports
-                      </Badge>
-                    </div>
-                  </div>
 
-                  {/* Attendance Controls */}
-                  <div className="flex flex-col gap-1.5 sm:w-[150px]">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Absent Days:
-                    </Label>
-                    <div className="flex items-center gap-2">
+                    {/* Enable / Disable Toggle */}
+                    <div className="flex flex-col gap-1.5 sm:w-[130px]">
+                      <Label className="text-xs font-medium text-muted-foreground">
+                        Performance Status:
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={isEnabled}
+                          onCheckedChange={(checked) => handleToggleEnabled(member.id, checked)}
+                        />
+                        <span className={`text-xs font-semibold ${isEnabled ? 'text-teal-700 dark:text-teal-300' : 'text-muted-foreground'}`}>
+                          {isEnabled ? 'Included' : 'Disabled'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Attendance Controls */}
+                    <div className="flex flex-col gap-1.5 sm:w-[140px]">
+                      <Label className="text-xs font-medium text-muted-foreground">
+                        Absent Days:
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={31}
+                          disabled={!isEnabled}
+                          value={member.draftAbsentDays}
+                          onChange={(e) => handleAbsentDaysChange(member.id, e.target.value)}
+                          className="h-8 w-16 text-center text-xs font-semibold"
+                        />
+                        <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                          {member.draftAttendanceScore}/10
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Behaviour Tag Select */}
+                    <div className="flex flex-col gap-1.5 sm:w-[190px]">
+                      <Label className="text-xs font-medium text-muted-foreground">
+                        Behaviour Rating:
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <select
+                          disabled={!isEnabled}
+                          value={member.draftBehaviourTag}
+                          onChange={(e) => handleBehaviourTagChange(member.id, e.target.value)}
+                          className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:opacity-50"
+                        >
+                          {BEHAVIOUR_TAG_OPTIONS.map((opt) => (
+                            <option key={opt.tag} value={opt.tag}>
+                              {opt.label} ({opt.defaultPoints >= 0 ? `+${opt.defaultPoints}` : opt.defaultPoints} pts)
+                            </option>
+                          ))}
+                        </select>
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] shrink-0 ${getTagBadgeColor(member.draftBehaviourTag)}`}
+                        >
+                          {member.draftBehaviourScore >= 0 ? `+${member.draftBehaviourScore}` : member.draftBehaviourScore}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Notes / Feedback */}
+                    <div className="flex flex-col gap-1.5 lg:w-[200px]">
+                      <Label className="text-xs font-medium text-muted-foreground">
+                        Observations / Note:
+                      </Label>
                       <Input
-                        type="number"
-                        min={0}
-                        max={31}
-                        value={member.draftAbsentDays}
-                        onChange={(e) => handleAbsentDaysChange(member.id, e.target.value)}
-                        className="h-8 w-20 text-center text-xs font-semibold"
+                        type="text"
+                        disabled={!isEnabled}
+                        placeholder="Optional feedback..."
+                        value={member.draftNotes}
+                        onChange={(e) => handleNotesChange(member.id, e.target.value)}
+                        className="h-8 text-xs disabled:opacity-50"
                       />
-                      <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                        {member.draftAttendanceScore}/10 marks
-                      </span>
+                    </div>
+
+                    {/* Live Final Performance Score */}
+                    <div className="flex items-center justify-between lg:flex-col lg:items-end lg:justify-center border-t border-border pt-3 lg:border-t-0 lg:pt-0">
+                      <span className="text-xs text-muted-foreground">Final Score:</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className={`text-xl font-extrabold ${isEnabled ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {isEnabled ? member.previewPerformance : '—'}
+                        </span>
+                        {isEnabled && <span className="text-xs font-medium text-muted-foreground">/100</span>}
+                      </div>
                     </div>
                   </div>
-
-                  {/* Behaviour Tag Select */}
-                  <div className="flex flex-col gap-1.5 sm:w-[200px]">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Behaviour Rating:
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={member.draftBehaviourTag}
-                        onChange={(e) => handleBehaviourTagChange(member.id, e.target.value)}
-                        className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-teal-500"
-                      >
-                        {BEHAVIOUR_TAG_OPTIONS.map((opt) => (
-                          <option key={opt.tag} value={opt.tag}>
-                            {opt.label} ({opt.defaultPoints >= 0 ? `+${opt.defaultPoints}` : opt.defaultPoints} pts)
-                          </option>
-                        ))}
-                      </select>
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] shrink-0 ${getTagBadgeColor(member.draftBehaviourTag)}`}
-                      >
-                        {member.draftBehaviourScore >= 0 ? `+${member.draftBehaviourScore}` : member.draftBehaviourScore}
-                      </Badge>
-                    </div>
-                  </div>
-
-                  {/* Notes / Feedback */}
-                  <div className="flex flex-col gap-1.5 lg:w-[220px]">
-                    <Label className="text-xs font-medium text-muted-foreground">
-                      Observations / Note:
-                    </Label>
-                    <Input
-                      type="text"
-                      placeholder="Optional feedback..."
-                      value={member.draftNotes}
-                      onChange={(e) => handleNotesChange(member.id, e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                  </div>
-
-                  {/* Live Final Performance Score */}
-                  <div className="flex items-center justify-between lg:flex-col lg:items-end lg:justify-center border-t border-border pt-3 lg:border-t-0 lg:pt-0">
-                    <span className="text-xs text-muted-foreground">Final Score:</span>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-xl font-extrabold text-foreground">
-                        {member.previewPerformance}
-                      </span>
-                      <span className="text-xs font-medium text-muted-foreground">/100</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardContent>

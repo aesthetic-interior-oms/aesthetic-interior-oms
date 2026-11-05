@@ -1037,6 +1037,7 @@ model VisitMemberMonthlyAssessment {
   attendanceScore Float    @default(10)
   behaviourTag    String?
   behaviourScore  Float    @default(0)
+  isEnabled       Boolean  @default(true)
   notes           String?
   updatedById     String?
   createdAt       DateTime @default(now())

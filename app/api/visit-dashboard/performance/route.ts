@@ -37,12 +37,15 @@ export async function GET(request: NextRequest) {
     const monthKey = normalizeMonthKey(request.nextUrl.searchParams.get('month'))
     const { members } = await getMonthlyVisitTeamPerformance(monthKey)
 
-    const currentUserPerformance =
-      members.find((m) => m.id === authResult.actorUserId) ?? null
+    // Filter out disabled members from dashboard reporting and PDF exports
+    const activeMembers = members.filter((m) => m.isEnabled !== false)
 
-    const averagePerformance = members.length
+    const currentUserPerformance =
+      activeMembers.find((m) => m.id === authResult.actorUserId) ?? null
+
+    const averagePerformance = activeMembers.length
       ? Math.round(
-          members.reduce((sum, m) => sum + m.performance, 0) / members.length,
+          activeMembers.reduce((sum, m) => sum + m.performance, 0) / activeMembers.length,
         )
       : 0
 
@@ -50,10 +53,10 @@ export async function GET(request: NextRequest) {
       success: true,
       monthKey,
       data: {
-        topPerformer: members[0] ?? null,
+        topPerformer: activeMembers[0] ?? null,
         currentUserPerformance,
         averagePerformance,
-        members,
+        members: activeMembers,
       },
     })
   } catch (error) {

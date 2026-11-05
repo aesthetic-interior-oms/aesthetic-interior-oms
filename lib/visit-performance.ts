@@ -150,6 +150,7 @@ export function calculateVisitTeamPerformance(
 
       // Look up assessment
       const assessment = assessments?.get(row.id)
+      const isEnabled = assessment ? assessment.isEnabled : true
       const absentDays = assessment ? assessment.absentDays : 0
       // Attendance score out of 10: 10 minus 2 points per absent day (min 0)
       const attendanceScore = assessment
@@ -184,6 +185,7 @@ export function calculateVisitTeamPerformance(
         behaviourNote,
         operationalScore,
         performance,
+        isEnabled,
       }
     })
     .sort(
@@ -248,6 +250,7 @@ export async function getMonthlyVisitTeamPerformance(monthKeyOrDate: string | Da
       behaviourTag: true,
       behaviourScore: true,
       notes: true,
+      isEnabled: true,
     },
   })
 
@@ -265,6 +268,7 @@ export async function getMonthlyVisitTeamPerformance(monthKeyOrDate: string | Da
       behaviourTag: row.behaviourTag,
       behaviourScore: row.behaviourScore,
       notes: row.notes,
+      isEnabled: row.isEnabled ?? true,
     })
   }
 

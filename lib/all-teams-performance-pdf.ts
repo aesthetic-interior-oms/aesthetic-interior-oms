@@ -30,6 +30,7 @@ export type VisitTeamItem = {
   attendanceScore?: number
   behaviourTag?: string | null
   behaviourScore?: number
+  isEnabled?: boolean
 }
 
 export type JrArchitectItem = {
@@ -251,6 +252,8 @@ export async function generateAllTeamsPerformancePdf({
   doc.text('2. Visit Team Performance & Field Metrics', 14, yPos)
   yPos += 3
 
+  const activeVisitTeamMembers = visitTeamMembers.filter((m) => m.isEnabled !== false)
+
   autoTable(doc, {
     startY: yPos,
     head: [[
@@ -264,9 +267,9 @@ export async function generateAllTeamsPerformancePdf({
       'Behaviour',
       'Score (/100)',
     ]],
-    body: visitTeamMembers.length === 0
+    body: activeVisitTeamMembers.length === 0
       ? [['-', 'No Visit Team records for this month', '-', '-', '-', '-', '-', '-', '-']]
-      : visitTeamMembers.map((m, idx) => [
+      : activeVisitTeamMembers.map((m, idx) => [
           String(idx + 1),
           m.name,
           `${m.completed || 0} / ${m.totalVisits || 0}`,
