@@ -55,6 +55,7 @@ model Lead {
   stockMovements         StockMovement[]
   materialRequisitions   MaterialRequisition[]
   procurementWalletTransactions ProcurementWalletTransaction[]
+  siteDeliveryLogs       SiteDeliveryLog[]
 
   @@index([assignedTo])
   @@index([primaryOwnerUserId])
@@ -197,6 +198,7 @@ model User {
   procurementWallet              ProcurementWallet?         @relation("ProcurementWalletOwner")
   procurementWalletTxSubmitted   ProcurementWalletTransaction[] @relation("ProcurementWalletSubmittedBy")
   procurementWalletTxReviewed    ProcurementWalletTransaction[] @relation("ProcurementWalletReviewedBy")
+  siteDeliveriesReceived         SiteDeliveryLog[]          @relation("SiteDeliveryReceivedBy")
 }
 
 model DeviceToken {
@@ -1039,6 +1041,7 @@ enum LeadAssignmentDepartment {
   PROJECT_COORDINATOR
   PROCUREMENT
   BOQ
+  SITE_ENGINEER
 }
 
 enum LeadStage {
@@ -1706,6 +1709,36 @@ model ProcurementWalletTransaction {
   @@index([leadId])
   @@index([financeAccountId])
   @@index([materialRequisitionId])
+}
+
+enum SiteDeliveryCondition {
+  GOOD
+  PARTIAL
+  DAMAGED
+  REJECTED
+}
+
+model SiteDeliveryLog {
+  id              String                @id @default(cuid())
+  leadId          String
+  lead            Lead                  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  receivedById    String
+  receivedBy      User                  @relation("SiteDeliveryReceivedBy", fields: [receivedById], references: [id])
+  challanNo       String?
+  vendorName      String?
+  itemsSummary    String
+  quantity        Float?
+  unit            String?
+  deliveryDate    DateTime              @default(now())
+  condition       SiteDeliveryCondition @default(GOOD)
+  slipUrl         String?
+  notes           String?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([leadId])
+  @@index([receivedById])
+  @@index([deliveryDate])
 }
 
 

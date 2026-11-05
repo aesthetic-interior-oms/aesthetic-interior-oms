@@ -11,6 +11,8 @@ const DEPARTMENT_NAME_ALIASES: Record<string, string> = {
   HUMAN_RESOURCES: 'HUMAN_RESOURCES',
   BOQ_TEAM: 'BOQ',
   BOQ_DEPARTMENT: 'BOQ',
+  SITE_ENGINEERING: 'SITE_ENGINEER',
+  SITE_ENGINEER_DEPARTMENT: 'SITE_ENGINEER',
 }
 
 const DEPARTMENT_QUERY_ALIASES: Record<string, string[]> = {
@@ -24,6 +26,7 @@ const DEPARTMENT_QUERY_ALIASES: Record<string, string[]> = {
   HUMAN_RESOURCES: ['HUMAN_RESOURCES', 'HUMAN_RESOURCE', 'HR', 'Human_Resources'],
   HR: ['HUMAN_RESOURCES', 'HUMAN_RESOURCE', 'HR', 'Human_Resources'],
   BOQ: ['BOQ', 'BOQ Team', 'BOQ Department'],
+  SITE_ENGINEER: ['SITE_ENGINEER', 'Site Engineer', 'Site_Engineer', 'Site Engineering', 'SITE_ENGINEERING'],
 }
 
 export function normalizeDepartmentName(name?: string | null) {

@@ -24,6 +24,8 @@ import {
   Wallet,
   FolderKanban,
   Receipt,
+  Truck,
+  HardHat,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -881,6 +883,30 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
+  'Site Engineer': [
+    {
+      id: 'site-engineer-overview',
+      label: 'Site Engineer',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/site-engineer/dashboard',
+        },
+        {
+          icon: FolderKanban,
+          label: 'Projects',
+          href: '/site-engineer/projects',
+        },
+        {
+          icon: Truck,
+          label: 'Delivery & Materials',
+          href: '/site-engineer/delivery',
+        },
+      ],
+    },
+  ],
 }
 
 export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
@@ -916,13 +942,36 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
     pathname.startsWith('/procurement') ||
     Boolean(role && role.toUpperCase().includes('PROCUREMENT'))
 
+  const isSiteEngineer =
+    pathname.startsWith('/site-engineer') ||
+    Boolean(
+      role &&
+        (role.toUpperCase().includes('SITE_ENGINEER') ||
+          role.toUpperCase().includes('SITE ENGINEER')),
+    )
+
   const isSpecialistDesignConsultants =
     role === 'Specialist Design Consultants' ||
     role === 'SPECIALIST_DESIGN_CONSULTANTS'
 
   const groups = useMemo(() => {
+    const addConveyanceLink = (groups: NavGroup[]) => {
+      const conveyanceItem = { icon: Wallet, label: 'Conveyance', href: '/conveyance' }
+      const financeGroup = groups.find((group) => group.id === 'finance-overview')
+      if (financeGroup) {
+        return groups.map((group) => group.id === 'finance-overview'
+          ? { ...group, items: [...group.items, conveyanceItem] }
+          : group)
+      }
+      return [...groups, { id: 'employee-finance', label: 'Finance', defaultOpen: true, items: [conveyanceItem] }]
+    }
+
     if (isProcurement) {
       return navigationGroups['Procurement'] || []
+    }
+
+    if (isSiteEngineer) {
+      return addConveyanceLink(navigationGroups['Site Engineer'] || [])
     }
 
     const baseGroups = isVisits
@@ -935,17 +984,6 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
           : role && (role.toUpperCase().includes('HR') || role.toUpperCase().includes('HUMAN'))
           ? navigationGroups['Human_Resources']
           : [])
-
-    const addConveyanceLink = (groups: NavGroup[]) => {
-      const conveyanceItem = { icon: Wallet, label: 'Conveyance', href: '/conveyance' }
-      const financeGroup = groups.find((group) => group.id === 'finance-overview')
-      if (financeGroup) {
-        return groups.map((group) => group.id === 'finance-overview'
-          ? { ...group, items: [...group.items, conveyanceItem] }
-          : group)
-      }
-      return [...groups, { id: 'employee-finance', label: 'Finance', defaultOpen: true, items: [conveyanceItem] }]
-    }
 
     if (!isVisits) {
       if (role !== 'Jr Architect') {
