@@ -8,17 +8,26 @@ import {
   BarChart3,
   CalendarClock,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   Clock3,
+  Download,
   LayoutDashboard,
+  Loader2,
   MapPin,
   Navigation,
+  Settings,
   TimerReset,
   TrendingUp,
   Trophy,
   XCircle,
   type LucideIcon,
 } from 'lucide-react'
+import { toast } from 'sonner'
+import { VisitPerformanceRow } from '@/lib/visit-performance-types'
+import { generateVisitTeamPerformancePdf } from '@/lib/visit-team-performance-pdf'
+import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles'
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 
 import { Badge } from '@/components/ui/badge'
@@ -65,18 +74,70 @@ type VisitRecord = {
 }
 
 type ApiResponse = { success: boolean; data?: VisitRecord[]; error?: string }
-type PerformanceRow = {
-  id: string
-  name: string
-  totalVisits: number
-  completed: number
-  totalSqft: number
-  avgSqft: number
-  performance: number
+type PerformanceResponse = {
+  success: boolean
+  monthKey?: string
+  data?: {
+    topPerformer: VisitPerformanceRow | null
+    currentUserPerformance: VisitPerformanceRow | null
+    averagePerformance: number
+    members?: VisitPerformanceRow[]
+  }
+  error?: string
 }
-type PerformanceResponse = { success: boolean; data?: { topPerformer: PerformanceRow | null; currentUserPerformance: PerformanceRow | null; averagePerformance: number }; error?: string }
 type DashboardData = ReturnType<typeof buildDashboardData>
-type CurrentUser = { id: string; fullName: string; userDepartments?: Array<{ department?: { name?: string } }> }
+type CurrentUser = {
+  id: string
+  fullName: string
+  userDepartments?: Array<{ department?: { name?: string } }>
+  userRoles?: Array<{ role?: { name?: string } }>
+}
+
+function getTagBadgeClass(tag: string | null | undefined) {
+  if (!tag) return 'bg-slate-500/10 text-slate-700 border-slate-500/20'
+  switch (tag.toUpperCase()) {
+    case 'BEST':
+      return 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30'
+    case 'BETTER':
+      return 'bg-teal-500/15 text-teal-700 border-teal-500/30'
+    case 'GOOD':
+      return 'bg-blue-500/15 text-blue-700 border-blue-500/30'
+    case 'NEUTRAL':
+      return 'bg-slate-500/15 text-slate-700 border-slate-500/30'
+    case 'BAD':
+      return 'bg-amber-500/15 text-amber-700 border-amber-500/30'
+    case 'WORSE':
+      return 'bg-orange-500/15 text-orange-700 border-orange-500/30'
+    case 'WORST':
+      return 'bg-red-500/15 text-red-700 border-red-500/30'
+    default:
+      return 'bg-slate-500/10 text-slate-700 border-slate-500/20'
+  }
+}
+
+function formatMonthLabel(monthKey: string): string {
+  if (!monthKey || !monthKey.includes('-')) return monthKey
+  const [yearStr, monthStr] = monthKey.split('-')
+  const date = new Date(Number(yearStr), Number(monthStr) - 1, 1)
+  return isNaN(date.getTime())
+    ? monthKey
+    : date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+function getCurrentMonthKey(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
+
+function shiftMonthKey(monthKey: string, delta: number): string {
+  const [yearStr, monthStr] = monthKey.split('-')
+  const date = new Date(Number(yearStr), Number(monthStr) - 1 + delta, 1)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
 type KpiCard = { title: string; value: string; detail: string; icon: LucideIcon; tone: string; href: string }
 type ScheduleRow = { id: string; lead: string; area: string; time: string; member: string; status: string; tone: string }
 type PriorityAction = { id: string; lead: string; owner: string; scheduledDate: string; missedDays: number; href: string }
@@ -420,31 +481,215 @@ function ReportingCharts({ trendData, statusData }: { trendData: DashboardData['
   )
 }
 
+function DepartmentLeaderboardCard({
+  members,
+  monthKey,
+  onMonthChange,
+  onDownloadPdf,
+  downloadingPdf,
+  isLeader,
+  loading,
+}: {
+  members: VisitPerformanceRow[]
+  monthKey: string
+  onMonthChange: (delta: number) => void
+  onDownloadPdf: () => void
+  downloadingPdf: boolean
+  isLeader: boolean
+  loading: boolean
+}) {
+  return (
+    <Card className="min-w-0 border-border">
+      <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-3">
+        <div>
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <Trophy className="size-4 text-amber-500" />
+            Visit Team Monthly Performance & Evaluation
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Attendance and behaviour marks given by the visit leader for {formatMonthLabel(monthKey)}.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Month switcher */}
+          <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-lg border border-border">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onMonthChange(-1)}
+            >
+              <ChevronLeft className="size-3.5" />
+            </Button>
+            <span className="px-2 text-xs font-semibold whitespace-nowrap">
+              {formatMonthLabel(monthKey)}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => onMonthChange(1)}
+            >
+              <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
+
+          {/* Download PDF button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onDownloadPdf}
+            disabled={downloadingPdf || loading || members.length === 0}
+            className="gap-1.5 h-8 text-xs font-semibold"
+          >
+            {downloadingPdf ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : (
+              <Download className="size-3.5 text-teal-600" />
+            )}
+            Download PDF
+          </Button>
+
+          {/* Settings link for leader */}
+          {isLeader ? (
+            <Button asChild size="sm" variant="ghost" className="h-8 gap-1 text-xs">
+              <Link href="/visit-team/settings">
+                <Settings className="size-3.5 text-muted-foreground" />
+                Settings & Marks
+              </Link>
+            </Button>
+          ) : null}
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-0 sm:p-6">
+        {loading ? (
+          <div className="py-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+            <Loader2 className="size-4 animate-spin text-teal-600" />
+            Loading performance leaderboard...
+          </div>
+        ) : members.length === 0 ? (
+          <div className="py-8 text-center text-xs text-muted-foreground">
+            No member performance records found for {formatMonthLabel(monthKey)}.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b bg-muted/40 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <th className="py-2.5 px-3 text-center w-12">#</th>
+                  <th className="py-2.5 px-3">Consultant</th>
+                  <th className="py-2.5 px-3 text-center">Visits (Done/Total)</th>
+                  <th className="py-2.5 px-3 text-right">Site SQFT</th>
+                  <th className="py-2.5 px-3 text-center">Reports</th>
+                  <th className="py-2.5 px-3 text-center">Attendance</th>
+                  <th className="py-2.5 px-3 text-center">Behaviour</th>
+                  <th className="py-2.5 px-3 text-right font-bold">Total Score</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {members.map((m, idx) => {
+                  const tagColor = getTagBadgeClass(m.behaviourTag)
+                  const isTop = idx === 0
+                  return (
+                    <tr
+                      key={m.id}
+                      className={`hover:bg-muted/20 transition-colors ${
+                        isTop ? 'bg-amber-500/[0.03]' : ''
+                      }`}
+                    >
+                      <td className="py-2.5 px-3 text-center font-medium text-muted-foreground">
+                        {isTop ? '🥇' : idx + 1}
+                      </td>
+                      <td className="py-2.5 px-3 font-semibold text-foreground whitespace-nowrap">
+                        {m.name}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className="font-semibold text-foreground">{m.completed}</span>
+                        <span className="text-muted-foreground"> / {m.totalVisits}</span>
+                        <span className="text-[10px] text-muted-foreground block">
+                          {m.leadVisits}L • {m.supportVisits}S
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-medium text-foreground whitespace-nowrap">
+                        {m.totalSqft.toLocaleString()} SFT
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <Badge variant="outline" className="text-[10px] font-normal">
+                          {m.reportCompleteness}%
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        <Badge
+                          variant="outline"
+                          className={
+                            m.absentDays === 0
+                              ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/20'
+                              : m.absentDays <= 2
+                              ? 'bg-amber-500/10 text-amber-700 border-amber-500/20'
+                              : 'bg-rose-500/10 text-rose-700 border-rose-500/20'
+                          }
+                        >
+                          {m.absentDays}d abs ({m.attendanceScore}/10)
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                        <Badge variant="outline" className={tagColor}>
+                          {m.behaviourTag || 'Normal'} (
+                          {m.behaviourScore >= 0 ? `+${m.behaviourScore}` : m.behaviourScore})
+                        </Badge>
+                      </td>
+                      <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <div className="w-16 h-2 bg-muted rounded-full overflow-hidden hidden sm:block">
+                            <div
+                              className="h-full bg-teal-600 rounded-full"
+                              style={{ width: `${Math.min(100, m.performance)}%` }}
+                            />
+                          </div>
+                          <span className="font-bold text-sm text-foreground">
+                            {m.performance}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">/100</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function DashboardPage() {
   const [visits, setVisits] = useState<VisitRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonthKey)
   const [performance, setPerformance] = useState<PerformanceResponse['data'] | null>(null)
+  const [loadingPerformance, setLoadingPerformance] = useState(false)
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
 
+  // Load user profile & visits
   useEffect(() => {
     let cancelled = false
     async function loadDashboard() {
       try {
         setLoading(true)
         setError(null)
-        const [meResponse, visitsResponse, performanceResponse] = await Promise.all([
+        const [meResponse, visitsResponse] = await Promise.all([
           fetch('/api/me', { cache: 'no-store' }),
           fetch('/api/visit-schedule?scope=dashboard', { cache: 'no-store' }),
-          fetch('/api/visit-dashboard/performance', { cache: 'no-store' }),
         ])
         if (meResponse.ok) {
           const mePayload = (await meResponse.json()) as CurrentUser
           if (!cancelled) setCurrentUser(mePayload)
-        }
-        if (performanceResponse.ok) {
-          const performancePayload = (await performanceResponse.json()) as PerformanceResponse
-          if (!cancelled && performancePayload.success) setPerformance(performancePayload.data ?? null)
         }
         const response = visitsResponse
         const payload = (await response.json()) as ApiResponse
@@ -460,16 +705,85 @@ export default function DashboardPage() {
     return () => { cancelled = true }
   }, [])
 
+  // Load monthly performance whenever selectedMonth changes
+  useEffect(() => {
+    let cancelled = false
+    async function loadMonthlyPerformance() {
+      try {
+        setLoadingPerformance(true)
+        const res = await fetch(`/api/visit-dashboard/performance?month=${selectedMonth}`, {
+          cache: 'no-store',
+        })
+        if (res.ok) {
+          const payload = (await res.json()) as PerformanceResponse
+          if (!cancelled && payload.success) {
+            setPerformance(payload.data ?? null)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load performance:', err)
+      } finally {
+        if (!cancelled) setLoadingPerformance(false)
+      }
+    }
+    loadMonthlyPerformance()
+    return () => { cancelled = true }
+  }, [selectedMonth])
+
+  const handleMonthChange = (delta: number) => {
+    setSelectedMonth((prev) => shiftMonthKey(prev, delta))
+  }
+
+  const handleDownloadPdf = async () => {
+    const members = performance?.members ?? []
+    if (members.length === 0) {
+      toast.error('No performance records to generate PDF')
+      return
+    }
+    try {
+      setDownloadingPdf(true)
+      await generateVisitTeamPerformancePdf({
+        monthKey: selectedMonth,
+        members,
+        generatedBy: currentUser?.fullName,
+      })
+      toast.success('Performance PDF downloaded')
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to download performance PDF')
+    } finally {
+      setDownloadingPdf(false)
+    }
+  }
+
+  const isLeaderOrAdmin = Boolean(
+    currentUser?.userDepartments?.some((row) => row.department?.name === 'ADMIN') ||
+    (currentUser?.userRoles && hasVisitTeamLeadershipRole(currentUser.userRoles.map((r) => r.role?.name || '')))
+  )
+
   const showTeamStats = currentUser?.userDepartments?.some((row) => row.department?.name === 'ADMIN') ?? false
   const dashboard = useMemo(() => buildDashboardData(visits, currentUser?.id, showTeamStats), [currentUser?.id, showTeamStats, visits])
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-muted/20">
-      <CrmPageHeader title="Visit Team Dashboard" subtitle="Live reporting from this month&apos;s scheduled visits." />
+      <CrmPageHeader title="Visit Team Dashboard" subtitle="Live reporting and monthly performance evaluation." />
       <main className="mx-auto flex w-full max-w-[1440px] min-w-0 flex-col gap-4 px-3 py-4 sm:gap-6 sm:px-6 sm:py-6">
         <OperationHero />
         {error ? <Card className="border-destructive/40"><CardContent className="p-4 text-sm text-destructive">{error}</CardContent></Card> : null}
         {loading ? <Card><CardContent className="p-4 text-sm text-muted-foreground">Loading real visit data...</CardContent></Card> : null}
         <PerformanceHighlights performance={performance} currentUser={currentUser} />
+        
+        {/* Department Leaderboard with Attendance & Behaviour columns */}
+        <DepartmentLeaderboardCard
+          members={performance?.members ?? []}
+          monthKey={selectedMonth}
+          onMonthChange={handleMonthChange}
+          onDownloadPdf={handleDownloadPdf}
+          downloadingPdf={downloadingPdf}
+          isLeader={isLeaderOrAdmin}
+          loading={loadingPerformance}
+        />
+
         <KpiGrid kpis={dashboard.kpis} />
         <ScheduleBoard scheduleRows={dashboard.scheduleRows} todayCount={dashboard.todayCount} />
         <PriorityActions priorityActions={dashboard.priorityActions} />

@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
         topPerformer: members[0] ?? null,
         currentUserPerformance,
         averagePerformance,
+        members,
       },
     })
   } catch (error) {

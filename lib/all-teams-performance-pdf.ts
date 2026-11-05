@@ -26,6 +26,10 @@ export type VisitTeamItem = {
   performance: number
   leadVisits: number
   supportVisits: number
+  absentDays?: number
+  attendanceScore?: number
+  behaviourTag?: string | null
+  behaviourScore?: number
 }
 
 export type JrArchitectItem = {
@@ -252,39 +256,39 @@ export async function generateAllTeamsPerformancePdf({
     head: [[
       'Rank',
       'Consultant Name',
-      'Total Visits',
-      'Completed Visits',
-      'Lead / Support Visits',
-      'Total Site SQFT',
-      'Avg SQFT / Visit',
-      'Report Completeness',
-      'Performance Score (/100)',
+      'Visits (Done/Total)',
+      'Lead / Support',
+      'Total SQFT',
+      'Report %',
+      'Attendance',
+      'Behaviour',
+      'Score (/100)',
     ]],
     body: visitTeamMembers.length === 0
       ? [['-', 'No Visit Team records for this month', '-', '-', '-', '-', '-', '-', '-']]
       : visitTeamMembers.map((m, idx) => [
           String(idx + 1),
           m.name,
-          String(m.totalVisits || 0),
-          String(m.completed || 0),
-          `${m.leadVisits || 0} Lead / ${m.supportVisits || 0} Support`,
+          `${m.completed || 0} / ${m.totalVisits || 0}`,
+          `${m.leadVisits || 0}L / ${m.supportVisits || 0}S`,
           `${(m.totalSqft || 0).toLocaleString()} SFT`,
-          `${(m.avgSqft || 0).toLocaleString()} SFT`,
           `${m.reportCompleteness || 0}%`,
+          m.absentDays !== undefined ? `${m.absentDays}d abs (${m.attendanceScore ?? Math.max(0, 10 - m.absentDays * 2)}/10)` : '10/10',
+          m.behaviourTag ? `${m.behaviourTag} (${(m.behaviourScore ?? 0) >= 0 ? `+${m.behaviourScore}` : m.behaviourScore})` : 'Normal (0)',
           `${m.performance || 0} / 100`,
         ]),
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 2.2, lineColor: [226, 232, 240], lineWidth: 0.1 },
     headStyles: { fillColor: [13, 148, 136], textColor: [255, 255, 255], fontStyle: 'bold' }, // Teal
     columnStyles: {
-      0: { cellWidth: 14, halign: 'center' },
-      1: { cellWidth: 50, fontStyle: 'bold' },
-      2: { halign: 'right' },
-      3: { halign: 'right' },
-      4: { halign: 'center' },
-      5: { halign: 'right' },
-      6: { halign: 'right' },
-      7: { halign: 'right' },
+      0: { cellWidth: 12, halign: 'center' },
+      1: { cellWidth: 46, fontStyle: 'bold' },
+      2: { halign: 'center' },
+      3: { halign: 'center' },
+      4: { halign: 'right' },
+      5: { halign: 'center' },
+      6: { halign: 'center' },
+      7: { halign: 'center' },
       8: { halign: 'right', fontStyle: 'bold' },
     },
   })

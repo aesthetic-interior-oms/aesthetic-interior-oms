@@ -1033,21 +1033,33 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
     }
 
     const adjusted = baseGroups.map((group) => {
-      if (group.id !== 'visit-overview') return group
+      if (group.id !== 'visit-overview' && group.id !== 'sdc-overview') return group
       const queueItem = {
         icon: ClipboardList,
         label: 'Visit Schedule Queue',
         href: '/visit-team/visit-schedule-queue',
       }
+      const settingsItem = {
+        icon: Settings,
+        label: 'Settings',
+        href: '/visit-team/settings',
+      }
       const hasQueueItem = group.items.some(
         (item) => item.href === queueItem.href,
       )
+      const hasSettingsItem = group.items.some(
+        (item) => item.href === settingsItem.href,
+      )
+      let items = group.items
+      if (canViewVisitTeamQueue && !hasQueueItem) {
+        items = [...items, queueItem]
+      }
+      if (canViewVisitTeamQueue && !hasSettingsItem) {
+        items = [...items, settingsItem]
+      }
       return {
         ...group,
-        items:
-          canViewVisitTeamQueue && !hasQueueItem
-            ? [...group.items, queueItem]
-            : group.items,
+        items,
       }
     })
     return addConveyanceLink(adjusted)
