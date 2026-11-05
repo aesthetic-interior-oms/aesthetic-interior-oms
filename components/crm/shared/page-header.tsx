@@ -7,9 +7,10 @@ import { fetchMeCached } from '@/lib/client-me'
 type CrmPageHeaderProps = {
   title: string
   subtitle: string
+  actions?: React.ReactNode
 }
 
-export function CrmPageHeader({ title, subtitle }: CrmPageHeaderProps) {
+export function CrmPageHeader({ title, subtitle, actions }: CrmPageHeaderProps) {
   const [initials, setInitials] = useState('CRM')
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export function CrmPageHeader({ title, subtitle }: CrmPageHeaderProps) {
           <p className="text-xs text-muted-foreground sm:text-sm">{subtitle}</p>
         </div>
         <div className="flex items-center gap-3">
+          {actions}
           <span className="hidden text-sm text-muted-foreground sm:inline">{todayLabel}</span>
           <div className="inline-flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
             {initials === 'CRM' ? <UserCircle2 className="size-5" /> : <span className="text-xs font-semibold">{initials}</span>}

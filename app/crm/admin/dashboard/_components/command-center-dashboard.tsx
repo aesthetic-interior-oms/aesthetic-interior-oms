@@ -9,7 +9,9 @@ import {
   DraftingCompass,
   Download,
   FileCheck2,
+  FileDown,
   Handshake,
+  Loader2,
   Medal,
   IndianRupee,
   Layers3,
@@ -26,6 +28,7 @@ import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { VisitStatusChart } from '@/components/crm/shared/visit-status-chart'
 import { LeaderboardCard } from '@/components/crm/jr-architecture/performance-cards'
 import { QuotationLeaderboardSection, type QuotationPerformanceItem } from './quotation-leaderboard-section'
+import { generateAllTeamsPerformancePdf } from '@/lib/all-teams-performance-pdf'
 import {
   formatLabel,
   formatRelativeTime,
@@ -833,14 +836,100 @@ export function AdminCommandCenterDashboard({
   quotationPerformances,
   quotationPerformanceMonthKey,
 }: CommandCenterDashboardProps) {
+  const [downloadingAllTeamsPdf, setDownloadingAllTeamsPdf] = useState(false)
+
+  const activeMonthKey = visitTeamPerformanceMonthKey || quotationPerformanceMonthKey
+
+  const handleDownloadAllTeamsPdf = async () => {
+    setDownloadingAllTeamsPdf(true)
+    try {
+      await generateAllTeamsPerformancePdf({
+        monthKey: activeMonthKey,
+        srCrmMembers: srCrmPerformance,
+        visitTeamMembers: visitTeamPerformance,
+        jrArchitectMembers: jrArchitectPerformances,
+        quotationMembers: quotationPerformances,
+      })
+    } catch (err) {
+      console.error('Failed to generate all teams PDF:', err)
+    } finally {
+      setDownloadingAllTeamsPdf(false)
+    }
+  }
+
+  const pdfButton = (
+    <Button
+      onClick={handleDownloadAllTeamsPdf}
+      disabled={downloadingAllTeamsPdf}
+      className="bg-[#1f363d] hover:bg-[#15252a] text-white shadow-sm gap-2 text-xs font-semibold h-9"
+      size="sm"
+    >
+      {downloadingAllTeamsPdf ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <FileDown className="h-4 w-4" />
+      )}
+      <span>{downloadingAllTeamsPdf ? 'Generating PDF...' : 'Download All Teams Performance (PDF)'}</span>
+    </Button>
+  )
+
   return (
     <div className="min-h-full bg-gradient-to-b from-background via-background to-muted/20">
       <CrmPageHeader
         title="Admin Command Center"
         subtitle="One-page control room for queue monitoring, approvals, visits, meetings, and budget work."
+        actions={pdfButton}
       />
 
       <main className="mx-auto w-full max-w-[1440px] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        {/* Consolidated All-Teams Monthly Performance Action Banner */}
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-primary/20 bg-card p-4 sm:p-5 shadow-sm">
+          <div className="flex items-center gap-3.5">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#1f363d] text-white shadow-sm">
+              <FileDown className="size-5" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-base font-bold text-foreground">
+                  All Teams Monthly Performance Report
+                </h2>
+                <Badge variant="outline" className="border-primary/30 text-primary">
+                  {formatMonthKey(activeMonthKey)}
+                </Badge>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Executive consolidated PDF report covering SR CRM, Visit Team, JR Architects, and Quotation Department.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <form action="/crm/admin/dashboard" className="flex items-center gap-2">
+              <Input
+                type="month"
+                name="visitMonth"
+                defaultValue={activeMonthKey}
+                aria-label="Performance month"
+                className="h-9 w-[150px] bg-background"
+              />
+              <Button type="submit" size="sm" variant="outline" className="h-9">
+                Apply Month
+              </Button>
+            </form>
+            <Button
+              onClick={handleDownloadAllTeamsPdf}
+              disabled={downloadingAllTeamsPdf}
+              className="bg-[#1f363d] hover:bg-[#15252a] text-white shadow-sm gap-2 text-xs font-semibold h-9"
+            >
+              {downloadingAllTeamsPdf ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileDown className="h-4 w-4" />
+              )}
+              <span>{downloadingAllTeamsPdf ? 'Preparing PDF...' : 'Download All Teams Performance (PDF)'}</span>
+            </Button>
+          </div>
+        </div>
+
         <QueueStatusGrid counts={queueCounts} />
         <VisitPendingRedAlertSection items={overduePendingVisits} totalCount={visitInsights.pendingOverdueCount} />
         <SrCrmPerformanceSection members={srCrmPerformance} />

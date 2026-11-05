@@ -11,7 +11,7 @@ import prisma from '@/lib/prisma'
 import { listVisitCompleteQueueItems } from '@/lib/visit-complete-queue'
 import { getMonthlyVisitTeamPerformance } from '@/lib/visit-performance'
 import { calculateSrCrmPerformance } from '@/lib/sr-crm-performance'
-import { getMonthKey, normalizeMonthKey, syncAllQuotationTeamPerformance } from '@/lib/quotation-performance'
+import { normalizeMonthKey, syncAllQuotationTeamPerformance } from '@/lib/quotation-performance'
 import { AdminCommandCenterDashboard } from './_components/command-center-dashboard'
 import {
   formatLabel,
@@ -241,18 +241,18 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
   const visitTeamPerformance = monthlyVisitPerformanceData.members
   const srCrmPerformance = await calculateSrCrmPerformance(prisma)
 
-  const monthStr = (now.getUTCMonth() + 1).toString().padStart(2, '0')
-  const currentMonthYear = `${now.getUTCFullYear()}-${monthStr}`
+  const [vYear, vMonth] = visitPerformanceMonthKey.split('-').map(Number)
+  const selectedMonthDate = new Date(vYear, (vMonth || 1) - 1, 15)
 
   const jrArchitectPerformances = await prisma.jrArchitectPerformance.findMany({
-    where: { monthYear: currentMonthYear },
+    where: { monthYear: visitPerformanceMonthKey },
     include: { user: { select: { fullName: true } } },
     orderBy: { performanceScore: 'desc' },
   })
 
   // Quotation Team Pre-Calculated Monthly Performance
-  const monthKey = getMonthKey(now)
-  await syncAllQuotationTeamPerformance(now)
+  const monthKey = visitPerformanceMonthKey
+  await syncAllQuotationTeamPerformance(selectedMonthDate)
   const [quotationPerformanceRecords, quotationTeamMembers] = await Promise.all([
     prisma.quotationUserPerformance.findMany({
       where: { monthKey },
