@@ -262,27 +262,25 @@ export async function generateAllTeamsPerformancePdf({
       'Visits (Done/Total)',
       'Lead / Support',
       'Total SQFT',
-      'Report %',
       'Attendance',
       'Behaviour',
       'Score (/100)',
     ]],
     body: activeVisitTeamMembers.length === 0
-      ? [['-', 'No Visit Team records for this month', '-', '-', '-', '-', '-', '-', '-']]
+      ? [['-', 'No Visit Team records for this month', '-', '-', '-', '-', '-', '-']]
       : activeVisitTeamMembers.map((m, idx) => [
           String(idx + 1),
           m.name,
           `${m.completed || 0} / ${m.totalVisits || 0}`,
           `${m.leadVisits || 0}L / ${m.supportVisits || 0}S`,
-          `${(m.totalSqft || 0).toLocaleString()} SFT`,
-          `${m.reportCompleteness || 0}%`,
-          m.absentDays !== undefined ? `${m.absentDays}d abs (${m.attendanceScore ?? Math.max(0, 10 - m.absentDays * 2)}/10)` : '10/10',
-          m.behaviourTag ? `${m.behaviourTag} (${(m.behaviourScore ?? 0) >= 0 ? `+${m.behaviourScore}` : m.behaviourScore})` : 'Normal (0)',
+          (m.totalSqft || 0).toLocaleString(),
+          m.absentDays !== undefined ? (m.absentDays > 0 ? `${m.absentDays}d abs` : 'Full') : 'Full',
+          m.behaviourTag ? m.behaviourTag.toUpperCase() : 'Normal',
           `${m.performance || 0} / 100`,
         ]),
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 2.2, lineColor: [226, 232, 240], lineWidth: 0.1 },
-    headStyles: { fillColor: [13, 148, 136], textColor: [255, 255, 255], fontStyle: 'bold' }, // Teal
+    headStyles: { fillColor: [13, 148, 136], textColor: [255, 255, 255], fontStyle: 'bold' },
     columnStyles: {
       0: { cellWidth: 12, halign: 'center' },
       1: { cellWidth: 46, fontStyle: 'bold' },
@@ -291,8 +289,7 @@ export async function generateAllTeamsPerformancePdf({
       4: { halign: 'right' },
       5: { halign: 'center' },
       6: { halign: 'center' },
-      7: { halign: 'center' },
-      8: { halign: 'right', fontStyle: 'bold' },
+      7: { halign: 'right', fontStyle: 'bold' },
     },
   })
 
