@@ -28,6 +28,22 @@ export const STANDARD_DEPARTMENTS = [
 
 export async function ensureStandardDepartmentsExist() {
   try {
+    // Ensure the protected ADMIN department always exists
+    await prisma.department.upsert({
+      where: { name: 'ADMIN' },
+      update: {},
+      create: {
+        name: 'ADMIN',
+        description: 'System administration',
+      },
+    })
+
+    const count = await prisma.department.count()
+    // If departments already exist, do NOT auto-recreate departments that admins deleted.
+    if (count > 1) {
+      return
+    }
+
     for (const dept of STANDARD_DEPARTMENTS) {
       await prisma.department.upsert({
         where: { name: dept.name },

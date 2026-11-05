@@ -135,6 +135,8 @@ export function UserManagement() {
       const json = await res.json()
       if (!json.success) throw new Error(json.error || 'Failed to remove department and users')
       toast.success(json.message || `Department "${deleteDeptTarget.name}" and users removed successfully`)
+      const deletedKey = deleteDeptTarget.key
+      setDepartments((prev) => prev.filter((d) => d.key !== deletedKey))
       setDeleteDeptTarget(null)
       setConfirmDeptName('')
       await loadData()
