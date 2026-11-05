@@ -169,6 +169,12 @@ export default function AccountsDashboardPage() {
               Stocks & Office Goods
             </Link>
           </Button>
+          <Button size="sm" variant="outline" asChild className="gap-1.5 text-xs border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950">
+            <Link href="/crm/accounts/procurement-wallets">
+              <Wallet className="h-3.5 w-3.5" />
+              Procurement Wallets
+            </Link>
+          </Button>
         </div>
       </div>
 

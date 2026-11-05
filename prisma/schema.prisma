@@ -54,6 +54,7 @@ model Lead {
   vendorAgreements       VendorAgreement[]
   stockMovements         StockMovement[]
   materialRequisitions   MaterialRequisition[]
+  procurementWalletTransactions ProcurementWalletTransaction[]
 
   @@index([assignedTo])
   @@index([primaryOwnerUserId])
@@ -193,6 +194,9 @@ model User {
   conveyanceReviewed          ConveyanceRequest[]         @relation("ConveyanceReviewer")
   requisitionAmendmentsRequested RequisitionAmendment[]  @relation("RequisitionAmendmentRequestedBy")
   requisitionAmendmentsAcknowledged RequisitionAmendment[] @relation("RequisitionAmendmentAcknowledgedBy")
+  procurementWallet              ProcurementWallet?         @relation("ProcurementWalletOwner")
+  procurementWalletTxSubmitted   ProcurementWalletTransaction[] @relation("ProcurementWalletSubmittedBy")
+  procurementWalletTxReviewed    ProcurementWalletTransaction[] @relation("ProcurementWalletReviewedBy")
 }
 
 model DeviceToken {
@@ -799,6 +803,7 @@ model FinanceAccount {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   transactions Transaction[]
+  procurementWalletTransactions ProcurementWalletTransaction[]
 }
 
 model Transaction {
@@ -1527,6 +1532,7 @@ model MaterialRequisition {
   createdBy          User                      @relation("MaterialRequisitionCreatedBy", fields: [createdById], references: [id])
   items              MaterialRequisitionItem[]
   amendments         RequisitionAmendment[]
+  procurementWalletTransactions ProcurementWalletTransaction[]
 
   @@index([leadId])
   @@index([quotationDraftId])
@@ -1615,4 +1621,91 @@ model Supplier {
   @@index([status])
   @@index([supplyCategory])
 }
+
+enum ProcurementWalletTxType {
+  DISBURSEMENT
+  EXPENSE
+  REIMBURSEMENT
+  RETURN_TO_ACCOUNTS
+}
+
+enum ProcurementPaidFrom {
+  COMPANY_ADVANCE
+  PERSONAL_POCKET
+}
+
+enum ProcurementTxStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SETTLED
+}
+
+model ProcurementWallet {
+  id                   String                         @id @default(cuid())
+  userId               String                         @unique
+  user                 User                           @relation("ProcurementWalletOwner", fields: [userId], references: [id], onDelete: Cascade)
+  advanceBalance       Float                          @default(0)
+  pendingReimbursement Float                          @default(0)
+  totalSpent           Float                          @default(0)
+  createdAt            DateTime                       @default(now())
+  updatedAt            DateTime                       @updatedAt
+  transactions         ProcurementWalletTransaction[]
+
+  @@index([userId])
+}
+
+model ProcurementWalletTransaction {
+  id                    String                   @id @default(cuid())
+  walletId              String
+  wallet                ProcurementWallet        @relation(fields: [walletId], references: [id], onDelete: Cascade)
+  type                  ProcurementWalletTxType
+  status                ProcurementTxStatus      @default(PENDING)
+  date                  DateTime                 @default(now())
+
+  // Financial amounts: user entries payment + charge together
+  amount                Float
+  charge                Float                    @default(0)
+  totalAmount           Float
+
+  paymentMethod         String
+  paidFrom              ProcurementPaidFrom      @default(COMPANY_ADVANCE)
+
+  category              String
+  particular            String
+  voucherNo             String?
+  receiptUrl            String?
+
+  // Linkages
+  leadId                String?
+  lead                  Lead?                    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  materialRequisitionId String?
+  materialRequisition   MaterialRequisition?     @relation(fields: [materialRequisitionId], references: [id], onDelete: SetNull)
+
+  // Linkage to Accounts
+  financeAccountId      String?
+  financeAccount        FinanceAccount?          @relation(fields: [financeAccountId], references: [id], onDelete: SetNull)
+  financeTransactionId  String?
+
+  // Audit
+  submittedById         String
+  submittedBy           User                     @relation("ProcurementWalletSubmittedBy", fields: [submittedById], references: [id])
+  reviewedById          String?
+  reviewedBy            User?                    @relation("ProcurementWalletReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt            DateTime?
+  rejectionReason       String?
+  accountsNote          String?
+
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@index([walletId])
+  @@index([type])
+  @@index([status])
+  @@index([date])
+  @@index([leadId])
+  @@index([financeAccountId])
+  @@index([materialRequisitionId])
+}
+
 

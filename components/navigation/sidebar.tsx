@@ -130,6 +130,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/accounts/summary',
         },
         {
+          icon: Wallet,
+          label: 'Procurement Wallets',
+          href: '/crm/accounts/procurement-wallets',
+        },
+        {
           icon: ClipboardList,
           label: 'Projects',
           href: '/crm/accounts/projects',
@@ -635,6 +640,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: BarChart3,
           label: 'Summary',
           href: '/crm/accounts/summary',
+        },
+        {
+          icon: Wallet,
+          label: 'Procurement Wallets',
+          href: '/crm/accounts/procurement-wallets',
         },
         {
           icon: ClipboardList,
