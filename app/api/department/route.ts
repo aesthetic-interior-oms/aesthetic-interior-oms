@@ -62,7 +62,17 @@ function resolveDepartmentIdFromQuery(request: NextRequest): string | null {
 }
 
 type DepartmentWriteAuthorizationResult =
-  | { ok: true }
+  | {
+      ok: true;
+      actor: {
+        id: string;
+        fullName: string;
+        email: string;
+        phone: string;
+        clerkUserId: string | null;
+        userDepartments: string[];
+      };
+    }
   | { ok: false; response: NextResponse };
 
 async function authorizeDepartmentWrite(
@@ -73,8 +83,16 @@ async function authorizeDepartmentWrite(
     return { ok: false, response: authResult.response };
   }
 
-  if (authResult.actor.userDepartments.includes('ADMIN')) {
-    return { ok: true };
+  const isAdmin =
+    authResult.actor.userDepartments.some(
+      (dept) => dept.trim().toUpperCase() === 'ADMIN',
+    ) ||
+    authResult.actorRoles.some(
+      (role) => role.trim().toUpperCase() === 'ADMIN',
+    );
+
+  if (isAdmin) {
+    return { ok: true, actor: authResult.actor };
   }
 
   if (options.allowBootstrapCreate) {
@@ -87,7 +105,7 @@ async function authorizeDepartmentWrite(
     });
 
     if (!adminMember) {
-      return { ok: true };
+      return { ok: true, actor: authResult.actor };
     }
   }
 
@@ -324,7 +342,7 @@ export async function PUT(request: NextRequest) {
 // Supports ?deleteUsers=true to also delete all associated users
 export async function DELETE(request: NextRequest) {
   try {
-    const authResult = await requireDatabaseRoles(['admin']);
+    const authResult = await authorizeDepartmentWrite();
     if (!authResult.ok) {
       return authResult.response;
     }

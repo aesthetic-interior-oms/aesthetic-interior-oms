@@ -246,7 +246,13 @@ export async function DELETE(_req: Request, { params: paramsPromise }: RoutePara
     if (!authz.ok) {
       return authz.response;
     }
-    const isAdminDepartmentUser = authz.actor.userDepartments.includes("ADMIN");
+    const isAdminDepartmentUser =
+      authz.actor.userDepartments.some(
+        (dept) => dept.trim().toUpperCase() === "ADMIN",
+      ) ||
+      authz.actorRoles.some(
+        (role) => role.trim().toUpperCase() === "ADMIN",
+      );
     if (!isAdminDepartmentUser) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -258,6 +264,8 @@ export async function DELETE(_req: Request, { params: paramsPromise }: RoutePara
       where: { id },
       select: {
         id: true,
+        fullName: true,
+        email: true,
         clerkUserId: true,
         userDepartments: {
           select: {
@@ -272,12 +280,12 @@ export async function DELETE(_req: Request, { params: paramsPromise }: RoutePara
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
     const isDeletingAdmin = existing.userDepartments.some(
-      (row) => row.department.name === "ADMIN",
+      (row) => row.department.name.trim().toUpperCase() === "ADMIN",
     );
     if (isDeletingAdmin) {
       const otherAdminCount = await prisma.userDepartment.count({
         where: {
-          department: { name: "ADMIN" },
+          department: { name: { in: ["ADMIN", "Admin"], mode: "insensitive" } },
           userId: { not: id },
         },
       });
@@ -294,19 +302,7 @@ export async function DELETE(_req: Request, { params: paramsPromise }: RoutePara
         const client = await clerkClient();
         await client.users.deleteUser(existing.clerkUserId);
       } catch (error) {
-        const message = String(error).toLowerCase();
-        if (
-          message.includes("not found") ||
-          message.includes("resource_not_found") ||
-          message.includes("404")
-        ) {
-          // Clerk account already missing; continue DB cleanup.
-        } else {
-          return NextResponse.json(
-            { error: "Failed to delete linked Clerk account. User was not removed." },
-            { status: 502 },
-          );
-        }
+        console.warn(`[delete user] Clerk delete warning for ${id}:`, error);
       }
     }
 
@@ -428,7 +424,109 @@ export async function DELETE(_req: Request, { params: paramsPromise }: RoutePara
         });
       }
 
-      await tx.user.delete({ where: { id } });
+      // Unassign optional references to this user
+      await tx.lead.updateMany({
+        where: { primaryOwnerUserId: id },
+        data: { primaryOwnerUserId: null },
+      });
+      await tx.visit.updateMany({
+        where: { assignedToId: id },
+        data: { assignedToId: null },
+      });
+      await tx.visitUpdateRequest.updateMany({
+        where: { resolvedById: id },
+        data: { resolvedById: null },
+      });
+      await tx.quotationDraft.updateMany({
+        where: { updatedById: id },
+        data: { updatedById: null },
+      });
+      await tx.furnitureQuotationDraft.updateMany({
+        where: { updatedById: id },
+        data: { updatedById: null },
+      });
+      await tx.electricalQuotationDraft.updateMany({
+        where: { updatedById: id },
+        data: { updatedById: null },
+      });
+      await tx.partialQuotationDraft.updateMany({
+        where: { updatedById: id },
+        data: { updatedById: null },
+      });
+      await tx.conveyanceRequest.updateMany({
+        where: { reviewedById: id },
+        data: { reviewedById: null },
+      });
+      await tx.requisitionAmendment.updateMany({
+        where: { acknowledgedById: id },
+        data: { acknowledgedById: null },
+      });
+      await tx.stockMovement.updateMany({
+        where: { recipientUserId: id },
+        data: { recipientUserId: null },
+      });
+      await tx.procurementWalletTransaction.updateMany({
+        where: { reviewedById: id },
+        data: { reviewedById: null },
+      });
+      await tx.user.updateMany({
+        where: { approvedById: id },
+        data: { approvedById: null },
+      });
+      await tx.notification.updateMany({
+        where: { subjectUserId: id },
+        data: { subjectUserId: null },
+      });
+
+      // Delete junction records
+      await tx.userDepartment.deleteMany({ where: { userId: id } });
+      await tx.userRole.deleteMany({ where: { userId: id } });
+      await tx.leadAssignment.deleteMany({ where: { userId: id } });
+      await tx.deviceToken.deleteMany({ where: { userId: id } });
+      await tx.notification.deleteMany({ where: { userId: id } });
+      await tx.procurementWallet.deleteMany({ where: { userId: id } });
+
+      // Check whether user has non-cascade historical records
+      const userWithHistory = await tx.user.findUnique({
+        where: { id },
+        select: {
+          _count: {
+            select: {
+              transactionsRecorded: true,
+              transactionsCollected: true,
+              conveyanceRequests: true,
+              materialRequisitionsCreated: true,
+              requisitionAmendmentsRequested: true,
+              stockMovements: true,
+              siteDeliveriesReceived: true,
+              procurementWalletTxSubmitted: true,
+              cadWorkSubmissions: true,
+              visitsCreated: true,
+              activities: true,
+              followUps: true,
+            },
+          },
+        },
+      });
+
+      const totalHistoricalRecords = userWithHistory?._count
+        ? Object.values(userWithHistory._count).reduce((sum, count) => sum + count, 0)
+        : 0;
+
+      if (totalHistoricalRecords === 0) {
+        await tx.user.delete({ where: { id } });
+      } else {
+        await tx.user.update({
+          where: { id },
+          data: {
+            isActive: false,
+            clerkUserId: null,
+            fullName: `${existing.fullName} (Deleted)`,
+            email: `deleted-${id}@removed.local`,
+            phone: `deleted-${id}`,
+          },
+        });
+      }
 
       return {
         reassignedLeadCount: leadsAssignedToUser.length,

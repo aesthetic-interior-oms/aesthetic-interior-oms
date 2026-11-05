@@ -76,14 +76,18 @@ export async function requireDatabaseRoles(allowedRoles: string[]): Promise<Role
 
   const actorRoles = actor.userRoles.map((item) => item.role.name);
   const normalizedActorRoles = actorRoles.map((role) => role.trim().toLowerCase());
-  // console.log('[authz] actorRoles extracted:', actorRoles);
+  const actorDepartments = (actor.userDepartments ?? []).map((item) =>
+    item.department.name.trim().toLowerCase(),
+  );
+  const isDepartmentAdmin = actorDepartments.includes("admin");
+  // console.log('[authz] actorRoles extracted:', actorRoles, 'actorDepartments:', actorDepartments);
   
   // If allowedRoles is specified (not empty), check if user has one of those roles
   if (allowedRoles.length > 0) {
     const normalizedAllowedRoles = allowedRoles.map((role) => role.trim().toLowerCase());
-    const hasAllowedRole = normalizedAllowedRoles.some((role) =>
-      normalizedActorRoles.includes(role),
-    );
+    const hasAllowedRole =
+      normalizedAllowedRoles.some((role) => normalizedActorRoles.includes(role)) ||
+      (normalizedAllowedRoles.includes("admin") && isDepartmentAdmin);
     // console.log('[authz] hasAllowedRole check:', { allowedRoles, actorRoles, hasAllowedRole });
 
     if (!hasAllowedRole) {

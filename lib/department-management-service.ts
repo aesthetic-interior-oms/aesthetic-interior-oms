@@ -103,7 +103,7 @@ export async function deleteDepartmentWithUsers(
           where: { userId: { in: userIds } },
         })
 
-        // Unassign leads
+        // Unassign leads and optional references
         await tx.lead.updateMany({
           where: { assignedTo: { in: userIds } },
           data: { assignedTo: null },
@@ -114,10 +114,62 @@ export async function deleteDepartmentWithUsers(
           data: { primaryOwnerUserId: null },
         })
 
-        // Clean up visit assignments
+        // Clean up visit assignments and resolution references
         await tx.visit.updateMany({
           where: { assignedToId: { in: userIds } },
           data: { assignedToId: null },
+        })
+
+        await tx.visitUpdateRequest.updateMany({
+          where: { resolvedById: { in: userIds } },
+          data: { resolvedById: null },
+        })
+
+        // Clean up quotation draft updater references
+        await tx.quotationDraft.updateMany({
+          where: { updatedById: { in: userIds } },
+          data: { updatedById: null },
+        })
+
+        await tx.furnitureQuotationDraft.updateMany({
+          where: { updatedById: { in: userIds } },
+          data: { updatedById: null },
+        })
+
+        await tx.electricalQuotationDraft.updateMany({
+          where: { updatedById: { in: userIds } },
+          data: { updatedById: null },
+        })
+
+        await tx.partialQuotationDraft.updateMany({
+          where: { updatedById: { in: userIds } },
+          data: { updatedById: null },
+        })
+
+        // Clean up conveyance, stock, requisitions, and wallet reviewer references
+        await tx.conveyanceRequest.updateMany({
+          where: { reviewedById: { in: userIds } },
+          data: { reviewedById: null },
+        })
+
+        await tx.requisitionAmendment.updateMany({
+          where: { acknowledgedById: { in: userIds } },
+          data: { acknowledgedById: null },
+        })
+
+        await tx.stockMovement.updateMany({
+          where: { recipientUserId: { in: userIds } },
+          data: { recipientUserId: null },
+        })
+
+        await tx.procurementWalletTransaction.updateMany({
+          where: { reviewedById: { in: userIds } },
+          data: { reviewedById: null },
+        })
+
+        await tx.user.updateMany({
+          where: { approvedById: { in: userIds } },
+          data: { approvedById: null },
         })
 
         // Clean up device tokens and notifications
@@ -127,6 +179,11 @@ export async function deleteDepartmentWithUsers(
 
         await tx.notification.deleteMany({
           where: { userId: { in: userIds } },
+        })
+
+        await tx.notification.updateMany({
+          where: { subjectUserId: { in: userIds } },
+          data: { subjectUserId: null },
         })
 
         // Clean up user roles & user departments
@@ -143,35 +200,71 @@ export async function deleteDepartmentWithUsers(
           where: { userId: { in: userIds } },
         })
 
-        // Attempt hard delete for each user; if foreign key constraint blocks (e.g. historical invoices),
-        // fallback to deactivating & anonymizing so they disappear from rosters
+        // Safely check each user for restricted historical records before deleting
         for (const u of usersToDelete) {
-          try {
+          const userWithHistory = await tx.user.findUnique({
+            where: { id: u.id },
+            select: {
+              _count: {
+                select: {
+                  transactionsRecorded: true,
+                  transactionsCollected: true,
+                  conveyanceRequests: true,
+                  materialRequisitionsCreated: true,
+                  requisitionAmendmentsRequested: true,
+                  stockMovements: true,
+                  siteDeliveriesReceived: true,
+                  procurementWalletTxSubmitted: true,
+                  cadWorkSubmissions: true,
+                  visitsCreated: true,
+                  activities: true,
+                  followUps: true,
+                },
+              },
+            },
+          })
+
+          const totalHistoricalRecords = userWithHistory?._count
+            ? Object.values(userWithHistory._count).reduce((sum, count) => sum + count, 0)
+            : 0
+
+          if (totalHistoricalRecords === 0) {
             await tx.user.delete({ where: { id: u.id } })
-            deletedUsersCount++
-          } catch {
-            // Soft-delete fallback for historical integrity
+          } else {
+            // Soft-delete and anonymize so user is completely removed from all active rosters
             await tx.user.update({
               where: { id: u.id },
               data: {
                 isActive: false,
                 clerkUserId: null,
+                fullName: `${u.fullName} (Deleted)`,
+                email: `deleted-${u.id}@removed.local`,
+                phone: `deleted-${u.id}`,
               },
             })
-            deletedUsersCount++
           }
+          deletedUsersCount++
         }
       }
 
-      // 4. Finally delete the department record
+      // 4. Ensure any remaining department links are cleared, then delete department
+      await tx.userDepartment.deleteMany({
+        where: { departmentId },
+      })
+
       await tx.department.delete({
         where: { id: departmentId },
       })
     })
   } else {
-    // Just delete the department (and its UserDepartment links via cascade)
-    await prisma.department.delete({
-      where: { id: departmentId },
+    // Just delete the department and its UserDepartment links
+    await prisma.$transaction(async (tx) => {
+      await tx.userDepartment.deleteMany({
+        where: { departmentId },
+      })
+      await tx.department.delete({
+        where: { id: departmentId },
+      })
     })
   }
 

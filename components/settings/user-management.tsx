@@ -250,12 +250,6 @@ export function UserManagement() {
     return parts[parts.length - 1]
   }
 
-  const omitUserKey = <T extends Record<string, unknown>>(record: T, userId: string): T => {
-    const next = { ...record }
-    delete next[userId]
-    return next
-  }
-
   const getUserRoleNames = (user: UserApiItem) =>
     (user.userRoles ?? [])
       .map((item) => item?.role?.name)
@@ -525,24 +519,15 @@ export function UserManagement() {
         throw new Error(payload.error ?? `Failed to delete ${deleteTargetUser.fullName}`)
       }
 
-      const deletedId = deleteTargetUser.id
       const deletedName = deleteTargetUser.fullName
-      setDepartments((prev) =>
-        prev.map((section) => ({
-          ...section,
-          users: section.users.filter((user) => user.id !== deletedId),
-        })),
-      )
-      setPendingUsers((prev) => prev.filter((user) => user.id !== deletedId))
-      setApprovalDepartmentByUser((prev) => omitUserKey(prev, deletedId))
-      setOpenApproveByUser((prev) => omitUserKey(prev, deletedId))
-      setApprovingIds((prev) => omitUserKey(prev, deletedId))
-      setTogglingIds((prev) => omitUserKey(prev, deletedId))
-      setUpdatingVisitTeamRoleByUser((prev) => omitUserKey(prev, deletedId))
+      toast.success(`${deletedName} account removed successfully.`)
       setStatusMessage(`${deletedName} account deleted successfully.`)
       setDeleteTargetUser(null)
+      await loadData()
     } catch (error) {
-      setStatusError(error instanceof Error ? error.message : 'Failed to delete user account')
+      const msg = error instanceof Error ? error.message : 'Failed to delete user account'
+      toast.error(msg)
+      setStatusError(msg)
     } finally {
       setDeletingUserId(null)
     }
