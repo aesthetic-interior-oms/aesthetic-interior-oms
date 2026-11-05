@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Dialog,
@@ -14,7 +15,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { Building2, Mail, Power, RefreshCw, Search, Trash2, UserCheck, UserX, Users2 } from 'lucide-react'
+import { Building2, Mail, Power, RefreshCw, Search, Trash2, UserCheck, UserX, Users2, AlertTriangle } from 'lucide-react'
+import { toast } from 'sonner'
 import { VISIT_TEAM_CO_LEADER_ROLE, VISIT_TEAM_LEADER_ROLE } from '@/lib/visit-team-roles'
 import { JR_ARCHITECT_CO_LEADER_ROLE, JR_ARCHITECT_LEADER_ROLE } from '@/lib/jr-architecture-roles'
 
@@ -113,6 +115,37 @@ export function UserManagement() {
   const [updatingVisitTeamRoleByUser, setUpdatingVisitTeamRoleByUser] = useState<Record<string, boolean>>({})
   const [deleteTargetUser, setDeleteTargetUser] = useState<UserApiItem | null>(null)
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
+  const [deleteDeptTarget, setDeleteDeptTarget] = useState<{
+    key: string
+    name: string
+    users: UserApiItem[]
+  } | null>(null)
+  const [confirmDeptName, setConfirmDeptName] = useState('')
+  const [deletingDept, setDeletingDept] = useState(false)
+  const [deleteDeptError, setDeleteDeptError] = useState<string | null>(null)
+
+  const deleteDepartmentAndUsers = async () => {
+    if (!deleteDeptTarget || confirmDeptName.trim() !== deleteDeptTarget.name.trim()) return
+    setDeletingDept(true)
+    setDeleteDeptError(null)
+    try {
+      const res = await fetch(`/api/department?id=${deleteDeptTarget.key}&deleteUsers=true`, {
+        method: 'DELETE',
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error || 'Failed to remove department and users')
+      toast.success(json.message || `Department "${deleteDeptTarget.name}" and users removed successfully`)
+      setDeleteDeptTarget(null)
+      setConfirmDeptName('')
+      await loadData()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error deleting department and users'
+      setDeleteDeptError(message)
+      toast.error(message)
+    } finally {
+      setDeletingDept(false)
+    }
+  }
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -750,7 +783,24 @@ export function UserManagement() {
                     <CardDescription>Department user roster</CardDescription>
                   </div>
                 </div>
-                <Badge variant="secondary">{section.users.length}</Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">{section.users.length}</Badge>
+                  {section.name !== 'ADMIN' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 border-rose-200 dark:border-rose-900 gap-1.5"
+                      onClick={() => {
+                        setDeleteDeptTarget(section)
+                        setConfirmDeptName('')
+                        setDeleteDeptError(null)
+                      }}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Remove Department &amp; Users
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -892,6 +942,87 @@ export function UserManagement() {
               disabled={!deleteTargetUser || Boolean(deletingUserId)}
             >
               {deletingUserId ? 'Deleting...' : 'Delete Account'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Department & Associated Users Dialog */}
+      <Dialog open={Boolean(deleteDeptTarget)} onOpenChange={(open) => !open && setDeleteDeptTarget(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Remove Department &amp; Users
+            </DialogTitle>
+            <DialogDescription className="space-y-3 pt-2 text-left">
+              <p className="text-xs text-foreground font-medium">
+                This will permanently delete the department{' '}
+                <span className="font-bold text-destructive font-mono">&quot;{deleteDeptTarget?.name}&quot;</span> and
+                delete all{' '}
+                <span className="font-bold">{deleteDeptTarget?.users.length ?? 0} associated user(s)</span> from the database
+                and Clerk authentication login.
+              </p>
+
+              {deleteDeptTarget && deleteDeptTarget.users.length > 0 && (
+                <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-2.5 max-h-36 overflow-y-auto space-y-1">
+                  <p className="text-[11px] font-semibold text-destructive uppercase tracking-wider">
+                    Users to be removed ({deleteDeptTarget.users.length}):
+                  </p>
+                  {deleteDeptTarget.users.map((u) => (
+                    <div key={u.id} className="text-xs text-muted-foreground flex justify-between">
+                      <span className="font-medium text-foreground">{u.fullName}</span>
+                      <span className="font-mono text-[11px]">{u.email}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="space-y-1.5 pt-1">
+                <Label className="text-xs">
+                  Type <span className="font-mono font-bold select-all">&quot;{deleteDeptTarget?.name}&quot;</span> to confirm:
+                </Label>
+                <Input
+                  value={confirmDeptName}
+                  onChange={(e) => setConfirmDeptName(e.target.value)}
+                  placeholder={deleteDeptTarget?.name}
+                  className="font-mono text-xs"
+                  autoFocus
+                />
+              </div>
+
+              {deleteDeptError && (
+                <p className="text-xs text-destructive font-medium">{deleteDeptError}</p>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setDeleteDeptTarget(null)
+                setConfirmDeptName('')
+                setDeleteDeptError(null)
+              }}
+              disabled={deletingDept}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => void deleteDepartmentAndUsers()}
+              disabled={
+                !deleteDeptTarget ||
+                deletingDept ||
+                confirmDeptName.trim() !== deleteDeptTarget.name.trim()
+              }
+            >
+              {deletingDept ? 'Removing...' : 'Delete Department & Users'}
             </Button>
           </div>
         </DialogContent>

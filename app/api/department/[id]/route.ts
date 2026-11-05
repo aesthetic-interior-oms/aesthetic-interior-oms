@@ -148,7 +148,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: NextRequest, context: RouteContext) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const authResult = await requireDatabaseRoles(['admin']);
     if (!authResult.ok) {
@@ -163,31 +163,21 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
       );
     }
 
-    const existingDepartment = await prisma.department.findUnique({
-      where: { id: departmentId },
-      select: { id: true },
+    const deleteUsers = request.nextUrl.searchParams.get('deleteUsers') === 'true';
+
+    const { deleteDepartmentWithUsers } = await import('@/lib/department-management-service');
+    const result = await deleteDepartmentWithUsers({
+      departmentId,
+      deleteUsers,
+      actorUserId: authResult.actor.id,
     });
 
-    if (!existingDepartment) {
-      return NextResponse.json(
-        { success: false, error: 'Department not found' },
-        { status: 404 }
-      );
-    }
-
-    const deletedDepartment = await prisma.department.delete({
-      where: { id: departmentId },
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: deletedDepartment,
-      message: 'Department deleted successfully',
-    });
-  } catch (error) {
+    return NextResponse.json(result);
+  } catch (error: unknown) {
     console.error('Error deleting department:', error);
+    const message = error instanceof Error ? error.message : 'Failed to delete department';
     return NextResponse.json(
-      { success: false, error: 'Failed to delete department' },
+      { success: false, error: message },
       { status: 500 }
     );
   }

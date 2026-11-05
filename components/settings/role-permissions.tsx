@@ -16,29 +16,9 @@ import {
 import { ChevronDown, Lock, Info, Trash2, AlertTriangle, Plus, Shield, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 
-// Names of departments that are protected (managed by ensureStandardDepartmentsExist)
+// Names of departments that are strictly protected from deletion
 const SYSTEM_DEPARTMENT_NAMES = new Set([
   'ADMIN',
-  'SR_CRM',
-  'JR_CRM',
-  'QUOTATION_TEAM',
-  'VISIT_TEAM',
-  'SPECIALIST_DESIGN_CONSULTANTS',
-  'JR_ARCHITECT',
-  '3D_VISUALIZER',
-  'ACCOUNTS',
-  'PROJECT_CORDINATOR',
-  'PROCUREMENT',
-  'BOQ',
-  'PROJECT_ENGINEER',
-  'SITE_ENGINEER',
-  'ELECTRICIAN',
-  'FACTORY_MANAGER',
-  'IMPLEMENTATION_TEAM',
-  'CARPENTRY',
-  'PLUMBING',
-  'CIVIL_WORKS',
-  'LOGISTICS_DELIVERY',
 ])
 
 interface Department {
@@ -189,7 +169,7 @@ export function RolePermissions() {
     setIsDeleting(true)
     setDeleteError(null)
     try {
-      const response = await fetch(`/api/department?id=${deletingDept.id}`, { method: 'DELETE' })
+      const response = await fetch(`/api/department?id=${deletingDept.id}&deleteUsers=true`, { method: 'DELETE' })
       const result = await response.json()
       if (result.success) {
         setDepartments((prev) => prev.filter((d) => d.id !== deletingDept.id))
@@ -498,8 +478,8 @@ export function RolePermissions() {
                 <p className="font-semibold">⚠️ Warning: Irreversible Action!</p>
                 <p>Deleting this department will permanently remove it. Users assigned to it will be unassigned.</p>
                 {deletingDept && deletingDept._count.userDepartments > 0 && (
-                  <p className="font-bold pt-1">
-                    {deletingDept._count.userDepartments} active user(s) are currently assigned to this department.
+                  <p className="font-bold pt-1 text-destructive">
+                    All {deletingDept._count.userDepartments} active user(s) assigned to this department will also be permanently deleted from the database and Clerk login.
                   </p>
                 )}
               </div>
@@ -535,7 +515,7 @@ export function RolePermissions() {
               onClick={handleDeleteDepartment}
               disabled={isDeleting || confirmName.trim() !== deletingDept?.name.trim()}
             >
-              {isDeleting ? 'Deleting...' : 'Delete Department'}
+              {isDeleting ? 'Deleting...' : 'Delete Department & Users'}
             </Button>
           </DialogFooter>
         </DialogContent>

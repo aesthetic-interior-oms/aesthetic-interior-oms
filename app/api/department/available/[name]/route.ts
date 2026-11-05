@@ -137,7 +137,7 @@ export async function GET(
     // console.log('[DEPT-API] UserDepartments count:', userDepartments.length);
     // console.log('[DEPT-API] UserDepartments data:', JSON.stringify(userDepartments, null, 2));
 
-    let users = Array.from(
+    const users = Array.from(
       new Map(
         userDepartments.map((ud) => [
           ud.user.id,

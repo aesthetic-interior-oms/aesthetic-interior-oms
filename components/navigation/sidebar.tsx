@@ -25,7 +25,6 @@ import {
   FolderKanban,
   Receipt,
   Truck,
-  HardHat,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -1052,7 +1051,15 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
       }
     })
     return addConveyanceLink(adjusted)
-  }, [canViewJrArchitectLeaderPages, canViewVisitTeamQueue, isSpecialistDesignConsultants, isVisits, role])
+  }, [
+    canViewJrArchitectLeaderPages,
+    canViewVisitTeamQueue,
+    isSpecialistDesignConsultants,
+    isVisits,
+    isProcurement,
+    isSiteEngineer,
+    role,
+  ])
 
   useEffect(() => {
     if (!isVisits && role !== 'Jr Architect') return

@@ -321,9 +321,10 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Delete a department by id from query/body
 // Supports clients that call /api/department?id=<id> instead of /api/department/<id>
+// Supports ?deleteUsers=true to also delete all associated users
 export async function DELETE(request: NextRequest) {
   try {
-    const authResult = await authorizeDepartmentWrite();
+    const authResult = await requireDatabaseRoles(['admin']);
     if (!authResult.ok) {
       return authResult.response;
     }
@@ -332,6 +333,9 @@ export async function DELETE(request: NextRequest) {
     const body = await parseDeleteJsonBody(request);
     const bodyId = toOptionalString(body?.id);
     const departmentId = queryId || bodyId;
+    const deleteUsers =
+      request.nextUrl.searchParams.get('deleteUsers') === 'true' ||
+      Boolean((body as { deleteUsers?: boolean })?.deleteUsers);
 
     if (!departmentId) {
       return NextResponse.json(
@@ -340,30 +344,18 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const existingDepartment = await prisma.department.findUnique({
-      where: { id: departmentId },
-      select: { id: true },
+    const { deleteDepartmentWithUsers } = await import('@/lib/department-management-service');
+    const result = await deleteDepartmentWithUsers({
+      departmentId,
+      deleteUsers,
+      actorUserId: authResult.actor.id,
     });
 
-    if (!existingDepartment) {
-      return NextResponse.json(
-        { success: false, error: 'Department not found' },
-        { status: 404 }
-      );
-    }
-
-    const deletedDepartment = await prisma.department.delete({
-      where: { id: departmentId },
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: deletedDepartment,
-      message: 'Department deleted successfully',
-    });
-  } catch {
+    return NextResponse.json(result);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to delete department';
     return NextResponse.json(
-      { success: false, error: 'Failed to delete department' },
+      { success: false, error: message },
       { status: 500 }
     );
   }
