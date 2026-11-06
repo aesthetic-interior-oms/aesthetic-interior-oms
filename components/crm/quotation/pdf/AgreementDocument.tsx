@@ -1,6 +1,6 @@
 'use client'
 
-import { Circle, Document, Font, Image, Page, StyleSheet, Svg, Text, View } from '@react-pdf/renderer'
+import { Circle, Document, Font, Image, Page, Path, StyleSheet, Svg, Text, View } from '@react-pdf/renderer'
 import type { AgreementContent } from '@/lib/agreement-template'
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 import {
@@ -88,40 +88,59 @@ const styles = StyleSheet.create({
   // ─── Cover Page Styles ───
   coverPage: {
     position: 'relative',
-    paddingHorizontal: 40,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FAF8F5',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'center',
     alignItems: 'center',
     height: '100%',
+    paddingTop: 85,
+    paddingBottom: 40,
+    paddingHorizontal: 40,
+  },
+  coverSpineLine1: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 18,
+    width: 1,
+    backgroundColor: '#E6DFD5',
+  },
+  coverSpineLine2: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 21,
+    width: 0.5,
+    backgroundColor: '#EFE9DF',
+  },
+  coverRightAccentStrip: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: 16,
+    backgroundColor: PRIMARY,
+    borderLeftWidth: 1.5,
+    borderLeftColor: GOLD,
   },
   coverContentWrapper: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
     width: '100%',
+    zIndex: 2,
   },
   coverLogoSection: {
-    marginBottom: 70,
+    marginBottom: 44,
     alignItems: 'center',
   },
-  coverEmblem: {
-    width: 68,
-    height: 68,
-  },
-  coverStudioName: {
-    fontFamily: 'Playfair Display',
-    fontWeight: 'bold',
-    fontSize: 15.5,
-    color: PRIMARY,
-    marginTop: 9,
-    letterSpacing: 1.2,
-    textAlign: 'center',
+  coverLogo: {
+    width: 155,
+    height: 48,
+    objectFit: 'contain',
   },
   coverTitleSection: {
-    marginBottom: 70,
+    marginBottom: 36,
     alignItems: 'center',
   },
   coverInteriorWorkSub: {
@@ -129,66 +148,87 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: GOLD,
     textTransform: 'uppercase',
-    letterSpacing: 6,
-    marginBottom: 4,
+    letterSpacing: 5,
+    marginBottom: 6,
     textAlign: 'center',
   },
   coverTitle: {
-    fontFamily: 'Times-Italic',
-    fontSize: 48,
+    fontFamily: 'Playfair Display',
+    fontWeight: 'bold',
+    fontSize: 38,
     color: PRIMARY,
-    letterSpacing: 2,
+    letterSpacing: 1.5,
     textAlign: 'center',
   },
   coverGoldDivider: {
-    width: 46,
+    width: 48,
     height: 1.5,
     backgroundColor: GOLD,
-    marginTop: 10,
+    marginTop: 12,
     alignSelf: 'center',
   },
   coverSection: {
-    marginBottom: 70,
+    marginBottom: 28,
     alignItems: 'center',
   },
   coverSectionLabel: {
-    fontSize: 8.5,
+    fontSize: 8,
     fontWeight: 'bold',
     color: GOLD,
     textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 7,
+    letterSpacing: 2.5,
+    marginBottom: 5,
     textAlign: 'center',
   },
   coverClientName: {
+    fontFamily: 'Playfair Display',
     fontSize: 16,
     fontWeight: 'bold',
     color: PRIMARY,
     textAlign: 'center',
   },
   coverClientSub: {
-    fontSize: 9.5,
+    fontSize: 9,
     color: '#64748b',
     marginTop: 3,
     textAlign: 'center',
+    maxWidth: 380,
   },
   coverCompanyName: {
-    fontSize: 15,
+    fontSize: 13.5,
     fontWeight: 'bold',
     color: PRIMARY,
     textAlign: 'center',
+    letterSpacing: 0.5,
   },
   coverMetaSmall: {
     fontSize: 8.5,
     color: '#64748b',
-    marginTop: 5,
+    marginTop: 3,
+    textAlign: 'center',
+  },
+  coverDateLabel: {
+    fontSize: 7.5,
+    fontWeight: 'bold',
+    color: GOLD,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
+    marginBottom: 3,
     textAlign: 'center',
   },
   coverMetaSmallDate: {
-    fontSize: 8,
-    color: '#94a3b8',
-    marginTop: 2,
+    fontSize: 8.5,
+    fontWeight: 'bold',
+    color: PRIMARY,
     textAlign: 'center',
+  },
+  coverBottomArtwork: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 185,
+    zIndex: 1,
   },
 
   page: {
@@ -1035,34 +1075,89 @@ export function AgreementDocumentPdf({
     <Document title={`Agreement - ${clientName}`} author="Aesthetic Interior">
       {/* ─── FRONT COVER PAGE ────────────────────────────────────────── */}
       <Page size="A4" style={styles.coverPage}>
-        {/* Top-Right 2 Filled Arcs (Same color, 60% and 100% opacity) */}
-        <Svg width={240} height={240} viewBox="0 0 240 240" style={{ position: 'absolute', top: 0, right: 0 }}>
-          <Circle cx={240} cy={0} r={210} fill={PRIMARY} opacity={0.6} />
-          <Circle cx={240} cy={0} r={130} fill={PRIMARY} opacity={1.0} />
+        {/* Subtle Vertical Book-Spine / Paper Binding Detail on Left */}
+        <View style={styles.coverSpineLine1} />
+        <View style={styles.coverSpineLine2} />
+
+        {/* Vertical Accent Strip Along Right Edge */}
+        <View style={styles.coverRightAccentStrip} />
+
+        {/* Elegant Plant-Leaf Botanical Decoration Extending from Upper-Left */}
+        <Svg width={190} height={210} viewBox="0 0 190 210" style={{ position: 'absolute', top: 0, left: 0, zIndex: 1 }}>
+          {/* Main botanical stems */}
+          <Path d="M 0 0 C 18 20, 38 52, 65 92 C 92 132, 118 162, 155 188" stroke={PRIMARY} strokeWidth={1.5} fill="none" opacity={0.55} />
+          <Path d="M 65 92 C 78 112, 88 138, 92 165" stroke={PRIMARY} strokeWidth={1} fill="none" opacity={0.4} />
+
+          {/* Leaves along upper stem */}
+          <Path d="M 24 30 C 40 22, 58 26, 64 38 C 58 50, 40 46, 24 30 Z" fill={PRIMARY} opacity={0.35} />
+          <Path d="M 18 44 C 12 60, 20 76, 32 78 C 38 70, 34 54, 18 44 Z" fill={GOLD} opacity={0.3} />
+          <Path d="M 45 64 C 66 56, 86 62, 95 76 C 84 88, 65 84, 45 64 Z" fill={PRIMARY} opacity={0.4} />
+          <Path d="M 48 80 C 40 100, 46 120, 58 126 C 68 118, 65 98, 48 80 Z" fill={PRIMARY} opacity={0.3} />
+
+          {/* Leaves along mid & lower stem */}
+          <Path d="M 80 112 C 102 104, 124 112, 134 128 C 120 140, 100 134, 80 112 Z" fill={GOLD} opacity={0.35} />
+          <Path d="M 85 125 C 78 146, 88 164, 102 168 C 110 158, 106 140, 85 125 Z" fill={PRIMARY} opacity={0.35} />
+          <Path d="M 128 162 C 148 162, 166 172, 172 186 C 158 192, 140 184, 128 162 Z" fill={PRIMARY} opacity={0.4} />
+
+          {/* Small accent berries / dots */}
+          <Circle cx={55} cy={50} r={2.2} fill={GOLD} opacity={0.85} />
+          <Circle cx={90} cy={100} r={2.2} fill={GOLD} opacity={0.85} />
+          <Circle cx={125} cy={150} r={2.2} fill={GOLD} opacity={0.85} />
         </Svg>
 
-        {/* Bottom-Left 2 Filled Arcs (Same color, 60% and 100% opacity) */}
-        <Svg width={240} height={240} viewBox="0 0 240 240" style={{ position: 'absolute', bottom: 0, left: 0 }}>
-          <Circle cx={0} cy={240} r={210} fill={PRIMARY} opacity={0.6} />
-          <Circle cx={0} cy={240} r={130} fill={PRIMARY} opacity={1.0} />
-        </Svg>
+        {/* Large Geometric Semicircle Composition at Bottom */}
+        <View style={styles.coverBottomArtwork}>
+          <Svg width={595} height={185} viewBox="0 0 595 185">
+            {/* Outer soft ambient semicircle */}
+            <Path d="M 87.5 185 A 210 210 0 0 1 507.5 185 Z" fill={PRIMARY} opacity={0.07} />
 
-        {/* Centerwise Serial Content with Big Common Gap */}
+            {/* Fine outer gold geometric arc line */}
+            <Path d="M 77.5 185 A 220 220 0 0 1 517.5 185" stroke={GOLD} strokeWidth={1} fill="none" opacity={0.45} />
+
+            {/* Secondary concentric arc stroke */}
+            <Path d="M 117.5 185 A 180 180 0 0 1 477.5 185" stroke={PRIMARY} strokeWidth={0.75} fill="none" opacity={0.35} />
+
+            {/* Mid layered semicircle band in subtle teal */}
+            <Path d="M 137.5 185 A 160 160 0 0 1 457.5 185 Z" fill={PRIMARY} opacity={0.14} />
+
+            {/* Inner warm gold semicircle */}
+            <Path d="M 182.5 185 A 115 115 0 0 1 412.5 185 Z" fill={GOLD} opacity={0.22} />
+
+            {/* Asymmetric overlapping contrasting semicircle */}
+            <Path d="M 235 185 A 80 80 0 0 1 395 185 Z" fill={PRIMARY} opacity={0.85} />
+
+            {/* Core gold arc accent */}
+            <Path d="M 262.5 185 A 35 35 0 0 1 332.5 185 Z" fill={GOLD} opacity={0.8} />
+
+            {/* Cutout center base */}
+            <Path d="M 280 185 A 17.5 17.5 0 0 1 315 185 Z" fill="#FAF8F5" />
+
+            {/* Circular details within geometric artwork */}
+            <Circle cx={297.5} cy={45} r={4.5} fill={GOLD} />
+            <Circle cx={297.5} cy={45} r={8} stroke={PRIMARY} strokeWidth={1} fill="none" opacity={0.6} />
+            <Circle cx={212.5} cy={88} r={3.5} fill={PRIMARY} opacity={0.65} />
+            <Circle cx={382.5} cy={88} r={3.5} fill={GOLD} opacity={0.75} />
+            <Circle cx={165} cy={135} r={3} fill={GOLD} opacity={0.6} />
+            <Circle cx={430} cy={135} r={3} fill={PRIMARY} opacity={0.6} />
+            <Circle cx={297.5} cy={165} r={2} fill="#FAF8F5" opacity={0.9} />
+          </Svg>
+        </View>
+
+        {/* Centered Editorial Content */}
         <View style={styles.coverContentWrapper}>
-          {/* 1. Logo / Emblem & Aesthetic Interior Studio */}
+          {/* 1. Header Logo (using HeaderLogo.png, no Aesthetic Interior Studio word) */}
           <View style={styles.coverLogoSection}>
-            <Image src={watermarkSrc} style={styles.coverEmblem} />
-            <Text style={styles.coverStudioName}>Aesthetic Interior Studio</Text>
+            <Image src={logoSrc} style={styles.coverLogo} />
           </View>
 
-          {/* 2. Interior Work & Agreement (Calligraphic Font) */}
+          {/* 2. Interior Work & Agreement Title */}
           <View style={styles.coverTitleSection}>
             <Text style={styles.coverInteriorWorkSub}>INTERIOR WORK</Text>
             <Text style={styles.coverTitle}>Agreement</Text>
             <View style={styles.coverGoldDivider} />
           </View>
 
-          {/* 3. Prepared for (Client Name) */}
+          {/* 3. Prepared for (Client Name & Details) */}
           <View style={styles.coverSection}>
             <Text style={styles.coverSectionLabel}>Prepared For</Text>
             <Text style={styles.coverClientName}>{agreement.ownerName || clientName}</Text>
@@ -1071,11 +1166,16 @@ export function AgreementDocumentPdf({
             ) : null}
           </View>
 
-          {/* 4. Prepared by (Company Name) in small website url and date */}
-          <View style={[styles.coverSection, { marginBottom: 0 }]}>
+          {/* 4. Prepared by (Company Name & Website) */}
+          <View style={styles.coverSection}>
             <Text style={styles.coverSectionLabel}>Prepared By</Text>
             <Text style={styles.coverCompanyName}>Aesthetic Interior</Text>
             <Text style={styles.coverMetaSmall}>www.aestheticinteriortech.com</Text>
+          </View>
+
+          {/* 5. Date */}
+          <View style={[styles.coverSection, { marginBottom: 0 }]}>
+            <Text style={styles.coverDateLabel}>Date</Text>
             <Text style={styles.coverMetaSmallDate}>{formatDateString(agreement.agreementDate)}</Text>
           </View>
         </View>
