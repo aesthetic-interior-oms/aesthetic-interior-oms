@@ -16,6 +16,30 @@ async function getDbUser() {
   })
 }
 
+function mapStockCategoryToExpenseCategory(cat: string): string {
+  switch (cat) {
+    case "BOARD":
+      return "BOARD_MATERIAL"
+    case "LAMINATE_HPL":
+      return "HPL"
+    case "HARDWARE":
+    case "FITTINGS":
+      return "HARDWARE"
+    case "PAINT_FINISHES":
+      return "PAINT_MATERIALS"
+    case "LIGHTING_ELECTRICAL":
+      return "ELECTRIC_ITEM"
+    case "GLASS_MIRROR":
+      return "GLASS"
+    case "RAW_MATERIALS":
+      return "MATERIAL_COST"
+    case "TOOLS_CONSUMABLES":
+      return "SITE_EXPENSE"
+    default:
+      return "MATERIAL_COST"
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getDbUser()
@@ -150,6 +174,47 @@ export async function POST(request: NextRequest) {
             category: txCategory,
             recordedById: user.id,
             leadId: leadId || null,
+            financeAccountId: financeAccountId || null,
+          },
+        })
+        createdTransactionId = financialTx.id
+      }
+
+      // Automatically record financial cost on the project when materials are issued from Virtual Inventory
+      if (movementType === "PROJECT_ISSUE" && leadId && totalValue > 0) {
+        const txCategory = transactionCategory || mapStockCategoryToExpenseCategory(item.category)
+        const refPart = referenceNo ? ` [Ref: ${referenceNo}]` : ""
+        const notePart = notes ? ` - ${notes}` : ""
+        const particular = `Virtual Inventory: Issued ${qty} ${item.unit} of ${item.name} (@ ৳${cost.toLocaleString()}/${item.unit})${refPart}${notePart}`
+
+        const financialTx = await tx.transaction.create({
+          data: {
+            type: TransactionType.OUTFLOW,
+            particular,
+            amount: totalValue,
+            category: txCategory,
+            recordedById: user.id,
+            leadId,
+            financeAccountId: financeAccountId || null,
+          },
+        })
+        createdTransactionId = financialTx.id
+      }
+
+      // Automatically credit/reduce project cost if unused materials are returned from project to Virtual Inventory
+      if (movementType === "PROJECT_RETURN" && leadId && totalValue > 0) {
+        const txCategory = transactionCategory || mapStockCategoryToExpenseCategory(item.category)
+        const notePart = notes ? ` - ${notes}` : ""
+        const particular = `Virtual Inventory Return: Unused ${qty} ${item.unit} of ${item.name} (@ ৳${cost.toLocaleString()}/${item.unit})${notePart}`
+
+        const financialTx = await tx.transaction.create({
+          data: {
+            type: TransactionType.OUTFLOW,
+            particular,
+            amount: -totalValue,
+            category: txCategory,
+            recordedById: user.id,
+            leadId,
             financeAccountId: financeAccountId || null,
           },
         })

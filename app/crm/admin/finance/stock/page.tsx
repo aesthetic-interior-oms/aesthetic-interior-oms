@@ -490,7 +490,11 @@ export default function StockManagementPage() {
       })
       const data = await res.json()
       if (data.success) {
-        toast.success("Stock item issued successfully!")
+        if (issueForm.issueDestination === "PROJECT") {
+          toast.success("Stock item issued & cost automatically added to project ledger!")
+        } else {
+          toast.success("Stock item issued successfully!")
+        }
         setIsIssueOpen(false)
         setIssueForm({
           stockItemId: "",
@@ -577,7 +581,7 @@ export default function StockManagementPage() {
             </Link>
           </div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Warehouse className="w-8 h-8 text-primary" /> Stock & Office Goods Management
+            <Warehouse className="w-8 h-8 text-primary" /> Virtual Inventory & Stock Management
           </h1>
           <p className="text-muted-foreground">
             Manage office goods (pens, pads, tissue, soap), HR consumables, and interior project materials in one unified stock ledger.
@@ -982,6 +986,17 @@ export default function StockManagementPage() {
                     onChange={(e) => setIssueForm({ ...issueForm, notes: e.target.value })}
                   />
                 </div>
+
+                {issueForm.issueDestination === "PROJECT" && (
+                  <div className="p-3 rounded border border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 text-xs space-y-1">
+                    <p className="font-semibold text-indigo-950 dark:text-indigo-200">
+                      ⚡ Automatic Project Cost Recording
+                    </p>
+                    <p className="text-[11px] text-indigo-900/80 dark:text-indigo-200/80">
+                      This material's total cost will be automatically added as an Outflow expense under the selected project in Accounts.
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex justify-end gap-2 pt-3 border-t">
                   <Button type="button" variant="outline" onClick={() => setIsIssueOpen(false)}>Cancel</Button>

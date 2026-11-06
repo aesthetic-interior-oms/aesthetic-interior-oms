@@ -141,6 +141,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/accounts/projects',
         },
         {
+          icon: Package,
+          label: 'Virtual Inventory',
+          href: '/crm/admin/finance/stock',
+        },
+        {
           icon: ClipboardList,
           label: 'Overheads',
           href: '/crm/admin/overheads',
@@ -634,7 +639,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
         },
         {
           icon: Package,
-          label: 'Stocks & Office Goods',
+          label: 'Virtual Inventory & Stocks',
           href: '/crm/accounts/stocks',
         },
         {

@@ -178,10 +178,12 @@ export default function AccountsStocksPage() {
 
   // Movement Form State
   const [selectedItemForMove, setSelectedItemForMove] = useState<StockItem | null>(null)
+  const [leads, setLeads] = useState<{ id: string; name: string; location?: string }[]>([])
   const [movementForm, setMovementForm] = useState({
     type: "STOCK_IN" as StockMovementType,
     quantity: 1,
     department: "Accounts",
+    leadId: "",
     notes: "",
     createOutflowTransaction: false,
   })
@@ -189,10 +191,11 @@ export default function AccountsStocksPage() {
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [itemsRes, movementsRes, summaryRes] = await Promise.all([
+      const [itemsRes, movementsRes, summaryRes, leadsRes] = await Promise.all([
         fetch("/api/finance/stock/items", { cache: "no-store" }),
         fetch("/api/finance/stock/movements?limit=50", { cache: "no-store" }),
         fetch("/api/finance/stock/summary", { cache: "no-store" }),
+        fetch("/api/finance/leads", { cache: "no-store" }),
       ])
 
       if (itemsRes.ok) {
@@ -208,6 +211,11 @@ export default function AccountsStocksPage() {
       if (summaryRes.ok) {
         const data = await summaryRes.json()
         if (data.success) setSummary(data.summary)
+      }
+
+      if (leadsRes.ok) {
+        const data = await leadsRes.json()
+        if (data.success) setLeads(data.data || [])
       }
     } catch (err) {
       toast.error("Failed to load stock data")
@@ -270,6 +278,11 @@ export default function AccountsStocksPage() {
       return
     }
 
+    if (movementForm.type === "PROJECT_ISSUE" && !movementForm.leadId) {
+      toast.error("Please select a project to issue materials to")
+      return
+    }
+
     setSubmitting(true)
     try {
       const res = await fetch("/api/finance/stock/movements", {
@@ -280,33 +293,19 @@ export default function AccountsStocksPage() {
           type: movementForm.type,
           quantity: Number(movementForm.quantity),
           unitCost: selectedItemForMove.unitCostPrice,
-          department: movementForm.department,
+          department: movementForm.type === "PROJECT_ISSUE" ? undefined : movementForm.department,
+          leadId: movementForm.type === "PROJECT_ISSUE" ? movementForm.leadId : undefined,
           notes: movementForm.notes,
+          createFinanceTransaction: movementForm.createOutflowTransaction,
         }),
       })
 
       const data = await res.json()
       if (res.ok && data.success) {
-        toast.success("Stock movement recorded")
-
-        // If financial outflow transaction requested for stock purchase
-        if (movementForm.createOutflowTransaction && movementForm.type === "STOCK_IN") {
-          const totalCost = Number(movementForm.quantity) * selectedItemForMove.unitCostPrice
-          try {
-            await fetch("/api/finance/transactions", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                type: "OUTFLOW",
-                category: "BOARD_MATERIAL",
-                amount: totalCost,
-                particular: `Stock In: ${selectedItemForMove.name} (${movementForm.quantity} ${selectedItemForMove.unit})`,
-              }),
-            })
-            toast.success(`Financial outflow of ৳${totalCost.toLocaleString()} logged in Accounts`)
-          } catch (tErr) {
-            console.error("Failed to auto-create outflow transaction:", tErr)
-          }
+        if (movementForm.type === "PROJECT_ISSUE") {
+          toast.success("Stock issued and cost automatically added to project ledger!")
+        } else {
+          toast.success("Stock movement recorded")
         }
 
         setIsMovementOpen(false)
@@ -315,6 +314,7 @@ export default function AccountsStocksPage() {
           type: "STOCK_IN",
           quantity: 1,
           department: "Accounts",
+          leadId: "",
           notes: "",
           createOutflowTransaction: false,
         })
@@ -356,11 +356,11 @@ export default function AccountsStocksPage() {
               Accounts Dashboard
             </Link>
             <span>/</span>
-            <span className="text-foreground font-medium">Stocks & Office Goods</span>
+            <span className="text-foreground font-medium">Virtual Inventory & Stocks</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Package className="w-6 h-6 text-primary" />
-            Stock & Office Goods Management
+            Virtual Inventory & Stock Management
           </h1>
           <p className="text-sm text-muted-foreground">
             Monitor inventory valuation, office consumables, department issues, and stock-in financial disbursements.
@@ -868,17 +868,52 @@ export default function AccountsStocksPage() {
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold">Destination / Department</label>
-                  <Input
-                    placeholder="e.g. Accounts / HR"
-                    value={movementForm.department}
-                    onChange={(e) =>
-                      setMovementForm({ ...movementForm, department: e.target.value })
-                    }
-                  />
-                </div>
+                {movementForm.type === "PROJECT_ISSUE" ? (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold">Select Target Project *</label>
+                    <Select
+                      value={movementForm.leadId}
+                      onValueChange={(val) => setMovementForm({ ...movementForm, leadId: val })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose project..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-60">
+                        {leads.map((l) => (
+                          <SelectItem key={l.id} value={l.id}>
+                            {l.name} {l.location ? `(${l.location})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold">Destination / Department</label>
+                    <Input
+                      placeholder="e.g. Accounts / HR"
+                      value={movementForm.department}
+                      onChange={(e) =>
+                        setMovementForm({ ...movementForm, department: e.target.value })
+                      }
+                    />
+                  </div>
+                )}
               </div>
+
+              {movementForm.type === "PROJECT_ISSUE" && (
+                <div className="p-3 rounded border border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 text-xs space-y-1">
+                  <div className="flex items-center justify-between font-semibold text-indigo-950 dark:text-indigo-200">
+                    <span>Automatic Project Cost:</span>
+                    <span className="text-rose-600 dark:text-rose-400 font-bold">
+                      ৳{(movementForm.quantity * selectedItemForMove.unitCostPrice).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-indigo-900/80 dark:text-indigo-200/80">
+                    ⚡ This expense will be automatically added to the project's accounts ledger and outflow.
+                  </p>
+                </div>
+              )}
 
               {movementForm.type === "STOCK_IN" && (
                 <div className="p-3 rounded border border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/20 flex items-center justify-between text-xs">

@@ -14,6 +14,7 @@ import { toast } from '@/components/ui/sonner'
 import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
 import { buildShortPreviewUrl } from '@/lib/short-quotation-preview-sync'
 import ProjectVendorsTab from '@/components/vendors/project-vendors-tab'
+import ProjectVirtualInventoryTab from '@/components/crm/projects/project-virtual-inventory-tab'
 import { downloadMoneyReceiptPDF } from '@/lib/money-receipt-pdf'
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -1424,6 +1425,15 @@ export default function ProjectDetailPage() {
           {/* Vendor & Accounts Payable Section */}
           {id && <ProjectVendorsTab leadId={id} />}
 
+          {/* Virtual Inventory & Site Materials Section */}
+          {id && (
+            <ProjectVirtualInventoryTab
+              leadId={id}
+              leadName={project?.name}
+              onCostUpdated={() => void loadProjectReport(false)}
+            />
+          )}
+
           {/* Category Breakdown */}
           {Object.keys(activeCategoryTotals).length > 0 && (
             <Card>
@@ -1520,7 +1530,9 @@ export default function ProjectDetailPage() {
                           <td className="p-3 text-sm max-w-[150px] lg:max-w-[250px] truncate" title={tx.particular}>
                             {tx.particular}
                           </td>
-                          <td className="p-3 text-xs">{tx.financeAccount?.name || 'Unknown'}</td>
+                          <td className="p-3 text-xs font-medium">
+                            {tx.financeAccount?.name || (tx.particular?.includes('Virtual Inventory') ? 'Virtual Inventory' : '—')}
+                          </td>
                           <td className="p-3 text-xs text-muted-foreground whitespace-nowrap">{tx.recordedBy?.fullName || 'Unknown'}</td>
                           <td className="p-3 text-xs text-center">
                             {tx.imageUrl ? (
