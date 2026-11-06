@@ -78,11 +78,6 @@ const logoSrc = isBrowser
     ? `${process.cwd()}/public/Logo/HeaderLogo.png`
     : '/Logo/HeaderLogo.png'
 
-const logoLightSrc = isBrowser
-  ? '/Logo/HeaderLogo-light.png'
-  : typeof process !== 'undefined' && process.cwd
-    ? `${process.cwd()}/public/Logo/HeaderLogo-light.png`
-    : '/Logo/HeaderLogo-light.png'
 
 const watermarkSrc = isBrowser
   ? '/android-chrome-512x512.png'
@@ -91,77 +86,74 @@ const watermarkSrc = isBrowser
     : '/android-chrome-512x512.png'
 
 const styles = StyleSheet.create({
-  // ─── Luxury Minimalist Cover Page Styles ───
+  // ─── Luxury Minimalist Cover Page Styles (White Background) ───
   coverPage: {
     position: 'relative',
-    backgroundColor: '#111315',
+    backgroundColor: '#FFFFFF',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    height: '100%',
-    paddingTop: 56,
-    paddingBottom: 48,
-    paddingHorizontal: 48,
+    paddingTop: 46,
+    paddingBottom: 36,
+    paddingHorizontal: 40,
   },
   coverOuterBorder: {
     position: 'absolute',
-    top: 24,
-    left: 24,
-    right: 24,
-    bottom: 24,
+    top: 22,
+    left: 22,
+    right: 22,
+    bottom: 22,
     borderWidth: 1,
-    borderColor: '#C5A059',
-    opacity: 0.5,
+    borderColor: GOLD,
+    opacity: 0.45,
   },
   coverInnerBorder: {
     position: 'absolute',
-    top: 28,
-    left: 28,
-    right: 28,
-    bottom: 28,
+    top: 26,
+    left: 26,
+    right: 26,
+    bottom: 26,
     borderWidth: 0.5,
-    borderColor: '#C5A059',
-    opacity: 0.3,
+    borderColor: GOLD,
+    opacity: 0.25,
   },
   coverCornerTL: {
     position: 'absolute',
-    top: 26.5,
-    left: 26.5,
+    top: 24.5,
+    left: 24.5,
     width: 3.5,
     height: 3.5,
-    backgroundColor: '#D4AF37',
+    backgroundColor: GOLD,
   },
   coverCornerTR: {
     position: 'absolute',
-    top: 26.5,
-    right: 26.5,
+    top: 24.5,
+    right: 24.5,
     width: 3.5,
     height: 3.5,
-    backgroundColor: '#D4AF37',
+    backgroundColor: GOLD,
   },
   coverCornerBL: {
     position: 'absolute',
-    bottom: 26.5,
-    left: 26.5,
+    bottom: 24.5,
+    left: 24.5,
     width: 3.5,
     height: 3.5,
-    backgroundColor: '#D4AF37',
+    backgroundColor: GOLD,
   },
   coverCornerBR: {
     position: 'absolute',
-    bottom: 26.5,
-    right: 26.5,
+    bottom: 24.5,
+    right: 24.5,
     width: 3.5,
     height: 3.5,
-    backgroundColor: '#D4AF37',
+    backgroundColor: GOLD,
   },
   coverContentWrapper: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'space-between',
     width: '100%',
-    height: '100%',
     zIndex: 2,
   },
   coverTopSection: {
@@ -173,57 +165,57 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   coverLogo: {
-    width: 148,
-    height: 38,
+    width: 155,
+    height: 42,
     objectFit: 'contain',
-    marginTop: 8,
+    marginTop: 6,
   },
   coverStudioLabel: {
     fontSize: 8,
     fontWeight: 'bold',
-    color: '#C5A059',
+    color: GOLD,
     textTransform: 'uppercase',
     letterSpacing: 4.5,
-    marginTop: 10,
+    marginTop: 8,
     textAlign: 'center',
   },
   coverCenterSection: {
     alignItems: 'center',
     width: '100%',
-    marginVertical: 'auto',
+    marginTop: 38,
+    marginBottom: 38,
   },
   coverMainTitle: {
     fontFamily: 'Playfair Display',
     fontWeight: 'bold',
-    fontSize: 38,
-    color: '#F5F2EB',
+    fontSize: 36,
+    color: PRIMARY,
     textTransform: 'uppercase',
     letterSpacing: 7,
     textAlign: 'center',
   },
   coverSubtitle: {
-    fontSize: 9,
+    fontSize: 8.5,
     fontWeight: 'bold',
-    color: '#D4AF37',
+    color: GOLD,
     textTransform: 'uppercase',
     letterSpacing: 3.5,
-    marginTop: 10,
+    marginTop: 8,
     textAlign: 'center',
   },
   coverGoldDivider: {
     width: 44,
-    height: 1,
-    backgroundColor: '#C5A059',
-    opacity: 0.7,
-    marginTop: 14,
-    marginBottom: 12,
+    height: 1.5,
+    backgroundColor: GOLD,
+    marginTop: 12,
+    marginBottom: 10,
     alignSelf: 'center',
   },
   coverTagline: {
     fontFamily: 'Playfair Display',
     fontStyle: 'italic',
-    fontSize: 10,
-    color: '#94A3B8',
+    fontSize: 9.5,
+    color: TEXT_MUTED,
     letterSpacing: 1,
     textAlign: 'center',
   },
@@ -233,34 +225,34 @@ const styles = StyleSheet.create({
   },
   coverMetaGroup: {
     alignItems: 'center',
-    marginBottom: 13,
+    marginBottom: 12,
   },
   coverMetaLabel: {
     fontSize: 7.5,
     fontWeight: 'bold',
-    color: '#C5A059',
+    color: GOLD,
     textTransform: 'uppercase',
     letterSpacing: 3,
-    marginBottom: 4,
+    marginBottom: 3,
     textAlign: 'center',
   },
   coverClientName: {
     fontFamily: 'Playfair Display',
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#F5F2EB',
+    color: PRIMARY,
     textAlign: 'center',
     letterSpacing: 0.5,
   },
   coverProjectText: {
     fontSize: 9.5,
-    color: '#E2E8F0',
+    color: TEXT_DARK,
     textAlign: 'center',
     maxWidth: 380,
   },
   coverAddressSub: {
     fontSize: 8.5,
-    color: '#94A3B8',
+    color: TEXT_MUTED,
     marginTop: 2,
     textAlign: 'center',
     maxWidth: 380,
@@ -268,7 +260,7 @@ const styles = StyleSheet.create({
   coverDateValue: {
     fontSize: 9,
     fontWeight: 'bold',
-    color: '#F5F2EB',
+    color: PRIMARY,
     textAlign: 'center',
     letterSpacing: 0.5,
   },
@@ -1115,8 +1107,8 @@ export function AgreementDocumentPdf({
 
   return (
     <Document title={`Agreement - ${clientName}`} author="Aesthetic Interior">
-      {/* ─── FRONT COVER PAGE (LUXURY MINIMALIST EDITORIAL) ─────────── */}
-      <Page size="A4" style={styles.coverPage}>
+      {/* ─── FRONT COVER PAGE (LUXURY MINIMALIST EDITORIAL - WHITE) ─── */}
+      <Page size="A4" style={styles.coverPage} wrap={false}>
         {/* Thin Double-Line Rectangular Border with Antique Gold Accents */}
         <View style={styles.coverOuterBorder} />
         <View style={styles.coverInnerBorder} />
@@ -1125,59 +1117,59 @@ export function AgreementDocumentPdf({
         <View style={styles.coverCornerBL} />
         <View style={styles.coverCornerBR} />
 
-        {/* Botanical Plant-Leaf Decoration in Antique Gold & Warm Ivory */}
-        <Svg width={180} height={200} viewBox="0 0 180 200" style={{ position: 'absolute', top: 28, left: 28, zIndex: 1 }}>
-          <Path d="M 0 0 C 18 20, 36 50, 62 88 C 88 126, 112 154, 148 178" stroke="#C5A059" strokeWidth={1.2} fill="none" opacity={0.55} />
-          <Path d="M 62 88 C 74 108, 84 132, 88 158" stroke="#C5A059" strokeWidth={0.8} fill="none" opacity={0.4} />
+        {/* Botanical Plant-Leaf Decoration in Brand Colors */}
+        <Svg width={180} height={200} viewBox="0 0 180 200" style={{ position: 'absolute', top: 26, left: 26, zIndex: 1 }}>
+          <Path d="M 0 0 C 18 20, 36 50, 62 88 C 88 126, 112 154, 148 178" stroke={PRIMARY} strokeWidth={1.2} fill="none" opacity={0.4} />
+          <Path d="M 62 88 C 74 108, 84 132, 88 158" stroke={PRIMARY} strokeWidth={0.8} fill="none" opacity={0.3} />
 
           {/* Leaves along upper stem */}
-          <Path d="M 22 28 C 38 20, 55 24, 61 36 C 55 48, 38 44, 22 28 Z" fill="#C5A059" opacity={0.35} />
-          <Path d="M 16 42 C 10 58, 18 72, 30 74 C 36 66, 32 52, 16 42 Z" fill="#D4AF37" opacity={0.3} />
-          <Path d="M 42 60 C 62 52, 82 58, 90 72 C 80 84, 62 80, 42 60 Z" fill="#C5A059" opacity={0.4} />
-          <Path d="M 45 76 C 38 95, 44 114, 55 120 C 65 112, 62 94, 45 76 Z" fill="#D4AF37" opacity={0.3} />
+          <Path d="M 22 28 C 38 20, 55 24, 61 36 C 55 48, 38 44, 22 28 Z" fill={PRIMARY} opacity={0.25} />
+          <Path d="M 16 42 C 10 58, 18 72, 30 74 C 36 66, 32 52, 16 42 Z" fill={GOLD} opacity={0.35} />
+          <Path d="M 42 60 C 62 52, 82 58, 90 72 C 80 84, 62 80, 42 60 Z" fill={PRIMARY} opacity={0.3} />
+          <Path d="M 45 76 C 38 95, 44 114, 55 120 C 65 112, 62 94, 45 76 Z" fill={GOLD} opacity={0.3} />
 
           {/* Leaves along mid & lower stem */}
-          <Path d="M 76 108 C 97 100, 118 108, 128 122 C 114 134, 95 128, 76 108 Z" fill="#C5A059" opacity={0.4} />
-          <Path d="M 81 120 C 74 140, 84 156, 97 160 C 105 150, 101 134, 81 120 Z" fill="#F5F2EB" opacity={0.25} />
-          <Path d="M 122 154 C 141 154, 158 164, 164 176 C 151 182, 134 174, 122 154 Z" fill="#C5A059" opacity={0.4} />
+          <Path d="M 76 108 C 97 100, 118 108, 128 122 C 114 134, 95 128, 76 108 Z" fill={PRIMARY} opacity={0.25} />
+          <Path d="M 81 120 C 74 140, 84 156, 97 160 C 105 150, 101 134, 81 120 Z" fill={GOLD} opacity={0.35} />
+          <Path d="M 122 154 C 141 154, 158 164, 164 176 C 151 182, 134 174, 122 154 Z" fill={PRIMARY} opacity={0.25} />
 
           {/* Gold berry / dot accents */}
-          <Circle cx={52} cy={48} r={2} fill="#D4AF37" opacity={0.85} />
-          <Circle cx={86} cy={95} r={2} fill="#D4AF37" opacity={0.85} />
-          <Circle cx={120} cy={144} r={2} fill="#D4AF37" opacity={0.85} />
+          <Circle cx={52} cy={48} r={2} fill={GOLD} opacity={0.85} />
+          <Circle cx={86} cy={95} r={2} fill={GOLD} opacity={0.85} />
+          <Circle cx={120} cy={144} r={2} fill={GOLD} opacity={0.85} />
         </Svg>
 
         {/* Symmetrical Content Wrapper with Balanced Whitespace */}
-        <View style={styles.coverContentWrapper}>
-          {/* 1. TOP: Architectural Geometric Arch & Logo */}
+        <View style={styles.coverContentWrapper} wrap={false}>
+          {/* 1. TOP: Architectural Geometric Arch & Original Logo */}
           <View style={styles.coverTopSection}>
             <View style={styles.coverArchWrapper}>
               <Svg width={180} height={95} viewBox="0 0 180 95">
                 {/* Outer concentric architectural arch */}
-                <Path d="M 22 95 L 22 68 A 68 68 0 0 1 158 68 L 158 95" stroke="#C5A059" strokeWidth={0.8} fill="none" opacity={0.5} />
+                <Path d="M 22 95 L 22 68 A 68 68 0 0 1 158 68 L 158 95" stroke={GOLD} strokeWidth={0.8} fill="none" opacity={0.5} />
 
                 {/* Middle concentric arch */}
-                <Path d="M 34 95 L 34 68 A 56 56 0 0 1 146 68 L 146 95" stroke="#C5A059" strokeWidth={0.5} fill="none" opacity={0.35} />
+                <Path d="M 34 95 L 34 68 A 56 56 0 0 1 146 68 L 146 95" stroke={GOLD} strokeWidth={0.5} fill="none" opacity={0.35} />
 
                 {/* Inner decorative arch */}
-                <Path d="M 46 95 L 46 68 A 44 44 0 0 1 134 68 L 134 95" stroke="#C5A059" strokeWidth={0.6} fill="none" opacity={0.45} />
+                <Path d="M 46 95 L 46 68 A 44 44 0 0 1 134 68 L 134 95" stroke={GOLD} strokeWidth={0.6} fill="none" opacity={0.45} />
 
                 {/* Keystone & Apex dot */}
-                <Circle cx={90} cy={12} r={2} fill="#D4AF37" opacity={0.9} />
-                <Circle cx={90} cy={12} r={4.5} stroke="#C5A059" strokeWidth={0.5} fill="none" opacity={0.5} />
+                <Circle cx={90} cy={12} r={2} fill={GOLD} opacity={0.9} />
+                <Circle cx={90} cy={12} r={4.5} stroke={GOLD} strokeWidth={0.5} fill="none" opacity={0.5} />
 
                 {/* Central Monogram Ring */}
-                <Circle cx={90} cy={54} r={17} stroke="#C5A059" strokeWidth={0.75} fill="#14171A" opacity={0.95} />
+                <Circle cx={90} cy={54} r={17} stroke={GOLD} strokeWidth={0.75} fill="#FFFFFF" opacity={0.95} />
               </Svg>
 
               {/* Monogram 'AI' Centered Inside the Arch Ring */}
               <View style={{ position: 'absolute', top: 43, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: 13, color: '#F5F2EB', letterSpacing: 1.5 }}>AI</Text>
+                <Text style={{ fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: 13, color: PRIMARY, letterSpacing: 1.5 }}>AI</Text>
               </View>
             </View>
 
-            {/* Light Gold Header Logo */}
-            <Image src={logoLightSrc} style={styles.coverLogo} />
+            {/* Original Exact Header Logo */}
+            <Image src={logoSrc} style={styles.coverLogo} />
 
             {/* Uppercase Studio Label */}
             <Text style={styles.coverStudioLabel}>INTERIOR DESIGN STUDIO</Text>
