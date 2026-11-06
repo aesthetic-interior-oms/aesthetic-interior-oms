@@ -78,6 +78,12 @@ const logoSrc = isBrowser
     ? `${process.cwd()}/public/Logo/HeaderLogo.png`
     : '/Logo/HeaderLogo.png'
 
+const logoLightSrc = isBrowser
+  ? '/Logo/HeaderLogo-light.png'
+  : typeof process !== 'undefined' && process.cwd
+    ? `${process.cwd()}/public/Logo/HeaderLogo-light.png`
+    : '/Logo/HeaderLogo-light.png'
+
 const watermarkSrc = isBrowser
   ? '/android-chrome-512x512.png'
   : typeof process !== 'undefined' && process.cwd
@@ -85,150 +91,186 @@ const watermarkSrc = isBrowser
     : '/android-chrome-512x512.png'
 
 const styles = StyleSheet.create({
-  // ─── Cover Page Styles ───
+  // ─── Luxury Minimalist Cover Page Styles ───
   coverPage: {
     position: 'relative',
-    backgroundColor: '#FAF8F5',
+    backgroundColor: '#111315',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     height: '100%',
-    paddingTop: 85,
-    paddingBottom: 40,
-    paddingHorizontal: 40,
+    paddingTop: 56,
+    paddingBottom: 48,
+    paddingHorizontal: 48,
   },
-  coverSpineLine1: {
+  coverOuterBorder: {
     position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 18,
-    width: 1,
-    backgroundColor: '#E6DFD5',
+    top: 24,
+    left: 24,
+    right: 24,
+    bottom: 24,
+    borderWidth: 1,
+    borderColor: '#C5A059',
+    opacity: 0.5,
   },
-  coverSpineLine2: {
+  coverInnerBorder: {
     position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 21,
-    width: 0.5,
-    backgroundColor: '#EFE9DF',
+    top: 28,
+    left: 28,
+    right: 28,
+    bottom: 28,
+    borderWidth: 0.5,
+    borderColor: '#C5A059',
+    opacity: 0.3,
   },
-  coverRightAccentStrip: {
+  coverCornerTL: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    width: 16,
-    backgroundColor: PRIMARY,
-    borderLeftWidth: 1.5,
-    borderLeftColor: GOLD,
+    top: 26.5,
+    left: 26.5,
+    width: 3.5,
+    height: 3.5,
+    backgroundColor: '#D4AF37',
+  },
+  coverCornerTR: {
+    position: 'absolute',
+    top: 26.5,
+    right: 26.5,
+    width: 3.5,
+    height: 3.5,
+    backgroundColor: '#D4AF37',
+  },
+  coverCornerBL: {
+    position: 'absolute',
+    bottom: 26.5,
+    left: 26.5,
+    width: 3.5,
+    height: 3.5,
+    backgroundColor: '#D4AF37',
+  },
+  coverCornerBR: {
+    position: 'absolute',
+    bottom: 26.5,
+    right: 26.5,
+    width: 3.5,
+    height: 3.5,
+    backgroundColor: '#D4AF37',
   },
   coverContentWrapper: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'space-between',
     width: '100%',
+    height: '100%',
     zIndex: 2,
   },
-  coverLogoSection: {
-    marginBottom: 44,
+  coverTopSection: {
     alignItems: 'center',
+    width: '100%',
+  },
+  coverArchWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   coverLogo: {
-    width: 155,
-    height: 48,
+    width: 148,
+    height: 38,
     objectFit: 'contain',
+    marginTop: 8,
   },
-  coverTitleSection: {
-    marginBottom: 36,
-    alignItems: 'center',
-  },
-  coverInteriorWorkSub: {
-    fontSize: 8.5,
+  coverStudioLabel: {
+    fontSize: 8,
     fontWeight: 'bold',
-    color: GOLD,
+    color: '#C5A059',
     textTransform: 'uppercase',
-    letterSpacing: 5,
-    marginBottom: 6,
+    letterSpacing: 4.5,
+    marginTop: 10,
     textAlign: 'center',
   },
-  coverTitle: {
+  coverCenterSection: {
+    alignItems: 'center',
+    width: '100%',
+    marginVertical: 'auto',
+  },
+  coverMainTitle: {
     fontFamily: 'Playfair Display',
     fontWeight: 'bold',
     fontSize: 38,
-    color: PRIMARY,
-    letterSpacing: 1.5,
+    color: '#F5F2EB',
+    textTransform: 'uppercase',
+    letterSpacing: 7,
+    textAlign: 'center',
+  },
+  coverSubtitle: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#D4AF37',
+    textTransform: 'uppercase',
+    letterSpacing: 3.5,
+    marginTop: 10,
     textAlign: 'center',
   },
   coverGoldDivider: {
-    width: 48,
-    height: 1.5,
-    backgroundColor: GOLD,
-    marginTop: 12,
+    width: 44,
+    height: 1,
+    backgroundColor: '#C5A059',
+    opacity: 0.7,
+    marginTop: 14,
+    marginBottom: 12,
     alignSelf: 'center',
   },
-  coverSection: {
-    marginBottom: 28,
-    alignItems: 'center',
+  coverTagline: {
+    fontFamily: 'Playfair Display',
+    fontStyle: 'italic',
+    fontSize: 10,
+    color: '#94A3B8',
+    letterSpacing: 1,
+    textAlign: 'center',
   },
-  coverSectionLabel: {
-    fontSize: 8,
+  coverBottomSection: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  coverMetaGroup: {
+    alignItems: 'center',
+    marginBottom: 13,
+  },
+  coverMetaLabel: {
+    fontSize: 7.5,
     fontWeight: 'bold',
-    color: GOLD,
+    color: '#C5A059',
     textTransform: 'uppercase',
-    letterSpacing: 2.5,
-    marginBottom: 5,
+    letterSpacing: 3,
+    marginBottom: 4,
     textAlign: 'center',
   },
   coverClientName: {
     fontFamily: 'Playfair Display',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
-    color: PRIMARY,
-    textAlign: 'center',
-  },
-  coverClientSub: {
-    fontSize: 9,
-    color: '#64748b',
-    marginTop: 3,
-    textAlign: 'center',
-    maxWidth: 380,
-  },
-  coverCompanyName: {
-    fontSize: 13.5,
-    fontWeight: 'bold',
-    color: PRIMARY,
+    color: '#F5F2EB',
     textAlign: 'center',
     letterSpacing: 0.5,
   },
-  coverMetaSmall: {
+  coverProjectText: {
+    fontSize: 9.5,
+    color: '#E2E8F0',
+    textAlign: 'center',
+    maxWidth: 380,
+  },
+  coverAddressSub: {
     fontSize: 8.5,
-    color: '#64748b',
-    marginTop: 3,
+    color: '#94A3B8',
+    marginTop: 2,
     textAlign: 'center',
+    maxWidth: 380,
   },
-  coverDateLabel: {
-    fontSize: 7.5,
+  coverDateValue: {
+    fontSize: 9,
     fontWeight: 'bold',
-    color: GOLD,
-    textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 3,
+    color: '#F5F2EB',
     textAlign: 'center',
-  },
-  coverMetaSmallDate: {
-    fontSize: 8.5,
-    fontWeight: 'bold',
-    color: PRIMARY,
-    textAlign: 'center',
-  },
-  coverBottomArtwork: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 185,
-    zIndex: 1,
+    letterSpacing: 0.5,
   },
 
   page: {
@@ -1073,110 +1115,106 @@ export function AgreementDocumentPdf({
 
   return (
     <Document title={`Agreement - ${clientName}`} author="Aesthetic Interior">
-      {/* ─── FRONT COVER PAGE ────────────────────────────────────────── */}
+      {/* ─── FRONT COVER PAGE (LUXURY MINIMALIST EDITORIAL) ─────────── */}
       <Page size="A4" style={styles.coverPage}>
-        {/* Subtle Vertical Book-Spine / Paper Binding Detail on Left */}
-        <View style={styles.coverSpineLine1} />
-        <View style={styles.coverSpineLine2} />
+        {/* Thin Double-Line Rectangular Border with Antique Gold Accents */}
+        <View style={styles.coverOuterBorder} />
+        <View style={styles.coverInnerBorder} />
+        <View style={styles.coverCornerTL} />
+        <View style={styles.coverCornerTR} />
+        <View style={styles.coverCornerBL} />
+        <View style={styles.coverCornerBR} />
 
-        {/* Vertical Accent Strip Along Right Edge */}
-        <View style={styles.coverRightAccentStrip} />
-
-        {/* Elegant Plant-Leaf Botanical Decoration Extending from Upper-Left */}
-        <Svg width={190} height={210} viewBox="0 0 190 210" style={{ position: 'absolute', top: 0, left: 0, zIndex: 1 }}>
-          {/* Main botanical stems */}
-          <Path d="M 0 0 C 18 20, 38 52, 65 92 C 92 132, 118 162, 155 188" stroke={PRIMARY} strokeWidth={1.5} fill="none" opacity={0.55} />
-          <Path d="M 65 92 C 78 112, 88 138, 92 165" stroke={PRIMARY} strokeWidth={1} fill="none" opacity={0.4} />
+        {/* Botanical Plant-Leaf Decoration in Antique Gold & Warm Ivory */}
+        <Svg width={180} height={200} viewBox="0 0 180 200" style={{ position: 'absolute', top: 28, left: 28, zIndex: 1 }}>
+          <Path d="M 0 0 C 18 20, 36 50, 62 88 C 88 126, 112 154, 148 178" stroke="#C5A059" strokeWidth={1.2} fill="none" opacity={0.55} />
+          <Path d="M 62 88 C 74 108, 84 132, 88 158" stroke="#C5A059" strokeWidth={0.8} fill="none" opacity={0.4} />
 
           {/* Leaves along upper stem */}
-          <Path d="M 24 30 C 40 22, 58 26, 64 38 C 58 50, 40 46, 24 30 Z" fill={PRIMARY} opacity={0.35} />
-          <Path d="M 18 44 C 12 60, 20 76, 32 78 C 38 70, 34 54, 18 44 Z" fill={GOLD} opacity={0.3} />
-          <Path d="M 45 64 C 66 56, 86 62, 95 76 C 84 88, 65 84, 45 64 Z" fill={PRIMARY} opacity={0.4} />
-          <Path d="M 48 80 C 40 100, 46 120, 58 126 C 68 118, 65 98, 48 80 Z" fill={PRIMARY} opacity={0.3} />
+          <Path d="M 22 28 C 38 20, 55 24, 61 36 C 55 48, 38 44, 22 28 Z" fill="#C5A059" opacity={0.35} />
+          <Path d="M 16 42 C 10 58, 18 72, 30 74 C 36 66, 32 52, 16 42 Z" fill="#D4AF37" opacity={0.3} />
+          <Path d="M 42 60 C 62 52, 82 58, 90 72 C 80 84, 62 80, 42 60 Z" fill="#C5A059" opacity={0.4} />
+          <Path d="M 45 76 C 38 95, 44 114, 55 120 C 65 112, 62 94, 45 76 Z" fill="#D4AF37" opacity={0.3} />
 
           {/* Leaves along mid & lower stem */}
-          <Path d="M 80 112 C 102 104, 124 112, 134 128 C 120 140, 100 134, 80 112 Z" fill={GOLD} opacity={0.35} />
-          <Path d="M 85 125 C 78 146, 88 164, 102 168 C 110 158, 106 140, 85 125 Z" fill={PRIMARY} opacity={0.35} />
-          <Path d="M 128 162 C 148 162, 166 172, 172 186 C 158 192, 140 184, 128 162 Z" fill={PRIMARY} opacity={0.4} />
+          <Path d="M 76 108 C 97 100, 118 108, 128 122 C 114 134, 95 128, 76 108 Z" fill="#C5A059" opacity={0.4} />
+          <Path d="M 81 120 C 74 140, 84 156, 97 160 C 105 150, 101 134, 81 120 Z" fill="#F5F2EB" opacity={0.25} />
+          <Path d="M 122 154 C 141 154, 158 164, 164 176 C 151 182, 134 174, 122 154 Z" fill="#C5A059" opacity={0.4} />
 
-          {/* Small accent berries / dots */}
-          <Circle cx={55} cy={50} r={2.2} fill={GOLD} opacity={0.85} />
-          <Circle cx={90} cy={100} r={2.2} fill={GOLD} opacity={0.85} />
-          <Circle cx={125} cy={150} r={2.2} fill={GOLD} opacity={0.85} />
+          {/* Gold berry / dot accents */}
+          <Circle cx={52} cy={48} r={2} fill="#D4AF37" opacity={0.85} />
+          <Circle cx={86} cy={95} r={2} fill="#D4AF37" opacity={0.85} />
+          <Circle cx={120} cy={144} r={2} fill="#D4AF37" opacity={0.85} />
         </Svg>
 
-        {/* Large Geometric Semicircle Composition at Bottom */}
-        <View style={styles.coverBottomArtwork}>
-          <Svg width={595} height={185} viewBox="0 0 595 185">
-            {/* Outer soft ambient semicircle */}
-            <Path d="M 87.5 185 A 210 210 0 0 1 507.5 185 Z" fill={PRIMARY} opacity={0.07} />
-
-            {/* Fine outer gold geometric arc line */}
-            <Path d="M 77.5 185 A 220 220 0 0 1 517.5 185" stroke={GOLD} strokeWidth={1} fill="none" opacity={0.45} />
-
-            {/* Secondary concentric arc stroke */}
-            <Path d="M 117.5 185 A 180 180 0 0 1 477.5 185" stroke={PRIMARY} strokeWidth={0.75} fill="none" opacity={0.35} />
-
-            {/* Mid layered semicircle band in subtle teal */}
-            <Path d="M 137.5 185 A 160 160 0 0 1 457.5 185 Z" fill={PRIMARY} opacity={0.14} />
-
-            {/* Inner warm gold semicircle */}
-            <Path d="M 182.5 185 A 115 115 0 0 1 412.5 185 Z" fill={GOLD} opacity={0.22} />
-
-            {/* Asymmetric overlapping contrasting semicircle */}
-            <Path d="M 235 185 A 80 80 0 0 1 395 185 Z" fill={PRIMARY} opacity={0.85} />
-
-            {/* Core gold arc accent */}
-            <Path d="M 262.5 185 A 35 35 0 0 1 332.5 185 Z" fill={GOLD} opacity={0.8} />
-
-            {/* Cutout center base */}
-            <Path d="M 280 185 A 17.5 17.5 0 0 1 315 185 Z" fill="#FAF8F5" />
-
-            {/* Circular details within geometric artwork */}
-            <Circle cx={297.5} cy={45} r={4.5} fill={GOLD} />
-            <Circle cx={297.5} cy={45} r={8} stroke={PRIMARY} strokeWidth={1} fill="none" opacity={0.6} />
-            <Circle cx={212.5} cy={88} r={3.5} fill={PRIMARY} opacity={0.65} />
-            <Circle cx={382.5} cy={88} r={3.5} fill={GOLD} opacity={0.75} />
-            <Circle cx={165} cy={135} r={3} fill={GOLD} opacity={0.6} />
-            <Circle cx={430} cy={135} r={3} fill={PRIMARY} opacity={0.6} />
-            <Circle cx={297.5} cy={165} r={2} fill="#FAF8F5" opacity={0.9} />
-          </Svg>
-        </View>
-
-        {/* Centered Editorial Content */}
+        {/* Symmetrical Content Wrapper with Balanced Whitespace */}
         <View style={styles.coverContentWrapper}>
-          {/* 1. Header Logo (using HeaderLogo.png, no Aesthetic Interior Studio word) */}
-          <View style={styles.coverLogoSection}>
-            <Image src={logoSrc} style={styles.coverLogo} />
+          {/* 1. TOP: Architectural Geometric Arch & Logo */}
+          <View style={styles.coverTopSection}>
+            <View style={styles.coverArchWrapper}>
+              <Svg width={180} height={95} viewBox="0 0 180 95">
+                {/* Outer concentric architectural arch */}
+                <Path d="M 22 95 L 22 68 A 68 68 0 0 1 158 68 L 158 95" stroke="#C5A059" strokeWidth={0.8} fill="none" opacity={0.5} />
+
+                {/* Middle concentric arch */}
+                <Path d="M 34 95 L 34 68 A 56 56 0 0 1 146 68 L 146 95" stroke="#C5A059" strokeWidth={0.5} fill="none" opacity={0.35} />
+
+                {/* Inner decorative arch */}
+                <Path d="M 46 95 L 46 68 A 44 44 0 0 1 134 68 L 134 95" stroke="#C5A059" strokeWidth={0.6} fill="none" opacity={0.45} />
+
+                {/* Keystone & Apex dot */}
+                <Circle cx={90} cy={12} r={2} fill="#D4AF37" opacity={0.9} />
+                <Circle cx={90} cy={12} r={4.5} stroke="#C5A059" strokeWidth={0.5} fill="none" opacity={0.5} />
+
+                {/* Central Monogram Ring */}
+                <Circle cx={90} cy={54} r={17} stroke="#C5A059" strokeWidth={0.75} fill="#14171A" opacity={0.95} />
+              </Svg>
+
+              {/* Monogram 'AI' Centered Inside the Arch Ring */}
+              <View style={{ position: 'absolute', top: 43, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontFamily: 'Playfair Display', fontWeight: 'bold', fontSize: 13, color: '#F5F2EB', letterSpacing: 1.5 }}>AI</Text>
+              </View>
+            </View>
+
+            {/* Light Gold Header Logo */}
+            <Image src={logoLightSrc} style={styles.coverLogo} />
+
+            {/* Uppercase Studio Label */}
+            <Text style={styles.coverStudioLabel}>INTERIOR DESIGN STUDIO</Text>
           </View>
 
-          {/* 2. Interior Work & Agreement Title */}
-          <View style={styles.coverTitleSection}>
-            <Text style={styles.coverInteriorWorkSub}>INTERIOR WORK</Text>
-            <Text style={styles.coverTitle}>Agreement</Text>
+          {/* 2. MIDDLE: Prominent Main Title, Subtitle & Description */}
+          <View style={styles.coverCenterSection}>
+            <Text style={styles.coverMainTitle}>AGREEMENT</Text>
+            <Text style={styles.coverSubtitle}>INTERIOR DESIGN & PROJECT EXECUTION</Text>
             <View style={styles.coverGoldDivider} />
+            <Text style={styles.coverTagline}>&ldquo;Designing spaces, creating experiences.&rdquo;</Text>
           </View>
 
-          {/* 3. Prepared for (Client Name & Details) */}
-          <View style={styles.coverSection}>
-            <Text style={styles.coverSectionLabel}>Prepared For</Text>
-            <Text style={styles.coverClientName}>{agreement.ownerName || clientName}</Text>
-            {agreement.projectAddress || agreement.projectName ? (
-              <Text style={styles.coverClientSub}>{agreement.projectAddress || agreement.projectName}</Text>
-            ) : null}
-          </View>
+          {/* 3. BOTTOM: Client, Project & Agreement Date */}
+          <View style={styles.coverBottomSection}>
+            {/* Client Name */}
+            <View style={styles.coverMetaGroup}>
+              <Text style={styles.coverMetaLabel}>CLIENT</Text>
+              <Text style={styles.coverClientName}>{agreement.ownerName || clientName}</Text>
+            </View>
 
-          {/* 4. Prepared by (Company Name & Website) */}
-          <View style={styles.coverSection}>
-            <Text style={styles.coverSectionLabel}>Prepared By</Text>
-            <Text style={styles.coverCompanyName}>Aesthetic Interior</Text>
-            <Text style={styles.coverMetaSmall}>www.aestheticinteriortech.com</Text>
-          </View>
+            {/* Project Name & Address */}
+            <View style={styles.coverMetaGroup}>
+              <Text style={styles.coverMetaLabel}>PROJECT</Text>
+              <Text style={styles.coverProjectText}>
+                {agreement.projectName || agreement.projectAddress || 'Interior Architecture & Renovation'}
+              </Text>
+              {agreement.projectAddress && agreement.projectName && agreement.projectAddress !== agreement.projectName ? (
+                <Text style={styles.coverAddressSub}>{agreement.projectAddress}</Text>
+              ) : null}
+            </View>
 
-          {/* 5. Date */}
-          <View style={[styles.coverSection, { marginBottom: 0 }]}>
-            <Text style={styles.coverDateLabel}>Date</Text>
-            <Text style={styles.coverMetaSmallDate}>{formatDateString(agreement.agreementDate)}</Text>
+            {/* Agreement Date */}
+            <View style={[styles.coverMetaGroup, { marginBottom: 0 }]}>
+              <Text style={styles.coverMetaLabel}>AGREEMENT DATE</Text>
+              <Text style={styles.coverDateValue}>{formatDateString(agreement.agreementDate)}</Text>
+            </View>
           </View>
         </View>
       </Page>
