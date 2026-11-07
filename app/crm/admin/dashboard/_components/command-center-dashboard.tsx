@@ -29,6 +29,9 @@ import { VisitStatusChart } from '@/components/crm/shared/visit-status-chart'
 import { LeaderboardCard } from '@/components/crm/jr-architecture/performance-cards'
 import { QuotationLeaderboardSection, type QuotationPerformanceItem } from './quotation-leaderboard-section'
 import { generateAllTeamsPerformancePdf } from '@/lib/all-teams-performance-pdf'
+import { generateVisitTeamPerformancePdf } from '@/lib/visit-team-performance-pdf'
+import { type VisitPerformanceRow } from '@/lib/visit-performance-types'
+import { toast } from 'sonner'
 import {
   formatLabel,
   formatRelativeTime,
@@ -139,18 +142,7 @@ type SrCrmPerformanceItem = {
   totalPerformance: number
 }
 
-type VisitTeamPerformanceItem = {
-  id: string
-  name: string
-  totalVisits: number
-  completed: number
-  reportCompleteness: number
-  totalSqft: number
-  avgSqft: number
-  performance: number
-  leadVisits: number
-  supportVisits: number
-}
+type VisitTeamPerformanceItem = VisitPerformanceRow
 
 type JrArchitectPerformanceItem = {
   id: string
@@ -663,10 +655,33 @@ function VisitTeamPerformanceSection({
   members: VisitTeamPerformanceItem[]
   monthKey: string
 }) {
+  const [downloadingPdf, setDownloadingPdf] = useState(false)
   const averagePerformance = members.length
     ? Math.round(members.reduce((sum, member) => sum + member.performance, 0) / members.length)
     : 0
   const monthLabel = formatMonthKey(monthKey)
+
+  const handleDownloadPdf = async () => {
+    const activeMembers = members.filter((m) => m.isEnabled !== false)
+    if (activeMembers.length === 0) {
+      toast.error('No active performance records to generate PDF')
+      return
+    }
+    try {
+      setDownloadingPdf(true)
+      await generateVisitTeamPerformancePdf({
+        monthKey,
+        members: activeMembers,
+        generatedBy: 'Admin',
+      })
+      toast.success('Visit Team Performance PDF downloaded')
+    } catch (err) {
+      console.error('Failed to download visit team performance PDF:', err)
+      toast.error('Failed to download performance PDF')
+    } finally {
+      setDownloadingPdf(false)
+    }
+  }
 
   return (
     <Card className="border-border/70 shadow-sm">
@@ -681,6 +696,20 @@ function VisitTeamPerformanceSection({
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">Team avg {averagePerformance}/100</Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf || members.length === 0}
+              className="gap-1.5 h-9 text-xs font-semibold"
+            >
+              {downloadingPdf ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Download className="size-3.5 text-teal-600" />
+              )}
+              Download PDF
+            </Button>
             <form action="/crm/admin/dashboard" className="flex items-center gap-2">
               <Input
                 type="month"
