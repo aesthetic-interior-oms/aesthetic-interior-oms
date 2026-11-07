@@ -1,7 +1,7 @@
 'use client'
 // Agreement Document PDF with Abstract Monochromatic Wave Cover Page (v2.1)
 
-import { Document, Font, Image, Page, Path, StyleSheet, Svg, Text, View } from '@react-pdf/renderer'
+import { Circle, Document, Font, G, Image, Line, Page, Path, Rect, StyleSheet, Svg, Text, View } from '@react-pdf/renderer'
 import type { AgreementContent } from '@/lib/agreement-template'
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 import {
@@ -86,32 +86,47 @@ const watermarkSrc = isBrowser
     : '/android-chrome-512x512.png'
 
 const styles = StyleSheet.create({
-  // ─── Cover Page Styles (Abstract Monochromatic Waves) ───
+  // ─── Cover Page Styles (Premium Corporate Two-Tone Geometric) ───
   coverPage: {
     position: 'relative',
     backgroundColor: '#ffffff',
     display: 'flex',
     flexDirection: 'column',
     height: '100%',
-    paddingTop: 45,
-    paddingBottom: 25,
-    paddingHorizontal: 40,
+    padding: 0,
   },
-  coverContentWrapper: {
+  coverTopSection: {
     position: 'relative',
+    height: 421,
+    width: '100%',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 45,
+    paddingBottom: 36,
+    paddingHorizontal: 40,
+    zIndex: 2,
+  },
+  coverBottomSection: {
+    position: 'relative',
+    height: 421,
     width: '100%',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 36,
+    paddingBottom: 26,
+    paddingHorizontal: 40,
     zIndex: 2,
   },
   coverHeaderSection: {
     alignItems: 'center',
-    marginBottom: 48,
   },
   coverHeaderLogo: {
-    width: 160,
-    height: 44,
+    width: 165,
+    height: 45,
     objectFit: 'contain',
   },
   coverHeaderInfoRow: {
@@ -132,7 +147,6 @@ const styles = StyleSheet.create({
   },
   coverTitleSection: {
     alignItems: 'center',
-    marginBottom: 44,
   },
   coverInteriorWorkSub: {
     fontSize: 8.5,
@@ -140,13 +154,13 @@ const styles = StyleSheet.create({
     color: GOLD,
     textTransform: 'uppercase',
     letterSpacing: 5,
-    marginBottom: 6,
+    marginBottom: 7,
     textAlign: 'center',
   },
   coverMainTitle: {
     fontFamily: 'Playfair Display',
     fontWeight: 'bold',
-    fontSize: 24,
+    fontSize: 23,
     color: PRIMARY,
     textTransform: 'uppercase',
     letterSpacing: 2,
@@ -162,11 +176,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   coverGoldDivider: {
-    width: 44,
+    width: 46,
     height: 1.5,
     backgroundColor: GOLD,
-    marginTop: 12,
-    marginBottom: 10,
+    marginTop: 11,
+    marginBottom: 9,
     alignSelf: 'center',
   },
   coverTagline: {
@@ -176,69 +190,82 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
   },
-  coverDataSection: {
+  coverDataSectionDark: {
     alignItems: 'center',
     width: '100%',
   },
-  coverSection: {
-    marginBottom: 26,
+  coverSectionDark: {
     alignItems: 'center',
   },
-  coverSectionLabel: {
+  coverSectionLabelDark: {
     fontSize: 8.5,
     fontWeight: 'bold',
-    color: GOLD,
+    color: '#e2b342',
     textTransform: 'uppercase',
     letterSpacing: 2.5,
     marginBottom: 5,
     textAlign: 'center',
   },
-  coverClientName: {
+  coverClientNameDark: {
     fontFamily: 'Playfair Display',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: 'bold',
-    color: PRIMARY,
+    color: '#ffffff',
     textAlign: 'center',
+    letterSpacing: 0.5,
   },
-  coverClientSub: {
+  coverClientSubDark: {
     fontSize: 9.5,
-    color: '#64748b',
+    color: '#cbd5e1',
     marginTop: 3,
     textAlign: 'center',
-    maxWidth: 360,
+    maxWidth: 380,
   },
-  coverCompanyName: {
+  coverInfoDividerDark: {
+    width: 32,
+    height: 1,
+    backgroundColor: '#a57c00',
+    opacity: 0.6,
+    marginVertical: 14,
+    alignSelf: 'center',
+  },
+  coverCompanyNameDark: {
     fontSize: 14.5,
     fontWeight: 'bold',
-    color: PRIMARY,
+    color: '#ffffff',
     textAlign: 'center',
+    letterSpacing: 0.5,
   },
-  coverMetaRow: {
+  coverMetaRowDark: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
   },
-  coverMetaSmall: {
+  coverMetaSmallDark: {
     fontSize: 8.5,
-    color: '#64748b',
+    color: '#94a3b8',
     textAlign: 'center',
   },
-  coverBottomBadge: {
-    position: 'absolute',
-    bottom: 22,
-    left: 0,
-    right: 0,
+  coverBottomBadgePill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    zIndex: 3,
+    justifyContent: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#26424b',
+    backgroundColor: '#132429',
   },
   coverBottomBadgeText: {
     fontSize: 7.5,
-    color: '#CBD5E1',
+    color: '#94a3b8',
     letterSpacing: 1.5,
     textTransform: 'uppercase',
     textAlign: 'center',
   },
+
 
   page: {
     paddingTop: 80,
@@ -1082,46 +1109,64 @@ export function AgreementDocumentPdf({
 
   return (
     <Document title={`Agreement - ${clientName}`} author="Aesthetic Interior">
-      {/* ─── FRONT COVER PAGE (ABSTRACT MONOCHROMATIC WAVES) ────────── */}
+      {/* ─── FRONT COVER PAGE (PREMIUM TWO-TONE GEOMETRIC) ────────── */}
       <Page size="A4" style={styles.coverPage} wrap={false}>
-        {/* Abstract Background Design: Charcoal Blue, Slate Grey, Light Grey & Muted Silver Waves */}
+        {/* Full-bleed SVG Background Layer: Two-section tone + Geometric Rings */}
         <Svg width={595} height={842} viewBox="0 0 595 842" style={{ position: 'absolute', top: 0, left: 0, zIndex: 0 }}>
-          {/* Upper Ambient Subtle Curves (Minimalist & Clean) */}
-          <Path d="M 0 0 L 220 0 C 180 80, 100 130, 0 145 Z" fill="#F1F5F9" opacity={0.6} />
-          <Path d="M 595 0 L 400 0 C 430 75, 500 120, 595 130 Z" fill="#E2E8F0" opacity={0.5} />
+          {/* Upper Section: Warm Ivory / Linen Brand Tone */}
+          <Rect x={0} y={0} width={595} height={421} fill="#FAF7F2" />
 
-          {/* Lower Flowing Abstract Waves: Multi-layered Curved Geometric Shapes */}
-          {/* Layer 1: Light Grey Wave */}
-          <Path d="M 0 460 C 130 420, 260 520, 410 470 C 490 440, 545 465, 595 480 L 595 842 L 0 842 Z" fill="#E2E8F0" opacity={0.65} />
+          {/* Lower Section: Deep Signature Dark Charcoal Teal */}
+          <Rect x={0} y={421} width={595} height={421} fill="#172b31" />
 
-          {/* Layer 2: Muted Silver Overlapping Wave */}
-          <Path d="M 0 520 C 150 560, 280 480, 430 530 C 510 560, 560 535, 595 515 L 595 842 L 0 842 Z" fill="#94A3B8" opacity={0.45} />
+          {/* Horizontal Brand Dividing Accent */}
+          <Line x1={0} y1={421} x2={595} y2={421} stroke={GOLD} strokeWidth={2} />
+          <Line x1={0} y1={423} x2={595} y2={423} stroke="#ffffff" strokeWidth={0.5} opacity={0.15} />
 
-          {/* Layer 3: Slate Grey Wave */}
-          <Path d="M 0 575 C 160 515, 300 635, 460 565 C 525 535, 565 570, 595 590 L 595 842 L 0 842 Z" fill="#475569" opacity={0.7} />
+          {/* ─── Upper Section: Overlapping Circular Arcs along Left Edge ─── */}
+          <G>
+            {/* Outermost sweeping arc */}
+            <Circle cx={-10} cy={230} r={330} stroke={PRIMARY} strokeWidth={1.2} opacity={0.08} fill="none" />
+            {/* Large warm gold ring */}
+            <Circle cx={10} cy={240} r={270} stroke={GOLD} strokeWidth={1.8} opacity={0.16} fill="none" />
+            {/* Soft translucent depth wash */}
+            <Circle cx={-25} cy={225} r={215} fill={PRIMARY} opacity={0.035} />
+            {/* Prominent gold ring */}
+            <Circle cx={-5} cy={220} r={175} stroke={GOLD} strokeWidth={2.2} opacity={0.24} fill="none" />
+            {/* Dark teal inner ring */}
+            <Circle cx={20} cy={210} r={120} stroke={PRIMARY} strokeWidth={1.5} opacity={0.16} fill="none" />
+            {/* Fine gold concentric core */}
+            <Circle cx={35} cy={205} r={65} stroke={GOLD} strokeWidth={1.2} opacity={0.3} fill="none" />
+            {/* Subtle secondary arc higher up */}
+            <Circle cx={90} cy={110} r={95} stroke={PRIMARY} strokeWidth={1} opacity={0.07} fill="none" />
+            {/* Delicate floating decorative circles */}
+            <Circle cx={125} cy={180} r={4} fill={GOLD} opacity={0.4} />
+            <Circle cx={155} cy={275} r={6} stroke={PRIMARY} strokeWidth={1.2} opacity={0.22} fill="none" />
+            <Circle cx={80} cy={330} r={3} fill={PRIMARY} opacity={0.25} />
+          </G>
 
-          {/* Layer 4: Deep Primary Charcoal Blue Wave */}
-          <Path d="M 0 645 C 170 690, 320 590, 470 655 C 530 680, 568 660, 595 640 L 595 842 L 0 842 Z" fill={PRIMARY} opacity={0.95} />
-
-          {/* Layer 5: Darkest Charcoal Grounding Base Wave */}
-          <Path d="M 0 720 C 180 670, 350 750, 595 695 L 595 842 L 0 842 Z" fill="#132429" opacity={0.98} />
-
-          {/* Elegant Curved White Lines Crossing the Lower Portion */}
-          <Path d="M 0 595 C 165 530, 310 650, 470 580 C 535 550, 570 585, 595 605" stroke="#FFFFFF" strokeWidth={1.8} opacity={0.95} fill="none" />
-          <Path d="M 0 625 C 175 665, 325 575, 480 640 C 540 665, 575 645, 595 625" stroke="#FFFFFF" strokeWidth={1.0} opacity={0.6} fill="none" />
-          <Path d="M 0 660 C 180 705, 335 610, 495 675 C 550 700, 580 680, 595 660" stroke="#FFFFFF" strokeWidth={0.6} opacity={0.35} fill="none" />
+          {/* ─── Lower Section: Complementary Circular Rings in Bottom-Right Corner ─── */}
+          <G>
+            {/* Outermost slate/white ring */}
+            <Circle cx={590} cy={820} r={270} stroke="#ffffff" strokeWidth={1} opacity={0.08} fill="none" />
+            {/* Rich gold accent ring */}
+            <Circle cx={585} cy={815} r={205} stroke="#c59b27" strokeWidth={1.8} opacity={0.28} fill="none" />
+            {/* Crisp white concentric ring */}
+            <Circle cx={580} cy={810} r={145} stroke="#ffffff" strokeWidth={1.2} opacity={0.18} fill="none" />
+            {/* Vibrant warm gold inner ring */}
+            <Circle cx={575} cy={805} r={90} stroke="#e2b342" strokeWidth={2} opacity={0.35} fill="none" />
+            {/* Inner accent ring */}
+            <Circle cx={570} cy={800} r={45} stroke="#ffffff" strokeWidth={1} opacity={0.15} fill="none" />
+            {/* Delicate floating decorative circles */}
+            <Circle cx={455} cy={735} r={4.5} fill="#c59b27" opacity={0.45} />
+            <Circle cx={490} cy={775} r={7} stroke="#ffffff" strokeWidth={1} opacity={0.22} fill="none" />
+            <Circle cx={520} cy={705} r={3} fill="#ffffff" opacity={0.25} />
+          </G>
         </Svg>
 
-        {/* Bottom Badge inside Charcoal Blue Wave */}
-        <View style={styles.coverBottomBadge}>
-          <Text style={styles.coverBottomBadgeText}>
-            AESTHETIC INTERIOR STUDIO &bull; OFFICIAL CONTRACT DOCUMENT
-          </Text>
-        </View>
-
-        {/* Content Layer */}
-        <View style={styles.coverContentWrapper} wrap={false}>
-          {/* 1. Header Section: Logo + Single Horizontal Row with Address, Email, Website */}
+        {/* ─── Upper Section Content (Warm Light Background) ─── */}
+        <View style={styles.coverTopSection} wrap={false}>
+          {/* 1. Header Section: Logo + Contact Info Row */}
           <View style={styles.coverHeaderSection}>
             <Image src={logoSrc} style={styles.coverHeaderLogo} />
             <View style={styles.coverHeaderInfoRow}>
@@ -1133,7 +1178,7 @@ export function AgreementDocumentPdf({
             </View>
           </View>
 
-          {/* 2. Main Title Section: Spaced Category + Large Heading + Subtitle + Divider */}
+          {/* 2. Main Title Section: Eyebrow + Large Heading + Subtitle + Gold Divider + Tagline */}
           <View style={styles.coverTitleSection}>
             <Text style={styles.coverInteriorWorkSub}>INTERIOR WORK</Text>
             <Text style={styles.coverMainTitle}>INTERIOR DESIGN AGREEMENT</Text>
@@ -1141,28 +1186,41 @@ export function AgreementDocumentPdf({
             <View style={styles.coverGoldDivider} />
             <Text style={styles.coverTagline}>&ldquo;Designing spaces, creating experiences.&rdquo;</Text>
           </View>
+        </View>
 
+        {/* ─── Lower Section Content (Deep Dark Brand Background) ─── */}
+        <View style={styles.coverBottomSection} wrap={false}>
           {/* 3. Agreement Information: Prepared For & Prepared By */}
-          <View style={styles.coverDataSection}>
+          <View style={styles.coverDataSectionDark}>
             {/* Prepared For */}
-            <View style={styles.coverSection}>
-              <Text style={styles.coverSectionLabel}>PREPARED FOR</Text>
-              <Text style={styles.coverClientName}>{agreement.ownerName || clientName}</Text>
+            <View style={styles.coverSectionDark}>
+              <Text style={styles.coverSectionLabelDark}>PREPARED FOR</Text>
+              <Text style={styles.coverClientNameDark}>{agreement.ownerName || clientName}</Text>
               {agreement.projectAddress || agreement.projectName ? (
-                <Text style={styles.coverClientSub}>{agreement.projectAddress || agreement.projectName}</Text>
+                <Text style={styles.coverClientSubDark}>{agreement.projectAddress || agreement.projectName}</Text>
               ) : null}
             </View>
 
+            {/* Subtle Gold Divider */}
+            <View style={styles.coverInfoDividerDark} />
+
             {/* Prepared By */}
-            <View style={[styles.coverSection, { marginBottom: 0 }]}>
-              <Text style={styles.coverSectionLabel}>PREPARED BY</Text>
-              <Text style={styles.coverCompanyName}>Aesthetic Interior</Text>
-              <View style={styles.coverMetaRow}>
-                <Text style={styles.coverMetaSmall}>www.aestheticinteriortech.com</Text>
-                <Text style={styles.coverHeaderInfoDot}>&bull;</Text>
-                <Text style={styles.coverMetaSmall}>{formatDateString(agreement.agreementDate)}</Text>
+            <View style={styles.coverSectionDark}>
+              <Text style={styles.coverSectionLabelDark}>PREPARED BY</Text>
+              <Text style={styles.coverCompanyNameDark}>Aesthetic Interior</Text>
+              <View style={styles.coverMetaRowDark}>
+                <Text style={styles.coverMetaSmallDark}>www.aestheticinteriortech.com</Text>
+                <Text style={[styles.coverHeaderInfoDot, { color: '#64748b' }]}>&bull;</Text>
+                <Text style={styles.coverMetaSmallDark}>{formatDateString(agreement.agreementDate)}</Text>
               </View>
             </View>
+          </View>
+
+          {/* Bottom Official Document Badge */}
+          <View style={styles.coverBottomBadgePill}>
+            <Text style={styles.coverBottomBadgeText}>
+              AESTHETIC INTERIOR STUDIO &bull; OFFICIAL CONTRACT DOCUMENT
+            </Text>
           </View>
         </View>
       </Page>
