@@ -1085,23 +1085,30 @@ export function AgreementDocumentPdf({
       <Page size="A4" style={styles.coverPage} wrap={false}>
         {/* Abstract Background Design: Charcoal Blue, Slate Grey, Light Grey & Muted Silver Waves */}
         <Svg width={595} height={842} viewBox="0 0 595 842" style={{ position: 'absolute', top: 0, left: 0, zIndex: 0 }}>
-          {/* Upper Ambient Subtle Curves */}
-          <Path d="M 0 0 L 160 0 C 160 90, 80 160, 0 160 Z" fill="#F1F5F9" opacity={0.65} />
-          <Path d="M 595 0 L 440 0 C 440 85, 520 155, 595 155 Z" fill="#F8FAFC" opacity={0.8} />
+          {/* Upper Ambient Subtle Curves (Minimalist & Clean) */}
+          <Path d="M 0 0 L 220 0 C 180 80, 100 130, 0 145 Z" fill="#F1F5F9" opacity={0.6} />
+          <Path d="M 595 0 L 400 0 C 430 75, 500 120, 595 130 Z" fill="#E2E8F0" opacity={0.5} />
 
-          {/* Lower Flowing Abstract Waves */}
-          {/* Layer 1: Light Grey & Muted Silver Wave */}
-          <Path d="M 0 510 C 140 450, 320 580, 595 500 L 595 842 L 0 842 Z" fill="#E2E8F0" opacity={0.7} />
+          {/* Lower Flowing Abstract Waves: Multi-layered Curved Geometric Shapes */}
+          {/* Layer 1: Light Grey Wave */}
+          <Path d="M 0 460 C 130 420, 260 520, 410 470 C 490 440, 545 465, 595 480 L 595 842 L 0 842 Z" fill="#E2E8F0" opacity={0.65} />
 
-          {/* Layer 2: Slate Grey Wave */}
-          <Path d="M 0 600 C 160 650, 380 540, 595 620 L 595 842 L 0 842 Z" fill="#475569" opacity={0.65} />
+          {/* Layer 2: Muted Silver Overlapping Wave */}
+          <Path d="M 0 520 C 150 560, 280 480, 430 530 C 510 560, 560 535, 595 515 L 595 842 L 0 842 Z" fill="#94A3B8" opacity={0.45} />
 
-          {/* Layer 3: Deep Charcoal Blue Primary Wave */}
-          <Path d="M 0 680 C 180 630, 370 720, 595 660 L 595 842 L 0 842 Z" fill={PRIMARY} opacity={0.96} />
+          {/* Layer 3: Slate Grey Wave */}
+          <Path d="M 0 575 C 160 515, 300 635, 460 565 C 525 535, 565 570, 595 590 L 595 842 L 0 842 Z" fill="#475569" opacity={0.7} />
+
+          {/* Layer 4: Deep Primary Charcoal Blue Wave */}
+          <Path d="M 0 645 C 170 690, 320 590, 470 655 C 530 680, 568 660, 595 640 L 595 842 L 0 842 Z" fill={PRIMARY} opacity={0.95} />
+
+          {/* Layer 5: Darkest Charcoal Grounding Base Wave */}
+          <Path d="M 0 720 C 180 670, 350 750, 595 695 L 595 842 L 0 842 Z" fill="#132429" opacity={0.98} />
 
           {/* Elegant Curved White Lines Crossing the Lower Portion */}
-          <Path d="M 0 635 C 190 565, 380 665, 595 585" stroke="#FFFFFF" strokeWidth={1.8} opacity={0.9} fill="none" />
-          <Path d="M 0 655 C 200 595, 390 695, 595 615" stroke="#FFFFFF" strokeWidth={0.8} opacity={0.45} fill="none" />
+          <Path d="M 0 595 C 165 530, 310 650, 470 580 C 535 550, 570 585, 595 605" stroke="#FFFFFF" strokeWidth={1.8} opacity={0.95} fill="none" />
+          <Path d="M 0 625 C 175 665, 325 575, 480 640 C 540 665, 575 645, 595 625" stroke="#FFFFFF" strokeWidth={1.0} opacity={0.6} fill="none" />
+          <Path d="M 0 660 C 180 705, 335 610, 495 675 C 550 700, 580 680, 595 660" stroke="#FFFFFF" strokeWidth={0.6} opacity={0.35} fill="none" />
         </Svg>
 
         {/* Bottom Badge inside Charcoal Blue Wave */}
