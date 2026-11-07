@@ -1,4 +1,5 @@
 'use client'
+// Agreement Document PDF with Abstract Monochromatic Wave Cover Page (v2.1)
 
 import { Document, Font, Image, Page, Path, StyleSheet, Svg, Text, View } from '@react-pdf/renderer'
 import type { AgreementContent } from '@/lib/agreement-template'
