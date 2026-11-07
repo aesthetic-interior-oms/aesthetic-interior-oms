@@ -1,6 +1,6 @@
 'use client'
 
-import { Circle, Document, Font, Image, Page, StyleSheet, Svg, Text, View } from '@react-pdf/renderer'
+import { Document, Font, Image, Page, Path, StyleSheet, Svg, Text, View } from '@react-pdf/renderer'
 import type { AgreementContent } from '@/lib/agreement-template'
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 import {
@@ -85,70 +85,102 @@ const watermarkSrc = isBrowser
     : '/android-chrome-512x512.png'
 
 const styles = StyleSheet.create({
-  // ─── Cover Page Styles ───
+  // ─── Cover Page Styles (Abstract Monochromatic Waves) ───
   coverPage: {
     position: 'relative',
-    paddingHorizontal: 40,
     backgroundColor: '#ffffff',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
     height: '100%',
+    paddingTop: 45,
+    paddingBottom: 25,
+    paddingHorizontal: 40,
   },
   coverContentWrapper: {
+    position: 'relative',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
     width: '100%',
+    zIndex: 2,
   },
-  coverLogoSection: {
-    marginBottom: 70,
+  coverHeaderSection: {
     alignItems: 'center',
+    marginBottom: 48,
   },
-  coverEmblem: {
-    width: 68,
-    height: 68,
+  coverHeaderLogo: {
+    width: 160,
+    height: 44,
+    objectFit: 'contain',
   },
-  coverStudioName: {
-    fontFamily: 'Playfair Display',
-    fontWeight: 'bold',
-    fontSize: 15.5,
-    color: PRIMARY,
-    marginTop: 9,
-    letterSpacing: 1.2,
-    textAlign: 'center',
+  coverHeaderInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  coverHeaderInfoText: {
+    fontSize: 8,
+    color: '#64748b',
+    letterSpacing: 0.5,
+  },
+  coverHeaderInfoDot: {
+    fontSize: 7,
+    color: '#94a3b8',
+    marginHorizontal: 8,
   },
   coverTitleSection: {
-    marginBottom: 70,
     alignItems: 'center',
+    marginBottom: 44,
   },
   coverInteriorWorkSub: {
     fontSize: 8.5,
     fontWeight: 'bold',
     color: GOLD,
     textTransform: 'uppercase',
-    letterSpacing: 6,
-    marginBottom: 4,
+    letterSpacing: 5,
+    marginBottom: 6,
     textAlign: 'center',
   },
-  coverTitle: {
-    fontFamily: 'Times-Italic',
-    fontSize: 48,
+  coverMainTitle: {
+    fontFamily: 'Playfair Display',
+    fontWeight: 'bold',
+    fontSize: 24,
     color: PRIMARY,
+    textTransform: 'uppercase',
     letterSpacing: 2,
     textAlign: 'center',
   },
+  coverSubtitle: {
+    fontSize: 8.5,
+    fontWeight: 'bold',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 3,
+    marginTop: 6,
+    textAlign: 'center',
+  },
   coverGoldDivider: {
-    width: 46,
+    width: 44,
     height: 1.5,
     backgroundColor: GOLD,
-    marginTop: 10,
+    marginTop: 12,
+    marginBottom: 10,
     alignSelf: 'center',
   },
+  coverTagline: {
+    fontFamily: 'Playfair Display',
+    fontStyle: 'italic',
+    fontSize: 9.5,
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  coverDataSection: {
+    alignItems: 'center',
+    width: '100%',
+  },
   coverSection: {
-    marginBottom: 70,
+    marginBottom: 26,
     alignItems: 'center',
   },
   coverSectionLabel: {
@@ -156,11 +188,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: GOLD,
     textTransform: 'uppercase',
-    letterSpacing: 2,
-    marginBottom: 7,
+    letterSpacing: 2.5,
+    marginBottom: 5,
     textAlign: 'center',
   },
   coverClientName: {
+    fontFamily: 'Playfair Display',
     fontSize: 16,
     fontWeight: 'bold',
     color: PRIMARY,
@@ -171,23 +204,38 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginTop: 3,
     textAlign: 'center',
+    maxWidth: 360,
   },
   coverCompanyName: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: 'bold',
     color: PRIMARY,
     textAlign: 'center',
   },
+  coverMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
   coverMetaSmall: {
     fontSize: 8.5,
     color: '#64748b',
-    marginTop: 5,
     textAlign: 'center',
   },
-  coverMetaSmallDate: {
-    fontSize: 8,
-    color: '#94a3b8',
-    marginTop: 2,
+  coverBottomBadge: {
+    position: 'absolute',
+    bottom: 22,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 3,
+  },
+  coverBottomBadgeText: {
+    fontSize: 7.5,
+    color: '#CBD5E1',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
     textAlign: 'center',
   },
 
@@ -1033,50 +1081,80 @@ export function AgreementDocumentPdf({
 
   return (
     <Document title={`Agreement - ${clientName}`} author="Aesthetic Interior">
-      {/* ─── FRONT COVER PAGE ────────────────────────────────────────── */}
-      <Page size="A4" style={styles.coverPage}>
-        {/* Top-Right 2 Filled Arcs (Same color, 60% and 100% opacity) */}
-        <Svg width={240} height={240} viewBox="0 0 240 240" style={{ position: 'absolute', top: 0, right: 0 }}>
-          <Circle cx={240} cy={0} r={210} fill={PRIMARY} opacity={0.6} />
-          <Circle cx={240} cy={0} r={130} fill={PRIMARY} opacity={1.0} />
+      {/* ─── FRONT COVER PAGE (ABSTRACT MONOCHROMATIC WAVES) ────────── */}
+      <Page size="A4" style={styles.coverPage} wrap={false}>
+        {/* Abstract Background Design: Charcoal Blue, Slate Grey, Light Grey & Muted Silver Waves */}
+        <Svg width={595} height={842} viewBox="0 0 595 842" style={{ position: 'absolute', top: 0, left: 0, zIndex: 0 }}>
+          {/* Upper Ambient Subtle Curves */}
+          <Path d="M 0 0 L 160 0 C 160 90, 80 160, 0 160 Z" fill="#F1F5F9" opacity={0.65} />
+          <Path d="M 595 0 L 440 0 C 440 85, 520 155, 595 155 Z" fill="#F8FAFC" opacity={0.8} />
+
+          {/* Lower Flowing Abstract Waves */}
+          {/* Layer 1: Light Grey & Muted Silver Wave */}
+          <Path d="M 0 510 C 140 450, 320 580, 595 500 L 595 842 L 0 842 Z" fill="#E2E8F0" opacity={0.7} />
+
+          {/* Layer 2: Slate Grey Wave */}
+          <Path d="M 0 600 C 160 650, 380 540, 595 620 L 595 842 L 0 842 Z" fill="#475569" opacity={0.65} />
+
+          {/* Layer 3: Deep Charcoal Blue Primary Wave */}
+          <Path d="M 0 680 C 180 630, 370 720, 595 660 L 595 842 L 0 842 Z" fill={PRIMARY} opacity={0.96} />
+
+          {/* Elegant Curved White Lines Crossing the Lower Portion */}
+          <Path d="M 0 635 C 190 565, 380 665, 595 585" stroke="#FFFFFF" strokeWidth={1.8} opacity={0.9} fill="none" />
+          <Path d="M 0 655 C 200 595, 390 695, 595 615" stroke="#FFFFFF" strokeWidth={0.8} opacity={0.45} fill="none" />
         </Svg>
 
-        {/* Bottom-Left 2 Filled Arcs (Same color, 60% and 100% opacity) */}
-        <Svg width={240} height={240} viewBox="0 0 240 240" style={{ position: 'absolute', bottom: 0, left: 0 }}>
-          <Circle cx={0} cy={240} r={210} fill={PRIMARY} opacity={0.6} />
-          <Circle cx={0} cy={240} r={130} fill={PRIMARY} opacity={1.0} />
-        </Svg>
+        {/* Bottom Badge inside Charcoal Blue Wave */}
+        <View style={styles.coverBottomBadge}>
+          <Text style={styles.coverBottomBadgeText}>
+            AESTHETIC INTERIOR STUDIO &bull; OFFICIAL CONTRACT DOCUMENT
+          </Text>
+        </View>
 
-        {/* Centerwise Serial Content with Big Common Gap */}
-        <View style={styles.coverContentWrapper}>
-          {/* 1. Logo / Emblem & Aesthetic Interior Studio */}
-          <View style={styles.coverLogoSection}>
-            <Image src={watermarkSrc} style={styles.coverEmblem} />
-            <Text style={styles.coverStudioName}>Aesthetic Interior Studio</Text>
+        {/* Content Layer */}
+        <View style={styles.coverContentWrapper} wrap={false}>
+          {/* 1. Header Section: Logo + Single Horizontal Row with Address, Email, Website */}
+          <View style={styles.coverHeaderSection}>
+            <Image src={logoSrc} style={styles.coverHeaderLogo} />
+            <View style={styles.coverHeaderInfoRow}>
+              <Text style={styles.coverHeaderInfoText}>Dhaka, Bangladesh</Text>
+              <Text style={styles.coverHeaderInfoDot}>&bull;</Text>
+              <Text style={styles.coverHeaderInfoText}>info@aestheticinteriortech.com</Text>
+              <Text style={styles.coverHeaderInfoDot}>&bull;</Text>
+              <Text style={styles.coverHeaderInfoText}>www.aestheticinteriortech.com</Text>
+            </View>
           </View>
 
-          {/* 2. Interior Work & Agreement (Calligraphic Font) */}
+          {/* 2. Main Title Section: Spaced Category + Large Heading + Subtitle + Divider */}
           <View style={styles.coverTitleSection}>
             <Text style={styles.coverInteriorWorkSub}>INTERIOR WORK</Text>
-            <Text style={styles.coverTitle}>Agreement</Text>
+            <Text style={styles.coverMainTitle}>INTERIOR DESIGN AGREEMENT</Text>
+            <Text style={styles.coverSubtitle}>PROJECT AGREEMENT &amp; TERMS OF SERVICE</Text>
             <View style={styles.coverGoldDivider} />
+            <Text style={styles.coverTagline}>&ldquo;Designing spaces, creating experiences.&rdquo;</Text>
           </View>
 
-          {/* 3. Prepared for (Client Name) */}
-          <View style={styles.coverSection}>
-            <Text style={styles.coverSectionLabel}>Prepared For</Text>
-            <Text style={styles.coverClientName}>{agreement.ownerName || clientName}</Text>
-            {agreement.projectAddress || agreement.projectName ? (
-              <Text style={styles.coverClientSub}>{agreement.projectAddress || agreement.projectName}</Text>
-            ) : null}
-          </View>
+          {/* 3. Agreement Information: Prepared For & Prepared By */}
+          <View style={styles.coverDataSection}>
+            {/* Prepared For */}
+            <View style={styles.coverSection}>
+              <Text style={styles.coverSectionLabel}>PREPARED FOR</Text>
+              <Text style={styles.coverClientName}>{agreement.ownerName || clientName}</Text>
+              {agreement.projectAddress || agreement.projectName ? (
+                <Text style={styles.coverClientSub}>{agreement.projectAddress || agreement.projectName}</Text>
+              ) : null}
+            </View>
 
-          {/* 4. Prepared by (Company Name) in small website url and date */}
-          <View style={[styles.coverSection, { marginBottom: 0 }]}>
-            <Text style={styles.coverSectionLabel}>Prepared By</Text>
-            <Text style={styles.coverCompanyName}>Aesthetic Interior</Text>
-            <Text style={styles.coverMetaSmall}>www.aestheticinteriortech.com</Text>
-            <Text style={styles.coverMetaSmallDate}>{formatDateString(agreement.agreementDate)}</Text>
+            {/* Prepared By */}
+            <View style={[styles.coverSection, { marginBottom: 0 }]}>
+              <Text style={styles.coverSectionLabel}>PREPARED BY</Text>
+              <Text style={styles.coverCompanyName}>Aesthetic Interior</Text>
+              <View style={styles.coverMetaRow}>
+                <Text style={styles.coverMetaSmall}>www.aestheticinteriortech.com</Text>
+                <Text style={styles.coverHeaderInfoDot}>&bull;</Text>
+                <Text style={styles.coverMetaSmall}>{formatDateString(agreement.agreementDate)}</Text>
+              </View>
+            </View>
           </View>
         </View>
       </Page>
