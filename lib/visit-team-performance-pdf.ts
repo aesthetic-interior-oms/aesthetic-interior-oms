@@ -396,32 +396,37 @@ export async function generateVisitTeamPerformancePdf({
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(8.5)
   doc.setTextColor(15, 118, 110)
-  doc.text('SITE VISIT WORKLOAD BREAKDOWN (LEAD VS SUPPORT)', b1X + 4, b1Y + 6)
+  doc.text('SITE VISIT WORKLOAD BREAKDOWN', b1X + 4, b1Y + 6)
 
+  // Subtitle
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(6.8)
   doc.setTextColor(100, 116, 139)
-  doc.text('Lead Consultant (site assessment & measurements) vs Support Staff', b1X + 4, b1Y + 10)
+  doc.text('Lead Consultant (site assessment & measurements) vs Support Staff', b1X + 4, b1Y + 10.5)
 
-  // Legend
+  // Dedicated Legend Row with plenty of clearance below subtitle
+  const legendY = b1Y + 14.5
   doc.setFillColor(13, 148, 136)
-  doc.rect(b1X + chartColWidth - 55, b1Y + 5, 3.5, 3.5, 'F')
-  doc.setFont('helvetica', 'normal')
+  doc.roundedRect(b1X + 4, legendY, 3.5, 3.5, 0.5, 0.5, 'F')
+  doc.setFont('helvetica', 'bold')
   doc.setFontSize(6.5)
-  doc.setTextColor(51, 65, 85)
-  doc.text('Lead Visits', b1X + chartColWidth - 50, b1Y + 7.5)
+  doc.setTextColor(15, 118, 110)
+  doc.text('Lead Visits', b1X + 9, legendY + 2.7)
 
   doc.setFillColor(148, 163, 184)
-  doc.rect(b1X + chartColWidth - 28, b1Y + 5, 3.5, 3.5, 'F')
-  doc.text('Support Visits', b1X + chartColWidth - 23, b1Y + 7.5)
+  doc.roundedRect(b1X + 32, legendY, 3.5, 3.5, 0.5, 0.5, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(71, 85, 105)
+  doc.text('Support Visits', b1X + 37, legendY + 2.7)
 
   const b1Items = Math.min(activeMembers.length, 5)
-  const b1RowHeight = (bottomHeight - 16) / Math.max(b1Items, 1)
+  const b1AreaTop = b1Y + 21
+  const b1RowHeight = (bottomHeight - 24) / Math.max(b1Items, 1)
   const maxTotalVisits = Math.max(...activeMembers.map((m) => (m.leadVisits || 0) + (m.supportVisits || 0)), 1)
 
   for (let i = 0; i < b1Items; i++) {
     const member = activeMembers[i]
-    const rowY = b1Y + 14 + i * b1RowHeight
+    const rowY = b1AreaTop + i * b1RowHeight
 
     // Label
     doc.setFont('helvetica', 'normal')
