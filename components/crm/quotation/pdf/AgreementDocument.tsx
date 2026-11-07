@@ -1,6 +1,6 @@
 'use client'
 
-import { Circle, Document, Font, Image, Page, Path, StyleSheet, Svg, Text, View } from '@react-pdf/renderer'
+import { Circle, Document, Font, Image, Page, StyleSheet, Svg, Text, View } from '@react-pdf/renderer'
 import type { AgreementContent } from '@/lib/agreement-template'
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 import {
@@ -78,7 +78,6 @@ const logoSrc = isBrowser
     ? `${process.cwd()}/public/Logo/HeaderLogo.png`
     : '/Logo/HeaderLogo.png'
 
-
 const watermarkSrc = isBrowser
   ? '/android-chrome-512x512.png'
   : typeof process !== 'undefined' && process.cwd
@@ -86,225 +85,110 @@ const watermarkSrc = isBrowser
     : '/android-chrome-512x512.png'
 
 const styles = StyleSheet.create({
-  // ─── Editorial Architectural Cover Page Styles (Lavender & Blue Accents) ───
+  // ─── Cover Page Styles ───
   coverPage: {
     position: 'relative',
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 40,
+    backgroundColor: '#ffffff',
     display: 'flex',
     flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
     height: '100%',
-    paddingTop: 44,
-    paddingBottom: 32,
-    paddingHorizontal: 46,
-  },
-  coverOuterBorder: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    bottom: 20,
-    borderWidth: 1.2,
-    borderColor: '#1E3A8A',
-  },
-  coverInnerBorder: {
-    position: 'absolute',
-    top: 24,
-    left: 24,
-    right: 24,
-    bottom: 24,
-    borderWidth: 0.5,
-    borderColor: '#1E3A8A',
-    opacity: 0.35,
-  },
-  coverCornerTL: {
-    position: 'absolute',
-    top: 22,
-    left: 22,
-    width: 4,
-    height: 4,
-    backgroundColor: '#1E3A8A',
-  },
-  coverCornerTR: {
-    position: 'absolute',
-    top: 22,
-    right: 22,
-    width: 4,
-    height: 4,
-    backgroundColor: '#1E3A8A',
-  },
-  coverCornerBL: {
-    position: 'absolute',
-    bottom: 22,
-    left: 22,
-    width: 4,
-    height: 4,
-    backgroundColor: '#1E3A8A',
-  },
-  coverCornerBR: {
-    position: 'absolute',
-    bottom: 22,
-    right: 22,
-    width: 4,
-    height: 4,
-    backgroundColor: '#1E3A8A',
   },
   coverContentWrapper: {
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    justifyContent: 'center',
     width: '100%',
-    height: '100%',
-    zIndex: 2,
   },
-  coverTopSection: {
-    width: '100%',
-    alignItems: 'flex-start',
+  coverLogoSection: {
+    marginBottom: 70,
+    alignItems: 'center',
   },
-  coverLogo: {
-    width: 145,
-    height: 38,
-    objectFit: 'contain',
+  coverEmblem: {
+    width: 68,
+    height: 68,
   },
-  coverDocCategory: {
+  coverStudioName: {
+    fontFamily: 'Playfair Display',
+    fontWeight: 'bold',
+    fontSize: 15.5,
+    color: PRIMARY,
+    marginTop: 9,
+    letterSpacing: 1.2,
+    textAlign: 'center',
+  },
+  coverTitleSection: {
+    marginBottom: 70,
+    alignItems: 'center',
+  },
+  coverInteriorWorkSub: {
     fontSize: 8.5,
     fontWeight: 'bold',
     color: GOLD,
     textTransform: 'uppercase',
-    letterSpacing: 4.5,
-    marginTop: 14,
+    letterSpacing: 6,
+    marginBottom: 4,
+    textAlign: 'center',
   },
-  coverMainTitle: {
-    fontFamily: 'Playfair Display',
-    fontWeight: 'bold',
-    fontSize: 24,
+  coverTitle: {
+    fontFamily: 'Times-Italic',
+    fontSize: 48,
     color: PRIMARY,
-    textTransform: 'uppercase',
-    letterSpacing: 1.2,
-    marginTop: 4,
+    letterSpacing: 2,
+    textAlign: 'center',
   },
-  coverScriptTitle: {
-    fontFamily: 'Playfair Display',
-    fontStyle: 'italic',
-    fontSize: 32,
-    color: '#1E3A8A',
-    marginTop: -4,
-  },
-  coverSubtitle: {
-    fontSize: 8.5,
-    fontWeight: 'bold',
-    color: '#1E3A8A',
-    textTransform: 'uppercase',
-    letterSpacing: 3,
-    marginTop: 4,
-  },
-  coverBlueDivider: {
-    width: 48,
+  coverGoldDivider: {
+    width: 46,
     height: 1.5,
-    backgroundColor: '#1E3A8A',
-    marginTop: 8,
-    marginBottom: 6,
+    backgroundColor: GOLD,
+    marginTop: 10,
+    alignSelf: 'center',
   },
-  coverHeaderDate: {
-    fontSize: 8,
-    color: TEXT_MUTED,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-  },
-  coverMiddleSection: {
-    width: 370,
-    marginTop: 20,
-    marginBottom: 16,
-  },
-  coverInfoBlock: {
-    marginBottom: 14,
+  coverSection: {
+    marginBottom: 70,
+    alignItems: 'center',
   },
   coverSectionLabel: {
-    fontSize: 8,
+    fontSize: 8.5,
     fontWeight: 'bold',
     color: GOLD,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    marginBottom: 3,
+    marginBottom: 7,
+    textAlign: 'center',
   },
   coverClientName: {
-    fontFamily: 'Playfair Display',
     fontSize: 16,
     fontWeight: 'bold',
     color: PRIMARY,
-    letterSpacing: 0.5,
+    textAlign: 'center',
   },
-  coverLocationText: {
+  coverClientSub: {
     fontSize: 9.5,
-    color: TEXT_MUTED,
-    marginTop: 2,
-  },
-  coverSpecGroup: {
-    marginTop: 6,
-    paddingTop: 8,
-    borderTopWidth: 0.5,
-    borderTopColor: '#E2E8F0',
-  },
-  coverSpecItem: {
-    marginBottom: 7,
-  },
-  coverSpecLabel: {
-    fontSize: 7.5,
-    fontWeight: 'bold',
-    color: '#1E3A8A',
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-  },
-  coverSpecValue: {
-    fontSize: 9.5,
-    fontWeight: 'bold',
-    color: PRIMARY,
-    marginTop: 1,
-  },
-  coverSpecValueSub: {
-    fontSize: 8.5,
-    color: TEXT_DARK,
-    marginTop: 1,
+    color: '#64748b',
+    marginTop: 3,
+    textAlign: 'center',
   },
   coverCompanyName: {
-    fontSize: 13.5,
+    fontSize: 15,
     fontWeight: 'bold',
     color: PRIMARY,
-    letterSpacing: 0.5,
+    textAlign: 'center',
   },
-  coverWebText: {
+  coverMetaSmall: {
     fontSize: 8.5,
-    color: '#1E3A8A',
-    marginTop: 1,
+    color: '#64748b',
+    marginTop: 5,
+    textAlign: 'center',
   },
-  coverTagline: {
-    fontFamily: 'Playfair Display',
-    fontStyle: 'italic',
-    fontSize: 8.5,
-    color: TEXT_MUTED,
+  coverMetaSmallDate: {
+    fontSize: 8,
+    color: '#94a3b8',
     marginTop: 2,
-  },
-  coverFooterSection: {
-    width: '100%',
-    paddingTop: 10,
-    borderTopWidth: 0.75,
-    borderTopColor: '#1E3A8A',
-    borderTopOpacity: 0.35,
-  },
-  coverFooterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-  },
-  coverFooterText: {
-    fontSize: 7,
-    color: TEXT_MUTED,
-  },
-  coverFooterBrand: {
-    fontSize: 7,
-    fontWeight: 'bold',
-    color: '#1E3A8A',
-    letterSpacing: 0.5,
+    textAlign: 'center',
   },
 
   page: {
@@ -1149,130 +1033,50 @@ export function AgreementDocumentPdf({
 
   return (
     <Document title={`Agreement - ${clientName}`} author="Aesthetic Interior">
-      {/* ─── FRONT COVER PAGE (EDITORIAL ARCHITECTURAL COVER) ───────── */}
-      <Page size="A4" style={styles.coverPage} wrap={false}>
-        {/* Thin Blue Double Border Surrounding the Page */}
-        <View style={styles.coverOuterBorder} />
-        <View style={styles.coverInnerBorder} />
-        <View style={styles.coverCornerTL} />
-        <View style={styles.coverCornerTR} />
-        <View style={styles.coverCornerBL} />
-        <View style={styles.coverCornerBR} />
-
-        {/* Decorative SVG Layer: Lavender Shapes, Pendant Lamp, Stamp & Lounge Chair */}
-        <Svg width={595} height={842} viewBox="0 0 595 842" style={{ position: 'absolute', top: 0, left: 0, zIndex: 1 }}>
-          {/* 1. Soft Geometric Background Shapes with Subtle Lavender Tones */}
-          <Path d="M 370 20 L 575 20 L 575 240 C 550 290, 480 300, 430 250 C 380 200, 370 100, 370 20 Z" fill="#F4EFFB" opacity={0.7} />
-          <Circle cx={500} cy={370} r={95} fill="#F9F5FE" opacity={0.65} />
-          <Path d="M 360 822 L 575 822 L 575 600 C 510 600, 430 650, 390 720 C 365 765, 360 800, 360 822 Z" fill="#ECE4F8" opacity={0.6} />
-
-          {/* Thin Architectural Construction/Grid Lines */}
-          <Path d="M 40 270 L 555 270" stroke="#1E3A8A" strokeWidth={0.5} opacity={0.12} />
-          <Path d="M 40 690 L 555 690" stroke="#1E3A8A" strokeWidth={0.5} opacity={0.12} />
-
-          {/* 2. Minimalist Pendant Lamp Illustration (Upper-Right) */}
-          <Path d="M 485 20 L 485 100" stroke="#1E3A8A" strokeWidth={1} />
-          <Path d="M 475 20 L 495 20" stroke="#1E3A8A" strokeWidth={2.5} />
-          <Path d="M 485 100 L 485 110" stroke="#1E3A8A" strokeWidth={2.5} />
-          <Path d="M 445 142 L 472 110 L 498 110 L 525 142 Z" fill="#1E3A8A" />
-          <Path d="M 445 142 C 445 146, 525 146, 525 142 C 525 138, 445 138, 445 142 Z" fill="#EAE3F7" stroke="#1E3A8A" strokeWidth={1} />
-          <Circle cx={485} cy={146} r={5} fill="#D4AF37" opacity={0.9} />
-          <Path d="M 462 160 C 475 168, 495 168, 508 160" stroke="#1E3A8A" strokeWidth={0.75} opacity={0.35} fill="none" />
-          <Path d="M 452 172 C 472 184, 498 184, 518 172" stroke="#1E3A8A" strokeWidth={0.5} opacity={0.2} fill="none" />
-
-          {/* 3. Circular Architectural Stamp / Seal (Center-Right) */}
-          <Circle cx={485} cy={300} r={26} stroke="#1E3A8A" strokeWidth={0.8} opacity={0.5} fill="#FFFFFF" />
-          <Circle cx={485} cy={300} r={22} stroke="#1E3A8A" strokeWidth={0.5} opacity={0.35} fill="none" />
-          <Circle cx={485} cy={300} r={17} stroke="#1E3A8A" strokeWidth={0.6} opacity={0.4} fill="#F4EFFB" />
-          <Path d="M 485 279 L 485 284" stroke="#1E3A8A" strokeWidth={0.8} />
-          <Path d="M 485 316 L 485 321" stroke="#1E3A8A" strokeWidth={0.8} />
-          <Path d="M 464 300 L 469 300" stroke="#1E3A8A" strokeWidth={0.8} />
-          <Path d="M 501 300 L 506 300" stroke="#1E3A8A" strokeWidth={0.8} />
-
-          {/* 4. Elegant Modern Furniture Illustration - Lounge Chair (Bottom-Right) */}
-          <Path d="M 452 660 C 445 628, 468 608, 498 608 C 528 608, 551 628, 544 660 Z" fill="#EAE3F7" stroke="#1E3A8A" strokeWidth={1.2} />
-          <Path d="M 436 660 C 436 650, 560 650, 560 660 C 560 678, 436 678, 436 660 Z" fill="#DFD5F2" stroke="#1E3A8A" strokeWidth={1.2} />
-          <Path d="M 445 665 C 475 668, 525 668, 552 665" stroke="#1E3A8A" strokeWidth={0.5} opacity={0.4} fill="none" />
-          <Path d="M 454 678 L 440 722" stroke="#1E3A8A" strokeWidth={1.5} />
-          <Path d="M 542 678 L 556 722" stroke="#1E3A8A" strokeWidth={1.5} />
-          <Path d="M 472 678 L 468 716" stroke="#1E3A8A" strokeWidth={1} opacity={0.65} />
-          <Path d="M 524 678 L 528 716" stroke="#1E3A8A" strokeWidth={1} opacity={0.65} />
-          <Path d="M 435 724 C 435 721, 560 721, 560 724 C 560 727, 435 727, 435 724 Z" fill="#1E3A8A" opacity={0.12} />
+      {/* ─── FRONT COVER PAGE ────────────────────────────────────────── */}
+      <Page size="A4" style={styles.coverPage}>
+        {/* Top-Right 2 Filled Arcs (Same color, 60% and 100% opacity) */}
+        <Svg width={240} height={240} viewBox="0 0 240 240" style={{ position: 'absolute', top: 0, right: 0 }}>
+          <Circle cx={240} cy={0} r={210} fill={PRIMARY} opacity={0.6} />
+          <Circle cx={240} cy={0} r={130} fill={PRIMARY} opacity={1.0} />
         </Svg>
 
-        {/* Monogram inside Circular Seal */}
-        <View style={{ position: 'absolute', top: 294, left: 477, zIndex: 2 }}>
-          <Text style={{ fontSize: 10, fontFamily: 'Playfair Display', fontWeight: 'bold', color: '#1E3A8A', letterSpacing: 1 }}>AI</Text>
-        </View>
+        {/* Bottom-Left 2 Filled Arcs (Same color, 60% and 100% opacity) */}
+        <Svg width={240} height={240} viewBox="0 0 240 240" style={{ position: 'absolute', bottom: 0, left: 0 }}>
+          <Circle cx={0} cy={240} r={210} fill={PRIMARY} opacity={0.6} />
+          <Circle cx={0} cy={240} r={130} fill={PRIMARY} opacity={1.0} />
+        </Svg>
 
-        {/* Editorial Content Wrapper */}
-        <View style={styles.coverContentWrapper} wrap={false}>
-          {/* Header Section (Upper Left Identity & Titles) */}
-          <View style={styles.coverTopSection}>
-            <Image src={logoSrc} style={styles.coverLogo} />
-            <Text style={styles.coverDocCategory}>I N T E R I O R   W O R K</Text>
-            <Text style={styles.coverMainTitle}>INTERIOR DESIGN AGREEMENT</Text>
-            <Text style={styles.coverScriptTitle}>Agreement</Text>
-            <Text style={styles.coverSubtitle}>DESIGN & EXECUTION CONTRACT</Text>
-            <View style={styles.coverBlueDivider} />
-            <Text style={styles.coverHeaderDate}>DATE: {formatDateString(agreement.agreementDate)}</Text>
+        {/* Centerwise Serial Content with Big Common Gap */}
+        <View style={styles.coverContentWrapper}>
+          {/* 1. Logo / Emblem & Aesthetic Interior Studio */}
+          <View style={styles.coverLogoSection}>
+            <Image src={watermarkSrc} style={styles.coverEmblem} />
+            <Text style={styles.coverStudioName}>Aesthetic Interior Studio</Text>
           </View>
 
-          {/* Middle Editorial Information Section */}
-          <View style={styles.coverMiddleSection}>
-            {/* Prepared For Group */}
-            <View style={styles.coverInfoBlock}>
-              <Text style={styles.coverSectionLabel}>P R E P A R E D   F O R</Text>
-              <Text style={styles.coverClientName}>{agreement.ownerName || clientName}</Text>
-              <Text style={styles.coverLocationText}>
-                {agreement.projectAddress || agreement.ownerAddress || 'Hazaribag'}
-              </Text>
-            </View>
-
-            {/* Project & Contract Specification */}
-            <View style={styles.coverSpecGroup}>
-              <View style={styles.coverSpecItem}>
-                <Text style={styles.coverSpecLabel}>PROJECT NAME</Text>
-                <Text style={styles.coverSpecValue}>
-                  {agreement.projectName || 'Interior Architecture & Renovation'}
-                </Text>
-              </View>
-
-              <View style={styles.coverSpecItem}>
-                <Text style={styles.coverSpecLabel}>AGREEMENT NUMBER</Text>
-                <Text style={styles.coverSpecValueSub}>
-                  {agreement.workOrderId || agreement.reference}
-                </Text>
-              </View>
-
-              <View style={styles.coverSpecItem}>
-                <Text style={styles.coverSpecLabel}>DOCUMENT REFERENCE</Text>
-                <Text style={styles.coverSpecValueSub}>{agreement.reference}</Text>
-              </View>
-            </View>
-
-            {/* Prepared By Group */}
-            <View style={{ marginTop: 10 }}>
-              <Text style={styles.coverSectionLabel}>P R E P A R E D   B Y</Text>
-              <Text style={styles.coverCompanyName}>Aesthetic Interior</Text>
-              <Text style={styles.coverWebText}>www.aestheticinteriortech.com</Text>
-              <Text style={styles.coverTagline}>&ldquo;Designing spaces, creating experiences.&rdquo;</Text>
-            </View>
+          {/* 2. Interior Work & Agreement (Calligraphic Font) */}
+          <View style={styles.coverTitleSection}>
+            <Text style={styles.coverInteriorWorkSub}>INTERIOR WORK</Text>
+            <Text style={styles.coverTitle}>Agreement</Text>
+            <View style={styles.coverGoldDivider} />
           </View>
 
-          {/* Footer Section */}
-          <View style={styles.coverFooterSection}>
-            <View style={styles.coverFooterRow}>
-              <Text style={styles.coverFooterText}>
-                PREPARED FOR: {agreement.ownerName || clientName}
-              </Text>
-              <Text style={styles.coverFooterBrand}>
-                Aesthetic Interior Studio &bull; www.aestheticinteriortech.com
-              </Text>
-              <Text style={styles.coverFooterText}>
-                REF: {agreement.reference} &bull; {formatDateString(agreement.agreementDate)}
-              </Text>
-            </View>
+          {/* 3. Prepared for (Client Name) */}
+          <View style={styles.coverSection}>
+            <Text style={styles.coverSectionLabel}>Prepared For</Text>
+            <Text style={styles.coverClientName}>{agreement.ownerName || clientName}</Text>
+            {agreement.projectAddress || agreement.projectName ? (
+              <Text style={styles.coverClientSub}>{agreement.projectAddress || agreement.projectName}</Text>
+            ) : null}
+          </View>
+
+          {/* 4. Prepared by (Company Name) in small website url and date */}
+          <View style={[styles.coverSection, { marginBottom: 0 }]}>
+            <Text style={styles.coverSectionLabel}>Prepared By</Text>
+            <Text style={styles.coverCompanyName}>Aesthetic Interior</Text>
+            <Text style={styles.coverMetaSmall}>www.aestheticinteriortech.com</Text>
+            <Text style={styles.coverMetaSmallDate}>{formatDateString(agreement.agreementDate)}</Text>
           </View>
         </View>
       </Page>
