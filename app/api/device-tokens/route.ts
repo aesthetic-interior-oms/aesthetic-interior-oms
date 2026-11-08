@@ -1,14 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
+import { requireMobileAuth } from '@/lib/mobile-auth'
+
+async function resolveUserId(request: NextRequest): Promise<{ userId: string } | { response: NextResponse }> {
+  // 1. Support Mobile App JWT Bearer Token
+  const authHeader = request.headers.get('authorization') || request.headers.get('Authorization')
+  if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+    const mobileAuth = await requireMobileAuth(request)
+    if (mobileAuth.ok) {
+      return { userId: mobileAuth.user.id }
+    }
+  }
+
+  // 2. Fall back to Clerk session for Web CRM
+  const authResult = await requireDatabaseRoles([])
+  if (!authResult.ok) {
+    return { response: authResult.response }
+  }
+  return { userId: authResult.actorUserId }
+}
 
 // POST /api/device-tokens — register or refresh FCM token
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireDatabaseRoles([])
-    if (!authResult.ok) return authResult.response
+    const auth = await resolveUserId(request)
+    if ('response' in auth) return auth.response
 
-    const userId = authResult.actorUserId
+    const userId = auth.userId
     const body = await request.json()
     const { token, platform } = body
 
@@ -44,8 +63,8 @@ export async function POST(request: NextRequest) {
 // DELETE /api/device-tokens — unregister FCM token on logout
 export async function DELETE(request: NextRequest) {
   try {
-    const authResult = await requireDatabaseRoles([])
-    if (!authResult.ok) return authResult.response
+    const auth = await resolveUserId(request)
+    if ('response' in auth) return auth.response
 
     const body = await request.json()
     const { token } = body
@@ -58,7 +77,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     await prisma.deviceToken.deleteMany({
-      where: { token, userId: authResult.actorUserId },
+      where: { token, userId: auth.userId },
     })
 
     return NextResponse.json({ success: true })
