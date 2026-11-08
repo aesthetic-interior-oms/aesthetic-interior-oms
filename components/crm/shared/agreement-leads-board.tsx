@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronDown,
   CircleDollarSign,
+  Compass,
   Download,
   FileCheck2,
   FileEdit,
@@ -28,6 +29,7 @@ import { toast } from '@/components/ui/sonner'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { DetailQuotationDocument } from '@/components/crm/quotation/pdf/DetailQuotationDocument'
 import { AgreementDocumentPdf } from '@/components/crm/quotation/pdf/AgreementDocument'
+import { MepCoverDocument } from '@/components/crm/quotation/pdf/MepCoverDocument'
 import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
 import { withDetailQuotationDefaults } from '@/lib/detail-quotation-format'
 import { calculateQuotationTotals } from '@/lib/quotation-calculations'
@@ -158,6 +160,7 @@ function AgreementEditModal({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [downloadingMep, setDownloadingMep] = useState(false)
   const [dirty, setDirty] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -243,6 +246,36 @@ function AgreementEditModal({
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not generate PDF')
     } finally { setDownloading(false) }
+  }
+
+  const downloadMepCover = async () => {
+    if (!data) return
+    setDownloadingMep(true)
+    try {
+      const safeName = data.agreement.ownerName.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'Client'
+      await downloadPdfFromDocument(
+        <MepCoverDocument
+          clientName={data.agreement.ownerName}
+          clientPhone={data.client.phone}
+          clientEmail={data.client.email}
+          clientAddress={data.agreement.ownerAddress || data.agreement.projectAddress || data.client.location}
+          projectName={data.agreement.projectName}
+          projectAddress={data.agreement.projectAddress || data.client.location}
+          workOrderId={data.agreement.workOrderId}
+          subContractId={data.agreement.subContractId}
+          reference={data.agreement.reference}
+          agreementDate={data.agreement.agreementDate}
+          quotationCode={data.quotation?.quotationCode}
+          srCrmName={data.agreement.srCrmName}
+          companyRepresentative={data.agreement.companyRepresentative}
+          companyRepresentativeTitle={data.agreement.companyRepresentativeTitle}
+        />,
+        `MEP_Cover_${safeName}_A3.pdf`,
+      )
+      toast.success('MEP Cover (A3) PDF downloaded')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not generate MEP Cover')
+    } finally { setDownloadingMep(false) }
   }
 
   const agr = data?.agreement
@@ -563,6 +596,15 @@ function AgreementEditModal({
           </button>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => void downloadMepCover()}
+              disabled={downloadingMep || loading || !agr}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50"
+              title="Download A3 Landscape MEP Drawing Signature Cover"
+            >
+              {downloadingMep ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Compass className="h-3.5 w-3.5 text-blue-600" />}
+              MEP Cover (A3)
+            </button>
+            <button
               onClick={() => void download()}
               disabled={downloading || loading || !agr}
               className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50"
@@ -606,6 +648,7 @@ export function AgreementLeadsBoard({
   const [savingBoqId, setSavingBoqId] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [downloadingAgreementId, setDownloadingAgreementId] = useState<string | null>(null)
+  const [downloadingMepId, setDownloadingMepId] = useState<string | null>(null)
   const [assignError, setAssignError] = useState<Record<string, string>>({})
   const [editingLeadId, setEditingLeadId] = useState<string | null>(null)
 
@@ -741,6 +784,48 @@ export function AgreementLeadsBoard({
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to download agreement')
     } finally { setDownloadingAgreementId(null) }
+  }
+
+  const downloadMepCover = async (lead: AgreementLead) => {
+    setDownloadingMepId(lead.id)
+    try {
+      const response = await fetch(`/api/agreement-leads/${lead.id}`, { cache: 'no-store' })
+      const payload = await response.json()
+      if (!response.ok || !payload.success || !payload.data) {
+        throw new Error(payload.error ?? 'Failed to load agreement data')
+      }
+      const data = payload.data as {
+        agreement: AgreementContent
+        quotation: Parameters<typeof AgreementDocumentPdf>[0]['quotation']
+        totals: Parameters<typeof AgreementDocumentPdf>[0]['totals']
+        client: { id: string; name: string; phone: string | null; email: string | null; location: string | null }
+      }
+      const safeName = lead.name.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'Client'
+      await downloadPdfFromDocument(
+        <MepCoverDocument
+          clientName={data.agreement.ownerName || lead.name}
+          clientPhone={data.client.phone || lead.phone}
+          clientEmail={data.client.email || lead.email}
+          clientAddress={data.agreement.ownerAddress || data.agreement.projectAddress || lead.location}
+          projectName={data.agreement.projectName}
+          projectAddress={data.agreement.projectAddress || lead.location}
+          workOrderId={data.agreement.workOrderId}
+          subContractId={data.agreement.subContractId}
+          reference={data.agreement.reference}
+          agreementDate={data.agreement.agreementDate}
+          quotationCode={data.quotation?.quotationCode}
+          srCrmName={data.agreement.srCrmName || lead.srCrm?.fullName}
+          companyRepresentative={data.agreement.companyRepresentative}
+          companyRepresentativeTitle={data.agreement.companyRepresentativeTitle}
+        />,
+        `MEP_Cover_${safeName}_A3.pdf`,
+      )
+      toast.success('MEP Cover (A3) PDF downloaded')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to download MEP Cover')
+    } finally {
+      setDownloadingMepId(null)
+    }
   }
 
   // Metrics
@@ -1043,9 +1128,9 @@ export function AgreementLeadsBoard({
                                   size="sm"
                                   variant="default"
                                   className="h-8 px-2.5 text-xs font-medium bg-[#1f363d] text-white hover:bg-[#16272c]"
-                                  disabled={downloadingAgreementId === lead.id || downloadingId === lead.id}
+                                  disabled={downloadingAgreementId === lead.id || downloadingId === lead.id || downloadingMepId === lead.id}
                                 >
-                                  {downloadingAgreementId === lead.id || downloadingId === lead.id ? (
+                                  {downloadingAgreementId === lead.id || downloadingId === lead.id || downloadingMepId === lead.id ? (
                                     <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                                   ) : (
                                     <Download className="mr-1.5 h-3.5 w-3.5" />
@@ -1055,6 +1140,10 @@ export function AgreementLeadsBoard({
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" className="w-56">
+                                <DropdownMenuItem onClick={() => void downloadMepCover(lead)}>
+                                  <Compass className="mr-2 h-4 w-4 text-blue-600" />
+                                  <span className="font-medium text-foreground">Download MEP Cover (A3)</span>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => void downloadAgreement(lead)}>
                                   <FileText className="mr-2 h-4 w-4 text-[#a57c00]" />
                                   <span>Download Agreement PDF</span>

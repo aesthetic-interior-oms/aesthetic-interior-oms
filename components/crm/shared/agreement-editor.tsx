@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Download, Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, Compass, Download, Loader2, Plus, Save, Trash2 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { AgreementDocumentPdf } from '@/components/crm/quotation/pdf/AgreementDocument'
+import { MepCoverDocument } from '@/components/crm/quotation/pdf/MepCoverDocument'
 import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
 import type { AgreementClauseGroup, AgreementContent } from '@/lib/agreement-template'
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
@@ -37,6 +38,7 @@ export function AgreementEditor({ leadId, basePath = '/crm/admin/agreement-leads
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const [downloadingMep, setDownloadingMep] = useState(false)
   const [dirty, setDirty] = useState(false)
 
   useEffect(() => {
@@ -88,6 +90,38 @@ export function AgreementEditor({ leadId, basePath = '/crm/admin/agreement-leads
     } finally { setDownloading(false) }
   }
 
+  const downloadMepCover = async () => {
+    if (!data) return
+    setDownloadingMep(true)
+    try {
+      const safeName = data.agreement.ownerName.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'Client'
+      await downloadPdfFromDocument(
+        <MepCoverDocument
+          clientName={data.agreement.ownerName}
+          clientPhone={data.client.phone}
+          clientEmail={data.client.email}
+          clientAddress={data.agreement.ownerAddress || data.agreement.projectAddress || data.client.location}
+          projectName={data.agreement.projectName}
+          projectAddress={data.agreement.projectAddress || data.client.location}
+          workOrderId={data.agreement.workOrderId}
+          subContractId={data.agreement.subContractId}
+          reference={data.agreement.reference}
+          agreementDate={data.agreement.agreementDate}
+          quotationCode={data.quotation?.quotationCode}
+          srCrmName={data.agreement.srCrmName}
+          companyRepresentative={data.agreement.companyRepresentative}
+          companyRepresentativeTitle={data.agreement.companyRepresentativeTitle}
+        />,
+        `MEP_Cover_${safeName}_A3.pdf`,
+      )
+      toast.success('MEP Cover (A3) PDF downloaded')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Could not generate MEP Cover')
+    } finally {
+      setDownloadingMep(false)
+    }
+  }
+
   if (loading) return <main className="mx-auto max-w-6xl p-8 text-sm text-muted-foreground">Loading agreement editor…</main>
   if (!data) return <main className="mx-auto max-w-6xl p-8 text-sm text-muted-foreground">Agreement could not be loaded. Check your access and try again.</main>
 
@@ -101,6 +135,10 @@ export function AgreementEditor({ leadId, basePath = '/crm/admin/agreement-leads
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button variant="ghost" asChild><Link href={basePath}><ArrowLeft className="mr-2 h-4 w-4" />Back to Agreement Leads</Link></Button>
         <div className="flex items-center gap-2"><span className="text-xs text-muted-foreground">{dirty ? 'Unsaved changes' : 'All changes saved'}</span>
+          <Button variant="outline" onClick={() => void downloadMepCover()} disabled={downloadingMep}>
+            {downloadingMep ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Compass className="mr-2 h-4 w-4 text-blue-600" />}
+            MEP Cover (A3)
+          </Button>
           <Button variant="outline" onClick={() => void download()} disabled={downloading}>{downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}Download PDF</Button>
           <Button onClick={() => void save()} disabled={saving || !dirty}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}Save agreement</Button>
         </div>
