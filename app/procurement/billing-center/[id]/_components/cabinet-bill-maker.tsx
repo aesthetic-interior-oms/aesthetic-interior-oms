@@ -148,7 +148,7 @@ export function CabinetBillMaker({
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Record board purchases for cabinets, closets, and wardrobes — with vendor, pricing, and payment details
+              Select supplier, record quoted bill quantity and unit rate to estimate the material cost
             </p>
           </div>
           <div className="relative w-full sm:w-64">
@@ -208,11 +208,9 @@ export function CabinetBillMaker({
                   <th className="py-2.5 px-3 min-w-[200px]">Board Spec &amp; Usage</th>
                   <th className="py-2.5 px-3 min-w-[150px]">Supplier &amp; Contacts</th>
                   <th className="py-2.5 px-3 text-center">Req. Qty</th>
-                  <th className="py-2.5 px-3 text-center">Purchased Qty</th>
+                  <th className="py-2.5 px-3 text-center">Bill Qty</th>
                   <th className="py-2.5 px-3 text-right">Unit Rate</th>
-                  <th className="py-2.5 px-3 text-right">Total Spend</th>
-                  <th className="py-2.5 px-3 text-right">Paid (৳)</th>
-                  <th className="py-2.5 px-3 text-center">Payment Status</th>
+                  <th className="py-2.5 px-3 text-right">Estimated Cost</th>
                   <th className="py-2.5 px-3 text-center">Docs</th>
                   <th className="py-2.5 px-3 text-right">Action</th>
                 </tr>
@@ -299,43 +297,12 @@ export function CabinetBillMaker({
                         )}
                       </td>
 
-                      {/* Total Spend */}
+                      {/* Estimated Cost */}
                       <td className="py-2.5 px-3 text-right">
                         {isBought ? (
-                          <div>
-                            <div className="font-bold text-foreground text-xs sm:text-sm font-mono">
-                              ৳{p.totalAmount.toLocaleString('en-BD')}
-                            </div>
-                            {(p.transportCost > 0 || p.otherCost > 0) && (
-                              <div className="text-[10px] text-muted-foreground">
-                                +{p.transportCost + p.otherCost} fees
-                              </div>
-                            )}
+                          <div className="font-bold text-foreground text-xs sm:text-sm font-mono">
+                            ৳{p.totalAmount.toLocaleString('en-BD')}
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </td>
-
-                      {/* Paid */}
-                      <td className="py-2.5 px-3 text-right">
-                        {isBought ? (
-                          <div className="font-medium font-mono text-foreground">৳{p.paidAmount.toLocaleString('en-BD')}</div>
-                        ) : (
-                          <span className="text-muted-foreground text-xs">—</span>
-                        )}
-                      </td>
-
-                      {/* Payment Status */}
-                      <td className="py-2.5 px-3 text-center">
-                        {isBought ? (
-                          p.paymentStatus === 'PAID' ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border border-emerald-300 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">PAID</span>
-                          ) : p.paymentStatus === 'PARTIALLY_PAID' ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">PARTIAL</span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">UNPAID</span>
-                          )
                         ) : (
                           <span className="text-muted-foreground text-xs">—</span>
                         )}
@@ -386,7 +353,7 @@ export function CabinetBillMaker({
                             onClick={() => onOpenPurchaseModal(item)}
                           >
                             <Plus className="w-3 h-3" />
-                            Record Purchase
+                            Record Bill
                           </Button>
                         )}
                       </td>

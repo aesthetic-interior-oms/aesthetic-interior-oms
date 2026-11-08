@@ -213,14 +213,8 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
   const [formVendorPhone, setFormVendorPhone] = useState<string>('')
   const [formVendorEmail, setFormVendorEmail] = useState<string>('')
   const [formInvoiceNo, setFormInvoiceNo] = useState<string>('')
-  const [formBillDate, setFormBillDate] = useState<string>(() => new Date().toISOString().split('T')[0])
   const [formBillQty, setFormBillQty] = useState<string>('')
   const [formUnitPrice, setFormUnitPrice] = useState<string>('')
-  const [formTransportCost, setFormTransportCost] = useState<string>('0')
-  const [formOtherCost, setFormOtherCost] = useState<string>('0')
-  const [formPaidAmount, setFormPaidAmount] = useState<string>('0')
-  const [formSettlementMethod, setFormSettlementMethod] = useState<ItemPurchaseRecord['settlementMethod']>('PETTY_CASH')
-  const [formPurchasedBy, setFormPurchasedBy] = useState<string>('')
   const [formNotes, setFormNotes] = useState<string>('')
   const [isSaving, setIsSaving] = useState(false)
 
@@ -284,30 +278,12 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
     })
   }, [wallPanelingItems, activeSubSection, searchQuery])
 
-  // Dynamic calculations for the Record Purchase Modal
-  const calculatedBaseMaterial = useMemo(() => {
+  // Dynamic calculations for the Record Bill Modal
+  const calculatedTotalSpend = useMemo(() => {
     const qty = parseFloat(formBillQty) || 0
     const price = parseFloat(formUnitPrice) || 0
     return Math.round(qty * price)
   }, [formBillQty, formUnitPrice])
-
-  const calculatedTotalSpend = useMemo(() => {
-    const transport = parseFloat(formTransportCost) || 0
-    const other = parseFloat(formOtherCost) || 0
-    return calculatedBaseMaterial + transport + other
-  }, [calculatedBaseMaterial, formTransportCost, formOtherCost])
-
-  const calculatedDueAmount = useMemo(() => {
-    const paid = parseFloat(formPaidAmount) || 0
-    return Math.max(0, calculatedTotalSpend - paid)
-  }, [calculatedTotalSpend, formPaidAmount])
-
-  const calculatedPaymentStatus: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' = useMemo(() => {
-    const paid = parseFloat(formPaidAmount) || 0
-    if (calculatedTotalSpend <= 0 || paid <= 0) return 'UNPAID'
-    if (paid >= calculatedTotalSpend) return 'PAID'
-    return 'PARTIALLY_PAID'
-  }, [calculatedTotalSpend, formPaidAmount])
 
   // Overall Wall Paneling purchases summary
   const orderSummary = useMemo(() => {
@@ -427,14 +403,8 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
       setFormVendorPhone(existing.vendorPhone || '')
       setFormVendorEmail(existing.vendorEmail || '')
       setFormInvoiceNo(existing.invoiceNo || '')
-      setFormBillDate(existing.billDate || new Date().toISOString().split('T')[0])
       setFormBillQty(String(existing.billQuantity || item.finalQuantity))
       setFormUnitPrice(String(existing.unitPrice || ''))
-      setFormTransportCost(String(existing.transportCost || 0))
-      setFormOtherCost(String(existing.otherCost || 0))
-      setFormPaidAmount(String(existing.paidAmount || 0))
-      setFormSettlementMethod(existing.settlementMethod || 'PETTY_CASH')
-      setFormPurchasedBy(existing.purchasedBy || '')
       setFormNotes(existing.notes || '')
     } else {
       setSelectedVendorId('')
@@ -442,32 +412,18 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
       setFormVendorPhone('')
       setFormVendorEmail('')
       setFormInvoiceNo('')
-      setFormBillDate(new Date().toISOString().split('T')[0])
       setFormBillQty(String(item.finalQuantity))
       setFormUnitPrice('')
-      setFormTransportCost('0')
-      setFormOtherCost('0')
-      setFormPaidAmount('0')
-      setFormSettlementMethod('PETTY_CASH')
-      setFormPurchasedBy('')
       setFormNotes('')
     }
   }
 
-  // Save Purchase Record
+  // Save Bill Record
   const handleSavePurchase = async () => {
     if (!editingItem) return
     const qty = parseFloat(formBillQty) || editingItem.finalQuantity
     const price = parseFloat(formUnitPrice) || 0
-    const transport = parseFloat(formTransportCost) || 0
-    const other = parseFloat(formOtherCost) || 0
-    const total = (qty * price) + transport + other
-    const paid = parseFloat(formPaidAmount) || 0
-    const due = Math.max(0, total - paid)
-
-    let status: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' = 'UNPAID'
-    if (paid >= total && total > 0) status = 'PAID'
-    else if (paid > 0) status = 'PARTIALLY_PAID'
+    const total = qty * price
 
     const existingDocs = purchases[editingItem.id]?.documents || []
 
@@ -478,18 +434,18 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
       vendorPhone: formVendorPhone.trim(),
       vendorEmail: formVendorEmail.trim(),
       invoiceNo: formInvoiceNo.trim(),
-      billDate: formBillDate,
+      billDate: new Date().toISOString().split('T')[0],
       billQuantity: qty,
       unitPrice: price,
-      materialTotal: qty * price,
-      transportCost: transport,
-      otherCost: other,
+      materialTotal: total,
+      transportCost: 0,
+      otherCost: 0,
       totalAmount: total,
-      paidAmount: paid,
-      dueAmount: due,
-      paymentStatus: status,
-      settlementMethod: formSettlementMethod,
-      purchasedBy: formPurchasedBy.trim(),
+      paidAmount: 0,
+      dueAmount: total,
+      paymentStatus: 'UNPAID',
+      settlementMethod: 'PETTY_CASH',
+      purchasedBy: '',
       notes: formNotes.trim(),
       documents: existingDocs,
     }
@@ -781,7 +737,7 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Select supplier, log purchase costs (transport & other), track paid amount, and attach invoices
+                  Select supplier, record quoted bill quantity and unit rate to estimate the material cost
                 </p>
               </div>
 
@@ -909,11 +865,9 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
                       <th className="py-2.5 px-3 min-w-[200px]">Material & Scope</th>
                       <th className="py-2.5 px-3 min-w-[150px]">Supplier & Contacts</th>
                       <th className="py-2.5 px-3 text-center">Req. Qty</th>
-                      <th className="py-2.5 px-3 text-center">Purchased Qty</th>
+                      <th className="py-2.5 px-3 text-center">Bill Qty</th>
                       <th className="py-2.5 px-3 text-right">Unit Rate</th>
-                      <th className="py-2.5 px-3 text-right">Total Spend</th>
-                      <th className="py-2.5 px-3 text-right">Paid (৳)</th>
-                      <th className="py-2.5 px-3 text-center">Payment Status</th>
+                      <th className="py-2.5 px-3 text-right">Estimated Cost</th>
                       <th className="py-2.5 px-3 text-center">Docs</th>
                       <th className="py-2.5 px-3 text-right">Action</th>
                     </tr>
@@ -1007,48 +961,9 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
                           {/* Total Spend */}
                           <td className="py-2.5 px-3 text-right">
                             {isBought ? (
-                              <div>
-                                <div className="font-bold text-foreground text-xs sm:text-sm font-mono">
-                                  ৳{p.totalAmount.toLocaleString('en-BD')}
-                                </div>
-                                {(p.transportCost > 0 || p.otherCost > 0) && (
-                                  <div className="text-[10px] text-muted-foreground">
-                                    +{p.transportCost + p.otherCost} fees
-                                  </div>
-                                )}
+                              <div className="font-bold text-foreground text-xs sm:text-sm font-mono">
+                                ৳{p.totalAmount.toLocaleString('en-BD')}
                               </div>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
-                            )}
-                          </td>
-
-                          {/* Paid Amount */}
-                          <td className="py-2.5 px-3 text-right">
-                            {isBought ? (
-                              <div className="font-medium font-mono text-foreground">
-                                ৳{p.paidAmount.toLocaleString('en-BD')}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground text-xs">—</span>
-                            )}
-                          </td>
-
-                          {/* Payment Status (Auto) */}
-                          <td className="py-2.5 px-3 text-center">
-                            {isBought ? (
-                              p.paymentStatus === 'PAID' ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border border-emerald-300 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                  PAID
-                                </span>
-                              ) : p.paymentStatus === 'PARTIALLY_PAID' ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
-                                  PARTIAL
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-                                  UNPAID
-                                </span>
-                              )
                             ) : (
                               <span className="text-muted-foreground text-xs">—</span>
                             )}
@@ -1099,7 +1014,7 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
                                 onClick={() => handleOpenPurchaseModal(item)}
                               >
                                 <Plus className="w-3 h-3" />
-                                Record Purchase
+                                Record Bill
                               </Button>
                             )}
                           </td>
@@ -1181,16 +1096,15 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
         </div>
       )}
 
-      {/* MODAL 1: RECORD PURCHASE PER ITEM */}
       <Dialog open={Boolean(editingItem)} onOpenChange={(open) => !open && setEditingItem(null)}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base font-bold text-foreground">
               <Receipt className="w-4 h-4" />
-              Record Material Purchase
+              Record Material Bill
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Select supplier from dropdown or add info, log purchase & transport costs, and record paid amount.
+              Select supplier, enter quantity and unit rate to record the estimated bill cost.
             </DialogDescription>
           </DialogHeader>
 
@@ -1261,7 +1175,7 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
               <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border">
                 <div className="space-y-1">
                   <label className="font-semibold text-foreground">
-                    Purchased Qty ({editingItem.unit})
+                    Bill Qty ({editingItem.unit})
                   </label>
                   <Input
                     type="number"
@@ -1288,151 +1202,23 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
                 </div>
               </div>
 
-              {/* Transport & Other Costs */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground flex items-center gap-1">
-                    <Truck className="w-3 h-3 text-muted-foreground" />
-                    Transport Cost (৳)
-                  </label>
-                  <Input
-                    type="number"
-                    step="any"
-                    value={formTransportCost}
-                    onChange={(e) => setFormTransportCost(e.target.value)}
-                    placeholder="0"
-                    className="h-8 text-xs font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground">
-                    Other Costs (৳)
-                  </label>
-                  <Input
-                    type="number"
-                    step="any"
-                    value={formOtherCost}
-                    onChange={(e) => setFormOtherCost(e.target.value)}
-                    placeholder="0"
-                    className="h-8 text-xs font-mono"
-                  />
-                </div>
-              </div>
-
-              {/* Financial Calculation Box: Total Material Spend, Paid, Due & Payment Status */}
-              <div className="p-3 rounded-lg border border-border bg-card space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Base Material Cost:</span>
-                  <span className="font-mono text-foreground">৳{calculatedBaseMaterial.toLocaleString('en-BD')}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs font-semibold border-t border-border pt-1">
-                  <span className="text-foreground">Total Material Spend:</span>
+              {/* Estimated Bill Cost */}
+              <div className="p-3 rounded-lg border border-border bg-card">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="text-foreground">Estimated Bill Cost:</span>
                   <span className="font-mono text-base font-bold text-foreground">
                     ৳{calculatedTotalSpend.toLocaleString('en-BD')}
                   </span>
                 </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-1 border-t border-border">
-                  <div className="space-y-1">
-                    <label className="font-semibold text-foreground text-[11px]">Paid Amount (৳)</label>
-                    <Input
-                      type="number"
-                      step="any"
-                      value={formPaidAmount}
-                      onChange={(e) => setFormPaidAmount(e.target.value)}
-                      placeholder="0"
-                      className="h-8 text-xs font-mono font-bold"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="font-semibold text-foreground text-[11px]">Due Amount (৳)</label>
-                    <div className="h-8 px-2.5 rounded-md border border-border bg-muted/40 flex items-center font-mono font-bold text-foreground">
-                      ৳{calculatedDueAmount.toLocaleString('en-BD')}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Auto Selected Payment Status Display */}
-                <div className="flex items-center justify-between text-xs pt-1 border-t border-border">
-                  <span className="text-muted-foreground">Auto-Selected Payment Status:</span>
-                  {calculatedPaymentStatus === 'PAID' ? (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300">
-                      PAID (৳{calculatedTotalSpend.toLocaleString('en-BD')})
-                    </span>
-                  ) : calculatedPaymentStatus === 'PARTIALLY_PAID' ? (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-800 border border-blue-300 dark:bg-blue-950/40 dark:text-blue-300">
-                      PARTIALLY PAID (Due ৳{calculatedDueAmount.toLocaleString('en-BD')})
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300">
-                      UNPAID (Due ৳{calculatedTotalSpend.toLocaleString('en-BD')})
-                    </span>
-                  )}
-                </div>
               </div>
 
-              {/* Cash Memo & Settlement Source */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground">
-                    Cash Memo / Invoice #
-                  </label>
-                  <Input
-                    value={formInvoiceNo}
-                    onChange={(e) => setFormInvoiceNo(e.target.value)}
-                    placeholder="e.g. MEMO-4829"
-                    className="h-8 text-xs font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground">
-                    Accounts Settlement Method
-                  </label>
-                  <select
-                    value={formSettlementMethod}
-                    onChange={(e) => setFormSettlementMethod(e.target.value as any)}
-                    className="w-full h-8 text-xs rounded-md border border-border bg-background px-2 text-foreground focus:outline-none"
-                  >
-                    {SETTLEMENT_OPTIONS.map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Sourced By & Notes */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Purchased By</label>
-                  <Input
-                    value={formPurchasedBy}
-                    onChange={(e) => setFormPurchasedBy(e.target.value)}
-                    placeholder="Staff name"
-                    className="h-8 text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-semibold text-foreground">Bill Date</label>
-                  <Input
-                    type="date"
-                    value={formBillDate}
-                    onChange={(e) => setFormBillDate(e.target.value)}
-                    className="h-8 text-xs"
-                  />
-                </div>
-              </div>
-
+              {/* Bill Notes */}
               <div className="space-y-1">
-                <label className="font-semibold text-foreground">Purchase Notes / Remarks</label>
+                <label className="font-semibold text-foreground">Bill Notes / Remarks</label>
                 <Input
                   value={formNotes}
                   onChange={(e) => setFormNotes(e.target.value)}
-                  placeholder="e.g. Delivery challan copy stapled"
+                  placeholder="e.g. Quoted price from supplier"
                   className="h-8 text-xs"
                 />
               </div>
@@ -1456,7 +1242,7 @@ export function WallPanelingBillMaker({ requisition, vendors }: WallPanelingBill
               disabled={isSaving}
             >
               <Check className="w-3.5 h-3.5" />
-              {isSaving ? 'Saving...' : 'Save Purchase Record'}
+              {isSaving ? 'Saving...' : 'Save Bill'}
             </Button>
           </DialogFooter>
         </DialogContent>
