@@ -13,6 +13,7 @@ const APP_ROUTES_WITHOUT_WEBSITE_CHROME = [
   "/onboarding",
   "/procurement",
   "/site-engineer",
+  "/electrician",
   "/conveyance",
 ];
 
