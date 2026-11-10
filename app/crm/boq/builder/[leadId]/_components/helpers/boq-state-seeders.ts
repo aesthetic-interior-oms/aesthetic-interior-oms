@@ -17,7 +17,6 @@ import {
   CEILING_LIGHTING_CATALOG,
   CEILING_ELECTRICAL_CATALOG,
 } from '../constants/boq-lighting-electrical-catalogs'
-import { SAMPLE_WALL_PANEL_ITEMS } from '../constants/boq-seed-catalogs'
 
 export function sectionItemKey(cardKey: string, sectionId: string): string {
   return `${cardKey}::${sectionId}`
@@ -381,7 +380,7 @@ export function computeInitialState(
       ],
     },
     itemsMap: {
-      [sectionItemKey(EXTRA_KEY, defaultSectionId)]: [...SAMPLE_WALL_PANEL_ITEMS],
+      [sectionItemKey(EXTRA_KEY, defaultSectionId)]: [],
     },
   }
 }

@@ -3,14 +3,6 @@
 import { useMemo } from 'react'
 import {
   Package,
-  Download,
-  Sparkles,
-  Wrench,
-  Pin,
-  FlaskConical,
-  Layers,
-  Lightbulb,
-  Zap,
   Trash2,
   Plus,
 } from 'lucide-react'
@@ -118,105 +110,15 @@ export function MaterialRowsTable({
           <div className="flex flex-col items-center justify-center gap-1.5 text-muted-foreground/70">
             <Package className="w-6 h-6 text-muted-foreground/40" />
             <span className="font-semibold text-foreground/80">No material specifications added yet</span>
-            <span className="text-[11px] text-muted-foreground">Select a pre-configured catalog below or click Add Material Row</span>
+            <span className="text-[11px] text-muted-foreground">Add a clean material row to start specifying materials for this section</span>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-            {onLoadPreset && (
-              <button
-                onClick={onLoadPreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 rounded-md transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" /> Load Core Boards (BRD-001 - BRD-008)
-              </button>
-            )}
-            {onLoadLouverPreset && (
-              <button
-                onClick={onLoadLouverPreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-500/20 rounded-md transition-colors border border-indigo-500/20"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Load Louvers & Profiles (LVR-001 - EDG-002)
-              </button>
-            )}
-            {onLoadScrewPreset && (
-              <button
-                onClick={onLoadScrewPreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-500/10 text-amber-800 dark:text-amber-300 hover:bg-amber-500/20 rounded-md transition-colors border border-amber-500/20"
-              >
-                <Wrench className="w-3.5 h-3.5 text-amber-600" /> Load Screws & Fasteners (SCR-075 - SCR-250)
-              </button>
-            )}
-            {onLoadNailPreset && (
-              <button
-                onClick={onLoadNailPreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-rose-500/10 text-rose-800 dark:text-rose-300 hover:bg-rose-500/20 rounded-md transition-colors border border-rose-500/20"
-              >
-                <Pin className="w-3.5 h-3.5 text-rose-600" /> Load Nails & Pins (NAL-200 - PIN-002)
-              </button>
-            )}
-            {onLoadAdhesivePreset && (
-              <button
-                onClick={onLoadAdhesivePreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-500/20 rounded-md transition-colors border border-emerald-500/20"
-              >
-                <FlaskConical className="w-3.5 h-3.5 text-emerald-600" /> Load Adhesives (ADH-001 - ADH-005)
-              </button>
-            )}
-            {onLoadCabinetCorePreset && (
-              <button
-                onClick={onLoadCabinetCorePreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-500/10 text-amber-900 dark:text-amber-200 hover:bg-amber-500/20 rounded-md transition-colors border border-amber-500/20"
-              >
-                <Download className="w-3.5 h-3.5 text-amber-600" /> Load Core Board Spec (Sr. 1 - 5.1)
-              </button>
-            )}
-            {onLoadCabinetHplPreset && (
-              <button
-                onClick={onLoadCabinetHplPreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-cyan-500/10 text-cyan-900 dark:text-cyan-200 hover:bg-cyan-500/20 rounded-md transition-colors border border-cyan-500/20"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-cyan-600" /> Load HPL Pasting Details (HPL-1 - HPL-8)
-              </button>
-            )}
-            {onLoadAccessoryHardwarePreset && (
-              <button
-                onClick={onLoadAccessoryHardwarePreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-pink-500/10 text-pink-900 dark:text-pink-200 hover:bg-pink-500/20 rounded-md transition-colors border border-pink-500/20"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-pink-600" /> Load Hardware Accessories (SL 01 - 07)
-              </button>
-            )}
-            {onLoadAccessoryServicesPreset && (
-              <button
-                onClick={onLoadAccessoryServicesPreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-purple-500/10 text-purple-900 dark:text-purple-200 hover:bg-purple-500/20 rounded-md transition-colors border border-purple-500/20"
-              >
-                <Layers className="w-3.5 h-3.5 text-purple-600" /> Load Deliverables & Services (SL 08 - 10)
-              </button>
-            )}
-            {onLoadAppliancePreset && (
-              <button
-                onClick={onLoadAppliancePreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-teal-500/10 text-teal-900 dark:text-teal-200 hover:bg-teal-500/20 rounded-md transition-colors border border-teal-500/20"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-teal-600" /> Load Core Appliances (SL 01 - 07)
-              </button>
-            )}
-            {onLoadCeilingLightingPreset && (
-              <button
-                onClick={onLoadCeilingLightingPreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-purple-500/10 text-purple-900 dark:text-purple-200 hover:bg-purple-500/20 rounded-md transition-colors border border-purple-500/20"
-              >
-                <Lightbulb className="w-3.5 h-3.5 text-purple-600" /> Load Ceiling Lighting Schedule (17 Items)
-              </button>
-            )}
-            {onLoadCeilingElectricalPreset && (
-              <button
-                onClick={onLoadCeilingElectricalPreset}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-yellow-500/10 text-yellow-900 dark:text-yellow-200 hover:bg-yellow-500/20 rounded-md transition-colors border border-yellow-500/20"
-              >
-                <Zap className="w-3.5 h-3.5 text-yellow-600" /> Load Drivers, Switches & Sockets (20 Items)
-              </button>
-            )}
+          <div className="flex items-center justify-center pt-1">
+            <button
+              onClick={onAddRow}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-sm transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4" /> Add Material Row
+            </button>
           </div>
         </div>
       ) : (
@@ -2223,126 +2125,17 @@ export function MaterialRowsTable({
         </>
       )}
 
-      <div className="px-3.5 py-2.5 border-t border-border/60 bg-muted/20 flex flex-wrap items-center justify-between gap-2">
-        <button
-          onClick={onAddRow}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-md shadow-xs transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add Material Row
-        </button>
-
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-          {onLoadPreset && rows.length > 0 && (
-            <button
-              onClick={onLoadPreset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors border border-border/50"
-            >
-              <Download className="w-3 h-3 text-amber-500" />
-              + Add Core Boards (BRD)
-            </button>
-          )}
-          {onLoadLouverPreset && rows.length > 0 && (
-            <button
-              onClick={onLoadLouverPreset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors border border-indigo-200 dark:border-indigo-800"
-            >
-              <Sparkles className="w-3 h-3 text-indigo-500" />
-              + Add Louvers (LVR/EDG)
-            </button>
-          )}
-          {onLoadScrewPreset && rows.length > 0 && (
-            <button
-              onClick={onLoadScrewPreset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors border border-amber-200 dark:border-amber-800"
-            >
-              <Wrench className="w-3 h-3 text-amber-600" />
-              + Add Screws (SCR)
-            </button>
-          )}
-          {onLoadNailPreset && rows.length > 0 && (
-            <button
-              onClick={onLoadNailPreset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors border border-rose-200 dark:border-rose-800"
-            >
-              <Pin className="w-3 h-3 text-rose-600" />
-              + Add Nails & Pins (NAL/PIN)
-            </button>
-          )}
-          {onLoadAdhesivePreset && rows.length > 0 && (
-            <button
-              onClick={onLoadAdhesivePreset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors border border-emerald-200 dark:border-emerald-800"
-            >
-              <FlaskConical className="w-3 h-3 text-emerald-600" />
-              + Add Adhesives (ADH)
-            </button>
-          )}
-          {onLoadCabinetCorePreset && rows.length > 0 && (
-            <button
-              onClick={onLoadCabinetCorePreset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-amber-800 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors border border-amber-200 dark:border-amber-800"
-            >
-              <Download className="w-3 h-3 text-amber-600" />
-              + Add Sample Boards
-            </button>
-          )}
-          {onLoadCabinetHplPreset && rows.length > 0 && (
-            <button
-              onClick={onLoadCabinetHplPreset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-cyan-700 dark:text-cyan-300 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 transition-colors border border-cyan-200 dark:border-cyan-800"
-            >
-              <Sparkles className="w-3 h-3 text-cyan-600" />
-              + Add HPL Pasting Samples
-            </button>
-          )}
-          {onLoadAccessoryHardwarePreset && rows.length > 0 && (
-            <button
-              onClick={onLoadAccessoryHardwarePreset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-pink-700 dark:text-pink-300 hover:bg-pink-50 dark:hover:bg-pink-950/40 transition-colors border border-pink-200 dark:border-pink-800"
-            >
-              <Sparkles className="w-3 h-3 text-pink-600" />
-              + Add Hardware Accessories
-            </button>
-          )}
-          {onLoadAccessoryServicesPreset && rows.length > 0 && (
-            <button
-              onClick={onLoadAccessoryServicesPreset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors border border-purple-200 dark:border-purple-800"
-            >
-              <Layers className="w-3 h-3 text-purple-600" />
-              + Add Deliverables & Services
-            </button>
-          )}
-          {onLoadAppliancePreset && rows.length > 0 && (
-            <button
-              onClick={onLoadAppliancePreset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors border border-teal-200 dark:border-teal-800"
-            >
-              <Sparkles className="w-3 h-3 text-teal-600" />
-              + Add Core Appliances
-            </button>
-          )}
-          {onLoadCeilingLightingPreset && rows.length > 0 && (
-            <button
-              onClick={onLoadCeilingLightingPreset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors border border-purple-200 dark:border-purple-800"
-            >
-              <Lightbulb className="w-3 h-3 text-purple-600" />
-              + Add Ceiling Lights (17 Items)
-            </button>
-          )}
-          {onLoadCeilingElectricalPreset && rows.length > 0 && (
-            <button
-              onClick={onLoadCeilingElectricalPreset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded font-medium text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors border border-amber-200 dark:border-amber-800"
-            >
-              <Zap className="w-3 h-3 text-amber-600" />
-              + Add Drivers & Switches (20 Items)
-            </button>
-          )}
+      {rows.length > 0 && (
+        <div className="px-3.5 py-2.5 border-t border-border/60 bg-muted/20 flex flex-wrap items-center justify-between gap-2">
+          <button
+            onClick={onAddRow}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-md shadow-xs transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Material Row
+          </button>
         </div>
-      </div>
+      )}
     </div>
   )
 }
