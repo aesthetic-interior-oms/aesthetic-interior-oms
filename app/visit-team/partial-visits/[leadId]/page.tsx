@@ -9,6 +9,8 @@ import {
   CalendarClock,
   CalendarPlus,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Coins,
   ExternalLink,
@@ -263,6 +265,9 @@ export default function PartialVisitLeadDetailPage() {
   // Substatus updating
   const [updatingSubStatus, setUpdatingSubStatus] = useState(false)
   const [openingQuotation, setOpeningQuotation] = useState(false)
+
+  // Past visits toggle
+  const [showPastVisits, setShowPastVisits] = useState(false)
 
   // Token Money states
   const [tokenTransactions, setTokenTransactions] = useState<TokenRecord[]>([])
@@ -762,7 +767,7 @@ export default function PartialVisitLeadDetailPage() {
           {lead.remarks && (
             <>
               <Separator className="my-3" />
-              <p className="text-xs text-muted-foreground italic">"{lead.remarks}"</p>
+              <p className="text-xs text-muted-foreground italic">&quot;{lead.remarks}&quot;</p>
             </>
           )}
 
@@ -849,223 +854,363 @@ export default function PartialVisitLeadDetailPage() {
         </Card>
       )}
 
-      {/* Visit History */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold flex items-center gap-2">
-            <CalendarClock className="h-4 w-4 text-primary" />
-            Partial Visit History
-            <Badge variant="secondary" className="ml-1 text-xs">
-              {visits.length}
-            </Badge>
-          </h2>
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5 text-xs h-8"
-            onClick={() => {
-              setScheduleDate('')
-              setScheduleFee('')
-              setScheduleProjectStatus('UNDER_CONSTRUCTION')
-              setScheduleProjectSqft('')
-              setScheduleNotes('')
-              setScheduleDialogOpen(true)
-            }}
-          >
-            <CalendarPlus className="h-3.5 w-3.5" />
-            Schedule Partial Visit
-          </Button>
-        </div>
+      {/* ── Current / Active Visit ── */}
+      {(() => {
+        const activeVisit = sortedVisits.find(
+          (v) => v.status === 'SCHEDULED' || v.status === 'RESCHEDULED',
+        )
+        const latestCompleted = sortedVisits.find((v) => v.status === 'COMPLETED')
+        const currentVisit = activeVisit ?? latestCompleted ?? sortedVisits[0] ?? null
+        const pastVisits = sortedVisits.filter((v) => v !== currentVisit)
 
-        {sortedVisits.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-10 px-4 text-center bg-muted/10 rounded-xl border space-y-3">
-            <Wrench className="h-8 w-8 text-muted-foreground/50 mb-1" />
-            <p className="font-semibold text-foreground text-sm">
-              No partial visits scheduled yet for this client.
-            </p>
-            <p className="text-xs text-muted-foreground max-w-md">
-              A visit is not required to create a quotation. You can start working on a quotation immediately or schedule a partial visit whenever needed.
-            </p>
-            <div className="flex items-center gap-2 pt-2">
-              <Button
-                size="sm"
-                className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
-                onClick={openPartialQuotation}
-                disabled={openingQuotation}
-              >
-                {openingQuotation ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-                Create Quotation
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5"
-                onClick={() => {
-                  setScheduleDate('')
-                  setScheduleFee('')
-                  setScheduleProjectStatus('UNDER_CONSTRUCTION')
-                  setScheduleProjectSqft('')
-                  setScheduleNotes('')
-                  setScheduleDialogOpen(true)
-                }}
-              >
-                <CalendarPlus className="h-4 w-4" />
-                Schedule Partial Visit
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {sortedVisits.map((visit, index) => {
-              const statusConfig = getStatusConfig(visit.status)
-              const StatusIcon = statusConfig.icon
-              const isActionable =
-                visit.status === 'SCHEDULED' || visit.status === 'RESCHEDULED'
-
-              return (
-                <Card
-                  key={visit.id}
-                  className="border transition duration-200 hover:border-primary/40 hover:shadow-sm"
+        return (
+          <>
+            {/* Current visit hero card */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-bold flex items-center gap-2">
+                  <CalendarClock className="h-4 w-4 text-primary" />
+                  {activeVisit ? 'Current Visit' : latestCompleted ? 'Latest Visit' : 'Partial Visit'}
+                </h2>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-xs h-8"
+                  onClick={() => {
+                    setScheduleDate('')
+                    setScheduleFee('')
+                    setScheduleProjectStatus('UNDER_CONSTRUCTION')
+                    setScheduleProjectSqft('')
+                    setScheduleNotes('')
+                    setScheduleDialogOpen(true)
+                  }}
                 >
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
-                      <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
-                        Visit #{visits.length - index}
-                      </span>
-                      <Badge
-                        variant="outline"
-                        className={`shrink-0 font-medium px-2.5 py-0.5 gap-1 ${statusConfig.badgeClass}`}
-                      >
-                        <StatusIcon className="h-3 w-3" />
-                        {statusConfig.label}
-                      </Badge>
-                    </div>
+                  <CalendarPlus className="h-3.5 w-3.5" />
+                  Schedule Visit
+                </Button>
+              </div>
 
-                    <div className="grid sm:grid-cols-2 gap-3 text-sm text-muted-foreground bg-muted/40 p-3 rounded-lg border border-border/50 mb-4">
-                      <div className="flex items-center gap-2">
-                        <CalendarClock className="h-3.5 w-3.5 text-primary shrink-0" />
-                        <span className="font-semibold text-foreground">
-                          {formatDate(visit.scheduledAt)}
-                        </span>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
-                        <span className="line-clamp-2">
-                          {visit.location || visit.lead?.location || 'Location not specified'}
-                        </span>
-                      </div>
-                      {visit.assignedTo && (
-                        <div className="flex items-center gap-2 sm:col-span-2 pt-2 border-t border-border/40">
-                          <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span>
-                            Consultant:{' '}
-                            <strong className="text-foreground">
-                              {visit.assignedTo.fullName}
-                            </strong>
-                          </span>
-                        </div>
-                      )}
-                      {visit.notes && (
-                        <div className="sm:col-span-2 text-[11px] italic text-muted-foreground/90 pt-2 border-t border-border/40">
-                          "{visit.notes}"
-                        </div>
-                      )}
-                      {(visit.visitFee != null ||
-                        visit.projectSqft != null ||
-                        visit.projectStatus) && (
-                        <div className="sm:col-span-2 flex items-center gap-4 pt-2 border-t border-border/40 text-xs flex-wrap">
-                          {visit.visitFee != null && (
-                            <span>
-                              Visit Fee:{' '}
-                              <strong className="text-foreground">
-                                {formatCurrency(visit.visitFee)}
-                              </strong>
-                            </span>
-                          )}
-                          {visit.projectSqft != null && (
-                            <span>
-                              Sqft:{' '}
-                              <strong className="text-foreground">
-                                {visit.projectSqft.toLocaleString()}
-                              </strong>
-                            </span>
-                          )}
-                          {visit.projectStatus && (
-                            <span>
-                              Project:{' '}
-                              <strong className="text-foreground">
-                                {stageLabel(visit.projectStatus)}
-                              </strong>
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
+              {currentVisit === null ? (
+                <div className="flex flex-col items-center justify-center py-10 px-4 text-center bg-muted/10 rounded-xl border space-y-3">
+                  <Wrench className="h-8 w-8 text-muted-foreground/50 mb-1" />
+                  <p className="font-semibold text-foreground text-sm">
+                    No partial visits scheduled yet for this client.
+                  </p>
+                  <p className="text-xs text-muted-foreground max-w-md">
+                    A visit is not required to create a quotation. You can start working on a quotation immediately or schedule a partial visit whenever needed.
+                  </p>
+                  <div className="flex items-center gap-2 pt-2">
+                    <Button
+                      size="sm"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                      onClick={openPartialQuotation}
+                      disabled={openingQuotation}
+                    >
+                      {openingQuotation ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                      Create Quotation
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={() => {
+                        setScheduleDate('')
+                        setScheduleFee('')
+                        setScheduleProjectStatus('UNDER_CONSTRUCTION')
+                        setScheduleProjectSqft('')
+                        setScheduleNotes('')
+                        setScheduleDialogOpen(true)
+                      }}
+                    >
+                      <CalendarPlus className="h-4 w-4" />
+                      Schedule Partial Visit
+                    </Button>
+                  </div>
+                </div>
+              ) : (() => {
+                const statusConfig = getStatusConfig(currentVisit.status)
+                const StatusIcon = statusConfig.icon
+                const isActionable =
+                  currentVisit.status === 'SCHEDULED' || currentVisit.status === 'RESCHEDULED'
 
-                    {/* Actions */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      {isActionable ? (
-                        <>
-                          <Button
-                            size="sm"
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-8 text-xs font-semibold gap-1"
-                            onClick={() => openCompleteModal(visit)}
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            Complete Visit
-                          </Button>
-                          <Button
-                            size="sm"
+                return (
+                  <Card className="border-2 border-primary/20 shadow-md bg-gradient-to-br from-background to-muted/20">
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between gap-3 flex-wrap mb-5">
+                        <div>
+                          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-1">
+                            Visit #{visits.length}
+                            {pastVisits.length > 0 && (
+                              <span className="ml-2 normal-case font-normal text-muted-foreground/70">
+                                (of {visits.length} total)
+                              </span>
+                            )}
+                          </p>
+                          <Badge
                             variant="outline"
-                            className="h-8 text-xs gap-1"
-                            onClick={() => openRescheduleModal(visit)}
+                            className={`font-semibold px-3 py-1 gap-1.5 text-sm ${statusConfig.badgeClass}`}
                           >
-                            <Calendar className="h-3.5 w-3.5" />
-                            Reschedule
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 text-xs text-destructive hover:bg-destructive/10 gap-1 px-2"
-                            onClick={() => openCancelModal(visit)}
-                          >
-                            <Ban className="h-3.5 w-3.5" />
-                            Cancel
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8 text-xs gap-1.5"
-                            onClick={() => openViewResultModal(visit)}
-                          >
-                            <FileText className="h-3.5 w-3.5 text-primary" />
-                            View Result
-                          </Button>
-                          {visit.status === 'COMPLETED' ? (
+                            <StatusIcon className="h-4 w-4" />
+                            {statusConfig.label}
+                          </Badge>
+                        </div>
+                        {isActionable && (
+                          <div className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-full px-3 py-1">
+                            <Clock className="h-3.5 w-3.5" />
+                            Awaiting completion
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-4 text-sm text-muted-foreground bg-muted/40 p-4 rounded-xl border border-border/50 mb-5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 rounded-md bg-primary/10">
+                            <CalendarClock className="h-4 w-4 text-primary shrink-0" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase font-semibold text-muted-foreground/70 mb-0.5">Scheduled</p>
+                            <span className="font-semibold text-foreground text-sm">
+                              {formatDate(currentVisit.scheduledAt)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 rounded-md bg-muted">
+                            <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase font-semibold text-muted-foreground/70 mb-0.5">Location</p>
+                            <span className="line-clamp-2 text-sm">
+                              {currentVisit.location || currentVisit.lead?.location || 'Not specified'}
+                            </span>
+                          </div>
+                        </div>
+                        {currentVisit.assignedTo && (
+                          <div className="flex items-center gap-2.5 sm:col-span-2 pt-3 border-t border-border/40">
+                            <div className="p-1.5 rounded-md bg-muted">
+                              <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] uppercase font-semibold text-muted-foreground/70 mb-0.5">Consultant</p>
+                              <span className="font-semibold text-foreground text-sm">
+                                {currentVisit.assignedTo.fullName}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {(currentVisit.visitFee != null || currentVisit.projectSqft != null || currentVisit.projectStatus) && (
+                          <div className="sm:col-span-2 flex items-center gap-4 pt-3 border-t border-border/40 text-xs flex-wrap">
+                            {currentVisit.visitFee != null && (
+                              <span>Visit Fee: <strong className="text-foreground">{formatCurrency(currentVisit.visitFee)}</strong></span>
+                            )}
+                            {currentVisit.projectSqft != null && (
+                              <span>Sqft: <strong className="text-foreground">{currentVisit.projectSqft.toLocaleString()}</strong></span>
+                            )}
+                            {currentVisit.projectStatus && (
+                              <span>Site: <strong className="text-foreground">{stageLabel(currentVisit.projectStatus)}</strong></span>
+                            )}
+                          </div>
+                        )}
+                        {currentVisit.notes && (
+                          <div className="sm:col-span-2 text-[11px] italic text-muted-foreground/90 pt-2 border-t border-border/40">
+                            &quot;{currentVisit.notes}&quot;
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {isActionable ? (
+                          <>
                             <Button
                               size="sm"
-                              className="h-8 bg-indigo-600 text-xs hover:bg-indigo-700"
-                              onClick={openPartialQuotation}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-9 text-xs font-semibold gap-1.5"
+                              onClick={() => openCompleteModal(currentVisit)}
                             >
-                              <FileText className="mr-1 h-3.5 w-3.5" />
-                              {lead.subStatus === 'QUOTATION_ASSIGNED' || lead.subStatus === 'QUOTATION_WORKING' || lead.subStatus === 'QUOTATION_COMPLETED'
-                                ? 'Open Partial Quotation'
-                                : 'Create Partial Quotation'}
+                              <CheckCircle2 className="h-4 w-4" />
+                              Complete Visit
                             </Button>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
-        )}
-      </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-9 text-xs gap-1.5"
+                              onClick={() => openRescheduleModal(currentVisit)}
+                            >
+                              <Calendar className="h-3.5 w-3.5" />
+                              Reschedule
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-9 text-xs text-destructive hover:bg-destructive/10 gap-1.5 px-2"
+                              onClick={() => openCancelModal(currentVisit)}
+                            >
+                              <Ban className="h-3.5 w-3.5" />
+                              Cancel
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-9 text-xs gap-1.5"
+                              onClick={() => openViewResultModal(currentVisit)}
+                            >
+                              <FileText className="h-3.5 w-3.5 text-primary" />
+                              View Result
+                            </Button>
+                            {currentVisit.status === 'COMPLETED' && (
+                              <Button
+                                size="sm"
+                                className="h-9 bg-indigo-600 text-xs hover:bg-indigo-700 gap-1.5"
+                                onClick={openPartialQuotation}
+                              >
+                                <FileText className="h-3.5 w-3.5" />
+                                {lead.subStatus === 'QUOTATION_ASSIGNED' || lead.subStatus === 'QUOTATION_WORKING' || lead.subStatus === 'QUOTATION_COMPLETED'
+                                  ? 'Open Partial Quotation'
+                                  : 'Create Partial Quotation'}
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })()}
+            </div>
+
+            {/* Past Visits (collapsible) */}
+            {pastVisits.length > 0 && (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPastVisits((v) => !v)}
+                  className="flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition w-full"
+                >
+                  {showPastVisits ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                  Past Visits
+                  <span className="ml-1 inline-flex items-center justify-center rounded-full bg-muted text-muted-foreground text-[11px] font-bold h-5 w-5">
+                    {pastVisits.length}
+                  </span>
+                </button>
+
+                {showPastVisits && (
+                  <div className="space-y-3 pl-1 border-l-2 border-border/50 ml-1">
+                    {pastVisits.map((visit, index) => {
+                      const statusConfig = getStatusConfig(visit.status)
+                      const StatusIcon = statusConfig.icon
+                      const isActionable =
+                        visit.status === 'SCHEDULED' || visit.status === 'RESCHEDULED'
+
+                      return (
+                        <Card
+                          key={visit.id}
+                          className="border transition duration-200 hover:border-primary/40 hover:shadow-sm"
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
+                              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide">
+                                Visit #{visits.length - 1 - index}
+                              </span>
+                              <Badge
+                                variant="outline"
+                                className={`shrink-0 font-medium px-2.5 py-0.5 gap-1 ${statusConfig.badgeClass}`}
+                              >
+                                <StatusIcon className="h-3 w-3" />
+                                {statusConfig.label}
+                              </Badge>
+                            </div>
+
+                            <div className="grid sm:grid-cols-2 gap-3 text-sm text-muted-foreground bg-muted/40 p-3 rounded-lg border border-border/50 mb-3">
+                              <div className="flex items-center gap-2">
+                                <CalendarClock className="h-3.5 w-3.5 text-primary shrink-0" />
+                                <span className="font-semibold text-foreground">
+                                  {formatDate(visit.scheduledAt)}
+                                </span>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                                <span className="line-clamp-2">
+                                  {visit.location || visit.lead?.location || 'Location not specified'}
+                                </span>
+                              </div>
+                              {visit.assignedTo && (
+                                <div className="flex items-center gap-2 sm:col-span-2 pt-2 border-t border-border/40">
+                                  <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                  <span>
+                                    Consultant:{' '}
+                                    <strong className="text-foreground">
+                                      {visit.assignedTo.fullName}
+                                    </strong>
+                                  </span>
+                                </div>
+                              )}
+                              {visit.notes && (
+                                <div className="sm:col-span-2 text-[11px] italic text-muted-foreground/90 pt-2 border-t border-border/40">
+                                  &quot;{visit.notes}&quot;
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              {isActionable ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm h-8 text-xs font-semibold gap-1"
+                                    onClick={() => openCompleteModal(visit)}
+                                  >
+                                    <CheckCircle2 className="h-3.5 w-3.5" />
+                                    Complete Visit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 text-xs gap-1"
+                                    onClick={() => openRescheduleModal(visit)}
+                                  >
+                                    <Calendar className="h-3.5 w-3.5" />
+                                    Reschedule
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 text-xs text-destructive hover:bg-destructive/10 gap-1 px-2"
+                                    onClick={() => openCancelModal(visit)}
+                                  >
+                                    <Ban className="h-3.5 w-3.5" />
+                                    Cancel
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 text-xs gap-1.5"
+                                  onClick={() => openViewResultModal(visit)}
+                                >
+                                  <FileText className="h-3.5 w-3.5 text-primary" />
+                                  View Result
+                                </Button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )
+      })()}
 
       {/* ── Visit Complete Dialog ── */}
       <Dialog open={completeDialogOpen} onOpenChange={setCompleteDialogOpen}>
