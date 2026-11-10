@@ -50,6 +50,10 @@ const DEPARTMENT_ROUTES: Record<string, string> = {
   SITE_ENGINEER: "/site-engineer/dashboard",
   SITE_ENGINEERING: "/site-engineer/dashboard",
   Site_Engineer: "/site-engineer/dashboard",
+  ELECTRICIAN: "/electrician/dashboard",
+  ELECTRICAL_TEAM: "/electrician/dashboard",
+  ELECTRICAL_DEPARTMENT: "/electrician/dashboard",
+  ELECTRICIAN_TEAM: "/electrician/dashboard",
 };
 
 type Department = {

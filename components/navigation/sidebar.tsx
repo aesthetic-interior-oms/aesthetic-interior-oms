@@ -25,6 +25,8 @@ import {
   FolderKanban,
   Receipt,
   Truck,
+  Zap,
+  Wrench,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -913,6 +915,35 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
+  Electrician: [
+    {
+      id: 'electrician-overview',
+      label: 'Electrician',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/electrician/dashboard',
+        },
+        {
+          icon: FolderKanban,
+          label: 'Project Sites',
+          href: '/electrician/projects',
+        },
+        {
+          icon: Zap,
+          label: 'Electrical Requisition',
+          href: '/electrician/requisition/new',
+        },
+        {
+          icon: Wrench,
+          label: 'Site Work Log',
+          href: '/electrician/site-work',
+        },
+      ],
+    },
+  ],
 }
 
 export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
@@ -956,6 +987,10 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
           role.toUpperCase().includes('SITE ENGINEER')),
     )
 
+  const isElectrician =
+    pathname.startsWith('/electrician') ||
+    Boolean(role && role.toUpperCase().includes('ELECTRICIAN'))
+
   const isSpecialistDesignConsultants =
     role === 'Specialist Design Consultants' ||
     role === 'SPECIALIST_DESIGN_CONSULTANTS'
@@ -978,6 +1013,10 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
 
     if (isSiteEngineer) {
       return addConveyanceLink(navigationGroups['Site Engineer'] || [])
+    }
+
+    if (isElectrician) {
+      return addConveyanceLink(navigationGroups['Electrician'] || [])
     }
 
     const baseGroups = isVisits
@@ -1077,6 +1116,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
     isVisits,
     isProcurement,
     isSiteEngineer,
+    isElectrician,
     role,
   ])
 
