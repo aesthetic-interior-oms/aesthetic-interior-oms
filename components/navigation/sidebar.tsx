@@ -90,11 +90,6 @@ const navigationGroups: Record<string, NavGroup[]> = {
         },
         {
           icon: ClipboardList,
-          label: 'Partial Leads',
-          href: '/crm/admin/partial-leads',
-        },
-        {
-          icon: ClipboardList,
           label: 'Projects',
           href: '/crm/admin/projects',
         },
@@ -160,15 +155,22 @@ const navigationGroups: Record<string, NavGroup[]> = {
       defaultOpen: true,
       items: [
         { icon: Calendar, label: 'Visits', href: '/crm/admin/visits' },
-        { icon: ClipboardList, label: 'Partial Leads', href: '/crm/admin/partial-leads' },
-        { icon: ClipboardList, label: 'Partial Visits', href: '/visit-team/partial-visits' },
         { icon: ClipboardList, label: 'Visit Queue', href: '/crm/admin/queue' },
-        { icon: ClipboardList, label: 'Partial Visit Queue', href: '/crm/admin/partial-queue' },
         {
           icon: ClipboardList,
           label: 'CAD Queue',
           href: '/crm/admin/cad-phase-queue',
         },
+      ],
+    },
+    {
+      id: 'admin-partial-team',
+      label: 'Partial Team',
+      defaultOpen: true,
+      items: [
+        { icon: ClipboardList, label: 'Partial Leads', href: '/crm/admin/partial-leads' },
+        { icon: ClipboardList, label: 'Partial Visits', href: '/visit-team/partial-visits' },
+        { icon: ClipboardList, label: 'Partial Visit Queue', href: '/crm/admin/partial-queue' },
         {
           icon: ClipboardList,
           label: 'Partial Review Center',

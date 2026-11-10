@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
+  AlertTriangle,
   Ban,
   Calendar,
   CalendarClock,
@@ -28,6 +29,7 @@ import {
   Wrench,
 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
+import { cn } from '@/lib/utils'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -224,6 +226,16 @@ export default function PartialVisitsPage() {
   const [resultDialogOpen, setResultDialogOpen] = useState(false)
   const [viewingResult, setViewingResult] = useState<VisitResultData | null>(null)
   const [loadingResult, setLoadingResult] = useState(false)
+
+  // Quotation Dialog States
+  const [quotationModalOpen, setQuotationModalOpen] = useState(false)
+  const [quotationTargetVisit, setQuotationTargetVisit] = useState<PartialVisitRecord | null>(null)
+  const [quotationMode, setQuotationMode] = useState<'CREATE' | 'ASSIGN'>('CREATE')
+  const [quotationConfirmName, setQuotationConfirmName] = useState('')
+  const [assignedQuotationUserId, setAssignedQuotationUserId] = useState('')
+  const [quotationMembers, setQuotationMembers] = useState<Array<{ id: string; fullName: string; email: string }>>([])
+  const [loadingQuotationMembers, setLoadingQuotationMembers] = useState(false)
+  const [submittingQuotation, setSubmittingQuotation] = useState(false)
 
   useEffect(() => {
     fetchMeCached().then((me) => {
@@ -441,17 +453,85 @@ export default function PartialVisitsPage() {
     }
   }
 
-  const handleStartQuotation = async (leadId: string) => {
+  const loadQuotationMembers = useCallback(async () => {
+    if (quotationMembers.length > 0) return
+    setLoadingQuotationMembers(true)
     try {
-      await fetch(`/api/partial-quotation/${leadId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start' }),
-      })
-    } catch (err) {
-      console.error(err)
+      const res = await fetch('/api/department/available/QUOTATION_TEAM', { cache: 'no-store' })
+      const payload = await res.json()
+      if (payload?.success && Array.isArray(payload.users)) {
+        setQuotationMembers(payload.users)
+      }
+    } catch {
+      toast.error('Failed to load quotation team members')
+    } finally {
+      setLoadingQuotationMembers(false)
     }
-    router.push(`/visit-team/partial-visits/${leadId}/quotation`)
+  }, [quotationMembers.length])
+
+  const openQuotationModal = useCallback((visit: PartialVisitRecord) => {
+    setQuotationTargetVisit(visit)
+    setQuotationMode('CREATE')
+    setQuotationConfirmName('')
+    setAssignedQuotationUserId('')
+    setQuotationModalOpen(true)
+    void loadQuotationMembers()
+  }, [loadQuotationMembers])
+
+  const isQuotationNameMatched = Boolean(
+    quotationTargetVisit &&
+    quotationConfirmName.trim().toLowerCase() === quotationTargetVisit.lead.name.trim().toLowerCase()
+  )
+
+  const handleExecuteQuotationAction = async () => {
+    if (!quotationTargetVisit || !isQuotationNameMatched) return
+    const leadId = quotationTargetVisit.lead.id
+    setSubmittingQuotation(true)
+    try {
+      if (quotationMode === 'CREATE') {
+        await fetch(`/api/partial-quotation/${leadId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'start' }),
+        })
+        toast.success('Bypassing CAD: Opening quotation builder')
+        setQuotationModalOpen(false)
+        router.push(`/visit-team/partial-visits/${leadId}/quotation`)
+      } else {
+        if (!assignedQuotationUserId) {
+          toast.error('Please select a quotation team member')
+          return
+        }
+        const assignRes = await fetch(`/api/lead/${leadId}/assignments/QUOTATION`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: assignedQuotationUserId }),
+        })
+        const assignPayload = await assignRes.json()
+        if (!assignRes.ok || !assignPayload?.success) {
+          throw new Error(assignPayload?.error || 'Failed to assign quotation member')
+        }
+
+        await fetch(`/api/lead/${leadId}/stage`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stage: 'PARTIAL_QUOTATION_PHASE',
+            subStatus: 'QUOTATION_ASSIGNED',
+            reason: 'Special Design Consultant bypassed CAD and assigned quotation member.',
+            quotationUserId: assignedQuotationUserId,
+          }),
+        }).catch(() => null)
+
+        toast.success('Bypassed CAD: Quotation member assigned successfully')
+        setQuotationModalOpen(false)
+        await fetchVisits()
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setSubmittingQuotation(false)
+    }
   }
 
   const handleCreateClientSubmit = async (e?: React.FormEvent) => {
@@ -849,7 +929,7 @@ export default function PartialVisitsPage() {
                     )}
                     {visit.notes && (
                       <div className="text-[11px] italic text-muted-foreground/90 pt-1 border-t border-border/40">
-                        "{visit.notes}"
+                        &quot;{visit.notes}&quot;
                       </div>
                     )}
                   </div>
@@ -862,10 +942,10 @@ export default function PartialVisitsPage() {
                           <Button
                             size="sm"
                             className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs h-8 text-xs font-semibold gap-1.5"
-                            onClick={() => handleStartQuotation(visit.lead.id)}
+                            onClick={() => openQuotationModal(visit)}
                           >
                             <FileText className="h-3.5 w-3.5" />
-                            Create Quotation
+                            Quotation
                           </Button>
                           <Button
                             size="sm"
@@ -903,12 +983,10 @@ export default function PartialVisitsPage() {
                             size="sm"
                             variant="secondary"
                             className="flex-1 h-8 text-xs gap-1 font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
-                            asChild
+                            onClick={() => openQuotationModal(visit)}
                           >
-                            <Link href={`/visit-team/partial-visits/${visit.lead.id}`}>
-                              <FileText className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                              Lead & Quotation
-                            </Link>
+                            <FileText className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                            Quotation
                           </Button>
                         </div>
                         <div className="flex items-center gap-2">
@@ -933,20 +1011,31 @@ export default function PartialVisitsPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex w-full items-center gap-2">
+                      <div className="space-y-2">
+                        <div className="flex w-full items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 h-8 text-xs gap-1.5"
+                            onClick={() => openViewResultModal(visit)}
+                          >
+                            <FileText className="h-3.5 w-3.5 text-primary" />
+                            Result
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="flex-1 h-8 text-xs gap-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300"
+                            onClick={() => openQuotationModal(visit)}
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            Quotation
+                          </Button>
+                        </div>
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="flex-1 h-8 text-xs gap-1.5"
-                          onClick={() => openViewResultModal(visit)}
-                        >
-                          <FileText className="h-3.5 w-3.5 text-primary" />
-                          Result
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="flex-1 h-8 text-xs gap-1.5"
+                          variant="ghost"
+                          className="w-full h-7 text-xs text-muted-foreground hover:text-foreground"
                           asChild
                         >
                           <Link href={`/visit-team/partial-visits/${visit.lead.id}`}>
@@ -1014,7 +1103,7 @@ export default function PartialVisitsPage() {
                             <Button
                               size="sm"
                               className="bg-indigo-600 hover:bg-indigo-700 text-white h-7 text-xs px-2.5 gap-1 shadow-xs"
-                              onClick={() => handleStartQuotation(visit.lead.id)}
+                              onClick={() => openQuotationModal(visit)}
                             >
                               <FileText className="h-3 w-3" />
                               Quotation
@@ -1053,12 +1142,10 @@ export default function PartialVisitsPage() {
                               size="sm"
                               variant="secondary"
                               className="h-7 text-xs px-2.5 gap-1 font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300"
-                              asChild
+                              onClick={() => openQuotationModal(visit)}
                             >
-                              <Link href={`/visit-team/partial-visits/${visit.lead.id}`}>
-                                <FileText className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
-                                Quotation & Details
-                              </Link>
+                              <FileText className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                              Quotation
                             </Button>
                             <Button
                               size="sm"
@@ -1092,6 +1179,15 @@ export default function PartialVisitsPage() {
                             <Button
                               size="sm"
                               variant="secondary"
+                              className="h-7 text-xs px-2.5 gap-1 font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:text-indigo-300"
+                              onClick={() => openQuotationModal(visit)}
+                            >
+                              <FileText className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                              Quotation
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
                               className="h-7 text-xs px-2.5"
                               asChild
                             >
@@ -1684,6 +1780,149 @@ export default function PartialVisitsPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Quotation Bypass CAD & Options Dialog */}
+      <Dialog open={quotationModalOpen} onOpenChange={setQuotationModalOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+              Quotation Options: {quotationTargetVisit?.lead.name}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Choose whether to build the quotation directly or assign a quotation team member.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-1">
+            {/* Warning Box */}
+            <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800 p-3.5 space-y-1">
+              <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-semibold text-xs">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                <span>Warning: Bypassing CAD Phase</span>
+              </div>
+              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                We are bypassing CAD and taking partial lead to the quotation.
+              </p>
+            </div>
+
+            {/* Option Buttons: Create Quotation vs Assign Quotation */}
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                type="button"
+                variant={quotationMode === 'CREATE' ? 'default' : 'outline'}
+                className={cn(
+                  'h-auto py-3 px-3 flex flex-col items-center justify-center gap-1.5 text-center transition-all',
+                  quotationMode === 'CREATE'
+                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs border-indigo-600'
+                    : 'hover:border-indigo-300 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30'
+                )}
+                onClick={() => setQuotationMode('CREATE')}
+              >
+                <FileText className="h-5 w-5 shrink-0" />
+                <span className="font-semibold text-xs">Create Quotation</span>
+                <span className="text-[10px] opacity-80 font-normal">Build quotation myself</span>
+              </Button>
+
+              <Button
+                type="button"
+                variant={quotationMode === 'ASSIGN' ? 'default' : 'outline'}
+                className={cn(
+                  'h-auto py-3 px-3 flex flex-col items-center justify-center gap-1.5 text-center transition-all',
+                  quotationMode === 'ASSIGN'
+                    ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs border-indigo-600'
+                    : 'hover:border-indigo-300 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/30'
+                )}
+                onClick={() => setQuotationMode('ASSIGN')}
+              >
+                <User className="h-5 w-5 shrink-0" />
+                <span className="font-semibold text-xs">Assign Quotation</span>
+                <span className="text-[10px] opacity-80 font-normal">Assign team member</span>
+              </Button>
+            </div>
+
+            {/* If Assign Quotation is selected, show dropdown */}
+            {quotationMode === 'ASSIGN' && (
+              <div className="space-y-1.5 rounded-lg border bg-muted/30 p-3">
+                <Label htmlFor="assignedQuotationUserId" className="text-xs font-semibold">
+                  Select Quotation Member <span className="text-destructive">*</span>
+                </Label>
+                <Select
+                  value={assignedQuotationUserId}
+                  onValueChange={setAssignedQuotationUserId}
+                >
+                  <SelectTrigger id="assignedQuotationUserId" className="h-9 text-xs">
+                    <SelectValue placeholder={loadingQuotationMembers ? 'Loading quotation team...' : 'Select quotation member'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {quotationMembers.map((member) => (
+                      <SelectItem key={member.id} value={member.id} className="text-xs">
+                        {member.fullName} ({member.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Type Client Name Confirmation */}
+            <div className="space-y-2 pt-2 border-t">
+              <Label htmlFor="quotationConfirmName" className="text-xs font-medium leading-relaxed block">
+                If you are sure, write client name{' '}
+                <span className="font-bold text-foreground bg-muted px-1.5 py-0.5 rounded select-all border">
+                  {quotationTargetVisit?.lead.name}
+                </span>{' '}
+                to confirm:
+              </Label>
+              <Input
+                id="quotationConfirmName"
+                value={quotationConfirmName}
+                onChange={(e) => setQuotationConfirmName(e.target.value)}
+                placeholder={`Type "${quotationTargetVisit?.lead.name ?? ''}"`}
+                className={cn(
+                  'h-9 text-xs',
+                  isQuotationNameMatched && 'border-emerald-500 focus-visible:ring-emerald-500'
+                )}
+                autoComplete="off"
+              />
+              {isQuotationNameMatched ? (
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-medium">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Client name verified
+                </p>
+              ) : quotationConfirmName ? (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                  Name does not match yet
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setQuotationModalOpen(false)}
+              disabled={submittingQuotation}
+              className="text-xs h-8"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-8 gap-1.5 font-semibold"
+              disabled={
+                !isQuotationNameMatched ||
+                submittingQuotation ||
+                (quotationMode === 'ASSIGN' && !assignedQuotationUserId)
+              }
+              onClick={handleExecuteQuotationAction}
+            >
+              {submittingQuotation && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {quotationMode === 'CREATE' ? 'Confirm & Create Quotation' : 'Confirm & Assign Quotation'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -32,7 +32,6 @@ import {
   CheckCircle2,
   CalendarDays,
   Eye,
-  FileText,
   MapPin,
   User,
 } from 'lucide-react'
@@ -703,20 +702,6 @@ export function VisitQueueCalendar({
 
         {/* Actions dropdown */}
         <div className="flex shrink-0 items-center justify-end gap-1.5">
-          {isPartialMode && (
-            <Button
-              asChild
-              size="sm"
-              variant="outline"
-              className="h-8 gap-1 text-xs border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-700"
-            >
-              <Link href={`/visit-team/partial-visits/${item.leadId}/quotation`}>
-                <FileText className="h-3.5 w-3.5" />
-                {item.jrArchitectAssignee ? 'Quotation' : 'Bypass CAD & Quote'}
-              </Link>
-            </Button>
-          )}
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" disabled={busyLeadId === item.leadId}>
@@ -732,13 +717,6 @@ export function VisitQueueCalendar({
                   <Link href={cardHref}>{isPartialMode ? 'Open Partial Visit' : 'Open Lead'}</Link>
                 </DropdownMenuItem>
               ) : null}
-              {isPartialMode && (
-                <DropdownMenuItem asChild>
-                  <Link href={`/visit-team/partial-visits/${item.leadId}/quotation`}>
-                    Build Quotation (Bypass CAD)
-                  </Link>
-                </DropdownMenuItem>
-              )}
               <DropdownMenuItem onClick={() => openRenameDialog(item.leadId, item.leadName)}>
                 Change Client Name
               </DropdownMenuItem>

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { requireDatabaseRoles } from '@/lib/authz';
-import { ActivityType, LeadAssignmentDepartment, VisitStatus, VisitType } from '@/generated/prisma/client';
+import { ActivityType, LeadAssignmentDepartment, LeadStage, Prisma, VisitStatus, VisitType } from '@/generated/prisma/client';
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles';
 import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles';
 
@@ -253,17 +253,43 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // For Partial Visits (Special Design Consultants), also include unscheduled leads
-    let unscheduledVisits: any[] = []
+    // For Partial Visits (Special Design Consultants), also include unscheduled partial leads
+    let unscheduledVisits: Array<Record<string, unknown>> = []
     if (
       (!status || isNotScheduledFilter) &&
       (isSpecialistDesignConsultant || visitTypeParam === VisitType.PARTIAL_WORK_VISIT)
     ) {
-      const existingLeadIdsWithVisit = new Set(visits.map((v) => v.leadId))
+      const allVisits = await prisma.visit.findMany({
+        select: { leadId: true },
+        distinct: ['leadId'],
+      })
+      const existingLeadIdsWithAnyVisit = new Set(allVisits.map((v) => v.leadId))
+
+      const partialLeadFilter: Prisma.LeadWhereInput = {
+        OR: [
+          { stage: { in: [LeadStage.PARTIAL_VISIT_PHASE, LeadStage.PARTIAL_QUOTATION_PHASE] } },
+          {
+            assignments: {
+              some: {
+                department: LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
+              },
+            },
+          },
+          {
+            visits: {
+              some: {
+                visitType: VisitType.PARTIAL_WORK_VISIT,
+              },
+            },
+          },
+        ],
+      }
+
       const unscheduledLeads = await prisma.lead.findMany({
         where: {
           ...(leadId ? { id: leadId } : {}),
-          id: { notIn: Array.from(existingLeadIdsWithVisit) },
+          id: { notIn: Array.from(existingLeadIdsWithAnyVisit) },
+          ...partialLeadFilter,
           ...(isAdmin
             ? {}
             : {
