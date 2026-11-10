@@ -36,7 +36,19 @@ function stageBadgeVariant(
   stage: string,
 ): 'default' | 'secondary' | 'outline' {
   if (stage === 'CLOSED') return 'secondary'
-  if (stage === 'CONVERSION') return 'default'
+  if (
+    [
+      'CONVERSION',
+      'PROJECT_SETUP',
+      'MATERIAL_PLANNING',
+      'PROCUREMENT',
+      'SITE_EXECUTION',
+      'QUALITY_CHECK',
+      'HANDOVER',
+    ].includes(stage)
+  ) {
+    return 'default'
+  }
   return 'outline'
 }
 

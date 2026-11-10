@@ -728,10 +728,21 @@ export async function DELETE(
         assignment,
       )
 
+      const postConversionStages: LeadStage[] = [
+        LeadStage.CONVERSION,
+        LeadStage.PROJECT_SETUP,
+        LeadStage.MATERIAL_PLANNING,
+        LeadStage.PROCUREMENT,
+        LeadStage.SITE_EXECUTION,
+        LeadStage.QUALITY_CHECK,
+        LeadStage.HANDOVER,
+        LeadStage.CLOSED,
+      ]
+      const isPostConversionOrClosed = postConversionStages.includes(lead.stage as LeadStage)
+
       if (
         department === 'SR_CRM' &&
-        lead.stage !== LeadStage.CONVERSION &&
-        lead.stage !== LeadStage.CLOSED
+        !isPostConversionOrClosed
       ) {
         throw new Error(
           'SR_CRM assignment is required until lead reaches CONVERSION or CLOSED',

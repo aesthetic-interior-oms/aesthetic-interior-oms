@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
-import { Plus, X } from 'lucide-react'
+import { Plus, X, Sparkles, ChevronDown, ChevronUp, Check, Info } from 'lucide-react'
 import {
   inferProductCategoryRule,
   UI_SECTION_CATEGORIES,
@@ -88,6 +88,14 @@ export function AddSectionForm({
       ),
     [lineItem]
   )
+  const suggestedCategories = useMemo(
+    () => UI_SECTION_CATEGORIES.filter((c) => rule.allowedUiCategories.includes(c.key)),
+    [rule.allowedUiCategories]
+  )
+  const remainingCategories = useMemo(
+    () => UI_SECTION_CATEGORIES.filter((c) => !rule.allowedUiCategories.includes(c.key)),
+    [rule.allowedUiCategories]
+  )
   const [showAll, setShowAll] = useState(false)
   const [selectedUiCat, setSelectedUiCat] = useState<UiSectionCategory | null>(null)
   const uiCat = selectedUiCat ?? rule.defaultUiCategory
@@ -101,7 +109,7 @@ export function AddSectionForm({
 
   const visibleCategories = showAll
     ? UI_SECTION_CATEGORIES
-    : UI_SECTION_CATEGORIES.filter((c) => rule.allowedUiCategories.includes(c.key))
+    : suggestedCategories
 
   const handleConfirm = () => {
     if (uiCat === 'HARDWARE') {
@@ -143,11 +151,32 @@ export function AddSectionForm({
         }}
         className="text-xs bg-background border border-input rounded-md px-2.5 py-1.5 focus:ring-1 focus:ring-primary font-medium shadow-xs"
       >
-        {visibleCategories.map((c) => (
-          <option key={c.key} value={c.key}>
-            {c.label}
-          </option>
-        ))}
+        {showAll ? (
+          <>
+            <optgroup label="✨ Suggested for this Product">
+              {suggestedCategories.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
+                </option>
+              ))}
+            </optgroup>
+            {remainingCategories.length > 0 && (
+              <optgroup label="➕ Remaining Sections (Manual)">
+                {remainingCategories.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.label}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </>
+        ) : (
+          visibleCategories.map((c) => (
+            <option key={c.key} value={c.key}>
+              {c.label}
+            </option>
+          ))
+        )}
       </select>
 
       {uiCat === 'HARDWARE' && (
@@ -304,9 +333,21 @@ export function AddSectionModal({
       ),
     [lineItem]
   )
-  const [showAll, setShowAll] = useState(false)
+
+  const suggestedCategories = useMemo(
+    () => UI_SECTION_CATEGORIES.filter((c) => rule.allowedUiCategories.includes(c.key)),
+    [rule.allowedUiCategories]
+  )
+  const remainingCategories = useMemo(
+    () => UI_SECTION_CATEGORIES.filter((c) => !rule.allowedUiCategories.includes(c.key)),
+    [rule.allowedUiCategories]
+  )
+
   const [selectedUiCat, setSelectedUiCat] = useState<UiSectionCategory | null>(null)
+  const [showRemaining, setShowRemaining] = useState(false)
   const uiCat = selectedUiCat ?? rule.defaultUiCategory
+  const isRemainingSelected = remainingCategories.some((c) => c.key === uiCat)
+
   const [wpSub, setWpSub] = useState<WallPanelingSubType>('CORE_BOARDS')
   const [hwSub, setHwSub] = useState<WallPanelingSubType>('SCREWS_FASTENERS')
   const [cabSub, setCabSub] = useState<CabinetSubType>('BOARD_SPEC')
@@ -319,14 +360,10 @@ export function AddSectionModal({
 
   const handleClose = () => {
     setSelectedUiCat(null)
-    setShowAll(false)
+    setShowRemaining(false)
     setIncludeSourceSchedule(false)
     onClose()
   }
-
-  const visibleCategories = showAll
-    ? UI_SECTION_CATEGORIES
-    : UI_SECTION_CATEGORIES.filter((c) => rule.allowedUiCategories.includes(c.key))
 
   const handleConfirm = () => {
     if (uiCat === 'HARDWARE') {
@@ -358,16 +395,16 @@ export function AddSectionModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={handleClose} />
-      <div className="relative z-50 w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative z-50 w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between pb-4 border-b border-border/70">
           <div>
             <div className="flex items-center gap-1.5 mb-1">
               <span className="rounded bg-primary/10 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-primary">
                 New Section
               </span>
-              {rule.tier !== 3 && rule.productLabel && (
+              {rule.productLabel && (
                 <span className="rounded bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-200">
-                  Guided: {rule.productLabel}
+                  Quotation Type: {rule.productLabel}
                 </span>
               )}
             </div>
@@ -378,46 +415,117 @@ export function AddSectionModal({
           </div>
           <button
             onClick={handleClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="space-y-4 py-4">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-bold text-foreground">Work Category</label>
-              {rule.tier !== 3 && (
-                <button
-                  type="button"
-                  onClick={() => setShowAll((v) => !v)}
-                  className="text-[11px] font-medium text-primary hover:underline"
-                >
-                  {showAll ? 'Show recommended' : 'Show all categories'}
-                </button>
-              )}
+          {/* 1. Automated / Suggested Sections */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Suggested Sections for {rule.productLabel || 'Quotation Product'}</span>
+              </div>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground/70 tracking-wider">
+                Automated
+              </span>
             </div>
-            <select
-              value={uiCat}
-              onChange={(e) => {
-                setSelectedUiCat(e.target.value as UiSectionCategory)
-                setIncludeSourceSchedule(false)
-              }}
-              className="w-full text-xs bg-background border border-input rounded-lg px-3 py-2 font-medium focus:ring-1 focus:ring-primary shadow-xs"
-            >
-              {visibleCategories.map((c) => (
-                <option key={c.key} value={c.key}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {suggestedCategories.map((c) => {
+                const isSelected = uiCat === c.key
+                return (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => {
+                      setSelectedUiCat(c.key)
+                      setIncludeSourceSchedule(false)
+                    }}
+                    className={`flex items-center justify-between p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-primary bg-primary/10 text-primary font-bold shadow-xs ring-1 ring-primary'
+                        : 'border-border/70 bg-card hover:bg-muted/50 text-foreground font-medium'
+                    }`}
+                  >
+                    <span>{c.label}</span>
+                    {isSelected && <Check className="w-4 h-4 text-primary shrink-0 ml-1.5" />}
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
+          {/* 2. Remaining / Other Sections button */}
+          {remainingCategories.length > 0 && (
+            <div className="space-y-2 pt-2 border-t border-border/60">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-medium text-muted-foreground">
+                  Need another section (e.g. Wall Paneling, Ceiling)?
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowRemaining((v) => !v)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg bg-primary/10 hover:bg-primary/20 text-primary transition-colors border border-primary/25 cursor-pointer shadow-2xs"
+                >
+                  {showRemaining || isRemainingSelected ? (
+                    <>
+                      <ChevronUp className="w-3.5 h-3.5" />
+                      <span>Hide Remaining Sections</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Choose Remaining Sections ({remainingCategories.length})</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {(showRemaining || isRemainingSelected) && (
+                <div className="space-y-2 rounded-xl border border-dashed border-primary/30 bg-primary/5 p-3 animate-in fade-in-50 duration-150">
+                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <Info className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                    <span>
+                      Manual addition: You can attach any of these remaining sections to this product.
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {remainingCategories.map((c) => {
+                      const isSelected = uiCat === c.key
+                      return (
+                        <button
+                          key={c.key}
+                          type="button"
+                          onClick={() => {
+                            setSelectedUiCat(c.key)
+                            setIncludeSourceSchedule(false)
+                          }}
+                          className={`flex items-center justify-between p-2.5 rounded-xl border text-left text-xs transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-primary bg-primary/15 text-primary font-bold shadow-xs ring-1 ring-primary'
+                              : 'border-border/70 bg-card hover:bg-muted/50 text-foreground font-medium'
+                          }`}
+                        >
+                          <span>{c.label}</span>
+                          {isSelected && <Check className="w-4 h-4 text-primary shrink-0 ml-1.5" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 3. Sub-type configurations */}
           {uiCat === 'HARDWARE' && (
-            <div>
-              <label className="text-xs font-bold text-foreground block mb-1.5">
-                Hardware Sub-Type
+            <div className="space-y-1.5 rounded-xl border border-orange-500/20 bg-orange-500/5 p-3">
+              <label className="text-xs font-bold text-foreground block">
+                🔩 Hardware Sub-Type
               </label>
               <select
                 value={hwSub}
@@ -434,9 +542,9 @@ export function AddSectionModal({
           )}
 
           {uiCat === 'WALL_PANELING' && (
-            <div>
-              <label className="text-xs font-bold text-foreground block mb-1.5">
-                Wall Paneling Sub-Type
+            <div className="space-y-1.5 rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <label className="text-xs font-bold text-foreground block">
+                🪵 Wall Paneling Sub-Type
               </label>
               <select
                 value={wpSub}
@@ -453,9 +561,9 @@ export function AddSectionModal({
           )}
 
           {uiCat === 'CABINETS_CLOSETS' && (
-            <div>
-              <label className="text-xs font-bold text-foreground block mb-1.5">
-                Cabinet / Closet Sub-Type
+            <div className="space-y-1.5 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+              <label className="text-xs font-bold text-foreground block">
+                🗄️ Cabinet / Closet Sub-Type
               </label>
               <select
                 value={cabSub}
@@ -472,9 +580,9 @@ export function AddSectionModal({
           )}
 
           {uiCat === 'ACCESSORIES' && (
-            <div>
-              <label className="text-xs font-bold text-foreground block mb-1.5">
-                Hardware / Accessories Sub-Type
+            <div className="space-y-1.5 rounded-xl border border-pink-500/20 bg-pink-500/5 p-3">
+              <label className="text-xs font-bold text-foreground block">
+                🍳 Hardware / Accessories Sub-Type
               </label>
               <select
                 value={accSub}
@@ -491,9 +599,9 @@ export function AddSectionModal({
           )}
 
           {uiCat === 'APPLIANCES' && (
-            <div>
-              <label className="text-xs font-bold text-foreground block mb-1.5">
-                Appliance Sub-Type
+            <div className="space-y-1.5 rounded-xl border border-teal-500/20 bg-teal-500/5 p-3">
+              <label className="text-xs font-bold text-foreground block">
+                🧊 Appliance Sub-Type
               </label>
               <select
                 value={appSub}
@@ -510,9 +618,9 @@ export function AddSectionModal({
           )}
 
           {uiCat === 'CEILING' && (
-            <div>
-              <label className="text-xs font-bold text-foreground block mb-1.5">
-                Ceiling Sub-Type
+            <div className="space-y-1.5 rounded-xl border border-purple-500/20 bg-purple-500/5 p-3">
+              <label className="text-xs font-bold text-foreground block">
+                💡 Ceiling Sub-Type
               </label>
               <select
                 value={ceilingSub}
@@ -545,13 +653,13 @@ export function AddSectionModal({
         <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/70">
           <button
             onClick={handleClose}
-            className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors shadow-sm cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Confirm Add Section
           </button>

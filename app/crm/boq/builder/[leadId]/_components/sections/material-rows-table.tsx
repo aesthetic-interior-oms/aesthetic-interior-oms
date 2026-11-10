@@ -1006,7 +1006,7 @@ export function MaterialRowsTable({
           <table className="w-full text-xs text-left min-w-[1040px] border-collapse divide-y divide-border/60">
             <thead className="bg-amber-500/10 border-b border-amber-500/20 text-amber-900 dark:text-amber-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-14 text-center`}>Sr. No</th>
+                <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} w-36`}>Usage</th>
                 <th className={`${GRID_TH} w-24`} title="Shutter/Body: 16mm, 18mm | Back Ply: 6mm, 9mm">Thickness</th>
                 <th className={`${GRID_TH} min-w-[150px]`}>Base Material / Core</th>
@@ -1027,19 +1027,9 @@ export function MaterialRowsTable({
 
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
-                    {/* 1. Sr. No */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.srNo || attrs.lineNo || ''}
-                        onChange={(e) => {
-                          onUpdateVariant(ri, 'srNo', e.target.value)
-                          onUpdateVariant(ri, 'lineNo', e.target.value)
-                        }}
-                        onFocus={(e) => e.target.select()}
-                        placeholder={`${ri + 1}`}
-                        className={GRID_CELL_MONO}
-                      />
+                    {/* 1. SL NO */}
+                    <td className={`${GRID_TD} text-center font-mono text-xs text-muted-foreground`}>
+                      {String(ri + 1).padStart(2, '0')}
                     </td>
 
                     {/* 2. Usage (Dropdown with Shutter, Body, Back Ply) */}
@@ -1262,7 +1252,7 @@ export function MaterialRowsTable({
           <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
             <thead className="bg-pink-500/10 border-b border-pink-500/20 text-pink-950 dark:text-pink-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-16`}>SL</th>
+                <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} w-32`}>Category</th>
                 <th className={`${GRID_TH} min-w-[190px]`}>Item Name</th>
                 <th className={`${GRID_TH} min-w-[130px]`}>Item Code</th>
@@ -1277,15 +1267,9 @@ export function MaterialRowsTable({
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
-                    {/* 1. SL */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.srNo || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'srNo', e.target.value)}
-                        placeholder="01"
-                        className={GRID_CELL_MONO}
-                      />
+                    {/* 1. SL NO */}
+                    <td className={`${GRID_TD} text-center font-mono text-xs text-muted-foreground`}>
+                      {String(ri + 1).padStart(2, '0')}
                     </td>
 
                     {/* 2. Category Dropdown */}
@@ -1426,7 +1410,7 @@ export function MaterialRowsTable({
           <table className="w-full text-xs text-left min-w-[950px] border-collapse divide-y divide-border/60">
             <thead className="bg-purple-500/10 border-b border-purple-500/20 text-purple-950 dark:text-purple-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-16`}>SL</th>
+                <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} min-w-[180px]`}>Service / Material Category</th>
                 <th className={`${GRID_TH} min-w-[280px]`}>Description</th>
                 <th className={`${GRID_TH} min-w-[130px]`}>Quantity / Unit</th>
@@ -1440,15 +1424,9 @@ export function MaterialRowsTable({
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
-                    {/* 1. SL */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.srNo || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'srNo', e.target.value)}
-                        placeholder="08"
-                        className={GRID_CELL_MONO}
-                      />
+                    {/* 1. SL NO */}
+                    <td className={`${GRID_TD} text-center font-mono text-xs text-muted-foreground`}>
+                      {String(ri + 1).padStart(2, '0')}
                     </td>
 
                     {/* 2. Service / Material Category */}
@@ -1534,7 +1512,7 @@ export function MaterialRowsTable({
           <table className="w-full text-xs text-left min-w-[1250px] border-collapse divide-y divide-border/60">
             <thead className="bg-teal-500/10 border-b border-teal-500/20 text-teal-950 dark:text-teal-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-14`}>SL</th>
+                <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} min-w-[150px]`}>Category</th>
                 <th className={`${GRID_TH} min-w-[210px]`}>Item Name</th>
                 <th className={`${GRID_TH} min-w-[190px]`}>Brand &amp; Model Code</th>
@@ -1551,15 +1529,9 @@ export function MaterialRowsTable({
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
-                    {/* 1. SL */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.srNo || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'srNo', e.target.value)}
-                        placeholder="1"
-                        className={GRID_CELL_MONO}
-                      />
+                    {/* 1. SL NO */}
+                    <td className={`${GRID_TD} text-center font-mono text-xs text-muted-foreground`}>
+                      {String(ri + 1).padStart(2, '0')}
                     </td>
 
                     {/* 2. Category Dropdown */}
@@ -1735,7 +1707,7 @@ export function MaterialRowsTable({
           <table className="w-full text-xs text-left min-w-[1050px] border-collapse divide-y divide-border/60">
             <thead className="bg-purple-500/10 border-b border-purple-500/20 text-purple-950 dark:text-purple-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-14`}>SL</th>
+                <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} min-w-[200px]`}>Item Name</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Color Temp / Specs</th>
                 <th className={`${GRID_TH} min-w-[150px]`}>Size / Dimension</th>
@@ -1755,15 +1727,9 @@ export function MaterialRowsTable({
 
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
-                    {/* SL */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.srNo || String(ri + 1)}
-                        onChange={(e) => onUpdateVariant(ri, 'srNo', e.target.value)}
-                        placeholder={String(ri + 1)}
-                        className={GRID_CELL_MONO}
-                      />
+                    {/* SL NO */}
+                    <td className={`${GRID_TD} text-center font-mono text-xs text-muted-foreground`}>
+                      {String(ri + 1).padStart(2, '0')}
                     </td>
 
                     {/* Item Name (Dropdown) */}
@@ -1942,7 +1908,7 @@ export function MaterialRowsTable({
           <table className="w-full text-xs text-left min-w-[1050px] border-collapse divide-y divide-border/60">
             <thead className="bg-amber-500/10 border-b border-amber-500/20 text-amber-950 dark:text-amber-200">
               <tr className="divide-x divide-border/40">
-                <th className={`${GRID_TH} w-14`}>SL</th>
+                <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} min-w-[200px]`}>Item Name</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Specification / Type</th>
                 <th className={`${GRID_TH} min-w-[150px]`}>Rating / Dimension</th>
@@ -1962,15 +1928,9 @@ export function MaterialRowsTable({
 
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
-                    {/* SL */}
-                    <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={attrs.srNo || String(ri + 1)}
-                        onChange={(e) => onUpdateVariant(ri, 'srNo', e.target.value)}
-                        placeholder={String(ri + 1)}
-                        className={GRID_CELL_MONO}
-                      />
+                    {/* SL NO */}
+                    <td className={`${GRID_TD} text-center font-mono text-xs text-muted-foreground`}>
+                      {String(ri + 1).padStart(2, '0')}
                     </td>
 
                     {/* Item Name (Dropdown) */}
@@ -2128,9 +2088,10 @@ export function MaterialRowsTable({
       ) : (
         /* ── 8. Standard 8-Column Material Table ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[800px] border-collapse divide-y divide-border/60">
+          <table className="w-full text-xs text-left min-w-[850px] border-collapse divide-y divide-border/60">
             <thead className="bg-blue-500/10 border-b border-blue-500/20 text-blue-900 dark:text-blue-200">
               <tr className="divide-x divide-border/40">
+                <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} w-36`}>Category</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Material Name</th>
                 <th className={`${GRID_TH} min-w-[200px]`}>Specification</th>
@@ -2145,6 +2106,11 @@ export function MaterialRowsTable({
             <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => (
                 <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
+                  {/* SL NO */}
+                  <td className={`${GRID_TD} text-center font-mono text-xs text-muted-foreground`}>
+                    {String(ri + 1).padStart(2, '0')}
+                  </td>
+
                   {/* Category */}
                   <td className={GRID_TD}>
                     <select

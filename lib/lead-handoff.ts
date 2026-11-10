@@ -178,6 +178,12 @@ export function requiresSrCrmAssignment(stage: LeadStage): boolean {
     stage !== LeadStage.CONTACT_ATTEMPTED &&
     stage !== LeadStage.NURTURING &&
     stage !== LeadStage.CONVERSION &&
+    stage !== LeadStage.PROJECT_SETUP &&
+    stage !== LeadStage.MATERIAL_PLANNING &&
+    stage !== LeadStage.PROCUREMENT &&
+    stage !== LeadStage.SITE_EXECUTION &&
+    stage !== LeadStage.QUALITY_CHECK &&
+    stage !== LeadStage.HANDOVER &&
     stage !== LeadStage.PARTIAL_VISIT_PHASE &&
     stage !== LeadStage.CLOSED
   )

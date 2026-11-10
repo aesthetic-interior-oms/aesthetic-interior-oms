@@ -201,16 +201,18 @@ export function flattenItems(map: ItemsMap): RequisitionItemInput[] {
     }
     const cardKey = key.slice(0, separatorIdx)
     const sectionId = key.slice(separatorIdx + 2)
-    for (const row of rows) {
+    rows.forEach((row, idx) => {
       result.push({
         ...row,
         variantAttributes: {
           ...(row.variantAttributes || {}),
           _sectionId: sectionId,
           _cardKey: cardKey,
+          srNo: String(idx + 1),
+          lineNo: String(idx + 1),
         },
       })
-    }
+    })
   }
   return result
 }

@@ -348,6 +348,12 @@ export function LeadActionsPanel({
         'REJECTED_OFFER',
       ],
       CONVERSION: restrictConversionStage ? [] : ['CLIENT_CONFIRMED', 'CLIENT_PARTIALLY_PAID', 'CLIENT_FULL_PAID'],
+      PROJECT_SETUP: ['TEAM_ASSIGNED', 'INITIAL_SITE_VISIT', 'SITE_READY'],
+      MATERIAL_PLANNING: ['REQUISITION_DRAFT', 'REQUISITION_VERIFIED', 'ACCOUNTS_BILLED'],
+      PROCUREMENT: ['PURCHASE_ORDER_SENT', 'DISPATCHED', 'DELIVERED_TO_SITE'],
+      SITE_EXECUTION: ['WORK_ORDERS_ISSUED', 'WORK_IN_PROGRESS', 'MATERIAL_UTILIZED'],
+      QUALITY_CHECK: ['SNAG_LIST_PENDING', 'RECTIFICATION_DONE', 'CLIENT_WALKTHROUGH'],
+      HANDOVER: ['FINAL_BILLING', 'COMPLETED'],
       VISUALIZATION_PHASE: [
         'VISUAL_ASSIGNED',
         'VISUAL_WORKING',
@@ -388,9 +394,15 @@ export function LeadActionsPanel({
     DISCOVERY: 6,
     QUOTATION_PHASE: 7,
     BUDGET_PHASE: 8,
+    VISUALIZATION_PHASE: 8.5,
     CONVERSION: 9,
-    VISUALIZATION_PHASE: 10,
-    CLOSED: 11,
+    PROJECT_SETUP: 10,
+    MATERIAL_PLANNING: 11,
+    PROCUREMENT: 12,
+    SITE_EXECUTION: 13,
+    QUALITY_CHECK: 14,
+    HANDOVER: 15,
+    CLOSED: 16,
   }
   const originalStageRank = stageOrder[originalStage] ?? -1
   const selectedStageRank = stageOrder[stage] ?? -1
@@ -482,6 +494,12 @@ export function LeadActionsPanel({
     BUDGET_PHASE: 'Lead has moved to budget phase.',
     VISUALIZATION_PHASE: 'Lead has moved to visualization phase.',
     CONVERSION: 'Lead has moved to conversion phase.',
+    PROJECT_SETUP: 'Lead has moved to project setup.',
+    MATERIAL_PLANNING: 'Lead has moved to material planning.',
+    PROCUREMENT: 'Lead has moved to procurement.',
+    SITE_EXECUTION: 'Lead has moved to site execution.',
+    QUALITY_CHECK: 'Lead has moved to quality check.',
+    HANDOVER: 'Lead has moved to handover.',
     VISIT_PHASE: 'Lead has moved to visit phase.',
     CONTACT_ATTEMPTED: 'Contact has been attempted.',
     NURTURING: 'Lead has been moved to nurturing for follow-up.',
@@ -1837,6 +1855,12 @@ export function LeadActionsPanel({
               {!restrictConversionStage && (
                 <SelectItem value="CONVERSION" disabled={restrictStagesForJrCrm}>Conversion</SelectItem>
               )}
+              <SelectItem value="PROJECT_SETUP" disabled={restrictStagesForJrCrm}>Project Setup</SelectItem>
+              <SelectItem value="MATERIAL_PLANNING" disabled={restrictStagesForJrCrm}>Material Planning</SelectItem>
+              <SelectItem value="PROCUREMENT" disabled={restrictStagesForJrCrm}>Procurement</SelectItem>
+              <SelectItem value="SITE_EXECUTION" disabled={restrictStagesForJrCrm}>Site Execution</SelectItem>
+              <SelectItem value="QUALITY_CHECK" disabled={restrictStagesForJrCrm}>Quality Check</SelectItem>
+              <SelectItem value="HANDOVER" disabled={restrictStagesForJrCrm}>Handover</SelectItem>
               <SelectItem value="VISUALIZATION_PHASE" disabled={restrictStagesForJrCrm}>Visualization Phase</SelectItem>
               <SelectItem value="CLOSED" disabled={restrictStagesForJrCrm}>
                 Closed

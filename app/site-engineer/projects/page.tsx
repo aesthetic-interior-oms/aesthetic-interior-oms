@@ -120,7 +120,7 @@ export default function SiteEngineerProjectsPage() {
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
           <Button
             variant={stageFilter === 'ALL' ? 'secondary' : 'ghost'}
             size="sm"
@@ -136,6 +136,30 @@ export default function SiteEngineerProjectsPage() {
             onClick={() => setStageFilter('CONVERSION')}
           >
             Conversion
+          </Button>
+          <Button
+            variant={stageFilter === 'SITE_EXECUTION' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="text-xs h-8"
+            onClick={() => setStageFilter('SITE_EXECUTION')}
+          >
+            Site Execution
+          </Button>
+          <Button
+            variant={stageFilter === 'QUALITY_CHECK' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="text-xs h-8"
+            onClick={() => setStageFilter('QUALITY_CHECK')}
+          >
+            Quality Check
+          </Button>
+          <Button
+            variant={stageFilter === 'HANDOVER' ? 'secondary' : 'ghost'}
+            size="sm"
+            className="text-xs h-8"
+            onClick={() => setStageFilter('HANDOVER')}
+          >
+            Handover
           </Button>
         </div>
       </div>

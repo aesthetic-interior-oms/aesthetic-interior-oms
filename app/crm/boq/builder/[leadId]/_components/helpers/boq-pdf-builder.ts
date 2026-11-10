@@ -381,9 +381,9 @@ export function buildSectionPdfTable(
   if (viewMode === 'HARDWARE_ACCESSORY_SPEC') {
     return {
       color: [219, 39, 119],
-      head: ['SL', 'Item Name', 'Category', 'Code', 'Dimensions', 'Qty', 'Unit Price', 'Total'],
-      body: rows.map((item) => [
-        text(pdfAttr(item, 'srNo')),
+      head: ['SL NO', 'Item Name', 'Category', 'Code', 'Dimensions', 'Qty', 'Unit Price', 'Total'],
+      body: rows.map((item, idx) => [
+        String(idx + 1).padStart(2, '0'),
         text(item.materialName),
         text(pdfAttr(item, 'accessoryCategory')),
         text(pdfAttr(item, 'itemCode')),
@@ -393,11 +393,11 @@ export function buildSectionPdfTable(
         text(pdfAttr(item, 'totalAmount')),
       ]),
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center' },
-        1: { cellWidth: 42, fontStyle: 'bold' },
+        0: { cellWidth: 14, halign: 'center' },
+        1: { cellWidth: 40, fontStyle: 'bold' },
         2: { cellWidth: 24 },
-        3: { cellWidth: 26 },
-        4: { cellWidth: 32 },
+        3: { cellWidth: 24 },
+        4: { cellWidth: 30 },
         5: { cellWidth: 16, halign: 'right', fontStyle: 'bold' },
         6: { cellWidth: 22, halign: 'right' },
         7: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' },
@@ -408,9 +408,9 @@ export function buildSectionPdfTable(
   if (viewMode === 'SERVICES_DELIVERABLE_SPEC') {
     return {
       color: [147, 51, 234],
-      head: ['SL', 'Service / Deliverable', 'Specifications / Scope', 'Unit', 'Rate Type', 'Est. Total'],
-      body: rows.map((item) => [
-        text(pdfAttr(item, 'srNo')),
+      head: ['SL NO', 'Service / Deliverable', 'Specifications / Scope', 'Unit', 'Rate Type', 'Est. Total'],
+      body: rows.map((item, idx) => [
+        String(idx + 1).padStart(2, '0'),
         text(item.materialName),
         text(item.specifications),
         text(pdfAttr(item, 'quantityUnit') || item.unit),
@@ -418,8 +418,8 @@ export function buildSectionPdfTable(
         text(pdfAttr(item, 'estimatedTotal')),
       ]),
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center' },
-        1: { cellWidth: 44, fontStyle: 'bold' },
+        0: { cellWidth: 14, halign: 'center' },
+        1: { cellWidth: 42, fontStyle: 'bold' },
         2: { cellWidth: 'auto' },
         3: { cellWidth: 20 },
         4: { cellWidth: 24 },
@@ -432,7 +432,7 @@ export function buildSectionPdfTable(
     return {
       color: [13, 148, 136],
       head: [
-        'SL',
+        'SL NO',
         'Item Name',
         'Brand & Model Code',
         'Outer Dimensions (W×D×H)',
@@ -441,13 +441,13 @@ export function buildSectionPdfTable(
         'Unit Price',
         'Total Amount',
       ],
-      body: rows.map((item) => {
+      body: rows.map((item, idx) => {
         const dim =
           pdfAttr(item, 'dimW') || pdfAttr(item, 'dimD') || pdfAttr(item, 'dimH')
             ? `W${pdfAttr(item, 'dimW')} × D${pdfAttr(item, 'dimD')} × H${pdfAttr(item, 'dimH')} mm`
             : pdfAttr(item, 'outerDimensions')
         return [
-          text(pdfAttr(item, 'srNo')),
+          String(idx + 1).padStart(2, '0'),
           text(item.materialName),
           text(pdfAttr(item, 'brandModelCode')),
           text(dim),
@@ -458,11 +458,11 @@ export function buildSectionPdfTable(
         ]
       }),
       columnStyles: {
-        0: { cellWidth: 10, halign: 'center' },
-        1: { cellWidth: 38, fontStyle: 'bold' },
-        2: { cellWidth: 36 },
-        3: { cellWidth: 36 },
-        4: { cellWidth: 46 },
+        0: { cellWidth: 14, halign: 'center' },
+        1: { cellWidth: 36, fontStyle: 'bold' },
+        2: { cellWidth: 34 },
+        3: { cellWidth: 34 },
+        4: { cellWidth: 44 },
         5: { cellWidth: 16, halign: 'right', fontStyle: 'bold' },
         6: { cellWidth: 26, halign: 'right' },
         7: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' },
@@ -545,6 +545,7 @@ export function buildSectionPdfTable(
   return {
     color: [37, 99, 235],
     head: [
+      'SL NO',
       'Category',
       'Material Name',
       'Specification',
@@ -555,7 +556,8 @@ export function buildSectionPdfTable(
       'Phase / Usage',
       'Remarks',
     ],
-    body: rows.map((item) => [
+    body: rows.map((item, idx) => [
+      String(idx + 1).padStart(2, '0'),
       text(getWorkCategoryLabel(item.workCategory)),
       text(item.materialName),
       text(item.specifications),
@@ -569,15 +571,16 @@ export function buildSectionPdfTable(
       text(item.remarks),
     ]),
     columnStyles: {
-      0: { cellWidth: 30 },
-      1: { cellWidth: 42, fontStyle: 'bold' },
-      2: { cellWidth: 62 },
-      3: { cellWidth: 20, halign: 'right' },
-      4: { cellWidth: 20, halign: 'right' },
-      5: { cellWidth: 22, halign: 'right', fontStyle: 'bold' },
-      6: { cellWidth: 18 },
-      7: { cellWidth: 38 },
-      8: { cellWidth: 'auto' },
+      0: { cellWidth: 14, halign: 'center' },
+      1: { cellWidth: 28 },
+      2: { cellWidth: 38, fontStyle: 'bold' },
+      3: { cellWidth: 54 },
+      4: { cellWidth: 18, halign: 'right' },
+      5: { cellWidth: 18, halign: 'right' },
+      6: { cellWidth: 20, halign: 'right', fontStyle: 'bold' },
+      7: { cellWidth: 16 },
+      8: { cellWidth: 34 },
+      9: { cellWidth: 'auto' },
     },
   }
 }
