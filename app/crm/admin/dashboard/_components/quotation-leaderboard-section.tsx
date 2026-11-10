@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { generateQuotationTeamPerformancePdf } from '@/lib/quotation-team-performance-pdf'
 
 export type QuotationPerformanceItem = {
   userId: string
@@ -147,126 +148,11 @@ export function QuotationLeaderboardSection({
   const downloadPdf = async () => {
     setDownloading(true)
     try {
-      const { default: jsPDF } = await import('jspdf')
-      const { default: autoTable } = await import('jspdf-autotable')
-
-      const doc = new jsPDF({ orientation: 'landscape' })
-      const pageWidth = doc.internal.pageSize.getWidth()
-
-      const logoDataUrl = await loadLogoBase64('/Logo/HeaderLogo.png')
-
-      if (logoDataUrl) {
-        doc.addImage(logoDataUrl, 'PNG', 14, 10, 54, 10)
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(14)
-        doc.setTextColor(31, 54, 61) // Primary #1f363d
-        doc.text('Quotation Team Performance Leaderboard', 74, 17)
-
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(9)
-        doc.setTextColor(100, 116, 139)
-        doc.text(`Month: ${monthLabel}`, 74, 23)
-        doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - 14, 23, { align: 'right' })
-
-        doc.setTextColor(30, 41, 59)
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(9)
-        doc.text(
-          `Members: ${performances.length}  |  Team Avg: ${teamAverage}/100  |  Total SQFT: ${formatNumber(performances.reduce((sum, item) => sum + item.totalSqft, 0))}`,
-          14,
-          31,
-        )
-      } else {
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(14)
-        doc.setTextColor(31, 54, 61)
-        doc.text('Quotation Team Performance Leaderboard', 14, 16)
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(9)
-        doc.setTextColor(100, 116, 139)
-        doc.text(`Month: ${monthLabel}`, 14, 23)
-        doc.text(`Generated: ${new Date().toLocaleDateString('en-GB')}`, pageWidth - 14, 23, { align: 'right' })
-
-        doc.setTextColor(30, 41, 59)
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(9)
-        doc.text(
-          `Members: ${performances.length}  |  Team Average: ${teamAverage}/100  |  Total SQFT: ${formatNumber(performances.reduce((sum, item) => sum + item.totalSqft, 0))}`,
-          14,
-          31,
-        )
-      }
-
-      autoTable(doc, {
-        startY: 38,
-        head: [[
-          'Rank',
-          'Name',
-          'Email',
-          'Detail SQFT',
-          'Short SQFT',
-          'Total SQFT',
-          'Completed',
-          'Avg Hours',
-          'SQFT Score /50',
-          'Count Score /30',
-          'Speed Score /20',
-          'Final /100',
-          'Updated',
-        ]],
-        body: performances.map((item, index) => {
-          const score = getScoreBreakdown(item)
-          return [
-            String(index + 1),
-            item.fullName,
-            item.email,
-            formatNumber(item.detailSqft),
-            formatNumber(item.shortSqft),
-            formatNumber(item.totalSqft),
-            String(item.completedCount),
-            item.avgWorkingHours > 0 ? item.avgWorkingHours.toFixed(1) : '0',
-            score.sqftScore.toFixed(1),
-            score.countScore.toFixed(1),
-            score.speedScore.toFixed(1),
-            item.performanceScore.toFixed(1),
-            toDateLabel(item.updatedAt),
-          ]
-        }),
-        theme: 'grid',
-        styles: {
-          fontSize: 7,
-          cellPadding: 1.6,
-          lineColor: [226, 232, 240],
-          lineWidth: 0.1,
-        },
-        headStyles: {
-          fillColor: [245, 158, 11],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-        },
-        columnStyles: {
-          0: { cellWidth: 12, halign: 'center' },
-          1: { cellWidth: 32 },
-          2: { cellWidth: 45 },
-          3: { halign: 'right' },
-          4: { halign: 'right' },
-          5: { halign: 'right' },
-          6: { halign: 'center' },
-          7: { halign: 'right' },
-          8: { halign: 'right' },
-          9: { halign: 'right' },
-          10: { halign: 'right' },
-          11: { halign: 'right', fontStyle: 'bold' },
-        },
-        didDrawPage: () => {
-          doc.setFontSize(7)
-          doc.setTextColor(100, 116, 139)
-          doc.text(`Aesthetic Interior - Quotation Team - ${monthLabel}`, 14, 202)
-          doc.text(`Page ${doc.getNumberOfPages()}`, pageWidth - 14, 202, { align: 'right' })
-        },
+      await generateQuotationTeamPerformancePdf({
+        monthKey: selectedMonth,
+        members: performances,
+        generatedBy: 'Admin',
       })
-
-      doc.save(`quotation-team-performance-${safeFilePart(selectedMonth)}.pdf`)
     } finally {
       setDownloading(false)
     }

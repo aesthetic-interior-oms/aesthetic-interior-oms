@@ -13,6 +13,7 @@ export type SrCrmItem = {
   sqftScore: number
   agreementScore: number
   totalPerformance: number
+  isEnabled?: boolean
 }
 
 export type VisitTeamItem = {
@@ -42,6 +43,7 @@ export type JrArchitectItem = {
   user: {
     fullName: string
   }
+  isEnabled?: boolean
 }
 
 export type QuotationItem = {
@@ -54,6 +56,7 @@ export type QuotationItem = {
   completedCount: number
   avgWorkingHours: number
   performanceScore: number
+  isEnabled?: boolean
 }
 
 export type AllTeamsPerformancePdfProps = {
@@ -112,26 +115,60 @@ export async function generateAllTeamsPerformancePdf({
   })
 
   const logoDataUrl = await loadLogoBase64('/Logo/HeaderLogo.png')
+  const watermarkBase64 = await loadLogoBase64('/android-chrome-512x512.png')
+
+  // Filter out any disabled/hidden members
+  const activeSrCrm = srCrmMembers.filter((m) => m.isEnabled !== false)
+  const activeVisitTeam = visitTeamMembers.filter((m) => m.isEnabled !== false)
+  const activeJrArch = jrArchitectMembers.filter((m) => m.isEnabled !== false)
+  const activeQuotation = quotationMembers.filter((m) => m.isEnabled !== false)
 
   // Calculate high-level team averages
-  const srCrmAvg = srCrmMembers.length
-    ? Math.round(srCrmMembers.reduce((sum, m) => sum + (m.totalPerformance || 0), 0) / srCrmMembers.length)
+  const srCrmAvg = activeSrCrm.length
+    ? Math.round(activeSrCrm.reduce((sum, m) => sum + (m.totalPerformance || 0), 0) / activeSrCrm.length)
     : 0
 
-  const visitTeamAvg = visitTeamMembers.length
-    ? Math.round(visitTeamMembers.reduce((sum, m) => sum + (m.performance || 0), 0) / visitTeamMembers.length)
+  const visitTeamAvg = activeVisitTeam.length
+    ? Math.round(activeVisitTeam.reduce((sum, m) => sum + (m.performance || 0), 0) / activeVisitTeam.length)
     : 0
 
-  const jrArchAvg = jrArchitectMembers.length
-    ? Math.round(jrArchitectMembers.reduce((sum, m) => sum + (m.performanceScore || 0), 0) / jrArchitectMembers.length)
+  const jrArchAvg = activeJrArch.length
+    ? Math.round(activeJrArch.reduce((sum, m) => sum + (m.performanceScore || 0), 0) / activeJrArch.length)
     : 0
 
-  const quotationAvg = quotationMembers.length
-    ? Math.round(quotationMembers.reduce((sum, m) => sum + (m.performanceScore || 0), 0) / quotationMembers.length)
+  const quotationAvg = activeQuotation.length
+    ? Math.round(activeQuotation.reduce((sum, m) => sum + (m.performanceScore || 0), 0) / activeQuotation.length)
     : 0
+
+  // Draw watermark background
+  const drawWatermark = () => {
+    if (!watermarkBase64) return
+    try {
+      const doc2 = doc as unknown as {
+        GState?: new (opts: { opacity: number }) => unknown
+        setGState: (state: unknown) => void
+      }
+      if (doc2.GState) {
+        doc2.setGState(new doc2.GState({ opacity: 0.05 }))
+      }
+      const wmSize = 90
+      const wmX = (pageWidth - wmSize) / 2
+      const wmY = (pageHeight - wmSize) / 2
+      doc.addImage(watermarkBase64, 'PNG', wmX, wmY, wmSize, wmSize)
+      if (doc2.GState) {
+        doc2.setGState(new doc2.GState({ opacity: 1.0 }))
+      }
+    } catch {
+      // skip
+    }
+  }
 
   // Header branding helper
   const drawPageHeader = (pageTitle: string) => {
+    doc.setFillColor(31, 54, 61)
+    doc.rect(0, 0, pageWidth, 4, 'F')
+    drawWatermark()
+
     if (logoDataUrl) {
       doc.addImage(logoDataUrl, 'PNG', 14, 8, 48, 9)
       doc.setFont('helvetica', 'bold')
@@ -180,7 +217,7 @@ export async function generateAllTeamsPerformancePdf({
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(8)
   doc.setTextColor(51, 65, 85)
-  const summaryText = `SR CRM Avg: ${srCrmAvg}/100 (${srCrmMembers.length} members)   |   Visit Team Avg: ${visitTeamAvg}/100 (${visitTeamMembers.length} members)   |   JR Architect Avg: ${jrArchAvg}/100 (${jrArchitectMembers.length} members)   |   Quotation Team Avg: ${quotationAvg}/100 (${quotationMembers.length} members)`
+  const summaryText = `SR CRM Avg: ${srCrmAvg}/100 (${activeSrCrm.length} members)   |   Visit Team Avg: ${visitTeamAvg}/100 (${activeVisitTeam.length} members)   |   JR Architect Avg: ${jrArchAvg}/100 (${activeJrArch.length} members)   |   Quotation Team Avg: ${quotationAvg}/100 (${activeQuotation.length} members)`
   doc.text(summaryText, 18, yPos + 11)
 
   yPos += 20
@@ -207,9 +244,9 @@ export async function generateAllTeamsPerformancePdf({
       'Value (/15)',
       'Total (/100)',
     ]],
-    body: srCrmMembers.length === 0
+    body: activeSrCrm.length === 0
       ? [['-', 'No SR CRM records for this month', '-', '-', '-', '-', '-', '-', '-', '-', '-']]
-      : srCrmMembers.map((m, idx) => [
+      : activeSrCrm.map((m, idx) => [
           String(idx + 1),
           m.name,
           `${(m.activeProjectSqft || 0).toLocaleString()} SFT`,
@@ -238,6 +275,9 @@ export async function generateAllTeamsPerformancePdf({
       9: { halign: 'right' },
       10: { halign: 'right', fontStyle: 'bold' },
     },
+    didDrawPage: () => {
+      drawWatermark()
+    },
   })
 
   // ─────────────────────────────────────────────────────────────
@@ -252,8 +292,6 @@ export async function generateAllTeamsPerformancePdf({
   doc.text('2. Visit Team Performance & Field Metrics', 14, yPos)
   yPos += 3
 
-  const activeVisitTeamMembers = visitTeamMembers.filter((m) => m.isEnabled !== false)
-
   autoTable(doc, {
     startY: yPos,
     head: [[
@@ -266,9 +304,9 @@ export async function generateAllTeamsPerformancePdf({
       'Behaviour',
       'Score (/100)',
     ]],
-    body: activeVisitTeamMembers.length === 0
+    body: activeVisitTeam.length === 0
       ? [['-', 'No Visit Team records for this month', '-', '-', '-', '-', '-', '-']]
-      : activeVisitTeamMembers.map((m, idx) => [
+      : activeVisitTeam.map((m, idx) => [
           String(idx + 1),
           m.name,
           `${m.completed || 0} / ${m.totalVisits || 0}`,
@@ -290,6 +328,9 @@ export async function generateAllTeamsPerformancePdf({
       5: { halign: 'center' },
       6: { halign: 'center' },
       7: { halign: 'right', fontStyle: 'bold' },
+    },
+    didDrawPage: () => {
+      drawWatermark()
     },
   })
 
@@ -316,9 +357,9 @@ export async function generateAllTeamsPerformancePdf({
       'Total Turnaround Time (Hours)',
       'Performance Score (/100)',
     ]],
-    body: jrArchitectMembers.length === 0
+    body: activeJrArch.length === 0
       ? [['-', 'No Junior Architect records for this month', '-', '-', '-', '-']]
-      : jrArchitectMembers.map((m, idx) => {
+      : activeJrArch.map((m, idx) => {
           const hours = m.totalTimeMinutes ? (m.totalTimeMinutes / 60).toFixed(1) : '0'
           return [
             String(idx + 1),
@@ -339,6 +380,9 @@ export async function generateAllTeamsPerformancePdf({
       3: { halign: 'right' },
       4: { halign: 'right' },
       5: { halign: 'right', fontStyle: 'bold' },
+    },
+    didDrawPage: () => {
+      drawWatermark()
     },
   })
 
@@ -369,9 +413,9 @@ export async function generateAllTeamsPerformancePdf({
       'Avg Hours / Draft',
       'Performance Score (/100)',
     ]],
-    body: quotationMembers.length === 0
+    body: activeQuotation.length === 0
       ? [['-', 'No Quotation records for this month', '-', '-', '-', '-', '-', '-']]
-      : quotationMembers.map((m, idx) => [
+      : activeQuotation.map((m, idx) => [
           String(idx + 1),
           m.fullName || 'Member',
           `${(m.detailSqft || 0).toLocaleString()} SFT`,
@@ -393,6 +437,9 @@ export async function generateAllTeamsPerformancePdf({
       5: { halign: 'right' },
       6: { halign: 'right' },
       7: { halign: 'right', fontStyle: 'bold' },
+    },
+    didDrawPage: () => {
+      drawWatermark()
     },
   })
 

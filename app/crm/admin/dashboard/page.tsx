@@ -13,6 +13,7 @@ import { getMonthlyVisitTeamPerformance } from '@/lib/visit-performance'
 import { calculateSrCrmPerformance } from '@/lib/sr-crm-performance'
 import { normalizeMonthKey, syncAllQuotationTeamPerformance } from '@/lib/quotation-performance'
 import { AdminCommandCenterDashboard } from './_components/command-center-dashboard'
+import { getEnabledDepartmentUserIds } from '@/lib/department-performance-settings'
 import {
   formatLabel,
   formatRelativeTime,
@@ -23,6 +24,7 @@ import {
 type AdminDashboardPageProps = {
   searchParams?: Promise<{
     visitMonth?: string | string[]
+    month?: string | string[]
   }>
 }
 
@@ -32,7 +34,9 @@ function firstSearchParam(value: string | string[] | undefined) {
 
 export default async function AdminDashboardPage({ searchParams }: AdminDashboardPageProps) {
   const params = await searchParams
-  const visitPerformanceMonthKey = normalizeMonthKey(firstSearchParam(params?.visitMonth))
+  const performanceMonthKey = normalizeMonthKey(
+    firstSearchParam(params?.month) || firstSearchParam(params?.visitMonth),
+  )
   const now = new Date()
   const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
   const overdueSubmissionCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000)
@@ -235,23 +239,48 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
           lead: { select: { id: true, name: true, location: true } },
         },
       }),
-      getMonthlyVisitTeamPerformance(visitPerformanceMonthKey),
+      getMonthlyVisitTeamPerformance(performanceMonthKey),
     ])
 
-  const visitTeamPerformance = monthlyVisitPerformanceData.members
-  const srCrmPerformance = await calculateSrCrmPerformance(prisma)
-
-  const [vYear, vMonth] = visitPerformanceMonthKey.split('-').map(Number)
+  const [vYear, vMonth] = performanceMonthKey.split('-').map(Number)
   const selectedMonthDate = new Date(vYear, (vMonth || 1) - 1, 15)
 
-  const jrArchitectPerformances = await prisma.jrArchitectPerformance.findMany({
-    where: { monthYear: visitPerformanceMonthKey },
+  // Fetch visibility controls for this month across all departments
+  const [enabledSrIds, enabledJrIds, enabledQuotationIds] = await Promise.all([
+    getEnabledDepartmentUserIds('SR_CRM', performanceMonthKey),
+    getEnabledDepartmentUserIds('JR_ARCHITECT', performanceMonthKey),
+    getEnabledDepartmentUserIds('QUOTATION', performanceMonthKey),
+  ])
+
+  // Visit team filtered by enabled
+  const visitTeamPerformance = monthlyVisitPerformanceData.members.filter((m) => m.isEnabled !== false)
+
+  // SR CRM calculated specifically for the selected month, filtered by enabled
+  const allSrCrmPerformance = await calculateSrCrmPerformance(prisma, { now: selectedMonthDate })
+  const srCrmPerformance = allSrCrmPerformance
+    .filter((m) => enabledSrIds.has(m.userId))
+    .map((m) => ({ ...m, isEnabled: true }))
+
+  // JR Architect filtered by enabled
+  const allJrArchitectPerformances = await prisma.jrArchitectPerformance.findMany({
+    where: { monthYear: performanceMonthKey },
     include: { user: { select: { fullName: true } } },
     orderBy: { performanceScore: 'desc' },
   })
+  const jrArchitectPerformances = allJrArchitectPerformances
+    .filter((r) => enabledJrIds.has(r.userId))
+    .map((r) => ({
+      id: r.id,
+      totalWork: r.totalWork,
+      totalSqft: r.totalSqft,
+      totalTimeMinutes: r.totalTimeMinutes,
+      performanceScore: r.performanceScore,
+      user: { fullName: r.user.fullName },
+      isEnabled: true,
+    }))
 
   // Quotation Team Pre-Calculated Monthly Performance
-  const monthKey = visitPerformanceMonthKey
+  const monthKey = performanceMonthKey
   await syncAllQuotationTeamPerformance(selectedMonthDate)
   const [quotationPerformanceRecords, quotationTeamMembers] = await Promise.all([
     prisma.quotationUserPerformance.findMany({
@@ -301,6 +330,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
 
   const quotationPerformanceByUser = new Map(quotationPerformanceRecords.map((record) => [record.userId, record]))
   const quotationPerformances = quotationTeamMembers
+    .filter((member) => enabledQuotationIds.has(member.id))
     .map((member) => {
       const performance = quotationPerformanceByUser.get(member.id)
       return {
@@ -314,6 +344,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
         avgWorkingHours: performance?.avgWorkingHours ?? 0,
         performanceScore: performance?.performanceScore ?? 0,
         updatedAt: performance?.updatedAt.toISOString() ?? null,
+        isEnabled: true,
       }
     })
     .sort((first, second) => second.performanceScore - first.performanceScore)

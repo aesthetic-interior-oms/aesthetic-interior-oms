@@ -20,6 +20,7 @@ import { SrCrmRotationSettings } from '@/components/settings/sr-crm-rotation-set
 import { IntegrationSettings } from '@/components/settings/integration-settings'
 import { VisitWorkflowSettings } from '@/components/settings/visit-workflow-settings'
 import { VisitPerformanceSettings } from '@/components/settings/visit-performance-settings'
+import { DepartmentPerformanceSettings } from '@/components/settings/department-performance-settings'
 import { JrArchitectWorkflowSettings } from '@/components/settings/jr-architect-workflow-settings'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import QuotationSettingsPage from '@/app/quotation-team/settings/page'
@@ -117,7 +118,7 @@ export default function SettingsPage() {
             </TabsContent>
 
             <TabsContent value="performance" className="space-y-6 mt-0">
-              <VisitPerformanceSettings />
+              <DepartmentPerformanceSettings />
               <PerformanceDescriptionSettings />
             </TabsContent>
 

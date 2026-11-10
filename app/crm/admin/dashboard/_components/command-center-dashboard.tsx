@@ -17,6 +17,7 @@ import {
   Layers3,
   MapPinned,
   TimerReset,
+  SlidersHorizontal,
   UserCheck,
   UsersRound,
 } from 'lucide-react'
@@ -30,6 +31,7 @@ import { LeaderboardCard } from '@/components/crm/jr-architecture/performance-ca
 import { QuotationLeaderboardSection, type QuotationPerformanceItem } from './quotation-leaderboard-section'
 import { generateAllTeamsPerformancePdf } from '@/lib/all-teams-performance-pdf'
 import { generateVisitTeamPerformancePdf } from '@/lib/visit-team-performance-pdf'
+import { generateSrCrmPerformancePdf } from '@/lib/sr-crm-performance-pdf'
 import { type VisitPerformanceRow } from '@/lib/visit-performance-types'
 import { toast } from 'sonner'
 import {
@@ -448,7 +450,13 @@ function DesignFlowCard({ designWatch }: { designWatch: DesignWatch }) {
 
 
 
-function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] }) {
+function SrCrmPerformanceSection({
+  members,
+  monthKey,
+}: {
+  members: SrCrmPerformanceItem[]
+  monthKey: string
+}) {
   const [downloading, setDownloading] = useState(false)
   const averagePerformance = members.length
     ? Math.round(members.reduce((sum, member) => sum + member.totalPerformance, 0) / members.length)
@@ -457,126 +465,15 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
   const downloadPdf = async () => {
     setDownloading(true)
     try {
-      const { default: jsPDF } = await import('jspdf')
-      const { default: autoTable } = await import('jspdf-autotable')
-
-      const doc = new jsPDF({ orientation: 'landscape' })
-      const pageWidth = doc.internal.pageSize.getWidth()
-
-      const logoDataUrl = await loadLogoBase64('/Logo/HeaderLogo.png')
-
-      const now = new Date()
-      const monthLabel = now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
-      const dateLabel = now.toLocaleDateString('en-GB')
-
-      const totalSqft = members.reduce((sum, m) => sum + (m.activeProjectSqft || 0), 0)
-      const totalAgreement = members.reduce((sum, m) => sum + (m.totalAgreementValue || 0), 0)
-      const totalAgreementSqft = members.reduce((sum, m) => sum + (m.agreementSqft || 0), 0)
-
-      if (logoDataUrl) {
-        doc.addImage(logoDataUrl, 'PNG', 14, 10, 54, 10)
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(14)
-        doc.setTextColor(31, 54, 61) // #1f363d PRIMARY
-        doc.text('SR CRM Performance Leaderboard', 74, 17)
-
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(9)
-        doc.setTextColor(100, 116, 139)
-        doc.text(`Month: ${monthLabel}`, 74, 23)
-        doc.text(`Generated: ${dateLabel}`, pageWidth - 14, 23, { align: 'right' })
-
-        doc.setTextColor(30, 41, 59)
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(9)
-        doc.text(
-          `Members: ${members.length}  |  Team Avg: ${averagePerformance}/100  |  Active SQFT: ${totalSqft.toLocaleString()}  |  Agreement SQFT: ${totalAgreementSqft.toLocaleString()}  |  Agreement Value: BDT ${totalAgreement.toLocaleString()}`,
-          14,
-          31,
-        )
-      } else {
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(14)
-        doc.setTextColor(31, 54, 61)
-        doc.text('SR CRM Performance Leaderboard', 14, 16)
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(9)
-        doc.setTextColor(100, 116, 139)
-        doc.text(`Month: ${monthLabel}`, 14, 23)
-        doc.text(`Generated: ${dateLabel}`, pageWidth - 14, 23, { align: 'right' })
-
-        doc.setTextColor(30, 41, 59)
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(9)
-        doc.text(
-          `Members: ${members.length}  |  Team Avg: ${averagePerformance}/100  |  Active SQFT: ${totalSqft.toLocaleString()}  |  Agreement SQFT: ${totalAgreementSqft.toLocaleString()}  |  Agreement Value: BDT ${totalAgreement.toLocaleString()}`,
-          14,
-          31,
-        )
-      }
-
-      autoTable(doc, {
-        startY: 38,
-        head: [[
-          'Rank',
-          'Name',
-          'Active SQFT',
-          'Agreement SQFT',
-          'Agreement Value',
-          'Review (/30)',
-          'Meeting (/20)',
-          'Conversion (/20)',
-          'SQFT Score (/15)',
-          'Agreement Score (/15)',
-          'Final Score (/100)',
-        ]],
-        body: members.map((m, index) => [
-          String(index + 1),
-          m.name,
-          `${(m.activeProjectSqft || 0).toLocaleString()} SFT`,
-          `${(m.agreementSqft || 0).toLocaleString()} SFT`,
-          `BDT ${(m.totalAgreementValue || 0).toLocaleString()}`,
-          `${m.review?.score || 0} / 30 (${m.review?.count || 0} appr)`,
-          `${m.meeting?.score || 0} / 20 (${m.meeting?.count || 0} comp)`,
-          `${m.conversion?.score || 0} / 20 (${m.conversion?.count || 0} moves)`,
-          `${m.sqftScore || 0} / 15`,
-          `${m.agreementScore || 0} / 15`,
-          `${m.totalPerformance || 0} / 100`,
-        ]),
-        theme: 'grid',
-        styles: {
-          fontSize: 8,
-          cellPadding: 2,
-          lineColor: [226, 232, 240],
-          lineWidth: 0.1,
-        },
-        headStyles: {
-          fillColor: [31, 54, 61], // #1f363d PRIMARY
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-        },
-        columnStyles: {
-          0: { cellWidth: 14, halign: 'center' },
-          1: { cellWidth: 38 },
-          2: { halign: 'right' },
-          3: { halign: 'right' },
-          4: { halign: 'right' },
-          5: { halign: 'right' },
-          6: { halign: 'right' },
-          7: { halign: 'right' },
-          8: { halign: 'right' },
-          9: { halign: 'right' },
-          10: { halign: 'right', fontStyle: 'bold' },
-        },
-        didDrawPage: () => {
-          doc.setFontSize(7)
-          doc.setTextColor(100, 116, 139)
-          doc.text(`Aesthetic Interior - SR CRM Performance Leaderboard - ${monthLabel}`, 14, 202)
-          doc.text(`Page ${doc.getNumberOfPages()}`, pageWidth - 14, 202, { align: 'right' })
-        },
+      await generateSrCrmPerformancePdf({
+        monthKey,
+        members,
+        generatedBy: 'Admin',
       })
-
-      doc.save(`sr-crm-performance-leaderboard.pdf`)
+      toast.success('Senior CRM Performance PDF downloaded')
+    } catch (err) {
+      console.error('Failed to download SR CRM PDF:', err)
+      toast.error('Failed to download performance PDF')
     } finally {
       setDownloading(false)
     }
@@ -592,20 +489,26 @@ function SrCrmPerformanceSection({ members }: { members: SrCrmPerformanceItem[] 
               SR CRM Performance
             </CardTitle>
             <p className="mt-1 text-sm text-muted-foreground">
-              Monthly leaderboard for active project SQFT, agreement value, review approvals, meeting completion, and conversions.
+              {formatMonthKey(monthKey)} · Leaderboard for active project SQFT, agreement value, review approvals, meetings, and conversions.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline">Team avg {averagePerformance}/100</Badge>
+            <Button asChild variant="ghost" size="sm" className="h-9 gap-1.5 text-xs">
+              <Link href="/crm/admin/settings" prefetch={false}>
+                <SlidersHorizontal className="size-3.5" />
+                Roster Settings
+              </Link>
+            </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={() => void downloadPdf()}
               disabled={downloading || members.length === 0}
-              className="h-9 gap-2"
+              className="h-9 gap-2 text-xs font-semibold"
             >
-              <Download className="size-4" />
-              {downloading ? 'Preparing' : 'Download PDF'}
+              <Download className="size-3.5 text-teal-600" />
+              {downloading ? 'Preparing...' : 'Download PDF'}
             </Button>
           </div>
         </div>
@@ -710,12 +613,18 @@ function VisitTeamPerformanceSection({
               )}
               Download PDF
             </Button>
+            <Button asChild variant="ghost" size="sm" className="h-9 gap-1.5 text-xs">
+              <Link href="/visit-team/settings" prefetch={false}>
+                <SlidersHorizontal className="size-3.5" />
+                Roster Settings
+              </Link>
+            </Button>
             <form action="/crm/admin/dashboard" className="flex items-center gap-2">
               <Input
                 type="month"
-                name="visitMonth"
+                name="month"
                 defaultValue={monthKey}
-                aria-label="Visit performance month"
+                aria-label="Performance month"
                 className="h-9 w-[150px]"
               />
               <Button type="submit" size="sm" variant="outline">Apply</Button>
@@ -935,7 +844,7 @@ export function AdminCommandCenterDashboard({
             <form action="/crm/admin/dashboard" className="flex items-center gap-2">
               <Input
                 type="month"
-                name="visitMonth"
+                name="month"
                 defaultValue={activeMonthKey}
                 aria-label="Performance month"
                 className="h-9 w-[150px] bg-background"
@@ -961,9 +870,9 @@ export function AdminCommandCenterDashboard({
 
         <QueueStatusGrid counts={queueCounts} />
         <VisitPendingRedAlertSection items={overduePendingVisits} totalCount={visitInsights.pendingOverdueCount} />
-        <SrCrmPerformanceSection members={srCrmPerformance} />
+        <SrCrmPerformanceSection members={srCrmPerformance} monthKey={activeMonthKey} />
         <VisitTeamPerformanceSection members={visitTeamPerformance} monthKey={visitTeamPerformanceMonthKey} />
-        <LeaderboardCard performances={jrArchitectPerformances} title="JR Architect Performance Leaderboard" />
+        <LeaderboardCard performances={jrArchitectPerformances} title="JR Architect Performance Leaderboard" monthKey={activeMonthKey} />
         <QuotationLeaderboardSection
           initialPerformances={quotationPerformances}
           initialMonthKey={quotationPerformanceMonthKey}
