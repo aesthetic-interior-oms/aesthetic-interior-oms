@@ -83,6 +83,7 @@ export async function POST(request: NextRequest) {
           create: rawItems.map((item: Record<string, unknown>) => ({
             materialName: typeof item.materialName === 'string' ? item.materialName.slice(0, 240) : 'Unnamed',
             specifications: typeof item.specifications === 'string' ? item.specifications.slice(0, 1000) : null,
+            variantAttributes: item.variantAttributes && typeof item.variantAttributes === 'object' ? (item.variantAttributes as any) : undefined,
             netQuantity: typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1,
             finalQuantity: typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1,
             wastagePercent: 0,
