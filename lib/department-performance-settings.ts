@@ -24,13 +24,33 @@ export async function getDepartmentCandidateUsers(department: DepartmentType): P
       const users = await prisma.user.findMany({
         where: {
           isActive: true,
-          userDepartments: {
-            some: {
-              department: {
-                name: { in: ['SR_CRM', 'SR CRM', 'Senior CRM'], mode: 'insensitive' },
+          OR: [
+            {
+              userDepartments: {
+                some: {
+                  department: {
+                    name: { in: ['SR_CRM', 'SR CRM', 'Senior CRM'] },
+                  },
+                },
               },
             },
-          },
+            {
+              leadAssignments: {
+                some: {
+                  department: LeadAssignmentDepartment.SR_CRM,
+                },
+              },
+            },
+            {
+              userRoles: {
+                some: {
+                  role: {
+                    name: { in: ['SR_CRM', 'SR CRM', 'Senior CRM'] },
+                  },
+                },
+              },
+            },
+          ],
         },
         select: {
           id: true,
@@ -57,7 +77,7 @@ export async function getDepartmentCandidateUsers(department: DepartmentType): P
               userDepartments: {
                 some: {
                   department: {
-                    name: { in: ['JR_ARCHITECT', 'Jr Architect', 'JR Architecture', 'Junior Architect'], mode: 'insensitive' },
+                    name: { in: ['JR_ARCHITECT', 'Jr Architect', 'JR Architecture', 'Junior Architect'] },
                   },
                 },
               },
@@ -99,7 +119,7 @@ export async function getDepartmentCandidateUsers(department: DepartmentType): P
               userDepartments: {
                 some: {
                   department: {
-                    name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'], mode: 'insensitive' },
+                    name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'] },
                   },
                 },
               },
@@ -148,7 +168,6 @@ export async function getDepartmentCandidateUsers(department: DepartmentType): P
               department: {
                 name: {
                   in: ['VISIT_TEAM', 'SPECIALIST_DESIGN_CONSULTANTS'],
-                  mode: 'insensitive',
                 },
               },
             },
@@ -241,6 +260,42 @@ export async function getEnabledDepartmentUserIds(
     }
   }
   return enabledIds
+}
+
+/**
+ * Gets a set of user IDs that have been explicitly disabled for a department in a given month.
+ * If a user has no setting record or has isEnabled === true, they are NOT disabled.
+ */
+export async function getDisabledDepartmentUserIds(
+  department: DepartmentType,
+  monthKey: string,
+): Promise<Set<string>> {
+  const disabledSettings = await prisma.departmentMemberMonthlySetting.findMany({
+    where: {
+      department,
+      monthKey,
+      isEnabled: false,
+    },
+    select: { userId: true },
+  })
+
+  const disabledIds = new Set<string>(disabledSettings.map((s) => s.userId))
+
+  // For VISIT_TEAM, also check VisitMemberMonthlyAssessment for backward compatibility
+  if (department === 'VISIT_TEAM') {
+    const disabledVisit = await prisma.visitMemberMonthlyAssessment.findMany({
+      where: {
+        monthKey,
+        isEnabled: false,
+      },
+      select: { userId: true },
+    })
+    for (const v of disabledVisit) {
+      disabledIds.add(v.userId)
+    }
+  }
+
+  return disabledIds
 }
 
 /**

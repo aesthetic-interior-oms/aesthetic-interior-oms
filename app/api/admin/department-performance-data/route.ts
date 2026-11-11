@@ -7,6 +7,7 @@ import { getMonthlyVisitTeamPerformance } from '@/lib/visit-performance'
 import {
   DepartmentType,
   getEnabledDepartmentUserIds,
+  getDisabledDepartmentUserIds,
   getDepartmentMemberMonthlySettings,
 } from '@/lib/department-performance-settings'
 
@@ -31,11 +32,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (department === 'SR_CRM' || department === 'ALL') {
-      const enabledIds = await getEnabledDepartmentUserIds('SR_CRM', monthKey)
+      const disabledIds = await getDisabledDepartmentUserIds('SR_CRM', monthKey)
       const allSrRows = await calculateSrCrmPerformance(prisma, { now: targetMonthDate })
       responseData.srCrmMembers = allSrRows.map((row) => ({
         ...row,
-        isEnabled: enabledIds.has(row.userId),
+        isEnabled: !disabledIds.has(row.userId),
       }))
     }
 
@@ -45,7 +46,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (department === 'JR_ARCHITECT' || department === 'ALL') {
-      const enabledIds = await getEnabledDepartmentUserIds('JR_ARCHITECT', monthKey)
+      const disabledIds = await getDisabledDepartmentUserIds('JR_ARCHITECT', monthKey)
       const jrRecords = await prisma.jrArchitectPerformance.findMany({
         where: { monthYear: monthKey },
         include: { user: { select: { fullName: true } } },
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
         totalTimeMinutes: r.totalTimeMinutes,
         performanceScore: r.performanceScore,
         user: { fullName: r.user.fullName },
-        isEnabled: enabledIds.has(r.userId),
+        isEnabled: !disabledIds.has(r.userId),
       }))
     }
 

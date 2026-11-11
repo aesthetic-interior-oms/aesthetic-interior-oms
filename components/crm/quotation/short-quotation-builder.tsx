@@ -2,13 +2,41 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { BookOpen, CopyCheck, Download, ExternalLink, GripVertical, History, Loader2, Plus, Save, SaveAll, Trash2 } from 'lucide-react'
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  ChevronsUpDown,
+  ClipboardPaste,
+  Copy,
+  CopyCheck,
+  Download,
+  ExternalLink,
+  GripVertical,
+  History,
+  Loader2,
+  Plus,
+  Save,
+  SaveAll,
+  Trash2,
+} from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CollapsibleCard } from '@/components/ui/collapsible'
 import { Input } from '@/components/ui/input'
+import {
+  copyFloorToClipboard,
+  copyAreaToClipboard,
+  copyItemToClipboard,
+  useQuotationClipboard,
+  getQuotationClipboard,
+  type QuotationClipboardFloor,
+  type QuotationClipboardArea,
+  type QuotationClipboardItem,
+} from '@/lib/quotation-clipboard'
+import { QuotationClipboardBanner } from '@/components/crm/quotation/quotation-clipboard-banner'
 import {
   Dialog,
   DialogContent,
@@ -56,8 +84,10 @@ import { ShortQuotationItemPicker, type PickedCatalogItem, type PickedBundle } f
 import { listQuotationTemplates } from '@/lib/quotation-templates'
 import type {
   ShortQuotationContent,
+  ShortQuotationFloor,
   ShortQuotationLine,
   ShortQuotationPackage,
+  ShortQuotationRoom,
 } from '@/lib/short-quotation-types'
 
 type ShortQuotationBuilderProps = {
@@ -211,10 +241,48 @@ export function ShortQuotationBuilder({
   const [savingVersion, setSavingVersion] = useState(false)
 
 
+  const { clipboard } = useQuotationClipboard()
+  const [collapsedFloorIds, setCollapsedFloorIds] = useState<Set<string>>(new Set())
+  const [collapsedRoomIds, setCollapsedRoomIds] = useState<Set<string>>(new Set())
+
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
+
+  const toggleFloorCollapse = (floorId: string) => {
+    setCollapsedFloorIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(floorId)) next.delete(floorId)
+      else next.add(floorId)
+      return next
+    })
+  }
+
+  const toggleRoomCollapse = (roomId: string) => {
+    setCollapsedRoomIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(roomId)) next.delete(roomId)
+      else next.add(roomId)
+      return next
+    })
+  }
+
+  const reorderFloors = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    updateContent((prev) => {
+      const currentFloors = [...prev.floors].sort((a, b) => a.sortOrder - b.sortOrder)
+      const oldIndex = currentFloors.findIndex((f) => f.id === active.id)
+      const newIndex = currentFloors.findIndex((f) => f.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return prev
+      const reordered = arrayMove(currentFloors, oldIndex, newIndex).map((floor, i) => ({
+        ...floor,
+        sortOrder: i + 1,
+      }))
+      return { ...prev, floors: reordered }
+    })
+  }
 
   const reorderRoomLines = (roomId: string, event: DragEndEvent) => {
     const { active, over } = event
@@ -248,6 +316,162 @@ export function ShortQuotationBuilder({
       const otherRooms = prev.rooms.filter((room) => room.floorId !== floorId)
       return { ...prev, rooms: [...otherRooms, ...reordered] }
     })
+  }
+
+  const handleCopyShortFloor = (floor: ShortQuotationFloor, rooms: ShortQuotationRoom[]) => {
+    const areasPayload = rooms.map((room) => ({
+      name: room.name || 'Room',
+      lines: (room.lines || []).map((l: ShortQuotationLine) => ({
+        description: l.name,
+        materials: '',
+        unit: l.isLumpSum ? 'ls' : 'sqft',
+        rate: l.unitPrice ?? 0,
+        quantity: l.quantitySqft ?? 0,
+        amount: l.total || 0,
+        included: l.included !== false,
+        isLumpSum: l.isLumpSum,
+        unitPriceLabel: l.unitPriceLabel,
+        catalogItemId: l.catalogItemId,
+        catalogTemplateKey: l.catalogTemplateKey,
+      })),
+    }))
+    copyFloorToClipboard(
+      { name: floor.name || 'Floor' },
+      areasPayload,
+      { leadId, leadTitle: leadName },
+    )
+    const totalItems = areasPayload.reduce((sum, a) => sum + a.lines.length, 0)
+    toast.success(`Copied floor "${floor.name || 'Floor'}" with ${totalItems} item(s)`)
+  }
+
+  const handleCopyShortRoom = (room: ShortQuotationRoom) => {
+    const linesPayload = (room.lines || []).map((l: ShortQuotationLine) => ({
+      description: l.name,
+      materials: '',
+      unit: l.isLumpSum ? 'ls' : 'sqft',
+      rate: l.unitPrice ?? 0,
+      quantity: l.quantitySqft ?? 0,
+      amount: l.total || 0,
+      included: l.included !== false,
+      isLumpSum: l.isLumpSum,
+      unitPriceLabel: l.unitPriceLabel,
+      catalogItemId: l.catalogItemId,
+      catalogTemplateKey: l.catalogTemplateKey,
+    }))
+    copyAreaToClipboard(
+      { name: room.name || 'Room' },
+      linesPayload,
+      { leadId, leadTitle: leadName },
+    )
+    toast.success(`Copied room "${room.name || 'Room'}" with ${linesPayload.length} item(s)`)
+  }
+
+  const handleCopyShortLine = (line: ShortQuotationLine) => {
+    copyItemToClipboard(
+      {
+        description: line.name,
+        materials: '',
+        unit: line.isLumpSum ? 'ls' : 'sqft',
+        rate: line.unitPrice ?? 0,
+        quantity: line.quantitySqft ?? 0,
+        amount: line.total || 0,
+        included: line.included !== false,
+        isLumpSum: line.isLumpSum,
+        unitPriceLabel: line.unitPriceLabel,
+      },
+      { leadId, leadTitle: leadName },
+    )
+    toast.success(`Copied item "${line.name || 'Item'}"`)
+  }
+
+  const handlePasteShortFloor = () => {
+    const cb = getQuotationClipboard()
+    if (!cb || cb.type !== 'floor') return
+    const floorData = cb.data as QuotationClipboardFloor
+    updateContent((prev) => {
+      const newFloorId = crypto.randomUUID()
+      const newFloor: ShortQuotationFloor = {
+        id: newFloorId,
+        name: floorData.name ? `${floorData.name} (Copy)` : 'New Floor',
+        sortOrder: prev.floors.length + 1,
+      }
+      const newRooms: ShortQuotationRoom[] = floorData.areas.map((areaData, idx) => ({
+        id: crypto.randomUUID(),
+        floorId: newFloorId,
+        name: areaData.name || 'Room',
+        sortOrder: idx + 1,
+        lines: (areaData.lines || []).map((lineData) => ({
+          id: crypto.randomUUID(),
+          name: lineData.description || 'Item',
+          quantitySqft: lineData.quantity || null,
+          unitPrice: lineData.rate || null,
+          total: lineData.amount || 0,
+          isLumpSum: lineData.isLumpSum ?? (lineData.unit === 'ls'),
+          included: lineData.included !== false,
+          unitPriceLabel: lineData.unitPriceLabel,
+        })),
+      }))
+      return {
+        ...prev,
+        floors: [...prev.floors, newFloor],
+        rooms: [...prev.rooms, ...newRooms],
+      }
+    })
+    toast.success(`Pasted floor "${floorData.name}" with ${cb.itemCount} item(s)`)
+  }
+
+  const handlePasteShortRoom = (floorId: string) => {
+    const cb = getQuotationClipboard()
+    if (!cb || cb.type !== 'area') return
+    const areaData = cb.data as QuotationClipboardArea
+    updateContent((prev) => {
+      const floorRooms = prev.rooms.filter((r) => r.floorId === floorId)
+      const newRoom: ShortQuotationRoom = {
+        id: crypto.randomUUID(),
+        floorId,
+        name: areaData.name ? `${areaData.name} (Copy)` : 'New Room',
+        sortOrder: floorRooms.length + 1,
+        lines: (areaData.lines || []).map((lineData) => ({
+          id: crypto.randomUUID(),
+          name: lineData.description || 'Item',
+          quantitySqft: lineData.quantity || null,
+          unitPrice: lineData.rate || null,
+          total: lineData.amount || 0,
+          isLumpSum: lineData.isLumpSum ?? (lineData.unit === 'ls'),
+          included: lineData.included !== false,
+          unitPriceLabel: lineData.unitPriceLabel,
+        })),
+      }
+      return {
+        ...prev,
+        rooms: [...prev.rooms, newRoom],
+      }
+    })
+    toast.success(`Pasted room "${areaData.name}" with ${cb.itemCount} item(s) into floor`)
+  }
+
+  const handlePasteShortItem = (roomId: string) => {
+    const cb = getQuotationClipboard()
+    if (!cb || cb.type !== 'item') return
+    const itemData = cb.data as QuotationClipboardItem
+    updateContent((prev) => ({
+      ...prev,
+      rooms: prev.rooms.map((room) => {
+        if (room.id !== roomId) return room
+        const newLine: ShortQuotationLine = {
+          id: crypto.randomUUID(),
+          name: itemData.description || 'Item',
+          quantitySqft: itemData.quantity || null,
+          unitPrice: itemData.rate || null,
+          total: itemData.amount || 0,
+          isLumpSum: itemData.isLumpSum ?? (itemData.unit === 'ls'),
+          included: itemData.included !== false,
+          unitPriceLabel: itemData.unitPriceLabel,
+        }
+        return { ...room, lines: [...room.lines, newLine] }
+      }),
+    }))
+    toast.success(`Pasted item "${itemData.description}" into room`)
   }
 
   const loadDraft = useCallback(async (targetPackageTier?: ShortQuotationPackage) => {
@@ -966,6 +1190,22 @@ export function ShortQuotationBuilder({
   }
 
   const sortedFloors = Array.isArray(content?.floors) ? [...content.floors].sort((a, b) => a.sortOrder - b.sortOrder) : []
+
+  const isAllCollapsed = useMemo(() => {
+    if (sortedFloors.length === 0) return false
+    return sortedFloors.every((f) => collapsedFloorIds.has(f.id))
+  }, [sortedFloors, collapsedFloorIds])
+
+  const toggleCollapseAll = () => {
+    if (isAllCollapsed) {
+      setCollapsedFloorIds(new Set())
+      setCollapsedRoomIds(new Set())
+    } else {
+      setCollapsedFloorIds(new Set(sortedFloors.map((f) => f.id)))
+      const allRoomIds = (content?.rooms ?? []).map((r) => r.id)
+      setCollapsedRoomIds(new Set(allRoomIds))
+    }
+  }
   const allRooms = Array.isArray(content?.rooms) ? content.rooms : []
   const taskbarFloorId = activeFloorId ?? sortedFloors.at(-1)?.id ?? null
   const taskbarRoomId = taskbarFloorId
@@ -1259,6 +1499,29 @@ export function ShortQuotationBuilder({
               <Plus className="mr-2 h-4 w-4" />
               Add Floor
             </Button>
+            {sortedFloors.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={toggleCollapseAll}
+                title={isAllCollapsed ? 'Expand all floors and rooms' : 'Collapse all floors and rooms'}
+              >
+                <ChevronsUpDown className="mr-2 h-4 w-4" />
+                {isAllCollapsed ? 'Expand All' : 'Collapse All'}
+              </Button>
+            )}
+            {clipboard?.type === 'floor' && canEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                onClick={handlePasteShortFloor}
+                title={`Paste copied floor: ${clipboard.title}`}
+              >
+                <ClipboardPaste className="mr-2 h-4 w-4" />
+                Paste Floor ({clipboard.title})
+              </Button>
+            )}
 
             {/* ── Save / Save As ── */}
             {activeVersionKey ? (
@@ -1375,58 +1638,39 @@ export function ShortQuotationBuilder({
       </Card>
 
       <div className="print:hidden space-y-4">
-        {sortedFloors.map((floor) => {
-          const floorRooms = allRooms
-            .filter((room) => room.floorId === floor.id)
-            .sort((a, b) => a.sortOrder - b.sortOrder)
-          const floorSummary = summary.floors.find((item) => item.floor.id === floor.id)
+        <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={reorderFloors}>
+          <SortableContext items={sortedFloors.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+            {sortedFloors.map((floor) => {
+              const floorRooms = allRooms
+                .filter((room) => room.floorId === floor.id)
+                .sort((a, b) => a.sortOrder - b.sortOrder)
+              const floorSummary = summary.floors.find((item) => item.floor.id === floor.id)
+              const isFloorCollapsed = collapsedFloorIds.has(floor.id)
 
-          return (
-            <Card key={floor.id} id={`short-quotation-floor-${floor.id}`} data-floor-id={floor.id}>
-              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 py-3">
-                <Input
-                  className="max-w-sm font-semibold"
-                  value={floor.name}
-                  disabled={!canEdit}
-                  onChange={(event) =>
+              return (
+                <SortableShortFloorCard
+                  key={floor.id}
+                  floor={floor}
+                  floorRooms={floorRooms}
+                  floorSummary={floorSummary}
+                  isCollapsed={isFloorCollapsed}
+                  toggleCollapse={() => toggleFloorCollapse(floor.id)}
+                  canEdit={canEdit}
+                  onUpdateFloorName={(name) =>
                     updateContent((prev) => ({
                       ...prev,
                       floors: prev.floors.map((item) =>
-                        item.id === floor.id ? { ...item, name: event.target.value } : item,
+                        item.id === floor.id ? { ...item, name } : item,
                       ),
                     }))
                   }
-                />
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    Floor Total: {formatAmount(floorSummary?.total ?? 0)}
-                  </span>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={!canEdit}
-                    onClick={() => addRoom(floor.id)}
-                  >
-                    Add Room
-                  </Button>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    disabled={!canEdit}
-                    onClick={() => removeFloor(floor.id)}
-                    aria-label={`Delete ${floor.name || 'floor'}`}
-                    title="Delete floor and its rooms"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {floorRooms.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No rooms in this floor yet.</p>
-                ) : (
+                  onAddRoom={() => addRoom(floor.id)}
+                  onRemoveFloor={() => removeFloor(floor.id)}
+                  onCopyFloor={() => handleCopyShortFloor(floor, floorRooms)}
+                  canPasteRoom={clipboard?.type === 'area' && canEdit}
+                  onPasteRoom={() => handlePasteShortRoom(floor.id)}
+                  clipboardTitle={clipboard?.title}
+                >
                   <DndContext
                     sensors={dndSensors}
                     collisionDetection={closestCenter}
@@ -1446,6 +1690,8 @@ export function ShortQuotationBuilder({
                               roomIndex={roomIndex}
                               roomSummary={roomSummary}
                               canEdit={canEdit}
+                              isCollapsed={collapsedRoomIds.has(room.id)}
+                              toggleCollapse={() => toggleRoomCollapse(room.id)}
                               dndSensors={dndSensors}
                               updateContent={updateContent}
                               addSqftLine={addSqftLine}
@@ -1455,17 +1701,22 @@ export function ShortQuotationBuilder({
                               reorderRoomLines={reorderRoomLines}
                               updateLine={updateLine}
                               removeLine={removeLine}
+                              onCopyRoom={() => handleCopyShortRoom(room)}
+                              onCopyLine={handleCopyShortLine}
+                              canPasteItem={clipboard?.type === 'item' && canEdit}
+                              onPasteItem={() => handlePasteShortItem(room.id)}
+                              clipboardTitle={clipboard?.title}
                             />
                           )
                         })}
                       </div>
                     </SortableContext>
                   </DndContext>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })}
+                </SortableShortFloorCard>
+              )
+            })}
+          </SortableContext>
+        </DndContext>
       </div>
 
 
@@ -1476,6 +1727,19 @@ export function ShortQuotationBuilder({
             <Plus className="mr-1.5 h-4 w-4" />
             Add Floor
           </Button>
+          {clipboard?.type === 'floor' && canEdit && (
+            <Button
+              type="button"
+              size="sm"
+              variant="default"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={handlePasteShortFloor}
+              title={`Paste copied floor: ${clipboard.title}`}
+            >
+              <ClipboardPaste className="mr-1.5 h-4 w-4" />
+              Paste Floor ({clipboard.title})
+            </Button>
+          )}
           <Button type="button" size="sm" variant="outline" disabled={!canEdit || !taskbarFloorId} onClick={addTaskbarRoom}>
             <Plus className="mr-1.5 h-4 w-4" />
             Add Room
@@ -1821,6 +2085,8 @@ export function ShortQuotationBuilder({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <QuotationClipboardBanner currentLeadId={leadId} currentLeadTitle={leadName} />
     </div>
   )
 }
@@ -1830,6 +2096,8 @@ type SortableRoomCardProps = {
   roomIndex: number
   roomSummary: ReturnType<typeof buildShortQuotationSummary>['floors'][number]['rooms'][number] | undefined
   canEdit: boolean
+  isCollapsed: boolean
+  toggleCollapse: () => void
   dndSensors: ReturnType<typeof useSensors>
   updateContent: (updater: (prev: ShortQuotationContent) => ShortQuotationContent) => void
   addSqftLine: (roomId: string) => void
@@ -1839,6 +2107,11 @@ type SortableRoomCardProps = {
   reorderRoomLines: (roomId: string, event: DragEndEvent) => void
   updateLine: (roomId: string, lineId: string, patch: Partial<ShortQuotationLine>) => void
   removeLine: (roomId: string, lineId: string) => void
+  onCopyRoom: () => void
+  onCopyLine: (line: ShortQuotationLine) => void
+  canPasteItem: boolean
+  onPasteItem: () => void
+  clipboardTitle?: string
 }
 
 function SortableRoomCard({
@@ -1846,6 +2119,8 @@ function SortableRoomCard({
   roomIndex,
   roomSummary,
   canEdit,
+  isCollapsed,
+  toggleCollapse,
   dndSensors,
   updateContent,
   addSqftLine,
@@ -1855,6 +2130,11 @@ function SortableRoomCard({
   reorderRoomLines,
   updateLine,
   removeLine,
+  onCopyRoom,
+  onCopyLine,
+  canPasteItem,
+  onPasteItem,
+  clipboardTitle,
 }: SortableRoomCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: room.id })
 
@@ -1874,12 +2154,25 @@ function SortableRoomCard({
               type="button"
               className="flex-shrink-0 cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
               aria-label="Drag room"
+              title="Drag to change serial of room"
               {...attributes}
               {...listeners}
             >
               <GripVertical className="h-4 w-4" />
             </button>
           )}
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+            onClick={toggleCollapse}
+            title={isCollapsed ? 'Expand room' : 'Collapse room'}
+          >
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+
           <span className="text-xs font-bold text-muted-foreground w-5 text-center">
             {String(roomIndex + 1).padStart(2, '0')}
           </span>
@@ -1896,11 +2189,42 @@ function SortableRoomCard({
               }))
             }
           />
+
+          {isCollapsed && (
+            <Badge variant="secondary" className="text-xs">
+              {room.lines.length} item{room.lines.length === 1 ? '' : 's'}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <span className="text-sm font-medium">
             Room Total: {formatAmount(roomSummary?.total ?? 0)}
           </span>
+          {canEdit && (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={onCopyRoom}
+              title={`Copy room "${room.name || 'Room'}" and all items`}
+              aria-label="Copy room"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          )}
+          {canPasteItem && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+              onClick={onPasteItem}
+              title={`Paste copied item: ${clipboardTitle}`}
+            >
+              <ClipboardPaste className="mr-1 h-3.5 w-3.5" /> Paste Item
+            </Button>
+          )}
           {canEdit ? (
             <Button
               type="button"
@@ -1916,13 +2240,15 @@ function SortableRoomCard({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm">
-          <thead className="bg-muted/40 text-left">
-            <tr>
-              {canEdit && <th className="w-6 px-1 py-2" />}
-              <th className="w-10 px-2 py-2 text-center" title="Include in quotation">Inc</th>
-              <th className="px-2 py-2">Name</th>
+      {!isCollapsed && (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-sm">
+              <thead className="bg-muted/40 text-left">
+                <tr>
+                  {canEdit && <th className="w-6 px-1 py-2" />}
+                  <th className="w-10 px-2 py-2 text-center" title="Include in quotation">Inc</th>
+                  <th className="px-2 py-2">Name</th>
               <th className="px-2 py-2">Qty Sft</th>
               <th className="px-2 py-2">Unit Price</th>
               <th className="px-2 py-2">Total</th>
@@ -1947,6 +2273,7 @@ function SortableRoomCard({
                     canEdit={canEdit}
                     updateLine={updateLine}
                     removeLine={removeLine}
+                    onCopyLine={onCopyLine}
                   />
                 ))}
               </SortableContext>
@@ -1985,6 +2312,8 @@ function SortableRoomCard({
           </Button>
         </div>
       ) : null}
+        </>
+      )}
     </div>
   )
 }
@@ -1995,6 +2324,7 @@ type SortableShortRowProps = {
   canEdit: boolean
   updateLine: (roomId: string, lineId: string, patch: Partial<ShortQuotationLine>) => void
   removeLine: (roomId: string, lineId: string) => void
+  onCopyLine?: (line: ShortQuotationLine) => void
 }
 
 function SortableShortRow({
@@ -2003,6 +2333,7 @@ function SortableShortRow({
   canEdit,
   updateLine,
   removeLine,
+  onCopyLine,
 }: SortableShortRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: line.id })
 
@@ -2150,6 +2481,19 @@ function SortableShortRow({
               Enable
             </Button>
           )}
+          {canEdit && onCopyLine ? (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={() => onCopyLine(line)}
+              title={`Copy item "${line.name || 'product'}"`}
+              aria-label="Copy item"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          ) : null}
           {canEdit ? (
             <Button type="button" size="icon" variant="ghost" onClick={() => removeLine(roomId, line.id)}>
               <Trash2 className="h-4 w-4" />
@@ -2158,6 +2502,174 @@ function SortableShortRow({
         </div>
       </td>
     </tr>
+  )
+}
+
+type SortableShortFloorCardProps = {
+  floor: ShortQuotationFloor
+  floorRooms: ShortQuotationRoom[]
+  floorSummary: ReturnType<typeof buildShortQuotationSummary>['floors'][number] | undefined
+  isCollapsed: boolean
+  toggleCollapse: () => void
+  canEdit: boolean
+  onUpdateFloorName: (name: string) => void
+  onAddRoom: () => void
+  onRemoveFloor: () => void
+  onCopyFloor: () => void
+  canPasteRoom: boolean
+  onPasteRoom: () => void
+  clipboardTitle?: string
+  children: React.ReactNode
+}
+
+function SortableShortFloorCard({
+  floor,
+  floorRooms,
+  floorSummary,
+  isCollapsed,
+  toggleCollapse,
+  canEdit,
+  onUpdateFloorName,
+  onAddRoom,
+  onRemoveFloor,
+  onCopyFloor,
+  canPasteRoom,
+  onPasteRoom,
+  clipboardTitle,
+  children,
+}: SortableShortFloorCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: floor.id,
+    disabled: !canEdit,
+  })
+
+  const cardStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 30 : undefined,
+  }
+
+  const floorItemCount = floorRooms.reduce((sum, r) => sum + r.lines.length, 0)
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={cardStyle}
+      id={`short-quotation-floor-${floor.id}`}
+      data-floor-id={floor.id}
+      className="scroll-mt-24 overflow-hidden border-muted/60 shadow-sm print:hidden"
+    >
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 py-3 bg-muted/20 border-b">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          {canEdit && (
+            <button
+              type="button"
+              className="flex-shrink-0 cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
+              aria-label="Drag floor"
+              title="Drag to change serial of floor"
+              onPointerDown={(e) => e.stopPropagation()}
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+          )}
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            onClick={toggleCollapse}
+            title={isCollapsed ? 'Expand floor' : 'Collapse floor'}
+          >
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+
+          <Input
+            className="max-w-sm font-semibold"
+            value={floor.name}
+            disabled={!canEdit}
+            placeholder="e.g. Ground Floor"
+            onChange={(event) => onUpdateFloorName(event.target.value)}
+          />
+
+          <Badge variant="outline">{floorRooms.length} room{floorRooms.length === 1 ? '' : 's'}</Badge>
+          <Badge variant="secondary">{floorItemCount} item{floorItemCount === 1 ? '' : 's'}</Badge>
+
+          {isCollapsed && (
+            <Badge variant="default" className="bg-neutral-800 text-white font-semibold">
+              Floor Total: {formatAmount(floorSummary?.total ?? 0)}
+            </Badge>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {!isCollapsed && (
+            <span className="text-sm font-medium">
+              Floor Total: {formatAmount(floorSummary?.total ?? 0)}
+            </span>
+          )}
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={!canEdit}
+            onClick={onAddRoom}
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            Add Room
+          </Button>
+
+          {canEdit && (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={onCopyFloor}
+              title={`Copy floor "${floor.name || 'Floor'}" and all rooms/items`}
+              aria-label="Copy floor"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          )}
+
+          {canPasteRoom && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+              onClick={onPasteRoom}
+              title={`Paste copied room "${clipboardTitle}" into this floor`}
+            >
+              <ClipboardPaste className="mr-1 h-3.5 w-3.5" /> Paste Room
+            </Button>
+          )}
+
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            disabled={!canEdit}
+            onClick={onRemoveFloor}
+            aria-label={`Delete ${floor.name || 'floor'}`}
+            title="Delete floor and its rooms"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+
+      {!isCollapsed && (
+        <CardContent className="space-y-4 p-4">
+          {children}
+        </CardContent>
+      )}
+    </Card>
   )
 }
 

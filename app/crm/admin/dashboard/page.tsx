@@ -13,7 +13,7 @@ import { getMonthlyVisitTeamPerformance } from '@/lib/visit-performance'
 import { calculateSrCrmPerformance } from '@/lib/sr-crm-performance'
 import { normalizeMonthKey, syncAllQuotationTeamPerformance } from '@/lib/quotation-performance'
 import { AdminCommandCenterDashboard } from './_components/command-center-dashboard'
-import { getEnabledDepartmentUserIds } from '@/lib/department-performance-settings'
+import { getDisabledDepartmentUserIds } from '@/lib/department-performance-settings'
 import {
   formatLabel,
   formatRelativeTime,
@@ -245,11 +245,11 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
   const [vYear, vMonth] = performanceMonthKey.split('-').map(Number)
   const selectedMonthDate = new Date(vYear, (vMonth || 1) - 1, 15)
 
-  // Fetch visibility controls for this month across all departments
-  const [enabledSrIds, enabledJrIds, enabledQuotationIds] = await Promise.all([
-    getEnabledDepartmentUserIds('SR_CRM', performanceMonthKey),
-    getEnabledDepartmentUserIds('JR_ARCHITECT', performanceMonthKey),
-    getEnabledDepartmentUserIds('QUOTATION', performanceMonthKey),
+  // Fetch visibility controls for this month across all departments (enabled by default unless explicitly disabled)
+  const [disabledSrIds, disabledJrIds, disabledQuotationIds] = await Promise.all([
+    getDisabledDepartmentUserIds('SR_CRM', performanceMonthKey),
+    getDisabledDepartmentUserIds('JR_ARCHITECT', performanceMonthKey),
+    getDisabledDepartmentUserIds('QUOTATION', performanceMonthKey),
   ])
 
   // Visit team filtered by enabled
@@ -258,7 +258,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
   // SR CRM calculated specifically for the selected month, filtered by enabled
   const allSrCrmPerformance = await calculateSrCrmPerformance(prisma, { now: selectedMonthDate })
   const srCrmPerformance = allSrCrmPerformance
-    .filter((m) => enabledSrIds.has(m.userId))
+    .filter((m) => !disabledSrIds.has(m.userId))
     .map((m) => ({ ...m, isEnabled: true }))
 
   // JR Architect filtered by enabled
@@ -268,7 +268,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
     orderBy: { performanceScore: 'desc' },
   })
   const jrArchitectPerformances = allJrArchitectPerformances
-    .filter((r) => enabledJrIds.has(r.userId))
+    .filter((r) => !disabledJrIds.has(r.userId))
     .map((r) => ({
       id: r.id,
       totalWork: r.totalWork,
@@ -296,7 +296,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
             userDepartments: {
               some: {
                 department: {
-                  name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'], mode: 'insensitive' },
+                  name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'] },
                 },
               },
             },
@@ -330,7 +330,7 @@ export default async function AdminDashboardPage({ searchParams }: AdminDashboar
 
   const quotationPerformanceByUser = new Map(quotationPerformanceRecords.map((record) => [record.userId, record]))
   const quotationPerformances = quotationTeamMembers
-    .filter((member) => enabledQuotationIds.has(member.id))
+    .filter((member) => !disabledQuotationIds.has(member.id))
     .map((member) => {
       const performance = quotationPerformanceByUser.get(member.id)
       return {

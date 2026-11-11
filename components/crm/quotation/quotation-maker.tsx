@@ -3,7 +3,37 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ArrowDownToLine, Bold, Download, Edit2, ExternalLink, GripVertical, History, Loader2, Plus, Printer, Save, SaveAll, Trash2 } from 'lucide-react'
+import {
+  ArrowDownToLine,
+  Bold,
+  ChevronDown,
+  ChevronRight,
+  ChevronsUpDown,
+  ClipboardPaste,
+  Copy,
+  Download,
+  Edit2,
+  ExternalLink,
+  GripVertical,
+  History,
+  Loader2,
+  Plus,
+  Printer,
+  Save,
+  SaveAll,
+  Trash2,
+} from 'lucide-react'
+import {
+  copyFloorToClipboard,
+  copyAreaToClipboard,
+  copyItemToClipboard,
+  useQuotationClipboard,
+  getQuotationClipboard,
+  type QuotationClipboardFloor,
+  type QuotationClipboardArea,
+  type QuotationClipboardItem,
+} from '@/lib/quotation-clipboard'
+import { QuotationClipboardBanner } from '@/components/crm/quotation/quotation-clipboard-banner'
 import { toast } from '@/components/ui/sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -77,9 +107,11 @@ import {
   updateFloorName,
 } from '@/lib/floor-detail-quotation'
 import type {
+  QuotationArea,
   QuotationDraftContent,
   QuotationFileType,
   QuotationLineItem,
+  QuotationSection,
   QuotationUnit,
 } from '@/lib/quotation-types'
 import { convertShortToDetailContent, shortPackageTierLabel } from '@/lib/short-to-detail-import'
@@ -216,23 +248,306 @@ export function QuotationMaker({
   const visibleFloorRatios = useRef(new Map<string, number>())
   const visibleAreaRatios = useRef(new Map<string, { ratio: number; floorId: string; areaId: string }>())
 
+  const { clipboard } = useQuotationClipboard()
+  const [collapsedFloorIds, setCollapsedFloorIds] = useState<Set<string>>(new Set())
+  const [collapsedAreaIds, setCollapsedAreaIds] = useState<Set<string>>(new Set())
+
   const dndSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
-  const reorderFloorLines = (floorId: string, event: DragEndEvent) => {
+  const toggleFloorCollapse = (floorId: string) => {
+    setCollapsedFloorIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(floorId)) next.delete(floorId)
+      else next.add(floorId)
+      return next
+    })
+  }
+
+  const toggleAreaCollapse = (areaId: string) => {
+    setCollapsedAreaIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(areaId)) next.delete(areaId)
+      else next.add(areaId)
+      return next
+    })
+  }
+
+  const reorderFloors = (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
     setContent((prev) => {
       if (!prev) return prev
-      const floorItems = prev.lineItems.filter((l) => l.sectionId === floorId)
-      const otherItems = prev.lineItems.filter((l) => l.sectionId !== floorId)
-      const oldIndex = floorItems.findIndex((l) => l.id === active.id)
-      const newIndex = floorItems.findIndex((l) => l.id === over.id)
-      const reordered = arrayMove(floorItems, oldIndex, newIndex)
+      const currentFloors = [...prev.sections].sort((a, b) => a.sortOrder - b.sortOrder)
+      const oldIndex = currentFloors.findIndex((f) => f.id === active.id)
+      const newIndex = currentFloors.findIndex((f) => f.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return prev
+      const reordered = arrayMove(currentFloors, oldIndex, newIndex).map((floor, i) => ({
+        ...floor,
+        sortOrder: i + 1,
+      }))
+      return { ...prev, sections: reordered }
+    })
+  }
+
+  const reorderAreas = (floorId: string, event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setContent((prev) => {
+      if (!prev) return prev
+      const floorAreas = (prev.areas ?? [])
+        .filter((a) => a.floorId === floorId)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+      const otherAreas = (prev.areas ?? []).filter((a) => a.floorId !== floorId)
+      const oldIndex = floorAreas.findIndex((a) => a.id === active.id)
+      const newIndex = floorAreas.findIndex((a) => a.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return prev
+      const reordered = arrayMove(floorAreas, oldIndex, newIndex).map((area, i) => ({
+        ...area,
+        sortOrder: i + 1,
+      }))
+      return { ...prev, areas: [...otherAreas, ...reordered] }
+    })
+  }
+
+  const reorderFloorLines = (floorId: string, areaId: string | null, event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setContent((prev) => {
+      if (!prev) return prev
+      const isTargetArea = (l: QuotationLineItem) => {
+        if (l.sectionId !== floorId) return false
+        if (!areaId || areaId.startsWith('general-')) return !l.areaId || l.areaId.startsWith('general-')
+        if (areaId.startsWith('fe-')) return Boolean(l.isFinishingElectrical)
+        return l.areaId === areaId
+      }
+      const areaItems = prev.lineItems.filter(isTargetArea)
+      const otherItems = prev.lineItems.filter((l) => !isTargetArea(l))
+      const oldIndex = areaItems.findIndex((l) => l.id === active.id)
+      const newIndex = areaItems.findIndex((l) => l.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return prev
+      const reordered = arrayMove(areaItems, oldIndex, newIndex)
       return { ...prev, lineItems: [...otherItems, ...reordered] }
     })
+  }
+
+  const handleCopyFloor = (floor: QuotationSection, areaGroups: { area: QuotationArea; lines: QuotationLineItem[] }[]) => {
+    const areasPayload = areaGroups.map((g) => ({
+      name: g.area.name || 'General Area',
+      lines: g.lines.map((l) => ({
+        description: l.description,
+        materials: l.materials,
+        unit: l.unit,
+        rate: l.rate,
+        rateMin: l.rateMin,
+        rateMax: l.rateMax,
+        quantity: l.quantity,
+        amount: l.amount,
+        included: l.included !== false,
+        isCustom: l.isCustom,
+        isFinishingElectrical: l.isFinishingElectrical,
+        catalogTemplateKey: l.catalogTemplateKey,
+        templateId: l.templateId,
+        priceOnRequest: l.priceOnRequest,
+        unitPriceLabel: l.unitPriceLabel,
+      })),
+    }))
+    copyFloorToClipboard(
+      { name: floor.name || 'Floor', sectionType: floor.sectionType },
+      areasPayload,
+      { leadId, leadTitle: leadName },
+    )
+    const totalLines = areasPayload.reduce((sum, a) => sum + a.lines.length, 0)
+    toast.success(`Copied floor "${floor.name || 'Floor'}" with ${totalLines} item(s) to clipboard`)
+  }
+
+  const handleCopyArea = (area: QuotationArea, lines: QuotationLineItem[]) => {
+    const linesPayload = lines.map((l) => ({
+      description: l.description,
+      materials: l.materials,
+      unit: l.unit,
+      rate: l.rate,
+      rateMin: l.rateMin,
+      rateMax: l.rateMax,
+      quantity: l.quantity,
+      amount: l.amount,
+      included: l.included !== false,
+      isCustom: l.isCustom,
+      isFinishingElectrical: l.isFinishingElectrical,
+      catalogTemplateKey: l.catalogTemplateKey,
+      templateId: l.templateId,
+      priceOnRequest: l.priceOnRequest,
+      unitPriceLabel: l.unitPriceLabel,
+    }))
+    copyAreaToClipboard(
+      { name: area.name || 'Area' },
+      linesPayload,
+      { leadId, leadTitle: leadName },
+    )
+    toast.success(`Copied area "${area.name || 'Area'}" with ${lines.length} item(s) to clipboard`)
+  }
+
+  const handleCopyLine = (line: QuotationLineItem) => {
+    copyItemToClipboard(
+      {
+        description: line.description,
+        materials: line.materials,
+        unit: line.unit,
+        rate: line.rate,
+        rateMin: line.rateMin,
+        rateMax: line.rateMax,
+        quantity: line.quantity,
+        amount: line.amount,
+        included: line.included !== false,
+        isCustom: line.isCustom,
+        isFinishingElectrical: line.isFinishingElectrical,
+        catalogTemplateKey: line.catalogTemplateKey,
+        templateId: line.templateId,
+        priceOnRequest: line.priceOnRequest,
+        unitPriceLabel: line.unitPriceLabel,
+      },
+      { leadId, leadTitle: leadName },
+    )
+    toast.success(`Copied item "${line.description || 'Item'}" to clipboard`)
+  }
+
+  const handlePasteFloor = () => {
+    const cb = getQuotationClipboard()
+    if (!cb || cb.type !== 'floor') return
+    const floorData = cb.data as QuotationClipboardFloor
+    setContent((prev) => {
+      if (!prev) return prev
+      const newFloorId = crypto.randomUUID()
+      const newFloor: QuotationSection = {
+        id: newFloorId,
+        name: floorData.name ? `${floorData.name} (Copy)` : 'New Floor',
+        sortOrder: prev.sections.length + 1,
+        sectionType: floorData.sectionType,
+      }
+      const newAreas: QuotationArea[] = []
+      const newLines: QuotationLineItem[] = []
+
+      floorData.areas.forEach((areaData, areaIdx) => {
+        const newAreaId = crypto.randomUUID()
+        newAreas.push({
+          id: newAreaId,
+          floorId: newFloorId,
+          name: areaData.name || 'Area',
+          sortOrder: areaIdx + 1,
+        })
+        ;(areaData.lines || []).forEach((lineData) => {
+          newLines.push({
+            id: crypto.randomUUID(),
+            sectionId: newFloorId,
+            areaId: newAreaId,
+            description: lineData.description || 'Item',
+            materials: lineData.materials || '',
+            unit: (lineData.unit as QuotationUnit) || 'sqft',
+            rate: lineData.rate || 0,
+            rateMin: lineData.rateMin,
+            rateMax: lineData.rateMax,
+            quantity: lineData.quantity || 1,
+            amount: lineData.amount || ((lineData.rate || 0) * (lineData.quantity || 1)),
+            included: lineData.included !== false,
+            isCustom: lineData.isCustom ?? true,
+            isFinishingElectrical: lineData.isFinishingElectrical,
+            catalogTemplateKey: lineData.catalogTemplateKey,
+            templateId: lineData.templateId,
+            priceOnRequest: lineData.priceOnRequest,
+            unitPriceLabel: lineData.unitPriceLabel,
+          })
+        })
+      })
+
+      return {
+        ...prev,
+        sections: [...prev.sections, newFloor],
+        areas: [...(prev.areas ?? []), ...newAreas],
+        lineItems: [...prev.lineItems, ...newLines],
+      }
+    })
+    toast.success(`Pasted floor "${floorData.name}" with ${cb.itemCount} item(s)`)
+  }
+
+  const handlePasteAreaToFloor = (floorId: string) => {
+    const cb = getQuotationClipboard()
+    if (!cb || cb.type !== 'area') return
+    const areaData = cb.data as QuotationClipboardArea
+    setContent((prev) => {
+      if (!prev) return prev
+      const newAreaId = crypto.randomUUID()
+      const floorAreas = (prev.areas ?? []).filter((a) => a.floorId === floorId)
+      const newArea: QuotationArea = {
+        id: newAreaId,
+        floorId,
+        name: areaData.name ? `${areaData.name} (Copy)` : 'New Area',
+        sortOrder: floorAreas.length + 1,
+      }
+      const newLines: QuotationLineItem[] = (areaData.lines || []).map((lineData) => ({
+        id: crypto.randomUUID(),
+        sectionId: floorId,
+        areaId: newAreaId,
+        description: lineData.description || 'Item',
+        materials: lineData.materials || '',
+        unit: (lineData.unit as QuotationUnit) || 'sqft',
+        rate: lineData.rate || 0,
+        rateMin: lineData.rateMin,
+        rateMax: lineData.rateMax,
+        quantity: lineData.quantity || 1,
+        amount: lineData.amount || ((lineData.rate || 0) * (lineData.quantity || 1)),
+        included: lineData.included !== false,
+        isCustom: lineData.isCustom ?? true,
+        isFinishingElectrical: lineData.isFinishingElectrical,
+        catalogTemplateKey: lineData.catalogTemplateKey,
+        templateId: lineData.templateId,
+        priceOnRequest: lineData.priceOnRequest,
+        unitPriceLabel: lineData.unitPriceLabel,
+      }))
+
+      return {
+        ...prev,
+        areas: [...(prev.areas ?? []), newArea],
+        lineItems: [...prev.lineItems, ...newLines],
+      }
+    })
+    toast.success(`Pasted area "${areaData.name}" with ${cb.itemCount} item(s) into floor`)
+  }
+
+  const handlePasteItemToArea = (floorId: string, areaId?: string) => {
+    const cb = getQuotationClipboard()
+    if (!cb || cb.type !== 'item') return
+    const itemData = cb.data as QuotationClipboardItem
+    setContent((prev) => {
+      if (!prev) return prev
+      const resolvedAreaId = areaId && !areaId.startsWith('general-') && !areaId.startsWith('fe-') ? areaId : undefined
+      const newLine: QuotationLineItem = {
+        id: crypto.randomUUID(),
+        sectionId: floorId,
+        areaId: resolvedAreaId,
+        description: itemData.description || 'Item',
+        materials: itemData.materials || '',
+        unit: (itemData.unit as QuotationUnit) || 'sqft',
+        rate: itemData.rate || 0,
+        rateMin: itemData.rateMin,
+        rateMax: itemData.rateMax,
+        quantity: itemData.quantity || 1,
+        amount: itemData.amount || ((itemData.rate || 0) * (itemData.quantity || 1)),
+        included: itemData.included !== false,
+        isCustom: itemData.isCustom ?? true,
+        isFinishingElectrical: itemData.isFinishingElectrical,
+        catalogTemplateKey: itemData.catalogTemplateKey,
+        templateId: itemData.templateId,
+        priceOnRequest: itemData.priceOnRequest,
+        unitPriceLabel: itemData.unitPriceLabel,
+      }
+      return {
+        ...prev,
+        lineItems: [...prev.lineItems, newLine],
+      }
+    })
+    toast.success(`Pasted item "${itemData.description}" into area`)
   }
 
   const loadDraft = useCallback(async (targetSlot: number = slotIndex) => {
@@ -320,6 +635,22 @@ export function QuotationMaker({
     if (!content || !Array.isArray(content.sections)) return []
     return [...content.sections].sort((a, b) => a.sortOrder - b.sortOrder)
   }, [content])
+
+  const isAllCollapsed = useMemo(() => {
+    if (floors.length === 0) return false
+    return floors.every((f) => collapsedFloorIds.has(f.id))
+  }, [floors, collapsedFloorIds])
+
+  const toggleCollapseAll = () => {
+    if (isAllCollapsed) {
+      setCollapsedFloorIds(new Set())
+      setCollapsedAreaIds(new Set())
+    } else {
+      setCollapsedFloorIds(new Set(floors.map((f) => f.id)))
+      const allAreaIds = (content?.areas ?? []).map((a) => a.id)
+      setCollapsedAreaIds(new Set(allAreaIds))
+    }
+  }
 
   const editorLineSlMap = useMemo(() => {
     if (!content) return new Map<string, number>()
@@ -1303,6 +1634,29 @@ return (
                 Quotation Versions
               </Button>
             ) : null}
+            {floors.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={toggleCollapseAll}
+                title={isAllCollapsed ? 'Expand all floors and areas' : 'Collapse all floors and areas'}
+              >
+                <ChevronsUpDown className="mr-1.5 h-4 w-4" />
+                {isAllCollapsed ? 'Expand All' : 'Collapse All'}
+              </Button>
+            )}
+            {clipboard?.type === 'floor' && canEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                className="border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                onClick={handlePasteFloor}
+                title={`Paste copied floor: ${clipboard.title}`}
+              >
+                <ClipboardPaste className="mr-1.5 h-4 w-4" />
+                Paste Floor ({clipboard.title})
+              </Button>
+            )}
             <Button type="button" variant="outline" onClick={openLivePreviewTab}>
               <ExternalLink className="mr-1.5 h-4 w-4" />
               Live Preview
@@ -1423,140 +1777,128 @@ return (
 
       {floors.length === 0 ? (
         <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No floors yet. Click <strong>Add Floor</strong> — e.g. Ground Floor, First Floor, Door Work.
+          <CardContent className="py-10 text-center text-sm text-muted-foreground space-y-3">
+            <p>No floors yet. Click <strong>Add Floor</strong> — e.g. Ground Floor, First Floor, Door Work.</p>
+            {clipboard?.type === 'floor' && canEdit && (
+              <div>
+                <Button
+                  type="button"
+                  variant="default"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  onClick={handlePasteFloor}
+                >
+                  <ClipboardPaste className="mr-1.5 h-4 w-4" />
+                  Paste Copied Floor ({clipboard.title})
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
-        floors.map((floor) => {
-          const isFE = floor.sectionType === 'FINISHING_ELECTRICAL' || floor.name === 'Finishing & Electrical Works'
-          const floorAreas = [...(content.areas ?? [])]
-            .filter((area) => area.floorId === floor.id)
-            .sort((a, b) => a.sortOrder - b.sortOrder)
-          const allLineItems = Array.isArray(content.lineItems) ? content.lineItems : []
-          const unassignedLines = allLineItems.filter((line) => line.sectionId === floor.id && !line.areaId)
-          const namedAreaGroups = floorAreas.map((area) => ({ area, lines: allLineItems.filter((line) => line.sectionId === floor.id && line.areaId === area.id) }))
-          const generalAreaGroup = { area: { id: `general-${floor.id}`, floorId: floor.id, name: 'General Area', sortOrder: 0 }, lines: unassignedLines }
-          const areaGroups = isFE
-            ? [{ area: { id: `fe-${floor.id}`, floorId: floor.id, name: '', sortOrder: 0 }, lines: allLineItems.filter((line) => line.sectionId === floor.id) }]
-            : floorAreas.length > 0
-              ? [generalAreaGroup, ...namedAreaGroups].filter((group) => group.lines.length > 0 || !group.area.id.startsWith('general-'))
-              : [{ ...generalAreaGroup, lines: allLineItems.filter((line) => line.sectionId === floor.id) }]
-          const floorLineCount = areaGroups.reduce((sum, group) => sum + group.lines.length, 0)
+        <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={reorderFloors}>
+          <SortableContext items={floors.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-4">
+              {floors.map((floor, floorIndex) => {
+                const isFE = floor.sectionType === 'FINISHING_ELECTRICAL' || floor.name === 'Finishing & Electrical Works'
+                const floorAreas = [...(content.areas ?? [])]
+                  .filter((area) => area.floorId === floor.id)
+                  .sort((a, b) => a.sortOrder - b.sortOrder)
+                const allLineItems = Array.isArray(content.lineItems) ? content.lineItems : []
+                const unassignedLines = allLineItems.filter((line) => line.sectionId === floor.id && !line.areaId)
+                const namedAreaGroups = floorAreas.map((area) => ({
+                  area,
+                  lines: allLineItems.filter((line) => line.sectionId === floor.id && line.areaId === area.id),
+                }))
+                const generalAreaGroup = {
+                  area: { id: `general-${floor.id}`, floorId: floor.id, name: 'General Area', sortOrder: 0 },
+                  lines: unassignedLines,
+                }
+                const areaGroups = isFE
+                  ? [{ area: { id: `fe-${floor.id}`, floorId: floor.id, name: '', sortOrder: 0 }, lines: allLineItems.filter((line) => line.sectionId === floor.id) }]
+                  : floorAreas.length > 0
+                    ? [generalAreaGroup, ...namedAreaGroups].filter((group) => group.lines.length > 0 || !group.area.id.startsWith('general-'))
+                    : [{ ...generalAreaGroup, lines: allLineItems.filter((line) => line.sectionId === floor.id) }]
+                const floorLineCount = areaGroups.reduce((sum, group) => sum + group.lines.length, 0)
+                const floorTotal = areaGroups.reduce(
+                  (sum, group) =>
+                    sum + group.lines.filter((l) => l.included !== false).reduce((lSum, l) => lSum + (l.amount || 0), 0),
+                  0,
+                )
+                const isFloorCollapsed = collapsedFloorIds.has(floor.id)
 
-          return (
-            <Card
-              key={floor.id}
-              id={`quotation-floor-${floor.id}`}
-              data-floor-id={floor.id}
-              className="scroll-mt-24 overflow-hidden border-muted/60 shadow-sm print:hidden"
-            >
-              <CardHeader className="py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex min-w-0 flex-1 items-center gap-2">
-                    <Input
-                      value={floor.name}
-                      disabled={!canEdit}
-                      placeholder="e.g. Ground Floor"
-                      className="max-w-sm font-semibold"
-                      onChange={(event) =>
-                        setContent((prev) =>
-                          prev ? updateFloorName(prev, floor.id, event.target.value) : prev,
-                        )
-                      }
-                    />
-                    <Badge variant="secondary">{floorLineCount} item(s)</Badge>
-                  </div>
-                  {canEdit ? (
-                    <div className="flex flex-wrap gap-2">
-                      {!isFE ? (
-                        <>
-                          <Button type="button" size="sm" variant="outline" onClick={() => addArea(floor.id)}>
-                            <Plus className="mr-1 h-3.5 w-3.5" /> Add Area
-                          </Button>
-                          <Button type="button" size="sm" variant="outline" onClick={() => addFinishingElectricalWork(floor.id)}>
-                            <Plus className="mr-1 h-3.5 w-3.5" /> Finishing & Electrical
-                          </Button>
-                        </>
-                      ) : (
-                        <Button type="button" size="sm" variant="outline" onClick={() => addFinishingElectricalWork(floor.id)}>
-                          <Plus className="mr-1 h-3.5 w-3.5" /> Add Item
-                        </Button>
-                      )}
-                      <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => removeFloor(floor.id)}
-                        aria-label={`Delete ${floor.name || 'floor'}`}
-                        title="Delete floor and its items"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4 p-4">
-                {areaGroups.map(({ area, lines }) => (
-                  <div
-                    key={area.id}
-                    id={`quotation-area-${area.id}`}
-                    data-floor-id={floor.id}
-                    data-area-id={area.id.startsWith('general-') ? '' : area.id}
-                    className="overflow-hidden rounded-lg border bg-background"
+                return (
+                  <SortableDetailFloorCard
+                    key={floor.id}
+                    floor={floor}
+                    floorIndex={floorIndex}
+                    isFE={isFE}
+                    areaGroupsCount={areaGroups.length}
+                    floorLineCount={floorLineCount}
+                    floorTotal={floorTotal}
+                    isCollapsed={isFloorCollapsed}
+                    toggleCollapse={() => toggleFloorCollapse(floor.id)}
+                    canEdit={canEdit}
+                    onUpdateFloorName={(name) => setContent((prev) => (prev ? updateFloorName(prev, floor.id, name) : prev))}
+                    onRemoveFloor={() => removeFloor(floor.id)}
+                    onAddArea={() => addArea(floor.id)}
+                    onAddFinishingElectricalWork={() => addFinishingElectricalWork(floor.id)}
+                    onCopyFloor={() => handleCopyFloor(floor, areaGroups)}
+                    canPasteArea={clipboard?.type === 'area' && canEdit}
+                    onPasteArea={() => handlePasteAreaToFloor(floor.id)}
+                    clipboardTitle={clipboard?.title}
                   >
-                    {area.name ? (
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
-                        <Input
-                          value={area.name}
-                          disabled={!canEdit || area.id.startsWith('general-')}
-                          placeholder="e.g. Living Area, Master Bed"
-                          className="h-8 max-w-xs text-sm font-semibold"
-                          onChange={(event) => setContent((prev) => (prev ? updateAreaName(prev, area.id, event.target.value) : prev))}
-                        />
-                        {canEdit ? (
-                          <div className="flex flex-wrap gap-2">
-                            <Button type="button" size="sm" variant="outline" onClick={() => openItemPicker(floor.id, area.id.startsWith('general-') ? undefined : area.id)}>
-                              <Plus className="mr-1 h-3.5 w-3.5" /> Add from saved list
-                            </Button>
-                            <Button type="button" size="sm" variant="ghost" onClick={() => { setCustomTypeFloorId(floor.id); setCustomTypeAreaId(area.id.startsWith('general-') ? null : area.id) }}>
-                              Custom item
-                            </Button>
-                            {!area.id.startsWith('general-') ? (
-                              <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => removeArea(area.id)}
-                                aria-label={`Delete ${area.name || 'area'}`}
-                                title="Delete area and its items"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            ) : null}
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                    {lines.length === 0 ? <div className="px-4 py-6 text-center text-sm text-muted-foreground">No items in this area yet.</div> : (
-                      <div className="overflow-x-auto">
-                        <table className="w-full min-w-[980px] text-sm">
-                          <thead className="bg-muted/50 text-left"><tr>{canEdit && <th className="w-6 px-1 py-2" />}<th className="w-10 px-2 py-2 text-center font-medium" title="Include in quotation">Inc</th><th className="w-12 px-3 py-2 font-medium">SL</th><th className="min-w-[160px] px-3 py-2 font-medium">Name</th><th className="min-w-[280px] px-3 py-2 font-medium">Materials</th><th className="px-3 py-2 font-medium">Unit price</th><th className="px-3 py-2 font-medium">Qty / SFT</th><th className="px-3 py-2 text-right font-medium">Total</th><th className="px-3 py-2" /></tr></thead>
-                          <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={(event) => reorderFloorLines(floor.id, event)}>
-                            <SortableContext items={lines.map((l) => l.id)} strategy={verticalListSortingStrategy}>
-                              <tbody>{lines.map((line, lineIndex) => <SortableRow key={line.id} line={line} lineIndex={lineIndex} slNumber={editorLineSlMap.get(line.id)} isPkg={isPackageLine(line)} canEdit={canEdit} updateLineItem={updateLineItem} removeLine={removeLine} lineNeedsManualPrice={lineNeedsManualPrice} />)}</tbody>
-                            </SortableContext>
-                          </DndContext>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )
-        })
+                    <DndContext
+                      sensors={dndSensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={(event) => reorderAreas(floor.id, event)}
+                    >
+                      <SortableContext items={areaGroups.map((g) => g.area.id)} strategy={verticalListSortingStrategy}>
+                        <div className="space-y-4">
+                          {areaGroups.map(({ area, lines }) => {
+                            const isAreaCollapsed = collapsedAreaIds.has(area.id)
+                            return (
+                              <SortableDetailAreaCard
+                                key={area.id}
+                                floorId={floor.id}
+                                area={area}
+                                lines={lines}
+                                canEdit={canEdit}
+                                isCollapsed={isAreaCollapsed}
+                                toggleCollapse={() => toggleAreaCollapse(area.id)}
+                                onUpdateAreaName={(name) =>
+                                  setContent((prev) => (prev ? updateAreaName(prev, area.id, name) : prev))
+                                }
+                                onRemoveArea={() => removeArea(area.id)}
+                                onOpenItemPicker={() =>
+                                  openItemPicker(floor.id, area.id.startsWith('general-') ? undefined : area.id)
+                                }
+                                onOpenCustomItem={() => {
+                                  setCustomTypeFloorId(floor.id)
+                                  setCustomTypeAreaId(area.id.startsWith('general-') ? null : area.id)
+                                }}
+                                onCopyArea={() => handleCopyArea(area, lines)}
+                                canPasteItem={clipboard?.type === 'item' && canEdit}
+                                onPasteItem={() => handlePasteItemToArea(floor.id, area.id)}
+                                clipboardTitle={clipboard?.title}
+                                editorLineSlMap={editorLineSlMap}
+                                updateLineItem={updateLineItem}
+                                removeLine={removeLine}
+                                onCopyLine={handleCopyLine}
+                                lineNeedsManualPrice={lineNeedsManualPrice}
+                                dndSensors={dndSensors}
+                                reorderLines={reorderFloorLines}
+                              />
+                            )
+                          })}
+                        </div>
+                      </SortableContext>
+                    </DndContext>
+                  </SortableDetailFloorCard>
+                )
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       <Card className="print:hidden">
@@ -1581,6 +1923,19 @@ return (
             <Plus className="mr-1.5 h-4 w-4" />
             Add Floor
           </Button>
+          {clipboard?.type === 'floor' && canEdit && (
+            <Button
+              type="button"
+              size="sm"
+              variant="default"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={handlePasteFloor}
+              title={`Paste copied floor: ${clipboard.title}`}
+            >
+              <ClipboardPaste className="mr-1.5 h-4 w-4" />
+              Paste Floor ({clipboard.title})
+            </Button>
+          )}
           <Button
             type="button"
             size="sm"
@@ -2227,6 +2582,8 @@ return (
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <QuotationClipboardBanner currentLeadId={leadId} currentLeadTitle={leadName} />
     </div>
   )
 }
@@ -2239,10 +2596,11 @@ type SortableRowProps = {
   canEdit: boolean
   updateLineItem: (id: string, patch: Partial<QuotationLineItem>) => void
   removeLine: (id: string) => void
+  onCopyLine?: (line: QuotationLineItem) => void
   lineNeedsManualPrice: (line: QuotationLineItem) => boolean
 }
 
-function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem, removeLine, lineNeedsManualPrice }: SortableRowProps) {
+function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem, removeLine, onCopyLine, lineNeedsManualPrice }: SortableRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: line.id })
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -2482,6 +2840,19 @@ function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem
               Enable
             </Button>
           )}
+          {canEdit && onCopyLine && (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={() => onCopyLine(line)}
+              title={`Copy product "${line.description || 'product'}"`}
+              aria-label="Copy product"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          )}
           {canEdit && (
             <Button type="button" size="icon" variant="ghost" onClick={() => removeLine(line.id)}>
               <Trash2 className="h-4 w-4" />
@@ -2490,5 +2861,431 @@ function SortableRow({ line, lineIndex, slNumber, isPkg, canEdit, updateLineItem
         </div>
       </td>
     </tr>
+  )
+}
+
+type SortableDetailAreaCardProps = {
+  floorId: string
+  area: QuotationArea
+  lines: QuotationLineItem[]
+  canEdit: boolean
+  isCollapsed: boolean
+  toggleCollapse: () => void
+  onUpdateAreaName: (name: string) => void
+  onRemoveArea: () => void
+  onOpenItemPicker: () => void
+  onOpenCustomItem: () => void
+  onCopyArea: () => void
+  canPasteItem: boolean
+  onPasteItem: () => void
+  clipboardTitle?: string
+  editorLineSlMap: Map<string, number>
+  updateLineItem: (id: string, patch: Partial<QuotationLineItem>) => void
+  removeLine: (id: string) => void
+  onCopyLine: (line: QuotationLineItem) => void
+  lineNeedsManualPrice: (line: QuotationLineItem) => boolean
+  dndSensors: ReturnType<typeof useSensors>
+  reorderLines: (floorId: string, areaId: string | null, event: DragEndEvent) => void
+}
+
+function SortableDetailAreaCard({
+  floorId,
+  area,
+  lines,
+  canEdit,
+  isCollapsed,
+  toggleCollapse,
+  onUpdateAreaName,
+  onRemoveArea,
+  onOpenItemPicker,
+  onOpenCustomItem,
+  onCopyArea,
+  canPasteItem,
+  onPasteItem,
+  clipboardTitle,
+  editorLineSlMap,
+  updateLineItem,
+  removeLine,
+  onCopyLine,
+  lineNeedsManualPrice,
+  dndSensors,
+  reorderLines,
+}: SortableDetailAreaCardProps) {
+  const isGeneral = area.id.startsWith('general-')
+  const isFE = area.id.startsWith('fe-')
+  const isDraggable = canEdit && !isGeneral && !isFE
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: area.id,
+    disabled: !isDraggable,
+  })
+
+  const areaTotal = useMemo(
+    () => lines.filter((l) => l.included !== false).reduce((sum, l) => sum + (l.amount || 0), 0),
+    [lines],
+  )
+
+  const cardStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 40 : undefined,
+  }
+
+  function fmt(v: number) {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v)
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={cardStyle}
+      id={`quotation-area-${area.id}`}
+      data-floor-id={floorId}
+      data-area-id={isGeneral ? '' : area.id}
+      className="overflow-hidden rounded-lg border bg-background shadow-xs transition-colors"
+    >
+      {area.name || !isFE ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
+          <div className="flex min-w-0 items-center gap-2">
+            {isDraggable && (
+              <button
+                type="button"
+                className="flex-shrink-0 cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
+                aria-label="Drag area"
+                title="Drag to change serial of area"
+                onPointerDown={(e) => e.stopPropagation()}
+                {...attributes}
+                {...listeners}
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
+            )}
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+              onClick={toggleCollapse}
+              title={isCollapsed ? 'Expand area' : 'Collapse area'}
+            >
+              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+
+            <Input
+              value={area.name}
+              disabled={!canEdit || isGeneral}
+              placeholder="e.g. Living Area, Master Bed"
+              className="h-8 max-w-xs text-sm font-semibold"
+              onChange={(e) => onUpdateAreaName(e.target.value)}
+            />
+
+            <Badge variant="outline" className="text-xs">
+              {lines.length} item{lines.length === 1 ? '' : 's'}
+            </Badge>
+
+            {isCollapsed && (
+              <Badge variant="secondary" className="text-xs font-semibold">
+                Subtotal: {fmt(areaTotal)}
+              </Badge>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {canEdit && (
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={onOpenItemPicker}
+                >
+                  <Plus className="mr-1 h-3.5 w-3.5" /> Add from saved list
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={onOpenCustomItem}
+                >
+                  Custom item
+                </Button>
+
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={onCopyArea}
+                  title={`Copy area "${area.name || 'Area'}" and all items`}
+                  aria-label="Copy area"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+
+                {canPasteItem && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                    onClick={onPasteItem}
+                    title={`Paste copied item: ${clipboardTitle}`}
+                  >
+                    <ClipboardPaste className="mr-1 h-3.5 w-3.5" /> Paste Item
+                  </Button>
+                )}
+
+                {!isGeneral && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={onRemoveArea}
+                    aria-label={`Delete ${area.name || 'area'}`}
+                    title="Delete area and its items"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {!isCollapsed && (
+        <>
+          {lines.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-muted-foreground">
+              No items in this area yet.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[980px] text-sm">
+                <thead className="bg-muted/50 text-left">
+                  <tr>
+                    {canEdit && <th className="w-6 px-1 py-2" />}
+                    <th className="w-10 px-2 py-2 text-center font-medium" title="Include in quotation">
+                      Inc
+                    </th>
+                    <th className="w-12 px-3 py-2 font-medium">SL</th>
+                    <th className="min-w-[160px] px-3 py-2 font-medium">Name</th>
+                    <th className="min-w-[280px] px-3 py-2 font-medium">Materials</th>
+                    <th className="px-3 py-2 font-medium">Unit price</th>
+                    <th className="px-3 py-2 font-medium">Qty / SFT</th>
+                    <th className="px-3 py-2 text-right font-medium">Total</th>
+                    <th className="px-3 py-2" />
+                  </tr>
+                </thead>
+                <DndContext
+                  sensors={dndSensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event) => reorderLines(floorId, area.id, event)}
+                >
+                  <SortableContext items={lines.map((l) => l.id)} strategy={verticalListSortingStrategy}>
+                    <tbody>
+                      {lines.map((line, lineIndex) => (
+                        <SortableRow
+                          key={line.id}
+                          line={line}
+                          lineIndex={lineIndex}
+                          slNumber={editorLineSlMap.get(line.id)}
+                          isPkg={isPackageLine(line)}
+                          canEdit={canEdit}
+                          updateLineItem={updateLineItem}
+                          removeLine={removeLine}
+                          onCopyLine={onCopyLine}
+                          lineNeedsManualPrice={lineNeedsManualPrice}
+                        />
+                      ))}
+                    </tbody>
+                  </SortableContext>
+                </DndContext>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+type SortableDetailFloorCardProps = {
+  floor: QuotationSection
+  floorIndex: number
+  isFE: boolean
+  areaGroupsCount: number
+  floorLineCount: number
+  floorTotal: number
+  isCollapsed: boolean
+  toggleCollapse: () => void
+  canEdit: boolean
+  onUpdateFloorName: (name: string) => void
+  onRemoveFloor: () => void
+  onAddArea: () => void
+  onAddFinishingElectricalWork: () => void
+  onCopyFloor: () => void
+  canPasteArea: boolean
+  onPasteArea: () => void
+  clipboardTitle?: string
+  children: React.ReactNode
+}
+
+function SortableDetailFloorCard({
+  floor,
+  floorIndex,
+  isFE,
+  areaGroupsCount,
+  floorLineCount,
+  floorTotal,
+  isCollapsed,
+  toggleCollapse,
+  canEdit,
+  onUpdateFloorName,
+  onRemoveFloor,
+  onAddArea,
+  onAddFinishingElectricalWork,
+  onCopyFloor,
+  canPasteArea,
+  onPasteArea,
+  clipboardTitle,
+  children,
+}: SortableDetailFloorCardProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: floor.id,
+    disabled: !canEdit,
+  })
+
+  const cardStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 30 : undefined,
+  }
+
+  function fmt(v: number) {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v)
+  }
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={cardStyle}
+      id={`quotation-floor-${floor.id}`}
+      data-floor-id={floor.id}
+      className="scroll-mt-24 overflow-hidden border-muted/60 shadow-sm print:hidden"
+    >
+      <CardHeader className="py-3 bg-muted/20 border-b">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {canEdit && (
+              <button
+                type="button"
+                className="flex-shrink-0 cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
+                aria-label="Drag floor"
+                title="Drag to change serial of floor"
+                onPointerDown={(e) => e.stopPropagation()}
+                {...attributes}
+                {...listeners}
+              >
+                <GripVertical className="h-4 w-4" />
+              </button>
+            )}
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+              onClick={toggleCollapse}
+              title={isCollapsed ? 'Expand floor' : 'Collapse floor'}
+            >
+              {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+
+            <Input
+              value={floor.name}
+              disabled={!canEdit}
+              placeholder="e.g. Ground Floor"
+              className="max-w-sm font-semibold"
+              onChange={(e) => onUpdateFloorName(e.target.value)}
+            />
+
+            <Badge variant="outline">{areaGroupsCount} area{areaGroupsCount === 1 ? '' : 's'}</Badge>
+            <Badge variant="secondary">{floorLineCount} item(s)</Badge>
+
+            {isCollapsed && (
+              <Badge variant="default" className="bg-neutral-800 text-white font-semibold">
+                Floor Total: {fmt(floorTotal)}
+              </Badge>
+            )}
+          </div>
+
+          {canEdit ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {!isFE ? (
+                <>
+                  <Button type="button" size="sm" variant="outline" onClick={onAddArea}>
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Add Area
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={onAddFinishingElectricalWork}>
+                    <Plus className="mr-1 h-3.5 w-3.5" /> Finishing & Electrical
+                  </Button>
+                </>
+              ) : (
+                <Button type="button" size="sm" variant="outline" onClick={onAddFinishingElectricalWork}>
+                  <Plus className="mr-1 h-3.5 w-3.5" /> Add Item
+                </Button>
+              )}
+
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                onClick={onCopyFloor}
+                title={`Copy floor "${floor.name || 'Floor'}" and all its areas/items`}
+                aria-label="Copy floor"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+
+              {canPasteArea && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="border-emerald-500 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-600 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                  onClick={onPasteArea}
+                  title={`Paste copied area "${clipboardTitle}" into this floor`}
+                >
+                  <ClipboardPaste className="mr-1 h-3.5 w-3.5" /> Paste Area
+                </Button>
+              )}
+
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={onRemoveFloor}
+                aria-label={`Delete ${floor.name || 'floor'}`}
+                title="Delete floor and its items"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </CardHeader>
+
+      {!isCollapsed && (
+        <CardContent className="space-y-4 p-4">
+          {children}
+        </CardContent>
+      )}
+    </Card>
   )
 }

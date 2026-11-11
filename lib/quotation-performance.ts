@@ -313,7 +313,7 @@ export async function syncAllQuotationTeamPerformance(targetDate: Date = new Dat
           userDepartments: {
             some: {
               department: {
-                name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'], mode: 'insensitive' },
+                name: { in: ['QUOTATION_TEAM', 'QUOTATION', 'Quotation Team', 'Quotation'] },
               },
             },
           },
