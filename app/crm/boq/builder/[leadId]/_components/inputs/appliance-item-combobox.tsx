@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown, Flame } from 'lucide-react'
 import { GRID_CELL_BOLD } from '../constants/boq-grid-styles'
 import type { BoqSavedApplianceItem } from '../types/boq-builder-types'
 
@@ -161,24 +161,37 @@ export function ApplianceItemCombobox({
                         : 'text-foreground'
                     }`}
                   >
-                    <div className="flex flex-col gap-0.5 min-w-0 pr-2">
-                      <span className="font-bold text-xs truncate">{item.name}</span>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {item.category && (
-                          <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-medium bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60">
-                            {item.category}
-                          </span>
-                        )}
-                        {item.brandModelCode && (
-                          <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-mono bg-muted text-muted-foreground border border-border/50 truncate max-w-[170px]">
-                            {item.brandModelCode}
-                          </span>
-                        )}
-                        {item.dimW && (
-                          <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-mono text-muted-foreground">
-                            {item.dimW}×{item.dimD}×{item.dimH}mm
-                          </span>
-                        )}
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="w-10 h-10 rounded object-cover border border-border/60 shrink-0 bg-muted"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded bg-muted/60 border border-border/40 flex items-center justify-center shrink-0 text-muted-foreground/40">
+                          <Flame className="w-4 h-4" />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="font-bold text-xs truncate">{item.name}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {item.category && (
+                            <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-medium bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60">
+                              {item.category}
+                            </span>
+                          )}
+                          {item.brandModelCode && (
+                            <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-mono bg-muted text-muted-foreground border border-border/50 truncate max-w-[170px]">
+                              {item.brandModelCode}
+                            </span>
+                          )}
+                          {item.dimW && (
+                            <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-mono text-muted-foreground">
+                              {item.dimW}×{item.dimD}×{item.dimH}mm
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     {value === item.name && (

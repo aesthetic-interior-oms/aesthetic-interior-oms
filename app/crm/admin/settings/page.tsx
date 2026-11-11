@@ -24,6 +24,8 @@ import { DepartmentPerformanceSettings } from '@/components/settings/department-
 import { JrArchitectWorkflowSettings } from '@/components/settings/jr-architect-workflow-settings'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import QuotationSettingsPage from '@/app/quotation-team/settings/page'
+import { AccessoriesAppliancesCatalogSettings } from '@/components/settings/accessories-appliances-catalog-settings'
+import { Sparkles } from 'lucide-react'
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('users')
@@ -80,6 +82,10 @@ export default function SettingsPage() {
               <SlidersHorizontal className="w-4 h-4" />
               <span>Quotation</span>
             </TabsTrigger>
+            <TabsTrigger value="catalog" className="flex items-center justify-start gap-3 px-3 py-2.5 w-full text-left font-medium">
+              <Sparkles className="w-4 h-4 text-pink-500" />
+              <span>Accessories & Appliances</span>
+            </TabsTrigger>
           </TabsList>
 
           <div className="flex-1 w-full min-w-0">
@@ -124,6 +130,10 @@ export default function SettingsPage() {
 
             <TabsContent value="quotation" className="space-y-6 mt-0">
               <QuotationSettingsPage />
+            </TabsContent>
+
+            <TabsContent value="catalog" className="space-y-6 mt-0">
+              <AccessoriesAppliancesCatalogSettings />
             </TabsContent>
           </div>
         </Tabs>

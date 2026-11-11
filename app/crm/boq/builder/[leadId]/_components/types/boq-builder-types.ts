@@ -170,6 +170,7 @@ export interface BoqSavedAccessoryItem {
   category: string
   itemCode: string
   defaultUnit: string
+  imageUrl?: string | null
 }
 
 export type BoqSavedApplianceItem = {
@@ -183,6 +184,7 @@ export type BoqSavedApplianceItem = {
   cabinetNicheCutOutSize?: string
   defaultUnitPrice?: string
   defaultUnit?: string
+  imageUrl?: string | null
 }
 
 export interface RequisitionBuilderProps {

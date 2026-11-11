@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, ChevronDown, Plus } from 'lucide-react'
+import { Check, ChevronDown, Plus, Package } from 'lucide-react'
 import { GRID_CELL_BOLD } from '../constants/boq-grid-styles'
 import type { BoqSavedAccessoryItem } from '../types/boq-builder-types'
 
@@ -166,19 +166,32 @@ export function AccessoryItemCombobox({
                         : 'text-foreground'
                     }`}
                   >
-                    <div className="flex flex-col gap-0.5 min-w-0 pr-2">
-                      <span className="font-bold text-xs truncate">{item.name}</span>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {item.category && (
-                          <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-medium bg-pink-100 dark:bg-pink-950/50 text-pink-700 dark:text-pink-300 border border-pink-200/60 dark:border-pink-800/60">
-                            {item.category}
-                          </span>
-                        )}
-                        {item.itemCode && (
-                          <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-mono bg-muted text-muted-foreground border border-border/50">
-                            {item.itemCode}
-                          </span>
-                        )}
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      {item.imageUrl ? (
+                        <img
+                          src={item.imageUrl}
+                          alt={item.name}
+                          className="w-9 h-9 rounded object-cover border border-border/60 shrink-0 bg-muted"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded bg-muted/60 border border-border/40 flex items-center justify-center shrink-0 text-muted-foreground/40">
+                          <Package className="w-4 h-4" />
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="font-bold text-xs truncate">{item.name}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {item.category && (
+                            <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-medium bg-pink-100 dark:bg-pink-950/50 text-pink-700 dark:text-pink-300 border border-pink-200/60 dark:border-pink-800/60">
+                              {item.category}
+                            </span>
+                          )}
+                          {item.itemCode && (
+                            <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-mono bg-muted text-muted-foreground border border-border/50">
+                              {item.itemCode}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                     {value === item.name && (

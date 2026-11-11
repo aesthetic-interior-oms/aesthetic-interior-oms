@@ -33,7 +33,8 @@ import {
   getQuotationTemplate,
 } from "@/lib/quotation-templates";
 import { QuotationTemplateItem } from "@/lib/quotation-types";
-import { Loader2, Plus, Save, Trash2, AlertCircle } from "lucide-react";
+import { Loader2, Plus, Save, Trash2, AlertCircle, Sparkles, FileText } from "lucide-react";
+import { AccessoriesAppliancesCatalogSettings } from "@/components/settings/accessories-appliances-catalog-settings";
 
 type ItemEditState = {
   description?: string;
@@ -56,6 +57,7 @@ type ConfirmationModalState = {
 
 export default function QuotationSettingsPage() {
   const catalogs = listQuotationTemplates();
+  const [mainTab, setMainTab] = useState<"templates" | "accessories-appliances">("templates");
   const [selectedCatalogKey, setSelectedCatalogKey] = useState(
     catalogs[0]?.key || "",
   );
@@ -357,25 +359,59 @@ export default function QuotationSettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6 max-w-5xl mx-auto space-y-6 pb-24">
+    <div className="min-h-screen bg-background p-6 max-w-6xl mx-auto space-y-6 pb-24">
       {/* Header Section */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b pb-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Quotation Settings</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Settings & Catalogs</h1>
           <p className="text-muted-foreground mt-1">
-            Manage and add saved items for Detail Quotation templates.
+            Manage quotation templates, saved accessories, and appliances with permanent images.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button onClick={handleOpenAddModal} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add New Saved Item
-          </Button>
-        </div>
+        {mainTab === "templates" && (
+          <div className="flex items-center gap-3">
+            <Button onClick={handleOpenAddModal} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Add New Saved Item
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Catalog Switcher */}
-      <div className="flex items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border">
+      {/* Main Tab Switcher */}
+      <div className="flex items-center gap-2 border-b border-border pb-2">
+        <button
+          type="button"
+          onClick={() => setMainTab("templates")}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+            mainTab === "templates"
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          <span>Quotation Templates</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMainTab("accessories-appliances")}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${
+            mainTab === "accessories-appliances"
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          <Sparkles className="w-4 h-4 text-pink-400" />
+          <span>Accessories & Appliances Library</span>
+        </button>
+      </div>
+
+      {mainTab === "accessories-appliances" ? (
+        <AccessoriesAppliancesCatalogSettings />
+      ) : (
+        <>
+          {/* Catalog Switcher */}
+          <div className="flex items-center justify-between gap-4 bg-muted/30 p-4 rounded-xl border">
         <div className="flex items-center gap-3">
           <label className="text-sm font-semibold">Select Catalog:</label>
           <div className="w-72">
@@ -710,6 +746,8 @@ export default function QuotationSettingsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  )}
 
       {/* Universal Confirmation Alert Dialog */}
       <Dialog

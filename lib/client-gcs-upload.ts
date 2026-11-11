@@ -16,6 +16,7 @@ export type ClientGCSUploadContext =
   | 'website-project'
   | 'website-team'
   | 'website-testimonial'
+  | 'boq-item'
 
 export type UploadedGCSFileMeta = {
   url: string

@@ -12,6 +12,7 @@ import type {
   RequisitionFieldValue,
   BoardVariantAttributes,
   BoqSavedAccessoryItem,
+  BoqSavedApplianceItem,
   CardSection,
 } from '../types/boq-builder-types'
 import {
@@ -44,6 +45,8 @@ export function SectionBlock({
   boqSavedAccessories,
   onSelectSavedAccessory,
   onSaveNewSavedAccessory,
+  boqSavedAppliances,
+  onSelectSavedAppliance,
   onPasteItem,
 }: {
   section: CardSection
@@ -62,6 +65,8 @@ export function SectionBlock({
   boqSavedAccessories?: BoqSavedAccessoryItem[]
   onSelectSavedAccessory?: (ri: number, item: BoqSavedAccessoryItem) => void
   onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
+  boqSavedAppliances?: BoqSavedApplianceItem[]
+  onSelectSavedAppliance?: (ri: number, item: BoqSavedApplianceItem) => void
   onPasteItem?: (item: RequisitionItemInput) => void
 }) {
   const viewMode = getViewModeForSection(section)
@@ -210,6 +215,8 @@ export function SectionBlock({
             boqSavedAccessories={boqSavedAccessories}
             onSelectSavedAccessory={onSelectSavedAccessory}
             onSaveNewSavedAccessory={onSaveNewSavedAccessory}
+            boqSavedAppliances={boqSavedAppliances}
+            onSelectSavedAppliance={onSelectSavedAppliance}
           />
         </div>
       )}

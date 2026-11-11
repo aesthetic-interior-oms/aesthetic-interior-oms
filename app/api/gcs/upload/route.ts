@@ -215,6 +215,8 @@ function resolveGCSFolder(context: string, ownerId: string): string {
       return `website-team/${ownerId}`
     case 'website-testimonial':
       return `website-testimonials/${ownerId}`
+    case 'boq-item':
+      return `boq-catalog/${ownerId}`
     default:
       return `attachments/${ownerId}`
   }

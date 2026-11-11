@@ -1638,10 +1638,31 @@ model BoqSavedAccessoryItem {
   category    String   @default("")
   itemCode    String   @default("")
   defaultUnit String   @default("Pcs")
+  imageUrl    String?
   isActive    Boolean  @default(true)
   serialNo    Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([isActive, serialNo])
+}
+
+model BoqSavedApplianceItem {
+  id                      String   @id @default(cuid())
+  name                    String
+  category                String   @default("")
+  brandModelCode          String   @default("")
+  dimW                    String   @default("")
+  dimD                    String   @default("")
+  dimH                    String   @default("")
+  cabinetNicheCutOutSize String   @default("")
+  defaultUnitPrice        String   @default("")
+  defaultUnit             String   @default("Nos")
+  imageUrl                String?
+  isActive                Boolean  @default(true)
+  serialNo                Int      @default(0)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   @@index([isActive, serialNo])
 }

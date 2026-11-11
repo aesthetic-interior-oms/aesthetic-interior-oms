@@ -246,12 +246,20 @@ export function RequisitionBuilderClient({
   const [isSubmittingAmendment, setIsSubmittingAmendment] = useState(false)
   const [notes, setNotes] = useState<string>(existingRequisition?.notes || '')
   const [boqSavedAccessories, setBoqSavedAccessories] = useState<BoqSavedAccessoryItem[]>(DEFAULT_SAVED_ACCESSORIES)
+  const [boqSavedAppliances, setBoqSavedAppliances] = useState<BoqSavedApplianceItem[]>(DEFAULT_SAVED_APPLIANCES)
 
   useEffect(() => {
     fetch('/api/boq/saved-accessories')
       .then((r) => r.json())
       .then((data: { success: boolean; items?: BoqSavedAccessoryItem[] }) => {
-        if (data.success && data.items) setBoqSavedAccessories(data.items)
+        if (data.success && data.items && data.items.length > 0) setBoqSavedAccessories(data.items)
+      })
+      .catch(() => {})
+
+    fetch('/api/boq/saved-appliances')
+      .then((r) => r.json())
+      .then((data: { success: boolean; items?: BoqSavedApplianceItem[] }) => {
+        if (data.success && data.items && data.items.length > 0) setBoqSavedAppliances(data.items)
       })
       .catch(() => {})
   }, [])
@@ -836,12 +844,51 @@ export function RequisitionBuilderClient({
         ...prevAttrs,
         accessoryCategory: item.category,
         itemCode: item.itemCode,
+        imageUrl: item.imageUrl || prevAttrs.imageUrl,
       }
       current.variantAttributes = nextAttrs
       const specParts = [
         nextAttrs.accessoryCategory,
         nextAttrs.itemCode ? `Code: ${nextAttrs.itemCode}` : '',
         nextAttrs.dimensions,
+      ].filter(Boolean)
+      if (specParts.length > 0) current.specifications = specParts.join(' | ')
+      rows[rowIndex] = current
+      return { ...prev, [key]: rows }
+    })
+  }, [])
+
+  const handleSelectSavedAppliance = useCallback((cardKey: string, sectionId: string, rowIndex: number, item: BoqSavedApplianceItem) => {
+    const key = sectionItemKey(cardKey, sectionId)
+    setItemsMap((prev) => {
+      const rows = [...(prev[key] ?? [])]
+      const current = { ...rows[rowIndex] }
+      current.materialName = item.name
+      if (item.defaultUnit) current.unit = item.defaultUnit
+      const prevAttrs: BoardVariantAttributes = current.variantAttributes || {}
+      const nextAttrs: BoardVariantAttributes = {
+        ...prevAttrs,
+        applianceCategory: item.category,
+        brandModelCode: item.brandModelCode,
+        dimW: item.dimW || prevAttrs.dimW,
+        dimD: item.dimD || prevAttrs.dimD,
+        dimH: item.dimH || prevAttrs.dimH,
+        cabinetNicheCutOutSize: item.cabinetNicheCutOutSize || prevAttrs.cabinetNicheCutOutSize,
+        unitPrice: item.defaultUnitPrice || prevAttrs.unitPrice,
+        imageUrl: item.imageUrl || prevAttrs.imageUrl,
+      }
+      if (item.defaultUnitPrice) {
+        const cleanP = parseFloat(item.defaultUnitPrice.replace(/[^0-9.]/g, ''))
+        const qty = parseFloat(String(prevAttrs.qtyLabel || current.netQuantity || 1))
+        if (!isNaN(cleanP) && !isNaN(qty)) {
+          nextAttrs.totalAmount = `৳${Math.round(qty * cleanP).toLocaleString('en-IN')}`
+        }
+      }
+      current.variantAttributes = nextAttrs
+      const specParts = [
+        nextAttrs.applianceCategory,
+        nextAttrs.brandModelCode ? `Model: ${nextAttrs.brandModelCode}` : '',
+        nextAttrs.cabinetNicheCutOutSize ? `Cutout: ${nextAttrs.cabinetNicheCutOutSize}` : '',
       ].filter(Boolean)
       if (specParts.length > 0) current.specifications = specParts.join(' | ')
       rows[rowIndex] = current
@@ -1881,6 +1928,8 @@ export function RequisitionBuilderClient({
                       boqSavedAccessories={boqSavedAccessories}
                       onSelectSavedAccessory={(ri, item) => handleSelectSavedAccessory(currentCardKey, section.id, ri, item)}
                       onSaveNewSavedAccessory={handleSaveNewAccessory}
+                      boqSavedAppliances={boqSavedAppliances}
+                      onSelectSavedAppliance={(ri, item) => handleSelectSavedAppliance(currentCardKey, section.id, ri, item)}
                       onPasteItem={(item) => handlePasteItemToSection(item, section.id, currentCardKey)}
                     />
                   ))
@@ -1979,6 +2028,8 @@ export function RequisitionBuilderClient({
                       boqSavedAccessories={boqSavedAccessories}
                       onSelectSavedAccessory={(ri, item) => handleSelectSavedAccessory(EXTRA_KEY, section.id, ri, item)}
                       onSaveNewSavedAccessory={handleSaveNewAccessory}
+                      boqSavedAppliances={boqSavedAppliances}
+                      onSelectSavedAppliance={(ri, item) => handleSelectSavedAppliance(EXTRA_KEY, section.id, ri, item)}
                       onPasteItem={(item) => handlePasteItemToSection(item, section.id, EXTRA_KEY)}
                     />
                   ))
@@ -2045,6 +2096,8 @@ export function RequisitionBuilderClient({
                             boqSavedAccessories={boqSavedAccessories}
                             onSelectSavedAccessory={(sectionId, ri, item) => handleSelectSavedAccessory(li.id, sectionId, ri, item)}
                             onSaveNewSavedAccessory={handleSaveNewAccessory}
+                            boqSavedAppliances={boqSavedAppliances}
+                            onSelectSavedAppliance={(sectionId, ri, item) => handleSelectSavedAppliance(li.id, sectionId, ri, item)}
                             onPasteItem={(sectionId, pItem) => handlePasteItemToSection(pItem, sectionId, li.id)}
                           />
                         )
@@ -2074,6 +2127,8 @@ export function RequisitionBuilderClient({
             boqSavedAccessories={boqSavedAccessories}
             onSelectSavedAccessory={(sectionId, ri, item) => handleSelectSavedAccessory(EXTRA_KEY, sectionId, ri, item)}
             onSaveNewSavedAccessory={handleSaveNewAccessory}
+            boqSavedAppliances={boqSavedAppliances}
+            onSelectSavedAppliance={(sectionId, ri, item) => handleSelectSavedAppliance(EXTRA_KEY, sectionId, ri, item)}
             onPasteItem={(sectionId, pItem) => handlePasteItemToSection(pItem, sectionId, EXTRA_KEY)}
           />
         </div>

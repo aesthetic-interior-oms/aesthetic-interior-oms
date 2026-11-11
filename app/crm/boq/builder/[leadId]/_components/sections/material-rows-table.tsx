@@ -13,6 +13,7 @@ import type {
   RequisitionFieldValue,
   BoardVariantAttributes,
   BoqSavedAccessoryItem,
+  BoqSavedApplianceItem,
 } from '../types/boq-builder-types'
 import {
   DEFAULT_ACCESSORY_CATEGORIES,
@@ -71,6 +72,8 @@ export function MaterialRowsTable({
   boqSavedAccessories,
   onSelectSavedAccessory,
   onSaveNewSavedAccessory,
+  boqSavedAppliances,
+  onSelectSavedAppliance,
 }: {
   rows: RequisitionItemInput[]
   viewMode: ViewModeType
@@ -93,6 +96,8 @@ export function MaterialRowsTable({
   boqSavedAccessories?: BoqSavedAccessoryItem[]
   onSelectSavedAccessory?: (rowIndex: number, item: BoqSavedAccessoryItem) => void
   onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
+  boqSavedAppliances?: BoqSavedApplianceItem[]
+  onSelectSavedAppliance?: (rowIndex: number, item: BoqSavedApplianceItem) => void
 }) {
   const accessoryCategories = useMemo(() => {
     const set = new Set<string>(DEFAULT_ACCESSORY_CATEGORIES)
@@ -103,6 +108,16 @@ export function MaterialRowsTable({
     }
     return Array.from(set)
   }, [boqSavedAccessories])
+
+  const applianceCategories = useMemo(() => {
+    const set = new Set<string>(DEFAULT_APPLIANCE_CATEGORIES)
+    if (boqSavedAppliances) {
+      for (const item of boqSavedAppliances) {
+        if (item.category?.trim()) set.add(item.category.trim())
+      }
+    }
+    return Array.from(set)
+  }, [boqSavedAppliances])
   return (
     <div className="overflow-hidden rounded-lg border border-border/70 bg-background shadow-2xs">
       {rows.length === 0 ? (
@@ -1195,23 +1210,43 @@ export function MaterialRowsTable({
 
                     {/* 3. Item Name with Saved Library Dropdown */}
                     <td className={GRID_TD}>
-                      <AccessoryItemCombobox
-                        value={item.materialName}
-                        onChange={(val) => onChange(ri, 'materialName', val)}
-                        onSelectItem={(saved) => {
-                          if (onSelectSavedAccessory) {
-                            onSelectSavedAccessory(ri, saved)
-                          } else {
-                            onChange(ri, 'materialName', saved.name)
-                            if (saved.defaultUnit) onChange(ri, 'unit', saved.defaultUnit)
-                            onUpdateVariant(ri, 'accessoryCategory', saved.category)
-                            onUpdateVariant(ri, 'itemCode', saved.itemCode)
-                          }
-                        }}
-                        savedItems={boqSavedAccessories || DEFAULT_SAVED_ACCESSORIES}
-                        onSaveNewItem={onSaveNewSavedAccessory ? (name) => onSaveNewSavedAccessory(name, attrs.accessoryCategory, attrs.itemCode) : undefined}
-                        placeholder="Select or type item name..."
-                      />
+                      <div className="flex items-center gap-1.5 w-full">
+                        {attrs.imageUrl && (
+                          <a
+                            href={String(attrs.imageUrl)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="View accessory photo"
+                            className="shrink-0 w-6 h-6 rounded border border-border/80 overflow-hidden bg-muted hover:ring-1 hover:ring-pink-500 shadow-2xs"
+                          >
+                            <img
+                              src={String(attrs.imageUrl)}
+                              alt="accessory"
+                              className="w-full h-full object-cover"
+                            />
+                          </a>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <AccessoryItemCombobox
+                            value={item.materialName}
+                            onChange={(val) => onChange(ri, 'materialName', val)}
+                            onSelectItem={(saved) => {
+                              if (onSelectSavedAccessory) {
+                                onSelectSavedAccessory(ri, saved)
+                              } else {
+                                onChange(ri, 'materialName', saved.name)
+                                if (saved.defaultUnit) onChange(ri, 'unit', saved.defaultUnit)
+                                onUpdateVariant(ri, 'accessoryCategory', saved.category)
+                                onUpdateVariant(ri, 'itemCode', saved.itemCode)
+                                if (saved.imageUrl) onUpdateVariant(ri, 'imageUrl', saved.imageUrl)
+                              }
+                            }}
+                            savedItems={boqSavedAccessories || DEFAULT_SAVED_ACCESSORIES}
+                            onSaveNewItem={onSaveNewSavedAccessory ? (name) => onSaveNewSavedAccessory(name, attrs.accessoryCategory, attrs.itemCode) : undefined}
+                            placeholder="Select or type item name..."
+                          />
+                        </div>
+                      </div>
                     </td>
 
                     {/* 4. Item Code */}
@@ -1444,12 +1479,12 @@ export function MaterialRowsTable({
                         className={GRID_CELL_SELECT}
                       >
                         <option value="">Select Category...</option>
-                        {DEFAULT_APPLIANCE_CATEGORIES.map((cat) => (
+                        {applianceCategories.map((cat) => (
                           <option key={cat} value={cat}>
                             {cat}
                           </option>
                         ))}
-                        {attrs.applianceCategory && !DEFAULT_APPLIANCE_CATEGORIES.includes(attrs.applianceCategory) && (
+                        {attrs.applianceCategory && !applianceCategories.includes(attrs.applianceCategory) && (
                           <option value={attrs.applianceCategory}>{attrs.applianceCategory}</option>
                         )}
                       </select>
@@ -1457,30 +1492,54 @@ export function MaterialRowsTable({
 
                     {/* 3. Item Name with Dropdown */}
                     <td className={GRID_TD}>
-                      <ApplianceItemCombobox
-                        value={item.materialName}
-                        onChange={(val) => onChange(ri, 'materialName', val)}
-                        onSelectItem={(saved) => {
-                          onChange(ri, 'materialName', saved.name)
-                          if (saved.defaultUnit) onChange(ri, 'unit', saved.defaultUnit)
-                          onUpdateVariant(ri, 'applianceCategory', saved.category)
-                          onUpdateVariant(ri, 'brandModelCode', saved.brandModelCode)
-                          if (saved.dimW) onUpdateVariant(ri, 'dimW', saved.dimW)
-                          if (saved.dimD) onUpdateVariant(ri, 'dimD', saved.dimD)
-                          if (saved.dimH) onUpdateVariant(ri, 'dimH', saved.dimH)
-                          if (saved.cabinetNicheCutOutSize) onUpdateVariant(ri, 'cabinetNicheCutOutSize', saved.cabinetNicheCutOutSize)
-                          if (saved.defaultUnitPrice) {
-                            onUpdateVariant(ri, 'unitPrice', saved.defaultUnitPrice)
-                            const cleanP = parseFloat(saved.defaultUnitPrice.replace(/[^0-9.]/g, ''))
-                            const qty = parseFloat(String(attrs.qtyLabel || item.netQuantity || 1))
-                            if (!isNaN(cleanP) && !isNaN(qty)) {
-                              onUpdateVariant(ri, 'totalAmount', `৳${Math.round(qty * cleanP).toLocaleString('en-IN')}`)
-                            }
-                          }
-                        }}
-                        savedItems={DEFAULT_SAVED_APPLIANCES}
-                        placeholder="Select or type appliance..."
-                      />
+                      <div className="flex items-center gap-1.5 w-full">
+                        {attrs.imageUrl && (
+                          <a
+                            href={String(attrs.imageUrl)}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="View appliance photo"
+                            className="shrink-0 w-6 h-6 rounded border border-border/80 overflow-hidden bg-muted hover:ring-1 hover:ring-teal-500 shadow-2xs"
+                          >
+                            <img
+                              src={String(attrs.imageUrl)}
+                              alt="appliance"
+                              className="w-full h-full object-cover"
+                            />
+                          </a>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <ApplianceItemCombobox
+                            value={item.materialName}
+                            onChange={(val) => onChange(ri, 'materialName', val)}
+                            onSelectItem={(saved) => {
+                              if (onSelectSavedAppliance) {
+                                onSelectSavedAppliance(ri, saved)
+                              } else {
+                                onChange(ri, 'materialName', saved.name)
+                                if (saved.defaultUnit) onChange(ri, 'unit', saved.defaultUnit)
+                                onUpdateVariant(ri, 'applianceCategory', saved.category)
+                                onUpdateVariant(ri, 'brandModelCode', saved.brandModelCode)
+                                if (saved.dimW) onUpdateVariant(ri, 'dimW', saved.dimW)
+                                if (saved.dimD) onUpdateVariant(ri, 'dimD', saved.dimD)
+                                if (saved.dimH) onUpdateVariant(ri, 'dimH', saved.dimH)
+                                if (saved.cabinetNicheCutOutSize) onUpdateVariant(ri, 'cabinetNicheCutOutSize', saved.cabinetNicheCutOutSize)
+                                if (saved.imageUrl) onUpdateVariant(ri, 'imageUrl', saved.imageUrl)
+                                if (saved.defaultUnitPrice) {
+                                  onUpdateVariant(ri, 'unitPrice', saved.defaultUnitPrice)
+                                  const cleanP = parseFloat(saved.defaultUnitPrice.replace(/[^0-9.]/g, ''))
+                                  const qty = parseFloat(String(attrs.qtyLabel || item.netQuantity || 1))
+                                  if (!isNaN(cleanP) && !isNaN(qty)) {
+                                    onUpdateVariant(ri, 'totalAmount', `৳${Math.round(qty * cleanP).toLocaleString('en-IN')}`)
+                                  }
+                                }
+                              }
+                            }}
+                            savedItems={boqSavedAppliances || DEFAULT_SAVED_APPLIANCES}
+                            placeholder="Select or type appliance..."
+                          />
+                        </div>
+                      </div>
                     </td>
 
                     {/* 4. Brand & Model Code */}

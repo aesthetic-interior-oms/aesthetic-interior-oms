@@ -14,6 +14,7 @@ import type {
   RequisitionFieldValue,
   BoardVariantAttributes,
   BoqSavedAccessoryItem,
+  BoqSavedApplianceItem,
   CardSection,
 } from '../types/boq-builder-types'
 import { formatBdtRounded } from '../helpers/boq-pdf-builder'
@@ -39,6 +40,8 @@ export function QuotationLineItemCard({
   boqSavedAccessories,
   onSelectSavedAccessory,
   onSaveNewSavedAccessory,
+  boqSavedAppliances,
+  onSelectSavedAppliance,
   onPasteItem,
 }: {
   item: QuotationLineItem
@@ -59,6 +62,8 @@ export function QuotationLineItemCard({
   boqSavedAccessories?: BoqSavedAccessoryItem[]
   onSelectSavedAccessory?: (sectionId: string, ri: number, item: BoqSavedAccessoryItem) => void
   onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
+  boqSavedAppliances?: BoqSavedApplianceItem[]
+  onSelectSavedAppliance?: (sectionId: string, ri: number, item: BoqSavedApplianceItem) => void
   onPasteItem?: (sectionId: string, item: RequisitionItemInput) => void
 }) {
   const [cardExpanded, setCardExpanded] = useState(true)
@@ -162,6 +167,8 @@ export function QuotationLineItemCard({
               boqSavedAccessories={boqSavedAccessories}
               onSelectSavedAccessory={(ri, item) => onSelectSavedAccessory?.(section.id, ri, item)}
               onSaveNewSavedAccessory={onSaveNewSavedAccessory}
+              boqSavedAppliances={boqSavedAppliances}
+              onSelectSavedAppliance={(ri, item) => onSelectSavedAppliance?.(section.id, ri, item)}
               onPasteItem={(pItem) => onPasteItem?.(section.id, pItem)}
             />
           ))}
