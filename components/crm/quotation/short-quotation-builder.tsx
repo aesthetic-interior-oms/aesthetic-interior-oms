@@ -562,6 +562,27 @@ export function ShortQuotationBuilder({
     return buildShortQuotationSummary(content)
   }, [content])
 
+  const sortedFloors = useMemo(() => {
+    if (!content || !Array.isArray(content.floors)) return []
+    return [...content.floors].sort((a, b) => a.sortOrder - b.sortOrder)
+  }, [content])
+
+  const isAllCollapsed = useMemo(() => {
+    if (sortedFloors.length === 0) return false
+    return sortedFloors.every((f) => collapsedFloorIds.has(f.id))
+  }, [sortedFloors, collapsedFloorIds])
+
+  const toggleCollapseAll = () => {
+    if (isAllCollapsed) {
+      setCollapsedFloorIds(new Set())
+      setCollapsedRoomIds(new Set())
+    } else {
+      setCollapsedFloorIds(new Set(sortedFloors.map((f) => f.id)))
+      const allRoomIds = (content?.rooms ?? []).map((r) => r.id)
+      setCollapsedRoomIds(new Set(allRoomIds))
+    }
+  }
+
   const updateContent = (updater: (prev: ShortQuotationContent) => ShortQuotationContent) => {
     setContent((prev) => (prev ? normalizeShortQuotationContent(updater(prev)) : prev))
   }
@@ -1189,23 +1210,6 @@ export function ShortQuotationBuilder({
     }
   }
 
-  const sortedFloors = Array.isArray(content?.floors) ? [...content.floors].sort((a, b) => a.sortOrder - b.sortOrder) : []
-
-  const isAllCollapsed = useMemo(() => {
-    if (sortedFloors.length === 0) return false
-    return sortedFloors.every((f) => collapsedFloorIds.has(f.id))
-  }, [sortedFloors, collapsedFloorIds])
-
-  const toggleCollapseAll = () => {
-    if (isAllCollapsed) {
-      setCollapsedFloorIds(new Set())
-      setCollapsedRoomIds(new Set())
-    } else {
-      setCollapsedFloorIds(new Set(sortedFloors.map((f) => f.id)))
-      const allRoomIds = (content?.rooms ?? []).map((r) => r.id)
-      setCollapsedRoomIds(new Set(allRoomIds))
-    }
-  }
   const allRooms = Array.isArray(content?.rooms) ? content.rooms : []
   const taskbarFloorId = activeFloorId ?? sortedFloors.at(-1)?.id ?? null
   const taskbarRoomId = taskbarFloorId
@@ -1644,7 +1648,7 @@ export function ShortQuotationBuilder({
               const floorRooms = allRooms
                 .filter((room) => room.floorId === floor.id)
                 .sort((a, b) => a.sortOrder - b.sortOrder)
-              const floorSummary = summary.floors.find((item) => item.floor.id === floor.id)
+              const floorSummary = summary?.floors?.find((item) => item.floor.id === floor.id)
               const isFloorCollapsed = collapsedFloorIds.has(floor.id)
 
               return (
