@@ -29,6 +29,11 @@ type TaskLead = {
   stage: string;
   subStatus: string | null;
   updatedAt: string;
+  assignedAt?: string | null;
+  assignedDate?: string | null;
+  assignedMonthKey?: string | null;
+  assignedYear?: number | null;
+  assignedMonth?: number | null;
   visitDate: string | null;
   visitMonthKey: string | null;
   latestFirstMeeting: {
@@ -74,8 +79,7 @@ function formatLabel(value: string | null | undefined) {
 
 function getRecentMonthsList() {
   const months: { label: string; value: string }[] = [
-    { label: "All Visit Months", value: "ALL" },
-    { label: "No Visit Date", value: "NO_VISIT" },
+    { label: "All Assigned Months", value: "ALL" },
   ];
   const now = new Date();
 
@@ -115,7 +119,7 @@ export default function QuotationAssignedTaskPage() {
   const availableMonths = useMemo(() => getRecentMonthsList(), []);
   const [selectedMonth, setSelectedMonth] = useState("ALL");
   const selectedMonthLabel =
-    availableMonths.find((month) => month.value === selectedMonth)?.label ?? "All Visit Months";
+    availableMonths.find((month) => month.value === selectedMonth)?.label ?? "All Assigned Months";
 
   const loadTasks = useCallback(async (monthKey = "ALL", silent = false) => {
     if (!silent) setLoading(true);
@@ -223,18 +227,20 @@ export default function QuotationAssignedTaskPage() {
 
   const monthGroups = useMemo(() => {
     const groups = new Map<string, TaskLead[]>();
-    const noVisit: TaskLead[] = [];
     for (const lead of filteredLeads) {
-      if (!lead.visitMonthKey) {
-        noVisit.push(lead);
-        continue;
-      }
-      const group = groups.get(lead.visitMonthKey) ?? [];
+      const key = lead.assignedMonthKey || "UNASSIGNED";
+      const group = groups.get(key) ?? [];
       group.push(lead);
-      groups.set(lead.visitMonthKey, group);
+      groups.set(key, group);
     }
     const sorted = [...groups.entries()].sort(([a], [b]) => b.localeCompare(a));
-    if (noVisit.length) sorted.push(["NO_VISIT_DATE", noVisit]);
+    for (const [_, groupLeads] of sorted) {
+      groupLeads.sort((a, b) => {
+        const timeA = a.assignedAt ? new Date(a.assignedAt).getTime() : 0;
+        const timeB = b.assignedAt ? new Date(b.assignedAt).getTime() : 0;
+        return timeB - timeA;
+      });
+    }
     return sorted;
   }, [filteredLeads]);
 
@@ -576,6 +582,7 @@ export default function QuotationAssignedTaskPage() {
                         <th className="px-4 py-3 font-medium">Lead Name</th>
                         <th className="px-4 py-3 font-medium">Stage / Status</th>
                         <th className="px-4 py-3 font-medium">Location & Sqft</th>
+                        <th className="px-4 py-3 font-medium">Assigned Date</th>
                         <th className="px-4 py-3 font-medium">Visit Date</th>
                         <th className="px-4 py-3 font-medium">Assignees</th>
                         <th className="px-4 py-3 text-right font-medium">Actions</th>
@@ -603,6 +610,9 @@ export default function QuotationAssignedTaskPage() {
                                 <span className="font-semibold text-purple-700 dark:text-purple-400">Detail SQFT:</span> {lead.avgDetailSqft ? `${lead.avgDetailSqft.toLocaleString()}` : "0"}
                               </span>
                             </div>
+                          </td>
+                          <td className="px-4 py-3 text-xs font-semibold text-foreground">
+                            {lead.assignedAt ? new Date(lead.assignedAt).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' }) : "Not set"}
                           </td>
                           <td className="px-4 py-3 text-xs">
                             {lead.visitDate ? new Date(lead.visitDate).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' }) : "Not set"}
@@ -649,9 +659,10 @@ export default function QuotationAssignedTaskPage() {
               <section key={monthKey} className="space-y-3">
                 <div className="flex items-center gap-3 pt-2">
                   <div className="h-px flex-1 bg-border/60" />
-                  <h2 className="rounded-full border border-border/70 bg-card px-4 py-1.5 text-sm font-bold tracking-wide shadow-sm">
-                    {monthKey === "NO_VISIT_DATE"
-                      ? "No Visit Date"
+                  <h2 className="rounded-full border border-border/70 bg-card px-4 py-1.5 text-sm font-bold tracking-wide shadow-sm flex items-center gap-2">
+                    <CalendarClock className="h-4 w-4 text-primary" />
+                    {monthKey === "UNASSIGNED"
+                      ? "Unassigned / General"
                       : new Date(`${monthKey}-01T00:00:00`).toLocaleString("en-US", { month: "long", year: "numeric" })}
                   </h2>
                   <Badge variant="secondary">{monthLeads.length} {monthLeads.length === 1 ? "task" : "tasks"}</Badge>
@@ -779,6 +790,15 @@ export default function QuotationAssignedTaskPage() {
                         <span className="max-w-[150px] truncate" title={`Jr Arch: ${lead.jrArchitectAssignee.fullName}`}>Jr Arch: {lead.jrArchitectAssignee.fullName}</span>
                       </span>
                     )}
+                    <span className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50/80 px-2.5 py-1 text-xs font-semibold text-blue-900 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-200">
+                      <CalendarClock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                      Assigned:
+                      <span className="font-bold text-foreground">
+                        {lead.assignedAt
+                          ? new Date(lead.assignedAt).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })
+                          : "Not set"}
+                      </span>
+                    </span>
                     <span className="inline-flex items-center gap-1">
                       <CalendarClock className="h-4 w-4 shrink-0 text-primary/70" />
                       Visit Date:

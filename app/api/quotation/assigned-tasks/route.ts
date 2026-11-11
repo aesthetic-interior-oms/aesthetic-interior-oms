@@ -83,6 +83,7 @@ export async function GET(request: Request) {
         location: true,
         stage: true,
         subStatus: true,
+        created_at: true,
         updated_at: true,
         budget: true,
         assignments: {
@@ -93,6 +94,7 @@ export async function GET(request: Request) {
           },
           select: {
             department: true,
+            createdAt: true,
             user: {
               select: { id: true, fullName: true, email: true },
             },
@@ -147,6 +149,15 @@ export async function GET(request: Request) {
         ? `${visitDate.getFullYear()}-${String(visitDate.getMonth() + 1).padStart(2, '0')}`
         : null
 
+      // Compute assignment date based on quotation assignment or lead created_at
+      const quotationAssignments = lead.assignments
+        .filter((a) => a.department === LeadAssignmentDepartment.QUOTATION)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+      const firstAssignmentDate = quotationAssignments[0]?.createdAt ?? lead.created_at
+      const assignedYear = firstAssignmentDate.getFullYear()
+      const assignedMonth = firstAssignmentDate.getMonth() + 1
+      const assignedMonthKey = `${assignedYear}-${String(assignedMonth).padStart(2, '0')}`
+
       // Filter drafts edited in monthRange by current user if monthRange is provided
       const userMonthDrafts = lead.quotationDrafts.filter(
         (d) => d.createdById === authResult.actorUserId || d.updatedById === authResult.actorUserId,
@@ -168,7 +179,13 @@ export async function GET(request: Request) {
         location: lead.location,
         stage: lead.stage,
         subStatus: lead.subStatus,
+        createdAt: lead.created_at.toISOString(),
         updatedAt: latestDraftUpdate,
+        assignedAt: firstAssignmentDate.toISOString(),
+        assignedDate: firstAssignmentDate.toISOString(),
+        assignedMonthKey,
+        assignedYear,
+        assignedMonth,
         visitDate: visitDate?.toISOString() ?? null,
         visitMonthKey,
         budget: lead.budget,
@@ -192,10 +209,13 @@ export async function GET(request: Request) {
       }
     })
 
+    // Sort by assignedAt descending (latest assigned at the top)
+    tasksData.sort((a, b) => new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime())
+
     const filteredTasksData = requestedMonth === 'NO_VISIT'
       ? tasksData.filter((task) => !task.visitMonthKey)
       : monthKey
-        ? tasksData.filter((task) => task.visitMonthKey === monthKey)
+        ? tasksData.filter((task) => task.assignedMonthKey === monthKey || task.visitMonthKey === monthKey)
         : tasksData
 
     const totalDetailSqft = filteredTasksData.reduce((sum, item) => sum + item.avgDetailSqft, 0)
