@@ -37,6 +37,7 @@ export interface UsedMaterialEntry {
     frontLaminate: string
     backLaminate: string
     baseMaterial: string
+    isSameLaminate?: boolean
   }
   tags: { label: string; value: string; color?: string }[]
 }
@@ -143,6 +144,7 @@ function buildDisplayDetails(item: RequisitionItemInput): {
     frontLaminate: string
     backLaminate: string
     baseMaterial: string
+    isSameLaminate?: boolean
   }
   tags: { label: string; value: string }[]
 } {
@@ -150,22 +152,24 @@ function buildDisplayDetails(item: RequisitionItemInput): {
   const tags: { label: string; value: string }[] = []
   let displayTitle = item.materialName || ''
   let subtitle = ''
-  let cabinetParts: { thickness: string; frontLaminate: string; backLaminate: string; baseMaterial: string } | undefined
+  let cabinetParts: { thickness: string; frontLaminate: string; backLaminate: string; baseMaterial: string; isSameLaminate?: boolean } | undefined
 
   if (item.workCategory === 'CABINETS_CLOSETS') {
     const baseMat = attrs.baseMaterial || attrs.coreSubstrateType || 'MR MDF Architect Grade Board'
     const thk = attrs.coreThickness ? String(attrs.coreThickness) : ''
     const frontLam = (attrs.frontLaminateCode || attrs.laminateFinishDetails ? String(attrs.frontLaminateCode || attrs.laminateFinishDetails) : '') || 'Raw Board'
     const backLam = (attrs.backLaminateCode ? String(attrs.backLaminateCode) : '') || 'Raw Board'
+    const isSameLam = !!frontLam && !!backLam && frontLam.trim().toLowerCase() === backLam.trim().toLowerCase()
 
     cabinetParts = {
       thickness: thk,
       frontLaminate: frontLam,
       backLaminate: backLam,
       baseMaterial: String(baseMat),
+      isSameLaminate: isSameLam,
     }
 
-    displayTitle = [thk, frontLam, backLam, baseMat].filter(Boolean).join(' ')
+    displayTitle = [thk, frontLam, isSameLam ? '' : backLam, baseMat].filter(Boolean).join(' ')
     subtitle = attrs.usage ? String(attrs.usage) : ''
     if (attrs.usage) {
       tags.push({ label: 'Usage', value: String(attrs.usage) })
@@ -180,15 +184,17 @@ function buildDisplayDetails(item: RequisitionItemInput): {
       const thk = attrs.coreThickness ? String(attrs.coreThickness) : ''
       const frontLam = (attrs.laminateTopSurface || attrs.frontLaminateCode ? String(attrs.laminateTopSurface || attrs.frontLaminateCode) : '') || 'Raw Board'
       const backLam = (attrs.surfaceCodeFinish || attrs.backLaminateCode ? String(attrs.surfaceCodeFinish || attrs.backLaminateCode) : '') || 'Raw Board'
+      const isSameLam = !!frontLam && !!backLam && frontLam.trim().toLowerCase() === backLam.trim().toLowerCase()
 
       cabinetParts = {
         thickness: thk,
         frontLaminate: frontLam,
         backLaminate: backLam,
         baseMaterial: String(baseMat),
+        isSameLaminate: isSameLam,
       }
 
-      displayTitle = [thk, frontLam, backLam, baseMat].filter(Boolean).join(' ')
+      displayTitle = [thk, frontLam, isSameLam ? '' : backLam, baseMat].filter(Boolean).join(' ')
       subtitle = attrs.functionalUsage ? String(attrs.functionalUsage) : ''
       if (attrs.functionalUsage) tags.push({ label: 'Usage', value: String(attrs.functionalUsage) })
       if (attrs.edgingTapeQty) tags.push({ label: 'Edge', value: String(attrs.edgingTapeQty) })
@@ -570,23 +576,29 @@ export function UsedMaterialsPalette({
 
                   {/* Material title: Board / Cabinet specific (Thickness + Front Lam [Blue] + Back Lam [Orange] + Base Material) */}
                   {entry.cabinetParts ? (
-                    <div className="space-y-1.5 mb-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {entry.cabinetParts.thickness && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-foreground border border-border/70">
-                            {entry.cabinetParts.thickness}
-                          </span>
-                        )}
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded bg-blue-600 text-white shadow-xs">
-                          {entry.cabinetParts.frontLaminate} (Front)
+                    <div className="flex flex-wrap items-center gap-1.5 mb-2 leading-snug">
+                      {entry.cabinetParts.thickness && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-muted text-foreground border border-border/70 shrink-0">
+                          {entry.cabinetParts.thickness}
                         </span>
-                        <span className="text-[10px] font-black px-2 py-0.5 rounded bg-orange-500 text-white shadow-xs">
-                          {entry.cabinetParts.backLaminate} (Back)
+                      )}
+                      <span
+                        className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-600 text-white shadow-xs shrink-0"
+                        title={entry.cabinetParts.isSameLaminate ? 'Front & Back laminate (Both sides same)' : 'Front Laminate'}
+                      >
+                        {entry.cabinetParts.frontLaminate}
+                      </span>
+                      {!entry.cabinetParts.isSameLaminate && entry.cabinetParts.backLaminate && (
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-500 text-white shadow-xs shrink-0"
+                          title="Back Laminate"
+                        >
+                          {entry.cabinetParts.backLaminate}
                         </span>
-                      </div>
-                      <p className="text-xs font-bold text-foreground leading-snug">
+                      )}
+                      <span className="text-xs font-bold text-foreground">
                         {entry.cabinetParts.baseMaterial}
-                      </p>
+                      </span>
                     </div>
                   ) : (
                     <p className="text-xs font-bold text-foreground leading-snug line-clamp-2 mb-1.5">
