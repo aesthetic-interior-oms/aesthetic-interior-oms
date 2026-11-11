@@ -323,3 +323,66 @@ export const CATEGORY_COLORS: Record<
   PAINT:            { bg: 'bg-indigo-50/70 dark:bg-indigo-950/20', text: 'text-indigo-950 dark:text-indigo-200', border: 'border-indigo-200/80 dark:border-indigo-900/60', pill: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/60 dark:text-indigo-200 border-indigo-300 dark:border-indigo-700', leftBorder: 'border-l-4 border-l-indigo-500' },
   APPLIANCES:       { bg: 'bg-teal-50/70 dark:bg-teal-950/20', text: 'text-teal-950 dark:text-teal-200', border: 'border-teal-200/80 dark:border-teal-900/60', pill: 'bg-teal-100 text-teal-800 dark:bg-teal-900/60 dark:text-teal-200 border-teal-300 dark:border-teal-700', leftBorder: 'border-l-4 border-l-teal-500' },
 }
+
+export const SCREW_ITEM_TYPE_OPTIONS = [
+  'Screw (General / Wood)',
+  'Drywall Screw (Star / Black)',
+  'Wood Screw (Flat Head / Zinc)',
+  'Self-Tapping Screw (GI)',
+  'SS 304 Stainless Screw',
+  'Full Thread Machine Screw',
+  'Gypsum Board Screw',
+  'Mirror Cap Screw',
+]
+
+export const SCREW_LENGTH_OPTIONS = [
+  '0.5" (1/2")',
+  '0.75" (3/4")',
+  '1.0" (1")',
+  '1.25" (1-1/4")',
+  '1.5" (1-1/2")',
+  '2.0" (2")',
+  '2.5" (2-1/2")',
+  '3.0" (3")',
+  '4.0" (4")',
+]
+
+export const NAIL_ITEM_NAME_OPTIONS = [
+  'Brad Nails (F-Nails for Air Gun)',
+  'Headless Pins (Pin Nails for Trim)',
+  'Wire Nail (Tarkata)',
+  'Masonry Steel Nail (Concrete)',
+  'Wood Nail Bulk',
+  'U-Staple Pins (Air Gun)',
+  'Both Side Pin (Laminate Holding)',
+  'Panel Framing Nails',
+]
+
+export const NAIL_LENGTH_OPTIONS = [
+  '10mm (3/8")',
+  '15mm (5/8")',
+  '20mm (3/4")',
+  '25mm (1")',
+  '30mm (1-3/16")',
+  '35mm (1-3/8")',
+  '40mm (1-1/2")',
+  '50mm (2")',
+  '2.5" (65mm)',
+  '3.0" (75mm)',
+  '4.0" (100mm)',
+  'Standard',
+]
+
+export const ADHESIVE_CHEMICAL_OPTIONS = [
+  'Lichu Gum (PVA Wood Glue)',
+  'Fevicol SH (Synthetic Resin)',
+  'Fevicol Marine (Waterproof Adhesive)',
+  'Fevicol HeatX (Fast Setting / Heat Resistant)',
+  'Fevicol ProBond (D3 Moisture Resistant)',
+  'Poli Solution Gum (Contact Adhesive)',
+  'Super Glue (Cyanoacrylate)',
+  'Silicone Sealant (Clear / White / Black)',
+  'Polyurethane (PU) Adhesive',
+  'Wood Filler / Putty',
+  'NC Thinner / Solvent Cleaner',
+]

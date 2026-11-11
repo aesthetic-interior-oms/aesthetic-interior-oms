@@ -11,6 +11,8 @@ import {
   Trash2,
   ChevronRight,
   Copy,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react'
 import type { RequisitionItemInput } from '@/lib/boq-service'
 import type {
@@ -52,6 +54,7 @@ interface UsedMaterialsPaletteProps {
   activeSection: CardSection | null
   currentCardKey: string
   onInsertItem: (item: RequisitionItemInput, targetSectionId?: string) => void
+  onCopyItem?: (item: RequisitionItemInput) => void
 }
 
 function hasMeaningfulData(item: RequisitionItemInput): boolean {
@@ -245,12 +248,65 @@ export function UsedMaterialsPalette({
   activeSection,
   currentCardKey,
   onInsertItem,
+  onCopyItem,
 }: UsedMaterialsPaletteProps) {
   const [search, setSearch] = useState('')
   const [selectedGroup, setSelectedGroup] = useState<string>('ALL')
   const [justInsertedId, setJustInsertedId] = useState<string | null>(null)
+  const [justCopiedId, setJustCopiedId] = useState<string | null>(null)
   const [persistedItems, setPersistedItems] = useState<RequisitionItemInput[]>([])
+  const [drawerWidth, setDrawerWidth] = useState<number>(380)
+  const [isResizing, setIsResizing] = useState(false)
+  const isResizingRef = useRef(false)
   const searchRef = useRef<HTMLInputElement>(null)
+
+  // Initialize width from localStorage (clamped to max 50vw)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('boq-used-materials-palette-width')
+        if (saved) {
+          const parsed = parseInt(saved, 10)
+          if (!isNaN(parsed) && parsed >= 320) {
+            const maxAllowed = Math.floor(window.innerWidth * 0.5)
+            setDrawerWidth(Math.min(parsed, maxAllowed))
+          }
+        }
+      } catch {}
+    }
+  }, [])
+
+  // Drag-to-resize handlers
+  const handleMouseDownResize = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    isResizingRef.current = true
+    setIsResizing(true)
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      if (!isResizingRef.current) return
+      const maxW = Math.max(340, Math.floor(window.innerWidth * 0.5))
+      const calculated = window.innerWidth - moveEvent.clientX
+      const clamped = Math.max(340, Math.min(calculated, maxW))
+      setDrawerWidth(clamped)
+    }
+
+    const onMouseUp = () => {
+      isResizingRef.current = false
+      setIsResizing(false)
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', onMouseUp)
+      setDrawerWidth((current) => {
+        try {
+          localStorage.setItem('boq-used-materials-palette-width', String(current))
+        } catch {}
+        return current
+      })
+    }
+
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', onMouseUp)
+  }
 
   useEffect(() => {
     setSelectedGroup('ALL')
@@ -428,6 +484,17 @@ export function UsedMaterialsPalette({
 
   if (!isOpen) return null
 
+  const maxAllowedWidth = typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.5) : 600
+  const isMaximized = drawerWidth >= maxAllowedWidth - 10
+
+  const toggleMaximize = () => {
+    const targetWidth = isMaximized ? 380 : maxAllowedWidth
+    setDrawerWidth(targetWidth)
+    try {
+      localStorage.setItem('boq-used-materials-palette-width', String(targetWidth))
+    } catch {}
+  }
+
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
       {/* Invisible Click-Outside Backdrop (No blur, 100% transparent and clear view) */}
@@ -439,9 +506,22 @@ export function UsedMaterialsPalette({
 
       {/* Drawer Panel */}
       <div
-        className="relative z-50 flex w-84 sm:w-92 flex-col bg-card border-l border-border shadow-2xl animate-in slide-in-from-right duration-200"
+        style={{ width: `${drawerWidth}px`, maxWidth: '50vw', minWidth: '340px' }}
+        className={`relative z-50 flex flex-col bg-card border-l border-border shadow-2xl transition-all duration-75 animate-in slide-in-from-right ${
+          isResizing ? 'select-none' : ''
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Left Resize Drag Handle (Drag left/right up to 50% screen width) */}
+        <div
+          onMouseDown={handleMouseDownResize}
+          className="absolute top-0 bottom-0 -left-2 w-4 cursor-ew-resize hover:bg-primary/20 active:bg-primary/40 z-50 group transition-colors flex items-center justify-center"
+          title="Drag left/right to resize drawer (up to 50% screen width)"
+        >
+          <div className="w-1 h-8 rounded-full bg-border/80 group-hover:bg-primary group-active:bg-primary transition-colors flex items-center justify-center">
+            <div className="w-0.5 h-4 bg-muted-foreground/40 group-hover:bg-primary-foreground rounded-full" />
+          </div>
+        </div>
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-gradient-to-r from-amber-500/10 to-card">
@@ -456,12 +536,23 @@ export function UsedMaterialsPalette({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer shrink-0 ml-2"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1 shrink-0 ml-2">
+            <button
+              type="button"
+              onClick={toggleMaximize}
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+              title={isMaximized ? 'Restore standard width' : 'Expand to 50% screen width'}
+            >
+              {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+              title="Close drawer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* ── Target Section Banner ── */}
@@ -558,20 +649,46 @@ export function UsedMaterialsPalette({
                   }`}
                   title={`Insert "${entry.displayTitle}" into ${activeSectionLabel}`}
                 >
-                  {/* Top row: group badge + insert indicator */}
+                  {/* Top row: group badge + copy & insert buttons */}
                   <div className="flex items-center justify-between gap-2 mb-1.5">
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted/80 text-muted-foreground border border-border/40 whitespace-nowrap">
                       {entry.groupLabel}
                     </span>
-                    <span className={`shrink-0 flex items-center gap-0.5 text-[10px] font-bold transition-all ${
-                      isInserted ? 'text-emerald-600' : 'text-muted-foreground/50 group-hover:text-primary'
-                    }`}>
-                      {isInserted ? (
-                        <><Check className="w-3 h-3" /> Added</>
-                      ) : (
-                        <><Plus className="w-3 h-3" /> Insert</>
+                    <div className="flex items-center gap-1.5">
+                      {onCopyItem && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            onCopyItem(entry.item)
+                            setJustCopiedId(entry.id)
+                            setTimeout(() => setJustCopiedId(null), 1200)
+                          }}
+                          className={`shrink-0 flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded transition-all cursor-pointer ${
+                            justCopiedId === entry.id
+                              ? 'text-emerald-700 bg-emerald-500/15'
+                              : 'text-muted-foreground/60 hover:text-primary hover:bg-primary/10'
+                          }`}
+                          title="Copy material specification to clipboard"
+                        >
+                          {justCopiedId === entry.id ? (
+                            <><Check className="w-3 h-3" /> Copied</>
+                          ) : (
+                            <><Copy className="w-3 h-3" /> Copy</>
+                          )}
+                        </span>
                       )}
-                    </span>
+                      <span className={`shrink-0 flex items-center gap-0.5 text-[10px] font-bold transition-all ${
+                        isInserted ? 'text-emerald-600' : 'text-muted-foreground/50 group-hover:text-primary'
+                      }`}>
+                        {isInserted ? (
+                          <><Check className="w-3 h-3" /> Added</>
+                        ) : (
+                          <><Plus className="w-3 h-3" /> Insert</>
+                        )}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Material title: Board / Cabinet specific (Thickness + Front Lam [Blue] + Back Lam [Orange] + Base Material) */}

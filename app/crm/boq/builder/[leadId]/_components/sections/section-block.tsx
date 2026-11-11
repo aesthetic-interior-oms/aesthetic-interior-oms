@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Trash2, Sparkles } from 'lucide-react'
+import { ChevronDown, ChevronRight, Trash2, Sparkles, Copy } from 'lucide-react'
 import type { RequisitionItemInput } from '@/lib/boq-service'
 import type {
   WallPanelingSubType,
@@ -48,6 +48,8 @@ export function SectionBlock({
   boqSavedAppliances,
   onSelectSavedAppliance,
   onPasteItem,
+  onCopyRow,
+  copiedItem,
 }: {
   section: CardSection
   rows: RequisitionItemInput[]
@@ -68,6 +70,8 @@ export function SectionBlock({
   boqSavedAppliances?: BoqSavedApplianceItem[]
   onSelectSavedAppliance?: (ri: number, item: BoqSavedApplianceItem) => void
   onPasteItem?: (item: RequisitionItemInput) => void
+  onCopyRow?: (rowIndex: number) => void
+  copiedItem?: RequisitionItemInput | null
 }) {
   const viewMode = getViewModeForSection(section)
   const isHardwareSection = section.wallPanelingSubType === 'SCREWS_FASTENERS' || section.wallPanelingSubType === 'NAILS_PINS' || section.wallPanelingSubType === 'ADHESIVES'
@@ -156,8 +160,19 @@ export function SectionBlock({
             </div>
           </div>
 
-          {/* Right: Row count & Remove */}
+          {/* Right: Paste, Row count & Remove */}
           <div className="flex items-center gap-2">
+            {copiedItem && onPasteItem && (
+              <button
+                type="button"
+                onClick={() => onPasteItem(copiedItem)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 border border-amber-500/40 rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer"
+                title={`Paste copied material into this section: ${copiedItem.materialName || 'Material'}`}
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Paste Row</span>
+              </button>
+            )}
             <span className="text-[11px] font-bold text-muted-foreground bg-background/90 px-2.5 py-1 rounded-full border border-border/70 shadow-2xs">
               {rows.length} {rows.length === 1 ? 'row' : 'rows'}
             </span>
@@ -217,6 +232,10 @@ export function SectionBlock({
             onSaveNewSavedAccessory={onSaveNewSavedAccessory}
             boqSavedAppliances={boqSavedAppliances}
             onSelectSavedAppliance={onSelectSavedAppliance}
+            onCopyRow={onCopyRow}
+            onPasteRow={copiedItem && onPasteItem ? () => onPasteItem(copiedItem) : undefined}
+            hasCopiedRow={!!copiedItem}
+            copiedItemName={copiedItem?.materialName || 'Material'}
           />
         </div>
       )}

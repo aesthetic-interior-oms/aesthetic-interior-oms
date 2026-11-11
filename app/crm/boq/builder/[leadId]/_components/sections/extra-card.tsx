@@ -39,6 +39,8 @@ export function ExtraCard({
   boqSavedAppliances,
   onSelectSavedAppliance,
   onPasteItem,
+  onCopyRow,
+  copiedItem,
 }: {
   sections: CardSection[]
   getRowsForSection: (sectionId: string) => RequisitionItemInput[]
@@ -59,6 +61,8 @@ export function ExtraCard({
   boqSavedAppliances?: BoqSavedApplianceItem[]
   onSelectSavedAppliance?: (sectionId: string, ri: number, item: BoqSavedApplianceItem) => void
   onPasteItem?: (sectionId: string, item: RequisitionItemInput) => void
+  onCopyRow?: (sectionId: string, rowIndex: number) => void
+  copiedItem?: RequisitionItemInput | null
 }) {
   const [expanded, setExpanded] = useState(true)
   const [showAddSection, setShowAddSection] = useState(false)
@@ -118,6 +122,8 @@ export function ExtraCard({
               boqSavedAppliances={boqSavedAppliances}
               onSelectSavedAppliance={(ri, item) => onSelectSavedAppliance?.(section.id, ri, item)}
               onPasteItem={(pItem) => onPasteItem?.(section.id, pItem)}
+              onCopyRow={(ri) => onCopyRow?.(section.id, ri)}
+              copiedItem={copiedItem}
             />
           ))}
 

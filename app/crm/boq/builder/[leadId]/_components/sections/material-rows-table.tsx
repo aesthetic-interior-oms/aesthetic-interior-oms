@@ -1,12 +1,13 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Package,
   Trash2,
   Plus,
   ArrowRight,
   Check,
+  Copy,
 } from 'lucide-react'
 import type { RequisitionItemInput } from '@/lib/boq-service'
 import { DEFAULT_CABINET_CATALOG, getCabinetThicknessOptions } from '@/lib/boq-cabinet-catalog'
@@ -27,6 +28,11 @@ import {
   BOARD_BASE_MATERIALS,
   BOARD_LAMINATE_CATALOG,
   WORK_CATEGORIES,
+  SCREW_ITEM_TYPE_OPTIONS,
+  SCREW_LENGTH_OPTIONS,
+  NAIL_ITEM_NAME_OPTIONS,
+  NAIL_LENGTH_OPTIONS,
+  ADHESIVE_CHEMICAL_OPTIONS,
 } from '../constants/boq-builder-constants'
 import {
   CEILING_LIGHTING_CATALOG,
@@ -76,6 +82,10 @@ export function MaterialRowsTable({
   onSaveNewSavedAccessory,
   boqSavedAppliances,
   onSelectSavedAppliance,
+  onCopyRow,
+  onPasteRow,
+  hasCopiedRow,
+  copiedItemName,
 }: {
   rows: RequisitionItemInput[]
   viewMode: ViewModeType
@@ -100,7 +110,20 @@ export function MaterialRowsTable({
   onSaveNewSavedAccessory?: (name: string, category?: string, itemCode?: string) => Promise<void> | void
   boqSavedAppliances?: BoqSavedApplianceItem[]
   onSelectSavedAppliance?: (rowIndex: number, item: BoqSavedApplianceItem) => void
+  onCopyRow?: (rowIndex: number) => void
+  onPasteRow?: () => void
+  hasCopiedRow?: boolean
+  copiedItemName?: string
 }) {
+  const [justCopiedRowIndex, setJustCopiedRowIndex] = useState<number | null>(null)
+
+  const handleCopyRow = (ri: number) => {
+    if (onCopyRow) {
+      onCopyRow(ri)
+      setJustCopiedRowIndex(ri)
+      setTimeout(() => setJustCopiedRowIndex(null), 1200)
+    }
+  }
   const accessoryCategories = useMemo(() => {
     const set = new Set<string>(DEFAULT_ACCESSORY_CATEGORIES)
     if (boqSavedAccessories) {
@@ -129,13 +152,23 @@ export function MaterialRowsTable({
             <span className="font-semibold text-foreground/80">No material specifications added yet</span>
             <span className="text-[11px] text-muted-foreground">Add a clean material row to start specifying materials for this section</span>
           </div>
-          <div className="flex items-center justify-center pt-1">
+          <div className="flex items-center justify-center gap-2 pt-1">
             <button
               onClick={onAddRow}
               className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-sm transition-colors cursor-pointer"
             >
               <Plus className="w-4 h-4" /> Add Material Row
             </button>
+            {hasCopiedRow && onPasteRow && (
+              <button
+                type="button"
+                onClick={onPasteRow}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 border border-amber-500/40 rounded-lg shadow-sm transition-colors cursor-pointer"
+                title={`Paste copied material: ${copiedItemName || 'Material'}`}
+              >
+                <Copy className="w-4 h-4" /> Paste Copied Row
+              </button>
+            )}
           </div>
         </div>
       ) : (
@@ -170,7 +203,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} min-w-[150px]`}>Edging Tape Qty</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Functional Usage</th>
                 <th className={`${GRID_TH} min-w-[140px] w-36 text-center`} title="Handmade (site-fabricated) or Factory Made (pre-cut / ready)">Make Type</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
+                <th className="px-1 py-2 w-14 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
@@ -360,15 +393,32 @@ export function MaterialRowsTable({
                       })()}
                     </td>
 
-                    {/* Delete */}
-                    <td className="p-0 w-8 text-center align-middle">
-                      <button
-                        onClick={() => onRemoveRow(ri)}
-                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                        title="Remove board row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                      </button>
+                    {/* Actions: Copy & Delete */}
+                    <td className="p-0.5 w-14 text-center align-middle">
+                      <div className="flex items-center justify-center gap-0.5">
+                        {onCopyRow && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyRow(ri)}
+                            className={`p-1.5 rounded transition-colors cursor-pointer ${
+                              justCopiedRowIndex === ri
+                                ? 'text-emerald-600 bg-emerald-500/15'
+                                : 'text-muted-foreground/40 hover:text-primary hover:bg-primary/10'
+                            }`}
+                            title="Copy this material row"
+                          >
+                            {justCopiedRowIndex === ri ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveRow(ri)}
+                          className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                          title="Remove row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -392,7 +442,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
                 <th className={`${GRID_TH} min-w-[150px]`}>Primary Usage</th>
                 <th className={`${GRID_TH} w-28`}>Notes / Col 1</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
+                <th className="px-1 py-2 w-14 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
@@ -577,15 +627,32 @@ export function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* Delete */}
-                    <td className="p-0 w-8 text-center align-middle">
-                      <button
-                        onClick={() => onRemoveRow(ri)}
-                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                        title="Remove row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                      </button>
+                    {/* Actions: Copy & Delete */}
+                    <td className="p-0.5 w-14 text-center align-middle">
+                      <div className="flex items-center justify-center gap-0.5">
+                        {onCopyRow && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyRow(ri)}
+                            className={`p-1.5 rounded transition-colors cursor-pointer ${
+                              justCopiedRowIndex === ri
+                                ? 'text-emerald-600 bg-emerald-500/15'
+                                : 'text-muted-foreground/40 hover:text-primary hover:bg-primary/10'
+                            }`}
+                            title="Copy this material row"
+                          >
+                            {justCopiedRowIndex === ri ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveRow(ri)}
+                          className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                          title="Remove row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -596,7 +663,7 @@ export function MaterialRowsTable({
       ) : viewMode === 'SCREW_SPEC' ? (
         /* ── 3. Screws & Structural Fasteners Table (10 Cols) ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
+          <table className="w-full text-xs text-left min-w-[700px] border-collapse divide-y divide-border/60">
             <thead className="bg-amber-600/10 border-b border-amber-600/20 text-amber-950 dark:text-amber-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
@@ -606,7 +673,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Usage Purpose</th>
                 <th className={`${GRID_TH} w-28`}>Notes / Col 1</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
+                <th className="px-1 py-2 w-14 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
@@ -621,27 +688,24 @@ export function MaterialRowsTable({
 
                     {/* 2. Item Type (Default: Screw) */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="fastener-type-list"
-                        value={item.materialName || attrs.fastenerType || 'Screw'}
-                        onChange={(e) => {
-                          const val = e.target.value
+                      <CabinetCombobox
+                        value={item.materialName || attrs.fastenerType || ''}
+                        onChange={(val) => {
                           onChange(ri, 'materialName', val)
                           onUpdateVariant(ri, 'fastenerType', val)
                         }}
-                        placeholder="Screw"
+                        options={SCREW_ITEM_TYPE_OPTIONS}
+                        placeholder="Screw (General / Wood)"
                         className={GRID_CELL_BOLD}
                       />
                     </td>
 
                     {/* 3. Length (Inches) */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        list="fastener-length-list"
+                      <CabinetCombobox
                         value={attrs.lengthInches || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'lengthInches', e.target.value)}
+                        onChange={(val) => onUpdateVariant(ri, 'lengthInches', val)}
+                        options={SCREW_LENGTH_OPTIONS}
                         placeholder='0.75" (3/4")'
                         className={GRID_CELL_INPUT}
                       />
@@ -706,15 +770,32 @@ export function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* Delete */}
-                    <td className="p-0 w-8 text-center align-middle">
-                      <button
-                        onClick={() => onRemoveRow(ri)}
-                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                        title="Remove row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                      </button>
+                    {/* Actions: Copy & Delete */}
+                    <td className="p-0.5 w-14 text-center align-middle">
+                      <div className="flex items-center justify-center gap-0.5">
+                        {onCopyRow && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyRow(ri)}
+                            className={`p-1.5 rounded transition-colors cursor-pointer ${
+                              justCopiedRowIndex === ri
+                                ? 'text-emerald-600 bg-emerald-500/15'
+                                : 'text-muted-foreground/40 hover:text-primary hover:bg-primary/10'
+                            }`}
+                            title="Copy this material row"
+                          >
+                            {justCopiedRowIndex === ri ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveRow(ri)}
+                          className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                          title="Remove row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -725,7 +806,7 @@ export function MaterialRowsTable({
       ) : viewMode === 'NAIL_SPEC' ? (
         /* ── 4. Nails, Pins & Masonry Anchors Table (10 Cols) ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
+          <table className="w-full text-xs text-left min-w-[700px] border-collapse divide-y divide-border/60">
             <thead className="bg-rose-500/10 border-b border-rose-500/20 text-rose-900 dark:text-rose-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
@@ -735,7 +816,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
                 <th className={`${GRID_TH} min-w-[160px]`}>Functional Usage</th>
                 <th className={`${GRID_TH} w-28`}>Notes / Col 1</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
+                <th className="px-1 py-2 w-14 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
@@ -750,22 +831,25 @@ export function MaterialRowsTable({
 
                     {/* 2. Item Name */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={item.materialName}
-                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
-                        placeholder="e.g. Wire Nail (Tarkata)"
+                      <CabinetCombobox
+                        value={item.materialName || ''}
+                        onChange={(val) => {
+                          onChange(ri, 'materialName', val)
+                          onUpdateVariant(ri, 'nailType', val)
+                        }}
+                        options={NAIL_ITEM_NAME_OPTIONS}
+                        placeholder="Brad Nails (F-Nails for Air Gun)"
                         className={GRID_CELL_BOLD}
                       />
                     </td>
 
                     {/* 3. Length */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
+                      <CabinetCombobox
                         value={attrs.lengthSpec || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'lengthSpec', e.target.value)}
-                        placeholder='2.0"'
+                        onChange={(val) => onUpdateVariant(ri, 'lengthSpec', val)}
+                        options={NAIL_LENGTH_OPTIONS}
+                        placeholder='25mm (1")'
                         className={GRID_CELL_INPUT}
                       />
                     </td>
@@ -829,15 +913,32 @@ export function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* Delete */}
-                    <td className="p-0 w-8 text-center align-middle">
-                      <button
-                        onClick={() => onRemoveRow(ri)}
-                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                        title="Remove row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                      </button>
+                    {/* Actions: Copy & Delete */}
+                    <td className="p-0.5 w-14 text-center align-middle">
+                      <div className="flex items-center justify-center gap-0.5">
+                        {onCopyRow && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyRow(ri)}
+                            className={`p-1.5 rounded transition-colors cursor-pointer ${
+                              justCopiedRowIndex === ri
+                                ? 'text-emerald-600 bg-emerald-500/15'
+                                : 'text-muted-foreground/40 hover:text-primary hover:bg-primary/10'
+                            }`}
+                            title="Copy this material row"
+                          >
+                            {justCopiedRowIndex === ri ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveRow(ri)}
+                          className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                          title="Remove row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -848,7 +949,7 @@ export function MaterialRowsTable({
       ) : viewMode === 'ADHESIVE_SPEC' ? (
         /* ── 5. Adhesives & Chemical Solvents Table (10 Cols) ── */
         <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left min-w-[1100px] border-collapse divide-y divide-border/60">
+          <table className="w-full text-xs text-left min-w-[700px] border-collapse divide-y divide-border/60">
             <thead className="bg-emerald-500/10 border-b border-emerald-500/20 text-emerald-900 dark:text-emerald-200">
               <tr className="divide-x divide-border/40">
                 <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
@@ -857,7 +958,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
                 <th className={`${GRID_TH} min-w-[180px]`}>Application Method</th>
                 <th className={`${GRID_TH} w-28`}>Notes / Col 1</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
+                <th className="px-1 py-2 w-14 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
@@ -872,11 +973,14 @@ export function MaterialRowsTable({
 
                     {/* 2. Chemical Name (Material Name) */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
-                        value={item.materialName}
-                        onChange={(e) => onChange(ri, 'materialName', e.target.value)}
-                        placeholder="e.g. Lichu Gum"
+                      <CabinetCombobox
+                        value={item.materialName || ''}
+                        onChange={(val) => {
+                          onChange(ri, 'materialName', val)
+                          onUpdateVariant(ri, 'chemicalClass', val)
+                        }}
+                        options={ADHESIVE_CHEMICAL_OPTIONS}
+                        placeholder="Lichu Gum (PVA Wood Glue)"
                         className={GRID_CELL_BOLD}
                       />
                     </td>
@@ -940,15 +1044,32 @@ export function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* Delete */}
-                    <td className="p-0 w-8 text-center align-middle">
-                      <button
-                        onClick={() => onRemoveRow(ri)}
-                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                        title="Remove row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                      </button>
+                    {/* Actions: Copy & Delete */}
+                    <td className="p-0.5 w-14 text-center align-middle">
+                      <div className="flex items-center justify-center gap-0.5">
+                        {onCopyRow && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyRow(ri)}
+                            className={`p-1.5 rounded transition-colors cursor-pointer ${
+                              justCopiedRowIndex === ri
+                                ? 'text-emerald-600 bg-emerald-500/15'
+                                : 'text-muted-foreground/40 hover:text-primary hover:bg-primary/10'
+                            }`}
+                            title="Copy this material row"
+                          >
+                            {justCopiedRowIndex === ri ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveRow(ri)}
+                          className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                          title="Remove row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -971,7 +1092,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} text-center w-28`}>Board Qty</th>
                 <th className={`${GRID_TH} min-w-[140px]`}>Edging Tape Qty</th>
                 <th className={`${GRID_TH} min-w-[140px] w-36 text-center`} title="Handmade (site-fabricated) or Factory Made (pre-cut / ready)">Make Type</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
+                <th className="px-1 py-2 w-14 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
@@ -1234,15 +1355,32 @@ export function MaterialRowsTable({
                       })()}
                     </td>
 
-                    {/* Delete */}
-                    <td className="p-0 w-8 text-center align-middle">
-                      <button
-                        onClick={() => onRemoveRow(ri)}
-                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                        title="Remove row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                      </button>
+                    {/* Actions: Copy & Delete */}
+                    <td className="p-0.5 w-14 text-center align-middle">
+                      <div className="flex items-center justify-center gap-0.5">
+                        {onCopyRow && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyRow(ri)}
+                            className={`p-1.5 rounded transition-colors cursor-pointer ${
+                              justCopiedRowIndex === ri
+                                ? 'text-emerald-600 bg-emerald-500/15'
+                                : 'text-muted-foreground/40 hover:text-primary hover:bg-primary/10'
+                            }`}
+                            title="Copy this material row"
+                          >
+                            {justCopiedRowIndex === ri ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveRow(ri)}
+                          className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                          title="Remove row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -1264,7 +1402,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} min-w-[210px]`}>Dimensions (W × D × H)</th>
                 <th className={`${GRID_TH} w-20`}>Unit</th>
                 <th className={`${GRID_TH} text-center w-24`}>Quantity</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
+                <th className="px-1 py-2 w-14 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
@@ -1431,15 +1569,32 @@ export function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* Delete */}
-                    <td className="p-0 w-8 text-center align-middle">
-                      <button
-                        onClick={() => onRemoveRow(ri)}
-                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                        title="Remove row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                      </button>
+                    {/* Actions: Copy & Delete */}
+                    <td className="p-0.5 w-14 text-center align-middle">
+                      <div className="flex items-center justify-center gap-0.5">
+                        {onCopyRow && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyRow(ri)}
+                            className={`p-1.5 rounded transition-colors cursor-pointer ${
+                              justCopiedRowIndex === ri
+                                ? 'text-emerald-600 bg-emerald-500/15'
+                                : 'text-muted-foreground/40 hover:text-primary hover:bg-primary/10'
+                            }`}
+                            title="Copy this material row"
+                          >
+                            {justCopiedRowIndex === ri ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveRow(ri)}
+                          className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                          title="Remove row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -1459,7 +1614,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} min-w-[130px]`}>Quantity / Unit</th>
                 <th className={`${GRID_TH} min-w-[120px]`}>Rate (BDT)</th>
                 <th className={`${GRID_TH} text-center min-w-[140px]`}>Estimated Total (BDT)</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
+                <th className="px-1 py-2 w-14 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
@@ -1534,15 +1689,32 @@ export function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* Delete */}
-                    <td className="p-0 w-8 text-center align-middle">
-                      <button
-                        onClick={() => onRemoveRow(ri)}
-                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                        title="Remove row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                      </button>
+                    {/* Actions: Copy & Delete */}
+                    <td className="p-0.5 w-14 text-center align-middle">
+                      <div className="flex items-center justify-center gap-0.5">
+                        {onCopyRow && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyRow(ri)}
+                            className={`p-1.5 rounded transition-colors cursor-pointer ${
+                              justCopiedRowIndex === ri
+                                ? 'text-emerald-600 bg-emerald-500/15'
+                                : 'text-muted-foreground/40 hover:text-primary hover:bg-primary/10'
+                            }`}
+                            title="Copy this material row"
+                          >
+                            {justCopiedRowIndex === ri ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveRow(ri)}
+                          className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                          title="Remove row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -1565,7 +1737,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} w-24 text-center`}>Qty</th>
                 <th className={`${GRID_TH} min-w-[130px]`}>Unit Price (BDT)</th>
                 <th className={`${GRID_TH} min-w-[140px]`}>Total Amount (BDT)</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
+                <th className="px-1 py-2 w-14 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
@@ -1779,15 +1951,32 @@ export function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* 10. Remove */}
-                    <td className="p-0 w-8 text-center align-middle">
-                      <button
-                        onClick={() => onRemoveRow(ri)}
-                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                        title="Remove appliance row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                      </button>
+                    {/* Actions: Copy & Delete */}
+                    <td className="p-0.5 w-14 text-center align-middle">
+                      <div className="flex items-center justify-center gap-0.5">
+                        {onCopyRow && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyRow(ri)}
+                            className={`p-1.5 rounded transition-colors cursor-pointer ${
+                              justCopiedRowIndex === ri
+                                ? 'text-emerald-600 bg-emerald-500/15'
+                                : 'text-muted-foreground/40 hover:text-primary hover:bg-primary/10'
+                            }`}
+                            title="Copy this material row"
+                          >
+                            {justCopiedRowIndex === ri ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveRow(ri)}
+                          className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                          title="Remove row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -1808,7 +1997,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} w-24 text-center`}>Quantity</th>
                 <th className={`${GRID_TH} w-24 text-center`}>Unit</th>
                 <th className={`${GRID_TH} min-w-[180px]`}>Remarks</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
+                <th className="px-1 py-2 w-14 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
@@ -1980,15 +2169,32 @@ export function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* Delete */}
-                    <td className="p-0 w-8 text-center align-middle">
-                      <button
-                        onClick={() => onRemoveRow(ri)}
-                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                        title="Remove row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                      </button>
+                    {/* Actions: Copy & Delete */}
+                    <td className="p-0.5 w-14 text-center align-middle">
+                      <div className="flex items-center justify-center gap-0.5">
+                        {onCopyRow && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyRow(ri)}
+                            className={`p-1.5 rounded transition-colors cursor-pointer ${
+                              justCopiedRowIndex === ri
+                                ? 'text-emerald-600 bg-emerald-500/15'
+                                : 'text-muted-foreground/40 hover:text-primary hover:bg-primary/10'
+                            }`}
+                            title="Copy this material row"
+                          >
+                            {justCopiedRowIndex === ri ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveRow(ri)}
+                          className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                          title="Remove row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -2009,7 +2215,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} w-24 text-center`}>Quantity</th>
                 <th className={`${GRID_TH} w-24 text-center`}>Unit</th>
                 <th className={`${GRID_TH} min-w-[180px]`}>Remarks</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
+                <th className="px-1 py-2 w-14 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
@@ -2162,15 +2368,32 @@ export function MaterialRowsTable({
                       />
                     </td>
 
-                    {/* Delete */}
-                    <td className="p-0 w-8 text-center align-middle">
-                      <button
-                        onClick={() => onRemoveRow(ri)}
-                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                        title="Remove row"
-                      >
-                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                      </button>
+                    {/* Actions: Copy & Delete */}
+                    <td className="p-0.5 w-14 text-center align-middle">
+                      <div className="flex items-center justify-center gap-0.5">
+                        {onCopyRow && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyRow(ri)}
+                            className={`p-1.5 rounded transition-colors cursor-pointer ${
+                              justCopiedRowIndex === ri
+                                ? 'text-emerald-600 bg-emerald-500/15'
+                                : 'text-muted-foreground/40 hover:text-primary hover:bg-primary/10'
+                            }`}
+                            title="Copy this material row"
+                          >
+                            {justCopiedRowIndex === ri ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onRemoveRow(ri)}
+                          className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                          title="Remove row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -2193,7 +2416,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} text-center w-20`}>Final Qty</th>
                 <th className={`${GRID_TH} w-24`}>UOM</th>
                 <th className={`${GRID_TH} w-28`}>Phase / Usage</th>
-                <th className="px-2 py-2 w-8 text-center"></th>
+                <th className="px-1 py-2 w-14 text-center"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40 bg-card">
@@ -2297,15 +2520,32 @@ export function MaterialRowsTable({
                     />
                   </td>
 
-                  {/* Delete */}
-                  <td className="p-0 w-8 text-center align-middle">
-                    <button
-                      onClick={() => onRemoveRow(ri)}
-                      className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
-                      title="Remove row"
-                    >
-                      <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                    </button>
+                  {/* Actions: Copy & Delete */}
+                  <td className="p-0.5 w-14 text-center align-middle">
+                    <div className="flex items-center justify-center gap-0.5">
+                      {onCopyRow && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopyRow(ri)}
+                          className={`p-1.5 rounded transition-colors cursor-pointer ${
+                            justCopiedRowIndex === ri
+                              ? 'text-emerald-600 bg-emerald-500/15'
+                              : 'text-muted-foreground/40 hover:text-primary hover:bg-primary/10'
+                          }`}
+                          title="Copy this material row"
+                        >
+                          {justCopiedRowIndex === ri ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => onRemoveRow(ri)}
+                        className="p-1.5 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
+                        title="Remove row"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -2318,13 +2558,26 @@ export function MaterialRowsTable({
 
       {rows.length > 0 && (
         <div className="px-3.5 py-2.5 border-t border-border/60 bg-muted/20 flex flex-wrap items-center justify-between gap-2">
-          <button
-            onClick={onAddRow}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-md shadow-xs transition-colors cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add Material Row
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onAddRow}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 rounded-md shadow-xs transition-colors cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Material Row
+            </button>
+            {hasCopiedRow && onPasteRow && (
+              <button
+                type="button"
+                onClick={onPasteRow}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 border border-amber-500/40 rounded-md shadow-2xs transition-all active:scale-95 cursor-pointer"
+                title={`Paste copied material: ${copiedItemName || 'Material'}`}
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Paste Row {copiedItemName ? `(${copiedItemName.length > 20 ? copiedItemName.slice(0, 18) + '...' : copiedItemName})` : ''}</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

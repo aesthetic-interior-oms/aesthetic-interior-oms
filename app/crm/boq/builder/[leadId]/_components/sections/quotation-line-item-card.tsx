@@ -43,6 +43,8 @@ export function QuotationLineItemCard({
   boqSavedAppliances,
   onSelectSavedAppliance,
   onPasteItem,
+  onCopyRow,
+  copiedItem,
 }: {
   item: QuotationLineItem
   area?: QuotationArea
@@ -65,6 +67,8 @@ export function QuotationLineItemCard({
   boqSavedAppliances?: BoqSavedApplianceItem[]
   onSelectSavedAppliance?: (sectionId: string, ri: number, item: BoqSavedApplianceItem) => void
   onPasteItem?: (sectionId: string, item: RequisitionItemInput) => void
+  onCopyRow?: (sectionId: string, rowIndex: number) => void
+  copiedItem?: RequisitionItemInput | null
 }) {
   const [cardExpanded, setCardExpanded] = useState(true)
   const [showAddSection, setShowAddSection] = useState(false)
@@ -170,6 +174,8 @@ export function QuotationLineItemCard({
               boqSavedAppliances={boqSavedAppliances}
               onSelectSavedAppliance={(ri, item) => onSelectSavedAppliance?.(section.id, ri, item)}
               onPasteItem={(pItem) => onPasteItem?.(section.id, pItem)}
+              onCopyRow={(ri) => onCopyRow?.(section.id, ri)}
+              copiedItem={copiedItem}
             />
           ))}
 

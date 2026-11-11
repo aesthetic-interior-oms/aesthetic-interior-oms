@@ -708,6 +708,35 @@ export function RequisitionBuilderClient({
     })
   }
 
+  const [copiedMaterial, setCopiedMaterial] = useState<RequisitionItemInput | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('boq-copied-material')
+        return stored ? JSON.parse(stored) : null
+      } catch {
+        return null
+      }
+    }
+    return null
+  })
+
+  const handleCopyMaterial = useCallback((item: RequisitionItemInput) => {
+    setCopiedMaterial(item)
+    try {
+      localStorage.setItem('boq-copied-material', JSON.stringify(item))
+    } catch {}
+  }, [])
+
+  const handleCopyRowFromSection = useCallback((sectionId: string, rowIndex: number, cardKey?: string) => {
+    const cKey = cardKey || currentCardKey
+    const key = sectionItemKey(cKey, sectionId)
+    const rows = itemsMap[key] ?? []
+    const targetItem = rows[rowIndex]
+    if (targetItem) {
+      handleCopyMaterial(targetItem)
+    }
+  }, [currentCardKey, itemsMap, handleCopyMaterial])
+
   const handlePasteItemToSection = useCallback((item: RequisitionItemInput, targetSectionId?: string, targetCardKey?: string) => {
     const cardKey = targetCardKey || currentCardKey
     const cardSections = sectionsMap[cardKey] ?? []
@@ -1717,6 +1746,7 @@ export function RequisitionBuilderClient({
         activeSection={activeSectionObj}
         currentCardKey={currentCardKey}
         onInsertItem={(item, targetSectionId) => handlePasteItemToSection(item, targetSectionId)}
+        onCopyItem={handleCopyMaterial}
       />
 
       {/* ── Floating Side Navigation Chevrons (Desktop & Tablet) ── */}
@@ -1941,6 +1971,8 @@ export function RequisitionBuilderClient({
                       boqSavedAppliances={boqSavedAppliances}
                       onSelectSavedAppliance={(ri, item) => handleSelectSavedAppliance(currentCardKey, section.id, ri, item)}
                       onPasteItem={(item) => handlePasteItemToSection(item, section.id, currentCardKey)}
+                      onCopyRow={(ri) => handleCopyRowFromSection(section.id, ri, currentCardKey)}
+                      copiedItem={copiedMaterial}
                     />
                   ))
                 )}
@@ -2041,6 +2073,8 @@ export function RequisitionBuilderClient({
                       boqSavedAppliances={boqSavedAppliances}
                       onSelectSavedAppliance={(ri, item) => handleSelectSavedAppliance(EXTRA_KEY, section.id, ri, item)}
                       onPasteItem={(item) => handlePasteItemToSection(item, section.id, EXTRA_KEY)}
+                      onCopyRow={(ri) => handleCopyRowFromSection(section.id, ri, EXTRA_KEY)}
+                      copiedItem={copiedMaterial}
                     />
                   ))
                 )}
@@ -2109,6 +2143,8 @@ export function RequisitionBuilderClient({
                             boqSavedAppliances={boqSavedAppliances}
                             onSelectSavedAppliance={(sectionId, ri, item) => handleSelectSavedAppliance(li.id, sectionId, ri, item)}
                             onPasteItem={(sectionId, pItem) => handlePasteItemToSection(pItem, sectionId, li.id)}
+                            onCopyRow={(sectionId, ri) => handleCopyRowFromSection(sectionId, ri, li.id)}
+                            copiedItem={copiedMaterial}
                           />
                         )
                       })}
@@ -2140,6 +2176,8 @@ export function RequisitionBuilderClient({
             boqSavedAppliances={boqSavedAppliances}
             onSelectSavedAppliance={(sectionId, ri, item) => handleSelectSavedAppliance(EXTRA_KEY, sectionId, ri, item)}
             onPasteItem={(sectionId, pItem) => handlePasteItemToSection(pItem, sectionId, EXTRA_KEY)}
+            onCopyRow={(sectionId, ri) => handleCopyRowFromSection(sectionId, ri, EXTRA_KEY)}
+            copiedItem={copiedMaterial}
           />
         </div>
       )}
