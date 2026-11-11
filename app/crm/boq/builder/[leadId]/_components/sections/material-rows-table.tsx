@@ -1172,6 +1172,7 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} w-32`}>Category</th>
                 <th className={`${GRID_TH} min-w-[190px]`}>Item Name</th>
+                <th className={`${GRID_TH} min-w-[130px]`}>Brand</th>
                 <th className={`${GRID_TH} min-w-[130px]`}>Item Code</th>
                 <th className={`${GRID_TH} min-w-[210px]`}>Dimensions (W × D × H)</th>
                 <th className={`${GRID_TH} w-20`}>Unit</th>
@@ -1238,6 +1239,10 @@ export function MaterialRowsTable({
                                 if (saved.defaultUnit) onChange(ri, 'unit', saved.defaultUnit)
                                 onUpdateVariant(ri, 'accessoryCategory', saved.category)
                                 onUpdateVariant(ri, 'itemCode', saved.itemCode)
+                                if (saved.brand) {
+                                  onUpdateVariant(ri, 'brand', saved.brand)
+                                  onUpdateVariant(ri, 'accessoryBrand', saved.brand)
+                                }
                                 if (saved.imageUrl) onUpdateVariant(ri, 'imageUrl', saved.imageUrl)
                               }
                             }}
@@ -1247,6 +1252,20 @@ export function MaterialRowsTable({
                           />
                         </div>
                       </div>
+                    </td>
+
+                    {/* Brand */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.brand || attrs.accessoryBrand || ''}
+                        onChange={(e) => {
+                          onUpdateVariant(ri, 'brand', e.target.value)
+                          onUpdateVariant(ri, 'accessoryBrand', e.target.value)
+                        }}
+                        placeholder="Hafele / Swish"
+                        className={GRID_CELL_INPUT}
+                      />
                     </td>
 
                     {/* 4. Item Code */}
@@ -1452,7 +1471,8 @@ export function MaterialRowsTable({
                 <th className={`${GRID_TH} w-14 text-center`}>SL NO</th>
                 <th className={`${GRID_TH} min-w-[150px]`}>Category</th>
                 <th className={`${GRID_TH} min-w-[210px]`}>Item Name</th>
-                <th className={`${GRID_TH} min-w-[190px]`}>Brand &amp; Model Code</th>
+                <th className={`${GRID_TH} min-w-[130px]`}>Brand</th>
+                <th className={`${GRID_TH} min-w-[150px]`}>Model Code</th>
                 <th className={`${GRID_TH} min-w-[200px]`}>Dimensions (W × D × H mm)</th>
                 <th className={`${GRID_TH} min-w-[220px]`}>Cabinet Niche / Cut-Out Size</th>
                 <th className={`${GRID_TH} w-24 text-center`}>Qty</th>
@@ -1519,7 +1539,12 @@ export function MaterialRowsTable({
                                 onChange(ri, 'materialName', saved.name)
                                 if (saved.defaultUnit) onChange(ri, 'unit', saved.defaultUnit)
                                 onUpdateVariant(ri, 'applianceCategory', saved.category)
-                                onUpdateVariant(ri, 'brandModelCode', saved.brandModelCode)
+                                const b = saved.brand || ''
+                                const m = saved.modelCode || ''
+                                onUpdateVariant(ri, 'brand', b)
+                                onUpdateVariant(ri, 'applianceBrand', b)
+                                onUpdateVariant(ri, 'modelCode', m)
+                                onUpdateVariant(ri, 'brandModelCode', [b, m].filter(Boolean).join(' ') || saved.brandModelCode || '')
                                 if (saved.dimW) onUpdateVariant(ri, 'dimW', saved.dimW)
                                 if (saved.dimD) onUpdateVariant(ri, 'dimD', saved.dimD)
                                 if (saved.dimH) onUpdateVariant(ri, 'dimH', saved.dimH)
@@ -1542,13 +1567,33 @@ export function MaterialRowsTable({
                       </div>
                     </td>
 
-                    {/* 4. Brand & Model Code */}
+                    {/* 4. Brand */}
                     <td className={GRID_TD}>
                       <input
                         type="text"
-                        value={attrs.brandModelCode || ''}
-                        onChange={(e) => onUpdateVariant(ri, 'brandModelCode', e.target.value)}
-                        placeholder="HAFELE 538.66.759"
+                        value={attrs.brand || attrs.applianceBrand || ''}
+                        onChange={(e) => {
+                          onUpdateVariant(ri, 'brand', e.target.value)
+                          onUpdateVariant(ri, 'applianceBrand', e.target.value)
+                          const model = attrs.modelCode || ''
+                          onUpdateVariant(ri, 'brandModelCode', [e.target.value, model].filter(Boolean).join(' '))
+                        }}
+                        placeholder="Hafele"
+                        className={GRID_CELL_INPUT}
+                      />
+                    </td>
+
+                    {/* 5. Model Code */}
+                    <td className={GRID_TD}>
+                      <input
+                        type="text"
+                        value={attrs.modelCode || ''}
+                        onChange={(e) => {
+                          onUpdateVariant(ri, 'modelCode', e.target.value)
+                          const b = attrs.brand || attrs.applianceBrand || ''
+                          onUpdateVariant(ri, 'brandModelCode', [b, e.target.value].filter(Boolean).join(' '))
+                        }}
+                        placeholder="538.66.759"
                         className={GRID_CELL_INPUT}
                       />
                     </td>

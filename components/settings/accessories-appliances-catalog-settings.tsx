@@ -36,12 +36,14 @@ import {
   X,
   ExternalLink,
   Package,
+  Tag,
 } from 'lucide-react'
 
 export interface AccessoryCatalogItem {
   id: string
   name: string
   category: string
+  brand?: string
   itemCode: string
   defaultUnit: string
   imageUrl?: string | null
@@ -53,7 +55,9 @@ export interface ApplianceCatalogItem {
   id: string
   name: string
   category: string
-  brandModelCode: string
+  brand?: string
+  modelCode?: string
+  brandModelCode?: string
   dimW?: string
   dimD?: string
   dimH?: string
@@ -115,6 +119,7 @@ export function AccessoriesAppliancesCatalogSettings() {
   const [accForm, setAccForm] = useState({
     name: '',
     category: 'Kitchen',
+    brand: '',
     itemCode: '',
     defaultUnit: 'Pcs',
     imageUrl: '',
@@ -127,7 +132,8 @@ export function AccessoriesAppliancesCatalogSettings() {
   const [appForm, setAppForm] = useState({
     name: '',
     category: 'Cooking',
-    brandModelCode: '',
+    brand: '',
+    modelCode: '',
     dimW: '',
     dimD: '',
     dimH: '',
@@ -235,7 +241,7 @@ export function AccessoriesAppliancesCatalogSettings() {
         setAccessories((prev) => [...prev, data.item])
         toast.success('New accessory created with permanent image!')
         setIsAddAccOpen(false)
-        setAccForm({ name: '', category: 'Kitchen', itemCode: '', defaultUnit: 'Pcs', imageUrl: '' })
+        setAccForm({ name: '', category: 'Kitchen', brand: '', itemCode: '', defaultUnit: 'Pcs', imageUrl: '' })
       } else {
         toast.error(data.error || 'Failed to save accessory')
       }
@@ -296,7 +302,8 @@ export function AccessoriesAppliancesCatalogSettings() {
         setAppForm({
           name: '',
           category: 'Cooking',
-          brandModelCode: '',
+          brand: '',
+          modelCode: '',
           dimW: '',
           dimD: '',
           dimH: '',
@@ -381,6 +388,7 @@ export function AccessoriesAppliancesCatalogSettings() {
       const matchesSearch =
         !q ||
         item.name.toLowerCase().includes(q) ||
+        (item.brand && item.brand.toLowerCase().includes(q)) ||
         (item.itemCode || '').toLowerCase().includes(q) ||
         (item.category || '').toLowerCase().includes(q)
       return matchesCat && matchesSearch
@@ -397,7 +405,9 @@ export function AccessoriesAppliancesCatalogSettings() {
       const matchesSearch =
         !q ||
         item.name.toLowerCase().includes(q) ||
-        (item.brandModelCode || '').toLowerCase().includes(q) ||
+        (item.brand && item.brand.toLowerCase().includes(q)) ||
+        (item.modelCode && item.modelCode.toLowerCase().includes(q)) ||
+        (item.brandModelCode && item.brandModelCode.toLowerCase().includes(q)) ||
         (item.category || '').toLowerCase().includes(q)
       return matchesCat && matchesSearch
     })
@@ -416,7 +426,7 @@ export function AccessoriesAppliancesCatalogSettings() {
               <h2 className="text-xl font-bold text-foreground">Accessories & Appliances Library</h2>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Configure lifetime catalog items with persistent images, codes, and specifications for BOQ and quotations.
+              Configure lifetime catalog items with separate Brand, Code, and persistent product photos for BOQ and quotations.
             </p>
           </div>
 
@@ -427,6 +437,7 @@ export function AccessoriesAppliancesCatalogSettings() {
                   setAccForm({
                     name: '',
                     category: 'Kitchen',
+                    brand: '',
                     itemCode: '',
                     defaultUnit: 'Pcs',
                     imageUrl: '',
@@ -444,7 +455,8 @@ export function AccessoriesAppliancesCatalogSettings() {
                   setAppForm({
                     name: '',
                     category: 'Cooking',
-                    brandModelCode: '',
+                    brand: '',
+                    modelCode: '',
                     dimW: '',
                     dimD: '',
                     dimH: '',
@@ -490,14 +502,14 @@ export function AccessoriesAppliancesCatalogSettings() {
           </TabsList>
 
           {/* Quick search input */}
-          <div className="relative w-full sm:w-72">
+          <div className="relative w-full sm:w-80">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
               type="text"
               placeholder={
                 activeCatalog === 'accessories'
-                  ? 'Search accessories...'
-                  : 'Search appliances...'
+                  ? 'Search by name, brand, code...'
+                  : 'Search by name, brand, model...'
               }
               value={activeCatalog === 'accessories' ? searchAcc : searchApp}
               onChange={(e) =>
@@ -543,13 +555,14 @@ export function AccessoriesAppliancesCatalogSettings() {
               <p className="text-xs text-muted-foreground mt-1 mb-4">
                 {searchAcc || selectedAccCategory !== 'All'
                   ? 'Try clearing your search or category filter.'
-                  : 'Add your first saved accessory item with lifetime image.'}
+                  : 'Add your first saved accessory item with lifetime image and brand.'}
               </p>
               <Button
                 onClick={() => {
                   setAccForm({
                     name: '',
                     category: 'Kitchen',
+                    brand: '',
                     itemCode: '',
                     defaultUnit: 'Pcs',
                     imageUrl: '',
@@ -614,10 +627,15 @@ export function AccessoriesAppliancesCatalogSettings() {
                       <h4 className="font-bold text-sm text-foreground line-clamp-1 group-hover:text-pink-600 dark:group-hover:text-pink-400 transition-colors">
                         {item.name}
                       </h4>
-                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                        {item.brand && (
+                          <span className="inline-block text-[11px] font-semibold px-2 py-0.5 bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded border border-blue-200/60 dark:border-blue-800/60">
+                            Brand: {item.brand}
+                          </span>
+                        )}
                         {item.itemCode && (
-                          <span className="text-[11px] font-mono px-1.5 py-0.5 bg-muted rounded text-muted-foreground border border-border/60 truncate max-w-[160px]">
-                            {item.itemCode}
+                          <span className="text-[11px] font-mono px-1.5 py-0.5 bg-muted rounded text-muted-foreground border border-border/60 truncate max-w-[150px]">
+                            Code: {item.itemCode}
                           </span>
                         )}
                         <span className="text-[11px] text-muted-foreground">
@@ -636,6 +654,7 @@ export function AccessoriesAppliancesCatalogSettings() {
                           setAccForm({
                             name: item.name,
                             category: item.category || 'Kitchen',
+                            brand: item.brand || '',
                             itemCode: item.itemCode || '',
                             defaultUnit: item.defaultUnit || 'Pcs',
                             imageUrl: item.imageUrl || '',
@@ -703,14 +722,15 @@ export function AccessoriesAppliancesCatalogSettings() {
               <p className="text-xs text-muted-foreground mt-1 mb-4">
                 {searchApp || selectedAppCategory !== 'All'
                   ? 'Try clearing your search or category filter.'
-                  : 'Add your first saved appliance item with lifetime image and specs.'}
+                  : 'Add your first saved appliance item with lifetime image and brand.'}
               </p>
               <Button
                 onClick={() => {
                   setAppForm({
                     name: '',
                     category: 'Cooking',
-                    brandModelCode: '',
+                    brand: '',
+                    modelCode: '',
                     dimW: '',
                     dimD: '',
                     dimH: '',
@@ -782,15 +802,24 @@ export function AccessoriesAppliancesCatalogSettings() {
 
                   {/* Body Content */}
                   <div className="p-3.5 flex-1 flex flex-col justify-between gap-3">
-                    <div className="space-y-1.5">
+                    <div className="space-y-2">
                       <h4 className="font-bold text-sm text-foreground line-clamp-1 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
                         {item.name}
                       </h4>
-                      {item.brandModelCode && (
-                        <p className="text-xs text-muted-foreground font-mono truncate">
-                          {item.brandModelCode}
-                        </p>
-                      )}
+
+                      {/* Brand & Model Code separated */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {item.brand && (
+                          <span className="inline-block text-[11px] font-semibold px-2 py-0.5 bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 rounded border border-blue-200/60 dark:border-blue-800/60">
+                            Brand: {item.brand}
+                          </span>
+                        )}
+                        {(item.modelCode || (!item.brand && item.brandModelCode)) && (
+                          <span className="inline-block text-[11px] font-mono px-1.5 py-0.5 bg-muted rounded text-muted-foreground border border-border/50 truncate max-w-[160px]">
+                            Model: {item.modelCode || item.brandModelCode}
+                          </span>
+                        )}
+                      </div>
 
                       {/* Dimensions & Cutout */}
                       {(item.dimW || item.dimD || item.dimH) && (
@@ -819,7 +848,8 @@ export function AccessoriesAppliancesCatalogSettings() {
                           setAppForm({
                             name: item.name,
                             category: item.category || 'Cooking',
-                            brandModelCode: item.brandModelCode || '',
+                            brand: item.brand || '',
+                            modelCode: item.modelCode || '',
                             dimW: item.dimW || '',
                             dimD: item.dimD || '',
                             dimH: item.dimH || '',
@@ -877,7 +907,7 @@ export function AccessoriesAppliancesCatalogSettings() {
               {isEditAccOpen ? 'Edit Saved Accessory' : 'Add New Saved Accessory'}
             </DialogTitle>
             <DialogDescription>
-              Configure accessory properties and attach a lifetime image.
+              Configure accessory properties with dedicated Brand and lifetime photo.
             </DialogDescription>
           </DialogHeader>
 
@@ -968,7 +998,7 @@ export function AccessoriesAppliancesCatalogSettings() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               {/* Category */}
               <div>
                 <label className="text-xs font-semibold text-foreground mb-1 block">
@@ -987,13 +1017,26 @@ export function AccessoriesAppliancesCatalogSettings() {
                 </select>
               </div>
 
+              {/* Brand */}
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-1 block">
+                  Brand
+                </label>
+                <Input
+                  placeholder="e.g. Hafele, Blum"
+                  value={accForm.brand}
+                  onChange={(e) => setAccForm((p) => ({ ...p, brand: e.target.value }))}
+                  className="text-xs h-9"
+                />
+              </div>
+
               {/* Item Code */}
               <div>
                 <label className="text-xs font-semibold text-foreground mb-1 block">
-                  Item Code / Model
+                  Item Code
                 </label>
                 <Input
-                  placeholder="e.g. KIW-23, GLFA943B..."
+                  placeholder="e.g. KIW-23, GLFA943B"
                   value={accForm.itemCode}
                   onChange={(e) => setAccForm((p) => ({ ...p, itemCode: e.target.value }))}
                   className="text-xs h-9 font-mono"
@@ -1071,7 +1114,7 @@ export function AccessoriesAppliancesCatalogSettings() {
               {isEditAppOpen ? 'Edit Saved Appliance' : 'Add New Saved Appliance'}
             </DialogTitle>
             <DialogDescription>
-              Configure appliance specifications, cutout sizes, and attach a lifetime image.
+              Configure appliance specifications with separate Brand, Model Code, and lifetime photo.
             </DialogDescription>
           </DialogHeader>
 
@@ -1162,7 +1205,7 @@ export function AccessoriesAppliancesCatalogSettings() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               {/* Category */}
               <div>
                 <label className="text-xs font-semibold text-foreground mb-1 block">
@@ -1184,16 +1227,31 @@ export function AccessoriesAppliancesCatalogSettings() {
                 </select>
               </div>
 
-              {/* Brand & Model */}
+              {/* Brand */}
               <div>
                 <label className="text-xs font-semibold text-foreground mb-1 block">
-                  Brand & Model Code
+                  Brand
                 </label>
                 <Input
-                  placeholder="e.g. HAFELE 538.66.759..."
-                  value={appForm.brandModelCode}
+                  placeholder="e.g. Hafele, Bosch, Swish"
+                  value={appForm.brand}
                   onChange={(e) =>
-                    setAppForm((p) => ({ ...p, brandModelCode: e.target.value }))
+                    setAppForm((p) => ({ ...p, brand: e.target.value }))
+                  }
+                  className="text-xs h-9"
+                />
+              </div>
+
+              {/* Model Code */}
+              <div>
+                <label className="text-xs font-semibold text-foreground mb-1 block">
+                  Model Code
+                </label>
+                <Input
+                  placeholder="e.g. 538.66.759, KH 0300114-72"
+                  value={appForm.modelCode}
+                  onChange={(e) =>
+                    setAppForm((p) => ({ ...p, modelCode: e.target.value }))
                   }
                   className="text-xs h-9 font-mono"
                 />

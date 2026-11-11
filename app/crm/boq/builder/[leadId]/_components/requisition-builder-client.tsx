@@ -843,12 +843,15 @@ export function RequisitionBuilderClient({
       const nextAttrs: BoardVariantAttributes = {
         ...prevAttrs,
         accessoryCategory: item.category,
+        brand: item.brand || prevAttrs.brand,
+        accessoryBrand: item.brand || prevAttrs.accessoryBrand,
         itemCode: item.itemCode,
         imageUrl: item.imageUrl || prevAttrs.imageUrl,
       }
       current.variantAttributes = nextAttrs
       const specParts = [
         nextAttrs.accessoryCategory,
+        nextAttrs.brand ? `Brand: ${nextAttrs.brand}` : '',
         nextAttrs.itemCode ? `Code: ${nextAttrs.itemCode}` : '',
         nextAttrs.dimensions,
       ].filter(Boolean)
@@ -866,10 +869,16 @@ export function RequisitionBuilderClient({
       current.materialName = item.name
       if (item.defaultUnit) current.unit = item.defaultUnit
       const prevAttrs: BoardVariantAttributes = current.variantAttributes || {}
+      const b = item.brand || ''
+      const m = item.modelCode || ''
+      const bmc = [b, m].filter(Boolean).join(' ') || item.brandModelCode
       const nextAttrs: BoardVariantAttributes = {
         ...prevAttrs,
         applianceCategory: item.category,
-        brandModelCode: item.brandModelCode,
+        brand: b || prevAttrs.brand,
+        applianceBrand: b || prevAttrs.applianceBrand,
+        modelCode: m || prevAttrs.modelCode,
+        brandModelCode: bmc || prevAttrs.brandModelCode,
         dimW: item.dimW || prevAttrs.dimW,
         dimD: item.dimD || prevAttrs.dimD,
         dimH: item.dimH || prevAttrs.dimH,
@@ -887,7 +896,8 @@ export function RequisitionBuilderClient({
       current.variantAttributes = nextAttrs
       const specParts = [
         nextAttrs.applianceCategory,
-        nextAttrs.brandModelCode ? `Model: ${nextAttrs.brandModelCode}` : '',
+        nextAttrs.brand ? `Brand: ${nextAttrs.brand}` : '',
+        nextAttrs.modelCode ? `Model: ${nextAttrs.modelCode}` : '',
         nextAttrs.cabinetNicheCutOutSize ? `Cutout: ${nextAttrs.cabinetNicheCutOutSize}` : '',
       ].filter(Boolean)
       if (specParts.length > 0) current.specifications = specParts.join(' | ')

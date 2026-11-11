@@ -1636,6 +1636,7 @@ model BoqSavedAccessoryItem {
   id          String   @id @default(cuid())
   name        String
   category    String   @default("")
+  brand       String   @default("")
   itemCode    String   @default("")
   defaultUnit String   @default("Pcs")
   imageUrl    String?
@@ -1651,6 +1652,8 @@ model BoqSavedApplianceItem {
   id                      String   @id @default(cuid())
   name                    String
   category                String   @default("")
+  brand                   String   @default("")
+  modelCode               String   @default("")
   brandModelCode          String   @default("")
   dimW                    String   @default("")
   dimD                    String   @default("")

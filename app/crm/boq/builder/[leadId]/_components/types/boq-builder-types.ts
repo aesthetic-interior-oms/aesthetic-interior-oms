@@ -135,6 +135,9 @@ export interface BoardVariantAttributes {
 
   // ── Accessories & Hardware attributes ──
   accessoryCategory?: string
+  accessoryBrand?: string
+  brand?: string
+  modelCode?: string
   itemCode?: string
   dimensions?: string
   dimW?: string
@@ -150,6 +153,7 @@ export interface BoardVariantAttributes {
 
   // ── Appliance attributes ──
   applianceCategory?: string
+  applianceBrand?: string
   brandModelCode?: string
   outerDimensions?: string
   cabinetNicheCutOutSize?: string
@@ -168,6 +172,7 @@ export interface BoqSavedAccessoryItem {
   id: string
   name: string
   category: string
+  brand?: string
   itemCode: string
   defaultUnit: string
   imageUrl?: string | null
@@ -177,7 +182,9 @@ export type BoqSavedApplianceItem = {
   id: string
   name: string
   category: string
-  brandModelCode: string
+  brand?: string
+  modelCode?: string
+  brandModelCode?: string
   dimW?: string
   dimD?: string
   dimH?: string

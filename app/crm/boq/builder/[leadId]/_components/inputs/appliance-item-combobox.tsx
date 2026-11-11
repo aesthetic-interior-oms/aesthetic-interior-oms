@@ -86,6 +86,8 @@ export function ApplianceItemCombobox({
     if (!q) return true
     return (
       item.name.toLowerCase().includes(q) ||
+      (item.brand && item.brand.toLowerCase().includes(q)) ||
+      (item.modelCode && item.modelCode.toLowerCase().includes(q)) ||
       (item.category && item.category.toLowerCase().includes(q)) ||
       (item.brandModelCode && item.brandModelCode.toLowerCase().includes(q))
     )
@@ -176,19 +178,24 @@ export function ApplianceItemCombobox({
                       <div className="flex flex-col gap-0.5 min-w-0">
                         <span className="font-bold text-xs truncate">{item.name}</span>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          {item.category && (
-                            <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-medium bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60">
-                              {item.category}
+                          {item.brand && (
+                            <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-semibold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
+                              {item.brand}
                             </span>
                           )}
-                          {item.brandModelCode && (
+                          {(item.modelCode || (!item.brand && item.brandModelCode)) && (
                             <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-mono bg-muted text-muted-foreground border border-border/50 truncate max-w-[170px]">
-                              {item.brandModelCode}
+                              Model: {item.modelCode || item.brandModelCode}
                             </span>
                           )}
                           {item.dimW && (
                             <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-mono text-muted-foreground">
                               {item.dimW}×{item.dimD}×{item.dimH}mm
+                            </span>
+                          )}
+                          {item.category && (
+                            <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-medium bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60">
+                              {item.category}
                             </span>
                           )}
                         </div>

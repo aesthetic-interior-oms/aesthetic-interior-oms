@@ -89,6 +89,7 @@ export function AccessoryItemCombobox({
     if (!q) return true
     return (
       item.name.toLowerCase().includes(q) ||
+      (item.brand && item.brand.toLowerCase().includes(q)) ||
       (item.category && item.category.toLowerCase().includes(q)) ||
       (item.itemCode && item.itemCode.toLowerCase().includes(q))
     )
@@ -181,14 +182,19 @@ export function AccessoryItemCombobox({
                       <div className="flex flex-col gap-0.5 min-w-0">
                         <span className="font-bold text-xs truncate">{item.name}</span>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          {item.category && (
-                            <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-medium bg-pink-100 dark:bg-pink-950/50 text-pink-700 dark:text-pink-300 border border-pink-200/60 dark:border-pink-800/60">
-                              {item.category}
+                          {item.brand && (
+                            <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-semibold bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
+                              {item.brand}
                             </span>
                           )}
                           {item.itemCode && (
                             <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-mono bg-muted text-muted-foreground border border-border/50">
-                              {item.itemCode}
+                              Code: {item.itemCode}
+                            </span>
+                          )}
+                          {item.category && (
+                            <span className="inline-block text-[10px] px-1.5 py-0.2 rounded font-medium bg-pink-100 dark:bg-pink-950/50 text-pink-700 dark:text-pink-300 border border-pink-200/60 dark:border-pink-800/60">
+                              {item.category}
                             </span>
                           )}
                         </div>

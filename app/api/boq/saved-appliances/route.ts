@@ -6,7 +6,9 @@ const STARTER_APPLIANCES = [
   {
     name: 'Gas / Induction Hob',
     category: 'Cooking',
-    brandModelCode: 'HAFELE 538.66.759',
+    brand: 'Hafele',
+    modelCode: '538.66.759',
+    brandModelCode: 'Hafele 538.66.759',
     dimW: '860',
     dimD: '520',
     dimH: '135',
@@ -17,7 +19,9 @@ const STARTER_APPLIANCES = [
   {
     name: 'Kitchen Hood Chimney',
     category: 'Ventilation',
-    brandModelCode: 'SWISH Klasso KH 0300114-72',
+    brand: 'Swish',
+    modelCode: 'KH 0300114-72',
+    brandModelCode: 'Swish KH 0300114-72',
     dimW: '900',
     dimD: '500',
     dimH: '600',
@@ -28,6 +32,8 @@ const STARTER_APPLIANCES = [
   {
     name: 'Under-Counter Sink + RO Faucet',
     category: 'Sink & Wet Area',
+    brand: 'Hafele / Swish',
+    modelCode: 'Single Bowl Granite',
     brandModelCode: 'Hafele / Swish Single Bowl Granite',
     dimW: '750',
     dimD: '460',
@@ -39,7 +45,9 @@ const STARTER_APPLIANCES = [
   {
     name: 'Built-In Refrigerator',
     category: 'Refrigeration',
-    brandModelCode: 'BOSCH Premium Series',
+    brand: 'Bosch',
+    modelCode: 'Premium Series',
+    brandModelCode: 'Bosch Premium Series',
     dimW: '558',
     dimD: '545',
     dimH: '1772',
@@ -50,7 +58,9 @@ const STARTER_APPLIANCES = [
   {
     name: 'Built-In Electric Grill Oven',
     category: 'Oven & Baking',
-    brandModelCode: 'HAFELE BSO72P',
+    brand: 'Hafele',
+    modelCode: 'BSO72P',
+    brandModelCode: 'Hafele BSO72P',
     dimW: '595',
     dimD: '570',
     dimH: '595',
@@ -61,7 +71,9 @@ const STARTER_APPLIANCES = [
   {
     name: 'Built-In Microwave Oven',
     category: 'Oven & Baking',
-    brandModelCode: 'HAFELE 595 Series',
+    brand: 'Hafele',
+    modelCode: '595 Series',
+    brandModelCode: 'Hafele 595 Series',
     dimW: '595',
     dimD: '467',
     dimH: '388',
@@ -72,7 +84,9 @@ const STARTER_APPLIANCES = [
   {
     name: 'Under-Counter RO Water Purifier',
     category: 'Water Purifier',
-    brandModelCode: 'KENT Excellence / Grand',
+    brand: 'Kent',
+    modelCode: 'Excellence / Grand',
+    brandModelCode: 'Kent Excellence / Grand',
     dimW: '400',
     dimD: '260',
     dimH: '410',
@@ -83,7 +97,9 @@ const STARTER_APPLIANCES = [
   {
     name: 'Built-in Dishwasher',
     category: 'Dishwashing',
-    brandModelCode: 'BOSCH Serie 6 Built-in',
+    brand: 'Bosch',
+    modelCode: 'Serie 6 Built-in',
+    brandModelCode: 'Bosch Serie 6 Built-in',
     dimW: '598',
     dimD: '550',
     dimH: '815',
@@ -94,6 +110,8 @@ const STARTER_APPLIANCES = [
   {
     name: 'Food Waste Disposer',
     category: 'Sink & Wet Area',
+    brand: 'InSinkErator',
+    modelCode: 'Model 66',
     brandModelCode: 'InSinkErator Model 66',
     dimW: '173',
     dimD: '173',
@@ -139,12 +157,17 @@ export async function POST(request: NextRequest) {
 
     const serialNo = (await prisma.boqSavedApplianceItem.count({ where: { isActive: true } })) + 1
     const imageUrl = typeof body.imageUrl === 'string' && body.imageUrl.trim() ? body.imageUrl.trim() : null
+    const brand = typeof body.brand === 'string' ? body.brand.slice(0, 100) : ''
+    const modelCode = typeof body.modelCode === 'string' ? body.modelCode.slice(0, 100) : ''
+    const brandModelCode = [brand, modelCode].filter(Boolean).join(' ') || (typeof body.brandModelCode === 'string' ? body.brandModelCode.slice(0, 120) : '')
 
     const item = await prisma.boqSavedApplianceItem.create({
       data: {
         name: name.slice(0, 240),
         category: typeof body.category === 'string' ? body.category.slice(0, 100) : '',
-        brandModelCode: typeof body.brandModelCode === 'string' ? body.brandModelCode.slice(0, 120) : '',
+        brand,
+        modelCode,
+        brandModelCode,
         dimW: typeof body.dimW === 'string' ? body.dimW.slice(0, 40) : '',
         dimD: typeof body.dimD === 'string' ? body.dimD.slice(0, 40) : '',
         dimH: typeof body.dimH === 'string' ? body.dimH.slice(0, 40) : '',
@@ -174,7 +197,13 @@ export async function PUT(request: NextRequest) {
     const updateData: Record<string, any> = {}
     if (typeof body.name === 'string' && body.name.trim()) updateData.name = body.name.trim().slice(0, 240)
     if (typeof body.category === 'string') updateData.category = body.category.slice(0, 100)
-    if (typeof body.brandModelCode === 'string') updateData.brandModelCode = body.brandModelCode.slice(0, 120)
+    if (typeof body.brand === 'string') updateData.brand = body.brand.slice(0, 100)
+    if (typeof body.modelCode === 'string') updateData.modelCode = body.modelCode.slice(0, 100)
+    if (body.brand || body.modelCode) {
+      updateData.brandModelCode = [body.brand, body.modelCode].filter(Boolean).join(' ')
+    } else if (typeof body.brandModelCode === 'string') {
+      updateData.brandModelCode = body.brandModelCode.slice(0, 120)
+    }
     if (typeof body.dimW === 'string') updateData.dimW = body.dimW.slice(0, 40)
     if (typeof body.dimD === 'string') updateData.dimD = body.dimD.slice(0, 40)
     if (typeof body.dimH === 'string') updateData.dimH = body.dimH.slice(0, 40)

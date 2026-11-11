@@ -3,13 +3,13 @@ import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 
 const STARTER_ITEMS = [
-  { name: 'Elevator Basket',         category: 'Kitchen', itemCode: 'KIW-23',               defaultUnit: 'Pcs' },
-  { name: 'Cutlery Tray',            category: 'Kitchen', itemCode: 'KIW-23',               defaultUnit: 'Pcs' },
-  { name: 'Plate Organizer',         category: 'Kitchen', itemCode: 'KIW-12.1',             defaultUnit: 'Pcs' },
-  { name: 'Pantry Unit',             category: 'Kitchen', itemCode: 'KIW-33',               defaultUnit: 'Pcs' },
-  { name: 'Pull Out Hanger',         category: 'Closet',  itemCode: 'GLFA943B / GLFA943S',  defaultUnit: 'Pcs' },
-  { name: 'Trousers / Saree Hanger', category: 'Closet',  itemCode: 'GLFJ113M / GLFJ113G',  defaultUnit: 'Pcs' },
-  { name: 'Jewelry Tray Organizer',  category: 'Closet',  itemCode: 'R9001G-800',            defaultUnit: 'Pcs' },
+  { name: 'Elevator Basket',         category: 'Kitchen', brand: 'Hafele / Swish', itemCode: 'KIW-23',               defaultUnit: 'Pcs' },
+  { name: 'Cutlery Tray',            category: 'Kitchen', brand: 'Hafele / Swish', itemCode: 'KIW-23',               defaultUnit: 'Pcs' },
+  { name: 'Plate Organizer',         category: 'Kitchen', brand: 'Hafele / Swish', itemCode: 'KIW-12.1',             defaultUnit: 'Pcs' },
+  { name: 'Pantry Unit',             category: 'Kitchen', brand: 'Hafele / Swish', itemCode: 'KIW-33',               defaultUnit: 'Pcs' },
+  { name: 'Pull Out Hanger',         category: 'Closet',  brand: 'Gola / Hafele',  itemCode: 'GLFA943B / GLFA943S',  defaultUnit: 'Pcs' },
+  { name: 'Trousers / Saree Hanger', category: 'Closet',  brand: 'Gola / Hafele',  itemCode: 'GLFJ113M / GLFJ113G',  defaultUnit: 'Pcs' },
+  { name: 'Jewelry Tray Organizer',  category: 'Closet',  brand: 'Ritz / Hafele',  itemCode: 'R9001G-800',            defaultUnit: 'Pcs' },
 ]
 
 async function ensureStarterItems() {
@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       data: {
         name: name.slice(0, 240),
         category: typeof body.category === 'string' ? body.category.slice(0, 100) : '',
+        brand: typeof body.brand === 'string' ? body.brand.slice(0, 100) : '',
         itemCode: typeof body.itemCode === 'string' ? body.itemCode.slice(0, 100) : '',
         defaultUnit: typeof body.defaultUnit === 'string' && body.defaultUnit.trim() ? body.defaultUnit.slice(0, 40) : 'Pcs',
         imageUrl,
@@ -77,6 +78,7 @@ export async function PUT(request: NextRequest) {
     const updateData: Record<string, any> = {}
     if (typeof body.name === 'string' && body.name.trim()) updateData.name = body.name.trim().slice(0, 240)
     if (typeof body.category === 'string') updateData.category = body.category.slice(0, 100)
+    if (typeof body.brand === 'string') updateData.brand = body.brand.slice(0, 100)
     if (typeof body.itemCode === 'string') updateData.itemCode = body.itemCode.slice(0, 100)
     if (typeof body.defaultUnit === 'string' && body.defaultUnit.trim()) updateData.defaultUnit = body.defaultUnit.trim().slice(0, 40)
     if ('imageUrl' in body) {
