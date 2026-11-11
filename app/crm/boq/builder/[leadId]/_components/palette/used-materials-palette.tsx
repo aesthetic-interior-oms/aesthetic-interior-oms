@@ -335,6 +335,8 @@ export function UsedMaterialsPalette({
 
   // Extract all currently used items in this lead's project
   const usedEntries = useMemo(() => {
+    if (!isOpen) return []
+
     const slideMap = new Map<string, ProductSlide>()
     for (const s of productSlides) slideMap.set(s.id, s)
 
@@ -401,7 +403,7 @@ export function UsedMaterialsPalette({
     }
 
     return list
-  }, [itemsMap, sectionsMap, productSlides, persistedItems])
+  }, [itemsMap, sectionsMap, productSlides, persistedItems, isOpen])
 
   const targetEntries = useMemo(
     () => usedEntries.filter((entry) => matchesActiveSection(entry, activeSection)),

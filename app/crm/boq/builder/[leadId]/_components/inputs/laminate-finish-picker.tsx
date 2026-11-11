@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, memo } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown, ArrowRight } from 'lucide-react'
 import { GRID_CELL_INPUT } from '../constants/boq-grid-styles'
@@ -20,7 +20,7 @@ export interface LaminateFinishPickerProps {
   placeholder?: string
 }
 
-export function LaminateFinishPicker({
+export const LaminateFinishPicker = memo(function LaminateFinishPicker({
   value,
   finishType,
   onChange,
@@ -393,4 +393,4 @@ export function LaminateFinishPicker({
         )}
     </div>
   )
-}
+})

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, memo } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -224,6 +224,180 @@ import { QuotationLineItemCard } from './sections/quotation-line-item-card'
 import { ExtraCard } from './sections/extra-card'
 import { MaterialRowsTable } from './sections/material-rows-table'
 import { SectionBlock } from './sections/section-block'
+
+interface SlideSectionItemProps {
+  section: CardSection
+  cardKey: string
+  rows: RequisitionItemInput[]
+  currentSlideItemId?: string
+  copiedMaterial: RequisitionItemInput | null
+  boqSavedAccessories: BoqSavedAccessoryItem[]
+  boqSavedAppliances: BoqSavedApplianceItem[]
+  updateRow: (cardKey: string, sectionId: string, ri: number, field: keyof RequisitionItemInput, rawValue: RequisitionFieldValue) => void
+  updateVariant: (cardKey: string, sectionId: string, rowIndex: number, field: keyof BoardVariantAttributes, value: string) => void
+  addRow: (cardKey: string, sectionId: string, quotationLineItemId?: string) => void
+  removeRow: (cardKey: string, sectionId: string, rowIndex: number) => void
+  loadPresetForSection: (cardKey: string, sectionId: string, subType: WallPanelingSubType, quotationLineItemId?: string) => void
+  loadCabinetPresetForSection: (cardKey: string, sectionId: string, subType: CabinetSubType, quotationLineItemId?: string) => void
+  loadAccessoryPresetForSection: (cardKey: string, sectionId: string, subType: AccessoriesSubType, quotationLineItemId?: string) => void
+  loadAppliancePresetForSection: (cardKey: string, sectionId: string, subType: ApplianceSubType, quotationLineItemId?: string) => void
+  loadCeilingPresetForSection: (cardKey: string, sectionId: string, subType: CeilingSubType, quotationLineItemId?: string) => void
+  toggleSectionCollapse: (cardKey: string, sectionId: string) => void
+  removeSection: (cardKey: string, sectionId: string) => void
+  handleSelectSavedAccessory: (cardKey: string, sectionId: string, rowIndex: number, item: BoqSavedAccessoryItem) => void
+  handleSaveNewAccessory: (name: string, category?: string, itemCode?: string) => Promise<void> | void
+  handleSelectSavedAppliance: (cardKey: string, sectionId: string, rowIndex: number, item: BoqSavedApplianceItem) => void
+  handlePasteItemToSection: (item: RequisitionItemInput, targetSectionId?: string, targetCardKey?: string) => void
+  handleCopyRowFromSection: (sectionId: string, rowIndex: number, cardKey?: string) => void
+}
+
+const SlideSectionItem = memo(function SlideSectionItem({
+  section,
+  cardKey,
+  rows,
+  currentSlideItemId,
+  copiedMaterial,
+  boqSavedAccessories,
+  boqSavedAppliances,
+  updateRow,
+  updateVariant,
+  addRow,
+  removeRow,
+  loadPresetForSection,
+  loadCabinetPresetForSection,
+  loadAccessoryPresetForSection,
+  loadAppliancePresetForSection,
+  loadCeilingPresetForSection,
+  toggleSectionCollapse,
+  removeSection,
+  handleSelectSavedAccessory,
+  handleSaveNewAccessory,
+  handleSelectSavedAppliance,
+  handlePasteItemToSection,
+  handleCopyRowFromSection,
+}: SlideSectionItemProps) {
+  const onChange = useCallback(
+    (ri: number, field: keyof RequisitionItemInput, val: RequisitionFieldValue) => {
+      updateRow(cardKey, section.id, ri, field, val)
+    },
+    [updateRow, cardKey, section.id]
+  )
+
+  const onUpdateVariant = useCallback(
+    (ri: number, field: keyof BoardVariantAttributes, val: string) => {
+      updateVariant(cardKey, section.id, ri, field, val)
+    },
+    [updateVariant, cardKey, section.id]
+  )
+
+  const onAddRow = useCallback(() => {
+    addRow(cardKey, section.id, currentSlideItemId)
+  }, [addRow, cardKey, section.id, currentSlideItemId])
+
+  const onRemoveRow = useCallback(
+    (ri: number) => {
+      removeRow(cardKey, section.id, ri)
+    },
+    [removeRow, cardKey, section.id]
+  )
+
+  const onToggleCollapse = useCallback(() => {
+    toggleSectionCollapse(cardKey, section.id)
+  }, [toggleSectionCollapse, cardKey, section.id])
+
+  const onRemove = useCallback(() => {
+    removeSection(cardKey, section.id)
+  }, [removeSection, cardKey, section.id])
+
+  const onPasteItem = useCallback(
+    (item: RequisitionItemInput) => {
+      handlePasteItemToSection(item, section.id, cardKey)
+    },
+    [handlePasteItemToSection, section.id, cardKey]
+  )
+
+  const onCopyRow = useCallback(
+    (ri: number) => {
+      handleCopyRowFromSection(section.id, ri, cardKey)
+    },
+    [handleCopyRowFromSection, section.id, cardKey]
+  )
+
+  const onSelectAccessory = useCallback(
+    (ri: number, item: BoqSavedAccessoryItem) => {
+      handleSelectSavedAccessory(cardKey, section.id, ri, item)
+    },
+    [handleSelectSavedAccessory, cardKey, section.id]
+  )
+
+  const onSelectAppliance = useCallback(
+    (ri: number, item: BoqSavedApplianceItem) => {
+      handleSelectSavedAppliance(cardKey, section.id, ri, item)
+    },
+    [handleSelectSavedAppliance, cardKey, section.id]
+  )
+
+  const onLoadPreset = useCallback(
+    (subType: WallPanelingSubType) => {
+      loadPresetForSection(cardKey, section.id, subType, currentSlideItemId)
+    },
+    [loadPresetForSection, cardKey, section.id, currentSlideItemId]
+  )
+
+  const onLoadCabinetPreset = useCallback(
+    (subType: CabinetSubType) => {
+      loadCabinetPresetForSection(cardKey, section.id, subType, currentSlideItemId)
+    },
+    [loadCabinetPresetForSection, cardKey, section.id, currentSlideItemId]
+  )
+
+  const onLoadAccessoryPreset = useCallback(
+    (subType: AccessoriesSubType) => {
+      loadAccessoryPresetForSection(cardKey, section.id, subType, currentSlideItemId)
+    },
+    [loadAccessoryPresetForSection, cardKey, section.id, currentSlideItemId]
+  )
+
+  const onLoadAppliancePreset = useCallback(
+    (subType: ApplianceSubType) => {
+      loadAppliancePresetForSection(cardKey, section.id, subType, currentSlideItemId)
+    },
+    [loadAppliancePresetForSection, cardKey, section.id, currentSlideItemId]
+  )
+
+  const onLoadCeilingPreset = useCallback(
+    (subType: CeilingSubType) => {
+      loadCeilingPresetForSection(cardKey, section.id, subType, currentSlideItemId)
+    },
+    [loadCeilingPresetForSection, cardKey, section.id, currentSlideItemId]
+  )
+
+  return (
+    <SectionBlock
+      section={section}
+      rows={rows}
+      onChange={onChange}
+      onUpdateVariant={onUpdateVariant}
+      onAddRow={onAddRow}
+      onRemoveRow={onRemoveRow}
+      onLoadPreset={onLoadPreset}
+      onLoadCabinetPreset={onLoadCabinetPreset}
+      onLoadAccessoryPreset={onLoadAccessoryPreset}
+      onLoadAppliancePreset={onLoadAppliancePreset}
+      onLoadCeilingPreset={onLoadCeilingPreset}
+      onToggleCollapse={onToggleCollapse}
+      onRemove={onRemove}
+      boqSavedAccessories={boqSavedAccessories}
+      onSelectSavedAccessory={onSelectAccessory}
+      onSaveNewSavedAccessory={handleSaveNewAccessory}
+      boqSavedAppliances={boqSavedAppliances}
+      onSelectSavedAppliance={onSelectAppliance}
+      onPasteItem={onPasteItem}
+      onCopyRow={onCopyRow}
+      copiedItem={copiedMaterial}
+    />
+  )
+})
 
 export function RequisitionBuilderClient({
   lead,
@@ -805,7 +979,7 @@ export function RequisitionBuilderClient({
     setTimeout(() => setSaveSuccess(null), 3000)
   }, [activeSectionObj, currentCardKey, sectionsMap])
 
-  const loadPresetForSection = (cardKey: string, sectionId: string, subType: WallPanelingSubType, quotationLineItemId?: string) => {
+  const loadPresetForSection = useCallback((cardKey: string, sectionId: string, subType: WallPanelingSubType, quotationLineItemId?: string) => {
     const presetMap: Record<WallPanelingSubType, RequisitionItemInput[]> = {
       CORE_BOARDS: SAMPLE_WALL_PANEL_ITEMS,
       LOUVERS_PROFILES: SAMPLE_LOUVER_PROFILE_ITEMS,
@@ -820,9 +994,9 @@ export function RequisitionBuilderClient({
     }))
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
-  }
+  }, [])
 
-  const loadCabinetPresetForSection = (cardKey: string, sectionId: string, subType: CabinetSubType, quotationLineItemId?: string) => {
+  const loadCabinetPresetForSection = useCallback((cardKey: string, sectionId: string, subType: CabinetSubType, quotationLineItemId?: string) => {
     const presetMap: Record<CabinetSubType, RequisitionItemInput[]> = {
       BOARD_SPEC: SAMPLE_CABINET_CORE_BOARD_ITEMS,
       CORE_BOARD_SPEC: SAMPLE_CABINET_CORE_BOARD_ITEMS,
@@ -835,9 +1009,9 @@ export function RequisitionBuilderClient({
     }))
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
-  }
+  }, [])
 
-  const loadAccessoryPresetForSection = (cardKey: string, sectionId: string, subType: AccessoriesSubType, quotationLineItemId?: string) => {
+  const loadAccessoryPresetForSection = useCallback((cardKey: string, sectionId: string, subType: AccessoriesSubType, quotationLineItemId?: string) => {
     const presetMap: Record<AccessoriesSubType, RequisitionItemInput[]> = {
       HARDWARE_ACCESSORIES: SAMPLE_ACCESSORY_HARDWARE_ITEMS,
       SERVICES_DELIVERABLES: SAMPLE_ACCESSORY_SERVICES_ITEMS,
@@ -859,7 +1033,7 @@ export function RequisitionBuilderClient({
     })
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
-  }
+  }, [])
 
   const handleSelectSavedAccessory = useCallback((cardKey: string, sectionId: string, rowIndex: number, item: BoqSavedAccessoryItem) => {
     const key = sectionItemKey(cardKey, sectionId)
@@ -951,7 +1125,7 @@ export function RequisitionBuilderClient({
     }
   }, [])
 
-  const loadAppliancePresetForSection = (cardKey: string, sectionId: string, subType: ApplianceSubType, quotationLineItemId?: string) => {
+  const loadAppliancePresetForSection = useCallback((cardKey: string, sectionId: string, subType: ApplianceSubType, quotationLineItemId?: string) => {
     const presetMap: Record<ApplianceSubType, RequisitionItemInput[]> = {
       CORE_APPLIANCES: SAMPLE_CORE_APPLIANCE_ITEMS,
     }
@@ -962,9 +1136,9 @@ export function RequisitionBuilderClient({
     }))
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
-  }
+  }, [])
 
-  const loadCeilingPresetForSection = (cardKey: string, sectionId: string, subType: CeilingSubType, quotationLineItemId?: string) => {
+  const loadCeilingPresetForSection = useCallback((cardKey: string, sectionId: string, subType: CeilingSubType, quotationLineItemId?: string) => {
     const presetItems = (subType === 'ELECTRICAL_DEVICES' ? CEILING_ELECTRICAL_SCHEDULE : CEILING_LIGHTING_SCHEDULE)
       .map((item) => ({
         ...item,
@@ -973,7 +1147,7 @@ export function RequisitionBuilderClient({
       }))
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => ({ ...prev, [key]: [...(prev[key] ?? []), ...presetItems] }))
-  }
+  }, [])
 
   // ── Summary counts ──
   const requisitionItems = useMemo(() => flattenItems(itemsMap), [itemsMap])
@@ -1379,43 +1553,6 @@ export function RequisitionBuilderClient({
     return currentSlideSections.reduce((sum, s) => sum + getRowsForSection(currentCardKey, s.id).length, 0)
   }, [currentSlideSections, currentCardKey, itemsMap])
 
-  /* ── Stable per-section callback factories for the SLIDE view ──
-     Memoized so React.memo on SectionBlock can bail out when only
-     a sibling section's rows change.                              */
-  const onChangeForSection = useCallback(
-    (sectionId: string, cardKey: string) =>
-      (ri: number, field: keyof RequisitionItemInput, val: RequisitionFieldValue) =>
-        updateRow(cardKey, sectionId, ri, field, val),
-    [updateRow],
-  )
-  const onUpdateVariantForSection = useCallback(
-    (sectionId: string, cardKey: string) =>
-      (ri: number, field: keyof BoardVariantAttributes, val: string) =>
-        updateVariant(cardKey, sectionId, ri, field, val),
-    [updateVariant],
-  )
-  const onRemoveRowForSection = useCallback(
-    (sectionId: string, cardKey: string) => (ri: number) => removeRow(cardKey, sectionId, ri),
-    [removeRow],
-  )
-  const onToggleCollapseForSection = useCallback(
-    (sectionId: string, cardKey: string) => () => toggleSectionCollapse(cardKey, sectionId),
-    [toggleSectionCollapse],
-  )
-  const onRemoveSectionFor = useCallback(
-    (sectionId: string, cardKey: string) => () => removeSection(cardKey, sectionId),
-    [removeSection],
-  )
-  const onCopyRowForSection = useCallback(
-    (sectionId: string, cardKey: string) => (ri: number) => handleCopyRowFromSection(sectionId, ri, cardKey),
-    [handleCopyRowFromSection],
-  )
-  const onPasteItemForSection = useCallback(
-    (sectionId: string, cardKey: string) => (item: RequisitionItemInput) =>
-      handlePasteItemToSection(item, sectionId, cardKey),
-    [handlePasteItemToSection],
-  )
-
   /* ── RENDER ── */
   return (
     <div className="p-4 md:p-6 space-y-4 w-full pb-40">
@@ -1642,38 +1779,42 @@ export function RequisitionBuilderClient({
       )}
 
       {/* ── Add Section Modal ── */}
-      <AddSectionModal
-        isOpen={isAddSectionModalOpen}
-        onClose={() => setIsAddSectionModalOpen(false)}
-        productTitle={currentSlide?.title ?? 'Quotation Product'}
-        lineItem={currentSlide?.type === 'LINE_ITEM' ? currentSlide.item : undefined}
-        onAdd={(cat, wpSub, cabSub, accSub, appSub, ceilSub, includeSchedule) => {
-          addSection(
-            currentCardKey,
-            cat,
-            wpSub,
-            cabSub,
-            accSub,
-            appSub,
-            ceilSub,
-            currentSlide?.type === 'LINE_ITEM' ? currentSlide.item?.id : undefined,
-            includeSchedule
-          )
-        }}
-      />
+      {isAddSectionModalOpen && (
+        <AddSectionModal
+          isOpen={isAddSectionModalOpen}
+          onClose={() => setIsAddSectionModalOpen(false)}
+          productTitle={currentSlide?.title ?? 'Quotation Product'}
+          lineItem={currentSlide?.type === 'LINE_ITEM' ? currentSlide.item : undefined}
+          onAdd={(cat, wpSub, cabSub, accSub, appSub, ceilSub, includeSchedule) => {
+            addSection(
+              currentCardKey,
+              cat,
+              wpSub,
+              cabSub,
+              accSub,
+              appSub,
+              ceilSub,
+              currentSlide?.type === 'LINE_ITEM' ? currentSlide.item?.id : undefined,
+              includeSchedule
+            )
+          }}
+        />
+      )}
 
       {/* ── Requisition PDF Export Modal ── */}
-      <RequisitionPdfExportModal
-        isOpen={isPdfModalOpen}
-        onClose={() => setIsPdfModalOpen(false)}
-        lead={lead}
-        requisitionNo={existingRequisition?.requisitionNo || `REQ-${lead.id.slice(-6).toUpperCase()}`}
-        lineItems={lineItems}
-        areas={areas}
-        sectionsMap={sectionsMap}
-        itemsMap={itemsMap}
-        notes={notes}
-      />
+      {isPdfModalOpen && (
+        <RequisitionPdfExportModal
+          isOpen={isPdfModalOpen}
+          onClose={() => setIsPdfModalOpen(false)}
+          lead={lead}
+          requisitionNo={existingRequisition?.requisitionNo || `REQ-${lead.id.slice(-6).toUpperCase()}`}
+          lineItems={lineItems}
+          areas={areas}
+          sectionsMap={sectionsMap}
+          itemsMap={itemsMap}
+          notes={notes}
+        />
+      )}
 
       {/* ── BOQ Requisition Amendment Modal (Portaled to document.body for full-screen coverage) ── */}
       {isAmendmentModalOpen && typeof document !== 'undefined' && createPortal(
@@ -1750,41 +1891,45 @@ export function RequisitionBuilderClient({
       )}
 
       {/* ── Left Product Drawer ── */}
-      <QuotationProductsDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        productSlides={productSlides}
-        currentSlideId={currentSlide?.id ?? ''}
-        onSelectSlide={(slideId) => {
-          const targetIdx = productSlides.findIndex((s) => s.id === slideId)
-          if (targetIdx !== -1) {
-            goToSlide(targetIdx)
-            setViewModePreference('SLIDE')
-          }
-        }}
-        sections={sections}
-        sectionsMap={sectionsMap}
-        itemsMap={itemsMap}
-        lineItemsCount={lineItems.length}
-        coveredLineItems={coveredLineItems}
-        coveragePct={coveragePct}
-        getSectionsForCard={getSectionsForCard}
-        getRowsForSection={getRowsForSection}
-      />
+      {isDrawerOpen && (
+        <QuotationProductsDrawer
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          productSlides={productSlides}
+          currentSlideId={currentSlide?.id ?? ''}
+          onSelectSlide={(slideId) => {
+            const targetIdx = productSlides.findIndex((s) => s.id === slideId)
+            if (targetIdx !== -1) {
+              goToSlide(targetIdx)
+              setViewModePreference('SLIDE')
+            }
+          }}
+          sections={sections}
+          sectionsMap={sectionsMap}
+          itemsMap={itemsMap}
+          lineItemsCount={lineItems.length}
+          coveredLineItems={coveredLineItems}
+          coveragePct={coveragePct}
+          getSectionsForCard={getSectionsForCard}
+          getRowsForSection={getRowsForSection}
+        />
+      )}
 
       {/* ── Used Materials Palette (Project Scope Reuse with Drag & Drop) ── */}
-      <UsedMaterialsPalette
-        isOpen={isUsedPaletteOpen}
-        onClose={() => setIsUsedPaletteOpen(false)}
-        leadId={lead.id}
-        itemsMap={itemsMap}
-        sectionsMap={sectionsMap}
-        productSlides={productSlides}
-        activeSection={activeSectionObj}
-        currentCardKey={currentCardKey}
-        onInsertItem={(item, targetSectionId) => handlePasteItemToSection(item, targetSectionId)}
-        onCopyItem={handleCopyMaterial}
-      />
+      {isUsedPaletteOpen && (
+        <UsedMaterialsPalette
+          isOpen={isUsedPaletteOpen}
+          onClose={() => setIsUsedPaletteOpen(false)}
+          leadId={lead.id}
+          itemsMap={itemsMap}
+          sectionsMap={sectionsMap}
+          productSlides={productSlides}
+          activeSection={activeSectionObj}
+          currentCardKey={currentCardKey}
+          onInsertItem={(item, targetSectionId) => handlePasteItemToSection(item, targetSectionId)}
+          onCopyItem={handleCopyMaterial}
+        />
+      )}
 
       {/* ── Floating Side Navigation Chevrons (Desktop & Tablet) ── */}
       {viewModePreference === 'SLIDE' && (
@@ -1987,29 +2132,31 @@ export function RequisitionBuilderClient({
                   </div>
                 ) : (
                   currentSlideSections.map((section) => (
-                    <SectionBlock
+                    <SlideSectionItem
                       key={section.id}
                       section={section}
+                      cardKey={currentCardKey}
                       rows={getRowsForSection(currentCardKey, section.id)}
-                      onChange={onChangeForSection(section.id, currentCardKey)}
-                      onUpdateVariant={onUpdateVariantForSection(section.id, currentCardKey)}
-                      onAddRow={() => addRow(currentCardKey, section.id, currentSlide.item?.id)}
-                      onRemoveRow={onRemoveRowForSection(section.id, currentCardKey)}
-                      onLoadPreset={(subType) => loadPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
-                      onLoadCabinetPreset={(subType) => loadCabinetPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
-                      onLoadAccessoryPreset={(subType) => loadAccessoryPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
-                      onLoadAppliancePreset={(subType) => loadAppliancePresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
-                      onLoadCeilingPreset={(subType) => loadCeilingPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
-                      onToggleCollapse={onToggleCollapseForSection(section.id, currentCardKey)}
-                      onRemove={onRemoveSectionFor(section.id, currentCardKey)}
+                      currentSlideItemId={currentSlide.item?.id}
+                      copiedMaterial={copiedMaterial}
                       boqSavedAccessories={boqSavedAccessories}
-                      onSelectSavedAccessory={(ri, item) => handleSelectSavedAccessory(currentCardKey, section.id, ri, item)}
-                      onSaveNewSavedAccessory={handleSaveNewAccessory}
                       boqSavedAppliances={boqSavedAppliances}
-                      onSelectSavedAppliance={(ri, item) => handleSelectSavedAppliance(currentCardKey, section.id, ri, item)}
-                      onPasteItem={onPasteItemForSection(section.id, currentCardKey)}
-                      onCopyRow={onCopyRowForSection(section.id, currentCardKey)}
-                      copiedItem={copiedMaterial}
+                      updateRow={updateRow}
+                      updateVariant={updateVariant}
+                      addRow={addRow}
+                      removeRow={removeRow}
+                      loadPresetForSection={loadPresetForSection}
+                      loadCabinetPresetForSection={loadCabinetPresetForSection}
+                      loadAccessoryPresetForSection={loadAccessoryPresetForSection}
+                      loadAppliancePresetForSection={loadAppliancePresetForSection}
+                      loadCeilingPresetForSection={loadCeilingPresetForSection}
+                      toggleSectionCollapse={toggleSectionCollapse}
+                      removeSection={removeSection}
+                      handleSelectSavedAccessory={handleSelectSavedAccessory}
+                      handleSaveNewAccessory={handleSaveNewAccessory}
+                      handleSelectSavedAppliance={handleSelectSavedAppliance}
+                      handlePasteItemToSection={handlePasteItemToSection}
+                      handleCopyRowFromSection={handleCopyRowFromSection}
                     />
                   ))
                 )}
@@ -2089,29 +2236,31 @@ export function RequisitionBuilderClient({
                   </div>
                 ) : (
                   currentSlideSections.map((section) => (
-                    <SectionBlock
+                    <SlideSectionItem
                       key={section.id}
                       section={section}
+                      cardKey={EXTRA_KEY}
                       rows={getRowsForSection(EXTRA_KEY, section.id)}
-                      onChange={onChangeForSection(section.id, EXTRA_KEY)}
-                      onUpdateVariant={onUpdateVariantForSection(section.id, EXTRA_KEY)}
-                      onAddRow={() => addRow(EXTRA_KEY, section.id, undefined)}
-                      onRemoveRow={onRemoveRowForSection(section.id, EXTRA_KEY)}
-                      onLoadPreset={(subType) => loadPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
-                      onLoadCabinetPreset={(subType) => loadCabinetPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
-                      onLoadAccessoryPreset={(subType) => loadAccessoryPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
-                      onLoadAppliancePreset={(subType) => loadAppliancePresetForSection(EXTRA_KEY, section.id, subType, undefined)}
-                      onLoadCeilingPreset={(subType) => loadCeilingPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
-                      onToggleCollapse={onToggleCollapseForSection(section.id, EXTRA_KEY)}
-                      onRemove={onRemoveSectionFor(section.id, EXTRA_KEY)}
+                      currentSlideItemId={undefined}
+                      copiedMaterial={copiedMaterial}
                       boqSavedAccessories={boqSavedAccessories}
-                      onSelectSavedAccessory={(ri, item) => handleSelectSavedAccessory(EXTRA_KEY, section.id, ri, item)}
-                      onSaveNewSavedAccessory={handleSaveNewAccessory}
                       boqSavedAppliances={boqSavedAppliances}
-                      onSelectSavedAppliance={(ri, item) => handleSelectSavedAppliance(EXTRA_KEY, section.id, ri, item)}
-                      onPasteItem={onPasteItemForSection(section.id, EXTRA_KEY)}
-                      onCopyRow={onCopyRowForSection(section.id, EXTRA_KEY)}
-                      copiedItem={copiedMaterial}
+                      updateRow={updateRow}
+                      updateVariant={updateVariant}
+                      addRow={addRow}
+                      removeRow={removeRow}
+                      loadPresetForSection={loadPresetForSection}
+                      loadCabinetPresetForSection={loadCabinetPresetForSection}
+                      loadAccessoryPresetForSection={loadAccessoryPresetForSection}
+                      loadAppliancePresetForSection={loadAppliancePresetForSection}
+                      loadCeilingPresetForSection={loadCeilingPresetForSection}
+                      toggleSectionCollapse={toggleSectionCollapse}
+                      removeSection={removeSection}
+                      handleSelectSavedAccessory={handleSelectSavedAccessory}
+                      handleSaveNewAccessory={handleSaveNewAccessory}
+                      handleSelectSavedAppliance={handleSelectSavedAppliance}
+                      handlePasteItemToSection={handlePasteItemToSection}
+                      handleCopyRowFromSection={handleCopyRowFromSection}
                     />
                   ))
                 )}

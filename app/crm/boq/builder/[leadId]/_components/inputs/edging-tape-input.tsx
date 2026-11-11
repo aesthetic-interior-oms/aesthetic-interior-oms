@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { memo } from 'react'
 import { GRID_CELL_NUM, GRID_CELL_SELECT } from '../constants/boq-grid-styles'
 
 export interface EdgingTapeInputProps {
@@ -9,7 +9,7 @@ export interface EdgingTapeInputProps {
   defaultUnit?: 'Roll' | 'RFT'
 }
 
-export function EdgingTapeInput({
+export const EdgingTapeInput = memo(function EdgingTapeInput({
   value,
   onChange,
   defaultUnit = 'RFT',
@@ -46,4 +46,4 @@ export function EdgingTapeInput({
       </select>
     </div>
   )
-}
+})

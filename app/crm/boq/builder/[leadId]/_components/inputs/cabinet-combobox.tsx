@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, memo } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
 import { GRID_CELL_INPUT } from '../constants/boq-grid-styles'
@@ -15,7 +15,7 @@ export interface CabinetComboboxProps {
   className?: string
 }
 
-export function CabinetCombobox({
+export const CabinetCombobox = memo(function CabinetCombobox({
   value,
   onChange,
   onBlur,
@@ -204,4 +204,4 @@ export function CabinetCombobox({
         )}
     </div>
   )
-}
+})

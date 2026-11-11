@@ -313,6 +313,10 @@ export function RequisitionPdfExportModal({
 
   // Build filtered product groups and aggregated material items
   const { productGroups, aggregatedMaterials } = useMemo(() => {
+    if (!isOpen) {
+      return { productGroups: [], aggregatedMaterials: [] }
+    }
+
     const pGroups: RequisitionProductGroup[] = []
     const aggMap = new Map<string, RequisitionAggregatedMaterial>()
 
@@ -437,6 +441,7 @@ export function RequisitionPdfExportModal({
     lineItemMap,
     areaMap,
     manualMerges,
+    isOpen,
   ])
 
   const totalFilteredRows = useMemo(() => {

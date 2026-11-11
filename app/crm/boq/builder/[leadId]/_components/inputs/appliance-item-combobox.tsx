@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, memo } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown, Flame } from 'lucide-react'
 import { GRID_CELL_BOLD } from '../constants/boq-grid-styles'
@@ -15,7 +15,7 @@ export interface ApplianceItemComboboxProps {
   className?: string
 }
 
-export function ApplianceItemCombobox({
+export const ApplianceItemCombobox = memo(function ApplianceItemCombobox({
   value,
   onChange,
   onSelectItem,
@@ -213,4 +213,4 @@ export function ApplianceItemCombobox({
         )}
     </div>
   )
-}
+})
