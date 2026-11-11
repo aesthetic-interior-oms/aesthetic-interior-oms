@@ -5,6 +5,8 @@ import {
   Package,
   Trash2,
   Plus,
+  ArrowRight,
+  Check,
 } from 'lucide-react'
 import type { RequisitionItemInput } from '@/lib/boq-service'
 import { DEFAULT_CABINET_CATALOG, getCabinetThicknessOptions } from '@/lib/boq-cabinet-catalog'
@@ -174,6 +176,23 @@ export function MaterialRowsTable({
             <tbody className="divide-y divide-border/40 bg-card">
               {rows.map((item, ri) => {
                 const attrs: BoardVariantAttributes = item.variantAttributes || {}
+                const wpFrontVal = attrs.laminateTopSurface || ''
+                const wpFrontType = (attrs.boardLaminateType || 'PRELAMINATED') as 'PRELAMINATED' | 'HPL' | 'DUCO'
+                const wpBackVal = attrs.surfaceCodeFinish || ''
+                const isWpSame = !!wpFrontVal && wpFrontVal === wpBackVal
+
+                const handleCopyWpFrontToBack = () => {
+                  if (!wpFrontVal) return
+                  onUpdateVariant(ri, 'surfaceCodeFinish', wpFrontVal)
+                  onUpdateVariant(ri, 'boardBackLaminateType', wpFrontType)
+                  const isChampagne = wpFrontVal.toLowerCase().includes('champaign') || wpFrontVal.toLowerCase().includes('champagne')
+                  if (isChampagne) {
+                    const mrMdf = 'MR MDF Architect Grade Board'
+                    onUpdateVariant(ri, 'baseMaterial', mrMdf)
+                    onChange(ri, 'materialName', mrMdf)
+                  }
+                }
+
                 return (
                   <tr key={ri} className="divide-x divide-border/40 hover:bg-muted/30 transition-colors">
                     {/* 1. SL NO */}
@@ -204,22 +223,40 @@ export function MaterialRowsTable({
 
                     {/* 4. Front / Top Laminate — Prelaminated / HPL / Duco picker (Defaults to Raw Board) */}
                     <td className={GRID_TD}>
-                      <LaminateFinishPicker
-                        value={attrs.laminateTopSurface || ''}
-                        finishType={attrs.boardLaminateType || 'PRELAMINATED'}
-                        hplBrands={BOARD_LAMINATE_CATALOG.hplBrands}
-                        onChange={(val, fType) => {
-                          onUpdateVariant(ri, 'laminateTopSurface', val)
-                          onUpdateVariant(ri, 'boardLaminateType', fType)
-                          const isChampagne = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
-                          if (isChampagne) {
-                            const mrMdf = 'MR MDF Architect Grade Board'
-                            onUpdateVariant(ri, 'baseMaterial', mrMdf)
-                            onChange(ri, 'materialName', mrMdf)
-                          }
-                        }}
-                        placeholder="Raw Board (None)"
-                      />
+                      <div className="flex items-center gap-1">
+                        <div className="flex-1 min-w-0">
+                          <LaminateFinishPicker
+                            value={attrs.laminateTopSurface || ''}
+                            finishType={attrs.boardLaminateType || 'PRELAMINATED'}
+                            hplBrands={BOARD_LAMINATE_CATALOG.hplBrands}
+                            onChange={(val, fType) => {
+                              onUpdateVariant(ri, 'laminateTopSurface', val)
+                              onUpdateVariant(ri, 'boardLaminateType', fType)
+                              const isChampagne = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
+                              if (isChampagne) {
+                                const mrMdf = 'MR MDF Architect Grade Board'
+                                onUpdateVariant(ri, 'baseMaterial', mrMdf)
+                                onChange(ri, 'materialName', mrMdf)
+                              }
+                            }}
+                            placeholder="Raw Board (None)"
+                          />
+                        </div>
+                        {wpFrontVal && (
+                          <button
+                            type="button"
+                            onClick={handleCopyWpFrontToBack}
+                            title={isWpSame ? 'Front and Back laminate are identical' : `Copy front finish "${wpFrontVal}" to Back Laminate (Both sides same)`}
+                            className={`shrink-0 inline-flex items-center justify-center h-6 w-6 rounded transition-all shadow-xs border ${
+                              isWpSame
+                                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
+                                : 'bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border-primary/30 hover:scale-105 active:scale-95 animate-in fade-in zoom-in-75 duration-150'
+                            }`}
+                          >
+                            {isWpSame ? <Check className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
+                      </div>
                     </td>
 
                     {/* 5. Back / Bottom Laminate (Defaults to Raw Board) */}
@@ -239,6 +276,8 @@ export function MaterialRowsTable({
                           }
                         }}
                         isBack={true}
+                        frontValue={wpFrontVal}
+                        frontFinishType={wpFrontType}
                         placeholder="Raw Board (None)"
                       />
                     </td>
@@ -1048,17 +1087,20 @@ export function MaterialRowsTable({
 
                     {/* 5. Front Laminate / Finish */}
                     <td className={GRID_TD}>
-                      <LaminateFinishPicker
-                        value={attrs.frontLaminateCode || attrs.laminateFinishDetails || ''}
-                        finishType={attrs.frontLaminateType || (isFrontHpl ? 'HPL' : 'PRELAMINATED')}
-                        onChange={(val, fType) => {
-                          onUpdateVariant(ri, 'frontLaminateCode', val)
-                          onUpdateVariant(ri, 'frontLaminateType', fType)
-                          onUpdateVariant(ri, 'laminateFinishDetails', val)
-                          const frontHpl = fType === 'HPL' || DEFAULT_CABINET_CATALOG.hplBrands.includes(val)
-                          const rowHpl = frontHpl || isBackHpl
+                      {(() => {
+                        const cabFrontVal = attrs.frontLaminateCode || attrs.laminateFinishDetails || ''
+                        const cabFrontType = (attrs.frontLaminateType || (isFrontHpl ? 'HPL' : 'PRELAMINATED')) as 'PRELAMINATED' | 'HPL' | 'DUCO'
+                        const cabBackVal = attrs.backLaminateCode || ''
+                        const isCabSame = !!cabFrontVal && cabFrontVal === cabBackVal
+
+                        const handleCopyCabFrontToBack = () => {
+                          if (!cabFrontVal) return
+                          onUpdateVariant(ri, 'backLaminateCode', cabFrontVal)
+                          onUpdateVariant(ri, 'backLaminateType', cabFrontType)
+                          const backHpl = cabFrontType === 'HPL' || DEFAULT_CABINET_CATALOG.hplBrands.includes(cabFrontVal)
+                          const rowHpl = isFrontHpl || backHpl
                           onUpdateVariant(ri, 'isHplPasting', rowHpl ? 'true' : 'false')
-                          const isChampagne = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
+                          const isChampagne = cabFrontVal.toLowerCase().includes('champaign') || cabFrontVal.toLowerCase().includes('champagne')
                           if (isChampagne) {
                             const mrMdf = 'MR MDF Architect Grade Board'
                             onUpdateVariant(ri, 'baseMaterial', mrMdf)
@@ -1068,9 +1110,52 @@ export function MaterialRowsTable({
                             const baseMat = (attrs.baseMaterial || attrs.coreSubstrateType || item.materialName || 'Board').replace(/\s+HPL\s+Pasting$/i, '')
                             onChange(ri, 'materialName', rowHpl ? `${baseMat} HPL Pasting` : baseMat)
                           }
-                        }}
-                        placeholder="Select front finish..."
-                      />
+                        }
+
+                        return (
+                          <div className="flex items-center gap-1">
+                            <div className="flex-1 min-w-0">
+                              <LaminateFinishPicker
+                                value={attrs.frontLaminateCode || attrs.laminateFinishDetails || ''}
+                                finishType={attrs.frontLaminateType || (isFrontHpl ? 'HPL' : 'PRELAMINATED')}
+                                onChange={(val, fType) => {
+                                  onUpdateVariant(ri, 'frontLaminateCode', val)
+                                  onUpdateVariant(ri, 'frontLaminateType', fType)
+                                  onUpdateVariant(ri, 'laminateFinishDetails', val)
+                                  const frontHpl = fType === 'HPL' || DEFAULT_CABINET_CATALOG.hplBrands.includes(val)
+                                  const rowHpl = frontHpl || isBackHpl
+                                  onUpdateVariant(ri, 'isHplPasting', rowHpl ? 'true' : 'false')
+                                  const isChampagne = (val || '').toLowerCase().includes('champaign') || (val || '').toLowerCase().includes('champagne')
+                                  if (isChampagne) {
+                                    const mrMdf = 'MR MDF Architect Grade Board'
+                                    onUpdateVariant(ri, 'baseMaterial', mrMdf)
+                                    onUpdateVariant(ri, 'coreSubstrateType', mrMdf)
+                                    onChange(ri, 'materialName', rowHpl ? `${mrMdf} HPL Pasting` : mrMdf)
+                                  } else {
+                                    const baseMat = (attrs.baseMaterial || attrs.coreSubstrateType || item.materialName || 'Board').replace(/\s+HPL\s+Pasting$/i, '')
+                                    onChange(ri, 'materialName', rowHpl ? `${baseMat} HPL Pasting` : baseMat)
+                                  }
+                                }}
+                                placeholder="Select front finish..."
+                              />
+                            </div>
+                            {cabFrontVal && (
+                              <button
+                                type="button"
+                                onClick={handleCopyCabFrontToBack}
+                                title={isCabSame ? 'Front and Back laminate are identical' : `Copy front finish "${cabFrontVal}" to Back Laminate (Both sides same)`}
+                                className={`shrink-0 inline-flex items-center justify-center h-6 w-6 rounded transition-all shadow-xs border ${
+                                  isCabSame
+                                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/25'
+                                    : 'bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground border-primary/30 hover:scale-105 active:scale-95 animate-in fade-in zoom-in-75 duration-150'
+                                }`}
+                              >
+                                {isCabSame ? <Check className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </td>
 
                     {/* 6. Back Laminate / Liner */}
@@ -1096,6 +1181,8 @@ export function MaterialRowsTable({
                           }
                         }}
                         isBack={true}
+                        frontValue={attrs.frontLaminateCode || attrs.laminateFinishDetails || ''}
+                        frontFinishType={attrs.frontLaminateType || (isFrontHpl ? 'HPL' : 'PRELAMINATED')}
                         placeholder="Select back finish..."
                       />
                     </td>

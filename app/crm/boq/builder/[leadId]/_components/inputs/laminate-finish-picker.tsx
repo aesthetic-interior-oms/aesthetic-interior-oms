@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, ChevronDown } from 'lucide-react'
+import { Check, ChevronDown, ArrowRight } from 'lucide-react'
 import { GRID_CELL_INPUT } from '../constants/boq-grid-styles'
 import { DEFAULT_CABINET_CATALOG } from '@/lib/boq-cabinet-catalog'
 
@@ -15,6 +15,8 @@ export interface LaminateFinishPickerProps {
   onChange: (val: string, finishType: 'PRELAMINATED' | 'HPL' | 'DUCO') => void
   hplBrands?: string[]
   isBack?: boolean
+  frontValue?: string
+  frontFinishType?: 'PRELAMINATED' | 'HPL' | 'DUCO' | 'SOLID' | string
   placeholder?: string
 }
 
@@ -24,6 +26,8 @@ export function LaminateFinishPicker({
   onChange,
   hplBrands = DEFAULT_CABINET_CATALOG.hplBrands,
   isBack = false,
+  frontValue,
+  frontFinishType,
   placeholder = 'Select finish...',
 }: LaminateFinishPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -160,8 +164,33 @@ export function LaminateFinishPicker({
             style={dropdownStyle}
             className="rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-xl"
           >
-            {/* Top Quick Shortcut: Raw Board (Uncoated) */}
-            <div className="mb-1.5 pb-1 border-b border-border/40">
+            {/* Top Quick Shortcuts: Same as Front (if back) & Raw Board */}
+            <div className="mb-1.5 pb-1 border-b border-border/40 space-y-1">
+              {isBack && frontValue && frontValue.trim() && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const detectedHpl = hplBrands.includes(frontValue) || frontFinishType === 'HPL'
+                    const detectedDuco = DUCO_PAINT_OPTIONS.includes(frontValue) || frontFinishType === 'DUCO'
+                    const fType = detectedHpl ? 'HPL' : detectedDuco ? 'DUCO' : 'PRELAMINATED'
+                    onChange(frontValue, fType)
+                    setIsOpen(false)
+                  }}
+                  className={`flex w-full items-center justify-between px-2.5 py-1.5 text-xs text-left rounded transition-colors ${
+                    value === frontValue
+                      ? 'bg-emerald-500/15 font-bold text-emerald-900 dark:text-emerald-200 border border-emerald-500/30'
+                      : 'bg-primary/10 hover:bg-primary/20 text-primary font-medium hover:text-primary'
+                  }`}
+                  title="Copy front laminate to back (Both sides same)"
+                >
+                  <span className="flex items-center gap-1.5 min-w-0">
+                    <ArrowRight className="w-3.5 h-3.5 shrink-0 text-primary" />
+                    <span className="truncate">Same as Front ({frontValue})</span>
+                  </span>
+                  {value === frontValue && <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+                </button>
+              )}
               <button
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
