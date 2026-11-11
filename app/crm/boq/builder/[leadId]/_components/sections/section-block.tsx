@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { ChevronDown, ChevronRight, Trash2, Sparkles, Copy } from 'lucide-react'
 import type { RequisitionItemInput } from '@/lib/boq-service'
 import type {
@@ -28,7 +28,7 @@ import {
 import { getViewModeForSection } from '../helpers/boq-pdf-builder'
 import { MaterialRowsTable } from './material-rows-table'
 
-export function SectionBlock({
+export const SectionBlock = memo(function SectionBlock({
   section,
   rows,
   onChange,
@@ -241,6 +241,6 @@ export function SectionBlock({
       )}
     </div>
   )
-}
+})
 
 

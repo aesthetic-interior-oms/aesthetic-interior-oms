@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import {
   Package,
   Trash2,
@@ -58,7 +58,7 @@ import { LaminateFinishPicker } from '../inputs/laminate-finish-picker'
 import { AccessoryItemCombobox } from '../inputs/accessory-item-combobox'
 import { ApplianceItemCombobox } from '../inputs/appliance-item-combobox'
 
-export function MaterialRowsTable({
+export const MaterialRowsTable = memo(function MaterialRowsTable({
   rows,
   viewMode,
   onChange,
@@ -2582,5 +2582,5 @@ export function MaterialRowsTable({
       )}
     </div>
   )
-}
+})
 

@@ -600,7 +600,7 @@ export function RequisitionBuilderClient({
   }
 
 
-  const removeSection = (cardKey: string, sectionId: string) => {
+  const removeSection = useCallback((cardKey: string, sectionId: string) => {
     setSectionsMap((prev) => ({
       ...prev,
       [cardKey]: (prev[cardKey] ?? []).filter((s) => s.id !== sectionId),
@@ -610,16 +610,16 @@ export function RequisitionBuilderClient({
       delete next[sectionItemKey(cardKey, sectionId)]
       return next
     })
-  }
+  }, [])
 
-  const toggleSectionCollapse = (cardKey: string, sectionId: string) => {
+  const toggleSectionCollapse = useCallback((cardKey: string, sectionId: string) => {
     setSectionsMap((prev) => ({
       ...prev,
       [cardKey]: (prev[cardKey] ?? []).map((s) => (s.id === sectionId ? { ...s, collapsed: !s.collapsed } : s)),
     }))
-  }
+  }, [])
 
-  const updateRow = (cardKey: string, sectionId: string, rowIndex: number, field: keyof RequisitionItemInput, rawValue: RequisitionFieldValue) => {
+  const updateRow = useCallback((cardKey: string, sectionId: string, rowIndex: number, field: keyof RequisitionItemInput, rawValue: RequisitionFieldValue) => {
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => {
       const rows = [...(prev[key] ?? [])]
@@ -637,9 +637,9 @@ export function RequisitionBuilderClient({
       rows[rowIndex] = current
       return { ...prev, [key]: rows }
     })
-  }
+  }, [])
 
-  const updateVariant = (cardKey: string, sectionId: string, rowIndex: number, field: keyof BoardVariantAttributes, value: string) => {
+  const updateVariant = useCallback((cardKey: string, sectionId: string, rowIndex: number, field: keyof BoardVariantAttributes, value: string) => {
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => {
       const rows = [...(prev[key] ?? [])]
@@ -683,9 +683,9 @@ export function RequisitionBuilderClient({
       rows[rowIndex] = current
       return { ...prev, [key]: rows }
     })
-  }
+  }, [sectionsMap])
 
-  const addRow = (cardKey: string, sectionId: string, quotationLineItemId?: string) => {
+  const addRow = useCallback((cardKey: string, sectionId: string, quotationLineItemId?: string) => {
     const sectionInfo = (sectionsMap[cardKey] ?? []).find((s) => s.id === sectionId)
     const key = sectionItemKey(cardKey, sectionId)
     setItemsMap((prev) => {
@@ -706,7 +706,12 @@ export function RequisitionBuilderClient({
       }
       return { ...prev, [key]: [...existingRows, newItem] }
     })
-  }
+  }, [sectionsMap])
+
+  const removeRow = useCallback((cardKey: string, sectionId: string, rowIndex: number) => {
+    const key = sectionItemKey(cardKey, sectionId)
+    setItemsMap((prev) => ({ ...prev, [key]: (prev[key] ?? []).filter((_, i) => i !== rowIndex) }))
+  }, [])
 
   const [copiedMaterial, setCopiedMaterial] = useState<RequisitionItemInput | null>(() => {
     if (typeof window !== 'undefined') {
@@ -799,11 +804,6 @@ export function RequisitionBuilderClient({
     setSaveSuccess(`Inserted "${item.materialName || 'Material'}" into section!`)
     setTimeout(() => setSaveSuccess(null), 3000)
   }, [activeSectionObj, currentCardKey, sectionsMap])
-
-  const removeRow = (cardKey: string, sectionId: string, rowIndex: number) => {
-    const key = sectionItemKey(cardKey, sectionId)
-    setItemsMap((prev) => ({ ...prev, [key]: (prev[key] ?? []).filter((_, i) => i !== rowIndex) }))
-  }
 
   const loadPresetForSection = (cardKey: string, sectionId: string, subType: WallPanelingSubType, quotationLineItemId?: string) => {
     const presetMap: Record<WallPanelingSubType, RequisitionItemInput[]> = {
@@ -1378,6 +1378,43 @@ export function RequisitionBuilderClient({
   const currentSlideRowsCount = useMemo(() => {
     return currentSlideSections.reduce((sum, s) => sum + getRowsForSection(currentCardKey, s.id).length, 0)
   }, [currentSlideSections, currentCardKey, itemsMap])
+
+  /* ── Stable per-section callback factories for the SLIDE view ──
+     Memoized so React.memo on SectionBlock can bail out when only
+     a sibling section's rows change.                              */
+  const onChangeForSection = useCallback(
+    (sectionId: string, cardKey: string) =>
+      (ri: number, field: keyof RequisitionItemInput, val: RequisitionFieldValue) =>
+        updateRow(cardKey, sectionId, ri, field, val),
+    [updateRow],
+  )
+  const onUpdateVariantForSection = useCallback(
+    (sectionId: string, cardKey: string) =>
+      (ri: number, field: keyof BoardVariantAttributes, val: string) =>
+        updateVariant(cardKey, sectionId, ri, field, val),
+    [updateVariant],
+  )
+  const onRemoveRowForSection = useCallback(
+    (sectionId: string, cardKey: string) => (ri: number) => removeRow(cardKey, sectionId, ri),
+    [removeRow],
+  )
+  const onToggleCollapseForSection = useCallback(
+    (sectionId: string, cardKey: string) => () => toggleSectionCollapse(cardKey, sectionId),
+    [toggleSectionCollapse],
+  )
+  const onRemoveSectionFor = useCallback(
+    (sectionId: string, cardKey: string) => () => removeSection(cardKey, sectionId),
+    [removeSection],
+  )
+  const onCopyRowForSection = useCallback(
+    (sectionId: string, cardKey: string) => (ri: number) => handleCopyRowFromSection(sectionId, ri, cardKey),
+    [handleCopyRowFromSection],
+  )
+  const onPasteItemForSection = useCallback(
+    (sectionId: string, cardKey: string) => (item: RequisitionItemInput) =>
+      handlePasteItemToSection(item, sectionId, cardKey),
+    [handlePasteItemToSection],
+  )
 
   /* ── RENDER ── */
   return (
@@ -1954,24 +1991,24 @@ export function RequisitionBuilderClient({
                       key={section.id}
                       section={section}
                       rows={getRowsForSection(currentCardKey, section.id)}
-                      onChange={(ri, field, val) => updateRow(currentCardKey, section.id, ri, field, val)}
-                      onUpdateVariant={(ri, field, val) => updateVariant(currentCardKey, section.id, ri, field, val)}
+                      onChange={onChangeForSection(section.id, currentCardKey)}
+                      onUpdateVariant={onUpdateVariantForSection(section.id, currentCardKey)}
                       onAddRow={() => addRow(currentCardKey, section.id, currentSlide.item?.id)}
-                      onRemoveRow={(ri) => removeRow(currentCardKey, section.id, ri)}
+                      onRemoveRow={onRemoveRowForSection(section.id, currentCardKey)}
                       onLoadPreset={(subType) => loadPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
                       onLoadCabinetPreset={(subType) => loadCabinetPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
                       onLoadAccessoryPreset={(subType) => loadAccessoryPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
                       onLoadAppliancePreset={(subType) => loadAppliancePresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
                       onLoadCeilingPreset={(subType) => loadCeilingPresetForSection(currentCardKey, section.id, subType, currentSlide.item?.id)}
-                      onToggleCollapse={() => toggleSectionCollapse(currentCardKey, section.id)}
-                      onRemove={() => removeSection(currentCardKey, section.id)}
+                      onToggleCollapse={onToggleCollapseForSection(section.id, currentCardKey)}
+                      onRemove={onRemoveSectionFor(section.id, currentCardKey)}
                       boqSavedAccessories={boqSavedAccessories}
                       onSelectSavedAccessory={(ri, item) => handleSelectSavedAccessory(currentCardKey, section.id, ri, item)}
                       onSaveNewSavedAccessory={handleSaveNewAccessory}
                       boqSavedAppliances={boqSavedAppliances}
                       onSelectSavedAppliance={(ri, item) => handleSelectSavedAppliance(currentCardKey, section.id, ri, item)}
-                      onPasteItem={(item) => handlePasteItemToSection(item, section.id, currentCardKey)}
-                      onCopyRow={(ri) => handleCopyRowFromSection(section.id, ri, currentCardKey)}
+                      onPasteItem={onPasteItemForSection(section.id, currentCardKey)}
+                      onCopyRow={onCopyRowForSection(section.id, currentCardKey)}
                       copiedItem={copiedMaterial}
                     />
                   ))
@@ -2056,24 +2093,24 @@ export function RequisitionBuilderClient({
                       key={section.id}
                       section={section}
                       rows={getRowsForSection(EXTRA_KEY, section.id)}
-                      onChange={(ri, field, val) => updateRow(EXTRA_KEY, section.id, ri, field, val)}
-                      onUpdateVariant={(ri, field, val) => updateVariant(EXTRA_KEY, section.id, ri, field, val)}
+                      onChange={onChangeForSection(section.id, EXTRA_KEY)}
+                      onUpdateVariant={onUpdateVariantForSection(section.id, EXTRA_KEY)}
                       onAddRow={() => addRow(EXTRA_KEY, section.id, undefined)}
-                      onRemoveRow={(ri) => removeRow(EXTRA_KEY, section.id, ri)}
+                      onRemoveRow={onRemoveRowForSection(section.id, EXTRA_KEY)}
                       onLoadPreset={(subType) => loadPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
                       onLoadCabinetPreset={(subType) => loadCabinetPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
                       onLoadAccessoryPreset={(subType) => loadAccessoryPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
                       onLoadAppliancePreset={(subType) => loadAppliancePresetForSection(EXTRA_KEY, section.id, subType, undefined)}
                       onLoadCeilingPreset={(subType) => loadCeilingPresetForSection(EXTRA_KEY, section.id, subType, undefined)}
-                      onToggleCollapse={() => toggleSectionCollapse(EXTRA_KEY, section.id)}
-                      onRemove={() => removeSection(EXTRA_KEY, section.id)}
+                      onToggleCollapse={onToggleCollapseForSection(section.id, EXTRA_KEY)}
+                      onRemove={onRemoveSectionFor(section.id, EXTRA_KEY)}
                       boqSavedAccessories={boqSavedAccessories}
                       onSelectSavedAccessory={(ri, item) => handleSelectSavedAccessory(EXTRA_KEY, section.id, ri, item)}
                       onSaveNewSavedAccessory={handleSaveNewAccessory}
                       boqSavedAppliances={boqSavedAppliances}
                       onSelectSavedAppliance={(ri, item) => handleSelectSavedAppliance(EXTRA_KEY, section.id, ri, item)}
-                      onPasteItem={(item) => handlePasteItemToSection(item, section.id, EXTRA_KEY)}
-                      onCopyRow={(ri) => handleCopyRowFromSection(section.id, ri, EXTRA_KEY)}
+                      onPasteItem={onPasteItemForSection(section.id, EXTRA_KEY)}
+                      onCopyRow={onCopyRowForSection(section.id, EXTRA_KEY)}
                       copiedItem={copiedMaterial}
                     />
                   ))
