@@ -234,7 +234,7 @@ export async function listQuotationUserPerformanceProjects(userId: string, targe
  * Can be triggered automatically on quotation work submit, draft save, or approval.
  */
 export async function recalculateQuotationUserPerformance(userId: string, targetDate: Date = new Date()) {
-  const { monthKey } = getMonthDateRange(targetDate)
+  const { monthKey, startDate, nextMonthStart } = getMonthDateRange(targetDate)
   const projects = await listQuotationUserPerformanceProjects(userId, targetDate)
   const detailSqft = projects.reduce((sum, project) => sum + project.detailSqft, 0)
   const shortSqft = projects.reduce((sum, project) => sum + project.shortSqft, 0)
@@ -244,15 +244,32 @@ export async function recalculateQuotationUserPerformance(userId: string, target
 
   console.log(`[QuotationPerformance] User ${userId} has ${projects.length} quotation assignments in ${monthKey}.`)
 
-  const totalSqft = detailSqft + shortSqft
-  console.log(`[QuotationPerformance] User ${userId} FINAL -> Total detail: ${detailSqft}, Total short: ${shortSqft}, Completed count: ${completedCount}`)
+  // Check if user has manual daily work reports for this month
+  const dailyReports = await prisma.quotationDailyWorkReport.findMany({
+    where: {
+      userId,
+      workDate: { gte: startDate, lt: nextMonthStart },
+    },
+    select: { sqft: true, workType: true },
+  })
+
+  const dailyTotalSqft = dailyReports.reduce((sum, r) => sum + r.sqft, 0)
+  const dailyDetailSqft = dailyReports.filter((r) => r.workType === 'DETAIL').reduce((sum, r) => sum + r.sqft, 0)
+  const dailyShortSqft = dailyReports.filter((r) => r.workType === 'SHORT').reduce((sum, r) => sum + r.sqft, 0)
+
+  // If manual daily entries exist, prioritize the team member's verified daily entries
+  const effectiveDetailSqft = dailyTotalSqft > 0 ? dailyDetailSqft : detailSqft
+  const effectiveShortSqft = dailyTotalSqft > 0 ? dailyShortSqft : shortSqft
+  const effectiveTotalSqft = dailyTotalSqft > 0 ? dailyTotalSqft : (detailSqft + shortSqft)
+
+  console.log(`[QuotationPerformance] User ${userId} FINAL -> Total detail: ${effectiveDetailSqft}, Total short: ${effectiveShortSqft}, Daily reported: ${dailyTotalSqft}, Completed count: ${completedCount}`)
   const avgWorkingHours = completedCount > 0 ? Number((totalWorkingHoursSum / completedCount).toFixed(1)) : 0
 
   // Score calculation out of 100:
   // - Volume (SQFT): up to 50 pts (10,000 sqft = 50 pts)
   // - Completed Count: up to 30 pts (10 completed = 30 pts)
   // - Speed: up to 20 pts (under 24h avg = 20 pts)
-  const sqftScore = Math.min(50, (totalSqft / 10000) * 50)
+  const sqftScore = Math.min(50, (effectiveTotalSqft / 10000) * 50)
   const countScore = Math.min(30, (completedCount / 10) * 30)
   const speedScore = completedCount > 0 ? Math.min(20, Math.max(5, 20 - (avgWorkingHours / 24) * 5)) : 0
   const performanceScore = Number(Math.min(100, Math.round(sqftScore + countScore + speedScore)).toFixed(1))
@@ -265,17 +282,17 @@ export async function recalculateQuotationUserPerformance(userId: string, target
       create: {
         userId,
         monthKey,
-        detailSqft,
-        shortSqft,
-        totalSqft,
+        detailSqft: effectiveDetailSqft,
+        shortSqft: effectiveShortSqft,
+        totalSqft: effectiveTotalSqft,
         completedCount,
         avgWorkingHours,
         performanceScore,
       },
       update: {
-        detailSqft,
-        shortSqft,
-        totalSqft,
+        detailSqft: effectiveDetailSqft,
+        shortSqft: effectiveShortSqft,
+        totalSqft: effectiveTotalSqft,
         completedCount,
         avgWorkingHours,
         performanceScore,
@@ -289,9 +306,9 @@ export async function recalculateQuotationUserPerformance(userId: string, target
       id: `fallback-${userId}-${monthKey}`,
       userId,
       monthKey,
-      detailSqft,
-      shortSqft,
-      totalSqft,
+      detailSqft: effectiveDetailSqft,
+      shortSqft: effectiveShortSqft,
+      totalSqft: effectiveTotalSqft,
       completedCount,
       avgWorkingHours,
       performanceScore,

@@ -4,6 +4,9 @@ import { requireDatabaseRoles } from '@/lib/authz'
 import { canAccessQuotationDraft, canEditQuotationDraft, buildQuotationLeadWhere } from '@/lib/quotation-auth'
 import { buildDefaultFurnitureQuotationContent, type FurnitureQuotationContent, type FurnitureQuotationItem } from '@/lib/furniture-quotation-template'
 
+import { QuotationWorkType } from '@/generated/prisma/client'
+import { logQuotationWorkActivity } from '@/lib/quotation-daily-work'
+
 type RouteContext = { params: Promise<{ id: string }> }
 
 function normalizeContent(value: unknown): FurnitureQuotationContent | null {
@@ -91,5 +94,6 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     create: { leadId: result.lead.id, createdById: auth.actorUserId, updatedById: auth.actorUserId, content: content as never, grandTotal },
     update: { updatedById: auth.actorUserId, content: content as never, grandTotal },
   })
+  void logQuotationWorkActivity(auth.actorUserId, result.lead.id, QuotationWorkType.FURNITURE, 'Saved furniture quotation')
   return NextResponse.json({ success: true, data: { draft, content, grandTotal } })
 }

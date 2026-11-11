@@ -9,6 +9,9 @@ import {
   type ElectricalQuotationItem,
 } from '@/lib/electrical-quotation-template'
 
+import { QuotationWorkType } from '@/generated/prisma/client'
+import { logQuotationWorkActivity } from '@/lib/quotation-daily-work'
+
 type RouteContext = { params: Promise<{ id: string }> }
 
 function normalizeContent(value: unknown): ElectricalQuotationContent | null {
@@ -107,5 +110,6 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     create: { leadId: result.lead.id, createdById: auth.actorUserId, updatedById: auth.actorUserId, content: content as never, grandTotal },
     update: { updatedById: auth.actorUserId, content: content as never, grandTotal },
   })
+  void logQuotationWorkActivity(auth.actorUserId, result.lead.id, QuotationWorkType.ELECTRICAL, 'Saved electrical quotation')
   return NextResponse.json({ success: true, data: { draft, content, grandTotal } })
 }

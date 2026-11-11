@@ -36,6 +36,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { DailyWorkReportModal } from '@/components/crm/quotation/daily-work-report-modal'
 
 type StatusBreakdownItem = {
   name: string
@@ -119,6 +120,7 @@ export default function QuotationTeamDashboardPage() {
   const [myPerformance, setMyPerformance] = useState<PerformanceMember | null>(null)
   const [deptSummary, setDeptSummary] = useState<DepartmentSummary | null>(null)
   const [leaderboard, setLeaderboard] = useState<PerformanceMember[]>([])
+  const [dailyReportModalOpen, setDailyReportModalOpen] = useState(false)
 
   const fetchDashboardData = async (monthKey: string) => {
     setLoading(true)
@@ -204,6 +206,14 @@ export default function QuotationTeamDashboardPage() {
               <RefreshCw className={`mr-1.5 h-4 w-4 ${loading || perfLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
+            <Button
+              size="sm"
+              onClick={() => setDailyReportModalOpen(true)}
+              className="h-9 gap-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-semibold shadow-sm"
+            >
+              <Calendar className="h-4 w-4" />
+              Today&apos;s Work Report
+            </Button>
             <Button size="sm" asChild className="h-9">
               <Link href="/quotation-team/my-work">
                 View My Work Queue
@@ -211,6 +221,32 @@ export default function QuotationTeamDashboardPage() {
               </Link>
             </Button>
           </div>
+        </div>
+
+        {/* Daily Work Entry Action Banner */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent p-4 dark:border-amber-900/40">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <h3 className="text-sm font-bold text-foreground">
+                Quotation Daily Work &amp; Square Feet Reporting
+              </h3>
+              <Badge variant="outline" className="text-[10px] bg-background">
+                Saturday – Thursday (Locks Friday 12:00 PM)
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Software auto-detects leads you worked on today (Detail, Short, Furniture, Electrical). Open the report to confirm your square feet.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setDailyReportModalOpen(true)}
+            className="shrink-0 h-9 gap-1.5 font-semibold bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            <Clock className="h-4 w-4" />
+            Open Daily Work Report
+          </Button>
         </div>
 
         {/* Error Notification */}
@@ -753,6 +789,15 @@ export default function QuotationTeamDashboardPage() {
           </Card>
         </div>
       </main>
+
+      <DailyWorkReportModal
+        open={dailyReportModalOpen}
+        onOpenChange={setDailyReportModalOpen}
+        onSaved={() => {
+          void fetchDashboardData(selectedMonth)
+          void fetchPerformanceData(selectedMonth)
+        }}
+      />
     </div>
   )
 }

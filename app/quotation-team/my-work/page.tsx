@@ -19,6 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Calendar } from "lucide-react";
+import { DailyWorkReportModal } from "@/components/crm/quotation/daily-work-report-modal";
 
 type TaskLead = {
   id: string;
@@ -60,6 +62,7 @@ export default function QuotationTeamMyWorkPage() {
     { id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" },
   ]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [dailyReportModalOpen, setDailyReportModalOpen] = useState(false);
 
   const loadTasks = useCallback(async () => {
     setLoading(true);
@@ -204,12 +207,22 @@ export default function QuotationTeamMyWorkPage() {
       />
 
       <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-4">
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline">Total: {summary.total}</Badge>
-          <Badge variant="secondary">Assigned: {summary.assigned}</Badge>
-          <Badge variant="secondary">Working: {summary.working}</Badge>
-          <Badge variant="secondary">Completed: {summary.completed}</Badge>
-          <Badge variant="secondary">Corrections: {summary.corrections}</Badge>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">Total: {summary.total}</Badge>
+            <Badge variant="secondary">Assigned: {summary.assigned}</Badge>
+            <Badge variant="secondary">Working: {summary.working}</Badge>
+            <Badge variant="secondary">Completed: {summary.completed}</Badge>
+            <Badge variant="secondary">Corrections: {summary.corrections}</Badge>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => setDailyReportModalOpen(true)}
+            className="h-8 gap-1.5 font-semibold bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
+          >
+            <Calendar className="h-3.5 w-3.5" />
+            Today&apos;s Work Report
+          </Button>
         </div>
 
         {loading ? (
@@ -390,6 +403,14 @@ export default function QuotationTeamMyWorkPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DailyWorkReportModal
+        open={dailyReportModalOpen}
+        onOpenChange={setDailyReportModalOpen}
+        onSaved={() => {
+          void loadTasks();
+        }}
+      />
     </div>
   );
 }

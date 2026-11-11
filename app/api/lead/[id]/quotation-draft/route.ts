@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { LeadAssignmentDepartment } from '@/generated/prisma/client'
+import { LeadAssignmentDepartment, QuotationWorkType } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
+import { logQuotationWorkActivity } from '@/lib/quotation-daily-work'
 import {
   buildQuotationLeadWhere,
   canAccessQuotationDraft,
@@ -914,6 +915,13 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         console.error('[lead/:id/quotation-draft][PUT] Performance sync error:', err)
       })
 
+      void logQuotationWorkActivity(
+        authResult.actorUserId,
+        lead.id,
+        isShort ? QuotationWorkType.SHORT : QuotationWorkType.DETAIL,
+        isShort ? 'Saved Short Quotation' : 'Saved Detail Quotation (All Slots)',
+      )
+
       return NextResponse.json({
         success: true,
         data: serializeDraft(savedDraft),
@@ -991,6 +999,13 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     void recalculateQuotationUserPerformance(authResult.actorUserId).catch((err) => {
       console.error('[lead/:id/quotation-draft][PUT] Performance sync error:', err)
     })
+
+    void logQuotationWorkActivity(
+      authResult.actorUserId,
+      lead.id,
+      isShort ? QuotationWorkType.SHORT : QuotationWorkType.DETAIL,
+      isShort ? 'Saved Short Quotation' : 'Saved Detail Quotation',
+    )
 
     return NextResponse.json({
       success: true,
