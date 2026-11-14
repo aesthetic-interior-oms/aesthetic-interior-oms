@@ -6,6 +6,7 @@ import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete'
 import { logActivity, logLeadStageChanged } from '@/lib/activity-log-service'
 import { getVisitWorkflowControlState } from '@/lib/visit-workflow-control'
 import { uploadToGCS } from '@/lib/gcs-storage'
+import { checkAndSendLeaderboardRankChanges } from '@/lib/visit-notifications'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -615,6 +616,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       maxWait: 10_000,
       timeout: 60_000,
     })
+
+    // Trigger leaderboard rank-change notifications asynchronously
+    checkAndSendLeaderboardRankChanges().catch((err) =>
+      console.error('[visit-result] Leaderboard rank check error:', err),
+    )
 
     return NextResponse.json(
       {

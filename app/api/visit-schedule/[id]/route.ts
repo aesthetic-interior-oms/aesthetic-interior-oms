@@ -196,7 +196,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     let reassignedUserId: string | null = null;
     let leadName = '';
 
-    const updated = await prisma.$transaction(async (tx) => {
+    const { updated, statusChanged } = await prisma.$transaction(async (tx) => {
+      let statusChangedInfo: { status: string; assignedToId: string | null; supportIds: string[] } | null = null;
       const actor = await tx.user.findUnique({
         where: { id: actorUserId },
         select: {
@@ -404,7 +405,17 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         action: 'visit update',
       });
 
-      return visit;
+      // Capture status change context for push notifications outside tx
+      if (!leadName) leadName = existing.lead.name;
+      if (statusInput && (statusInput === 'RESCHEDULED' || statusInput === 'CANCELLED')) {
+        const suppIds = (await tx.visitSupportAssignment.findMany({
+          where: { visitId: visit.id },
+          select: { supportUserId: true },
+        })).map((s) => s.supportUserId);
+        statusChangedInfo = { status: statusInput, assignedToId: existing.assignedToId ?? null, supportIds: suppIds };
+      }
+
+      return { updated: visit, statusChanged: statusChangedInfo };
     });
 
     if (reassignedUserId) {
@@ -418,6 +429,29 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       } catch (pushErr) {
         console.error('[visit-schedule/:id][PATCH] Failed to send push notification:', pushErr);
       }
+    }
+
+    // Notify assignee + supports about reschedule or cancellation
+    if (statusChanged) {
+      const notifyIds = new Set<string>();
+      if (statusChanged.assignedToId) notifyIds.add(statusChanged.assignedToId);
+      statusChanged.supportIds.forEach((id) => notifyIds.add(id));
+
+      const isRescheduled = statusChanged.status === 'RESCHEDULED';
+      const pushTitle = isRescheduled ? '🔄 Visit Rescheduled' : '❌ Visit Cancelled';
+      const pushBody = isRescheduled
+        ? `Your visit with ${leadName || updated.leadId} has been rescheduled. Please check the new time.`
+        : `Your visit with ${leadName || updated.leadId} has been cancelled.`;
+
+      Promise.allSettled(
+        [...notifyIds].map((uId) =>
+          sendPushToUser(uId, pushTitle, pushBody, {
+            type: isRescheduled ? 'VISIT_RESCHEDULED' : 'VISIT_CANCELLED',
+            visitId: updated.id,
+            leadId: updated.leadId,
+          }),
+        ),
+      ).catch((err) => console.error('[visit-schedule/:id][PATCH] Status push failed:', err));
     }
 
     return NextResponse.json({ success: true, data: updated, message: 'Visit schedule updated successfully' });

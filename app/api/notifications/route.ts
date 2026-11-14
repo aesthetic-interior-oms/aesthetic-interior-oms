@@ -3,6 +3,7 @@ import { NotificationType } from '@/generated/prisma/client'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
 import { sendPushToUser } from '@/lib/fcm-service'
+import { checkIncompleteVisitEscalations } from '@/lib/visit-notifications'
 
 function toPositiveInt(value: string | null, fallback: number, max: number): number {
   if (!value) return fallback
@@ -396,6 +397,9 @@ async function ensureVisitScheduleNotifications(userId: string) {
       ),
     ).catch((err) => console.error('[notifications] FCM due72hVisits push failed:', err))
   }
+
+  // Check 10h, 20h, 24h incomplete visits for this user
+  await checkIncompleteVisitEscalations(userId)
 }
 
 async function ensureSignupApprovalNotifications(userId: string, isAdmin: boolean) {
@@ -450,6 +454,9 @@ async function clearOrphanFollowupNotifications(userId: string) {
           NotificationType.VISIT_DUE,
           NotificationType.VISIT_REMINDER_30M,
           NotificationType.VISIT_ASSIGNED,
+          NotificationType.VISIT_DUE_10H,
+          NotificationType.VISIT_DUE_20H,
+          NotificationType.VISIT_DUE_24H,
           NotificationType.VISIT_DUE_36H,
           NotificationType.VISIT_DUE_48H,
           NotificationType.VISIT_DUE_72H,
