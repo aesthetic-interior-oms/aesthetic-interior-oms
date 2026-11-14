@@ -106,9 +106,9 @@ function toOptionalNumber(value: string | null): number | null {
   return parsed
 }
 
-export async function GET(_request: NextRequest, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const authResult = await requireDatabaseRoles([])
+    const authResult = await requireDatabaseRoles([], request)
     if (!authResult.ok) return authResult.response
 
     const visitId = await resolveVisitId(context)
@@ -181,7 +181,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const authResult = await requireDatabaseRoles([])
+    const authResult = await requireDatabaseRoles([], request)
     if (!authResult.ok) return authResult.response
 
     const visitId = await resolveVisitId(context)

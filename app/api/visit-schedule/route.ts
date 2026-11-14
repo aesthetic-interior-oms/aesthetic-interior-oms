@@ -22,7 +22,7 @@ function toVisitStatus(value: string | null): VisitStatus | null {
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireDatabaseRoles([]);
+    const authResult = await requireDatabaseRoles([], request);
     if (!authResult.ok) {
       return authResult.response;
     }

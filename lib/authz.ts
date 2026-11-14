@@ -1,6 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { verifyMobileToken } from "@/lib/mobile-auth";
 
 type RoleCheckSuccess = {
   ok: true;
@@ -24,13 +26,138 @@ type RoleCheckFailure = {
 
 export type RoleCheckResult = RoleCheckSuccess | RoleCheckFailure;
 
-export async function requireDatabaseRoles(allowedRoles: string[]): Promise<RoleCheckResult> {
-  const { userId } = await auth();
-  // console.log('[authz] requireDatabaseRoles called with allowedRoles:', allowedRoles);
-  // console.log('[authz] clerkUserId:', userId);
+export async function requireDatabaseRoles(
+  allowedRoles: string[] = [],
+  request?: Request,
+): Promise<RoleCheckResult> {
+  // ── 1. Check for Mobile App JWT Bearer Token ──────────────────────────────
+  let token: string | null = null;
+  if (request) {
+    const authHeader =
+      request.headers.get("authorization") ||
+      request.headers.get("Authorization");
+    if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+      token = authHeader.trim().split(" ")[1];
+    }
+  } else {
+    try {
+      const headerList = await headers();
+      const authHeader =
+        headerList.get("authorization") ||
+        headerList.get("Authorization");
+      if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
+        token = authHeader.trim().split(" ")[1];
+      }
+    } catch {
+      // In case headers() is called in a non-request context
+    }
+  }
+
+  if (token) {
+    const payload = verifyMobileToken(token);
+    if (payload?.userId) {
+      const actor = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          clerkUserId: true,
+          isActive: true,
+          userRoles: {
+            select: {
+              role: {
+                select: { name: true },
+              },
+            },
+          },
+          userDepartments: {
+            select: {
+              department: {
+                select: { name: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (!actor) {
+        return {
+          ok: false,
+          response: NextResponse.json(
+            { error: "Forbidden: no linked local user account" },
+            { status: 403 },
+          ),
+        };
+      }
+
+      if (!actor.isActive) {
+        return {
+          ok: false,
+          response: NextResponse.json(
+            { error: "Forbidden: Account is deactivated" },
+            { status: 403 },
+          ),
+        };
+      }
+
+      const actorRoles = actor.userRoles.map((item) => item.role.name);
+      const normalizedActorRoles = actorRoles.map((role) =>
+        role.trim().toLowerCase(),
+      );
+      const actorDepartments = (actor.userDepartments ?? []).map((item) =>
+        item.department.name.trim().toLowerCase(),
+      );
+      const isDepartmentAdmin = actorDepartments.includes("admin");
+
+      if (allowedRoles.length > 0) {
+        const normalizedAllowedRoles = allowedRoles.map((role) =>
+          role.trim().toLowerCase(),
+        );
+        const hasAllowedRole =
+          normalizedAllowedRoles.some((role) =>
+            normalizedActorRoles.includes(role),
+          ) || (normalizedAllowedRoles.includes("admin") && isDepartmentAdmin);
+
+        if (!hasAllowedRole) {
+          return {
+            ok: false,
+            response: NextResponse.json(
+              { error: "Forbidden" },
+              { status: 403 },
+            ),
+          };
+        }
+      }
+
+      return {
+        ok: true,
+        actorUserId: actor.id,
+        clerkUserId: actor.clerkUserId ?? "",
+        actorRoles,
+        actor: {
+          id: actor.id,
+          fullName: actor.fullName,
+          email: actor.email,
+          phone: actor.phone,
+          clerkUserId: actor.clerkUserId,
+          userDepartments: (actor.userDepartments ?? []).map(
+            (item) => item.department.name,
+          ),
+        },
+      };
+    }
+  }
+
+  // ── 2. Fall back to Clerk Session (Web CRM) ───────────────────────────────
+  let userId: string | null = null;
+  try {
+    const clerkAuth = await auth();
+    userId = clerkAuth.userId;
+  } catch {}
 
   if (!userId) {
-    // console.log('[authz] No userId from Clerk - returning 401');
     return {
       ok: false,
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -61,10 +188,8 @@ export async function requireDatabaseRoles(allowedRoles: string[]): Promise<Role
       },
     },
   });
-  // console.log('[authz] actor from database:', actor);
 
   if (!actor) {
-    // console.log('[authz] No actor found in database - returning 403');
     return {
       ok: false,
       response: NextResponse.json(
@@ -80,28 +205,22 @@ export async function requireDatabaseRoles(allowedRoles: string[]): Promise<Role
     item.department.name.trim().toLowerCase(),
   );
   const isDepartmentAdmin = actorDepartments.includes("admin");
-  // console.log('[authz] actorRoles extracted:', actorRoles, 'actorDepartments:', actorDepartments);
-  
+
   // If allowedRoles is specified (not empty), check if user has one of those roles
   if (allowedRoles.length > 0) {
     const normalizedAllowedRoles = allowedRoles.map((role) => role.trim().toLowerCase());
     const hasAllowedRole =
       normalizedAllowedRoles.some((role) => normalizedActorRoles.includes(role)) ||
       (normalizedAllowedRoles.includes("admin") && isDepartmentAdmin);
-    // console.log('[authz] hasAllowedRole check:', { allowedRoles, actorRoles, hasAllowedRole });
 
     if (!hasAllowedRole) {
-      // console.log('[authz] User does not have allowed role - returning 403');
       return {
         ok: false,
         response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
       };
     }
-  } else {
-    // console.log('[authz] No role restrictions - allowedRoles is empty, allowing authenticated user');
   }
 
-  // console.log('[authz] Authorization successful for user:', actor.id);
   return {
     ok: true,
     actorUserId: actor.id,

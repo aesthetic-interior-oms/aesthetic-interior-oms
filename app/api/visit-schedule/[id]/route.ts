@@ -87,9 +87,9 @@ function leadWorkflowFromVisitStatus(status: VisitStatus, currentStage?: LeadSta
   return null;
 }
 
-export async function GET(_request: NextRequest, context: RouteContext) {
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const authResult = await requireDatabaseRoles([]);
+    const authResult = await requireDatabaseRoles([], request);
     if (!authResult.ok) return authResult.response;
 
     const visitId = await resolveVisitId(context);
@@ -140,7 +140,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
-    const authResult = await requireDatabaseRoles([]);
+    const authResult = await requireDatabaseRoles([], request);
     if (!authResult.ok) return authResult.response;
 
     const actorUserId = authResult.actorUserId;
@@ -451,7 +451,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
-    const authResult = await requireDatabaseRoles([]);
+    const authResult = await requireDatabaseRoles([], request);
     if (!authResult.ok) return authResult.response;
 
     const actorUserId = authResult.actorUserId;

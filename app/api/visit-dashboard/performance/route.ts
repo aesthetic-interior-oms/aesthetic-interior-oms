@@ -12,7 +12,7 @@ const VISIT_DASHBOARD_DEPARTMENTS = new Set([
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireDatabaseRoles([])
+    const authResult = await requireDatabaseRoles([], request)
     if (!authResult.ok) return authResult.response
 
     const actor = await prisma.user.findUnique({
