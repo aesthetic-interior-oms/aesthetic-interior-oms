@@ -84,7 +84,7 @@ async function ensureFollowupDueNotifications(userId: string) {
           { type: 'FOLLOWUP_REMINDER_15M', leadId: f.leadId },
         ),
       ),
-    ).catch((err) => console.error('[notifications] FCM reminderFollowups push failed:', err))
+    ).catch(() => {})
   }
 
   if (dueFollowups.length > 0) {
@@ -111,7 +111,7 @@ async function ensureFollowupDueNotifications(userId: string) {
           { type: 'FOLLOWUP_DUE', leadId: f.leadId },
         ),
       ),
-    ).catch((err) => console.error('[notifications] FCM dueFollowups push failed:', err))
+    ).catch(() => {})
   }
 }
 
@@ -287,7 +287,7 @@ async function ensureVisitScheduleNotifications(userId: string) {
           { type: 'VISIT_REMINDER_30M', leadId: v.leadId },
         ),
       ),
-    ).catch((err) => console.error('[notifications] FCM reminderVisits push failed:', err))
+    ).catch(() => {})
   }
 
   if (dueVisits.length > 0) {
@@ -314,7 +314,7 @@ async function ensureVisitScheduleNotifications(userId: string) {
           { type: 'VISIT_DUE', leadId: v.leadId },
         ),
       ),
-    ).catch((err) => console.error('[notifications] FCM dueVisits push failed:', err))
+    ).catch(() => {})
   }
 
   if (due36hVisits.length > 0) {
@@ -341,7 +341,7 @@ async function ensureVisitScheduleNotifications(userId: string) {
           { type: 'VISIT_DUE_36H', leadId: v.leadId },
         ),
       ),
-    ).catch((err) => console.error('[notifications] FCM due36hVisits push failed:', err))
+    ).catch(() => {})
   }
 
   if (due48hVisits.length > 0) {
@@ -368,7 +368,7 @@ async function ensureVisitScheduleNotifications(userId: string) {
           { type: 'VISIT_DUE_48H', leadId: v.leadId },
         ),
       ),
-    ).catch((err) => console.error('[notifications] FCM due48hVisits push failed:', err))
+    ).catch(() => {})
   }
 
   if (due72hVisits.length > 0) {
@@ -395,7 +395,7 @@ async function ensureVisitScheduleNotifications(userId: string) {
           { type: 'VISIT_DUE_72H', leadId: v.leadId },
         ),
       ),
-    ).catch((err) => console.error('[notifications] FCM due72hVisits push failed:', err))
+    ).catch(() => {})
   }
 
   // Check 10h, 20h, 24h incomplete visits for this user

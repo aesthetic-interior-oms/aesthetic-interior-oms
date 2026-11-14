@@ -377,8 +377,7 @@ export async function checkAndSendLeaderboardRankChanges(): Promise<{
     }
 
     return { notifiedCount }
-  } catch (err) {
-    console.error('[checkAndSendLeaderboardRankChanges] Error:', err)
+  } catch (_) {
     return { notifiedCount: 0 }
   }
 }

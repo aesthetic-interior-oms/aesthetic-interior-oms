@@ -618,9 +618,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     })
 
     // Trigger leaderboard rank-change notifications asynchronously
-    checkAndSendLeaderboardRankChanges().catch((err) =>
-      console.error('[visit-result] Leaderboard rank check error:', err),
-    )
+    checkAndSendLeaderboardRankChanges().catch(() => {})
 
     return NextResponse.json(
       {

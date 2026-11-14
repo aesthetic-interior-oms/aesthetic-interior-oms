@@ -426,9 +426,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           `Visit for ${leadName} has been assigned to you.`,
           { type: 'VISIT_ASSIGNED', leadId: updated.leadId },
         );
-      } catch (pushErr) {
-        console.error('[visit-schedule/:id][PATCH] Failed to send push notification:', pushErr);
-      }
+      } catch (_) {}
     }
 
     // Notify assignee + supports about reschedule or cancellation
@@ -451,7 +449,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             leadId: updated.leadId,
           }),
         ),
-      ).catch((err) => console.error('[visit-schedule/:id][PATCH] Status push failed:', err));
+      ).catch(() => {});
     }
 
     return NextResponse.json({ success: true, data: updated, message: 'Visit schedule updated successfully' });
