@@ -1,8 +1,0 @@
-{
-  "crons": [
-    {
-      "path": "/api/cron/visit-escalations",
-      "schedule": "0 * * * *"
-    }
-  ]
-}
