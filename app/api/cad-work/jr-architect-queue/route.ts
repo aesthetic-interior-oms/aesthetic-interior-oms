@@ -184,6 +184,7 @@ export async function GET(request: NextRequest) {
     const search = toOptionalString(searchParams.get('search'))
     const queueTypeParam = toOptionalString(searchParams.get('queueType'))?.toLowerCase()
     const leadTypeParam = toOptionalString(searchParams.get('leadType'))?.toLowerCase()
+    const scopeParam = toOptionalString(searchParams.get('scope'))?.toLowerCase()
     const isPartialLeadType =
       leadTypeParam === 'partial' ||
       (isSpecialistDesignConsultant && !isSeniorCrm && !isJrArchitectLeader)
@@ -298,7 +299,19 @@ export async function GET(request: NextRequest) {
             ],
           }
         : {
-            stage: LeadStage.CAD_PHASE,
+            OR: [
+              { stage: LeadStage.CAD_PHASE },
+              {
+                subStatus: {
+                  in: [
+                    LeadSubStatus.CAD_ASSIGNED,
+                    LeadSubStatus.CAD_WORKING,
+                    LeadSubStatus.CAD_COMPLETED,
+                    LeadSubStatus.CAD_APPROVED,
+                  ],
+                },
+              },
+            ],
           }
 
     const searchScope: Prisma.LeadWhereInput | null = search
@@ -324,7 +337,7 @@ export async function GET(request: NextRequest) {
         : {}
 
     const sdcScope: Prisma.LeadWhereInput =
-      isSpecialistDesignConsultant && !isAdmin
+      isSpecialistDesignConsultant && !isAdmin && scopeParam === 'my'
         ? {
             assignments: {
               some: {
@@ -369,6 +382,7 @@ export async function GET(request: NextRequest) {
                 LeadAssignmentDepartment.JR_ARCHITECT,
                 LeadAssignmentDepartment.SR_CRM,
                 LeadAssignmentDepartment.QUOTATION,
+                LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS,
               ],
             },
             user: { isActive: true },
@@ -399,8 +413,12 @@ export async function GET(request: NextRequest) {
         const leadAssignments = assignmentsByLeadId.get(lead.id) ?? []
         const jrArchitectAssignment =
           leadAssignments.find((item) => item.department === LeadAssignmentDepartment.JR_ARCHITECT) ?? null
+        const specialistDesignConsultantAssignment =
+          leadAssignments.find((item) => item.department === LeadAssignmentDepartment.SPECIALIST_DESIGN_CONSULTANTS) ?? null
         const srCrmAssignment =
-          leadAssignments.find((item) => item.department === LeadAssignmentDepartment.SR_CRM) ?? null
+          leadAssignments.find((item) => item.department === LeadAssignmentDepartment.SR_CRM) ??
+          specialistDesignConsultantAssignment ??
+          null
         const quotationAssignment =
           leadAssignments.find((item) => item.department === LeadAssignmentDepartment.QUOTATION) ?? null
         const relationLead = lead as QueueLeadOptionalRelations
@@ -418,6 +436,7 @@ export async function GET(request: NextRequest) {
           budget: lead.budget,
           jrArchitectAssignment,
           srCrmAssignment,
+          specialistDesignConsultantAssignment,
           quotationAssignment,
           latestCompletedVisit: latestCompletedVisit
             ? {

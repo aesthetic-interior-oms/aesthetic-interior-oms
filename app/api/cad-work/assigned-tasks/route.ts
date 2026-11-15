@@ -113,6 +113,7 @@ export async function GET(request: Request) {
           },
           select: {
             department: true,
+            createdAt: true,
             user: {
               select: { id: true, fullName: true, email: true },
             },
@@ -210,6 +211,14 @@ export async function GET(request: Request) {
         ? `${visit.scheduledAt.getFullYear()}-${String(visit.scheduledAt.getMonth() + 1).padStart(2, '0')}`
         : null
 
+      const jrAssignment = lead.assignments.find(
+        (assignment) => assignment.department === LeadAssignmentDepartment.JR_ARCHITECT,
+      )
+      const assignedDate = jrAssignment?.createdAt ?? lead.created_at
+      const assignedYear = assignedDate.getFullYear()
+      const assignedMonth = assignedDate.getMonth() + 1
+      const assignedMonthKey = `${assignedYear}-${String(assignedMonth).padStart(2, '0')}`
+
       const srCrm = lead.assignments.find(
         (a) => a.department === LeadAssignmentDepartment.SR_CRM,
       )?.user ?? null
@@ -249,6 +258,10 @@ export async function GET(request: Request) {
         budget: lead.budget,
         visitDate,
         visitMonthKey,
+        assignedDate: assignedDate.toISOString(),
+        assignedYear,
+        assignedMonth,
+        assignedMonthKey,
         projectSqft: fallbackSqft,
         srCrmAssignee: srCrm,
         jrArchitectAssignee: jrArchitect,
@@ -296,10 +309,10 @@ export async function GET(request: Request) {
       }
     })
 
-    // Filter by visitMonthKey if provided
+    // Organize and filter My Work by the JR Architect assignment date.
     const filteredTasks = monthKey
       ? tasksData.filter((task) =>
-          monthKey === 'NO_VISIT' ? !task.visitMonthKey : task.visitMonthKey === monthKey,
+          monthKey === 'NO_VISIT' ? false : task.assignedMonthKey === monthKey,
         )
       : tasksData
 

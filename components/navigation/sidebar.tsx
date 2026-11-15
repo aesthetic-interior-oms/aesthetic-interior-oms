@@ -175,6 +175,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
         { icon: ClipboardList, label: 'Partial Visit Queue', href: '/crm/admin/partial-queue' },
         {
           icon: ClipboardList,
+          label: 'Partial CAD Queue',
+          href: '/crm/admin/partial-cad-queue',
+        },
+        {
+          icon: ClipboardList,
           label: 'Partial Review Center',
           href: '/crm/admin/partial-review-center',
         },
@@ -404,6 +409,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
         },
         {
           icon: ClipboardList,
+          label: 'Partial CAD Queue',
+          href: '/visit-team/partial-cad-queue',
+        },
+        {
+          icon: ClipboardList,
           label: 'Partial Review Center',
           href: '/visit-team/partial-review-center',
         },
@@ -445,6 +455,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: ClipboardList,
           label: 'Partial Visit Queue',
           href: '/visit-team/partial-visit-queue',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Partial CAD Queue',
+          href: '/visit-team/partial-cad-queue',
         },
         {
           icon: ClipboardList,

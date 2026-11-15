@@ -321,12 +321,13 @@ function visitTeamLabel(visit: LeadRecord['latestCompletedVisit']) {
   return names.length > 0 ? names.join(' + ') : 'N/A'
 }
 
-function srCrmVisitTeamBlock(lead: LeadRecord) {
+function srCrmVisitTeamBlock(lead: LeadRecord, isPartial?: boolean) {
   const srCrmName = lead.srCrmAssignment?.user.fullName ?? 'Unassigned'
   const visitTeamNames = visitTeamLabel(lead.latestCompletedVisit)
+  const roleLabel = isPartial ? 'Consultant' : 'SR CRM'
 
   return (
-    <div className="min-w-0 space-y-1" title={`SR CRM: ${srCrmName} | Visit Team: ${visitTeamNames}`}>
+    <div className="min-w-0 space-y-1" title={`${roleLabel}: ${srCrmName} | Visit Team: ${visitTeamNames}`}>
       <div className="truncate text-sm font-medium text-foreground">
         {srCrmName}
       </div>
@@ -585,6 +586,7 @@ export function CadPhaseQueueBoard({
   const isDesignQueue = queueType === 'design'
   const isHistoryView = queueType === 'history'
   const isCadQueue = !isMeetingQueue && !isBudgetQueue && !isDesignQueue && !isHistoryView
+  const isPartialQueue = mode === 'partial'
   const canDropFromQueue = isCadQueue || isMeetingQueue || isBudgetQueue
 
   useEffect(() => {
@@ -711,17 +713,20 @@ export function CadPhaseQueueBoard({
     if (srCrmMembers.length > 0) return
     setLoadingSrCrmMembers(true)
     try {
-      const response = await fetch('/api/department/available/SR_CRM', {
+      const deptEndpoint = isPartialQueue
+        ? '/api/department/available/SPECIALIST_DESIGN_CONSULTANTS'
+        : '/api/department/available/SR_CRM'
+      const response = await fetch(deptEndpoint, {
         cache: 'no-store',
       })
       const payload = (await response.json()) as DepartmentUsersResponse
       if (!response.ok || !payload.success) {
-        throw new Error(payload.error ?? 'Failed to load SR CRM members')
+        throw new Error(payload.error ?? `Failed to load ${isPartialQueue ? 'Consultant' : 'SR CRM'} members`)
       }
       setSrCrmMembers(Array.isArray(payload.users) ? payload.users : [])
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : 'Failed to load SR CRM members',
+        error instanceof Error ? error.message : `Failed to load ${isPartialQueue ? 'Consultant' : 'SR CRM'} members`,
       )
     } finally {
       setLoadingSrCrmMembers(false)
@@ -738,9 +743,11 @@ export function CadPhaseQueueBoard({
   const submitReassignSrCrm = async () => {
     if (!activeLead || !srCrmMemberId) return
     setSaving(true)
+    const deptName = isPartialQueue ? 'SPECIALIST_DESIGN_CONSULTANTS' : 'SR_CRM'
+    const roleLabel = isPartialQueue ? 'Special Design Consultant' : 'SR CRM'
     try {
       const response = await fetch(
-        `/api/lead/${activeLead.id}/assignments/SR_CRM`,
+        `/api/lead/${activeLead.id}/assignments/${deptName}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -749,14 +756,14 @@ export function CadPhaseQueueBoard({
       )
       const payload = await response.json()
       if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error ?? 'Failed to reassign SR CRM')
+        throw new Error(payload?.error ?? `Failed to reassign ${roleLabel}`)
       }
-      toast.success('SR CRM reassigned successfully')
+      toast.success(`${roleLabel} reassigned successfully`)
       setReassignSrCrmOpen(false)
       setActiveLead(null)
       await loadLeads()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to reassign SR CRM')
+      toast.error(error instanceof Error ? error.message : `Failed to reassign ${roleLabel}`)
     } finally {
       setSaving(false)
     }
@@ -1506,7 +1513,7 @@ export function CadPhaseQueueBoard({
         
         {isCadQueue ? (
           <DropdownMenuItem onClick={() => void openReassignSrCrm(lead)}>
-            Reassign SR CRM
+            {isPartialQueue ? 'Reassign Consultant' : 'Reassign SR CRM'}
           </DropdownMenuItem>
         ) : null}
 
@@ -1648,10 +1655,12 @@ export function CadPhaseQueueBoard({
                 <div className="w-full sm:w-56">
                   <Select value={srCrmFilter} onValueChange={setSrCrmFilter}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Filter by SR CRM" />
+                      <SelectValue placeholder={isPartialQueue ? 'Filter by Consultant' : 'Filter by SR CRM'} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={ALL_MEMBER_FILTER}>All SR CRMs</SelectItem>
+                      <SelectItem value={ALL_MEMBER_FILTER}>
+                        {isPartialQueue ? 'All Consultants' : 'All SR CRMs'}
+                      </SelectItem>
                       {srCrmFilterOptions.map((user) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.fullName}
@@ -1795,7 +1804,9 @@ export function CadPhaseQueueBoard({
                           <TableHead className="w-[13%]">
                             {isCadQueue || isHistoryView ? 'JR Architect' : isDesignQueue ? '3D Visualizer' : 'Quotation'}
                           </TableHead>
-                          <TableHead className="w-[11%]">SR CRM / Visit</TableHead>
+                          <TableHead className="w-[11%]">
+                            {isPartialQueue ? 'Consultant / Visit' : 'SR CRM / Visit'}
+                          </TableHead>
                           <TableHead className="w-[10%]">Project Size</TableHead>
                           <TableHead className="w-[7%] text-right">Action</TableHead>
                         </TableRow>
@@ -1835,7 +1846,7 @@ export function CadPhaseQueueBoard({
                                 onClick={() => void openReassignSrCrm(lead)}
                                 className="max-w-full text-left transition hover:text-primary hover:underline"
                               >
-                                {srCrmVisitTeamBlock(lead)}
+                                {srCrmVisitTeamBlock(lead, isPartialQueue)}
                               </button>
                             </TableCell>
                             <TableCell>
@@ -2101,7 +2112,7 @@ export function CadPhaseQueueBoard({
                       <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                       <div className="min-w-0">
                         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          SR CRM / Visit Team
+                          {isPartialQueue ? 'Consultant / Visit Team' : 'SR CRM / Visit Team'}
                         </span>
                         {isCadQueue ? (
                           <button
@@ -2109,10 +2120,10 @@ export function CadPhaseQueueBoard({
                             onClick={() => void openReassignSrCrm(lead)}
                             className="max-w-full text-left transition hover:text-primary hover:underline"
                           >
-                            {srCrmVisitTeamBlock(lead)}
+                            {srCrmVisitTeamBlock(lead, isPartialQueue)}
                           </button>
                         ) : (
-                          srCrmVisitTeamBlock(lead)
+                          srCrmVisitTeamBlock(lead, isPartialQueue)
                         )}
                       </div>
                     </div>
@@ -2385,7 +2396,7 @@ export function CadPhaseQueueBoard({
                       <UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                       <div className="min-w-0">
                         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          SR CRM / Visit Team
+                          {isPartialQueue ? 'Consultant / Visit Team' : 'SR CRM / Visit Team'}
                         </span>
                         {isCadQueue ? (
                           <button
@@ -2393,10 +2404,10 @@ export function CadPhaseQueueBoard({
                             onClick={() => void openReassignSrCrm(lead)}
                             className="max-w-full text-left transition hover:text-primary hover:underline"
                           >
-                            {srCrmVisitTeamBlock(lead)}
+                            {srCrmVisitTeamBlock(lead, isPartialQueue)}
                           </button>
                         ) : (
-                          srCrmVisitTeamBlock(lead)
+                          srCrmVisitTeamBlock(lead, isPartialQueue)
                         )}
                       </div>
                     </div>
@@ -2656,13 +2667,19 @@ export function CadPhaseQueueBoard({
       <Dialog open={reassignSrCrmOpen} onOpenChange={setReassignSrCrmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reassign SR CRM</DialogTitle>
+            <DialogTitle>
+              {isPartialQueue ? 'Reassign Special Design Consultant' : 'Reassign SR CRM'}
+            </DialogTitle>
             <DialogDescription>
-              Select the Senior CRM who should own this CAD phase lead.
+              {isPartialQueue
+                ? 'Select the Special Design Consultant who should lead this partial project.'
+                : 'Select the Senior CRM who should own this CAD phase lead.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>SR CRM Member</Label>
+            <Label>
+              {isPartialQueue ? 'Special Design Consultant Member' : 'SR CRM Member'}
+            </Label>
             <Select value={srCrmMemberId} onValueChange={setSrCrmMemberId}>
               <SelectTrigger>
                 <SelectValue
@@ -2670,8 +2687,8 @@ export function CadPhaseQueueBoard({
                     loadingSrCrmMembers
                       ? 'Loading members...'
                       : srCrmMembers.length === 0
-                        ? 'No SR CRM members available'
-                        : 'Select SR CRM member'
+                        ? `No ${isPartialQueue ? 'Consultant' : 'SR CRM'} members available`
+                        : `Select ${isPartialQueue ? 'Consultant' : 'SR CRM'} member`
                   }
                 />
               </SelectTrigger>

@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
   Archive,
+  ChevronRight,
+  Folder,
+  ArrowUp,
   CalendarClock,
   CheckCircle,
   ClipboardList,
@@ -86,6 +89,10 @@ type MyWorkLead = {
   budget: number | null
   visitDate: string | null
   visitMonthKey: string | null
+  assignedDate: string
+  assignedYear: number
+  assignedMonth: number
+  assignedMonthKey: string
   projectSqft: number | null
   srCrmAssignee: {
     id: string
@@ -137,35 +144,20 @@ function formatLabel(value: string | null | undefined): string {
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-function getRecentMonthsList() {
-  const months: { label: string; value: string }[] = [
-    { label: 'All Time', value: 'ALL' },
-    { label: 'No Visit Date', value: 'NO_VISIT' },
-  ]
-  const now = new Date()
-
-  for (let i = 0; i < 18; i += 1) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const yyyy = d.getFullYear()
-    const mm = String(d.getMonth() + 1).padStart(2, '0')
-    months.push({
-      label: d.toLocaleString('en-US', { month: 'long', year: 'numeric' }),
-      value: `${yyyy}-${mm}`,
-    })
-  }
-
-  return months
-}
+const MONTH_NAMES = Array.from({ length: 12 }, (_, index) =>
+  new Date(2020, index, 1).toLocaleString('en-US', { month: 'long' }),
+)
 
 export default function JrArchitectMyWorkPage() {
   const [loading, setLoading] = useState(true)
   const [leads, setLeads] = useState<MyWorkLead[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
-  const availableMonths = useMemo(() => getRecentMonthsList(), [])
-  const [selectedMonth, setSelectedMonth] = useState('ALL')
-  const selectedMonthLabel =
-    availableMonths.find((month) => month.value === selectedMonth)?.label ?? 'All Time'
+  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
+  const selectedMonthLabel = selectedMonth !== null
+    ? `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`
+    : selectedYear ?? 'This PC'
 
   const [selectedFilter, setSelectedFilter] = useState<string>('all')
 
@@ -173,11 +165,10 @@ export default function JrArchitectMyWorkPage() {
   const [inspectLead, setInspectLead] = useState<MyWorkLead | null>(null)
   const [submitWorkLead, setSubmitWorkLead] = useState<MyWorkLead | null>(null)
 
-  const loadTasks = useCallback(async (monthKey = 'ALL', silent = false) => {
+  const loadTasks = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
       const params = new URLSearchParams({ includeHistory: '1' })
-      if (monthKey && monthKey !== 'ALL') params.set('month', monthKey)
 
       const response = await fetch(`/api/cad-work/assigned-tasks?${params.toString()}`, {
         cache: 'no-store',
@@ -200,8 +191,14 @@ export default function JrArchitectMyWorkPage() {
   }, [])
 
   useEffect(() => {
-    void loadTasks(selectedMonth)
-  }, [loadTasks, selectedMonth])
+    void loadTasks()
+  }, [loadTasks])
+
+  const folderYears = useMemo(() => [...new Set(leads.map((lead) => lead.assignedYear))].sort((a, b) => b - a), [leads])
+  const folderMonths = useMemo(() => Array.from({ length: 12 }, (_, index) => index + 1), [])
+  const folderLeads = useMemo(() => leads.filter((lead) =>
+    selectedYear === null || lead.assignedYear === selectedYear
+  ).filter((lead) => selectedMonth === null || lead.assignedMonth === selectedMonth), [leads, selectedYear, selectedMonth])
 
   const summary = useMemo(() => {
     const total = leads.length
@@ -228,7 +225,7 @@ export default function JrArchitectMyWorkPage() {
   }, [leads])
 
   const filteredLeads = useMemo(() => {
-    let result = leads
+    let result = folderLeads
 
     const q = searchQuery.trim().toLowerCase()
     if (q) {
@@ -271,7 +268,7 @@ export default function JrArchitectMyWorkPage() {
     }
 
     return result
-  }, [leads, searchQuery, selectedFilter])
+  }, [folderLeads, searchQuery, selectedFilter])
 
   return (
     <div className="min-h-screen bg-background">
@@ -317,28 +314,13 @@ export default function JrArchitectMyWorkPage() {
               <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
                 {selectedMonthLabel}
               </Badge>
-              <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-background px-2 py-1">
-                <CalendarClock className="h-4 w-4 text-muted-foreground" />
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger className="h-9 w-[180px] border-0 px-2 shadow-none focus:ring-0">
-                    <SelectValue placeholder="Select period" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableMonths.map((month) => (
-                      <SelectItem key={month.value} value={month.value}>
-                        {month.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="h-10 gap-2"
                 disabled={loading}
-                onClick={() => void loadTasks(selectedMonth)}
+                onClick={() => void loadTasks()}
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
@@ -516,6 +498,10 @@ export default function JrArchitectMyWorkPage() {
           </div>
         </div>
 
+        <div className="flex items-center justify-between rounded-xl border bg-card px-4 py-3">
+          <div className="flex items-center gap-2 text-sm"><button onClick={() => { setSelectedYear(null); setSelectedMonth(null) }} className="font-semibold hover:text-primary">This PC</button>{selectedYear !== null ? <><ChevronRight className="h-4 w-4"/><button onClick={() => setSelectedMonth(null)} className="font-semibold hover:text-primary">{selectedYear}</button></> : null}{selectedMonth !== null ? <><ChevronRight className="h-4 w-4"/>{MONTH_NAMES[selectedMonth - 1]}</> : null}</div>
+          {selectedYear !== null ? <Button size="sm" variant="outline" onClick={() => selectedMonth !== null ? setSelectedMonth(null) : setSelectedYear(null)}><ArrowUp className="mr-1 h-4 w-4"/>Up</Button> : null}
+        </div>
         {/* Content Body */}
         {loading ? (
           <div className="flex items-center justify-center rounded-lg border border-border bg-card py-16">
@@ -530,6 +516,8 @@ export default function JrArchitectMyWorkPage() {
               </p>
             </CardContent>
           </Card>
+        ) : selectedMonth === null ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{(selectedYear === null ? folderYears : folderMonths).map((folder) => { const count = leads.filter((lead) => selectedYear === null ? lead.assignedYear === folder : lead.assignedYear === selectedYear && lead.assignedMonth === folder).length; const label = selectedYear === null ? String(folder) : MONTH_NAMES[folder - 1]; return <button key={folder} onClick={() => selectedYear === null ? setSelectedYear(folder) : setSelectedMonth(folder)} className="flex items-center gap-4 rounded-xl border bg-card p-5 text-left shadow-sm hover:border-primary/50"><Folder className="h-8 w-8 text-primary"/><span><b className="block">{label}</b><span className="text-xs text-muted-foreground">{count} projects</span></span></button> })}</div>
         ) : filteredLeads.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-sm text-muted-foreground space-y-3">
@@ -999,7 +987,7 @@ export default function JrArchitectMyWorkPage() {
         }}
         leadId={submitWorkLead?.id ?? null}
         leadName={submitWorkLead?.name}
-        onSubmitted={() => void loadTasks(selectedMonth)}
+        onSubmitted={() => void loadTasks()}
       />
     </div>
   )
