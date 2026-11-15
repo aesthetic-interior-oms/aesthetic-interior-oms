@@ -164,6 +164,8 @@ export async function requireMobileAuth(
       phone: true,
       clerkUserId: true,
       isActive: true,
+      lastMobileLoginAt: true,
+      mobilePlatform: true,
       userRoles: {
         select: {
           role: {
@@ -219,6 +221,34 @@ export async function requireMobileAuth(
         response: NextResponse.json({ error: "Forbidden: Insufficient permissions" }, { status: 403 }),
       };
     }
+  }
+
+  // Asynchronously record active mobile usage on every authenticated mobile API call
+  try {
+    const now = new Date();
+    const ua = request.headers.get("user-agent") || "";
+    const detectedPlatform =
+      request.headers.get("x-platform")?.trim().toLowerCase() ||
+      (ua.toLowerCase().includes("android") || ua.toLowerCase().includes("okhttp")
+        ? "android"
+        : ua.toLowerCase().includes("iphone") || ua.toLowerCase().includes("ios") || ua.toLowerCase().includes("cfnetwork")
+        ? "ios"
+        : null);
+    const appVersion = request.headers.get("x-app-version")?.trim() || null;
+    const deviceModel = request.headers.get("x-device-model")?.trim() || null;
+
+    prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastMobileActiveAt: now,
+        ...(user.lastMobileLoginAt ? {} : { lastMobileLoginAt: now }),
+        ...(detectedPlatform && !user.mobilePlatform ? { mobilePlatform: detectedPlatform } : {}),
+        ...(appVersion ? { mobileAppVersion: appVersion } : {}),
+        ...(deviceModel ? { mobileDeviceModel: deviceModel } : {}),
+      },
+    }).catch(() => {});
+  } catch {
+    // Non-blocking
   }
 
   return {

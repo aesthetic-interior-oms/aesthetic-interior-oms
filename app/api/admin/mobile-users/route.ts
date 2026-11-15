@@ -56,6 +56,16 @@ export async function GET() {
             updatedAt: true,
           },
         },
+        procurementWalletTxSubmitted: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        },
+        siteDeliveriesReceived: {
+          take: 1,
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        },
       },
       orderBy: [
         { lastMobileActiveAt: 'desc' },
@@ -74,12 +84,48 @@ export async function GET() {
     let pushEnabledCount = 0
     let neverLoggedInCount = 0
 
+    // Department-level statistics map
+    const departmentStats: Record<
+      string,
+      { name: string; totalUsers: number; totalMobile: number; onlineNow: number; activeToday: number }
+    > = {}
+
     const formattedUsers = users.map((u) => {
       const roles = u.userRoles.map((r) => r.role.name)
       const departments = u.userDepartments.map((d) => d.department.name)
+      const primaryDepartment = departments[0] || 'Unassigned'
       const hasPushToken = u.deviceTokens.length > 0
+
+      // Infer fallback activity from mobile actions if lastMobileActiveAt is not yet set
+      const lastProcTx = u.procurementWalletTxSubmitted[0]?.createdAt ?? null
+      const lastDelivery = u.siteDeliveriesReceived[0]?.createdAt ?? null
+      let fallbackActivity: Date | null = null
+      if (lastProcTx) {
+        fallbackActivity = lastProcTx
+      }
+      if (lastDelivery) {
+        if (!fallbackActivity || lastDelivery.getTime() > fallbackActivity.getTime()) {
+          fallbackActivity = lastDelivery
+        }
+      }
+
+      const effectiveLastActive = u.lastMobileActiveAt || fallbackActivity
+      const effectiveLastLogin = u.lastMobileLoginAt || fallbackActivity
+
+      // If we found a fallback activity but DB hasn't persisted it, update in background
+      if (fallbackActivity && !u.lastMobileActiveAt) {
+        prisma.user.update({
+          where: { id: u.id },
+          data: {
+            lastMobileActiveAt: fallbackActivity,
+            ...(u.lastMobileLoginAt ? {} : { lastMobileLoginAt: fallbackActivity }),
+            ...(u.mobilePlatform ? {} : { mobilePlatform: 'android' }),
+          },
+        }).catch(() => {})
+      }
+
       const hasMobileRecord = Boolean(
-        u.lastMobileLoginAt || u.lastMobileActiveAt || hasPushToken
+        effectiveLastLogin || effectiveLastActive || hasPushToken
       )
 
       if (hasPushToken) pushEnabledCount += 1
@@ -90,8 +136,8 @@ export async function GET() {
       let status: 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE' | 'NEVER' = 'NEVER'
       let lastActiveDiffMs: number | null = null
 
-      if (u.lastMobileActiveAt) {
-        lastActiveDiffMs = now - new Date(u.lastMobileActiveAt).getTime()
+      if (effectiveLastActive) {
+        lastActiveDiffMs = now - new Date(effectiveLastActive).getTime()
         if (lastActiveDiffMs <= FIFTEEN_MINUTES_MS) {
           status = 'ONLINE'
           onlineNowCount += 1
@@ -102,8 +148,8 @@ export async function GET() {
         } else {
           status = 'OFFLINE'
         }
-      } else if (u.lastMobileLoginAt) {
-        const loginDiffMs = now - new Date(u.lastMobileLoginAt).getTime()
+      } else if (effectiveLastLogin) {
+        const loginDiffMs = now - new Date(effectiveLastLogin).getTime()
         if (loginDiffMs <= FIFTEEN_MINUTES_MS) {
           status = 'ONLINE'
           onlineNowCount += 1
@@ -121,7 +167,41 @@ export async function GET() {
       // Infer platform if not explicitly set
       const platform =
         u.mobilePlatform ||
-        (u.deviceTokens.length > 0 ? u.deviceTokens[0].platform : null)
+        (u.deviceTokens.length > 0 ? u.deviceTokens[0].platform : fallbackActivity ? 'android' : null)
+
+      // Accumulate department stats
+      departments.forEach((dept) => {
+        if (!departmentStats[dept]) {
+          departmentStats[dept] = {
+            name: dept,
+            totalUsers: 0,
+            totalMobile: 0,
+            onlineNow: 0,
+            activeToday: 0,
+          }
+        }
+        departmentStats[dept].totalUsers += 1
+        if (hasMobileRecord) departmentStats[dept].totalMobile += 1
+        if (status === 'ONLINE') departmentStats[dept].onlineNow += 1
+        if (status === 'ONLINE' || status === 'ACTIVE_TODAY') departmentStats[dept].activeToday += 1
+      })
+
+      if (departments.length === 0) {
+        const unassigned = 'Unassigned'
+        if (!departmentStats[unassigned]) {
+          departmentStats[unassigned] = {
+            name: unassigned,
+            totalUsers: 0,
+            totalMobile: 0,
+            onlineNow: 0,
+            activeToday: 0,
+          }
+        }
+        departmentStats[unassigned].totalUsers += 1
+        if (hasMobileRecord) departmentStats[unassigned].totalMobile += 1
+        if (status === 'ONLINE') departmentStats[unassigned].onlineNow += 1
+        if (status === 'ONLINE' || status === 'ACTIVE_TODAY') departmentStats[unassigned].activeToday += 1
+      }
 
       return {
         id: u.id,
@@ -130,6 +210,7 @@ export async function GET() {
         phone: u.phone,
         roles,
         departments,
+        primaryDepartment,
         status,
         hasMobileRecord,
         hasPushToken,
@@ -137,8 +218,8 @@ export async function GET() {
         platform,
         appVersion: u.mobileAppVersion,
         deviceModel: u.mobileDeviceModel,
-        lastMobileLoginAt: u.lastMobileLoginAt,
-        lastMobileActiveAt: u.lastMobileActiveAt,
+        lastMobileLoginAt: effectiveLastLogin ? new Date(effectiveLastLogin).toISOString() : null,
+        lastMobileActiveAt: effectiveLastActive ? new Date(effectiveLastActive).toISOString() : null,
         deviceTokens: u.deviceTokens,
       }
     })
@@ -153,6 +234,7 @@ export async function GET() {
         pushEnabledCount,
         neverLoggedInCount,
       },
+      departmentStats: Object.values(departmentStats).sort((a, b) => b.totalMobile - a.totalMobile),
       users: formattedUsers,
       refreshedAt: new Date().toISOString(),
     })

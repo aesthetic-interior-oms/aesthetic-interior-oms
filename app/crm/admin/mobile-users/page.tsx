@@ -13,9 +13,12 @@ import {
   UserCheck,
   CheckCircle2,
   AlertCircle,
-  HelpCircle,
   Activity,
+  Building2,
+  Filter,
   Layers,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
@@ -38,6 +41,7 @@ type MobileUser = {
   phone: string
   roles: string[]
   departments: string[]
+  primaryDepartment: string
   status: 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE' | 'NEVER'
   hasMobileRecord: boolean
   hasPushToken: boolean
@@ -50,6 +54,14 @@ type MobileUser = {
   deviceTokens: DeviceToken[]
 }
 
+type DepartmentStat = {
+  name: string
+  totalUsers: number
+  totalMobile: number
+  onlineNow: number
+  activeToday: number
+}
+
 type ApiResponse = {
   success: boolean
   stats: {
@@ -60,6 +72,7 @@ type ApiResponse = {
     pushEnabledCount: number
     neverLoggedInCount: number
   }
+  departmentStats: DepartmentStat[]
   users: MobileUser[]
   refreshedAt: string
   error?: string
@@ -103,9 +116,16 @@ export default function MobileUsersPage() {
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<ApiResponse | null>(null)
   const [search, setSearch] = useState('')
+  const [selectedDept, setSelectedDept] = useState<string>('ALL')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE' | 'NEVER'>('ALL')
   const [platformFilter, setPlatformFilter] = useState<'ALL' | 'android' | 'ios'>('ALL')
+  const [groupByDept, setGroupByDept] = useState(true)
   const [autoRefresh, setAutoRefresh] = useState(true)
+  const [collapsedDepts, setCollapsedDepts] = useState<Record<string, boolean>>({})
+
+  const toggleDeptCollapse = (dept: string) => {
+    setCollapsedDepts((prev) => ({ ...prev, [dept]: !prev[dept] }))
+  }
 
   const loadData = useCallback(async (isManual = false) => {
     if (isManual) setRefreshing(true)
@@ -144,9 +164,37 @@ export default function MobileUsersPage() {
     return () => clearInterval(interval)
   }, [loadData, autoRefresh])
 
+  // Extract all distinct departments from loaded users
+  const departmentList = useMemo(() => {
+    if (!data?.users) return []
+    const map = new Map<string, { total: number; online: number; mobile: number }>()
+
+    data.users.forEach((u) => {
+      const depts = u.departments.length > 0 ? u.departments : ['Unassigned']
+      depts.forEach((d) => {
+        const current = map.get(d) || { total: 0, online: 0, mobile: 0 }
+        current.total += 1
+        if (u.status === 'ONLINE') current.online += 1
+        if (u.hasMobileRecord) current.mobile += 1
+        map.set(d, current)
+      })
+    })
+
+    return Array.from(map.entries())
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.mobile - a.mobile || a.name.localeCompare(b.name))
+  }, [data?.users])
+
+  // Filter users based on search, department, status, and platform
   const filteredUsers = useMemo(() => {
     if (!data?.users) return []
     return data.users.filter((user) => {
+      // Department filter
+      if (selectedDept !== 'ALL') {
+        const userDepts = user.departments.length > 0 ? user.departments : ['Unassigned']
+        if (!userDepts.includes(selectedDept)) return false
+      }
+
       // Status filter
       if (statusFilter !== 'ALL' && user.status !== statusFilter) {
         return false
@@ -173,30 +221,214 @@ export default function MobileUsersPage() {
 
       return true
     })
-  }, [data?.users, statusFilter, platformFilter, search])
+  }, [data?.users, selectedDept, statusFilter, platformFilter, search])
+
+  // Group filtered users by department
+  const groupedByDepartment = useMemo(() => {
+    const groups: Record<string, MobileUser[]> = {}
+
+    filteredUsers.forEach((user) => {
+      const depts = user.departments.length > 0 ? user.departments : ['Unassigned']
+      // If a specific dept is selected, put under that dept
+      if (selectedDept !== 'ALL') {
+        if (!groups[selectedDept]) groups[selectedDept] = []
+        groups[selectedDept].push(user)
+      } else {
+        // Group under primary department
+        const primary = depts[0] || 'Unassigned'
+        if (!groups[primary]) groups[primary] = []
+        groups[primary].push(user)
+      }
+    })
+
+    return groups
+  }, [filteredUsers, selectedDept])
+
+  const renderUserRow = (user: MobileUser) => {
+    const initials = user.fullName
+      .split(' ')
+      .slice(0, 2)
+      .map((n) => n[0]?.toUpperCase())
+      .join('')
+
+    return (
+      <tr key={user.id} className="hover:bg-muted/40 transition-colors">
+        {/* User Details */}
+        <td className="py-3 px-4">
+          <div className="flex items-center gap-3">
+            <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-xs">
+              {initials || <UserCheck className="h-4 w-4" />}
+              {user.status === 'ONLINE' && (
+                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" />
+              )}
+            </div>
+            <div>
+              <div className="font-semibold text-foreground text-xs sm:text-sm">{user.fullName}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {user.email} • {user.phone}
+              </div>
+            </div>
+          </div>
+        </td>
+
+        {/* Roles & Departments */}
+        <td className="py-3 px-3">
+          <div className="flex flex-wrap gap-1 max-w-[220px]">
+            {user.departments.map((dept) => (
+              <Badge
+                key={dept}
+                variant="secondary"
+                className="text-[10px] px-1.5 py-0 font-medium bg-secondary/80"
+              >
+                {dept}
+              </Badge>
+            ))}
+            {user.roles.map((role) => (
+              <Badge
+                key={role}
+                variant="outline"
+                className="text-[10px] px-1.5 py-0 font-normal bg-background/50 border-border"
+              >
+                {role}
+              </Badge>
+            ))}
+          </div>
+        </td>
+
+        {/* Status Badge */}
+        <td className="py-3 px-3">
+          {user.status === 'ONLINE' ? (
+            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 gap-1.5 text-[11px] font-medium">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              Online Now
+            </Badge>
+          ) : user.status === 'ACTIVE_TODAY' ? (
+            <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 gap-1.5 text-[11px] font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              Active Today
+            </Badge>
+          ) : user.status === 'OFFLINE' ? (
+            <Badge variant="outline" className="text-muted-foreground gap-1.5 text-[11px]">
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+              Offline
+            </Badge>
+          ) : (
+            <Badge variant="ghost" className="text-muted-foreground/60 text-[11px]">
+              Not Installed
+            </Badge>
+          )}
+        </td>
+
+        {/* Platform & Version */}
+        <td className="py-3 px-3">
+          {user.platform ? (
+            <div className="flex items-center gap-1.5">
+              <Badge
+                variant="secondary"
+                className="text-[10px] uppercase font-mono px-1.5 py-0"
+              >
+                {user.platform}
+              </Badge>
+              {user.appVersion && (
+                <span className="text-[11px] text-muted-foreground">
+                  v{user.appVersion}
+                </span>
+              )}
+              {user.deviceModel && (
+                <span className="text-[10px] text-muted-foreground/75 truncate max-w-[140px]" title={user.deviceModel}>
+                  ({user.deviceModel})
+                </span>
+              )}
+            </div>
+          ) : (
+            <span className="text-muted-foreground/60 text-xs">—</span>
+          )}
+        </td>
+
+        {/* Last Active Time */}
+        <td className="py-3 px-3">
+          {user.lastMobileActiveAt ? (
+            <div>
+              <div className="font-medium text-foreground text-xs">
+                {timeAgo(user.lastMobileActiveAt)}
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                {formatFullDate(user.lastMobileActiveAt)}
+              </div>
+            </div>
+          ) : (
+            <span className="text-muted-foreground/60 text-xs">Never</span>
+          )}
+        </td>
+
+        {/* Last Login Time */}
+        <td className="py-3 px-3">
+          {user.lastMobileLoginAt ? (
+            <div>
+              <div className="text-foreground text-xs">
+                {timeAgo(user.lastMobileLoginAt)}
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                {formatFullDate(user.lastMobileLoginAt)}
+              </div>
+            </div>
+          ) : (
+            <span className="text-muted-foreground/60 text-xs">—</span>
+          )}
+        </td>
+
+        {/* Push Notification Status */}
+        <td className="py-3 px-4 text-center">
+          {user.hasPushToken ? (
+            <div
+              className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 text-[11px] font-medium"
+              title={`${user.deviceTokensCount} active push token(s)`}
+            >
+              <Bell className="h-3 w-3" />
+              <span>Registered</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[11px]">
+              <BellOff className="h-3 w-3" />
+              <span>No Token</span>
+            </div>
+          )}
+        </td>
+      </tr>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background w-full">
       <CrmPageHeader
         title="Mobile Users Monitor"
-        subtitle="Track mobile app installations, active mobile sessions, and live device status"
+        subtitle="Track mobile app installations, active sessions, and live device status"
         actions={
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setAutoRefresh((prev) => !prev)}
-              className="text-xs"
+              className="text-xs h-8"
             >
               <Activity className={`mr-1.5 h-3.5 w-3.5 ${autoRefresh ? 'text-emerald-500 animate-pulse' : 'text-muted-foreground'}`} />
-              Auto-refresh: {autoRefresh ? '30s' : 'Off'}
+              Auto: {autoRefresh ? '30s' : 'Off'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setGroupByDept((prev) => !prev)}
+              className="text-xs h-8"
+            >
+              <Layers className="mr-1.5 h-3.5 w-3.5" />
+              {groupByDept ? 'View Flat List' : 'Group by Dept'}
             </Button>
             <Button
               variant="default"
               size="sm"
               onClick={() => void loadData(true)}
               disabled={refreshing}
-              className="gap-2 text-xs"
+              className="gap-2 text-xs h-8"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
@@ -205,7 +437,8 @@ export default function MobileUsersPage() {
         }
       />
 
-      <main className="mx-auto max-w-[1440px] px-3 py-4 sm:px-4 sm:py-5 lg:px-6 lg:py-6 space-y-6">
+      {/* FULL WIDTH CONTAINER */}
+      <main className="w-full px-3 py-4 sm:px-6 sm:py-6 space-y-6">
         {/* Error Alert */}
         {error && (
           <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive flex items-center gap-3">
@@ -214,8 +447,8 @@ export default function MobileUsersPage() {
           </div>
         )}
 
-        {/* Top Metric Cards */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-5 sm:gap-4">
+        {/* Top Metric Cards - Full Width Grid */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-5 sm:gap-4 w-full">
           {/* Card 1: Total Mobile Installs */}
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -225,7 +458,7 @@ export default function MobileUsersPage() {
               <Smartphone className="h-4 w-4 text-indigo-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold tracking-tight">
+              <div className="text-2xl sm:text-3xl font-bold tracking-tight">
                 {loading ? '...' : data?.stats.totalMobileUsers ?? 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -247,11 +480,11 @@ export default function MobileUsersPage() {
               <Wifi className="h-4 w-4 text-emerald-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
+              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
                 {loading ? '...' : data?.stats.onlineNowCount ?? 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Working in last 15 mins
+                Active in last 15 mins
               </p>
             </CardContent>
           </Card>
@@ -265,7 +498,7 @@ export default function MobileUsersPage() {
               <Clock className="h-4 w-4 text-amber-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold tracking-tight text-foreground">
+              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                 {loading ? '...' : data?.stats.activeTodayCount ?? 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -283,7 +516,7 @@ export default function MobileUsersPage() {
               <Bell className="h-4 w-4 text-sky-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold tracking-tight text-foreground">
+              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
                 {loading ? '...' : data?.stats.pushEnabledCount ?? 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
@@ -301,27 +534,63 @@ export default function MobileUsersPage() {
               <WifiOff className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold tracking-tight text-muted-foreground">
+              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-muted-foreground">
                 {loading ? '...' : data?.stats.neverLoggedInCount ?? 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                No mobile activity yet
+                No mobile activity recorded
               </p>
             </CardContent>
           </Card>
         </div>
 
+        {/* DEPARTMENT-WISE TABS BAR */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-border/60 scrollbar-none">
+          <Button
+            size="sm"
+            variant={selectedDept === 'ALL' ? 'default' : 'outline'}
+            className="h-8 text-xs font-medium rounded-lg shrink-0 gap-1.5"
+            onClick={() => setSelectedDept('ALL')}
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            All Departments
+            <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 bg-background/40">
+              {data?.users.length ?? 0}
+            </Badge>
+          </Button>
+
+          {departmentList.map((dept) => (
+            <Button
+              key={dept.name}
+              size="sm"
+              variant={selectedDept === dept.name ? 'default' : 'outline'}
+              className="h-8 text-xs font-medium rounded-lg shrink-0 gap-1.5"
+              onClick={() => setSelectedDept(dept.name)}
+            >
+              <span>{dept.name}</span>
+              {dept.online > 0 && (
+                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              )}
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-background/40">
+                {dept.mobile}/{dept.total}
+              </Badge>
+            </Button>
+          ))}
+        </div>
+
         {/* Filter and Search Bar */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-card p-3 rounded-xl border border-border/60">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-card p-3 rounded-xl border border-border/60 w-full">
           <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
-            <span className="text-xs text-muted-foreground font-medium mr-1">Status:</span>
+            <span className="text-xs text-muted-foreground font-medium mr-1 flex items-center gap-1">
+              <Filter className="h-3 w-3" /> Status:
+            </span>
             <Button
               size="sm"
               variant={statusFilter === 'ALL' ? 'default' : 'ghost'}
               className="h-7 text-xs px-2.5 rounded-lg"
               onClick={() => setStatusFilter('ALL')}
             >
-              All ({data?.users.length ?? 0})
+              All ({filteredUsers.length})
             </Button>
             <Button
               size="sm"
@@ -342,7 +611,7 @@ export default function MobileUsersPage() {
             <Button
               size="sm"
               variant={statusFilter === 'OFFLINE' ? 'default' : 'ghost'}
-              className="h-7 text-xs px-2.5 rounded-lg"
+              className="h-7 text-xs px-2.5 rounded-lg text-muted-foreground"
               onClick={() => setStatusFilter('OFFLINE')}
             >
               ⚪ Offline
@@ -353,7 +622,7 @@ export default function MobileUsersPage() {
               className="h-7 text-xs px-2.5 rounded-lg text-muted-foreground"
               onClick={() => setStatusFilter('NEVER')}
             >
-              Never Logged In ({data?.stats.neverLoggedInCount ?? 0})
+              Not Installed
             </Button>
           </div>
 
@@ -374,7 +643,7 @@ export default function MobileUsersPage() {
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 type="text"
-                placeholder="Search name, phone, role..."
+                placeholder="Search name, phone, email..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="h-8 pl-8 text-xs rounded-lg"
@@ -383,207 +652,127 @@ export default function MobileUsersPage() {
           </div>
         </div>
 
-        {/* Users Table */}
-        <Card className="border-border/60 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-muted/40 border-b border-border text-muted-foreground font-medium uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3 px-4">User</th>
-                  <th className="py-3 px-3">Role / Department</th>
-                  <th className="py-3 px-3">Mobile Status</th>
-                  <th className="py-3 px-3">Platform & Version</th>
-                  <th className="py-3 px-3">Last Active</th>
-                  <th className="py-3 px-3">Last Login</th>
-                  <th className="py-3 px-4 text-center">Push Notifications</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
-                {loading ? (
-                  <tr>
-                    <td colSpan={7} className="py-12 text-center text-muted-foreground">
-                      <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
-                      Loading mobile user status...
-                    </td>
-                  </tr>
-                ) : filteredUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-12 text-center text-muted-foreground">
-                      <Smartphone className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
-                      No users match the selected filters.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredUsers.map((user) => {
-                    const initials = user.fullName
-                      .split(' ')
-                      .slice(0, 2)
-                      .map((n) => n[0]?.toUpperCase())
-                      .join('')
+        {/* USERS DISPLAY - FULL WIDTH (DEPARTMENT WISE OR FLAT) */}
+        {loading ? (
+          <Card className="border-border/60 p-12 text-center text-muted-foreground shadow-sm">
+            <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+            Loading mobile users and department status...
+          </Card>
+        ) : filteredUsers.length === 0 ? (
+          <Card className="border-border/60 p-12 text-center text-muted-foreground shadow-sm">
+            <Smartphone className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+            No users match the selected filters.
+          </Card>
+        ) : groupByDept ? (
+          /* DEPARTMENT-WISE GROUPED SECTIONS */
+          <div className="space-y-6 w-full">
+            {Object.entries(groupedByDepartment).map(([deptName, deptUsers]) => {
+              const onlineCount = deptUsers.filter((u) => u.status === 'ONLINE').length
+              const todayCount = deptUsers.filter((u) => u.status === 'ACTIVE_TODAY').length
+              const mobileCount = deptUsers.filter((u) => u.hasMobileRecord).length
+              const isCollapsed = collapsedDepts[deptName]
 
-                    return (
-                      <tr
-                        key={user.id}
-                        className="hover:bg-muted/30 transition-colors"
-                      >
-                        {/* User Details */}
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-xs">
-                              {initials || <UserCheck className="h-4 w-4" />}
-                              {user.status === 'ONLINE' && (
-                                <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
-                              )}
-                            </div>
-                            <div>
-                              <div className="font-medium text-foreground">{user.fullName}</div>
-                              <div className="text-[11px] text-muted-foreground">
-                                {user.phone} • {user.email}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
+              return (
+                <Card key={deptName} className="border-border/70 overflow-hidden shadow-sm w-full">
+                  {/* Department Card Header */}
+                  <div
+                    onClick={() => toggleDeptCollapse(deptName)}
+                    className="flex flex-wrap items-center justify-between px-4 py-3 bg-muted/30 border-b border-border/70 cursor-pointer hover:bg-muted/50 transition-colors select-none"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                        <Building2 className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm sm:text-base text-foreground tracking-tight">
+                            {deptName}
+                          </span>
+                          <Badge variant="outline" className="text-xs font-normal">
+                            {deptUsers.length} member{deptUsers.length !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
 
-                        {/* Roles & Departments */}
-                        <td className="py-3 px-3">
-                          <div className="flex flex-wrap gap-1 max-w-[180px]">
-                            {user.roles.map((role) => (
-                              <Badge
-                                key={role}
-                                variant="outline"
-                                className="text-[10px] px-1.5 py-0 font-normal bg-background/50 border-border"
-                              >
-                                {role}
-                              </Badge>
-                            ))}
-                            {user.departments.map((dept) => (
-                              <Badge
-                                key={dept}
-                                variant="secondary"
-                                className="text-[10px] px-1.5 py-0 font-normal"
-                              >
-                                {dept}
-                              </Badge>
-                            ))}
-                          </div>
-                        </td>
+                    <div className="flex items-center gap-2 sm:gap-3 text-xs">
+                      {onlineCount > 0 && (
+                        <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 gap-1.5 text-[11px]">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          {onlineCount} Online Now
+                        </Badge>
+                      )}
+                      <span className="text-muted-foreground hidden sm:inline text-[11px]">
+                        📱 {mobileCount}/{deptUsers.length} installed
+                      </span>
+                      {isCollapsed ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                  </div>
 
-                        {/* Status Badge */}
-                        <td className="py-3 px-3">
-                          {user.status === 'ONLINE' ? (
-                            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 gap-1.5 text-[11px]">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                              Online Now
-                            </Badge>
-                          ) : user.status === 'ACTIVE_TODAY' ? (
-                            <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 gap-1.5 text-[11px]">
-                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                              Active Today
-                            </Badge>
-                          ) : user.status === 'OFFLINE' ? (
-                            <Badge variant="outline" className="text-muted-foreground gap-1.5 text-[11px]">
-                              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                              Offline
-                            </Badge>
-                          ) : (
-                            <Badge variant="ghost" className="text-muted-foreground/60 text-[11px]">
-                              Not Installed
-                            </Badge>
-                          )}
-                        </td>
-
-                        {/* Platform & Version */}
-                        <td className="py-3 px-3">
-                          {user.platform ? (
-                            <div className="flex items-center gap-1.5">
-                              <Badge
-                                variant="secondary"
-                                className="text-[10px] uppercase font-mono px-1.5 py-0"
-                              >
-                                {user.platform}
-                              </Badge>
-                              {user.appVersion && (
-                                <span className="text-[10px] text-muted-foreground">
-                                  v{user.appVersion}
-                                </span>
-                              )}
-                              {user.deviceModel && (
-                                <span className="text-[10px] text-muted-foreground/75 truncate max-w-[120px]" title={user.deviceModel}>
-                                  ({user.deviceModel})
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground/60">—</span>
-                          )}
-                        </td>
-
-                        {/* Last Active Time */}
-                        <td className="py-3 px-3">
-                          {user.lastMobileActiveAt ? (
-                            <div>
-                              <div className="font-medium text-foreground">
-                                {timeAgo(user.lastMobileActiveAt)}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground">
-                                {formatFullDate(user.lastMobileActiveAt)}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground/60">Never</span>
-                          )}
-                        </td>
-
-                        {/* Last Login Time */}
-                        <td className="py-3 px-3">
-                          {user.lastMobileLoginAt ? (
-                            <div>
-                              <div className="text-foreground">
-                                {timeAgo(user.lastMobileLoginAt)}
-                              </div>
-                              <div className="text-[10px] text-muted-foreground">
-                                {formatFullDate(user.lastMobileLoginAt)}
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground/60">—</span>
-                          )}
-                        </td>
-
-                        {/* Push Notification Status */}
-                        <td className="py-3 px-4 text-center">
-                          {user.hasPushToken ? (
-                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 text-[11px] font-medium" title={`${user.deviceTokensCount} push token(s) registered`}>
-                              <Bell className="h-3 w-3" />
-                              <span>Registered</span>
-                            </div>
-                          ) : (
-                            <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[11px]">
-                              <BellOff className="h-3 w-3" />
-                              <span>No Token</span>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
+                  {/* Department Users Table */}
+                  {!isCollapsed && (
+                    <div className="overflow-x-auto w-full">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-muted/20 border-b border-border text-muted-foreground font-medium uppercase tracking-wider text-[11px]">
+                          <tr>
+                            <th className="py-2.5 px-4">User</th>
+                            <th className="py-2.5 px-3">Role</th>
+                            <th className="py-2.5 px-3">Mobile Status</th>
+                            <th className="py-2.5 px-3">Platform & Version</th>
+                            <th className="py-2.5 px-3">Last Active</th>
+                            <th className="py-2.5 px-3">Last Login</th>
+                            <th className="py-2.5 px-4 text-center">Push Notifications</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                          {deptUsers.map((u) => renderUserRow(u))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Card>
+              )
+            })}
           </div>
-
-          {/* Table Footer */}
-          {data?.refreshedAt && (
-            <div className="bg-muted/20 border-t border-border px-4 py-2.5 flex items-center justify-between text-[11px] text-muted-foreground">
-              <div>
-                Showing {filteredUsers.length} of {data.users.length} users
-              </div>
-              <div>
-                Last updated: {new Date(data.refreshedAt).toLocaleTimeString()}
-              </div>
+        ) : (
+          /* FLAT TABLE VIEW (FULL WIDTH) */
+          <Card className="border-border/60 overflow-hidden shadow-sm w-full">
+            <div className="overflow-x-auto w-full">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-muted/40 border-b border-border text-muted-foreground font-medium uppercase tracking-wider text-[11px]">
+                  <tr>
+                    <th className="py-3 px-4">User</th>
+                    <th className="py-3 px-3">Department / Role</th>
+                    <th className="py-3 px-3">Mobile Status</th>
+                    <th className="py-3 px-3">Platform & Version</th>
+                    <th className="py-3 px-3">Last Active</th>
+                    <th className="py-3 px-3">Last Login</th>
+                    <th className="py-3 px-4 text-center">Push Notifications</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/60">
+                  {filteredUsers.map((user) => renderUserRow(user))}
+                </tbody>
+              </table>
             </div>
-          )}
-        </Card>
+
+            {/* Table Footer */}
+            {data?.refreshedAt && (
+              <div className="bg-muted/20 border-t border-border px-4 py-2.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                <div>
+                  Showing {filteredUsers.length} of {data.users.length} users
+                </div>
+                <div>
+                  Last updated: {new Date(data.refreshedAt).toLocaleTimeString()}
+                </div>
+              </div>
+            )}
+          </Card>
+        )}
       </main>
     </div>
   )

@@ -65,6 +65,8 @@ export async function requireDatabaseRoles(
           phone: true,
           clerkUserId: true,
           isActive: true,
+          lastMobileLoginAt: true,
+          mobilePlatform: true,
           userRoles: {
             select: {
               role: {
@@ -130,6 +132,18 @@ export async function requireDatabaseRoles(
           };
         }
       }
+
+      // Record mobile active usage
+      try {
+        const now = new Date();
+        prisma.user.update({
+          where: { id: actor.id },
+          data: {
+            lastMobileActiveAt: now,
+            ...(actor.lastMobileLoginAt ? {} : { lastMobileLoginAt: now }),
+          },
+        }).catch(() => {});
+      } catch {}
 
       return {
         ok: true,

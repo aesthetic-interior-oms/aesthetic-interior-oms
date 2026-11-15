@@ -42,11 +42,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const inputIdentifier = email.trim();
+    const normalizedEmail = inputIdentifier.toLowerCase();
 
-    // 1. Find user in PostgreSQL database
-    const user = await prisma.user.findUnique({
-      where: { email: normalizedEmail },
+    // 1. Find user in PostgreSQL database by email, phone, or fullName
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: normalizedEmail, mode: "insensitive" } },
+          { phone: { equals: inputIdentifier } },
+          { fullName: { equals: inputIdentifier, mode: "insensitive" } },
+        ],
+      },
       select: {
         id: true,
         fullName: true,
@@ -127,12 +134,22 @@ export async function POST(request: Request) {
 
     // Update mobile session activity
     const now = new Date();
+    const userAgent = request.headers.get("user-agent") || "";
+    const effectivePlatform =
+      platform && typeof platform === "string" && platform.trim()
+        ? platform.trim().toLowerCase()
+        : userAgent.toLowerCase().includes("android") || userAgent.toLowerCase().includes("okhttp")
+        ? "android"
+        : userAgent.toLowerCase().includes("iphone") || userAgent.toLowerCase().includes("ios")
+        ? "ios"
+        : "mobile";
+
     await prisma.user.update({
       where: { id: user.id },
       data: {
         lastMobileLoginAt: now,
         lastMobileActiveAt: now,
-        ...(platform && typeof platform === "string" ? { mobilePlatform: platform.trim().toLowerCase() } : {}),
+        mobilePlatform: effectivePlatform,
         ...(appVersion && typeof appVersion === "string" ? { mobileAppVersion: appVersion.trim() } : {}),
         ...(deviceModel && typeof deviceModel === "string" ? { mobileDeviceModel: deviceModel.trim() } : {}),
       },
