@@ -53,6 +53,10 @@ export const SectionBlock = memo(function SectionBlock({
   onCopyRow,
   copiedItem,
   copiedRowData,
+  boardOptions,
+  prelaminatedOptions,
+  hplBrands,
+  docuOptions,
 }: {
   section: CardSection
   rows: RequisitionItemInput[]
@@ -76,6 +80,10 @@ export const SectionBlock = memo(function SectionBlock({
   onCopyRow?: (rowIndex: number) => void
   copiedItem?: RequisitionItemInput | null
   copiedRowData?: BoqCopiedRowPayload | null
+  boardOptions?: string[]
+  prelaminatedOptions?: string[]
+  hplBrands?: string[]
+  docuOptions?: string[]
 }) {
   const viewMode = getViewModeForSection(section)
   const isHardwareSection = section.wallPanelingSubType === 'SCREWS_FASTENERS' || section.wallPanelingSubType === 'NAILS_PINS' || section.wallPanelingSubType === 'ADHESIVES'
@@ -261,6 +269,10 @@ export const SectionBlock = memo(function SectionBlock({
             isPasteCompatible={isPasteCompatible}
             copiedTypeLabel={copiedRowData?.typeLabel}
             sectionTypeLabel={sectionTypeMeta.typeLabel}
+            boardOptions={boardOptions}
+            prelaminatedOptions={prelaminatedOptions}
+            hplBrands={hplBrands}
+            docuOptions={docuOptions}
           />
         </div>
       )}

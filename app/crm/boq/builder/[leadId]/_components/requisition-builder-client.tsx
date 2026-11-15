@@ -260,6 +260,10 @@ interface SlideSectionItemProps {
   handleSelectSavedAppliance: (cardKey: string, sectionId: string, rowIndex: number, item: BoqSavedApplianceItem) => void
   handlePasteItemToSection: (item: RequisitionItemInput, targetSectionId?: string, targetCardKey?: string) => void
   handleCopyRowFromSection: (sectionId: string, rowIndex: number, cardKey?: string) => void
+  boardOptions?: string[]
+  prelaminatedOptions?: string[]
+  hplBrands?: string[]
+  docuOptions?: string[]
 }
 
 const SlideSectionItem = memo(function SlideSectionItem({
@@ -287,6 +291,10 @@ const SlideSectionItem = memo(function SlideSectionItem({
   handleSelectSavedAppliance,
   handlePasteItemToSection,
   handleCopyRowFromSection,
+  boardOptions,
+  prelaminatedOptions,
+  hplBrands,
+  docuOptions,
 }: SlideSectionItemProps) {
   const onChange = useCallback(
     (ri: number, field: keyof RequisitionItemInput, val: RequisitionFieldValue) => {
@@ -408,6 +416,10 @@ const SlideSectionItem = memo(function SlideSectionItem({
       onCopyRow={onCopyRow}
       copiedItem={copiedMaterial}
       copiedRowData={copiedRowData}
+      boardOptions={boardOptions}
+      prelaminatedOptions={prelaminatedOptions}
+      hplBrands={hplBrands}
+      docuOptions={docuOptions}
     />
   )
 })
@@ -430,6 +442,17 @@ export function RequisitionBuilderClient({
   const [notes, setNotes] = useState<string>(existingRequisition?.notes || '')
   const [boqSavedAccessories, setBoqSavedAccessories] = useState<BoqSavedAccessoryItem[]>(DEFAULT_SAVED_ACCESSORIES)
   const [boqSavedAppliances, setBoqSavedAppliances] = useState<BoqSavedApplianceItem[]>(DEFAULT_SAVED_APPLIANCES)
+  const [boardFinishCatalog, setBoardFinishCatalog] = useState<{
+    boards: string[]
+    prelaminated: string[]
+    hpl: string[]
+    docu: string[]
+  }>({
+    boards: BOARD_BASE_MATERIALS,
+    prelaminated: ['Champagne Gold', 'Elegent', 'Starlight', 'Starlight White', 'Rose Gold'],
+    hpl: DEFAULT_CABINET_CATALOG.hplBrands,
+    docu: ['Glossy', 'Soft matt', 'White Duco', 'Satin Matt'],
+  })
 
   const [isScrolled, setIsScrolled] = useState(false)
   const [isTopDrawerOpen, setIsTopDrawerOpen] = useState(false)
@@ -462,6 +485,25 @@ export function RequisitionBuilderClient({
       .then((r) => r.json())
       .then((data: { success: boolean; items?: BoqSavedApplianceItem[] }) => {
         if (data.success && data.items && data.items.length > 0) setBoqSavedAppliances(data.items)
+      })
+      .catch(() => {})
+
+    fetch('/api/boq/board-finishes')
+      .then((r) => r.json())
+      .then((data: { success: boolean; items?: any[] }) => {
+        if (data.success && Array.isArray(data.items) && data.items.length > 0) {
+          const boards = data.items.filter((i: any) => i.type === 'BOARD').map((i: any) => i.name)
+          const prelaminated = data.items.filter((i: any) => i.type === 'PRELAMINATED').map((i: any) => i.name)
+          const hpl = data.items.filter((i: any) => i.type === 'HPL').map((i: any) => i.name)
+          const docu = data.items.filter((i: any) => i.type === 'DOCU').map((i: any) => i.name)
+
+          setBoardFinishCatalog({
+            boards: boards.length > 0 ? boards : BOARD_BASE_MATERIALS,
+            prelaminated: prelaminated.length > 0 ? prelaminated : ['Champagne Gold', 'Elegent', 'Starlight'],
+            hpl: hpl.length > 0 ? hpl : DEFAULT_CABINET_CATALOG.hplBrands,
+            docu: docu.length > 0 ? docu : ['Glossy', 'Soft matt', 'White Duco'],
+          })
+        }
       })
       .catch(() => {})
   }, [])
@@ -851,6 +893,34 @@ export function RequisitionBuilderClient({
       // Auto-rebuild dimensions string when any individual dimension field changes
       if (field === 'dimW' || field === 'dimH' || field === 'dimD') {
         nextAttrs.dimensions = formatDimensions(nextAttrs.dimW, nextAttrs.dimD, nextAttrs.dimH)
+      }
+      // Auto-configure PVC Base Material: 3mm thickness, empty front/back laminate, no edging tape, Waterproof Backing usage
+      if (field === 'baseMaterial' || field === 'coreSubstrateType') {
+        const lower = (value || '').toLowerCase()
+        if (lower.includes('pvc')) {
+          nextAttrs.coreThickness = '3mm'
+          nextAttrs.laminateTopSurface = ''
+          nextAttrs.boardLaminateType = undefined
+          nextAttrs.surfaceCodeFinish = ''
+          nextAttrs.boardBackLaminateType = undefined
+          nextAttrs.frontLaminateCode = ''
+          nextAttrs.laminateFinishDetails = ''
+          nextAttrs.frontLaminateType = undefined
+          nextAttrs.backLaminateCode = ''
+          nextAttrs.backLaminateType = undefined
+          nextAttrs.isHplPasting = false
+          nextAttrs.edgingTapeQty = ''
+          nextAttrs.functionalUsage = 'Waterproof Backing'
+          nextAttrs.usage = 'Waterproof Backing'
+          current.productionPhase = 'Waterproof Backing'
+          current.materialName = value
+        }
+      }
+      if (field === 'usage' || field === 'functionalUsage') {
+        const lower = (value || '').toLowerCase()
+        if (lower.includes('waterproof')) {
+          nextAttrs.coreThickness = '3mm'
+        }
       }
       // Auto-select MR MDF for Champagne Gold prelaminated finish in Wall Paneling & Cabinets
       if (
@@ -1671,7 +1741,7 @@ export function RequisitionBuilderClient({
   return (
     <div className="p-4 md:p-6 space-y-4 w-full pb-40">
       {/* ── Global Autocomplete Lists ── */}
-      <BoardDatalists />
+      <BoardDatalists baseMaterials={boardFinishCatalog.boards} />
 
       {/* ── Sticky Workspace Header with Product List Button in Top-Left Corner ── */}
       <header className="sticky top-0 z-40 -mx-4 md:-mx-6 -mt-4 md:-mt-6 mb-4 bg-card/95 backdrop-blur-md border-b border-border/80 px-4 md:px-6 py-2.5 shadow-xs transition-all">
@@ -2250,6 +2320,10 @@ export function RequisitionBuilderClient({
                       handleSelectSavedAppliance={handleSelectSavedAppliance}
                       handlePasteItemToSection={handlePasteItemToSection}
                       handleCopyRowFromSection={handleCopyRowFromSection}
+                      boardOptions={boardFinishCatalog.boards}
+                      prelaminatedOptions={boardFinishCatalog.prelaminated}
+                      hplBrands={boardFinishCatalog.hpl}
+                      docuOptions={boardFinishCatalog.docu}
                     />
                   ))
                 )}
@@ -2355,6 +2429,10 @@ export function RequisitionBuilderClient({
                       handleSelectSavedAppliance={handleSelectSavedAppliance}
                       handlePasteItemToSection={handlePasteItemToSection}
                       handleCopyRowFromSection={handleCopyRowFromSection}
+                      boardOptions={boardFinishCatalog.boards}
+                      prelaminatedOptions={boardFinishCatalog.prelaminated}
+                      hplBrands={boardFinishCatalog.hpl}
+                      docuOptions={boardFinishCatalog.docu}
                     />
                   ))
                 )}

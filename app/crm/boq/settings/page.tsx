@@ -1,7 +1,7 @@
-import { AccessoriesAppliancesCatalogSettings } from '@/components/settings/accessories-appliances-catalog-settings'
+import { BoqSettingsContainer } from '@/components/settings/boq-settings-container'
 
 export const metadata = {
-  title: 'BOQ Settings - Accessories & Appliances Library',
+  title: 'BOQ Settings - Requisition Materials & Finish Catalog',
 }
 
 export default function BoqSettingsPage() {
@@ -12,11 +12,11 @@ export default function BoqSettingsPage() {
           BOQ Settings
         </h1>
         <p className="text-sm text-muted-foreground">
-          Manage saved accessories, appliances, specifications, and lifetime product photos.
+          Manage core boards, prelaminate finishes, HPL codes, docu paint options, accessories, and appliances.
         </p>
       </div>
 
-      <AccessoriesAppliancesCatalogSettings />
+      <BoqSettingsContainer />
     </div>
   )
 }

@@ -177,19 +177,21 @@ export function buildSectionPdfTable(
         'Usage',
       ],
       body: rows.map((item, idx) => {
+        const baseMat = pdfAttr(item, 'baseMaterial')
         const makeType = pdfAttr(item, 'boardMakeType')
-        const makeTypeLabel = makeType === 'HANDMADE' ? 'Hand' : 'Factory'
+        const makeTypeLabel = baseMat ? (makeType === 'HANDMADE' ? 'Hand' : 'Factory') : ''
+        const isPvc = baseMat.toLowerCase().includes('pvc')
         return [
           String(idx + 1).padStart(2, '0'),
-          text(pdfAttr(item, 'baseMaterial')),
-          text(pdfAttr(item, 'coreThickness')),
-          text(pdfAttr(item, 'laminateTopSurface') || 'Raw Board'),
-          text(pdfAttr(item, 'surfaceCodeFinish') || 'Raw Board'),
+          baseMat || '',
+          text(pdfAttr(item, 'coreThickness') || (isPvc ? '3mm' : '')),
+          text(pdfAttr(item, 'laminateTopSurface') || (isPvc ? '—' : 'Raw Board')),
+          text(pdfAttr(item, 'surfaceCodeFinish') || (isPvc ? '—' : 'Raw Board')),
           makeTypeLabel,
           text(item.unit),
           pdfQty(item),
-          text(pdfAttr(item, 'edgingTapeQty')),
-          text(pdfAttr(item, 'functionalUsage') || item.productionPhase),
+          text(pdfAttr(item, 'edgingTapeQty') || (isPvc ? '—' : '')),
+          text(pdfAttr(item, 'functionalUsage') || item.productionPhase || (isPvc ? 'Waterproof Backing' : '')),
         ]
       }),
       columnStyles: {
@@ -348,12 +350,13 @@ export function buildSectionPdfTable(
         'Qty',
       ],
       body: rows.map((item, idx) => {
+        const baseMat = pdfAttr(item, 'baseMaterial') || pdfAttr(item, 'coreSubstrateType')
         const makeType = pdfAttr(item, 'boardMakeType')
-        const makeTypeLabel = makeType === 'HANDMADE' ? 'Hand' : 'Factory'
+        const makeTypeLabel = baseMat ? (makeType === 'HANDMADE' ? 'Hand' : 'Factory') : ''
         return [
           String(idx + 1).padStart(2, '0'),
           text(pdfAttr(item, 'usage') || item.productionPhase),
-          text(pdfAttr(item, 'baseMaterial') || pdfAttr(item, 'coreSubstrateType')),
+          baseMat || '',
           text(pdfAttr(item, 'coreThickness')),
           makeTypeLabel,
           text(pdfAttr(item, 'frontLaminateCode')),

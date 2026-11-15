@@ -148,9 +148,12 @@ function buildDisplayDetails(item: RequisitionItemInput): {
 
   if (item.workCategory === 'CABINETS_CLOSETS') {
     const baseMat = attrs.baseMaterial || attrs.coreSubstrateType || 'MR MDF Architect Grade Board'
-    const thk = attrs.coreThickness ? String(attrs.coreThickness) : ''
-    const frontLam = (attrs.frontLaminateCode || attrs.laminateFinishDetails ? String(attrs.frontLaminateCode || attrs.laminateFinishDetails) : '') || 'Raw Board'
-    const backLam = (attrs.backLaminateCode ? String(attrs.backLaminateCode) : '') || 'Raw Board'
+    const isPvc = String(baseMat).toLowerCase().includes('pvc')
+    const thk = attrs.coreThickness ? String(attrs.coreThickness) : isPvc ? '3mm' : ''
+    const rawFl = attrs.frontLaminateCode || attrs.laminateFinishDetails ? String(attrs.frontLaminateCode || attrs.laminateFinishDetails) : ''
+    const rawBl = attrs.backLaminateCode ? String(attrs.backLaminateCode) : ''
+    const frontLam = isPvc ? '' : (rawFl || 'Raw Board')
+    const backLam = isPvc ? '' : (rawBl || 'Raw Board')
     const isSameLam = !!frontLam && !!backLam && frontLam.trim().toLowerCase() === backLam.trim().toLowerCase()
 
     cabinetParts = {
@@ -162,9 +165,9 @@ function buildDisplayDetails(item: RequisitionItemInput): {
     }
 
     displayTitle = [thk, frontLam, isSameLam ? '' : backLam, baseMat].filter(Boolean).join(' ')
-    subtitle = attrs.usage ? String(attrs.usage) : ''
-    if (attrs.usage) {
-      tags.push({ label: 'Usage', value: String(attrs.usage) })
+    subtitle = (attrs.usage ? String(attrs.usage) : '') || (isPvc ? 'Waterproof Backing' : '')
+    if (attrs.usage || isPvc) {
+      tags.push({ label: 'Usage', value: String(attrs.usage || 'Waterproof Backing') })
     }
     if (attrs.edgingTapeQty) {
       tags.push({ label: 'Edge', value: String(attrs.edgingTapeQty) })
@@ -173,9 +176,12 @@ function buildDisplayDetails(item: RequisitionItemInput): {
     const wp = attrs.wpSubType
     if (wp === 'CORE_BOARDS' || (!wp && (attrs.baseMaterial || attrs.laminateTopSurface))) {
       const baseMat = attrs.baseMaterial || item.materialName || 'MR MDF Architect Grade Board'
-      const thk = attrs.coreThickness ? String(attrs.coreThickness) : ''
-      const frontLam = (attrs.laminateTopSurface || attrs.frontLaminateCode ? String(attrs.laminateTopSurface || attrs.frontLaminateCode) : '') || 'Raw Board'
-      const backLam = (attrs.surfaceCodeFinish || attrs.backLaminateCode ? String(attrs.surfaceCodeFinish || attrs.backLaminateCode) : '') || 'Raw Board'
+      const isPvc = String(baseMat).toLowerCase().includes('pvc')
+      const thk = attrs.coreThickness ? String(attrs.coreThickness) : isPvc ? '3mm' : ''
+      const rawFl = attrs.laminateTopSurface || attrs.frontLaminateCode ? String(attrs.laminateTopSurface || attrs.frontLaminateCode) : ''
+      const rawBl = attrs.surfaceCodeFinish || attrs.backLaminateCode ? String(attrs.surfaceCodeFinish || attrs.backLaminateCode) : ''
+      const frontLam = isPvc ? '' : (rawFl || 'Raw Board')
+      const backLam = isPvc ? '' : (rawBl || 'Raw Board')
       const isSameLam = !!frontLam && !!backLam && frontLam.trim().toLowerCase() === backLam.trim().toLowerCase()
 
       cabinetParts = {
@@ -690,12 +696,14 @@ export function UsedMaterialsPalette({
                           {entry.cabinetParts.thickness}
                         </span>
                       )}
-                      <span
-                        className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-600 text-white shadow-xs shrink-0"
-                        title={entry.cabinetParts.isSameLaminate ? 'Front & Back laminate (Both sides same)' : 'Front Laminate'}
-                      >
-                        {entry.cabinetParts.frontLaminate}
-                      </span>
+                      {entry.cabinetParts.frontLaminate && (
+                        <span
+                          className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-600 text-white shadow-xs shrink-0"
+                          title={entry.cabinetParts.isSameLaminate ? 'Front & Back laminate (Both sides same)' : 'Front Laminate'}
+                        >
+                          {entry.cabinetParts.frontLaminate}
+                        </span>
+                      )}
                       {!entry.cabinetParts.isSameLaminate && entry.cabinetParts.backLaminate && (
                         <span
                           className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-500 text-white shadow-xs shrink-0"

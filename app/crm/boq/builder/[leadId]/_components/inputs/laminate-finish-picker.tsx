@@ -13,7 +13,10 @@ export interface LaminateFinishPickerProps {
   value: string
   finishType?: 'PRELAMINATED' | 'HPL' | 'DUCO' | 'SOLID' | string
   onChange: (val: string, finishType: 'PRELAMINATED' | 'HPL' | 'DUCO') => void
+  prelaminatedOptions?: string[]
   hplBrands?: string[]
+  ducoOptions?: string[]
+  docuOptions?: string[]
   isBack?: boolean
   frontValue?: string
   frontFinishType?: 'PRELAMINATED' | 'HPL' | 'DUCO' | 'SOLID' | string
@@ -24,18 +27,22 @@ export const LaminateFinishPicker = memo(function LaminateFinishPicker({
   value,
   finishType,
   onChange,
+  prelaminatedOptions = PRELAMINATED_OPTIONS,
   hplBrands = DEFAULT_CABINET_CATALOG.hplBrands,
+  ducoOptions,
+  docuOptions,
   isBack = false,
   frontValue,
   frontFinishType,
   placeholder = 'Select finish...',
 }: LaminateFinishPickerProps) {
+  const effectiveDucoOptions = ducoOptions || docuOptions || DUCO_PAINT_OPTIONS
   const [isOpen, setIsOpen] = useState(false)
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({})
 
   const detectTab = (): 'PRELAMINATED' | 'HPL' | 'DUCO' => {
     if (finishType === 'HPL' || hplBrands.includes(value)) return 'HPL'
-    if (finishType === 'DUCO' || DUCO_PAINT_OPTIONS.includes(value)) return 'DUCO'
+    if (finishType === 'DUCO' || effectiveDucoOptions.includes(value) || DUCO_PAINT_OPTIONS.includes(value)) return 'DUCO'
     return 'PRELAMINATED'
   }
   const [activeTab, setActiveTab] = useState<'PRELAMINATED' | 'HPL' | 'DUCO'>(detectTab)
@@ -224,7 +231,7 @@ export const LaminateFinishPicker = memo(function LaminateFinishPicker({
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                🪚 Pre-lam ({PRELAMINATED_OPTIONS.length})
+                🪚 Pre-lam ({prelaminatedOptions.length})
               </button>
               <button
                 type="button"
@@ -248,7 +255,7 @@ export const LaminateFinishPicker = memo(function LaminateFinishPicker({
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                🎨 Duco ({DUCO_PAINT_OPTIONS.length})
+                🎨 Duco ({effectiveDucoOptions.length})
               </button>
             </div>
 
@@ -259,7 +266,7 @@ export const LaminateFinishPicker = memo(function LaminateFinishPicker({
                   <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
                     Prelaminated Board Finish
                   </div>
-                  {PRELAMINATED_OPTIONS.map((opt) => (
+                  {prelaminatedOptions.map((opt) => (
                     <button
                       key={opt}
                       type="button"
@@ -317,7 +324,7 @@ export const LaminateFinishPicker = memo(function LaminateFinishPicker({
                   <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-purple-700 dark:text-purple-300">
                     Duco Paint Finish
                   </div>
-                  {DUCO_PAINT_OPTIONS.map((opt) => (
+                  {effectiveDucoOptions.map((opt) => (
                     <button
                       key={opt}
                       type="button"

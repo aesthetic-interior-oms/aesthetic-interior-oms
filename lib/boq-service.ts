@@ -372,6 +372,29 @@ import { DEFAULT_CABINET_CATALOG, type CabinetCatalogConfig } from '@/lib/boq-ca
 export type { CabinetCatalogConfig }
 
 export async function getBoqCabinetCatalog(): Promise<CabinetCatalogConfig> {
+  try {
+    const items = await prisma.boqBoardFinishItem.findMany({
+      where: { isActive: true },
+      orderBy: [{ serialNo: 'asc' }, { name: 'asc' }],
+    })
+
+    if (items.length > 0) {
+      const baseMaterials = items.filter((i) => i.type === 'BOARD').map((i) => i.name)
+      const solidShades = items.filter((i) => i.type === 'PRELAMINATED').map((i) => i.name)
+      const hplBrands = items.filter((i) => i.type === 'HPL').map((i) => i.name)
+      const docuOptions = items.filter((i) => i.type === 'DOCU').map((i) => i.name)
+
+      return {
+        ...DEFAULT_CABINET_CATALOG,
+        baseMaterials: baseMaterials.length > 0 ? baseMaterials : DEFAULT_CABINET_CATALOG.baseMaterials,
+        solidShades: solidShades.length > 0 ? solidShades : DEFAULT_CABINET_CATALOG.solidShades,
+        hplBrands: hplBrands.length > 0 ? hplBrands : DEFAULT_CABINET_CATALOG.hplBrands,
+        docuOptions: docuOptions.length > 0 ? docuOptions : (DEFAULT_CABINET_CATALOG.docuOptions || ['Glossy', 'Soft matt', 'White Duco']),
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching dynamic BOQ catalog:', error)
+  }
   return DEFAULT_CABINET_CATALOG
 }
 

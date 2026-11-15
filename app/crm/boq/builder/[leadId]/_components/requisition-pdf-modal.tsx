@@ -199,17 +199,17 @@ export function formatMaterialItem(
   // 1. BOARDS
   if (wpSub === 'CORE_BOARDS' || (item.workCategory === 'WALL_PANELING' && (attrs.baseMaterial || attrs.laminateTopSurface))) {
     const productType = 'Boards'
-    const base = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string) || item.materialName) || 'Garjon Plywood'
+    const base = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string))
     const isPvc = base.toLowerCase().includes('pvc')
     const thk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || (isPvc ? '3mm' : '12mm')
     const rawFl = cleanString((attrs.laminateTopSurface as string) || (attrs.frontLaminateCode as string))
     const rawBl = cleanString((attrs.surfaceCodeFinish as string) || (attrs.backLaminateCode as string))
-    const makeType = attrs.boardMakeType === 'HANDMADE' ? ' [Hand]' : ' [Factory]'
+    const makeType = base ? (attrs.boardMakeType === 'HANDMADE' ? ' [Hand]' : ' [Factory]') : ''
 
     let materialDescription = ''
     if (isPvc) {
       const usage = cleanString((attrs.functionalUsage as string) || (attrs.usage as string) || item.productionPhase) || 'Waterproof Backing'
-      materialDescription = `${usage}: ${thk} + ${base}${makeType}`
+      materialDescription = [usage ? `${usage}: ${thk}` : thk, base ? `${base}${makeType}` : ''].filter(Boolean).join(' + ')
     } else {
       const fl = rawFl
         ? (rawFl.toUpperCase().includes('F/L') ? rawFl : `${rawFl} (F/L)`)
@@ -217,7 +217,8 @@ export function formatMaterialItem(
       const bl = rawBl
         ? (rawBl.toUpperCase().includes('B/L') ? rawBl : `${rawBl} (B/L)`)
         : 'Raw Board (B/L)'
-      materialDescription = `${thk} + ${base}${makeType} + ${fl} + ${bl}`
+      const basePart = base ? `${base}${makeType}` : ''
+      materialDescription = [thk, basePart, fl, bl].filter(Boolean).join(' + ')
     }
     return { productType, materialDescription, unit }
   }
@@ -225,12 +226,12 @@ export function formatMaterialItem(
   // 1b. CABINET / CLOSET BOARDS
   if (item.workCategory === 'CABINETS_CLOSETS' || section?.category === 'CABINETS_CLOSETS') {
     const productType = 'Cabinet / Closet Boards'
-    const rawBase = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string) || item.materialName) || 'Cabinet Board'
+    const rawBase = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string))
     const isPvc = rawBase.toLowerCase().includes('pvc')
     const rawThk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || (isPvc ? '3mm' : '18mm')
     const thk = /^\d+$/.test(rawThk) ? `${rawThk}mm` : rawThk
-    const makeType = attrs.boardMakeType === 'HANDMADE' ? ' [Hand]' : ' [Factory]'
-    const baseMaterial = `${rawBase}${makeType}`
+    const makeType = rawBase ? (attrs.boardMakeType === 'HANDMADE' ? ' [Hand]' : ' [Factory]') : ''
+    const baseMaterial = rawBase ? `${rawBase}${makeType}` : ''
 
     const rawFl = cleanString((attrs.frontLaminateCode as string) || (attrs.laminateFinishDetails as string))
     const rawBl = cleanString(attrs.backLaminateCode as string)
@@ -239,7 +240,7 @@ export function formatMaterialItem(
     const usagePrefix = usage ? `${usage}: ` : ''
 
     if (isPvc) {
-      const materialDescription = `${usagePrefix}${thk} + ${baseMaterial}`
+      const materialDescription = [usagePrefix ? usagePrefix.replace(/: $/, '') : '', thk, baseMaterial].filter(Boolean).join(' + ')
       return {
         productType,
         materialDescription,
@@ -259,7 +260,12 @@ export function formatMaterialItem(
     const frontLaminate = rawFl || 'Raw Board'
     const backLaminate = rawBl || (isSame ? rawFl : 'Raw Board')
 
-    const materialDescription = `${usagePrefix}${thk} + ${baseMaterial} + ${frontLaminate} (Front) + ${backLaminate} (Back)`
+    const basePart = baseMaterial
+    const laminateParts = isSame
+      ? [`${frontLaminate} (Both Sides)`]
+      : [`${frontLaminate} (Front)`, `${backLaminate} (Back)`]
+    const descParts = [thk, basePart, ...laminateParts].filter(Boolean)
+    const materialDescription = `${usagePrefix}${descParts.join(' + ')}`
     return {
       productType,
       materialDescription,
@@ -876,7 +882,7 @@ export function RequisitionPdfExportModal({
                                 </>
                               )}
                               <td className="py-2.5 px-3 font-semibold text-foreground">
-                                {mat.baseMaterial || mat.name || 'Cabinet Board'}
+                                {mat.baseMaterial || ''}
                               </td>
                               <td className="py-2.5 px-3 text-center font-bold text-primary text-xs whitespace-nowrap">
                                 {displayQty}

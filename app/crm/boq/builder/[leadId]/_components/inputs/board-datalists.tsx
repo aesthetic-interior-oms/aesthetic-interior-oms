@@ -3,7 +3,7 @@
 import React from 'react'
 import { BOARD_BASE_MATERIALS } from '../constants/boq-builder-constants'
 
-export function BoardDatalists() {
+export function BoardDatalists({ baseMaterials = BOARD_BASE_MATERIALS }: { baseMaterials?: string[] } = {}) {
   return (
     <>
       {/* ── Item ID List ── */}
@@ -41,6 +41,7 @@ export function BoardDatalists() {
 
       {/* ── Core Boards Datalists ── */}
       <datalist id="core-thickness-list">
+        <option value="3mm" />
         <option value="6mm" />
         <option value="9mm" />
         <option value="12mm" />
@@ -50,7 +51,7 @@ export function BoardDatalists() {
       </datalist>
 
       <datalist id="base-material-list">
-        {BOARD_BASE_MATERIALS.map((mat) => (
+        {baseMaterials.map((mat) => (
           <option key={mat} value={mat} />
         ))}
       </datalist>
@@ -82,6 +83,7 @@ export function BoardDatalists() {
       </datalist>
 
       <datalist id="functional-usage-list">
+        <option value="Waterproof Backing" />
         <option value="Shutter / Exterior Cabinet" />
         <option value="Inner Box / Shelving" />
         <option value="Heavy Load Frame / Base" />

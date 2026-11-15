@@ -235,11 +235,16 @@ export const BOARD_BASE_MATERIAL_GROUPS: { group: string; items: string[] }[] = 
   },
   {
     group: '4. Specialty & Waterproof Boards',
-    items: ['Blockboard', 'WPC (Wood Plastic Composite) Board', '3mm PVC Sheet (Waterproof Backing)'],
+    items: ['Blockboard', 'WPC (Wood Plastic Composite) Board', 'PVC Board', 'PVC Sheet'],
   },
 ]
 
 export const BOARD_BASE_MATERIALS: string[] = BOARD_BASE_MATERIAL_GROUPS.flatMap((g) => g.items)
+
+export function isPvcBaseMaterial(val?: string | null): boolean {
+  if (!val) return false
+  return val.toLowerCase().includes('pvc')
+}
 
 export const BOARD_LAMINATE_CATALOG = {
   solidShades: [

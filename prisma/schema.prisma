@@ -1683,6 +1683,31 @@ model BoqSavedApplianceItem {
   @@index([isActive, serialNo])
 }
 
+enum BoqMaterialType {
+  BOARD
+  PRELAMINATED
+  HPL
+  DOCU
+}
+
+model BoqBoardFinishItem {
+  id          String          @id @default(cuid())
+  type        BoqMaterialType
+  name        String
+  category    String          @default("")
+  code        String          @default("")
+  thickness   String          @default("")
+  sheetSize   String          @default("")
+  description String          @default("")
+  imageUrl    String?
+  isActive    Boolean         @default(true)
+  serialNo    Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([type, isActive, serialNo])
+}
+
 model RequisitionAmendment {
   id                String              @id @default(cuid())
   requisitionId     String

@@ -633,7 +633,34 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                       </View>
 
                       {/* 3 & 4. FRONT & BACK LAMINATE */}
-                      {isSame ? (
+                      {isPvc ? (
+                        /* MERGED EMPTY WHEN PVC (NO LAMINATE / WATERPROOF BACKING) */
+                        <View
+                          style={[
+                            styles.tdCol,
+                            {
+                              width: '48%',
+                              backgroundColor: '#f8fafc',
+                              borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
+                              borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
+                              borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                              borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                              justifyContent: 'center',
+                              paddingHorizontal: 4,
+                            },
+                          ]}
+                        >
+                          <Text style={{ fontSize: 7.5, color: '#64748b', fontStyle: 'italic' }}>
+                            — (Waterproof Backing · No Laminate)
+                          </Text>
+                          {mat.usedInProducts && mat.usedInProducts.length > 0 ? (
+                            <Text style={{ fontSize: 6, color: '#718096', marginTop: 1 }}>
+                              Used in: {mat.usedInProducts.slice(0, 3).join(', ')}
+                              {mat.usedInProducts.length > 3 ? ` +${mat.usedInProducts.length - 3} more` : ''}
+                            </Text>
+                          ) : null}
+                        </View>
+                      ) : isSame ? (
                         /* MERGED WHEN FRONT AND BACK LAMINATE ARE THE SAME (24% + 24% = 48%) */
                         <View
                           style={[
@@ -641,8 +668,8 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                             {
                               width: '48%',
                               backgroundColor: '#fffdf5',
-                              borderBottomWidth: 0.5,
-                              borderBottomColor: BORDER,
+                              borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
+                              borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
                               borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
                               borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
                               justifyContent: 'center',
@@ -673,8 +700,8 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                               styles.tdCol,
                               {
                                 width: '24%',
-                                borderBottomWidth: 0.5,
-                                borderBottomColor: BORDER,
+                                borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
+                                borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
                                 borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
                                 borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
                                 justifyContent: 'center',
@@ -697,8 +724,8 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                               styles.tdCol,
                               {
                                 width: '24%',
-                                borderBottomWidth: 0.5,
-                                borderBottomColor: BORDER,
+                                borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
+                                borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
                                 borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
                                 borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
                                 justifyContent: 'center',
@@ -718,8 +745,8 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                           styles.tdCol,
                           {
                             width: '20%',
-                            borderBottomWidth: 0.5,
-                            borderBottomColor: BORDER,
+                            borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
+                            borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
                             borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
                             borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
                             justifyContent: 'center',
@@ -727,7 +754,7 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                         ]}
                       >
                         <Text style={{ fontWeight: 'bold', color: '#2d3748', fontSize: 8 }}>
-                          {mat.baseMaterial || mat.name || 'Cabinet Board'}
+                          {mat.baseMaterial || ''}
                         </Text>
                       </View>
 
