@@ -50,6 +50,15 @@ export async function POST(request: NextRequest) {
       data: { userId, token, platform: platform ?? 'android' },
     })
 
+    // 4. Update user mobile activity
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        lastMobileActiveAt: new Date(),
+        ...(platform ? { mobilePlatform: String(platform).trim().toLowerCase() } : {}),
+      },
+    }).catch(() => {})
+
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('[device-tokens][POST] Error:', error)

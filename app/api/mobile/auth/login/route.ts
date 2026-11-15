@@ -20,7 +20,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const { email, password } = body as { email?: string; password?: string };
+    const { email, password, platform, appVersion, deviceModel } = body as {
+      email?: string;
+      password?: string;
+      platform?: string;
+      appVersion?: string;
+      deviceModel?: string;
+    };
 
     if (!email || typeof email !== "string" || !email.trim()) {
       return NextResponse.json(
@@ -118,6 +124,21 @@ export async function POST(request: Request) {
         { status: 401 },
       );
     }
+
+    // Update mobile session activity
+    const now = new Date();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastMobileLoginAt: now,
+        lastMobileActiveAt: now,
+        ...(platform && typeof platform === "string" ? { mobilePlatform: platform.trim().toLowerCase() } : {}),
+        ...(appVersion && typeof appVersion === "string" ? { mobileAppVersion: appVersion.trim() } : {}),
+        ...(deviceModel && typeof deviceModel === "string" ? { mobileDeviceModel: deviceModel.trim() } : {}),
+      },
+    }).catch((err) => {
+      console.warn("[POST /api/mobile/auth/login] Could not update mobile activity tracking:", err);
+    });
 
     // 4. Generate mobile JWT
     const token = signMobileToken({

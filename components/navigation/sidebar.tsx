@@ -27,6 +27,7 @@ import {
   Truck,
   Zap,
   Wrench,
+  Smartphone,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -244,6 +245,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: Settings,
           label: 'WhatsApp Monitor',
           href: '/crm/admin/whatsapp-monitor',
+        },
+        {
+          icon: Smartphone,
+          label: 'Mobile Users',
+          href: '/crm/admin/mobile-users',
         },
       ],
     },

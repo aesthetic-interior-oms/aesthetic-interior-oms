@@ -149,6 +149,11 @@ model User {
   isActive                    Boolean                    @default(true)
   approvedById                String?
   approvedAt                  DateTime?
+  lastMobileLoginAt           DateTime?
+  lastMobileActiveAt          DateTime?
+  mobilePlatform              String?
+  mobileAppVersion            String?
+  mobileDeviceModel           String?
   activities                  ActivityLog[]
   agreementValueLogs          AgreementValueLog[]
   cadWorkSubmissions          CadWorkSubmission[]        @relation("CadWorkSubmittedBy")
