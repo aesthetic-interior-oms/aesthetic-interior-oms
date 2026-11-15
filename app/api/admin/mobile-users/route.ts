@@ -35,9 +35,12 @@ export async function GET() {
         isActive: true,
         lastMobileLoginAt: true,
         lastMobileActiveAt: true,
+        lastWebLoginAt: true,
+        lastWebActiveAt: true,
         mobilePlatform: true,
         mobileAppVersion: true,
         mobileDeviceModel: true,
+        clerkUserId: true,
         userRoles: {
           select: {
             role: { select: { name: true } },
@@ -68,8 +71,8 @@ export async function GET() {
         },
       },
       orderBy: [
+        { lastWebActiveAt: 'desc' },
         { lastMobileActiveAt: 'desc' },
-        { lastMobileLoginAt: 'desc' },
         { fullName: 'asc' },
       ],
     })
@@ -79,15 +82,27 @@ export async function GET() {
     const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000
 
     let totalMobileUsers = 0
-    let onlineNowCount = 0
+    let totalWebUsers = 0
+    let totalOnlineNowCount = 0
+    let mobileOnlineNowCount = 0
+    let webOnlineNowCount = 0
     let activeTodayCount = 0
     let pushEnabledCount = 0
-    let neverLoggedInCount = 0
+    let inactiveTodayCount = 0
 
     // Department-level statistics map
     const departmentStats: Record<
       string,
-      { name: string; totalUsers: number; totalMobile: number; onlineNow: number; activeToday: number }
+      {
+        name: string
+        totalUsers: number
+        totalMobile: number
+        totalWeb: number
+        onlineNow: number
+        webOnline: number
+        mobileOnline: number
+        activeToday: number
+      }
     > = {}
 
     const formattedUsers = users.map((u) => {
@@ -96,112 +111,142 @@ export async function GET() {
       const primaryDepartment = departments[0] || 'Unassigned'
       const hasPushToken = u.deviceTokens.length > 0
 
-      // Infer fallback activity from mobile actions if lastMobileActiveAt is not yet set
+      // ── MOBILE ACTIVITY CALCULATIONS ──────────────────────────────
       const lastProcTx = u.procurementWalletTxSubmitted[0]?.createdAt ?? null
       const lastDelivery = u.siteDeliveriesReceived[0]?.createdAt ?? null
-      let fallbackActivity: Date | null = null
-      if (lastProcTx) {
-        fallbackActivity = lastProcTx
-      }
+      let fallbackMobileActivity: Date | null = null
+      if (lastProcTx) fallbackMobileActivity = lastProcTx
       if (lastDelivery) {
-        if (!fallbackActivity || lastDelivery.getTime() > fallbackActivity.getTime()) {
-          fallbackActivity = lastDelivery
+        if (!fallbackMobileActivity || lastDelivery.getTime() > fallbackMobileActivity.getTime()) {
+          fallbackMobileActivity = lastDelivery
         }
       }
 
-      const effectiveLastActive = u.lastMobileActiveAt || fallbackActivity
-      const effectiveLastLogin = u.lastMobileLoginAt || fallbackActivity
+      const effectiveMobileActive = u.lastMobileActiveAt || fallbackMobileActivity
+      const effectiveMobileLogin = u.lastMobileLoginAt || fallbackMobileActivity
 
-      // If we found a fallback activity but DB hasn't persisted it, update in background
-      if (fallbackActivity && !u.lastMobileActiveAt) {
-        prisma.user.update({
-          where: { id: u.id },
-          data: {
-            lastMobileActiveAt: fallbackActivity,
-            ...(u.lastMobileLoginAt ? {} : { lastMobileLoginAt: fallbackActivity }),
-            ...(u.mobilePlatform ? {} : { mobilePlatform: 'android' }),
-          },
-        }).catch(() => {})
-      }
-
-      const hasMobileRecord = Boolean(
-        effectiveLastLogin || effectiveLastActive || hasPushToken
-      )
-
+      const hasMobileRecord = Boolean(effectiveMobileLogin || effectiveMobileActive || hasPushToken)
       if (hasPushToken) pushEnabledCount += 1
       if (hasMobileRecord) totalMobileUsers += 1
-      else neverLoggedInCount += 1
 
-      // Determine activity status
-      let status: 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE' | 'NEVER' = 'NEVER'
-      let lastActiveDiffMs: number | null = null
-
-      if (effectiveLastActive) {
-        lastActiveDiffMs = now - new Date(effectiveLastActive).getTime()
-        if (lastActiveDiffMs <= FIFTEEN_MINUTES_MS) {
-          status = 'ONLINE'
-          onlineNowCount += 1
-          activeTodayCount += 1
-        } else if (lastActiveDiffMs <= TWENTY_FOUR_HOURS_MS) {
-          status = 'ACTIVE_TODAY'
-          activeTodayCount += 1
+      let mobileStatus: 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE' | 'NEVER' = 'NEVER'
+      if (effectiveMobileActive) {
+        const diffMs = now - new Date(effectiveMobileActive).getTime()
+        if (diffMs <= FIFTEEN_MINUTES_MS) {
+          mobileStatus = 'ONLINE'
+          mobileOnlineNowCount += 1
+        } else if (diffMs <= TWENTY_FOUR_HOURS_MS) {
+          mobileStatus = 'ACTIVE_TODAY'
         } else {
-          status = 'OFFLINE'
+          mobileStatus = 'OFFLINE'
         }
-      } else if (effectiveLastLogin) {
-        const loginDiffMs = now - new Date(effectiveLastLogin).getTime()
-        if (loginDiffMs <= FIFTEEN_MINUTES_MS) {
-          status = 'ONLINE'
-          onlineNowCount += 1
-          activeTodayCount += 1
-        } else if (loginDiffMs <= TWENTY_FOUR_HOURS_MS) {
-          status = 'ACTIVE_TODAY'
-          activeTodayCount += 1
+      } else if (effectiveMobileLogin) {
+        const diffMs = now - new Date(effectiveMobileLogin).getTime()
+        if (diffMs <= FIFTEEN_MINUTES_MS) {
+          mobileStatus = 'ONLINE'
+          mobileOnlineNowCount += 1
+        } else if (diffMs <= TWENTY_FOUR_HOURS_MS) {
+          mobileStatus = 'ACTIVE_TODAY'
         } else {
-          status = 'OFFLINE'
+          mobileStatus = 'OFFLINE'
         }
       } else if (hasPushToken) {
-        status = 'OFFLINE'
+        mobileStatus = 'OFFLINE'
       }
 
-      // Infer platform if not explicitly set
+      // ── WEB APP ACTIVITY CALCULATIONS ─────────────────────────────
+      const hasWebRecord = Boolean(u.lastWebLoginAt || u.lastWebActiveAt || u.clerkUserId)
+      if (hasWebRecord) totalWebUsers += 1
+
+      let webStatus: 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE' | 'NEVER' = 'NEVER'
+      if (u.lastWebActiveAt) {
+        const diffMs = now - new Date(u.lastWebActiveAt).getTime()
+        if (diffMs <= FIFTEEN_MINUTES_MS) {
+          webStatus = 'ONLINE'
+          webOnlineNowCount += 1
+        } else if (diffMs <= TWENTY_FOUR_HOURS_MS) {
+          webStatus = 'ACTIVE_TODAY'
+        } else {
+          webStatus = 'OFFLINE'
+        }
+      } else if (u.lastWebLoginAt) {
+        const diffMs = now - new Date(u.lastWebLoginAt).getTime()
+        if (diffMs <= FIFTEEN_MINUTES_MS) {
+          webStatus = 'ONLINE'
+          webOnlineNowCount += 1
+        } else if (diffMs <= TWENTY_FOUR_HOURS_MS) {
+          webStatus = 'ACTIVE_TODAY'
+        } else {
+          webStatus = 'OFFLINE'
+        }
+      } else if (u.clerkUserId) {
+        webStatus = 'OFFLINE'
+      }
+
+      // ── COMBINED PRESENCE / OVERALL STATUS ─────────────────────────
+      const isMobileOnline = mobileStatus === 'ONLINE'
+      const isWebOnline = webStatus === 'ONLINE'
+      const isOnline = isMobileOnline || isWebOnline
+
+      let activeDevice: 'BOTH' | 'MOBILE' | 'WEB' | 'NONE' = 'NONE'
+      if (isMobileOnline && isWebOnline) activeDevice = 'BOTH'
+      else if (isMobileOnline) activeDevice = 'MOBILE'
+      else if (isWebOnline) activeDevice = 'WEB'
+
+      let overallStatus: 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE' | 'NEVER' = 'NEVER'
+      if (isOnline) {
+        overallStatus = 'ONLINE'
+        totalOnlineNowCount += 1
+        activeTodayCount += 1
+      } else if (mobileStatus === 'ACTIVE_TODAY' || webStatus === 'ACTIVE_TODAY') {
+        overallStatus = 'ACTIVE_TODAY'
+        activeTodayCount += 1
+      } else if (hasMobileRecord || hasWebRecord) {
+        overallStatus = 'OFFLINE'
+        inactiveTodayCount += 1
+      } else {
+        overallStatus = 'NEVER'
+        inactiveTodayCount += 1
+      }
+
+      // Get latest active timestamp across web & mobile
+      let latestActiveAt: string | null = null
+      const mobTime = effectiveMobileActive ? new Date(effectiveMobileActive).getTime() : 0
+      const webTime = u.lastWebActiveAt ? new Date(u.lastWebActiveAt).getTime() : 0
+      if (mobTime > 0 || webTime > 0) {
+        latestActiveAt = new Date(Math.max(mobTime, webTime)).toISOString()
+      }
+
+      // Infer platform
       const platform =
         u.mobilePlatform ||
-        (u.deviceTokens.length > 0 ? u.deviceTokens[0].platform : fallbackActivity ? 'android' : null)
+        (u.deviceTokens.length > 0 ? u.deviceTokens[0].platform : fallbackMobileActivity ? 'android' : null)
 
       // Accumulate department stats
-      departments.forEach((dept) => {
+      const targetDepts = departments.length > 0 ? departments : ['Unassigned']
+      targetDepts.forEach((dept) => {
         if (!departmentStats[dept]) {
           departmentStats[dept] = {
             name: dept,
             totalUsers: 0,
             totalMobile: 0,
+            totalWeb: 0,
             onlineNow: 0,
+            webOnline: 0,
+            mobileOnline: 0,
             activeToday: 0,
           }
         }
         departmentStats[dept].totalUsers += 1
         if (hasMobileRecord) departmentStats[dept].totalMobile += 1
-        if (status === 'ONLINE') departmentStats[dept].onlineNow += 1
-        if (status === 'ONLINE' || status === 'ACTIVE_TODAY') departmentStats[dept].activeToday += 1
-      })
-
-      if (departments.length === 0) {
-        const unassigned = 'Unassigned'
-        if (!departmentStats[unassigned]) {
-          departmentStats[unassigned] = {
-            name: unassigned,
-            totalUsers: 0,
-            totalMobile: 0,
-            onlineNow: 0,
-            activeToday: 0,
-          }
+        if (hasWebRecord) departmentStats[dept].totalWeb += 1
+        if (isOnline) departmentStats[dept].onlineNow += 1
+        if (isWebOnline) departmentStats[dept].webOnline += 1
+        if (isMobileOnline) departmentStats[dept].mobileOnline += 1
+        if (overallStatus === 'ONLINE' || overallStatus === 'ACTIVE_TODAY') {
+          departmentStats[dept].activeToday += 1
         }
-        departmentStats[unassigned].totalUsers += 1
-        if (hasMobileRecord) departmentStats[unassigned].totalMobile += 1
-        if (status === 'ONLINE') departmentStats[unassigned].onlineNow += 1
-        if (status === 'ONLINE' || status === 'ACTIVE_TODAY') departmentStats[unassigned].activeToday += 1
-      }
+      })
 
       return {
         id: u.id,
@@ -211,16 +256,27 @@ export async function GET() {
         roles,
         departments,
         primaryDepartment,
-        status,
+        // Combined
+        overallStatus,
+        status: overallStatus, // backwards compatibility
+        activeDevice,
+        latestActiveAt,
+        // Mobile details
+        mobileStatus,
         hasMobileRecord,
         hasPushToken,
         deviceTokensCount: u.deviceTokens.length,
         platform,
         appVersion: u.mobileAppVersion,
         deviceModel: u.mobileDeviceModel,
-        lastMobileLoginAt: effectiveLastLogin ? new Date(effectiveLastLogin).toISOString() : null,
-        lastMobileActiveAt: effectiveLastActive ? new Date(effectiveLastActive).toISOString() : null,
+        lastMobileLoginAt: effectiveMobileLogin ? new Date(effectiveMobileLogin).toISOString() : null,
+        lastMobileActiveAt: effectiveMobileActive ? new Date(effectiveMobileActive).toISOString() : null,
         deviceTokens: u.deviceTokens,
+        // Web details
+        webStatus,
+        hasWebRecord,
+        lastWebLoginAt: u.lastWebLoginAt ? new Date(u.lastWebLoginAt).toISOString() : null,
+        lastWebActiveAt: u.lastWebActiveAt ? new Date(u.lastWebActiveAt).toISOString() : null,
       }
     })
 
@@ -228,20 +284,25 @@ export async function GET() {
       success: true,
       stats: {
         totalUsers: users.length,
-        totalMobileUsers,
-        onlineNowCount,
+        totalOnlineNowCount,
+        onlineNowCount: totalOnlineNowCount, // backwards compatibility
+        webOnlineNowCount,
+        mobileOnlineNowCount,
         activeTodayCount,
+        totalMobileUsers,
+        totalWebUsers,
         pushEnabledCount,
-        neverLoggedInCount,
+        inactiveTodayCount,
+        neverLoggedInCount: inactiveTodayCount, // backwards compatibility
       },
-      departmentStats: Object.values(departmentStats).sort((a, b) => b.totalMobile - a.totalMobile),
+      departmentStats: Object.values(departmentStats).sort((a, b) => b.onlineNow - a.onlineNow || b.totalUsers - a.totalUsers),
       users: formattedUsers,
       refreshedAt: new Date().toISOString(),
     })
   } catch (error) {
     console.error('[GET /api/admin/mobile-users] Error:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch mobile user statuses' },
+      { success: false, error: 'Failed to fetch team activity and user statuses' },
       { status: 500 }
     )
   }

@@ -28,6 +28,7 @@ import {
   Zap,
   Wrench,
   Smartphone,
+  Activity,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
@@ -247,8 +248,8 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/admin/whatsapp-monitor',
         },
         {
-          icon: Smartphone,
-          label: 'Mobile Users',
+          icon: Activity,
+          label: 'Team Presence Monitor',
           href: '/crm/admin/mobile-users',
         },
       ],

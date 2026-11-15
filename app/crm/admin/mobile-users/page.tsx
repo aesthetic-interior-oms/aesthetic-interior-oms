@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Smartphone,
+  Monitor,
   RefreshCw,
   Search,
   Bell,
@@ -19,6 +20,7 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
+  Laptop,
 } from 'lucide-react'
 
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
@@ -34,7 +36,7 @@ type DeviceToken = {
   updatedAt: string
 }
 
-type MobileUser = {
+type UserActivity = {
   id: string
   fullName: string
   email: string
@@ -42,7 +44,12 @@ type MobileUser = {
   roles: string[]
   departments: string[]
   primaryDepartment: string
-  status: 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE' | 'NEVER'
+  // Combined presence
+  overallStatus: 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE' | 'NEVER'
+  activeDevice: 'BOTH' | 'MOBILE' | 'WEB' | 'NONE'
+  latestActiveAt: string | null
+  // Mobile details
+  mobileStatus: 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE' | 'NEVER'
   hasMobileRecord: boolean
   hasPushToken: boolean
   deviceTokensCount: number
@@ -52,13 +59,21 @@ type MobileUser = {
   lastMobileLoginAt: string | null
   lastMobileActiveAt: string | null
   deviceTokens: DeviceToken[]
+  // Web details
+  webStatus: 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE' | 'NEVER'
+  hasWebRecord: boolean
+  lastWebLoginAt: string | null
+  lastWebActiveAt: string | null
 }
 
 type DepartmentStat = {
   name: string
   totalUsers: number
   totalMobile: number
+  totalWeb: number
   onlineNow: number
+  webOnline: number
+  mobileOnline: number
   activeToday: number
 }
 
@@ -66,14 +81,17 @@ type ApiResponse = {
   success: boolean
   stats: {
     totalUsers: number
-    totalMobileUsers: number
-    onlineNowCount: number
+    totalOnlineNowCount: number
+    webOnlineNowCount: number
+    mobileOnlineNowCount: number
     activeTodayCount: number
+    totalMobileUsers: number
+    totalWebUsers: number
     pushEnabledCount: number
-    neverLoggedInCount: number
+    inactiveTodayCount: number
   }
   departmentStats: DepartmentStat[]
-  users: MobileUser[]
+  users: UserActivity[]
   refreshedAt: string
   error?: string
 }
@@ -110,15 +128,15 @@ function formatFullDate(dateString: string | null): string {
   })
 }
 
-export default function MobileUsersPage() {
+export default function UserActivityMonitorPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<ApiResponse | null>(null)
   const [search, setSearch] = useState('')
+  const [platformView, setPlatformView] = useState<'ALL' | 'WEB' | 'MOBILE'>('ALL')
   const [selectedDept, setSelectedDept] = useState<string>('ALL')
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE' | 'NEVER'>('ALL')
-  const [platformFilter, setPlatformFilter] = useState<'ALL' | 'android' | 'ios'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ONLINE' | 'ACTIVE_TODAY' | 'OFFLINE'>('ALL')
   const [groupByDept, setGroupByDept] = useState(true)
   const [autoRefresh, setAutoRefresh] = useState(true)
   const [collapsedDepts, setCollapsedDepts] = useState<Record<string, boolean>>({})
@@ -140,11 +158,11 @@ export default function MobileUsersPage() {
       }
       const json: ApiResponse = await res.json()
       if (!json.success) {
-        throw new Error(json.error || 'Failed to fetch mobile user statuses')
+        throw new Error(json.error || 'Failed to fetch user activity statuses')
       }
       setData(json)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch mobile users')
+      setError(err instanceof Error ? err.message : 'Failed to fetch user activity')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -164,31 +182,39 @@ export default function MobileUsersPage() {
     return () => clearInterval(interval)
   }, [loadData, autoRefresh])
 
-  // Extract all distinct departments from loaded users
+  // Extract department stats
   const departmentList = useMemo(() => {
     if (!data?.users) return []
-    const map = new Map<string, { total: number; online: number; mobile: number }>()
+    const map = new Map<string, { total: number; online: number; webOnline: number; mobileOnline: number }>()
 
     data.users.forEach((u) => {
       const depts = u.departments.length > 0 ? u.departments : ['Unassigned']
       depts.forEach((d) => {
-        const current = map.get(d) || { total: 0, online: 0, mobile: 0 }
+        const current = map.get(d) || { total: 0, online: 0, webOnline: 0, mobileOnline: 0 }
         current.total += 1
-        if (u.status === 'ONLINE') current.online += 1
-        if (u.hasMobileRecord) current.mobile += 1
+        if (u.overallStatus === 'ONLINE') current.online += 1
+        if (u.webStatus === 'ONLINE') current.webOnline += 1
+        if (u.mobileStatus === 'ONLINE') current.mobileOnline += 1
         map.set(d, current)
       })
     })
 
     return Array.from(map.entries())
       .map(([name, stats]) => ({ name, ...stats }))
-      .sort((a, b) => b.mobile - a.mobile || a.name.localeCompare(b.name))
+      .sort((a, b) => b.online - a.online || a.name.localeCompare(b.name))
   }, [data?.users])
 
-  // Filter users based on search, department, status, and platform
+  // Filter users based on view, department, status, and search
   const filteredUsers = useMemo(() => {
     if (!data?.users) return []
     return data.users.filter((user) => {
+      // Platform View Filter
+      if (platformView === 'WEB') {
+        if (!user.hasWebRecord && user.webStatus === 'NEVER') return false
+      } else if (platformView === 'MOBILE') {
+        if (!user.hasMobileRecord && user.mobileStatus === 'NEVER') return false
+      }
+
       // Department filter
       if (selectedDept !== 'ALL') {
         const userDepts = user.departments.length > 0 ? user.departments : ['Unassigned']
@@ -196,15 +222,10 @@ export default function MobileUsersPage() {
       }
 
       // Status filter
-      if (statusFilter !== 'ALL' && user.status !== statusFilter) {
-        return false
-      }
-
-      // Platform filter
-      if (platformFilter !== 'ALL') {
-        const userPlatform = (user.platform || '').toLowerCase()
-        if (platformFilter === 'android' && !userPlatform.includes('android')) return false
-        if (platformFilter === 'ios' && !userPlatform.includes('ios')) return false
+      if (statusFilter !== 'ALL') {
+        if (platformView === 'WEB' && user.webStatus !== statusFilter) return false
+        if (platformView === 'MOBILE' && user.mobileStatus !== statusFilter) return false
+        if (platformView === 'ALL' && user.overallStatus !== statusFilter) return false
       }
 
       // Search query
@@ -221,20 +242,18 @@ export default function MobileUsersPage() {
 
       return true
     })
-  }, [data?.users, selectedDept, statusFilter, platformFilter, search])
+  }, [data?.users, platformView, selectedDept, statusFilter, search])
 
   // Group filtered users by department
   const groupedByDepartment = useMemo(() => {
-    const groups: Record<string, MobileUser[]> = {}
+    const groups: Record<string, UserActivity[]> = {}
 
     filteredUsers.forEach((user) => {
       const depts = user.departments.length > 0 ? user.departments : ['Unassigned']
-      // If a specific dept is selected, put under that dept
       if (selectedDept !== 'ALL') {
         if (!groups[selectedDept]) groups[selectedDept] = []
         groups[selectedDept].push(user)
       } else {
-        // Group under primary department
         const primary = depts[0] || 'Unassigned'
         if (!groups[primary]) groups[primary] = []
         groups[primary].push(user)
@@ -244,7 +263,7 @@ export default function MobileUsersPage() {
     return groups
   }, [filteredUsers, selectedDept])
 
-  const renderUserRow = (user: MobileUser) => {
+  const renderUserRow = (user: UserActivity) => {
     const initials = user.fullName
       .split(' ')
       .slice(0, 2)
@@ -258,7 +277,7 @@ export default function MobileUsersPage() {
           <div className="flex items-center gap-3">
             <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-xs">
               {initials || <UserCheck className="h-4 w-4" />}
-              {user.status === 'ONLINE' && (
+              {user.overallStatus === 'ONLINE' && (
                 <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" />
               )}
             </div>
@@ -273,7 +292,7 @@ export default function MobileUsersPage() {
 
         {/* Roles & Departments */}
         <td className="py-3 px-3">
-          <div className="flex flex-wrap gap-1 max-w-[220px]">
+          <div className="flex flex-wrap gap-1 max-w-[200px]">
             {user.departments.map((dept) => (
               <Badge
                 key={dept}
@@ -295,86 +314,106 @@ export default function MobileUsersPage() {
           </div>
         </td>
 
-        {/* Status Badge */}
+        {/* Active Device & Overall Status */}
         <td className="py-3 px-3">
-          {user.status === 'ONLINE' ? (
-            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 gap-1.5 text-[11px] font-medium">
-              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-              Online Now
-            </Badge>
-          ) : user.status === 'ACTIVE_TODAY' ? (
-            <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 gap-1.5 text-[11px] font-medium">
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-              Active Today
-            </Badge>
-          ) : user.status === 'OFFLINE' ? (
-            <Badge variant="outline" className="text-muted-foreground gap-1.5 text-[11px]">
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-              Offline
-            </Badge>
-          ) : (
-            <Badge variant="ghost" className="text-muted-foreground/60 text-[11px]">
-              Not Installed
-            </Badge>
-          )}
-        </td>
-
-        {/* Platform & Version */}
-        <td className="py-3 px-3">
-          {user.platform ? (
-            <div className="flex items-center gap-1.5">
-              <Badge
-                variant="secondary"
-                className="text-[10px] uppercase font-mono px-1.5 py-0"
-              >
-                {user.platform}
+          <div className="space-y-1">
+            {user.overallStatus === 'ONLINE' ? (
+              <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 gap-1.5 text-[11px] font-medium">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                Online Now
               </Badge>
-              {user.appVersion && (
-                <span className="text-[11px] text-muted-foreground">
-                  v{user.appVersion}
+            ) : user.overallStatus === 'ACTIVE_TODAY' ? (
+              <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30 gap-1 text-[11px] font-medium">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                Active Today
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground gap-1 text-[11px]">
+                <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                Offline
+              </Badge>
+            )}
+
+            {/* Device indicator pill */}
+            <div className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+              {user.activeDevice === 'BOTH' ? (
+                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                  <Laptop className="h-3 w-3" />+<Smartphone className="h-3 w-3" /> Web & Mobile
                 </span>
-              )}
-              {user.deviceModel && (
-                <span className="text-[10px] text-muted-foreground/75 truncate max-w-[140px]" title={user.deviceModel}>
-                  ({user.deviceModel})
+              ) : user.activeDevice === 'WEB' ? (
+                <span className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
+                  <Monitor className="h-3 w-3" /> Web CRM Active
                 </span>
+              ) : user.activeDevice === 'MOBILE' ? (
+                <span className="inline-flex items-center gap-1 text-sky-600 dark:text-sky-400">
+                  <Smartphone className="h-3 w-3" /> Mobile Active
+                </span>
+              ) : (
+                <span className="text-muted-foreground/60">—</span>
               )}
             </div>
-          ) : (
-            <span className="text-muted-foreground/60 text-xs">—</span>
-          )}
+          </div>
         </td>
 
-        {/* Last Active Time */}
+        {/* Web CRM Activity Column */}
         <td className="py-3 px-3">
-          {user.lastMobileActiveAt ? (
-            <div>
-              <div className="font-medium text-foreground text-xs">
-                {timeAgo(user.lastMobileActiveAt)}
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-1.5">
+              {user.webStatus === 'ONLINE' ? (
+                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0 text-[10px] px-1.5 py-0">
+                  🟢 Web Online
+                </Badge>
+              ) : user.webStatus === 'ACTIVE_TODAY' ? (
+                <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-0 text-[10px] px-1.5 py-0">
+                  🟡 Today
+                </Badge>
+              ) : (
+                <span className="text-[10px] text-muted-foreground/60">Offline</span>
+              )}
+            </div>
+            <div className="text-[11px] text-foreground font-medium">
+              {timeAgo(user.lastWebActiveAt)}
+            </div>
+            {user.lastWebActiveAt && (
+              <div className="text-[10px] text-muted-foreground">
+                {formatFullDate(user.lastWebActiveAt)}
               </div>
+            )}
+          </div>
+        </td>
+
+        {/* Mobile App Activity Column */}
+        <td className="py-3 px-3">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-1.5">
+              {user.mobileStatus === 'ONLINE' ? (
+                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0 text-[10px] px-1.5 py-0">
+                  🟢 Mobile Online
+                </Badge>
+              ) : user.mobileStatus === 'ACTIVE_TODAY' ? (
+                <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-0 text-[10px] px-1.5 py-0">
+                  🟡 Today
+                </Badge>
+              ) : user.hasMobileRecord ? (
+                <span className="text-[10px] text-muted-foreground/60">Offline</span>
+              ) : (
+                <span className="text-[10px] text-muted-foreground/40">Not Installed</span>
+              )}
+              {user.platform && (
+                <Badge variant="secondary" className="text-[9px] uppercase font-mono px-1 py-0">
+                  {user.platform}
+                </Badge>
+              )}
+            </div>
+            <div className="text-[11px] text-foreground font-medium">
+              {timeAgo(user.lastMobileActiveAt)}
+            </div>
+            {user.lastMobileActiveAt && (
               <div className="text-[10px] text-muted-foreground">
                 {formatFullDate(user.lastMobileActiveAt)}
               </div>
-            </div>
-          ) : (
-            <span className="text-muted-foreground/60 text-xs">Never</span>
-          )}
-        </td>
-
-        {/* Last Login Time */}
-        <td className="py-3 px-3">
-          {user.lastMobileLoginAt ? (
-            <div>
-              <div className="text-foreground text-xs">
-                {timeAgo(user.lastMobileLoginAt)}
-              </div>
-              <div className="text-[10px] text-muted-foreground">
-                {formatFullDate(user.lastMobileLoginAt)}
-              </div>
-            </div>
-          ) : (
-            <span className="text-muted-foreground/60 text-xs">—</span>
-          )}
+            )}
+          </div>
         </td>
 
         {/* Push Notification Status */}
@@ -401,8 +440,8 @@ export default function MobileUsersPage() {
   return (
     <div className="min-h-screen bg-background w-full">
       <CrmPageHeader
-        title="Mobile Users Monitor"
-        subtitle="Track mobile app installations, active sessions, and live device status"
+        title="Team Presence & Activity Monitor"
+        subtitle="Live tracking of Web CRM and Mobile App activity across all departments"
         actions={
           <div className="flex items-center gap-2">
             <Button
@@ -449,25 +488,7 @@ export default function MobileUsersPage() {
 
         {/* Top Metric Cards - Full Width Grid */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-5 sm:gap-4 w-full">
-          {/* Card 1: Total Mobile Installs */}
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Mobile Installs
-              </CardTitle>
-              <Smartphone className="h-4 w-4 text-indigo-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight">
-                {loading ? '...' : data?.stats.totalMobileUsers ?? 0}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                out of {data?.stats.totalUsers ?? 0} total CRM users
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Card 2: Active Now */}
+          {/* Card 1: Total Online Now */}
           <Card className="border-emerald-500/30 bg-emerald-500/[0.03] shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -475,21 +496,59 @@ export default function MobileUsersPage() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
-                Active Now
+                Active Right Now
               </CardTitle>
               <Wifi className="h-4 w-4 text-emerald-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl sm:text-3xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400">
-                {loading ? '...' : data?.stats.onlineNowCount ?? 0}
+                {loading ? '...' : data?.stats.totalOnlineNowCount ?? 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Active in last 15 mins
+                Active on Web or Mobile
               </p>
             </CardContent>
           </Card>
 
-          {/* Card 3: Active Today */}
+          {/* Card 2: Web CRM Online */}
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Monitor className="h-3.5 w-3.5 text-indigo-500" />
+                Web CRM Online
+              </CardTitle>
+              <Laptop className="h-4 w-4 text-indigo-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                {loading ? '...' : data?.stats.webOnlineNowCount ?? 0}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Desk staff on browsers
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card 3: Mobile App Online */}
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Smartphone className="h-3.5 w-3.5 text-sky-500" />
+                Mobile App Online
+              </CardTitle>
+              <Smartphone className="h-4 w-4 text-sky-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                {loading ? '...' : data?.stats.mobileOnlineNowCount ?? 0}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Field staff on phones
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Card 4: Active Today */}
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -507,41 +566,67 @@ export default function MobileUsersPage() {
             </CardContent>
           </Card>
 
-          {/* Card 4: Push Notifications Active */}
-          <Card className="border-border/60 shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Push Active
-              </CardTitle>
-              <Bell className="h-4 w-4 text-sky-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                {loading ? '...' : data?.stats.pushEnabledCount ?? 0}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Device push tokens ready
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Card 5: Never Logged In */}
+          {/* Card 5: Total Staff */}
           <Card className="border-border/60 shadow-sm col-span-2 sm:col-span-1">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Not Installed Yet
+                Total Staff
               </CardTitle>
-              <WifiOff className="h-4 w-4 text-slate-400" />
+              <UserCheck className="h-4 w-4 text-slate-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-muted-foreground">
-                {loading ? '...' : data?.stats.neverLoggedInCount ?? 0}
+              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                {loading ? '...' : data?.stats.totalUsers ?? 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                No mobile activity recorded
+                📱 {data?.stats.totalMobileUsers ?? 0} mobile • 💻 {data?.stats.totalWebUsers ?? 0} web
               </p>
             </CardContent>
           </Card>
+        </div>
+
+        {/* PLATFORM SWITCHER TABS (All vs Web vs Mobile) */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-xl">
+            <Button
+              size="sm"
+              variant={platformView === 'ALL' ? 'default' : 'ghost'}
+              className="h-8 text-xs font-medium rounded-lg px-3"
+              onClick={() => setPlatformView('ALL')}
+            >
+              🌐 All Presence
+            </Button>
+            <Button
+              size="sm"
+              variant={platformView === 'WEB' ? 'default' : 'ghost'}
+              className="h-8 text-xs font-medium rounded-lg px-3 gap-1.5"
+              onClick={() => setPlatformView('WEB')}
+            >
+              <Monitor className="h-3.5 w-3.5 text-indigo-500" />
+              Web CRM Activity
+              <Badge variant="secondary" className="text-[10px] px-1 py-0 ml-1">
+                {data?.stats.webOnlineNowCount ?? 0} live
+              </Badge>
+            </Button>
+            <Button
+              size="sm"
+              variant={platformView === 'MOBILE' ? 'default' : 'ghost'}
+              className="h-8 text-xs font-medium rounded-lg px-3 gap-1.5"
+              onClick={() => setPlatformView('MOBILE')}
+            >
+              <Smartphone className="h-3.5 w-3.5 text-sky-500" />
+              Mobile App Activity
+              <Badge variant="secondary" className="text-[10px] px-1 py-0 ml-1">
+                {data?.stats.mobileOnlineNowCount ?? 0} live
+              </Badge>
+            </Button>
+          </div>
+
+          <div className="text-xs text-muted-foreground">
+            {platformView === 'ALL' && 'Viewing combined desktop and phone presence'}
+            {platformView === 'WEB' && 'Focusing on Web CRM browser sessions'}
+            {platformView === 'MOBILE' && 'Focusing on Mobile App installations & sessions'}
+          </div>
         </div>
 
         {/* DEPARTMENT-WISE TABS BAR */}
@@ -572,7 +657,7 @@ export default function MobileUsersPage() {
                 <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
               )}
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-background/40">
-                {dept.mobile}/{dept.total}
+                {dept.online > 0 ? `${dept.online} live` : dept.total}
               </Badge>
             </Button>
           ))}
@@ -598,7 +683,7 @@ export default function MobileUsersPage() {
               className="h-7 text-xs px-2.5 rounded-lg text-emerald-600 dark:text-emerald-400"
               onClick={() => setStatusFilter('ONLINE')}
             >
-              🟢 Online ({data?.stats.onlineNowCount ?? 0})
+              🟢 Online Now ({data?.stats.totalOnlineNowCount ?? 0})
             </Button>
             <Button
               size="sm"
@@ -606,7 +691,7 @@ export default function MobileUsersPage() {
               className="h-7 text-xs px-2.5 rounded-lg text-amber-600 dark:text-amber-400"
               onClick={() => setStatusFilter('ACTIVE_TODAY')}
             >
-              🟡 Today ({data?.stats.activeTodayCount ?? 0})
+              🟡 Active Today ({data?.stats.activeTodayCount ?? 0})
             </Button>
             <Button
               size="sm"
@@ -616,29 +701,9 @@ export default function MobileUsersPage() {
             >
               ⚪ Offline
             </Button>
-            <Button
-              size="sm"
-              variant={statusFilter === 'NEVER' ? 'default' : 'ghost'}
-              className="h-7 text-xs px-2.5 rounded-lg text-muted-foreground"
-              onClick={() => setStatusFilter('NEVER')}
-            >
-              Not Installed
-            </Button>
           </div>
 
           <div className="flex items-center gap-2 w-full md:w-auto">
-            {/* Platform filter */}
-            <select
-              value={platformFilter}
-              onChange={(e) => setPlatformFilter(e.target.value as 'ALL' | 'android' | 'ios')}
-              className="h-8 rounded-lg border border-input bg-background px-2.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="ALL">All Platforms</option>
-              <option value="android">Android Only</option>
-              <option value="ios">iOS Only</option>
-            </select>
-
-            {/* Search Input */}
             <div className="relative flex-1 md:w-64">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
@@ -656,20 +721,20 @@ export default function MobileUsersPage() {
         {loading ? (
           <Card className="border-border/60 p-12 text-center text-muted-foreground shadow-sm">
             <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
-            Loading mobile users and department status...
+            Loading team presence and activity status...
           </Card>
         ) : filteredUsers.length === 0 ? (
           <Card className="border-border/60 p-12 text-center text-muted-foreground shadow-sm">
-            <Smartphone className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
-            No users match the selected filters.
+            <UserCheck className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
+            No staff members match the selected filters.
           </Card>
         ) : groupByDept ? (
           /* DEPARTMENT-WISE GROUPED SECTIONS */
           <div className="space-y-6 w-full">
             {Object.entries(groupedByDepartment).map(([deptName, deptUsers]) => {
-              const onlineCount = deptUsers.filter((u) => u.status === 'ONLINE').length
-              const todayCount = deptUsers.filter((u) => u.status === 'ACTIVE_TODAY').length
-              const mobileCount = deptUsers.filter((u) => u.hasMobileRecord).length
+              const onlineCount = deptUsers.filter((u) => u.overallStatus === 'ONLINE').length
+              const webOnlineCount = deptUsers.filter((u) => u.webStatus === 'ONLINE').length
+              const mobOnlineCount = deptUsers.filter((u) => u.mobileStatus === 'ONLINE').length
               const isCollapsed = collapsedDepts[deptName]
 
               return (
@@ -696,15 +761,19 @@ export default function MobileUsersPage() {
                     </div>
 
                     <div className="flex items-center gap-2 sm:gap-3 text-xs">
-                      {onlineCount > 0 && (
+                      {onlineCount > 0 ? (
                         <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 gap-1.5 text-[11px]">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                           {onlineCount} Online Now
+                          <span className="opacity-80">
+                            (💻 {webOnlineCount} • 📱 {mobOnlineCount})
+                          </span>
+                        </Badge>
+                      ) : (
+                        <Badge variant="ghost" className="text-muted-foreground text-[11px]">
+                          All Offline
                         </Badge>
                       )}
-                      <span className="text-muted-foreground hidden sm:inline text-[11px]">
-                        📱 {mobileCount}/{deptUsers.length} installed
-                      </span>
                       {isCollapsed ? (
                         <ChevronDown className="h-4 w-4 text-muted-foreground" />
                       ) : (
@@ -721,10 +790,9 @@ export default function MobileUsersPage() {
                           <tr>
                             <th className="py-2.5 px-4">User</th>
                             <th className="py-2.5 px-3">Role</th>
-                            <th className="py-2.5 px-3">Mobile Status</th>
-                            <th className="py-2.5 px-3">Platform & Version</th>
-                            <th className="py-2.5 px-3">Last Active</th>
-                            <th className="py-2.5 px-3">Last Login</th>
+                            <th className="py-2.5 px-3">Presence Status</th>
+                            <th className="py-2.5 px-3">Web CRM Activity</th>
+                            <th className="py-2.5 px-3">Mobile App Activity</th>
                             <th className="py-2.5 px-4 text-center">Push Notifications</th>
                           </tr>
                         </thead>
@@ -747,10 +815,9 @@ export default function MobileUsersPage() {
                   <tr>
                     <th className="py-3 px-4">User</th>
                     <th className="py-3 px-3">Department / Role</th>
-                    <th className="py-3 px-3">Mobile Status</th>
-                    <th className="py-3 px-3">Platform & Version</th>
-                    <th className="py-3 px-3">Last Active</th>
-                    <th className="py-3 px-3">Last Login</th>
+                    <th className="py-3 px-3">Presence Status</th>
+                    <th className="py-3 px-3">Web CRM Activity</th>
+                    <th className="py-3 px-3">Mobile App Activity</th>
                     <th className="py-3 px-4 text-center">Push Notifications</th>
                   </tr>
                 </thead>
@@ -764,7 +831,7 @@ export default function MobileUsersPage() {
             {data?.refreshedAt && (
               <div className="bg-muted/20 border-t border-border px-4 py-2.5 flex items-center justify-between text-[11px] text-muted-foreground">
                 <div>
-                  Showing {filteredUsers.length} of {data.users.length} users
+                  Showing {filteredUsers.length} of {data.users.length} staff members
                 </div>
                 <div>
                   Last updated: {new Date(data.refreshedAt).toLocaleTimeString()}

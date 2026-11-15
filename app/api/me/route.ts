@@ -190,6 +190,16 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // Update Web App active timestamp in background
+    const now = new Date();
+    prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastWebActiveAt: now,
+        ...((user as { lastWebLoginAt?: Date | null }).lastWebLoginAt ? {} : { lastWebLoginAt: now }),
+      },
+    }).catch(() => {});
+
     const needsOnboarding = user.userDepartments.length === 0;
     const hasAdminDepartment = user.userDepartments.some(
       (row) => row.department.name === "ADMIN",

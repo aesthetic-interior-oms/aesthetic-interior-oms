@@ -186,6 +186,7 @@ export async function requireDatabaseRoles(
       email: true,
       phone: true,
       clerkUserId: true,
+      lastWebLoginAt: true,
       userRoles: {
         select: {
           role: {
@@ -234,6 +235,18 @@ export async function requireDatabaseRoles(
       };
     }
   }
+
+  // Record Web CRM active usage
+  try {
+    const now = new Date();
+    prisma.user.update({
+      where: { id: actor.id },
+      data: {
+        lastWebActiveAt: now,
+        ...(actor.lastWebLoginAt ? {} : { lastWebLoginAt: now }),
+      },
+    }).catch(() => {});
+  } catch {}
 
   return {
     ok: true,

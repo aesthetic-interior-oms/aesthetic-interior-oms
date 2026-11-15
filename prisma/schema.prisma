@@ -151,6 +151,8 @@ model User {
   approvedAt                  DateTime?
   lastMobileLoginAt           DateTime?
   lastMobileActiveAt          DateTime?
+  lastWebLoginAt              DateTime?
+  lastWebActiveAt             DateTime?
   mobilePlatform              String?
   mobileAppVersion            String?
   mobileDeviceModel           String?
