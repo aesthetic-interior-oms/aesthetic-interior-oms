@@ -74,7 +74,10 @@ export function DetailQuotationLivePreview({
         if (response.ok && result?.success && result?.data) {
           const source = result.data.draft ?? result.data.defaultDetailDraft
           if (source?.content) {
-            const content = withDetailQuotationDefaults(source.content)
+            const rawContent = withDetailQuotationDefaults(source.content)
+            // Strip any agreement discount so the Detail Quotation PDF always
+            // shows the original quoted amounts — not the discounted total.
+            const content = { ...rawContent, discountAmount: 0, discountPercent: 0 }
             const totals = calculateQuotationTotals(content)
             const qType = source.quotationType
             const validQType = (qType === 'BASIC' || qType === 'STANDARD' || qType === 'PREMIUM' || qType === 'MIXED') ? qType : 'STANDARD'
