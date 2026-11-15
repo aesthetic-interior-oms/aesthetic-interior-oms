@@ -3,22 +3,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  Archive,
-  ChevronRight,
-  Folder,
+  ArrowLeft,
   ArrowUp,
   CalendarClock,
-  CheckCircle,
-  ClipboardList,
+  CheckCircle2,
+  ChevronRight,
   Clock,
   Download,
   ExternalLink,
   Eye,
   FileText,
-  Filter,
+  Folder,
+  FolderOpen,
+  HardDrive,
+  History,
   Layers,
+  LayoutGrid,
+  List,
   Loader2,
   MapPin,
+  Monitor,
   PenTool,
   Phone,
   RefreshCw,
@@ -33,13 +37,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -119,15 +116,34 @@ type MyWorkLead = {
     workDetails: string | null
   } | null
   isRework: boolean
+  canStart: boolean
+  canSubmit: boolean
   attachments?: Array<{
     id: string
     fileName: string
     url: string
     fileType: string | null
     category?: string
+    sizeBytes?: number
+    createdAt?: string
   }>
   submissions: CadSubmission[]
 }
+
+const MONTH_NAMES = [
+  { num: 1, name: 'January', short: 'Jan' },
+  { num: 2, name: 'February', short: 'Feb' },
+  { num: 3, name: 'March', short: 'Mar' },
+  { num: 4, name: 'April', short: 'Apr' },
+  { num: 5, name: 'May', short: 'May' },
+  { num: 6, name: 'June', short: 'Jun' },
+  { num: 7, name: 'July', short: 'Jul' },
+  { num: 8, name: 'August', short: 'Aug' },
+  { num: 9, name: 'September', short: 'Sep' },
+  { num: 10, name: 'October', short: 'Oct' },
+  { num: 11, name: 'November', short: 'Nov' },
+  { num: 12, name: 'December', short: 'Dec' },
+]
 
 function formatLabel(value: string | null | undefined): string {
   if (!value) return 'N/A'
@@ -144,22 +160,18 @@ function formatLabel(value: string | null | undefined): string {
     .replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-const MONTH_NAMES = Array.from({ length: 12 }, (_, index) =>
-  new Date(2020, index, 1).toLocaleString('en-US', { month: 'long' }),
-)
-
 export default function JrArchitectMyWorkPage() {
   const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<string | null>(null)
   const [leads, setLeads] = useState<MyWorkLead[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'card' | 'table'>('card')
-  const [selectedYear, setSelectedYear] = useState<number | null>(null)
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
-  const selectedMonthLabel = selectedMonth !== null
-    ? `${MONTH_NAMES[selectedMonth - 1]} ${selectedYear}`
-    : selectedYear ?? 'This PC'
 
-  const [selectedFilter, setSelectedFilter] = useState<string>('all')
+  // File explorer navigation state
+  // Levels: 'ROOT' (Years) -> 'YEAR' (Months) -> 'MONTH' (Projects)
+  const [currentYear, setCurrentYear] = useState<number | null>(null)
+  const [currentMonth, setCurrentMonth] = useState<number | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [statusFilter, setStatusFilter] = useState<string>('ALL')
 
   // Detailed inspect modal for past submissions
   const [inspectLead, setInspectLead] = useState<MyWorkLead | null>(null)
@@ -169,19 +181,18 @@ export default function JrArchitectMyWorkPage() {
     if (!silent) setLoading(true)
     try {
       const params = new URLSearchParams({ includeHistory: '1' })
-
       const response = await fetch(`/api/cad-work/assigned-tasks?${params.toString()}`, {
         cache: 'no-store',
       })
       const payload = await response.json()
       if (!response.ok || !payload?.success || !Array.isArray(payload.data)) {
-        throw new Error(payload?.error ?? 'Failed to load your work history')
+        throw new Error(payload?.error ?? 'Failed to load assigned CAD tasks')
       }
       setLeads(payload.data as MyWorkLead[])
     } catch (error) {
       if (!silent) {
         toast.error(
-          error instanceof Error ? error.message : 'Failed to load your work history',
+          error instanceof Error ? error.message : 'Failed to load assigned CAD tasks',
         )
         setLeads([])
       }
@@ -194,21 +205,37 @@ export default function JrArchitectMyWorkPage() {
     void loadTasks()
   }, [loadTasks])
 
-  const folderYears = useMemo(() => [...new Set(leads.map((lead) => lead.assignedYear))].sort((a, b) => b - a), [leads])
-  const folderMonths = useMemo(() => Array.from({ length: 12 }, (_, index) => index + 1), [])
-  const folderLeads = useMemo(() => leads.filter((lead) =>
-    selectedYear === null || lead.assignedYear === selectedYear
-  ).filter((lead) => selectedMonth === null || lead.assignedMonth === selectedMonth), [leads, selectedYear, selectedMonth])
+  // Derive unique years from leads (plus current year)
+  const availableYears = useMemo(() => {
+    const yearsSet = new Set<number>()
+    yearsSet.add(new Date().getFullYear())
+    for (const lead of leads) {
+      if (lead.assignedYear) {
+        yearsSet.add(lead.assignedYear)
+      } else if (lead.assignedDate) {
+        yearsSet.add(new Date(lead.assignedDate).getFullYear())
+      }
+    }
+    return Array.from(yearsSet).sort((a, b) => b - a)
+  }, [leads])
 
+  // Auto-select current year on initial load once data is ready
+  useEffect(() => {
+    if (currentYear === null && availableYears.length > 0) {
+      setCurrentYear(availableYears[0])
+    }
+  }, [availableYears, currentYear])
+
+  // Overall summary metrics
   const summary = useMemo(() => {
     const total = leads.length
+    const assigned = leads.filter((l) => l.subStatus === 'CAD_ASSIGNED').length
+    const working = leads.filter((l) => l.subStatus === 'CAD_WORKING').length
+    const underReview = leads.filter((l) => l.subStatus === 'CAD_COMPLETED').length
     const approved = leads.filter(
       (l) => l.subStatus === 'CAD_APPROVED' || l.stage !== 'CAD_PHASE',
     ).length
-    const underReview = leads.filter((l) => l.subStatus === 'CAD_COMPLETED').length
-    const working = leads.filter(
-      (l) => l.subStatus === 'CAD_WORKING' || l.subStatus === 'CAD_ASSIGNED',
-    ).length
+    const rework = leads.filter((l) => l.isRework).length
     const totalSqft = leads.reduce((sum, l) => sum + (l.projectSqft ?? 0), 0)
     const totalFiles = leads.reduce(
       (sum, l) => sum + l.submissions.reduce((s, sub) => s + sub.files.length, 0),
@@ -216,685 +243,758 @@ export default function JrArchitectMyWorkPage() {
     )
     return {
       total,
-      approved,
-      underReview,
+      assigned,
       working,
+      underReview,
+      approved,
+      rework,
       totalSqft,
       totalFiles,
     }
   }, [leads])
 
-  const filteredLeads = useMemo(() => {
-    let result = folderLeads
+  // Group leads by year and month
+  // Structure: Map<year, Map<monthNum, MyWorkLead[]>>
+  const leadsByYearMonth = useMemo(() => {
+    const map = new Map<number, Map<number, MyWorkLead[]>>()
 
-    const q = searchQuery.trim().toLowerCase()
-    if (q) {
-      result = result.filter((lead) => {
-        const nameMatch = lead.name?.toLowerCase().includes(q)
-        const phoneMatch = lead.phone?.toLowerCase().includes(q)
-        const locationMatch = lead.location?.toLowerCase().includes(q)
-        const stageMatch = formatLabel(lead.stage).toLowerCase().includes(q)
-        const subStatusMatch = formatLabel(lead.subStatus).toLowerCase().includes(q)
-        const srMatch = lead.srCrmAssignee?.fullName?.toLowerCase().includes(q)
-        const notesMatch = lead.submissions.some((s) => s.note?.toLowerCase().includes(q))
-        const fileMatch = lead.submissions.some((s) =>
+    for (const lead of leads) {
+      let y = lead.assignedYear
+      let m = lead.assignedMonth
+
+      if (!y || !m) {
+        const d = lead.assignedDate ? new Date(lead.assignedDate) : new Date(lead.updatedAt)
+        y = d.getFullYear()
+        m = d.getMonth() + 1
+      }
+
+      if (!map.has(y)) map.set(y, new Map<number, MyWorkLead[]>())
+      const yearMap = map.get(y)!
+      if (!yearMap.has(m)) yearMap.set(m, [])
+      yearMap.get(m)!.push(lead)
+    }
+
+    return map
+  }, [leads])
+
+  // Leads in the currently selected month
+  const currentMonthLeads = useMemo(() => {
+    if (currentYear === null || currentMonth === null) return []
+    const yearMap = leadsByYearMonth.get(currentYear)
+    if (!yearMap) return []
+    const monthLeads = yearMap.get(currentMonth) || []
+
+    return monthLeads.filter((lead) => {
+      if (statusFilter !== 'ALL') {
+        if (statusFilter === 'ASSIGNED' && lead.subStatus !== 'CAD_ASSIGNED') return false
+        if (statusFilter === 'WORKING' && lead.subStatus !== 'CAD_WORKING') return false
+        if (statusFilter === 'UNDER_REVIEW' && lead.subStatus !== 'CAD_COMPLETED') return false
+        if (
+          statusFilter === 'APPROVED' &&
+          lead.subStatus !== 'CAD_APPROVED' &&
+          lead.stage === 'CAD_PHASE'
+        )
+          return false
+        if (statusFilter === 'REWORK' && !lead.isRework) return false
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase()
+        const matchesName = lead.name.toLowerCase().includes(q)
+        const matchesPhone = lead.phone?.toLowerCase().includes(q)
+        const matchesLocation = lead.location?.toLowerCase().includes(q)
+        const matchesSrCrm = lead.srCrmAssignee?.fullName.toLowerCase().includes(q)
+        const matchesFiles = lead.submissions.some((s) =>
           s.files.some((f) => f.fileName.toLowerCase().includes(q)),
         )
-        return (
-          nameMatch ||
-          phoneMatch ||
-          locationMatch ||
-          stageMatch ||
-          subStatusMatch ||
-          srMatch ||
-          notesMatch ||
-          fileMatch
-        )
+        return matchesName || matchesPhone || matchesLocation || matchesSrCrm || matchesFiles
+      }
+      return true
+    })
+  }, [currentYear, currentMonth, leadsByYearMonth, statusFilter, searchQuery])
+
+  // Global search leads (if user types in search bar while at root or year level)
+  const searchMatchedLeads = useMemo(() => {
+    if (!searchQuery.trim() || currentMonth !== null) return []
+    const q = searchQuery.toLowerCase()
+    return leads.filter((lead) => {
+      const matchesName = lead.name.toLowerCase().includes(q)
+      const matchesPhone = lead.phone?.toLowerCase().includes(q)
+      const matchesLocation = lead.location?.toLowerCase().includes(q)
+      const matchesSrCrm = lead.srCrmAssignee?.fullName.toLowerCase().includes(q)
+      const matchesFiles = lead.submissions.some((s) =>
+        s.files.some((f) => f.fileName.toLowerCase().includes(q)),
+      )
+      return matchesName || matchesPhone || matchesLocation || matchesSrCrm || matchesFiles
+    })
+  }, [searchQuery, currentMonth, leads])
+
+  // Navigation handlers
+  const handleGoToRoot = () => {
+    setCurrentYear(null)
+    setCurrentMonth(null)
+  }
+
+  const handleGoToYear = (year: number) => {
+    setCurrentYear(year)
+    setCurrentMonth(null)
+  }
+
+  const handleGoToMonth = (monthNum: number) => {
+    setCurrentMonth(monthNum)
+  }
+
+  const handleGoUp = () => {
+    if (currentMonth !== null) {
+      setCurrentMonth(null)
+    } else if (currentYear !== null) {
+      setCurrentYear(null)
+    }
+  }
+
+  // Action handlers
+  const startCadWork = async (leadId: string) => {
+    setBusyId(leadId)
+    try {
+      const response = await fetch(`/api/lead/${leadId}/cad-work/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'JR Architect started CAD work from My Work' }),
       })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to start CAD work')
+      }
+      toast.success('CAD work started')
+      await loadTasks(true)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to start CAD work')
+    } finally {
+      setBusyId(null)
     }
+  }
 
-    if (selectedFilter === 'approved') {
-      result = result.filter(
-        (lead) => lead.subStatus === 'CAD_APPROVED' || lead.stage !== 'CAD_PHASE',
-      )
-    } else if (selectedFilter === 'inReview') {
-      result = result.filter((lead) => lead.subStatus === 'CAD_COMPLETED')
-    } else if (selectedFilter === 'working') {
-      result = result.filter(
-        (lead) => lead.subStatus === 'CAD_WORKING' || lead.subStatus === 'CAD_ASSIGNED',
-      )
-    } else if (selectedFilter === 'hasFiles') {
-      result = result.filter((lead) => lead.submissions.some((s) => s.files.length > 0))
-    }
-
-    return result
-  }, [folderLeads, searchQuery, selectedFilter])
+  // Current folder name for breadcrumb
+  const currentMonthMeta = currentMonth
+    ? MONTH_NAMES.find((m) => m.num === currentMonth)
+    : null
 
   return (
     <div className="min-h-screen bg-background">
       <CrmPageHeader
-        title="My Work Archive"
-        subtitle="Review, search, and download your past CAD designs, submission notes, and project deliverables."
+        title="CAD Architecture File Explorer"
+        subtitle="Browse, search, and manage your assigned architectural drafting projects organized as a PC file directory by Year and Month."
       />
 
       <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-4">
-        {/* Metric Overview Section */}
-        <div className="rounded-[1.35rem] border border-border/70 bg-gradient-to-br from-background via-muted/20 to-background p-3.5 shadow-sm mb-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 px-1">
-            <div>
-              <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-primary">
-                <Archive className="h-3.5 w-3.5" />
-                Work History & Deliverables
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                All projects you have been assigned to or submitted CAD work for. Click any card to filter your archive.
-              </p>
+        {/* Top Summary Badges */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2 items-center">
+            <Badge variant="outline" className="font-semibold px-2.5 py-1">
+              Total: {summary.total}
+            </Badge>
+            <Badge variant="secondary" className="px-2.5 py-1">
+              Assigned: {summary.assigned}
+            </Badge>
+            <Badge variant="secondary" className="px-2.5 py-1">
+              Working: {summary.working}
+            </Badge>
+            <Badge variant="secondary" className="px-2.5 py-1">
+              Under Review: {summary.underReview}
+            </Badge>
+            <Badge
+              variant="secondary"
+              className="px-2.5 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+            >
+              Approved: {summary.approved}
+            </Badge>
+            {summary.rework > 0 ? (
+              <Badge variant="destructive" className="px-2.5 py-1">
+                Rework: {summary.rework}
+              </Badge>
+            ) : null}
+            <Badge variant="outline" className="px-2.5 py-1 border-primary/40 text-primary font-semibold">
+              <Layers className="h-3 w-3 mr-1" />
+              {summary.totalSqft.toLocaleString()} sqft
+            </Badge>
+            <Badge variant="outline" className="px-2.5 py-1 text-muted-foreground">
+              <FileText className="h-3 w-3 mr-1" />
+              {summary.totalFiles} files
+            </Badge>
+          </div>
+        </div>
+
+        {/* --- LOCAL PC FILE EXPLORER WINDOW --- */}
+        <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col">
+          {/* File Explorer Titlebar */}
+          <div className="bg-muted/40 border-b border-border/60 px-4 py-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+              <Monitor className="h-4 w-4 text-primary" />
+              <span>CAD Architecture PC Explorer</span>
+              <span className="text-muted-foreground">• Local Storage Hierarchy</span>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative flex items-center min-w-[220px] max-w-[320px]">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-400/80 inline-block" />
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-400/80 inline-block" />
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-400/80 inline-block" />
+            </div>
+          </div>
+
+          {/* Explorer Toolbar / Address Bar */}
+          <div className="p-3 border-b border-border/60 bg-card flex flex-wrap items-center justify-between gap-3">
+            {/* Navigation buttons (Up, Refresh) */}
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 p-0"
+                disabled={currentYear === null && currentMonth === null}
+                onClick={handleGoUp}
+                title="Go up one folder"
+              >
+                <ArrowUp className="h-4 w-4" />
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => void loadTasks()}
+                disabled={loading}
+                title="Refresh folder contents"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+
+            {/* Clickable Breadcrumb Address Bar */}
+            <div className="flex-1 min-w-[240px] flex items-center gap-1 rounded-lg border border-border/70 bg-background px-3 py-1 text-xs">
+              <HardDrive className="h-3.5 w-3.5 text-primary shrink-0 mr-1" />
+              <button
+                type="button"
+                onClick={handleGoToRoot}
+                className="font-medium hover:text-primary transition-colors truncate cursor-pointer"
+              >
+                This PC
+              </button>
+
+              {currentYear !== null ? (
+                <>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <button
+                    type="button"
+                    onClick={() => handleGoToYear(currentYear)}
+                    className={`font-medium transition-colors cursor-pointer ${
+                      currentMonth === null ? 'text-primary font-bold' : 'hover:text-primary text-foreground'
+                    }`}
+                  >
+                    📁 {currentYear}
+                  </button>
+                </>
+              ) : null}
+
+              {currentMonthMeta ? (
+                <>
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-primary font-bold truncate">
+                    📁 {currentMonthMeta.name}
+                  </span>
+                </>
+              ) : null}
+            </div>
+
+            {/* Right Controls: Search & View Toggle */}
+            <div className="flex items-center gap-2">
+              <div className="relative w-48 sm:w-60">
+                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
-                  type="text"
-                  placeholder="Search by client, file name, note..."
+                  placeholder="Search CAD projects..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 pl-9 pr-8 text-sm"
+                  className="pl-8 h-8 text-xs bg-background"
                 />
                 {searchQuery ? (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
                     title="Clear search"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
                 ) : null}
               </div>
-              <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
-                {selectedMonthLabel}
-              </Badge>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-10 gap-2"
-                disabled={loading}
-                onClick={() => void loadTasks()}
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
+
+              {currentMonth !== null ? (
+                <div className="flex items-center border rounded-md p-0.5 bg-muted/20">
+                  <Button
+                    variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => setViewMode('grid')}
+                    title="Grid view"
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    className="h-7 w-7 p-0"
+                    onClick={() => setViewMode('list')}
+                    title="List view"
+                  >
+                    <List className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : null}
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {[
-              {
-                key: 'all',
-                label: 'Total Projects',
-                value: summary.total,
-                isSqft: false,
-                Icon: ClipboardList,
-                className:
-                  'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950',
-                iconClass:
-                  'bg-white/15 text-white ring-white/25 dark:bg-slate-950/10 dark:text-slate-950 dark:ring-slate-950/15',
-                accentClass: 'from-primary to-blue-400',
-              },
-              {
-                key: 'approved',
-                label: 'Approved / Completed',
-                value: summary.approved,
-                isSqft: false,
-                Icon: CheckCircle,
-                className:
-                  'border-emerald-200/70 from-emerald-50 via-white to-teal-50 text-emerald-800 dark:border-emerald-500/30 dark:from-emerald-950/60 dark:via-slate-950 dark:to-teal-950/40 dark:text-emerald-100',
-                iconClass:
-                  'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:ring-emerald-400/20',
-                accentClass: 'from-emerald-500 to-teal-500',
-              },
-              {
-                key: 'inReview',
-                label: 'Under Review',
-                value: summary.underReview,
-                isSqft: false,
-                Icon: Clock,
-                className:
-                  'border-amber-200/70 from-amber-50 via-white to-orange-50 text-amber-800 dark:border-amber-500/30 dark:from-amber-950/60 dark:via-slate-950 dark:to-orange-950/40 dark:text-amber-100',
-                iconClass:
-                  'bg-amber-100 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200 dark:ring-amber-400/20',
-                accentClass: 'from-amber-500 to-orange-500',
-              },
-              {
-                key: 'hasFiles',
-                label: 'Submitted Files',
-                value: summary.totalFiles,
-                isSqft: false,
-                Icon: FileText,
-                className:
-                  'border-blue-200/70 from-blue-50 via-white to-sky-50 text-blue-800 dark:border-blue-500/30 dark:from-blue-950/60 dark:via-slate-950 dark:to-sky-950/40 dark:text-blue-100',
-                iconClass:
-                  'bg-blue-100 text-blue-700 ring-blue-200 dark:bg-blue-500/15 dark:text-blue-200 dark:ring-blue-400/20',
-                accentClass: 'from-blue-500 to-sky-500',
-              },
-              {
-                key: 'sqft',
-                label: 'Total Designed SQFT',
-                value: summary.totalSqft,
-                isSqft: true,
-                Icon: Layers,
-                className:
-                  'border-purple-200/70 from-purple-50 via-white to-indigo-50 text-purple-900 dark:border-purple-500/30 dark:from-purple-950/60 dark:via-slate-950 dark:to-indigo-950/40 dark:text-purple-100',
-                iconClass:
-                  'bg-purple-100 text-purple-700 ring-purple-200 dark:bg-purple-500/15 dark:text-purple-200 dark:ring-purple-400/20',
-                accentClass: 'from-purple-500 to-indigo-500',
-              },
-            ].map((stat) => {
-              const isSelected = selectedFilter === stat.key
-              return (
-                <button
-                  type="button"
-                  key={stat.key}
-                  onClick={() =>
-                    setSelectedFilter((prev) =>
-                      prev === stat.key && stat.key !== 'all' ? 'all' : stat.key,
-                    )
-                  }
-                  className={`group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-3.5 text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer ${
-                    isSelected
-                      ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-slate-950 shadow-md scale-[1.02]'
-                      : 'opacity-90 hover:opacity-100'
-                  } ${stat.className}`}
-                >
-                  <span className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-white/30 blur-2xl transition group-hover:scale-125 dark:bg-white/10" />
-                  <span
-                    className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${stat.accentClass}`}
-                  />
-
-                  <div className="relative flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] opacity-80">
-                        {stat.label}
-                      </p>
-                      <div className="mt-2.5 flex items-end gap-1.5">
-                        <p className="text-2xl font-black leading-none tracking-tight">
-                          {stat.isSqft ? Number(stat.value).toLocaleString() : stat.value}
-                        </p>
-                        {stat.isSqft ? (
-                          <span className="mb-0.5 text-[10px] font-bold opacity-75">sqft</span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <span className={`rounded-xl p-2 shadow-sm ring-1 ${stat.iconClass}`}>
-                      <stat.Icon className="h-4 w-4" />
-                    </span>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Filters and View Mode Controls */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/40 pb-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {searchQuery ? (
-              <Badge variant="secondary" className="gap-1.5 px-3 py-1 text-xs font-semibold">
-                <span>Search:</span>
-                <span className="font-bold text-primary">&quot;{searchQuery}&quot;</span>
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="ml-1 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            ) : null}
-            {selectedFilter !== 'all' ? (
-              <div className="flex items-center gap-2">
-                <Badge variant="secondary" className="gap-1.5 px-3 py-1 text-xs font-semibold">
-                  <span>Filter:</span>
-                  <span className="font-bold text-primary uppercase">{selectedFilter}</span>
-                  <span className="ml-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px]">
-                    {filteredLeads.length} projects
-                  </span>
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={() => setSelectedFilter('all')}
-                >
-                  <X className="mr-1 h-3 w-3" /> Clear Filter
-                </Button>
+          {/* Explorer Main Content Area */}
+          <div className="p-5 min-h-[460px] bg-muted/5">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-24 space-y-3">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-xs text-muted-foreground">Loading file system...</p>
               </div>
-            ) : null}
-            {!searchQuery && selectedFilter === 'all' ? (
-              <span className="text-xs font-medium text-muted-foreground">
-                Showing all <strong>{leads.length}</strong> historical projects
-              </span>
-            ) : null}
-          </div>
-
-          <div className="flex items-center gap-2 rounded-md border p-1 bg-muted/20">
-            <Button
-              variant={viewMode === 'card' ? 'secondary' : 'ghost'}
-              size="sm"
-              className="h-8 px-3 text-xs"
-              onClick={() => setViewMode('card')}
-            >
-              Card View
-            </Button>
-            <Button
-              variant={viewMode === 'table' ? 'secondary' : 'ghost'}
-              size="sm"
-              className="h-8 px-3 text-xs"
-              onClick={() => setViewMode('table')}
-            >
-              Table View
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between rounded-xl border bg-card px-4 py-3">
-          <div className="flex items-center gap-2 text-sm"><button onClick={() => { setSelectedYear(null); setSelectedMonth(null) }} className="font-semibold hover:text-primary">This PC</button>{selectedYear !== null ? <><ChevronRight className="h-4 w-4"/><button onClick={() => setSelectedMonth(null)} className="font-semibold hover:text-primary">{selectedYear}</button></> : null}{selectedMonth !== null ? <><ChevronRight className="h-4 w-4"/>{MONTH_NAMES[selectedMonth - 1]}</> : null}</div>
-          {selectedYear !== null ? <Button size="sm" variant="outline" onClick={() => selectedMonth !== null ? setSelectedMonth(null) : setSelectedYear(null)}><ArrowUp className="mr-1 h-4 w-4"/>Up</Button> : null}
-        </div>
-        {/* Content Body */}
-        {loading ? (
-          <div className="flex items-center justify-center rounded-lg border border-border bg-card py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : leads.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-sm text-muted-foreground space-y-2">
-              <p className="font-medium text-foreground">No historical projects found for {selectedMonthLabel}.</p>
-              <p className="text-xs">
-                As you receive assignments and submit CAD designs, your completed and in-progress work will appear here.
-              </p>
-            </CardContent>
-          </Card>
-        ) : selectedMonth === null ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{(selectedYear === null ? folderYears : folderMonths).map((folder) => { const count = leads.filter((lead) => selectedYear === null ? lead.assignedYear === folder : lead.assignedYear === selectedYear && lead.assignedMonth === folder).length; const label = selectedYear === null ? String(folder) : MONTH_NAMES[folder - 1]; return <button key={folder} onClick={() => selectedYear === null ? setSelectedYear(folder) : setSelectedMonth(folder)} className="flex items-center gap-4 rounded-xl border bg-card p-5 text-left shadow-sm hover:border-primary/50"><Folder className="h-8 w-8 text-primary"/><span><b className="block">{label}</b><span className="text-xs text-muted-foreground">{count} projects</span></span></button> })}</div>
-        ) : filteredLeads.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-sm text-muted-foreground space-y-3">
-              <p>No projects match your search or filter.</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {searchQuery ? (
-                  <Button variant="outline" size="sm" onClick={() => setSearchQuery('')}>
+            ) : searchQuery.trim() && currentMonth === null ? (
+              /* Global Search Results View */
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Search className="h-4 w-4 text-primary" />
+                    Search Results for &quot;{searchQuery}&quot; ({searchMatchedLeads.length})
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchQuery('')}
+                    className="text-xs h-7"
+                  >
                     Clear Search
                   </Button>
-                ) : null}
-                {selectedFilter !== 'all' ? (
-                  <Button variant="outline" size="sm" onClick={() => setSelectedFilter('all')}>
-                    Clear Filter
-                  </Button>
-                ) : null}
+                </div>
+
+                {searchMatchedLeads.length === 0 ? (
+                  <div className="text-center py-16 text-sm text-muted-foreground">
+                    No CAD architecture files match &quot;{searchQuery}&quot;
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {searchMatchedLeads.map((lead) => (
+                      <ProjectCadCard
+                        key={lead.id}
+                        lead={lead}
+                        busyId={busyId}
+                        onStartWork={startCadWork}
+                        onSubmitWork={(l) => setSubmitWorkLead(l)}
+                        onInspectWork={(l) => setInspectLead(l)}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        ) : viewMode === 'table' ? (
-          /* Table View */
-          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b bg-muted/40 text-left text-xs font-semibold text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3">Client / Project</th>
-                    <th className="px-4 py-3">Stage / Status</th>
-                    <th className="px-4 py-3">Location & SQFT</th>
-                    <th className="px-4 py-3">Submissions</th>
-                    <th className="px-4 py-3">Latest File</th>
-                    <th className="px-4 py-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {filteredLeads.map((lead) => {
-                    const allFiles = lead.submissions.flatMap((s) => s.files)
-                    const latestSubmission = lead.submissions[0]
-                    const latestFile = allFiles[0]
+            ) : currentYear === null ? (
+              /* --- LEVEL 1: ROOT DIRECTORY (YEARS) --- */
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Folders (Years)
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {availableYears.length} {availableYears.length === 1 ? 'Year' : 'Years'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {availableYears.map((year) => {
+                    const yearMap = leadsByYearMonth.get(year)
+                    let yearProjectCount = 0
+                    if (yearMap) {
+                      for (const monthList of yearMap.values()) {
+                        yearProjectCount += monthList.length
+                      }
+                    }
 
                     return (
-                      <tr key={lead.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3">
-                          <Link
-                            href={`/crm/jr-architecture/leads/${lead.id}`}
-                            className="font-bold text-foreground hover:text-primary transition-colors inline-flex items-center gap-1.5"
-                          >
-                            {lead.name}
-                            <ExternalLink className="h-3.5 w-3.5 opacity-60" />
-                          </Link>
-                          {lead.phone ? (
-                            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                              <Phone className="h-3 w-3" />
-                              <span>{lead.phone}</span>
-                            </div>
-                          ) : null}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-col gap-1 items-start">
-                            <Badge variant="outline" className="text-[10px]">
-                              {formatLabel(lead.stage)}
-                            </Badge>
-                            <Badge
-                              variant="secondary"
-                              className={`text-[10px] font-semibold ${
-                                lead.subStatus === 'CAD_APPROVED'
-                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
-                                  : lead.subStatus === 'CAD_COMPLETED'
-                                    ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200'
-                                    : ''
-                              }`}
-                            >
-                              {formatLabel(lead.subStatus)}
-                            </Badge>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="text-xs truncate max-w-[160px]" title={lead.location ?? ''}>
-                            {lead.location ?? '—'}
-                          </div>
-                          <div className="text-xs font-semibold text-primary mt-0.5">
-                            {lead.projectSqft ? `${lead.projectSqft.toLocaleString()} sqft` : '—'}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-foreground">
-                            {lead.submissions.length} round(s)
+                      <button
+                        key={year}
+                        type="button"
+                        onClick={() => handleGoToYear(year)}
+                        className="group flex flex-col items-center justify-center p-4 rounded-xl border border-border/70 bg-card hover:bg-primary/5 hover:border-primary/50 transition-all text-center shadow-xs cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-primary/40"
+                      >
+                        <div className="relative mb-2">
+                          <Folder className="h-14 w-14 text-amber-500 fill-amber-500/20 group-hover:scale-105 transition-transform" />
+                          <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                            {yearProjectCount}
                           </span>
-                          <span className="text-[11px] text-muted-foreground block">
-                            {allFiles.length} file(s) total
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {latestFile ? (
-                            <a
-                              href={latestFile.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-primary hover:underline flex items-center gap-1 max-w-[180px] truncate"
-                              title={latestFile.fileName}
-                            >
-                              <Download className="h-3 w-3 flex-shrink-0" />
-                              <span className="truncate">{latestFile.fileName}</span>
-                            </a>
-                          ) : (
-                            <span className="text-xs text-muted-foreground italic">None uploaded</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 gap-1 text-xs"
-                              onClick={() => setSubmitWorkLead(lead)}
-                            >
-                              <Upload className="h-3.5 w-3.5" />
-                              Upload
-                            </Button>
-                            {lead.submissions.length > 0 ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-8 gap-1 text-xs"
-                                onClick={() => setInspectLead(lead)}
-                              >
-                                <Eye className="h-3.5 w-3.5" />
-                                Submissions ({allFiles.length})
-                              </Button>
-                            ) : null}
-                            <Button asChild size="sm" variant="ghost" className="h-8 px-2.5 text-xs">
-                              <Link href={`/crm/jr-architecture/leads/${lead.id}`}>
-                                Details
-                              </Link>
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
+                        </div>
+                        <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+                          {year}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground mt-0.5">
+                          {yearProjectCount} {yearProjectCount === 1 ? 'Project' : 'Projects'}
+                        </span>
+                      </button>
                     )
                   })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          /* Card View */
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredLeads.map((lead) => {
-              const allFiles = lead.submissions.flatMap((s) => s.files)
-              const latestSubmission = lead.submissions[0]
+                </div>
+              </div>
+            ) : currentMonth === null ? (
+              /* --- LEVEL 2: YEAR DIRECTORY (12 MONTHS) --- */
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleGoToRoot}
+                      className="h-7 text-xs px-2"
+                    >
+                      <ArrowLeft className="h-3 w-3 mr-1" /> All Years
+                    </Button>
+                    <span className="text-sm font-bold text-foreground">
+                      Year: {currentYear}
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">12 Months</span>
+                </div>
 
-              return (
-                <Card
-                  key={lead.id}
-                  className="relative overflow-hidden transition-all duration-200 hover:shadow-lg border-border/80 flex flex-col justify-between"
-                >
-                  <div
-                    className={`absolute top-0 left-0 right-0 h-1 ${
-                      lead.subStatus === 'CAD_APPROVED'
-                        ? 'bg-emerald-500'
-                        : lead.subStatus === 'CAD_COMPLETED'
-                          ? 'bg-blue-500'
-                          : lead.subStatus === 'CAD_WORKING'
-                            ? 'bg-amber-500'
-                            : 'bg-primary'
-                    }`}
-                  />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {MONTH_NAMES.map((m) => {
+                    const yearMap = leadsByYearMonth.get(currentYear)
+                    const monthLeads = yearMap?.get(m.num) || []
+                    const count = monthLeads.length
+                    const hasItems = count > 0
 
-                  <CardContent className="p-5 space-y-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <Link
-                          href={`/crm/jr-architecture/leads/${lead.id}`}
-                          className="text-base font-bold hover:text-primary transition-colors flex items-center gap-1.5 truncate group"
-                        >
-                          <span className="truncate">{lead.name}</span>
-                          <ExternalLink className="h-3.5 w-3.5 opacity-40 group-hover:opacity-100 flex-shrink-0" />
-                        </Link>
-                        {lead.phone ? (
-                          <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                            <Phone className="h-3 w-3" />
-                            <span>{lead.phone}</span>
-                          </div>
-                        ) : null}
-                      </div>
-
-                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <Badge
-                          variant="secondary"
-                          className={`text-[10px] font-bold ${
-                            lead.subStatus === 'CAD_APPROVED'
-                              ? 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200'
-                              : lead.subStatus === 'CAD_COMPLETED'
-                                ? 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200'
-                                : ''
-                          }`}
-                        >
-                          {formatLabel(lead.subStatus)}
-                        </Badge>
-                        <span className="text-[10px] text-muted-foreground">
-                          {formatLabel(lead.stage)}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/30 p-2.5 text-xs">
-                      <div>
-                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
-                          Location
-                        </span>
-                        <p className="font-medium truncate flex items-center gap-1 mt-0.5" title={lead.location ?? ''}>
-                          <MapPin className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                          <span className="truncate">{lead.location ?? 'Not specified'}</span>
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
-                          Project SQFT
-                        </span>
-                        <p className="font-bold text-foreground mt-0.5">
-                          {lead.projectSqft ? `${lead.projectSqft.toLocaleString()} sqft` : '—'}
-                        </p>
-                      </div>
-                      <div className="mt-1">
-                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
-                          Visit Date
-                        </span>
-                        <p className="font-medium mt-0.5">
-                          {lead.visitDate
-                            ? new Date(lead.visitDate).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                              })
-                            : 'No visit date'}
-                        </p>
-                      </div>
-                      <div className="mt-1">
-                        <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
-                          Senior CRM
-                        </span>
-                        <p className="font-medium truncate mt-0.5">
-                          {lead.srCrmAssignee?.fullName ?? 'Unassigned'}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Submissions Summary */}
-                    {lead.submissions.length > 0 ? (
-                      <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                            <FileText className="h-3.5 w-3.5 text-primary" />
-                            Submitted Drawings ({allFiles.length})
-                          </span>
-                          <span className="text-[11px] text-muted-foreground">
-                            {lead.submissions.length} submission round{lead.submissions.length > 1 ? 's' : ''}
-                          </span>
-                        </div>
-
-                        {/* Recent files list */}
-                        <div className="space-y-1.5 pt-1">
-                          {allFiles.slice(0, 3).map((file) => (
-                            <div
-                              key={file.id}
-                              className="flex items-center justify-between gap-2 text-xs bg-background rounded-md px-2.5 py-1.5 border border-border/50"
-                            >
-                              <div className="min-w-0 flex items-center gap-2">
-                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4">
-                                  {formatCadSubmissionFileType(file.cadFileType as any)}
-                                </Badge>
-                                <span className="truncate max-w-[160px] font-medium" title={file.fileName}>
-                                  {file.fileName}
-                                </span>
-                              </div>
-                              <a
-                                href={file.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary hover:text-primary/80 flex items-center gap-1 text-[11px] font-semibold flex-shrink-0"
-                              >
-                                <Download className="h-3 w-3" />
-                                Download
-                              </a>
-                            </div>
-                          ))}
-
-                          {allFiles.length > 3 ? (
-                            <button
-                              type="button"
-                              onClick={() => setInspectLead(lead)}
-                              className="text-[11px] text-primary hover:underline font-semibold block text-center w-full pt-1"
-                            >
-                              + View {allFiles.length - 3} more file(s)
-                            </button>
+                    return (
+                      <button
+                        key={m.num}
+                        type="button"
+                        onClick={() => handleGoToMonth(m.num)}
+                        className={`group flex flex-col items-center justify-center p-4 rounded-xl border transition-all text-center cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-primary/40 ${
+                          hasItems
+                            ? 'bg-card border-border/80 hover:border-primary/50 hover:bg-primary/5 shadow-xs'
+                            : 'bg-muted/10 border-dashed border-border/50 opacity-60 hover:opacity-100'
+                        }`}
+                      >
+                        <div className="relative mb-2">
+                          <Folder
+                            className={`h-14 w-14 transition-transform group-hover:scale-105 ${
+                              hasItems
+                                ? 'text-amber-500 fill-amber-500/20'
+                                : 'text-muted-foreground/40 fill-muted/10'
+                            }`}
+                          />
+                          {hasItems ? (
+                            <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+                              {count}
+                            </span>
                           ) : null}
                         </div>
-
-                        {latestSubmission?.note ? (
-                          <div className="pt-1.5 border-t border-border/40 text-[11px] text-muted-foreground">
-                            <span className="font-semibold text-foreground">Latest Note: </span>
-                            <span className="line-clamp-2">{latestSubmission.note}</span>
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <div className="rounded-lg border border-dashed border-border/60 p-3 text-center text-xs text-muted-foreground">
-                        No CAD submissions logged yet for this lead.
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40">
-                      <Button asChild size="sm" variant="ghost" className="h-8 text-xs px-2.5">
-                        <Link href={`/crm/jr-architecture/leads/${lead.id}`}>
-                          Open Workspace
-                        </Link>
-                      </Button>
-
-                      <div className="flex items-center gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-8 text-xs gap-1.5"
-                          onClick={() => setSubmitWorkLead(lead)}
+                        <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                          {String(m.num).padStart(2, '0')} - {m.name}
+                        </span>
+                        <span
+                          className={`text-[10px] mt-0.5 font-medium ${
+                            hasItems
+                              ? 'text-emerald-600 dark:text-emerald-400 font-semibold'
+                              : 'text-muted-foreground'
+                          }`}
                         >
-                          <Upload className="h-3.5 w-3.5" />
-                          Upload / Resubmit
-                        </Button>
+                          {count} {count === 1 ? 'Project' : 'Projects'}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : (
+              /* --- LEVEL 3: MONTH DIRECTORY (PROJECTS / CAD DRAWINGS) --- */
+              <div className="space-y-4">
+                {/* Folder Header & Sub-filters */}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCurrentMonth(null)}
+                      className="h-7 text-xs px-2"
+                    >
+                      <ArrowLeft className="h-3 w-3 mr-1" /> Months
+                    </Button>
+                    <FolderOpen className="h-5 w-5 text-amber-500" />
+                    <h2 className="text-base font-bold text-foreground">
+                      {currentMonthMeta?.name} {currentYear}
+                    </h2>
+                    <Badge variant="secondary" className="text-xs">
+                      {currentMonthLeads.length}{' '}
+                      {currentMonthLeads.length === 1 ? 'Project' : 'Projects'}
+                    </Badge>
+                  </div>
 
-                        {lead.submissions.length > 0 ? (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="h-8 text-xs gap-1.5"
-                            onClick={() => setInspectLead(lead)}
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                            History
-                          </Button>
-                        ) : null}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
+                  {/* Status Pills */}
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { key: 'ALL', label: 'All Statuses' },
+                      { key: 'ASSIGNED', label: 'Assigned' },
+                      { key: 'WORKING', label: 'Working' },
+                      { key: 'UNDER_REVIEW', label: 'Under Review' },
+                      { key: 'APPROVED', label: 'Approved' },
+                      { key: 'REWORK', label: 'Rework' },
+                    ].map((st) => (
+                      <Button
+                        key={st.key}
+                        variant={statusFilter === st.key ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-7 text-xs px-2.5"
+                        onClick={() => setStatusFilter(st.key)}
+                      >
+                        {st.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {currentMonthLeads.length === 0 ? (
+                  <div className="rounded-xl border border-dashed p-14 text-center space-y-2 bg-card/40">
+                    <FolderOpen className="h-10 w-10 text-muted-foreground mx-auto opacity-40" />
+                    <p className="text-sm font-semibold text-foreground">
+                      This folder is empty
+                    </p>
+                    <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                      No CAD architectural projects were first assigned in{' '}
+                      {currentMonthMeta?.name} {currentYear}
+                      {statusFilter !== 'ALL' ? ` with filter "${statusFilter}"` : ''}.
+                    </p>
+                  </div>
+                ) : viewMode === 'grid' ? (
+                  /* Grid View of Project Files */
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {currentMonthLeads.map((lead) => (
+                      <ProjectCadCard
+                        key={lead.id}
+                        lead={lead}
+                        busyId={busyId}
+                        onStartWork={startCadWork}
+                        onSubmitWork={(l) => setSubmitWorkLead(l)}
+                        onInspectWork={(l) => setInspectLead(l)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  /* Table / Details List View */
+                  <div className="rounded-xl border bg-card overflow-hidden">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-muted/50 border-b text-muted-foreground uppercase text-[10px] tracking-wider">
+                        <tr>
+                          <th className="py-2.5 px-3">CAD Project</th>
+                          <th className="py-2.5 px-3">Status</th>
+                          <th className="py-2.5 px-3">First Assigned Date</th>
+                          <th className="py-2.5 px-3">Location &amp; Sqft</th>
+                          <th className="py-2.5 px-3">Deliverables</th>
+                          <th className="py-2.5 px-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/60">
+                        {currentMonthLeads.map((lead) => {
+                          const allFiles = lead.submissions.flatMap((s) => s.files)
+                          const latestFile = allFiles[0]
+
+                          return (
+                            <tr key={lead.id} className="hover:bg-muted/30">
+                              <td className="py-3 px-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
+                                    <PenTool className="h-3.5 w-3.5" />
+                                  </div>
+                                  <div>
+                                    <Link
+                                      href={`/crm/jr-architecture/leads/${lead.id}`}
+                                      className="font-semibold text-foreground hover:text-primary hover:underline"
+                                    >
+                                      {lead.name}
+                                    </Link>
+                                    {lead.phone ? (
+                                      <p className="text-[10px] text-muted-foreground">{lead.phone}</p>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3">
+                                <div className="flex flex-col gap-1 items-start">
+                                  <Badge
+                                    variant={
+                                      lead.subStatus === 'CAD_APPROVED'
+                                        ? 'default'
+                                        : lead.subStatus === 'CAD_WORKING'
+                                          ? 'secondary'
+                                          : 'outline'
+                                    }
+                                    className={`text-[10px] ${
+                                      lead.subStatus === 'CAD_APPROVED'
+                                        ? 'bg-emerald-600 text-white'
+                                        : lead.subStatus === 'CAD_COMPLETED'
+                                          ? 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200'
+                                          : ''
+                                    }`}
+                                  >
+                                    {formatLabel(lead.subStatus)}
+                                  </Badge>
+                                  {lead.isRework ? (
+                                    <Badge
+                                      variant="destructive"
+                                      className="text-[9px] px-1.5 py-0 font-bold"
+                                    >
+                                      Rework Round {lead.latestPhaseTask?.currentReviewRound ?? 1}
+                                    </Badge>
+                                  ) : null}
+                                </div>
+                              </td>
+                              <td className="py-3 px-3 font-semibold text-foreground">
+                                {lead.assignedDate
+                                  ? new Date(lead.assignedDate).toLocaleDateString('en-GB', {
+                                      day: '2-digit',
+                                      month: 'short',
+                                      year: 'numeric',
+                                    })
+                                  : 'Not set'}
+                              </td>
+                              <td className="py-3 px-3">
+                                <p className="truncate max-w-[150px]">{lead.location || '—'}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {lead.projectSqft ? `${lead.projectSqft.toLocaleString()} sqft` : 'Area: —'}
+                                </p>
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className="font-semibold text-foreground block">
+                                  {lead.submissions.length} round(s) • {allFiles.length} file(s)
+                                </span>
+                                {latestFile ? (
+                                  <a
+                                    href={latestFile.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] text-primary hover:underline inline-flex items-center gap-1 max-w-[160px] truncate mt-0.5"
+                                    title={latestFile.fileName}
+                                  >
+                                    <Download className="h-2.5 w-2.5 flex-shrink-0" />
+                                    <span className="truncate">{latestFile.fileName}</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-[10px] text-muted-foreground italic">None yet</span>
+                                )}
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <Button asChild size="sm" variant="outline" className="h-7 text-xs">
+                                    <Link href={`/crm/jr-architecture/leads/${lead.id}`}>
+                                      Workspace
+                                    </Link>
+                                  </Button>
+                                  {lead.canStart ? (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={busyId === lead.id}
+                                      onClick={() => void startCadWork(lead.id)}
+                                      className="h-7 text-xs"
+                                    >
+                                      Start
+                                    </Button>
+                                  ) : null}
+                                  {lead.canSubmit ? (
+                                    <Button
+                                      size="sm"
+                                      className="h-7 text-xs"
+                                      onClick={() => setSubmitWorkLead(lead)}
+                                    >
+                                      Upload
+                                    </Button>
+                                  ) : null}
+                                  {lead.submissions.length > 0 ? (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 text-xs p-1"
+                                      onClick={() => setInspectLead(lead)}
+                                      title="Inspect Submissions"
+                                    >
+                                      <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Explorer Bottom Statusbar */}
+          <div className="bg-muted/40 border-t border-border/60 px-4 py-2 flex flex-wrap items-center justify-between text-xs text-muted-foreground">
+            <div>
+              {currentMonth !== null ? (
+                <span>
+                  <strong>{currentMonthLeads.length}</strong> items in{' '}
+                  <strong>
+                    {currentMonthMeta?.name} {currentYear}
+                  </strong>
+                </span>
+              ) : currentYear !== null ? (
+                <span>
+                  Viewing year <strong>{currentYear}</strong> (12 month directories)
+                </span>
+              ) : (
+                <span>
+                  Root Directory (<strong>{availableYears.length}</strong> Years)
+                </span>
+              )}
+            </div>
+            <div>
+              <span>Local Storage Mode • CAD Architecture First Assigned Month Archive</span>
+            </div>
+          </div>
+        </div>
       </main>
 
-      {/* Full Submissions History Modal */}
-      <Dialog open={Boolean(inspectLead)} onOpenChange={(open) => !open && setInspectLead(null)}>
+      {/* Inspect Past Submissions Dialog */}
+      <Dialog
+        open={Boolean(inspectLead)}
+        onOpenChange={(open) => {
+          if (!open) setInspectLead(null)
+        }}
+      >
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Archive className="h-5 w-5 text-primary" />
-              CAD Deliverables: {inspectLead?.name}
+              <History className="h-5 w-5 text-primary" />
+              CAD Submission History & Deliverables
             </DialogTitle>
             <DialogDescription>
-              Review all historical submission rounds, attached drawings, and feedback notes.
+              {inspectLead?.name} • Review all drawing versions, uploaded blueprints, and notes.
             </DialogDescription>
           </DialogHeader>
 
           {inspectLead ? (
-            <div className="space-y-4 py-2">
-              <div className="grid grid-cols-3 gap-2 rounded-lg bg-muted/40 p-3 text-xs">
+            <div className="space-y-4 pt-2">
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/40 p-3 text-xs">
                 <div>
                   <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
-                    Current Stage
+                    Current Stage & Status
                   </span>
-                  <p className="font-bold text-foreground mt-0.5">{formatLabel(inspectLead.stage)}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
-                    Sub Status
-                  </span>
-                  <p className="font-bold text-foreground mt-0.5">{formatLabel(inspectLead.subStatus)}</p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <Badge variant="outline" className="text-[10px]">
+                      {formatLabel(inspectLead.stage)}
+                    </Badge>
+                    <Badge variant="secondary" className="text-[10px] font-semibold">
+                      {formatLabel(inspectLead.subStatus)}
+                    </Badge>
+                  </div>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
@@ -908,7 +1008,8 @@ export default function JrArchitectMyWorkPage() {
 
               <div className="space-y-3">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Submission History ({inspectLead.submissions.length} round{inspectLead.submissions.length > 1 ? 's' : ''})
+                  Submission History ({inspectLead.submissions.length} round
+                  {inspectLead.submissions.length > 1 ? 's' : ''})
                 </h4>
 
                 {inspectLead.submissions.map((sub, idx) => (
@@ -916,10 +1017,12 @@ export default function JrArchitectMyWorkPage() {
                     <div className="flex items-start justify-between gap-2 border-b border-border/40 pb-2">
                       <div>
                         <span className="text-xs font-bold text-foreground">
-                          {sub.versionName || `Version ${sub.versionNumber || (inspectLead.submissions.length - idx)}`}
+                          {sub.versionName ||
+                            `Version ${sub.versionNumber || inspectLead.submissions.length - idx}`}
                         </span>
                         <p className="text-[11px] text-muted-foreground">
-                          Submitted on {new Date(sub.submittedAt).toLocaleString('en-US', {
+                          Submitted on{' '}
+                          {new Date(sub.submittedAt).toLocaleString('en-US', {
                             dateStyle: 'medium',
                             timeStyle: 'short',
                           })}{' '}
@@ -980,6 +1083,7 @@ export default function JrArchitectMyWorkPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Cad Submission Dialog */}
       <CadSubmissionDialog
         open={Boolean(submitWorkLead)}
         onOpenChange={(open) => {
@@ -987,8 +1091,188 @@ export default function JrArchitectMyWorkPage() {
         }}
         leadId={submitWorkLead?.id ?? null}
         leadName={submitWorkLead?.name}
-        onSubmitted={() => void loadTasks()}
+        onSubmitted={() => void loadTasks(true)}
       />
     </div>
+  )
+}
+
+// Subcomponent: Project CAD Card inside the Month Directory (Matches Quotation Card Standard)
+function ProjectCadCard({
+  lead,
+  busyId,
+  onStartWork,
+  onSubmitWork,
+  onInspectWork,
+}: {
+  lead: MyWorkLead
+  busyId: string | null
+  onStartWork: (id: string) => Promise<void>
+  onSubmitWork: (lead: MyWorkLead) => void
+  onInspectWork: (lead: MyWorkLead) => void
+}) {
+  const isWorking = lead.subStatus === 'CAD_WORKING'
+  const isApproved = lead.subStatus === 'CAD_APPROVED' || lead.stage !== 'CAD_PHASE'
+  const isUnderReview = lead.subStatus === 'CAD_COMPLETED'
+  const isRework = lead.isRework
+  const allFiles = lead.submissions.flatMap((s) => s.files)
+
+  return (
+    <Card
+      className={`group overflow-hidden border transition-all hover:shadow-md ${
+        isRework
+          ? 'border-red-300/80 bg-gradient-to-br from-red-500/5 to-rose-500/5 dark:border-red-700/50'
+          : isWorking
+            ? 'border-amber-300/80 bg-gradient-to-br from-amber-500/5 to-orange-500/5 dark:border-amber-700/50'
+            : isUnderReview
+              ? 'border-blue-300/80 bg-gradient-to-br from-blue-500/5 to-sky-500/5 dark:border-blue-700/50'
+              : isApproved
+                ? 'border-emerald-300/80 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 dark:border-emerald-700/50'
+                : 'border-border/70 hover:border-primary/40 bg-card'
+      }`}
+    >
+      <CardContent className="p-4 space-y-3">
+        {/* Top Header: Icon + Lead Name + Status */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-2.5 min-w-0">
+            <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0 group-hover:scale-110 transition-transform">
+              <PenTool className="h-5 w-5" />
+            </div>
+            <div className="space-y-0.5 min-w-0">
+              <Link
+                href={`/crm/jr-architecture/leads/${lead.id}`}
+                className="font-bold text-sm text-foreground hover:text-primary hover:underline line-clamp-1 truncate block"
+                title={lead.name}
+              >
+                {lead.name}
+              </Link>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Badge
+                  variant={isApproved ? 'default' : isWorking ? 'secondary' : 'outline'}
+                  className={`text-[10px] px-1.5 py-0 ${
+                    isApproved
+                      ? 'bg-emerald-600 text-white'
+                      : isUnderReview
+                        ? 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200'
+                        : isWorking
+                          ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
+                          : ''
+                  }`}
+                >
+                  {formatLabel(lead.subStatus)}
+                </Badge>
+                {isRework ? (
+                  <Badge variant="destructive" className="text-[9px] px-1.5 py-0 font-bold">
+                    Rework Round {lead.latestPhaseTask?.currentReviewRound ?? 1}
+                  </Badge>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Lead Metadata */}
+        <div className="text-xs space-y-1 text-muted-foreground pt-1 border-t border-border/40">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="flex items-center gap-1">
+              <CalendarClock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+              <span className="font-semibold text-foreground">Assigned:</span>
+            </span>
+            <span className="font-bold text-foreground">
+              {lead.assignedDate
+                ? new Date(lead.assignedDate).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })
+                : 'Not set'}
+            </span>
+          </div>
+
+          {lead.location ? (
+            <div className="flex items-center gap-1 truncate text-[11px]" title={lead.location}>
+              <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
+              <span className="truncate">{lead.location}</span>
+            </div>
+          ) : null}
+
+          <div className="flex items-center justify-between text-[11px] pt-1">
+            <span className="text-muted-foreground">Area Sqft:</span>
+            <span className="font-semibold text-foreground">
+              {lead.projectSqft ? `${lead.projectSqft.toLocaleString()} sqft` : '—'}
+            </span>
+          </div>
+
+          {lead.srCrmAssignee ? (
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <UserRound className="h-3 w-3" />
+                Sr CRM:
+              </span>
+              <span className="font-medium text-foreground truncate max-w-[150px]">
+                {lead.srCrmAssignee.fullName}
+              </span>
+            </div>
+          ) : null}
+
+          <div className="flex items-center justify-between text-[11px] pt-0.5">
+            <span className="text-muted-foreground">Submissions:</span>
+            <span className="font-semibold text-foreground">
+              {lead.submissions.length} round(s) • {allFiles.length} file(s)
+            </span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2 pt-1 border-t border-border/40">
+          <Button
+            asChild
+            size="sm"
+            variant={isWorking ? 'default' : 'outline'}
+            className="flex-1 h-8 text-xs"
+          >
+            <Link href={`/crm/jr-architecture/leads/${lead.id}`}>
+              {isWorking ? 'CAD Studio' : 'Workspace'}
+            </Link>
+          </Button>
+
+          {lead.canStart ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busyId === lead.id}
+              onClick={() => void onStartWork(lead.id)}
+              className="h-8 text-xs font-semibold"
+            >
+              {busyId === lead.id ? 'Starting...' : 'Start Work'}
+            </Button>
+          ) : null}
+
+          {lead.canSubmit ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 text-xs font-semibold"
+              onClick={() => onSubmitWork(lead)}
+            >
+              <Upload className="h-3.5 w-3.5 mr-1" />
+              Upload
+            </Button>
+          ) : null}
+
+          {lead.submissions.length > 0 ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-xs"
+              onClick={() => onInspectWork(lead)}
+              title="Inspect submissions"
+            >
+              <Eye className="h-3.5 w-3.5" />
+            </Button>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
