@@ -454,24 +454,76 @@ export function RequisitionBuilderClient({
     docu: ['Glossy', 'Soft matt', 'White Duco', 'Satin Matt'],
   })
 
-  const [isScrolled, setIsScrolled] = useState(false)
+  const [headerVisible, setHeaderVisible] = useState(true)
   const [isTopDrawerOpen, setIsTopDrawerOpen] = useState(false)
+  const headerAutoCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastScrollTopRef = useRef(0)
 
   useEffect(() => {
     const scrollEl = document.querySelector('main')
+
     const handleScroll = () => {
       const top = scrollEl ? scrollEl.scrollTop : window.scrollY
-      setIsScrolled(top > 40)
+      const prev = lastScrollTopRef.current
+      lastScrollTopRef.current = top
+
+      if (top <= 40) {
+        // Always show at the very top
+        setHeaderVisible(true)
+        if (headerAutoCloseTimerRef.current) {
+          clearTimeout(headerAutoCloseTimerRef.current)
+          headerAutoCloseTimerRef.current = null
+        }
+        return
+      }
+
+      const scrollingUp = top < prev
+
+      if (scrollingUp) {
+        // Scrolling up → show header immediately
+        setHeaderVisible(true)
+        if (headerAutoCloseTimerRef.current) {
+          clearTimeout(headerAutoCloseTimerRef.current)
+          headerAutoCloseTimerRef.current = null
+        }
+      } else {
+        // Scrolling down → start 3s auto-close timer (only if not manually expanded)
+        if (!isTopDrawerOpen) {
+          if (headerAutoCloseTimerRef.current) {
+            clearTimeout(headerAutoCloseTimerRef.current)
+          }
+          headerAutoCloseTimerRef.current = setTimeout(() => {
+            setHeaderVisible(false)
+            headerAutoCloseTimerRef.current = null
+          }, 3000)
+        }
+      }
     }
+
     scrollEl?.addEventListener('scroll', handleScroll, { passive: true })
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => {
       scrollEl?.removeEventListener('scroll', handleScroll)
       window.removeEventListener('scroll', handleScroll)
+      if (headerAutoCloseTimerRef.current) {
+        clearTimeout(headerAutoCloseTimerRef.current)
+      }
     }
-  }, [])
+  }, [isTopDrawerOpen])
 
-  const isDrawerExpanded = !isScrolled || isTopDrawerOpen
+  // When the user manually opens the drawer panel, keep header visible
+  useEffect(() => {
+    if (isTopDrawerOpen) {
+      setHeaderVisible(true)
+      if (headerAutoCloseTimerRef.current) {
+        clearTimeout(headerAutoCloseTimerRef.current)
+        headerAutoCloseTimerRef.current = null
+      }
+    }
+  }, [isTopDrawerOpen])
+
+  // isDrawerExpanded = the metadata/KPI sub-panel inside the header is open
+  const isDrawerExpanded = isTopDrawerOpen
 
   useEffect(() => {
     fetch('/api/boq/saved-accessories')
@@ -1739,12 +1791,16 @@ export function RequisitionBuilderClient({
 
   /* ── RENDER ── */
   return (
-    <div className="p-4 md:p-6 space-y-4 w-full pb-40">
+    <div className="p-4 md:p-6 space-y-4 w-full pb-32">
       {/* ── Global Autocomplete Lists ── */}
       <BoardDatalists baseMaterials={boardFinishCatalog.boards} />
 
       {/* ── Sticky Workspace Header with Product List Button in Top-Left Corner ── */}
-      <header className="sticky top-0 z-40 -mx-4 md:-mx-6 -mt-4 md:-mt-6 mb-4 bg-card/95 backdrop-blur-md border-b border-border/80 px-4 md:px-6 py-2.5 shadow-xs transition-all">
+      <header
+        className={`sticky top-0 z-40 -mx-4 md:-mx-6 -mt-4 md:-mt-6 mb-4 bg-card/95 backdrop-blur-md border-b border-border/80 px-4 md:px-6 py-2.5 shadow-xs transition-all duration-300 ${
+          headerVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+        }`}
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Top-Left Corner: Prominent Product List Button + Stepper */}
           <div className="flex items-center gap-2">
@@ -2555,6 +2611,9 @@ export function RequisitionBuilderClient({
           className="w-full bg-background border border-input rounded-md p-2.5 text-xs text-foreground focus:ring-1 focus:ring-primary shadow-xs"
         />
       </div>
+
+      {/* Spacer so fixed bottom bar never covers content */}
+      <div aria-hidden className="h-24 shrink-0" />
 
       {/* ── Always-visible Bottom Workspace Bar (Contextual Smart Bar) ── */}
       <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/80 bg-background/95 px-4 py-4 shadow-2xl backdrop-blur-md md:px-6">

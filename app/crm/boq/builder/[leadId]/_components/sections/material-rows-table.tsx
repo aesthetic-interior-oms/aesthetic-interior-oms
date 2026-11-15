@@ -5,6 +5,7 @@ import {
   Package,
   Trash2,
   Plus,
+  Minus,
   ArrowRight,
   Check,
   Copy,
@@ -58,6 +59,65 @@ import { CabinetCombobox } from '../inputs/cabinet-combobox'
 import { LaminateFinishPicker } from '../inputs/laminate-finish-picker'
 import { AccessoryItemCombobox } from '../inputs/accessory-item-combobox'
 import { ApplianceItemCombobox } from '../inputs/appliance-item-combobox'
+
+// ── Qty stepper: text input + − / + buttons ─────────────────────────────────
+function QtyStepperCell({
+  value,
+  onChange,
+  placeholder = '1',
+  className = '',
+}: {
+  value: string | number | null | undefined
+  onChange: (newVal: string) => void
+  placeholder?: string
+  className?: string
+}) {
+  const strVal = value !== undefined && value !== null ? String(value) : ''
+  const numVal = parseFloat(strVal)
+  const step = (delta: number) => {
+    const base = isNaN(numVal) ? 0 : numVal
+    const next = Math.max(0, base + delta)
+    const formatted = Number.isInteger(next) ? String(next) : String(parseFloat(next.toFixed(4)))
+    onChange(formatted)
+  }
+  return (
+    <div className={`flex items-center justify-center gap-0.5 px-0.5 whitespace-nowrap ${className}`}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          step(-1)
+        }}
+        className="shrink-0 w-5 h-5 flex items-center justify-center rounded border border-border/60 bg-muted/60 text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40 active:scale-90 transition-all cursor-pointer"
+        title="Decrease quantity by 1"
+      >
+        <Minus className="w-2.5 h-2.5" />
+      </button>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={strVal}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-11 min-w-0 bg-transparent border-0 rounded-none py-1 text-xs text-center font-bold text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-1 focus:ring-primary focus:bg-primary/5 transition-colors"
+      />
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          step(1)
+        }}
+        className="shrink-0 w-5 h-5 flex items-center justify-center rounded border border-border/60 bg-muted/60 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600 hover:border-emerald-500/40 active:scale-90 transition-all cursor-pointer"
+        title="Increase quantity by 1"
+      >
+        <Plus className="w-2.5 h-2.5" />
+      </button>
+    </div>
+  )
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const MaterialRowsTable = memo(function MaterialRowsTable({
   rows,
@@ -390,11 +450,9 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
 
                     {/* 7. Quantity */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
+                      <QtyStepperCell
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
-                        onChange={(e) => {
-                          const val = e.target.value
+                        onChange={(val) => {
                           onUpdateVariant(ri, 'qtyLabel', val)
                           const num = parseFloat(val)
                           if (!isNaN(num)) {
@@ -402,7 +460,6 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
                           }
                         }}
                         placeholder="1 or Catalog"
-                        className={GRID_CELL_NUM}
                       />
                     </td>
 
@@ -649,11 +706,9 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
 
                     {/* 8. Quantity */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
+                      <QtyStepperCell
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
-                        onChange={(e) => {
-                          const val = e.target.value
+                        onChange={(val) => {
                           onUpdateVariant(ri, 'qtyLabel', val)
                           const num = parseFloat(val)
                           if (!isNaN(num)) {
@@ -661,7 +716,6 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
                           }
                         }}
                         placeholder="27 or Catalog"
-                        className={GRID_CELL_NUM}
                       />
                     </td>
 
@@ -792,11 +846,9 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
 
                     {/* 4. Quantity */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
+                      <QtyStepperCell
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
-                        onChange={(e) => {
-                          const val = e.target.value
+                        onChange={(val) => {
                           onUpdateVariant(ri, 'qtyLabel', val)
                           const num = parseFloat(val)
                           if (!isNaN(num)) {
@@ -804,7 +856,6 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
                           }
                         }}
                         placeholder="300"
-                        className={GRID_CELL_NUM}
                       />
                     </td>
 
@@ -935,11 +986,9 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
 
                     {/* 7. Quantity */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
+                      <QtyStepperCell
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
-                        onChange={(e) => {
-                          const val = e.target.value
+                        onChange={(val) => {
                           onUpdateVariant(ri, 'qtyLabel', val)
                           const num = parseFloat(val)
                           if (!isNaN(num)) {
@@ -947,7 +996,6 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
                           }
                         }}
                         placeholder="300"
-                        className={GRID_CELL_NUM}
                       />
                     </td>
 
@@ -1066,11 +1114,9 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
 
                     {/* 5. Quantity */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
+                      <QtyStepperCell
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
-                        onChange={(e) => {
-                          const val = e.target.value
+                        onChange={(val) => {
                           onUpdateVariant(ri, 'qtyLabel', val)
                           const num = parseFloat(val)
                           if (!isNaN(num)) {
@@ -1078,7 +1124,6 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
                           }
                         }}
                         placeholder="15"
-                        className={GRID_CELL_NUM}
                       />
                     </td>
 
@@ -1419,18 +1464,14 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
 
                     {/* 7. Board Qty */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
+                      <QtyStepperCell
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : item.netQuantity}
-                        onChange={(e) => {
-                          const val = e.target.value
+                        onChange={(val) => {
                           onUpdateVariant(ri, 'qtyLabel', val)
                           const num = parseFloat(val)
                           if (!isNaN(num)) onChange(ri, 'netQuantity', num)
                         }}
-                        onFocus={(e) => e.target.select()}
                         placeholder="1 pcs"
-                        className={GRID_CELL_NUM}
                       />
                     </td>
 
@@ -1675,12 +1716,10 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
 
                     {/* 7. Quantity */}
                     <td className={GRID_TD}>
-                      <input
-                        type="number"
-                        step="any"
+                      <QtyStepperCell
                         value={item.netQuantity}
-                        onChange={(e) => onChange(ri, 'netQuantity', e.target.value)}
-                        className={GRID_CELL_NUM}
+                        onChange={(val) => onChange(ri, 'netQuantity', val)}
+                        placeholder="1"
                       />
                     </td>
 
@@ -2021,17 +2060,19 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
 
                     {/* 7. Qty */}
                     <td className={GRID_TD}>
-                      <input
-                        type="text"
+                      <QtyStepperCell
                         value={attrs.qtyLabel !== undefined ? attrs.qtyLabel : `${item.netQuantity} ${item.unit || 'Nos'}`}
-                        onChange={(e) => {
-                          const val = e.target.value
+                        onChange={(val) => {
                           onUpdateVariant(ri, 'qtyLabel', val)
                           const num = parseFloat(val)
                           if (!isNaN(num)) onChange(ri, 'netQuantity', num)
+                          const cleanPrice = String(attrs.unitPrice || '').replace(/[^0-9.]/g, '')
+                          const numP = parseFloat(cleanPrice)
+                          if (!isNaN(numP) && !isNaN(num)) {
+                            onUpdateVariant(ri, 'totalAmount', `৳${Math.round(num * numP).toLocaleString('en-IN')}`)
+                          }
                         }}
                         placeholder="1 nos"
-                        className={GRID_CELL_NUM}
                       />
                     </td>
 
@@ -2241,12 +2282,9 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
 
                     {/* Quantity */}
                     <td className={GRID_TD}>
-                      <input
-                        type="number"
-                        step="any"
+                      <QtyStepperCell
                         value={attrs.qtyLabel !== undefined && attrs.qtyLabel !== '' ? attrs.qtyLabel : (Number(item.netQuantity) === 0 && attrs.sourceQuantityStatus === 'NEEDS_CONFIRMATION' ? '' : (item.netQuantity ?? ''))}
-                        onChange={(e) => {
-                          const val = e.target.value
+                        onChange={(val) => {
                           onUpdateVariant(ri, 'qtyLabel', val)
                           const num = parseFloat(val)
                           const validNum = isNaN(num) ? 0 : num
@@ -2254,7 +2292,6 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
                           onChange(ri, 'finalQuantity', validNum)
                         }}
                         placeholder="0"
-                        className={GRID_CELL_NUM}
                       />
                     </td>
 
@@ -2438,12 +2475,9 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
 
                     {/* Quantity */}
                     <td className={GRID_TD}>
-                      <input
-                        type="number"
-                        step="any"
+                      <QtyStepperCell
                         value={attrs.qtyLabel !== undefined && attrs.qtyLabel !== '' ? attrs.qtyLabel : (Number(item.netQuantity) === 0 && attrs.sourceQuantityStatus === 'NEEDS_CONFIRMATION' ? '' : (item.netQuantity ?? ''))}
-                        onChange={(e) => {
-                          const val = e.target.value
+                        onChange={(val) => {
                           onUpdateVariant(ri, 'qtyLabel', val)
                           const num = parseFloat(val)
                           const validNum = isNaN(num) ? 0 : num
@@ -2451,7 +2485,6 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
                           onChange(ri, 'finalQuantity', validNum)
                         }}
                         placeholder="0"
-                        className={GRID_CELL_NUM}
                       />
                     </td>
 
@@ -2581,15 +2614,13 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
 
                   {/* Net Qty */}
                   <td className={GRID_TD}>
-                    <input
-                      type="number"
-                      step="any"
+                    <QtyStepperCell
                       value={item.variantAttributes?.sourceScheduleKey && item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION' && Number(item.netQuantity) === 0 ? '' : item.netQuantity}
-                      onChange={(e) => onChange(ri, 'netQuantity', e.target.value)}
-                      className={GRID_CELL_NUM}
+                      onChange={(val) => onChange(ri, 'netQuantity', val)}
+                      placeholder="0"
                     />
                     {item.variantAttributes?.sourceScheduleKey && item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION' && (
-                      <span className="mt-1 block text-[9px] font-semibold text-amber-700">Needs qty</span>
+                      <span className="mt-1 block text-[9px] font-semibold text-amber-700 text-center">Needs qty</span>
                     )}
                   </td>
 
