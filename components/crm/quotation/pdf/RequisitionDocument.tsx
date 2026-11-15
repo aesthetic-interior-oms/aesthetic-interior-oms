@@ -566,9 +566,13 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                 sortedCabinetMaterials.map((mat, idx) => {
                   const currentThk = mat.thickness || '—'
                   const prevThk = idx > 0 ? sortedCabinetMaterials[idx - 1].thickness || '—' : ''
-                  const isNewThicknessGroup = idx === 0 || currentThk !== prevThk
+                  const nextThk = idx < sortedCabinetMaterials.length - 1 ? sortedCabinetMaterials[idx + 1].thickness || '—' : ''
 
-                  const isSame = Boolean(
+                  const isNewThicknessGroup = idx === 0 || currentThk !== prevThk
+                  const isLastInThicknessGroup = idx === sortedCabinetMaterials.length - 1 || currentThk !== nextThk
+
+                  const isPvc = (mat.baseMaterial || mat.name || '').toLowerCase().includes('pvc')
+                  const isSame = !isPvc && Boolean(
                     mat.isSameLaminate ||
                     (mat.frontLaminate && mat.backLaminate && isSameCabinetLaminate(mat.frontLaminate, mat.backLaminate))
                   )
@@ -592,8 +596,8 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                           styles.tdCol,
                           {
                             width: '7%',
-                            borderBottomWidth: 0.5,
-                            borderBottomColor: BORDER,
+                            borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
+                            borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
                             borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
                             borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
                             justifyContent: 'center',
@@ -605,25 +609,27 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                         </Text>
                       </View>
 
-                      {/* 2. THICKNESS */}
+                      {/* 2. THICKNESS (MERGED - WRITTEN 1 TIME PER GROUP) */}
                       <View
                         style={[
                           styles.tdCol,
                           {
                             width: '13%',
                             backgroundColor: '#f8fafc',
-                            borderBottomWidth: 0.5,
-                            borderBottomColor: BORDER,
+                            borderBottomWidth: isLastInThicknessGroup ? 1 : 0,
+                            borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : 'transparent',
                             borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
-                            borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                            borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : 'transparent',
                             justifyContent: 'center',
                             alignItems: 'center',
                           },
                         ]}
                       >
-                        <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8.5, textAlign: 'center' }}>
-                          {currentThk}
-                        </Text>
+                        {isNewThicknessGroup ? (
+                          <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8.5, textAlign: 'center' }}>
+                            {currentThk}
+                          </Text>
+                        ) : null}
                       </View>
 
                       {/* 3 & 4. FRONT & BACK LAMINATE */}

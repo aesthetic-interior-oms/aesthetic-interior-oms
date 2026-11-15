@@ -199,42 +199,66 @@ export function formatMaterialItem(
   // 1. BOARDS
   if (wpSub === 'CORE_BOARDS' || (item.workCategory === 'WALL_PANELING' && (attrs.baseMaterial || attrs.laminateTopSurface))) {
     const productType = 'Boards'
-    const thk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || '12mm'
     const base = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string) || item.materialName) || 'Garjon Plywood'
+    const isPvc = base.toLowerCase().includes('pvc')
+    const thk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || (isPvc ? '3mm' : '12mm')
     const rawFl = cleanString((attrs.laminateTopSurface as string) || (attrs.frontLaminateCode as string))
     const rawBl = cleanString((attrs.surfaceCodeFinish as string) || (attrs.backLaminateCode as string))
     const makeType = attrs.boardMakeType === 'HANDMADE' ? ' [Hand]' : ' [Factory]'
 
-    const fl = rawFl
-      ? (rawFl.toUpperCase().includes('F/L') ? rawFl : `${rawFl} (F/L)`)
-      : 'Raw Board (F/L)'
-    const bl = rawBl
-      ? (rawBl.toUpperCase().includes('B/L') ? rawBl : `${rawBl} (B/L)`)
-      : 'Raw Board (B/L)'
-
-    const materialDescription = `${thk} + ${base}${makeType} + ${fl} + ${bl}`
+    let materialDescription = ''
+    if (isPvc) {
+      const usage = cleanString((attrs.functionalUsage as string) || (attrs.usage as string) || item.productionPhase) || 'Waterproof Backing'
+      materialDescription = `${usage}: ${thk} + ${base}${makeType}`
+    } else {
+      const fl = rawFl
+        ? (rawFl.toUpperCase().includes('F/L') ? rawFl : `${rawFl} (F/L)`)
+        : 'Raw Board (F/L)'
+      const bl = rawBl
+        ? (rawBl.toUpperCase().includes('B/L') ? rawBl : `${rawBl} (B/L)`)
+        : 'Raw Board (B/L)'
+      materialDescription = `${thk} + ${base}${makeType} + ${fl} + ${bl}`
+    }
     return { productType, materialDescription, unit }
   }
 
   // 1b. CABINET / CLOSET BOARDS
   if (item.workCategory === 'CABINETS_CLOSETS' || section?.category === 'CABINETS_CLOSETS') {
     const productType = 'Cabinet / Closet Boards'
-    const rawThk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || '18mm'
-    const thk = /^\d+$/.test(rawThk) ? `${rawThk}mm` : rawThk
     const rawBase = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string) || item.materialName) || 'Cabinet Board'
+    const isPvc = rawBase.toLowerCase().includes('pvc')
+    const rawThk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || (isPvc ? '3mm' : '18mm')
+    const thk = /^\d+$/.test(rawThk) ? `${rawThk}mm` : rawThk
     const makeType = attrs.boardMakeType === 'HANDMADE' ? ' [Hand]' : ' [Factory]'
     const baseMaterial = `${rawBase}${makeType}`
 
-    const rawFl = cleanString((attrs.frontLaminateCode as string) || (attrs.laminateFinishDetails as string)) || 'Raw Board'
+    const rawFl = cleanString((attrs.frontLaminateCode as string) || (attrs.laminateFinishDetails as string))
     const rawBl = cleanString(attrs.backLaminateCode as string)
 
-    const isSame = isSameCabinetLaminate(rawFl, rawBl)
-    const mergedText = isSame ? getMergedLaminateText(rawFl, rawBl) : ''
-    const frontLaminate = rawFl
+    const usage = cleanString((attrs.usage as string) || (attrs.functionalUsage as string) || item.productionPhase) || (isPvc ? 'Waterproof Backing' : '')
+    const usagePrefix = usage ? `${usage}: ` : ''
+
+    if (isPvc) {
+      const materialDescription = `${usagePrefix}${thk} + ${baseMaterial}`
+      return {
+        productType,
+        materialDescription,
+        unit,
+        isCabinet: true,
+        thickness: thk,
+        frontLaminate: '',
+        backLaminate: '',
+        baseMaterial,
+        isSameLaminate: false,
+        mergedLaminateText: '',
+      }
+    }
+
+    const isSame = isSameCabinetLaminate(rawFl || 'Raw Board', rawBl)
+    const mergedText = isSame ? getMergedLaminateText(rawFl || 'Raw Board', rawBl) : ''
+    const frontLaminate = rawFl || 'Raw Board'
     const backLaminate = rawBl || (isSame ? rawFl : 'Raw Board')
 
-    const usage = cleanString(attrs.usage as string)
-    const usagePrefix = usage ? `${usage}: ` : ''
     const materialDescription = `${usagePrefix}${thk} + ${baseMaterial} + ${frontLaminate} (Front) + ${backLaminate} (Back)`
     return {
       productType,
@@ -525,6 +549,27 @@ export function RequisitionPdfExportModal({
     )
   }, [productGroups])
 
+  const thicknessSpanMap = useMemo(() => {
+    const map: Record<number, number> = {}
+    let i = 0
+    while (i < aggregatedMaterials.length) {
+      const thk = aggregatedMaterials[i].thickness || '—'
+      let count = 1
+      while (
+        i + count < aggregatedMaterials.length &&
+        (aggregatedMaterials[i + count].thickness || '—') === thk
+      ) {
+        count++
+      }
+      map[i] = count
+      for (let j = 1; j < count; j++) {
+        map[i + j] = 0
+      }
+      i += count
+    }
+    return map
+  }, [aggregatedMaterials])
+
   const handleDownload = async () => {
     if (aggregatedMaterials.length === 0 || totalFilteredRows === 0) {
       toast.error('No material items found in the selected category.')
@@ -778,7 +823,8 @@ export function RequisitionPdfExportModal({
                         </tr>
                       ) : selectedCategory === 'CABINETS_CLOSETS' ? (
                         aggregatedMaterials.map((mat, idx) => {
-                          const isNewGroup = idx === 0 || mat.thickness !== aggregatedMaterials[idx - 1].thickness
+                          const span = thicknessSpanMap[idx] ?? 1
+                          const isNewGroup = idx === 0 || span > 0
                           const displayQty = `${Math.round(mat.finalQuantity * 10) / 10} ${mat.unit || 'Pcs'}`
                           const isSame = Boolean(
                             mat.isSameLaminate ||
@@ -798,9 +844,14 @@ export function RequisitionPdfExportModal({
                               <td className="py-2.5 px-3 text-center font-mono text-muted-foreground">
                                 {String(idx + 1).padStart(2, '0')}
                               </td>
-                              <td className="py-2.5 px-3 text-center bg-muted/20 font-bold text-primary">
-                                {mat.thickness || '18mm'}
-                              </td>
+                              {span > 0 ? (
+                                <td
+                                  rowSpan={span}
+                                  className="py-2.5 px-3 text-center bg-muted/20 font-bold text-primary align-middle border-r border-border/80"
+                                >
+                                  <span className="block text-xs font-bold">{mat.thickness || '18mm'}</span>
+                                </td>
+                              ) : null}
                               {isSame ? (
                                 <td colSpan={2} className="py-2.5 px-3 bg-amber-500/10 text-center">
                                   <span className="font-bold text-foreground block text-xs">
