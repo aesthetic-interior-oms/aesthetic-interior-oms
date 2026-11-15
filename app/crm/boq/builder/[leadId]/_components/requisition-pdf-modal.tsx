@@ -18,6 +18,8 @@ import { toast } from '@/components/ui/sonner'
 import { downloadPdfFromDocument } from '@/components/crm/quotation/pdf/pdf-download'
 import {
   RequisitionDocumentPdf,
+  isSameCabinetLaminate,
+  getMergedLaminateText,
   type RequisitionAggregatedMaterial,
   type RequisitionPdfData,
   type RequisitionProductGroup,
@@ -173,10 +175,23 @@ const PRODUCT_TYPE_SORT_ORDER: Record<string, number> = {
   'Adhesives & Chemical Solvents': 5,
 }
 
+export type FormattedMaterialResult = {
+  productType: string
+  materialDescription: string
+  unit: string
+  isCabinet?: boolean
+  thickness?: string
+  frontLaminate?: string
+  backLaminate?: string
+  baseMaterial?: string
+  isSameLaminate?: boolean
+  mergedLaminateText?: string
+}
+
 export function formatMaterialItem(
   item: RequisitionItemInput,
   section?: CardSection
-): { productType: string; materialDescription: string; unit: string } {
+): FormattedMaterialResult {
   const attrs = (item.variantAttributes || {}) as Record<string, unknown>
   const wpSub = (section?.wallPanelingSubType || attrs.wpSubType || '') as string
   const unit = cleanString(item.unit) || 'Pcs'
@@ -204,15 +219,35 @@ export function formatMaterialItem(
   // 1b. CABINET / CLOSET BOARDS
   if (item.workCategory === 'CABINETS_CLOSETS' || section?.category === 'CABINETS_CLOSETS') {
     const productType = 'Cabinet / Closet Boards'
-    const thk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || '18mm'
-    const base = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string) || item.materialName) || 'Cabinet Board'
-    const fl = cleanString((attrs.frontLaminateCode as string) || (attrs.laminateFinishDetails as string)) || 'Raw Board'
-    const bl = cleanString(attrs.backLaminateCode as string) || 'Raw Board'
+    const rawThk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || '18mm'
+    const thk = /^\d+$/.test(rawThk) ? `${rawThk}mm` : rawThk
+    const rawBase = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string) || item.materialName) || 'Cabinet Board'
     const makeType = attrs.boardMakeType === 'HANDMADE' ? ' [Hand]' : ' [Factory]'
+    const baseMaterial = `${rawBase}${makeType}`
+
+    const rawFl = cleanString((attrs.frontLaminateCode as string) || (attrs.laminateFinishDetails as string)) || 'Raw Board'
+    const rawBl = cleanString(attrs.backLaminateCode as string)
+
+    const isSame = isSameCabinetLaminate(rawFl, rawBl)
+    const mergedText = isSame ? getMergedLaminateText(rawFl, rawBl) : ''
+    const frontLaminate = rawFl
+    const backLaminate = rawBl || (isSame ? rawFl : 'Raw Board')
+
     const usage = cleanString(attrs.usage as string)
     const usagePrefix = usage ? `${usage}: ` : ''
-    const materialDescription = `${usagePrefix}${thk} + ${base}${makeType} + ${fl} (Front) + ${bl} (Back)`
-    return { productType, materialDescription, unit }
+    const materialDescription = `${usagePrefix}${thk} + ${baseMaterial} + ${frontLaminate} (Front) + ${backLaminate} (Back)`
+    return {
+      productType,
+      materialDescription,
+      unit,
+      isCabinet: true,
+      thickness: thk,
+      frontLaminate,
+      backLaminate,
+      baseMaterial,
+      isSameLaminate: isSame,
+      mergedLaminateText: mergedText,
+    }
   }
 
   // 2. DECORATIVE PANELS
@@ -374,13 +409,22 @@ export function RequisitionPdfExportModal({
 
         // Accumulate into project-wide material summary
         for (const it of validItems) {
-          const { productType, materialDescription, unit } = formatMaterialItem(it, sec)
+          const formatted = formatMaterialItem(it, sec)
+          const { productType, materialDescription, unit } = formatted
           const rawName = cleanString(it.materialName) || 'Standard Material'
           const rawSpec = cleanString(it.specifications)
           const subTypeLabel = getSectionLabel(sec)
 
           // Key grouping: merges common items with same product type, specification & unit across products
-          const naturalKey = `${it.workCategory}::${productType.toLowerCase()}::${materialDescription.toLowerCase()}::${unit.toLowerCase()}`
+          let naturalKey = `${it.workCategory}::${productType.toLowerCase()}::${materialDescription.toLowerCase()}::${unit.toLowerCase()}`
+          if (formatted.isCabinet) {
+            const thkKey = (formatted.thickness || '').toLowerCase()
+            const flKey = (formatted.frontLaminate || '').toLowerCase()
+            const blKey = (formatted.backLaminate || '').toLowerCase()
+            const baseKey = (formatted.baseMaterial || '').toLowerCase()
+            naturalKey = `cabinet::${thkKey}::${flKey}::${blKey}::${baseKey}::${unit.toLowerCase()}`
+          }
+
           const canonicalKey = manualMerges[naturalKey] || naturalKey
 
           const net = Number(it.netQuantity) || 0
@@ -401,6 +445,13 @@ export function RequisitionPdfExportModal({
               usedInProducts: [cardInfo.productTitle],
               productType,
               materialDescription,
+              thickness: formatted.thickness,
+              frontLaminate: formatted.frontLaminate,
+              backLaminate: formatted.backLaminate,
+              baseMaterial: formatted.baseMaterial,
+              isSameLaminate: formatted.isSameLaminate,
+              mergedLaminateText: formatted.mergedLaminateText,
+              isCabinet: formatted.isCabinet,
             })
           } else {
             const existing = aggMap.get(canonicalKey)!
@@ -423,6 +474,29 @@ export function RequisitionPdfExportModal({
     }
 
     const sortedAggregated = Array.from(aggMap.values()).sort((a, b) => {
+      if (selectedCategory === 'CABINETS_CLOSETS') {
+        const thkA = a.thickness || ''
+        const thkB = b.thickness || ''
+        const numA = parseFloat((thkA.match(/\d+(\.\d+)?/) || [])[0] || '999')
+        const numB = parseFloat((thkB.match(/\d+(\.\d+)?/) || [])[0] || '999')
+        if (numA !== numB) return numA - numB
+        if (thkA.localeCompare(thkB) !== 0) return thkA.localeCompare(thkB)
+
+        const flA = a.frontLaminate || ''
+        const flB = b.frontLaminate || ''
+        if (flA.localeCompare(flB) !== 0) return flA.localeCompare(flB)
+
+        const blA = a.backLaminate || ''
+        const blB = b.backLaminate || ''
+        if (blA.localeCompare(blB) !== 0) return blA.localeCompare(blB)
+
+        const bmA = a.baseMaterial || a.name || ''
+        const bmB = b.baseMaterial || b.name || ''
+        if (bmA.localeCompare(bmB) !== 0) return bmA.localeCompare(bmB)
+
+        return (a.unit || '').localeCompare(b.unit || '')
+      }
+
       const orderA = PRODUCT_TYPE_SORT_ORDER[a.productType || ''] ?? 99
       const orderB = PRODUCT_TYPE_SORT_ORDER[b.productType || ''] ?? 99
       if (orderA !== orderB) return orderA - orderB
@@ -476,6 +550,7 @@ export function RequisitionPdfExportModal({
       }).format(new Date())
 
       const isWallPaneling = selectedCategory === 'WALL_PANELING'
+      const isCabinet = selectedCategory === 'CABINETS_CLOSETS'
       const pdfData: RequisitionPdfData = {
         clientName: lead.name || 'Client',
         clientAddress: lead.location || 'Dhaka, Bangladesh',
@@ -489,6 +564,7 @@ export function RequisitionPdfExportModal({
         notes,
         summaryOnly: !includeQuotationBreakdown,
         isWallPanelingFormat: isWallPaneling || selectedCategory === 'ALL',
+        isCabinetFormat: isCabinet,
       }
 
       const safeName = (lead.name || 'Client').replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '')
@@ -670,21 +746,106 @@ export function RequisitionPdfExportModal({
                 <div className="overflow-x-auto max-h-[380px]">
                   <table className="w-full text-xs text-left">
                     <thead className="bg-[#1f363d] text-white uppercase text-[10px] tracking-wider sticky top-0 z-10">
-                      <tr>
-                        <th className="py-2.5 px-3 w-10 text-center">#</th>
-                        <th className="py-2.5 px-3 w-1/4">Product Type</th>
-                        <th className="py-2.5 px-3">Material Description</th>
-                        <th className="py-2.5 px-3 text-center w-28">Unit / Qty</th>
-                        <th className="py-2.5 px-3 w-48">Used In Products</th>
-                      </tr>
+                      {selectedCategory === 'CABINETS_CLOSETS' ? (
+                        <tr>
+                          <th className="py-2.5 px-3 w-10 text-center">#</th>
+                          <th className="py-2.5 px-3 w-20 text-center">Thickness</th>
+                          <th className="py-2.5 px-3 w-1/4">Front Laminate</th>
+                          <th className="py-2.5 px-3 w-1/4">Back Laminate</th>
+                          <th className="py-2.5 px-3 w-1/5">Base Material</th>
+                          <th className="py-2.5 px-3 text-center w-24">Unit / Qty</th>
+                          <th className="py-2.5 px-3 w-40">Used In Products</th>
+                        </tr>
+                      ) : (
+                        <tr>
+                          <th className="py-2.5 px-3 w-10 text-center">#</th>
+                          <th className="py-2.5 px-3 w-1/4">Product Type</th>
+                          <th className="py-2.5 px-3">Material Description</th>
+                          <th className="py-2.5 px-3 text-center w-28">Unit / Qty</th>
+                          <th className="py-2.5 px-3 w-48">Used In Products</th>
+                        </tr>
+                      )}
                     </thead>
                     <tbody className="divide-y divide-border/60 bg-card">
                       {aggregatedMaterials.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                          <td
+                            colSpan={selectedCategory === 'CABINETS_CLOSETS' ? 7 : 5}
+                            className="py-8 text-center text-muted-foreground"
+                          >
                             No materials found for the current selection.
                           </td>
                         </tr>
+                      ) : selectedCategory === 'CABINETS_CLOSETS' ? (
+                        aggregatedMaterials.map((mat, idx) => {
+                          const isNewGroup = idx === 0 || mat.thickness !== aggregatedMaterials[idx - 1].thickness
+                          const displayQty = `${Math.round(mat.finalQuantity * 10) / 10} ${mat.unit || 'Pcs'}`
+                          const isSame = Boolean(
+                            mat.isSameLaminate ||
+                              (mat.frontLaminate && mat.backLaminate && isSameCabinetLaminate(mat.frontLaminate, mat.backLaminate)),
+                          )
+                          const mergedLaminate =
+                            mat.mergedLaminateText ||
+                            (isSame ? getMergedLaminateText(mat.frontLaminate, mat.backLaminate) : '')
+
+                          return (
+                            <tr
+                              key={mat.key || idx}
+                              className={`hover:bg-muted/30 transition-colors ${
+                                isNewGroup && idx > 0 ? 'border-t-2 border-primary/40' : ''
+                              }`}
+                            >
+                              <td className="py-2.5 px-3 text-center font-mono text-muted-foreground">
+                                {String(idx + 1).padStart(2, '0')}
+                              </td>
+                              <td className="py-2.5 px-3 text-center bg-muted/20 font-bold text-primary">
+                                {mat.thickness || '18mm'}
+                              </td>
+                              {isSame ? (
+                                <td colSpan={2} className="py-2.5 px-3 bg-amber-500/10 text-center">
+                                  <span className="font-bold text-foreground block text-xs">
+                                    {mergedLaminate || mat.frontLaminate || 'Raw Board'}
+                                  </span>
+                                  <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
+                                    [Both Sides Same]
+                                  </span>
+                                </td>
+                              ) : (
+                                <>
+                                  <td className="py-2.5 px-3">
+                                    <span className="font-bold text-foreground block text-xs">
+                                      {mat.frontLaminate || 'Raw Board'}
+                                    </span>
+                                  </td>
+                                  <td className="py-2.5 px-3">
+                                    <span className="text-foreground block text-xs">
+                                      {mat.backLaminate || 'Raw Board'}
+                                    </span>
+                                  </td>
+                                </>
+                              )}
+                              <td className="py-2.5 px-3 font-semibold text-foreground">
+                                {mat.baseMaterial || mat.name || 'Cabinet Board'}
+                              </td>
+                              <td className="py-2.5 px-3 text-center font-bold text-primary text-xs whitespace-nowrap">
+                                {displayQty}
+                              </td>
+                              <td className="py-2.5 px-3 text-[11px] text-muted-foreground">
+                                <div className="flex flex-wrap gap-1">
+                                  {mat.usedInProducts.map((p, pIdx) => (
+                                    <span
+                                      key={pIdx}
+                                      className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-medium text-foreground truncate max-w-[140px]"
+                                      title={p}
+                                    >
+                                      {p}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })
                       ) : (
                         aggregatedMaterials.map((mat, idx) => {
                           const isNewGroup = idx === 0 || (mat.productType || mat.subTypeLabel) !== (aggregatedMaterials[idx - 1].productType || aggregatedMaterials[idx - 1].subTypeLabel)

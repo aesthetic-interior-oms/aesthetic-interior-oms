@@ -221,7 +221,7 @@ export async function GET(request: Request) {
     const totalDetailSqft = filteredTasksData.reduce((sum, item) => sum + item.avgDetailSqft, 0)
     const totalShortSqft = filteredTasksData.reduce((sum, item) => sum + item.avgShortSqft, 0)
 
-    return NextResponse.json({
+    const payload = NextResponse.json({
       success: true,
       monthKey,
       data: filteredTasksData,
@@ -231,6 +231,9 @@ export async function GET(request: Request) {
         totalSqftWorked: totalDetailSqft + totalShortSqft,
       },
     })
+    // Cache for 60s on the client, allow serving stale for 120s while revalidating — cuts repeated joins
+    payload.headers.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=120')
+    return payload
   } catch (error) {
     console.error('[quotation/assigned-tasks][GET] Error:', error)
     return NextResponse.json({ success: false, error: 'Failed to load assigned quotation tasks' }, { status: 500 })

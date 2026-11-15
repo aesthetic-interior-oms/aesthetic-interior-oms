@@ -205,12 +205,12 @@ export function NotificationBell() {
     setSoundEnabled(enabled)
     loadNotifications(true)
 
-    // Poll every 30 seconds (was 120s) so all PCs pick up new notifications quickly
+    // Poll every 90 seconds — reduces server CPU load significantly
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
         void loadNotifications(false)
       }
-    }, 30000)
+    }, 90000)
 
     let focusQuickPollTimer: ReturnType<typeof setTimeout> | number | null = null
 

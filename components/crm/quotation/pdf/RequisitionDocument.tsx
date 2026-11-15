@@ -387,6 +387,45 @@ export type RequisitionAggregatedMaterial = {
   usedInProducts: string[]
   productType?: string
   materialDescription?: string
+  // Cabinet fields
+  thickness?: string
+  frontLaminate?: string
+  backLaminate?: string
+  baseMaterial?: string
+  isSameLaminate?: boolean
+  mergedLaminateText?: string
+  isCabinet?: boolean
+}
+
+export function isSameCabinetLaminate(front?: string | null, back?: string | null): boolean {
+  const f = (front || '').trim().toLowerCase()
+  const b = (back || '').trim().toLowerCase()
+  if (!f && !b) return true
+  if (f && !b) {
+    if (f.includes('both side') || f.includes('both sides')) return true
+    return false
+  }
+  if (!f && b) {
+    if (b.includes('both side') || b.includes('both sides')) return true
+    return false
+  }
+  if (f === b) return true
+  if (b.includes('same as front') || b === 'same' || b.includes('same as fl')) return true
+
+  const cleanF = f.replace(/\s*\((both sides?|same|same as front|f\/l|front)\)/gi, '').trim()
+  const cleanB = b.replace(/\s*\((both sides?|same|same as front|b\/l|back)\)/gi, '').trim()
+  if (cleanF && cleanB && cleanF === cleanB) return true
+
+  return false
+}
+
+export function getMergedLaminateText(front?: string | null, back?: string | null): string {
+  const f = (front || '').trim()
+  const b = (back || '').trim()
+  const cleanF = f.replace(/\s*\((both sides?|same|same as front|f\/l|front)\)/gi, '').trim()
+  if (cleanF) return cleanF
+  const cleanB = b.replace(/\s*\((both sides?|same|same as front|b\/l|back)\)/gi, '').trim()
+  return cleanB || 'Raw Board'
 }
 
 export type RequisitionProductSection = {
@@ -419,6 +458,7 @@ export type RequisitionPdfData = {
   notes?: string
   summaryOnly?: boolean
   isWallPanelingFormat?: boolean
+  isCabinetFormat?: boolean
 }
 
 export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
@@ -436,11 +476,47 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
     notes,
     summaryOnly = false,
     isWallPanelingFormat = false,
+    isCabinetFormat = false,
   } = data
 
-  const isWallPanelingScope = isWallPanelingFormat || aggregatedMaterials.some((m) => Boolean(m.productType))
-  const totalAggregatedItems = aggregatedMaterials.length
-  const totalProjectQty = aggregatedMaterials.reduce((sum, item) => sum + (Number(item.finalQuantity) || 0), 0)
+  const isCabinetScope =
+    Boolean(isCabinetFormat) ||
+    categoryTitle.toLowerCase().includes('cabinet') ||
+    (aggregatedMaterials.length > 0 && aggregatedMaterials.every((m) => m.isCabinet || m.category === 'CABINETS_CLOSETS'))
+
+  const isWallPanelingScope =
+    !isCabinetScope && (isWallPanelingFormat || aggregatedMaterials.some((m) => Boolean(m.productType)))
+
+  const sortedCabinetMaterials = isCabinetScope
+    ? [...aggregatedMaterials].sort((a, b) => {
+        const thkA = a.thickness || ''
+        const thkB = b.thickness || ''
+        const numA = parseFloat((thkA.match(/\d+(\.\d+)?/) || [])[0] || '999')
+        const numB = parseFloat((thkB.match(/\d+(\.\d+)?/) || [])[0] || '999')
+        if (numA !== numB) return numA - numB
+        if (thkA.localeCompare(thkB) !== 0) return thkA.localeCompare(thkB)
+
+        const flA = a.frontLaminate || ''
+        const flB = b.frontLaminate || ''
+        if (flA.localeCompare(flB) !== 0) return flA.localeCompare(flB)
+
+        const blA = a.backLaminate || ''
+        const blB = b.backLaminate || ''
+        if (blA.localeCompare(blB) !== 0) return blA.localeCompare(blB)
+
+        const bmA = a.baseMaterial || a.name || ''
+        const bmB = b.baseMaterial || b.name || ''
+        if (bmA.localeCompare(bmB) !== 0) return bmA.localeCompare(bmB)
+
+        return (a.unit || '').localeCompare(b.unit || '')
+      })
+    : aggregatedMaterials
+
+  const totalAggregatedItems = isCabinetScope ? sortedCabinetMaterials.length : aggregatedMaterials.length
+  const totalProjectQty = (isCabinetScope ? sortedCabinetMaterials : aggregatedMaterials).reduce(
+    (sum, item) => sum + (Number(item.finalQuantity) || 0),
+    0,
+  )
 
   return (
     <Document title={`Requisition - ${clientName} - ${categoryTitle}`} author="Aesthetic Interior">
@@ -470,7 +546,210 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
 
         {/* Aggregated Summary Table */}
         <View style={styles.table}>
-          {isWallPanelingScope ? (
+          {isCabinetScope ? (
+            /* Cabinet Layout: SL NO | Thickness | Front Laminate | Back Laminate | Base Material | Unit */
+            <>
+              <View style={styles.tHead}>
+                <Text style={[styles.thCol, { width: '7%', textAlign: 'center' }]}>SL NO</Text>
+                <Text style={[styles.thCol, { width: '13%', textAlign: 'center' }]}>Thickness</Text>
+                <Text style={[styles.thCol, { width: '24%' }]}>Front Laminate</Text>
+                <Text style={[styles.thCol, { width: '24%' }]}>Back Laminate</Text>
+                <Text style={[styles.thCol, { width: '20%' }]}>Base Material</Text>
+                <Text style={[styles.thCol, { width: '12%', textAlign: 'center', borderRightWidth: 0 }]}>Unit</Text>
+              </View>
+
+              {sortedCabinetMaterials.length === 0 ? (
+                <View style={[styles.tRow, { padding: 8, justifyContent: 'center' }]}>
+                  <Text style={{ fontSize: 8, color: '#718096' }}>No cabinet requisition materials specified in this category.</Text>
+                </View>
+              ) : (
+                sortedCabinetMaterials.map((mat, idx) => {
+                  const currentThk = mat.thickness || '—'
+                  const prevThk = idx > 0 ? sortedCabinetMaterials[idx - 1].thickness || '—' : ''
+                  const isNewThicknessGroup = idx === 0 || currentThk !== prevThk
+
+                  const isSame = Boolean(
+                    mat.isSameLaminate ||
+                    (mat.frontLaminate && mat.backLaminate && isSameCabinetLaminate(mat.frontLaminate, mat.backLaminate))
+                  )
+                  const mergedLaminate = mat.mergedLaminateText || (isSame ? getMergedLaminateText(mat.frontLaminate || '', mat.backLaminate || '') : '')
+                  const displayQty = `${Number(mat.finalQuantity).toFixed(1).replace(/\.0$/, '')} ${mat.unit || 'Pcs'}`
+
+                  return (
+                    <View
+                      key={mat.key || idx}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'stretch',
+                        minHeight: 19,
+                        backgroundColor: idx % 2 === 1 ? '#fffdfa' : '#ffffff',
+                      }}
+                      wrap={false}
+                    >
+                      {/* 1. SL NO */}
+                      <View
+                        style={[
+                          styles.tdCol,
+                          {
+                            width: '7%',
+                            borderBottomWidth: 0.5,
+                            borderBottomColor: BORDER,
+                            borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                            borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                            justifyContent: 'center',
+                          },
+                        ]}
+                      >
+                        <Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 7.5 }}>
+                          {String(idx + 1).padStart(2, '0')}
+                        </Text>
+                      </View>
+
+                      {/* 2. THICKNESS */}
+                      <View
+                        style={[
+                          styles.tdCol,
+                          {
+                            width: '13%',
+                            backgroundColor: '#f8fafc',
+                            borderBottomWidth: 0.5,
+                            borderBottomColor: BORDER,
+                            borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                            borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          },
+                        ]}
+                      >
+                        <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8.5, textAlign: 'center' }}>
+                          {currentThk}
+                        </Text>
+                      </View>
+
+                      {/* 3 & 4. FRONT & BACK LAMINATE */}
+                      {isSame ? (
+                        /* MERGED WHEN FRONT AND BACK LAMINATE ARE THE SAME (24% + 24% = 48%) */
+                        <View
+                          style={[
+                            styles.tdCol,
+                            {
+                              width: '48%',
+                              backgroundColor: '#fffdf5',
+                              borderBottomWidth: 0.5,
+                              borderBottomColor: BORDER,
+                              borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                              borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                              justifyContent: 'center',
+                              paddingHorizontal: 4,
+                            },
+                          ]}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <Text style={{ fontWeight: 'bold', color: '#1a202c', fontSize: 8 }}>
+                              {mergedLaminate || mat.frontLaminate || 'Raw Board'}
+                            </Text>
+                            <Text style={{ fontSize: 6.5, color: GOLD, fontWeight: 'bold' }}>
+                              [Both Sides Same]
+                            </Text>
+                          </View>
+                          {mat.usedInProducts && mat.usedInProducts.length > 0 ? (
+                            <Text style={{ fontSize: 6, color: '#718096', marginTop: 1 }}>
+                              Used in: {mat.usedInProducts.slice(0, 3).join(', ')}
+                              {mat.usedInProducts.length > 3 ? ` +${mat.usedInProducts.length - 3} more` : ''}
+                            </Text>
+                          ) : null}
+                        </View>
+                      ) : (
+                        /* SEPARATE FRONT AND BACK LAMINATE */
+                        <>
+                          <View
+                            style={[
+                              styles.tdCol,
+                              {
+                                width: '24%',
+                                borderBottomWidth: 0.5,
+                                borderBottomColor: BORDER,
+                                borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                                borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                                justifyContent: 'center',
+                              },
+                            ]}
+                          >
+                            <Text style={{ fontWeight: 'bold', color: '#1a202c', fontSize: 8 }}>
+                              {mat.frontLaminate || 'Raw Board'}
+                            </Text>
+                            {mat.usedInProducts && mat.usedInProducts.length > 0 ? (
+                              <Text style={{ fontSize: 6, color: '#718096', marginTop: 1 }}>
+                                Used in: {mat.usedInProducts.slice(0, 2).join(', ')}
+                                {mat.usedInProducts.length > 2 ? ` +${mat.usedInProducts.length - 2} more` : ''}
+                              </Text>
+                            ) : null}
+                          </View>
+
+                          <View
+                            style={[
+                              styles.tdCol,
+                              {
+                                width: '24%',
+                                borderBottomWidth: 0.5,
+                                borderBottomColor: BORDER,
+                                borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                                borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                                justifyContent: 'center',
+                              },
+                            ]}
+                          >
+                            <Text style={{ color: '#2d3748', fontSize: 8 }}>
+                              {mat.backLaminate || 'Raw Board'}
+                            </Text>
+                          </View>
+                        </>
+                      )}
+
+                      {/* 5. BASE MATERIAL */}
+                      <View
+                        style={[
+                          styles.tdCol,
+                          {
+                            width: '20%',
+                            borderBottomWidth: 0.5,
+                            borderBottomColor: BORDER,
+                            borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                            borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                            justifyContent: 'center',
+                          },
+                        ]}
+                      >
+                        <Text style={{ fontWeight: 'bold', color: '#2d3748', fontSize: 8 }}>
+                          {mat.baseMaterial || mat.name || 'Cabinet Board'}
+                        </Text>
+                      </View>
+
+                      {/* 6. UNIT */}
+                      <View
+                        style={[
+                          styles.tdCol,
+                          {
+                            width: '12%',
+                            borderRightWidth: 0,
+                            borderBottomWidth: 0.5,
+                            borderBottomColor: BORDER,
+                            borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                            borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                            justifyContent: 'center',
+                          },
+                        ]}
+                      >
+                        <Text style={{ textAlign: 'center', fontWeight: 'bold', color: PRIMARY, fontSize: 8.5 }}>
+                          {displayQty}
+                        </Text>
+                      </View>
+                    </View>
+                  )
+                })
+              )}
+            </>
+          ) : isWallPanelingScope ? (
             /* 4-Column Layout: SL NO | Product Type | Material Description | Unit */
             <>
               <View style={styles.tHead}>

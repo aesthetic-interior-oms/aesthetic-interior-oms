@@ -152,12 +152,12 @@ export default function QuotationAssignedTaskPage() {
   useEffect(() => {
     void loadTasks(selectedMonth);
 
-    // Auto-refresh tasks every 30 seconds when tab is active so other PCs see new assignments live
+    // Auto-refresh tasks every 120 seconds when tab is active (reduced from 30s to cut server CPU)
     const interval = window.setInterval(() => {
       if (document.visibilityState === "visible") {
         void loadTasks(selectedMonth, true);
       }
-    }, 30000);
+    }, 120000);
 
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {

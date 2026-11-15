@@ -485,6 +485,11 @@ async function clearOrphanFollowupNotifications(userId: string) {
   })
 }
 
+// In-memory throttle: only run expensive side-effect queries once every 5 minutes per user.
+// This avoids running 8-10 DB queries on every poll call (every 90s per browser tab).
+const lastEnsureRun = new Map<string, number>()
+const ENSURE_THROTTLE_MS = 5 * 60 * 1000 // 5 minutes
+
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireDatabaseRoles([])
@@ -494,10 +499,17 @@ export async function GET(request: NextRequest) {
     const isAdmin = authResult.actor.userDepartments.includes('ADMIN')
     const limit = toPositiveInt(request.nextUrl.searchParams.get('limit'), 20, 100)
 
-    await clearOrphanFollowupNotifications(userId)
-    await ensureFollowupDueNotifications(userId)
-    await ensureVisitScheduleNotifications(userId)
-    await ensureSignupApprovalNotifications(userId, isAdmin)
+    // Only run the heavy side-effect queries (clear orphans, ensure notifications) once per 5 minutes.
+    // The final fetch below always runs to return fresh unread counts and items.
+    const now = Date.now()
+    const lastRun = lastEnsureRun.get(userId) ?? 0
+    if (now - lastRun > ENSURE_THROTTLE_MS) {
+      lastEnsureRun.set(userId, now)
+      await clearOrphanFollowupNotifications(userId)
+      await ensureFollowupDueNotifications(userId)
+      await ensureVisitScheduleNotifications(userId)
+      await ensureSignupApprovalNotifications(userId, isAdmin)
+    }
 
     const [items, unreadCount] = await Promise.all([
       prisma.notification.findMany({
