@@ -487,33 +487,46 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
   const isWallPanelingScope =
     !isCabinetScope && (isWallPanelingFormat || aggregatedMaterials.some((m) => Boolean(m.productType)))
 
-  const sortedCabinetMaterials = isCabinetScope
-    ? [...aggregatedMaterials].sort((a, b) => {
-        const thkA = a.thickness || ''
-        const thkB = b.thickness || ''
-        const numA = parseFloat((thkA.match(/\d+(\.\d+)?/) || [])[0] || '999')
-        const numB = parseFloat((thkB.match(/\d+(\.\d+)?/) || [])[0] || '999')
-        if (numA !== numB) return numA - numB
-        if (thkA.localeCompare(thkB) !== 0) return thkA.localeCompare(thkB)
+  const isBoardMat = (m: RequisitionAggregatedMaterial) =>
+    Boolean(
+      m.thickness ||
+      m.frontLaminate ||
+      m.isCabinet ||
+      m.productType === 'Boards' ||
+      m.productType === 'Cabinet / Closet Boards' ||
+      m.category === 'CABINETS_CLOSETS' ||
+      (m.category === 'WALL_PANELING' && (m.subTypeLabel?.includes('Board') || m.productType === 'Boards' || m.thickness))
+    )
 
-        const flA = a.frontLaminate || ''
-        const flB = b.frontLaminate || ''
-        if (flA.localeCompare(flB) !== 0) return flA.localeCompare(flB)
+  const isBoardScope = isCabinetScope || isWallPanelingScope
+  const boardMaterials = isBoardScope ? aggregatedMaterials.filter(isBoardMat) : []
+  const otherMaterials = isBoardScope ? aggregatedMaterials.filter((m) => !isBoardMat(m)) : aggregatedMaterials
 
-        const blA = a.backLaminate || ''
-        const blB = b.backLaminate || ''
-        if (blA.localeCompare(blB) !== 0) return blA.localeCompare(blB)
+  const sortedBoardMaterials = [...boardMaterials].sort((a, b) => {
+    const thkA = a.thickness || ''
+    const thkB = b.thickness || ''
+    const numA = parseFloat((thkA.match(/\d+(\.\d+)?/) || [])[0] || '999')
+    const numB = parseFloat((thkB.match(/\d+(\.\d+)?/) || [])[0] || '999')
+    if (numA !== numB) return numA - numB
+    if (thkA.localeCompare(thkB) !== 0) return thkA.localeCompare(thkB)
 
-        const bmA = a.baseMaterial || a.name || ''
-        const bmB = b.baseMaterial || b.name || ''
-        if (bmA.localeCompare(bmB) !== 0) return bmA.localeCompare(bmB)
+    const flA = a.frontLaminate || ''
+    const flB = b.frontLaminate || ''
+    if (flA.localeCompare(flB) !== 0) return flA.localeCompare(flB)
 
-        return (a.unit || '').localeCompare(b.unit || '')
-      })
-    : aggregatedMaterials
+    const blA = a.backLaminate || ''
+    const blB = b.backLaminate || ''
+    if (blA.localeCompare(blB) !== 0) return blA.localeCompare(blB)
 
-  const totalAggregatedItems = isCabinetScope ? sortedCabinetMaterials.length : aggregatedMaterials.length
-  const totalProjectQty = (isCabinetScope ? sortedCabinetMaterials : aggregatedMaterials).reduce(
+    const bmA = a.baseMaterial || ''
+    const bmB = b.baseMaterial || ''
+    if (bmA.localeCompare(bmB) !== 0) return bmA.localeCompare(bmB)
+
+    return (a.unit || '').localeCompare(b.unit || '')
+  })
+
+  const totalAggregatedItems = isBoardScope ? (sortedBoardMaterials.length + otherMaterials.length) : aggregatedMaterials.length
+  const totalProjectQty = (isBoardScope ? [...sortedBoardMaterials, ...otherMaterials] : aggregatedMaterials).reduce(
     (sum, item) => sum + (Number(item.finalQuantity) || 0),
     0,
   )
@@ -546,175 +559,323 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
 
         {/* Aggregated Summary Table */}
         <View style={styles.table}>
-          {isCabinetScope ? (
-            /* Cabinet Layout: SL NO | Thickness | Front Laminate | Back Laminate | Base Material | Unit */
+          {isBoardScope ? (
+            /* Board Specification Layout (Cabinets & Wall Paneling Boards): SL NO | Thickness | Front Laminate | Back Laminate | Base Material | Unit */
             <>
-              <View style={styles.tHead}>
-                <Text style={[styles.thCol, { width: '7%', textAlign: 'center' }]}>SL NO</Text>
-                <Text style={[styles.thCol, { width: '13%', textAlign: 'center' }]}>Thickness</Text>
-                <Text style={[styles.thCol, { width: '24%' }]}>Front Laminate</Text>
-                <Text style={[styles.thCol, { width: '24%' }]}>Back Laminate</Text>
-                <Text style={[styles.thCol, { width: '20%' }]}>Base Material</Text>
-                <Text style={[styles.thCol, { width: '12%', textAlign: 'center', borderRightWidth: 0 }]}>Unit</Text>
-              </View>
+              {sortedBoardMaterials.length > 0 && (
+                <>
+                  <View style={styles.tHead}>
+                    <Text style={[styles.thCol, { width: '7%', textAlign: 'center' }]}>SL NO</Text>
+                    <Text style={[styles.thCol, { width: '13%', textAlign: 'center' }]}>Thickness</Text>
+                    <Text style={[styles.thCol, { width: '24%' }]}>Front Laminate</Text>
+                    <Text style={[styles.thCol, { width: '24%' }]}>Back Laminate</Text>
+                    <Text style={[styles.thCol, { width: '20%' }]}>Base Material</Text>
+                    <Text style={[styles.thCol, { width: '12%', textAlign: 'center', borderRightWidth: 0 }]}>Unit</Text>
+                  </View>
 
-              {sortedCabinetMaterials.length === 0 ? (
-                <View style={[styles.tRow, { padding: 8, justifyContent: 'center' }]}>
-                  <Text style={{ fontSize: 8, color: '#718096' }}>No cabinet requisition materials specified in this category.</Text>
-                </View>
-              ) : (
-                sortedCabinetMaterials.map((mat, idx) => {
-                  const currentThk = mat.thickness || '—'
-                  const prevThk = idx > 0 ? sortedCabinetMaterials[idx - 1].thickness || '—' : ''
-                  const nextThk = idx < sortedCabinetMaterials.length - 1 ? sortedCabinetMaterials[idx + 1].thickness || '—' : ''
+                  {sortedBoardMaterials.map((mat, idx) => {
+                    const currentThk = mat.thickness || '—'
+                    const prevThk = idx > 0 ? sortedBoardMaterials[idx - 1].thickness || '—' : ''
+                    const nextThk = idx < sortedBoardMaterials.length - 1 ? sortedBoardMaterials[idx + 1].thickness || '—' : ''
 
-                  const isNewThicknessGroup = idx === 0 || currentThk !== prevThk
-                  const isLastInThicknessGroup = idx === sortedCabinetMaterials.length - 1 || currentThk !== nextThk
+                    const isNewThicknessGroup = idx === 0 || currentThk !== prevThk
+                    const isLastInThicknessGroup = idx === sortedBoardMaterials.length - 1 || currentThk !== nextThk
 
-                  const isPvc = (mat.baseMaterial || mat.name || '').toLowerCase().includes('pvc')
-                  const isSame = !isPvc && Boolean(
-                    mat.isSameLaminate ||
-                    (mat.frontLaminate && mat.backLaminate && isSameCabinetLaminate(mat.frontLaminate, mat.backLaminate))
-                  )
-                  const mergedLaminate = mat.mergedLaminateText || (isSame ? getMergedLaminateText(mat.frontLaminate || '', mat.backLaminate || '') : '')
-                  const displayQty = `${Number(mat.finalQuantity).toFixed(1).replace(/\.0$/, '')} ${mat.unit || 'Pcs'}`
+                    const isPvc = (mat.baseMaterial || mat.name || '').toLowerCase().includes('pvc')
+                    const isSame = !isPvc && Boolean(
+                      mat.isSameLaminate ||
+                      (mat.frontLaminate && mat.backLaminate && isSameCabinetLaminate(mat.frontLaminate, mat.backLaminate))
+                    )
+                    const mergedLaminate = mat.mergedLaminateText || (isSame ? getMergedLaminateText(mat.frontLaminate || '', mat.backLaminate || '') : '')
+                    const displayQty = `${Number(mat.finalQuantity).toFixed(1).replace(/\.0$/, '')} ${mat.unit || 'Pcs'}`
 
-                  return (
-                    <View
-                      key={mat.key || idx}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'stretch',
-                        minHeight: 19,
-                        backgroundColor: idx % 2 === 1 ? '#fffdfa' : '#ffffff',
-                      }}
-                      wrap={false}
-                    >
-                      {/* 1. SL NO */}
+                    return (
                       <View
-                        style={[
-                          styles.tdCol,
-                          {
-                            width: '7%',
-                            borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
-                            borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
-                            borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
-                            borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
-                            justifyContent: 'center',
-                          },
-                        ]}
+                        key={mat.key || `board-${idx}`}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'stretch',
+                          minHeight: 19,
+                          backgroundColor: idx % 2 === 1 ? '#fffdfa' : '#ffffff',
+                        }}
+                        wrap={false}
                       >
-                        <Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 7.5 }}>
-                          {String(idx + 1).padStart(2, '0')}
-                        </Text>
-                      </View>
-
-                      {/* 2. THICKNESS (MERGED - WRITTEN 1 TIME PER GROUP) */}
-                      <View
-                        style={[
-                          styles.tdCol,
-                          {
-                            width: '13%',
-                            backgroundColor: '#f8fafc',
-                            borderBottomWidth: isLastInThicknessGroup ? 1 : 0,
-                            borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : 'transparent',
-                            borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
-                            borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : 'transparent',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                          },
-                        ]}
-                      >
-                        {isNewThicknessGroup ? (
-                          <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8.5, textAlign: 'center' }}>
-                            {currentThk}
-                          </Text>
-                        ) : null}
-                      </View>
-
-                      {/* 3 & 4. FRONT & BACK LAMINATE */}
-                      {isPvc ? (
-                        /* MERGED EMPTY WHEN PVC (NO LAMINATE / WATERPROOF BACKING) */
+                        {/* 1. SL NO */}
                         <View
                           style={[
                             styles.tdCol,
                             {
-                              width: '48%',
+                              width: '7%',
+                              borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
+                              borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
+                              borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                              borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                              justifyContent: 'center',
+                            },
+                          ]}
+                        >
+                          <Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 7.5 }}>
+                            {String(idx + 1).padStart(2, '0')}
+                          </Text>
+                        </View>
+
+                        {/* 2. THICKNESS (MERGED - WRITTEN 1 TIME PER GROUP) */}
+                        <View
+                          style={[
+                            styles.tdCol,
+                            {
+                              width: '13%',
                               backgroundColor: '#f8fafc',
-                              borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
-                              borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
+                              borderBottomWidth: isLastInThicknessGroup ? 1 : 0,
+                              borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : 'transparent',
                               borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
-                              borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                              borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : 'transparent',
                               justifyContent: 'center',
-                              paddingHorizontal: 4,
+                              alignItems: 'center',
                             },
                           ]}
                         >
-                          <Text style={{ fontSize: 7.5, color: '#64748b', fontStyle: 'italic' }}>
-                            — (Waterproof Backing · No Laminate)
-                          </Text>
-                          {mat.usedInProducts && mat.usedInProducts.length > 0 ? (
-                            <Text style={{ fontSize: 6, color: '#718096', marginTop: 1 }}>
-                              Used in: {mat.usedInProducts.slice(0, 3).join(', ')}
-                              {mat.usedInProducts.length > 3 ? ` +${mat.usedInProducts.length - 3} more` : ''}
+                          {isNewThicknessGroup ? (
+                            <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8.5, textAlign: 'center' }}>
+                              {currentThk}
                             </Text>
                           ) : null}
                         </View>
-                      ) : isSame ? (
-                        /* MERGED WHEN FRONT AND BACK LAMINATE ARE THE SAME (24% + 24% = 48%) */
-                        <View
-                          style={[
-                            styles.tdCol,
-                            {
-                              width: '48%',
-                              backgroundColor: '#fffdf5',
-                              borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
-                              borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
-                              borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
-                              borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
-                              justifyContent: 'center',
-                              paddingHorizontal: 4,
-                            },
-                          ]}
-                        >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <Text style={{ fontWeight: 'bold', color: '#1a202c', fontSize: 8 }}>
-                              {mergedLaminate || mat.frontLaminate || 'Raw Board'}
-                            </Text>
-                            <Text style={{ fontSize: 6.5, color: GOLD, fontWeight: 'bold' }}>
-                              [Both Sides Same]
-                            </Text>
-                          </View>
-                          {mat.usedInProducts && mat.usedInProducts.length > 0 ? (
-                            <Text style={{ fontSize: 6, color: '#718096', marginTop: 1 }}>
-                              Used in: {mat.usedInProducts.slice(0, 3).join(', ')}
-                              {mat.usedInProducts.length > 3 ? ` +${mat.usedInProducts.length - 3} more` : ''}
-                            </Text>
-                          ) : null}
-                        </View>
-                      ) : (
-                        /* SEPARATE FRONT AND BACK LAMINATE */
-                        <>
+
+                        {/* 3 & 4. FRONT & BACK LAMINATE */}
+                        {isPvc ? (
                           <View
                             style={[
                               styles.tdCol,
                               {
-                                width: '24%',
+                                width: '48%',
+                                backgroundColor: '#f8fafc',
                                 borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
                                 borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
                                 borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
                                 borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
                                 justifyContent: 'center',
+                                paddingHorizontal: 4,
                               },
                             ]}
                           >
-                            <Text style={{ fontWeight: 'bold', color: '#1a202c', fontSize: 8 }}>
-                              {mat.frontLaminate || 'Raw Board'}
+                            <Text style={{ fontSize: 7.5, color: '#64748b', fontStyle: 'italic' }}>
+                              — (Waterproof Backing · No Laminate)
                             </Text>
                             {mat.usedInProducts && mat.usedInProducts.length > 0 ? (
                               <Text style={{ fontSize: 6, color: '#718096', marginTop: 1 }}>
-                                Used in: {mat.usedInProducts.slice(0, 2).join(', ')}
-                                {mat.usedInProducts.length > 2 ? ` +${mat.usedInProducts.length - 2} more` : ''}
+                                Used in: {mat.usedInProducts.slice(0, 3).join(', ')}
+                                {mat.usedInProducts.length > 3 ? ` +${mat.usedInProducts.length - 3} more` : ''}
+                              </Text>
+                            ) : null}
+                          </View>
+                        ) : isSame ? (
+                          <View
+                            style={[
+                              styles.tdCol,
+                              {
+                                width: '48%',
+                                backgroundColor: '#fffdf5',
+                                borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
+                                borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
+                                borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                                borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                                justifyContent: 'center',
+                                paddingHorizontal: 4,
+                              },
+                            ]}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                              <Text style={{ fontWeight: 'bold', color: '#1a202c', fontSize: 8 }}>
+                                {mergedLaminate || mat.frontLaminate || 'Raw Board'}
+                              </Text>
+                              <Text style={{ fontSize: 6.5, color: GOLD, fontWeight: 'bold' }}>
+                                [Both Sides Same]
+                              </Text>
+                            </View>
+                            {mat.usedInProducts && mat.usedInProducts.length > 0 ? (
+                              <Text style={{ fontSize: 6, color: '#718096', marginTop: 1 }}>
+                                Used in: {mat.usedInProducts.slice(0, 3).join(', ')}
+                                {mat.usedInProducts.length > 3 ? ` +${mat.usedInProducts.length - 3} more` : ''}
+                              </Text>
+                            ) : null}
+                          </View>
+                        ) : (
+                          <>
+                            <View
+                              style={[
+                                styles.tdCol,
+                                {
+                                  width: '24%',
+                                  borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
+                                  borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
+                                  borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                                  borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                                  justifyContent: 'center',
+                                },
+                              ]}
+                            >
+                              <Text style={{ fontWeight: 'bold', color: '#1a202c', fontSize: 8 }}>
+                                {mat.frontLaminate || 'Raw Board'}
+                              </Text>
+                              {mat.usedInProducts && mat.usedInProducts.length > 0 ? (
+                                <Text style={{ fontSize: 6, color: '#718096', marginTop: 1 }}>
+                                  Used in: {mat.usedInProducts.slice(0, 2).join(', ')}
+                                  {mat.usedInProducts.length > 2 ? ` +${mat.usedInProducts.length - 2} more` : ''}
+                                </Text>
+                              ) : null}
+                            </View>
+
+                            <View
+                              style={[
+                                styles.tdCol,
+                                {
+                                  width: '24%',
+                                  borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
+                                  borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
+                                  borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                                  borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                                  justifyContent: 'center',
+                                },
+                              ]}
+                            >
+                              <Text style={{ color: '#2d3748', fontSize: 8 }}>
+                                {mat.backLaminate || 'Raw Board'}
+                              </Text>
+                            </View>
+                          </>
+                        )}
+
+                        {/* 5. BASE MATERIAL (Shows empty block if base material is missing) */}
+                        <View
+                          style={[
+                            styles.tdCol,
+                            {
+                              width: '20%',
+                              borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
+                              borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
+                              borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                              borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                              justifyContent: 'center',
+                            },
+                          ]}
+                        >
+                          <Text style={{ fontWeight: 'bold', color: '#2d3748', fontSize: 8 }}>
+                            {mat.baseMaterial || ''}
+                          </Text>
+                        </View>
+
+                        {/* 6. UNIT */}
+                        <View
+                          style={[
+                            styles.tdCol,
+                            {
+                              width: '12%',
+                              borderRightWidth: 0,
+                              borderBottomWidth: 0.5,
+                              borderBottomColor: BORDER,
+                              borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
+                              borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                              justifyContent: 'center',
+                            },
+                          ]}
+                        >
+                          <Text style={{ textAlign: 'center', fontWeight: 'bold', color: PRIMARY, fontSize: 8.5 }}>
+                            {displayQty}
+                          </Text>
+                        </View>
+                      </View>
+                    )
+                  })}
+                </>
+              )}
+
+              {sortedBoardMaterials.length === 0 && otherMaterials.length === 0 && (
+                <View style={[styles.tRow, { padding: 8, justifyContent: 'center' }]}>
+                  <Text style={{ fontSize: 8, color: '#718096' }}>No requisition materials specified in this category.</Text>
+                </View>
+              )}
+
+              {/* Other materials (Decorative panels, screws, fasteners, adhesives) */}
+              {otherMaterials.length > 0 && (
+                <View style={{ marginTop: sortedBoardMaterials.length > 0 ? 8 : 0 }}>
+                  <View style={styles.subSectionBanner}>
+                    <Text style={styles.subSectionTitle}>
+                      {isWallPanelingScope ? 'Decorative Panels, Hardware & Supplies' : 'Additional Materials & Hardware'}
+                    </Text>
+                    <Text style={{ fontSize: 7, color: '#718096' }}>
+                      {otherMaterials.length} item{otherMaterials.length === 1 ? '' : 's'}
+                    </Text>
+                  </View>
+                  <View style={styles.table}>
+                    <View style={styles.tHead}>
+                      <Text style={[styles.thCol, { width: '7%', textAlign: 'center' }]}>SL NO</Text>
+                      <Text style={[styles.thCol, { width: '26%' }]}>Product Type</Text>
+                      <Text style={[styles.thCol, { width: '50%' }]}>Material Description</Text>
+                      <Text style={[styles.thCol, { width: '17%', textAlign: 'center', borderRightWidth: 0 }]}>Unit</Text>
+                    </View>
+                    {otherMaterials.map((mat, idx) => {
+                      const currentType = (mat.productType || mat.subTypeLabel || mat.category || '')
+                        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+                        .trim()
+                      const prevType = idx > 0
+                        ? (otherMaterials[idx - 1].productType || otherMaterials[idx - 1].subTypeLabel || otherMaterials[idx - 1].category || '')
+                            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+                            .trim()
+                        : ''
+                      const nextType = idx < otherMaterials.length - 1
+                        ? (otherMaterials[idx + 1].productType || otherMaterials[idx + 1].subTypeLabel || otherMaterials[idx + 1].category || '')
+                            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+                            .trim()
+                        : ''
+
+                      const isNewGroup = idx === 0 || currentType !== prevType
+                      const isLastInGroup = idx === otherMaterials.length - 1 || currentType !== nextType
+                      const displayQty = `${Number(mat.finalQuantity).toFixed(1).replace(/\.0$/, '')} ${mat.unit || 'Pcs'}`
+
+                      return (
+                        <View
+                          key={mat.key || `other-${idx}`}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'stretch',
+                            minHeight: 19,
+                            backgroundColor: idx % 2 === 1 ? '#fffdfa' : '#ffffff',
+                          }}
+                          wrap={false}
+                        >
+                          <View
+                            style={[
+                              styles.tdCol,
+                              {
+                                width: '7%',
+                                borderBottomWidth: isLastInGroup ? 1 : 0.5,
+                                borderBottomColor: isLastInGroup ? '#94a3b8' : BORDER,
+                                justifyContent: 'center',
+                              },
+                            ]}
+                          >
+                            <Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 7.5 }}>
+                              {String(sortedBoardMaterials.length + idx + 1).padStart(2, '0')}
+                            </Text>
+                          </View>
+
+                          <View
+                            style={[
+                              styles.tdCol,
+                              {
+                                width: '26%',
+                                backgroundColor: '#f8fafc',
+                                borderBottomWidth: isLastInGroup ? 1 : 0,
+                                borderBottomColor: isLastInGroup ? '#94a3b8' : 'transparent',
+                                justifyContent: isNewGroup ? 'flex-start' : 'center',
+                                paddingTop: isNewGroup ? 4 : 0,
+                              },
+                            ]}
+                          >
+                            {isNewGroup ? (
+                              <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8 }}>
+                                {currentType}
                               </Text>
                             ) : null}
                           </View>
@@ -723,191 +884,45 @@ export function RequisitionDocumentPdf({ data }: { data: RequisitionPdfData }) {
                             style={[
                               styles.tdCol,
                               {
-                                width: '24%',
-                                borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
-                                borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
-                                borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
-                                borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
+                                width: '50%',
+                                borderBottomWidth: isLastInGroup ? 1 : 0.5,
+                                borderBottomColor: isLastInGroup ? '#94a3b8' : BORDER,
                                 justifyContent: 'center',
                               },
                             ]}
                           >
-                            <Text style={{ color: '#2d3748', fontSize: 8 }}>
-                              {mat.backLaminate || 'Raw Board'}
+                            <Text style={{ fontWeight: 'bold', color: '#1a202c', fontSize: 8 }}>
+                              {mat.materialDescription || mat.name}
+                            </Text>
+                            {mat.usedInProducts && mat.usedInProducts.length > 0 ? (
+                              <Text style={{ fontSize: 6.5, color: '#718096', marginTop: 1 }}>
+                                Used in: {mat.usedInProducts.slice(0, 3).join(', ')}
+                                {mat.usedInProducts.length > 3 ? ` +${mat.usedInProducts.length - 3} more` : ''}
+                              </Text>
+                            ) : null}
+                          </View>
+
+                          <View
+                            style={[
+                              styles.tdCol,
+                              {
+                                width: '17%',
+                                borderRightWidth: 0,
+                                borderBottomWidth: isLastInGroup ? 1 : 0.5,
+                                borderBottomColor: isLastInGroup ? '#94a3b8' : BORDER,
+                                justifyContent: 'center',
+                              },
+                            ]}
+                          >
+                            <Text style={{ textAlign: 'center', fontWeight: 'bold', color: PRIMARY, fontSize: 8.5 }}>
+                              {displayQty}
                             </Text>
                           </View>
-                        </>
-                      )}
-
-                      {/* 5. BASE MATERIAL */}
-                      <View
-                        style={[
-                          styles.tdCol,
-                          {
-                            width: '20%',
-                            borderBottomWidth: isLastInThicknessGroup ? 1 : 0.5,
-                            borderBottomColor: isLastInThicknessGroup ? '#94a3b8' : BORDER,
-                            borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
-                            borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
-                            justifyContent: 'center',
-                          },
-                        ]}
-                      >
-                        <Text style={{ fontWeight: 'bold', color: '#2d3748', fontSize: 8 }}>
-                          {mat.baseMaterial || ''}
-                        </Text>
-                      </View>
-
-                      {/* 6. UNIT */}
-                      <View
-                        style={[
-                          styles.tdCol,
-                          {
-                            width: '12%',
-                            borderRightWidth: 0,
-                            borderBottomWidth: 0.5,
-                            borderBottomColor: BORDER,
-                            borderTopWidth: isNewThicknessGroup && idx > 0 ? 1 : 0,
-                            borderTopColor: isNewThicknessGroup && idx > 0 ? '#1f363d' : BORDER,
-                            justifyContent: 'center',
-                          },
-                        ]}
-                      >
-                        <Text style={{ textAlign: 'center', fontWeight: 'bold', color: PRIMARY, fontSize: 8.5 }}>
-                          {displayQty}
-                        </Text>
-                      </View>
-                    </View>
-                  )
-                })
-              )}
-            </>
-          ) : isWallPanelingScope ? (
-            /* 4-Column Layout: SL NO | Product Type | Material Description | Unit */
-            <>
-              <View style={styles.tHead}>
-                <Text style={[styles.thCol, { width: '7%', textAlign: 'center' }]}>SL NO</Text>
-                <Text style={[styles.thCol, { width: '26%' }]}>Product Type</Text>
-                <Text style={[styles.thCol, { width: '50%' }]}>Material Description</Text>
-                <Text style={[styles.thCol, { width: '17%', textAlign: 'center', borderRightWidth: 0 }]}>Unit</Text>
-              </View>
-
-              {aggregatedMaterials.length === 0 ? (
-                <View style={[styles.tRow, { padding: 8, justifyContent: 'center' }]}>
-                  <Text style={{ fontSize: 8, color: '#718096' }}>No requisition materials specified in this category.</Text>
+                        </View>
+                      )
+                    })}
+                  </View>
                 </View>
-              ) : (
-                aggregatedMaterials.map((mat, idx) => {
-                  const currentType = (mat.productType || mat.subTypeLabel || mat.category || '')
-                    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
-                    .trim()
-                  const prevType = idx > 0
-                    ? (aggregatedMaterials[idx - 1].productType || aggregatedMaterials[idx - 1].subTypeLabel || aggregatedMaterials[idx - 1].category || '')
-                        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
-                        .trim()
-                    : ''
-                  const nextType = idx < aggregatedMaterials.length - 1
-                    ? (aggregatedMaterials[idx + 1].productType || aggregatedMaterials[idx + 1].subTypeLabel || aggregatedMaterials[idx + 1].category || '')
-                        .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
-                        .trim()
-                    : ''
-
-                  const isNewGroup = idx === 0 || currentType !== prevType
-                  const isLastInGroup = idx === aggregatedMaterials.length - 1 || currentType !== nextType
-                  const displayQty = `${Number(mat.finalQuantity).toFixed(1).replace(/\.0$/, '')} ${mat.unit || 'Pcs'}`
-
-                  return (
-                    <View
-                      key={mat.key || idx}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'stretch',
-                        minHeight: 19,
-                        backgroundColor: idx % 2 === 1 ? '#fffdfa' : '#ffffff',
-                      }}
-                      wrap={false}
-                    >
-                      {/* 1. SL NO */}
-                      <View
-                        style={[
-                          styles.tdCol,
-                          {
-                            width: '7%',
-                            borderBottomWidth: isLastInGroup ? 1 : 0.5,
-                            borderBottomColor: isLastInGroup ? '#94a3b8' : BORDER,
-                            justifyContent: 'center',
-                          },
-                        ]}
-                      >
-                        <Text style={{ textAlign: 'center', fontWeight: 'bold', fontSize: 7.5 }}>
-                          {String(idx + 1).padStart(2, '0')}
-                        </Text>
-                      </View>
-
-                      {/* 2. PRODUCT TYPE (MERGED) */}
-                      <View
-                        style={[
-                          styles.tdCol,
-                          {
-                            width: '26%',
-                            backgroundColor: '#f8fafc',
-                            borderBottomWidth: isLastInGroup ? 1 : 0,
-                            borderBottomColor: isLastInGroup ? '#94a3b8' : 'transparent',
-                            justifyContent: isNewGroup ? 'flex-start' : 'center',
-                            paddingTop: isNewGroup ? 4 : 0,
-                          },
-                        ]}
-                      >
-                        {isNewGroup ? (
-                          <Text style={{ fontWeight: 'bold', color: PRIMARY, fontSize: 8 }}>
-                            {currentType}
-                          </Text>
-                        ) : null}
-                      </View>
-
-                      {/* 3. MATERIAL DESCRIPTION */}
-                      <View
-                        style={[
-                          styles.tdCol,
-                          {
-                            width: '50%',
-                            borderBottomWidth: isLastInGroup ? 1 : 0.5,
-                            borderBottomColor: isLastInGroup ? '#94a3b8' : BORDER,
-                            justifyContent: 'center',
-                          },
-                        ]}
-                      >
-                        <Text style={{ fontWeight: 'bold', color: '#1a202c', fontSize: 8 }}>
-                          {mat.materialDescription || mat.name}
-                        </Text>
-                        {mat.usedInProducts && mat.usedInProducts.length > 0 ? (
-                          <Text style={{ fontSize: 6.5, color: '#718096', marginTop: 1 }}>
-                            Used in: {mat.usedInProducts.slice(0, 3).join(', ')}
-                            {mat.usedInProducts.length > 3 ? ` +${mat.usedInProducts.length - 3} more` : ''}
-                          </Text>
-                        ) : null}
-                      </View>
-
-                      {/* 4. UNIT / QTY */}
-                      <View
-                        style={[
-                          styles.tdCol,
-                          {
-                            width: '17%',
-                            borderRightWidth: 0,
-                            borderBottomWidth: isLastInGroup ? 1 : 0.5,
-                            borderBottomColor: isLastInGroup ? '#94a3b8' : BORDER,
-                            justifyContent: 'center',
-                          },
-                        ]}
-                      >
-                        <Text style={{ textAlign: 'center', fontWeight: 'bold', color: PRIMARY, fontSize: 8.5 }}>
-                          {displayQty}
-                        </Text>
-                      </View>
-                    </View>
-                  )
-                })
               )}
             </>
           ) : (

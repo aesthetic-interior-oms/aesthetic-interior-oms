@@ -196,31 +196,60 @@ export function formatMaterialItem(
   const wpSub = (section?.wallPanelingSubType || attrs.wpSubType || '') as string
   const unit = cleanString(item.unit) || 'Pcs'
 
-  // 1. BOARDS
-  if (wpSub === 'CORE_BOARDS' || (item.workCategory === 'WALL_PANELING' && (attrs.baseMaterial || attrs.laminateTopSurface))) {
+  // 1. BOARDS (Wall Paneling)
+  if (wpSub === 'CORE_BOARDS' || (item.workCategory === 'WALL_PANELING' && (attrs.baseMaterial || attrs.laminateTopSurface || attrs.coreThickness))) {
     const productType = 'Boards'
-    const base = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string))
-    const isPvc = base.toLowerCase().includes('pvc')
-    const thk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || (isPvc ? '3mm' : '12mm')
+    const rawBase = cleanString((attrs.baseMaterial as string) || (attrs.coreSubstrateType as string))
+    const isPvc = rawBase.toLowerCase().includes('pvc') || cleanString(item.materialName).toLowerCase().includes('pvc')
+    const rawThk = cleanString((attrs.coreThickness as string) || (attrs.thickness as string)) || (isPvc ? '3mm' : '12mm')
+    const thk = /^\d+$/.test(rawThk) ? `${rawThk}mm` : rawThk
+    const makeType = rawBase ? (attrs.boardMakeType === 'HANDMADE' ? ' [Hand]' : ' [Factory]') : ''
+    const baseMaterial = rawBase ? `${rawBase}${makeType}` : ''
+
     const rawFl = cleanString((attrs.laminateTopSurface as string) || (attrs.frontLaminateCode as string))
     const rawBl = cleanString((attrs.surfaceCodeFinish as string) || (attrs.backLaminateCode as string))
-    const makeType = base ? (attrs.boardMakeType === 'HANDMADE' ? ' [Hand]' : ' [Factory]') : ''
 
-    let materialDescription = ''
+    const usage = cleanString((attrs.functionalUsage as string) || (attrs.usage as string) || item.productionPhase) || (isPvc ? 'Waterproof Backing' : '')
+    const usagePrefix = usage ? `${usage}: ` : ''
+
     if (isPvc) {
-      const usage = cleanString((attrs.functionalUsage as string) || (attrs.usage as string) || item.productionPhase) || 'Waterproof Backing'
-      materialDescription = [usage ? `${usage}: ${thk}` : thk, base ? `${base}${makeType}` : ''].filter(Boolean).join(' + ')
-    } else {
-      const fl = rawFl
-        ? (rawFl.toUpperCase().includes('F/L') ? rawFl : `${rawFl} (F/L)`)
-        : 'Raw Board (F/L)'
-      const bl = rawBl
-        ? (rawBl.toUpperCase().includes('B/L') ? rawBl : `${rawBl} (B/L)`)
-        : 'Raw Board (B/L)'
-      const basePart = base ? `${base}${makeType}` : ''
-      materialDescription = [thk, basePart, fl, bl].filter(Boolean).join(' + ')
+      const materialDescription = [usagePrefix ? usagePrefix.replace(/: $/, '') : '', thk, baseMaterial].filter(Boolean).join(' + ')
+      return {
+        productType,
+        materialDescription,
+        unit,
+        isCabinet: true,
+        thickness: thk,
+        frontLaminate: '',
+        backLaminate: '',
+        baseMaterial,
+        isSameLaminate: false,
+        mergedLaminateText: '',
+      }
     }
-    return { productType, materialDescription, unit }
+
+    const isSame = isSameCabinetLaminate(rawFl || 'Raw Board', rawBl)
+    const mergedText = isSame ? getMergedLaminateText(rawFl || 'Raw Board', rawBl) : ''
+    const frontLaminate = rawFl || 'Raw Board'
+    const backLaminate = rawBl || (isSame ? rawFl : 'Raw Board')
+
+    const laminateParts = isSame
+      ? [`${frontLaminate} (Both Sides)`]
+      : [`${frontLaminate} (Front)`, `${backLaminate} (Back)`]
+    const descParts = [thk, baseMaterial, ...laminateParts].filter(Boolean)
+    const materialDescription = `${usagePrefix}${descParts.join(' + ')}`
+    return {
+      productType,
+      materialDescription,
+      unit,
+      isCabinet: true,
+      thickness: thk,
+      frontLaminate,
+      backLaminate,
+      baseMaterial,
+      isSameLaminate: isSame,
+      mergedLaminateText: mergedText,
+    }
   }
 
   // 1b. CABINET / CLOSET BOARDS
@@ -452,7 +481,7 @@ export function RequisitionPdfExportModal({
             const flKey = (formatted.frontLaminate || '').toLowerCase()
             const blKey = (formatted.backLaminate || '').toLowerCase()
             const baseKey = (formatted.baseMaterial || '').toLowerCase()
-            naturalKey = `cabinet::${thkKey}::${flKey}::${blKey}::${baseKey}::${unit.toLowerCase()}`
+            naturalKey = `${it.workCategory.toLowerCase()}::board::${thkKey}::${flKey}::${blKey}::${baseKey}::${unit.toLowerCase()}`
           }
 
           const canonicalKey = manualMerges[naturalKey] || naturalKey
@@ -504,7 +533,10 @@ export function RequisitionPdfExportModal({
     }
 
     const sortedAggregated = Array.from(aggMap.values()).sort((a, b) => {
-      if (selectedCategory === 'CABINETS_CLOSETS') {
+      const isBoardA = Boolean(a.thickness) || a.isCabinet || a.productType === 'Boards' || a.productType === 'Cabinet / Closet Boards'
+      const isBoardB = Boolean(b.thickness) || b.isCabinet || b.productType === 'Boards' || b.productType === 'Cabinet / Closet Boards'
+
+      if (isBoardA && isBoardB) {
         const thkA = a.thickness || ''
         const thkB = b.thickness || ''
         const numA = parseFloat((thkA.match(/\d+(\.\d+)?/) || [])[0] || '999')
@@ -520,12 +552,15 @@ export function RequisitionPdfExportModal({
         const blB = b.backLaminate || ''
         if (blA.localeCompare(blB) !== 0) return blA.localeCompare(blB)
 
-        const bmA = a.baseMaterial || a.name || ''
-        const bmB = b.baseMaterial || b.name || ''
+        const bmA = a.baseMaterial || ''
+        const bmB = b.baseMaterial || ''
         if (bmA.localeCompare(bmB) !== 0) return bmA.localeCompare(bmB)
 
         return (a.unit || '').localeCompare(b.unit || '')
       }
+
+      if (isBoardA && !isBoardB) return -1
+      if (!isBoardA && isBoardB) return 1
 
       const orderA = PRODUCT_TYPE_SORT_ORDER[a.productType || ''] ?? 99
       const orderB = PRODUCT_TYPE_SORT_ORDER[b.productType || ''] ?? 99
@@ -555,15 +590,28 @@ export function RequisitionPdfExportModal({
     )
   }, [productGroups])
 
+  const isBoardCategory = selectedCategory === 'CABINETS_CLOSETS' || selectedCategory === 'WALL_PANELING'
+  const isBoardMat = (m: RequisitionAggregatedMaterial) =>
+    Boolean(m.thickness || m.frontLaminate || m.isCabinet || m.productType === 'Boards' || m.productType === 'Cabinet / Closet Boards')
+
+  const boardMaterials = useMemo(
+    () => aggregatedMaterials.filter(isBoardMat),
+    [aggregatedMaterials]
+  )
+  const otherMaterials = useMemo(
+    () => aggregatedMaterials.filter((m) => !isBoardMat(m)),
+    [aggregatedMaterials]
+  )
+
   const thicknessSpanMap = useMemo(() => {
     const map: Record<number, number> = {}
     let i = 0
-    while (i < aggregatedMaterials.length) {
-      const thk = aggregatedMaterials[i].thickness || '—'
+    while (i < boardMaterials.length) {
+      const thk = boardMaterials[i].thickness || '—'
       let count = 1
       while (
-        i + count < aggregatedMaterials.length &&
-        (aggregatedMaterials[i + count].thickness || '—') === thk
+        i + count < boardMaterials.length &&
+        (boardMaterials[i + count].thickness || '—') === thk
       ) {
         count++
       }
@@ -574,7 +622,7 @@ export function RequisitionPdfExportModal({
       i += count
     }
     return map
-  }, [aggregatedMaterials])
+  }, [boardMaterials])
 
   const handleDownload = async () => {
     if (aggregatedMaterials.length === 0 || totalFilteredRows === 0) {
@@ -797,7 +845,7 @@ export function RequisitionPdfExportModal({
                 <div className="overflow-x-auto max-h-[380px]">
                   <table className="w-full text-xs text-left">
                     <thead className="bg-[#1f363d] text-white uppercase text-[10px] tracking-wider sticky top-0 z-10">
-                      {selectedCategory === 'CABINETS_CLOSETS' ? (
+                      {isBoardCategory ? (
                         <tr>
                           <th className="py-2.5 px-3 w-10 text-center">#</th>
                           <th className="py-2.5 px-3 w-20 text-center">Thickness</th>
@@ -821,88 +869,139 @@ export function RequisitionPdfExportModal({
                       {aggregatedMaterials.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={selectedCategory === 'CABINETS_CLOSETS' ? 7 : 5}
+                            colSpan={isBoardCategory ? 7 : 5}
                             className="py-8 text-center text-muted-foreground"
                           >
                             No materials found for the current selection.
                           </td>
                         </tr>
-                      ) : selectedCategory === 'CABINETS_CLOSETS' ? (
-                        aggregatedMaterials.map((mat, idx) => {
-                          const span = thicknessSpanMap[idx] ?? 1
-                          const isNewGroup = idx === 0 || span > 0
-                          const displayQty = `${Math.round(mat.finalQuantity * 10) / 10} ${mat.unit || 'Pcs'}`
-                          const isSame = Boolean(
-                            mat.isSameLaminate ||
-                              (mat.frontLaminate && mat.backLaminate && isSameCabinetLaminate(mat.frontLaminate, mat.backLaminate)),
-                          )
-                          const mergedLaminate =
-                            mat.mergedLaminateText ||
-                            (isSame ? getMergedLaminateText(mat.frontLaminate, mat.backLaminate) : '')
+                      ) : isBoardCategory ? (
+                        <>
+                          {boardMaterials.map((mat, idx) => {
+                            const span = thicknessSpanMap[idx] ?? 1
+                            const isNewGroup = idx === 0 || span > 0
+                            const displayQty = `${Math.round(mat.finalQuantity * 10) / 10} ${mat.unit || 'Pcs'}`
+                            const isSame = Boolean(
+                              mat.isSameLaminate ||
+                                (mat.frontLaminate && mat.backLaminate && isSameCabinetLaminate(mat.frontLaminate, mat.backLaminate)),
+                            )
+                            const mergedLaminate =
+                              mat.mergedLaminateText ||
+                              (isSame ? getMergedLaminateText(mat.frontLaminate, mat.backLaminate) : '')
 
-                          return (
-                            <tr
-                              key={mat.key || idx}
-                              className={`hover:bg-muted/30 transition-colors ${
-                                isNewGroup && idx > 0 ? 'border-t-2 border-primary/40' : ''
-                              }`}
-                            >
-                              <td className="py-2.5 px-3 text-center font-mono text-muted-foreground">
-                                {String(idx + 1).padStart(2, '0')}
-                              </td>
-                              {span > 0 ? (
-                                <td
-                                  rowSpan={span}
-                                  className="py-2.5 px-3 text-center bg-muted/20 font-bold text-primary align-middle border-r border-border/80"
-                                >
-                                  <span className="block text-xs font-bold">{mat.thickness || '18mm'}</span>
+                            return (
+                              <tr
+                                key={mat.key || `board-${idx}`}
+                                className={`hover:bg-muted/30 transition-colors ${
+                                  isNewGroup && idx > 0 ? 'border-t-2 border-primary/40' : ''
+                                }`}
+                              >
+                                <td className="py-2.5 px-3 text-center font-mono text-muted-foreground">
+                                  {String(idx + 1).padStart(2, '0')}
                                 </td>
-                              ) : null}
-                              {isSame ? (
-                                <td colSpan={2} className="py-2.5 px-3 bg-amber-500/10 text-center">
-                                  <span className="font-bold text-foreground block text-xs">
-                                    {mergedLaminate || mat.frontLaminate || 'Raw Board'}
-                                  </span>
-                                  <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
-                                    [Both Sides Same]
-                                  </span>
-                                </td>
-                              ) : (
-                                <>
-                                  <td className="py-2.5 px-3">
+                                {span > 0 ? (
+                                  <td
+                                    rowSpan={span}
+                                    className="py-2.5 px-3 text-center bg-muted/20 font-bold text-primary align-middle border-r border-border/80"
+                                  >
+                                    <span className="block text-xs font-bold">{mat.thickness || '18mm'}</span>
+                                  </td>
+                                ) : null}
+                                {isSame ? (
+                                  <td colSpan={2} className="py-2.5 px-3 bg-amber-500/10 text-center">
                                     <span className="font-bold text-foreground block text-xs">
-                                      {mat.frontLaminate || 'Raw Board'}
+                                      {mergedLaminate || mat.frontLaminate || 'Raw Board'}
+                                    </span>
+                                    <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
+                                      [Both Sides Same]
                                     </span>
                                   </td>
-                                  <td className="py-2.5 px-3">
-                                    <span className="text-foreground block text-xs">
-                                      {mat.backLaminate || 'Raw Board'}
-                                    </span>
-                                  </td>
-                                </>
-                              )}
-                              <td className="py-2.5 px-3 font-semibold text-foreground">
-                                {mat.baseMaterial || ''}
-                              </td>
-                              <td className="py-2.5 px-3 text-center font-bold text-primary text-xs whitespace-nowrap">
-                                {displayQty}
-                              </td>
-                              <td className="py-2.5 px-3 text-[11px] text-muted-foreground">
-                                <div className="flex flex-wrap gap-1">
-                                  {mat.usedInProducts.map((p, pIdx) => (
-                                    <span
-                                      key={pIdx}
-                                      className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-medium text-foreground truncate max-w-[140px]"
-                                      title={p}
-                                    >
-                                      {p}
-                                    </span>
-                                  ))}
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        })
+                                ) : (
+                                  <>
+                                    <td className="py-2.5 px-3">
+                                      <span className="font-bold text-foreground block text-xs">
+                                        {mat.frontLaminate || 'Raw Board'}
+                                      </span>
+                                    </td>
+                                    <td className="py-2.5 px-3">
+                                      <span className="text-foreground block text-xs">
+                                        {mat.backLaminate || 'Raw Board'}
+                                      </span>
+                                    </td>
+                                  </>
+                                )}
+                                <td className="py-2.5 px-3 font-semibold text-foreground">
+                                  {mat.baseMaterial || ''}
+                                </td>
+                                <td className="py-2.5 px-3 text-center font-bold text-primary text-xs whitespace-nowrap">
+                                  {displayQty}
+                                </td>
+                                <td className="py-2.5 px-3 text-[11px] text-muted-foreground">
+                                  <div className="flex flex-wrap gap-1">
+                                    {mat.usedInProducts.map((p, pIdx) => (
+                                      <span
+                                        key={pIdx}
+                                        className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-medium text-foreground truncate max-w-[140px]"
+                                        title={p}
+                                      >
+                                        {p}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                          {otherMaterials.length > 0 && (
+                            <>
+                              <tr className="bg-muted/80 border-t-2 border-border">
+                                <td colSpan={7} className="py-2 px-3 font-bold text-xs text-foreground uppercase tracking-wider">
+                                  Decorative Panels, Fasteners & Supplies ({otherMaterials.length})
+                                </td>
+                              </tr>
+                              {otherMaterials.map((mat, idx) => {
+                                const isNewGroup = idx === 0 || (mat.productType || mat.subTypeLabel) !== (otherMaterials[idx - 1].productType || otherMaterials[idx - 1].subTypeLabel)
+                                const displayQty = `${Math.round(mat.finalQuantity * 10) / 10} ${mat.unit || 'Pcs'}`
+                                return (
+                                  <tr
+                                    key={mat.key || `other-${idx}`}
+                                    className={`hover:bg-muted/30 transition-colors ${
+                                      isNewGroup && idx > 0 ? 'border-t-2 border-border/90' : ''
+                                    }`}
+                                  >
+                                    <td className="py-2.5 px-3 text-center font-mono text-muted-foreground">
+                                      {String(boardMaterials.length + idx + 1).padStart(2, '0')}
+                                    </td>
+                                    <td className="py-2.5 px-3 bg-muted/20 font-semibold text-xs text-foreground">
+                                      {isNewGroup ? (mat.productType || mat.subTypeLabel || mat.category) : null}
+                                    </td>
+                                    <td colSpan={3} className="py-2.5 px-3">
+                                      <span className="font-bold text-foreground block text-xs">
+                                        {mat.materialDescription || mat.name}
+                                      </span>
+                                    </td>
+                                    <td className="py-2.5 px-3 text-center font-bold text-primary text-xs whitespace-nowrap">
+                                      {displayQty}
+                                    </td>
+                                    <td className="py-2.5 px-3 text-[11px] text-muted-foreground">
+                                      <div className="flex flex-wrap gap-1">
+                                        {mat.usedInProducts.map((p, pIdx) => (
+                                          <span
+                                            key={pIdx}
+                                            className="px-1.5 py-0.5 rounded bg-muted text-[10px] font-medium text-foreground truncate max-w-[140px]"
+                                            title={p}
+                                          >
+                                            {p}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </>
+                          )}
+                        </>
                       ) : (
                         aggregatedMaterials.map((mat, idx) => {
                           const isNewGroup = idx === 0 || (mat.productType || mat.subTypeLabel) !== (aggregatedMaterials[idx - 1].productType || aggregatedMaterials[idx - 1].subTypeLabel)
