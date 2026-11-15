@@ -39,7 +39,9 @@ export function MainLayout({
 
       {/* main column */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header onMenuClick={() => !isBuilder && setSidebarOpen((o) => !o)} />
+        {!isBuilder && (
+          <Header onMenuClick={() => setSidebarOpen((o) => !o)} />
+        )}
         <main className="flex-1 overflow-auto">{children}</main>
       </div>
     </div>

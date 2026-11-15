@@ -13,6 +13,7 @@ import {
   Boxes,
   HelpCircle,
   ChevronDown,
+  ChevronUp,
   ChevronRight,
   ChevronLeft,
   Search,
@@ -418,10 +419,6 @@ export function RequisitionBuilderClient({
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [saveSuccess, setSaveSuccess] = useState<string | null>(null)
-  const [saveError, setSaveError] = useState<string | null>(null)
-  const [isSavedDialogVisible, setIsSavedDialogVisible] = useState(false)
-  const [savedDialogMessage, setSavedDialogMessage] = useState('Saved successfully')
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [lastSavedStatus, setLastSavedStatus] = useState<SaveStatus | null>(
     existingRequisition?.status === 'SUBMITTED' ? 'SUBMITTED' : existingRequisition ? 'DRAFT' : null
@@ -433,6 +430,25 @@ export function RequisitionBuilderClient({
   const [notes, setNotes] = useState<string>(existingRequisition?.notes || '')
   const [boqSavedAccessories, setBoqSavedAccessories] = useState<BoqSavedAccessoryItem[]>(DEFAULT_SAVED_ACCESSORIES)
   const [boqSavedAppliances, setBoqSavedAppliances] = useState<BoqSavedApplianceItem[]>(DEFAULT_SAVED_APPLIANCES)
+
+  const [isScrolled, setIsScrolled] = useState(false)
+  const [isTopDrawerOpen, setIsTopDrawerOpen] = useState(false)
+
+  useEffect(() => {
+    const scrollEl = document.querySelector('main')
+    const handleScroll = () => {
+      const top = scrollEl ? scrollEl.scrollTop : window.scrollY
+      setIsScrolled(top > 40)
+    }
+    scrollEl?.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      scrollEl?.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
+
+  const isDrawerExpanded = !isScrolled || isTopDrawerOpen
 
   useEffect(() => {
     fetch('/api/boq/saved-accessories')
@@ -701,7 +717,7 @@ export function RequisitionBuilderClient({
       }
 
       // If a modal or palette is open, don't navigate slides on arrow keys
-      if (isAddSectionModalOpen || isPdfModalOpen || isAmendmentModalOpen || isSavedDialogVisible) {
+      if (isAddSectionModalOpen || isPdfModalOpen || isAmendmentModalOpen) {
         return
       }
 
@@ -724,7 +740,7 @@ export function RequisitionBuilderClient({
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [productSlides.length, isDrawerOpen, isUsedPaletteOpen, isAddSectionModalOpen, isPdfModalOpen, isAmendmentModalOpen, isSavedDialogVisible, goToSlide])
+  }, [productSlides.length, isDrawerOpen, isUsedPaletteOpen, isAddSectionModalOpen, isPdfModalOpen, isAmendmentModalOpen, goToSlide])
 
   // ── Section helpers ──
   const getSectionsForCard = (cardKey: string): CardSection[] => sectionsMap[cardKey] ?? []
@@ -751,7 +767,7 @@ export function RequisitionBuilderClient({
         (itemsMap[sectionItemKey(cardKey, section.id)] ?? []).some((item) => item.variantAttributes?.sourceScheduleKey === scheduleKey),
       )
       if (alreadyLoaded) {
-        setSaveError(`The ${isLighting ? 'ceiling lighting' : 'electrical devices'} schedule is already loaded for this quotation item. Add rows to the existing section instead of importing it again.`)
+        toast.warning(`The ${isLighting ? 'ceiling lighting' : 'electrical devices'} schedule is already loaded for this quotation item. Add rows to the existing section instead of importing it again.`)
         return
       }
     }
@@ -1315,8 +1331,6 @@ export function RequisitionBuilderClient({
 
   // ── Save / Submit ──
   const saveRequisition = useCallback(async (status: SaveStatus = 'DRAFT', successMessage?: string) => {
-    setSaveSuccess(null)
-    setSaveError(null)
     try {
       const res = await saveMaterialRequisition({
         leadId: lead.id,
@@ -1332,12 +1346,15 @@ export function RequisitionBuilderClient({
           (status === 'SUBMITTED'
             ? 'Material requisition submitted to Procurement team successfully!'
             : 'Saved successfully')
-        setSaveSuccess(msg)
-        setSavedDialogMessage(status === 'SUBMITTED' ? 'Requisition Submitted!' : 'Saved successfully')
-        setIsSavedDialogVisible(true)
-        setTimeout(() => {
-          setIsSavedDialogVisible(false)
-        }, 1800)
+        if (status === 'SUBMITTED') {
+          toast.success(msg, { description: 'Material requisition sent to Procurement team.', duration: 3500 })
+        } else {
+          toast.success('✨ All changes saved', {
+            description: 'Your BOQ is safely up to date.',
+            duration: 2200,
+            className: 'border-emerald-200 bg-emerald-50 text-emerald-950 shadow-lg dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-50',
+          })
+        }
         // Only refresh server state for status changes (submit/amendment), not for routine draft saves.
         // Refreshing on every draft save can cause Next.js to re-render server components and
         // lose unsaved in-progress edits if the DB write and client state diverge momentarily.
@@ -1346,10 +1363,12 @@ export function RequisitionBuilderClient({
         }
         return true
       }
-      setSaveError(res.error || 'Failed to save material requisition.')
+      const err = res.error || 'Failed to save material requisition.'
+      toast.error('Not saved', { description: err })
       return false
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Failed to save material requisition.')
+      const err = error instanceof Error ? error.message : 'Failed to save material requisition.'
+      toast.error('Not saved', { description: err })
       return false
     }
   }, [detailQuotation?.id, lead.id, notes, requisitionItems, router])
@@ -1358,8 +1377,7 @@ export function RequisitionBuilderClient({
     if (status === 'SUBMITTED') {
       const pending = requisitionItems.filter((item) => item.variantAttributes?.sourceScheduleKey && item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION')
       if (pending.length) {
-        setSaveError(`${pending.length} imported schedule ${pending.length === 1 ? 'quantity needs' : 'quantities need'} confirmation. Fill those quantities before submitting.`)
-        setSaveSuccess(null)
+        toast.error(`${pending.length} imported schedule ${pending.length === 1 ? 'quantity needs' : 'quantities need'} confirmation. Fill those quantities before submitting.`)
         return
       }
       const groups = new Map<string, { label: string; expected: number; actual: number }>()
@@ -1377,8 +1395,7 @@ export function RequisitionBuilderClient({
       }
       const mismatch = [...groups.values()].find((group) => Math.abs(group.actual - group.expected) > 0.001)
       if (mismatch) {
-        setSaveError(`${mismatch.label} must total ${mismatch.expected} pcs; current total is ${mismatch.actual} pcs.`)
-        setSaveSuccess(null)
+        toast.error(`${mismatch.label} must total ${mismatch.expected} pcs; current total is ${mismatch.actual} pcs.`)
         return
       }
     }
@@ -1400,7 +1417,7 @@ export function RequisitionBuilderClient({
 
   const handleDownloadPdf = useCallback(async () => {
     if (totalMaterialRows === 0) {
-      setSaveError('Add at least one material row before downloading the PDF.')
+      toast.error('Add at least one material row before downloading the PDF.')
       return
     }
 
@@ -1622,7 +1639,7 @@ export function RequisitionBuilderClient({
       doc.save(`material-requisition-${safeFilePart(lead.name)}-${safeFilePart(reqNo)}.pdf`)
     } catch (error) {
       console.error(error)
-      setSaveError('Failed to generate requisition PDF. Please try again.')
+      toast.error('Failed to generate requisition PDF. Please try again.')
     } finally {
       setIsPdfGenerating(false)
     }
@@ -1656,224 +1673,202 @@ export function RequisitionBuilderClient({
       {/* ── Global Autocomplete Lists ── */}
       <BoardDatalists />
 
-      {/* ── Top Bar ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/80 pb-4">
-        <div className="space-y-1">
-          <Link
-            href="/crm/boq/assigned-task"
-            className="inline-flex items-center text-xs font-medium text-muted-foreground hover:text-foreground mb-1 transition-colors"
-          >
-            <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Assigned Tasks
-          </Link>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
-            <Boxes className="w-6 h-6 text-primary" />
-            Material Requisition Builder
-          </h1>
-          <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
-            <span>Project: <strong className="text-foreground">{lead.name}</strong></span>
-            <span>•</span>
-            <span>Phone: {lead.phone || 'N/A'}</span>
-            <span>•</span>
-            <span>Location: {lead.location || 'N/A'}</span>
-          </p>
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Auto-save status indicator */}
-          {autoSaveStatus === 'saving' && (
-            <span className="text-[11px] text-muted-foreground animate-pulse">Auto-saving…</span>
-          )}
-          {autoSaveStatus === 'saved' && (
-            <span className="text-[11px] text-emerald-600 flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" /> Auto-saved
-            </span>
-          )}
-          {lastSavedAt && autoSaveStatus === 'idle' && (
-            <span className="text-[11px] text-muted-foreground hidden md:inline">
-              Last saved: {lastSavedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
-          <button
-            onClick={() => handleSave('DRAFT')}
-            disabled={isPending}
-            className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-xs hover:bg-accent transition-colors disabled:opacity-50"
-          >
-            <Save className="w-4 h-4 mr-2 text-amber-500" />
-            Save Draft
-            <span className="ml-2 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">Ctrl+S</span>
-          </button>
-          <button
-            onClick={() => setIsPdfModalOpen(true)}
-            disabled={isPending || totalMaterialRows === 0}
-            className="inline-flex items-center justify-center rounded-lg border border-input bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-xs hover:bg-accent transition-colors disabled:opacity-50"
-          >
-            <Receipt className="w-4 h-4 mr-2 text-blue-600" />
-            Requisition PDF
-          </button>
-          <button
-            onClick={() => handleSave('SUBMITTED')}
-            disabled={isPending || totalMaterialRows === 0}
-            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors disabled:opacity-50"
-          >
-            <Send className="w-4 h-4 mr-2" />
-            Submit Requisition
-          </button>
-        </div>
-      </div>
-
-      {/* ── Success Banner ── */}
-      {saveSuccess && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 dark:text-emerald-200 text-sm flex items-center gap-2.5">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-          {saveSuccess}
-        </div>
-      )}
-
-      {saveError && (
-        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm flex items-center gap-2.5">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          {saveError}
-        </div>
-      )}
-
-      {/* ── Procurement Rejection Banner ── */}
-      {existingRequisition?.status === 'REJECTED' && (
-        <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-900 dark:text-rose-200 text-sm space-y-1">
-          <div className="flex items-center gap-2 font-bold text-rose-700 dark:text-rose-300">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <span>Requisition Rejected by Procurement Department</span>
-          </div>
-          <p className="text-xs pl-7">
-            Reason: <strong className="font-semibold">{existingRequisition.rejectionReason || 'Please review and adjust specifications before resubmitting.'}</strong>
-          </p>
-          <p className="text-[11px] pl-7 text-muted-foreground">
-            Update the material rows and click &quot;Submit Requisition&quot; again to resend for procurement review.
-          </p>
-        </div>
-      )}
-
-      {/* ── In Procurement Active Banner & Amendment ── */}
-      {existingRequisition?.status === 'IN_PROCUREMENT' && (
-        <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-900 dark:text-blue-200 text-sm space-y-1">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div className="flex items-center gap-2 font-bold text-blue-700 dark:text-blue-300">
-              <Truck className="w-5 h-5 flex-shrink-0" />
-              <span>Requisition is In Active Procurement</span>
-            </div>
+      {/* ── Sticky Workspace Header with Product List Button in Top-Left Corner ── */}
+      <header className="sticky top-0 z-40 -mx-4 md:-mx-6 -mt-4 md:-mt-6 mb-4 bg-card/95 backdrop-blur-md border-b border-border/80 px-4 md:px-6 py-2.5 shadow-xs transition-all">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Top-Left Corner: Prominent Product List Button + Stepper */}
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsAmendmentModalOpen(true)}
-              className="px-3 py-1 text-xs font-semibold rounded bg-blue-600 hover:bg-blue-700 text-white shrink-0"
+              onClick={() => setIsDrawerOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 px-3.5 py-2 text-xs font-black shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+              title="Open Product Navigator (Left / Right Arrow)"
             >
-              + Propose BOQ Amendment
+              <Layers className="w-4 h-4" />
+              <span>Product List</span>
+              <span className="rounded-md bg-primary-foreground/20 px-1.5 py-0.5 text-[11px] font-black">
+                {safeSlideIndex + 1}/{productSlides.length}
+              </span>
+            </button>
+
+            {/* Quick slide step chevrons & title */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => goToSlide((prev) => Math.max(0, prev - 1))}
+                disabled={safeSlideIndex === 0}
+                className="p-1.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 transition-colors cursor-pointer"
+                title="Previous Product"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => goToSlide((prev) => Math.min(productSlides.length - 1, prev + 1))}
+                disabled={safeSlideIndex === productSlides.length - 1}
+                className="p-1.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 transition-colors cursor-pointer"
+                title="Next Product"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+              <span className="text-xs sm:text-sm font-bold text-foreground truncate max-w-[120px] sm:max-w-[220px] ml-1">
+                {currentSlide?.title || 'Quotation Product'}
+              </span>
+            </div>
+
+            {/* Used Materials Shortcut in header */}
+            <button
+              onClick={() => setIsUsedPaletteOpen(true)}
+              className="hidden lg:inline-flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-800 dark:text-amber-300 shadow-2xs hover:bg-amber-500/20 transition-colors cursor-pointer ml-1"
+              title="Open Used Materials in this Project"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Used Materials</span>
             </button>
           </div>
-          <p className="text-xs">
-            Purchase orders are currently active. Direct overwrite is locked. If site engineer or architect changed requirements, click &quot;Propose BOQ Amendment&quot; to notify the procurement team.
-          </p>
-        </div>
-      )}
 
-      {/* ── Executive KPI Summary Strip (Compact) ── */}
-      {detailQuotation ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-          {/* KPI 1: Requisition Coverage Progress - Compact */}
-          <div className="rounded-lg border border-blue-500/25 bg-blue-500/[0.04] px-3.5 py-2 flex items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-6 h-6 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300 flex items-center justify-center shrink-0">
-                <Layers className="w-3.5 h-3.5" />
-              </div>
-              <div className="min-w-0">
+          {/* Top-Right: Auto-save status & Collapsible Project Info Drawer Toggle */}
+          <div className="flex items-center gap-2">
+            {/* Project Details & KPIs Drawer Toggle */}
+            <button
+              onClick={() => setIsTopDrawerOpen((v) => !v)}
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all cursor-pointer shadow-2xs text-xs font-semibold ${
+                isDrawerExpanded
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-border/80 bg-card hover:bg-muted text-foreground'
+              }`}
+              title="Click to expand/collapse project details & coverage KPIs"
+            >
+              <span className="font-bold truncate max-w-[100px] sm:max-w-[160px]">
+                {lead.name}
+              </span>
+              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-700 dark:text-blue-300">
+                {coveragePct}%
+              </span>
+              {isDrawerExpanded ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* ── Retractable Top Drawer (Metadata & KPIs) ── */}
+        {isDrawerExpanded && (
+          <div className="mt-3 pt-3 border-t border-border/60 animate-in slide-in-from-top-2 duration-200 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-950 dark:text-blue-200">
-                    Line Item Coverage
-                  </span>
-                  <span className="text-[10px] font-bold text-blue-800 dark:text-blue-200 bg-blue-500/15 px-1.5 py-0.5 rounded">
-                    {coveragePct}%
-                  </span>
+                  <Link
+                    href="/crm/boq/assigned-task"
+                    className="inline-flex items-center text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Back to Assigned Tasks
+                  </Link>
+                  <span className="text-muted-foreground/50">•</span>
+                  <span className="text-xs font-bold text-foreground">Material Requisition Builder</span>
                 </div>
-                <div className="w-32 sm:w-44 bg-blue-100 dark:bg-blue-950/50 rounded-full h-1.5 overflow-hidden border border-blue-200/50 dark:border-blue-800/40 mt-1">
-                  <div
-                    className="h-full transition-all duration-500 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full"
-                    style={{ width: `${coveragePct}%` }}
-                  />
+                <p className="text-xs text-muted-foreground flex flex-wrap items-center gap-2">
+                  <span>Project: <strong className="text-foreground">{lead.name}</strong></span>
+                  <span>•</span>
+                  <span>Phone: {lead.phone || 'N/A'}</span>
+                  <span>•</span>
+                  <span>Location: {lead.location || 'N/A'}</span>
+                </p>
+              </div>
+
+              {/* Quick action buttons in drawer */}
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <button
+                  onClick={() => handleSave('DRAFT')}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-input bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5 text-amber-500" />
+                  Save Draft
+                </button>
+                <button
+                  onClick={() => setIsPdfModalOpen(true)}
+                  disabled={isPending || totalMaterialRows === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-input bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-accent transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  <Receipt className="w-3.5 h-3.5 text-blue-600" />
+                  PDF
+                </button>
+                <button
+                  onClick={() => handleSave('SUBMITTED')}
+                  disabled={isPending || totalMaterialRows === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  Submit
+                </button>
+              </div>
+            </div>
+
+            {/* KPI Summary Strip */}
+            {detailQuotation ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 pt-1">
+                {/* KPI 1: Coverage */}
+                <div className="rounded-lg border border-blue-500/25 bg-blue-500/[0.04] px-3.5 py-2 flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-6 h-6 rounded-md bg-blue-500/15 text-blue-700 dark:text-blue-300 flex items-center justify-center shrink-0">
+                      <Layers className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-blue-950 dark:text-blue-200">
+                          Line Item Coverage
+                        </span>
+                        <span className="text-[10px] font-bold text-blue-800 dark:text-blue-200 bg-blue-500/15 px-1.5 py-0.5 rounded">
+                          {coveragePct}%
+                        </span>
+                      </div>
+                      <div className="w-32 sm:w-44 bg-blue-100 dark:bg-blue-950/50 rounded-full h-1.5 overflow-hidden border border-blue-200/50 dark:border-blue-800/40 mt-1">
+                        <div
+                          className="h-full transition-all duration-500 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full"
+                          style={{ width: `${coveragePct}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-sm font-black text-blue-950 dark:text-blue-100">
+                      {coveredLineItems} <span className="text-xs font-normal text-muted-foreground">/ {lineItems.length}</span>
+                    </span>
+                    <span className="block text-[10px] text-muted-foreground">
+                      {lineItems.length - coveredLineItems} remaining
+                    </span>
+                  </div>
+                </div>
+
+                {/* KPI 2: Material Specs */}
+                <div className="rounded-lg border border-purple-500/25 bg-purple-500/[0.04] px-3.5 py-2 flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-6 h-6 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 flex items-center justify-center shrink-0">
+                      <Package className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-purple-950 dark:text-purple-200 block">
+                        Material Specs
+                      </span>
+                      <span className="text-[10px] text-purple-700/80 dark:text-purple-300/80 font-medium truncate block">
+                        {totalMaterialRows - extraRowCount} linked · {extraRowCount} general
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-sm font-black text-purple-950 dark:text-purple-100">
+                      {totalMaterialRows} <span className="text-xs font-normal text-muted-foreground">rows</span>
+                    </span>
+                    <span className="block text-[10px] text-muted-foreground">
+                      Active specs
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="text-right shrink-0">
-              <span className="text-sm font-black text-blue-950 dark:text-blue-100">
-                {coveredLineItems} <span className="text-xs font-normal text-muted-foreground">/ {lineItems.length}</span>
-              </span>
-              <span className="block text-[10px] text-muted-foreground">
-                {lineItems.length - coveredLineItems} remaining
-              </span>
-            </div>
+            ) : null}
           </div>
-
-          {/* KPI 2: Active Material Rows - Compact */}
-          <div className="rounded-lg border border-purple-500/25 bg-purple-500/[0.04] px-3.5 py-2 flex items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-6 h-6 rounded-md bg-purple-500/15 text-purple-700 dark:text-purple-300 flex items-center justify-center shrink-0">
-                <Package className="w-3.5 h-3.5" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-purple-950 dark:text-purple-200 block">
-                  Material Specs
-                </span>
-                <span className="text-[10px] text-purple-700/80 dark:text-purple-300/80 font-medium truncate block">
-                  {totalMaterialRows - extraRowCount} linked · {extraRowCount} general
-                </span>
-              </div>
-            </div>
-            <div className="text-right shrink-0">
-              <span className="text-sm font-black text-purple-950 dark:text-purple-100">
-                {totalMaterialRows} <span className="text-xs font-normal text-muted-foreground">rows</span>
-              </span>
-              <span className="block text-[10px] text-muted-foreground">
-                Active specs
-              </span>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="rounded-xl border bg-amber-500/10 border-amber-500/30 p-4 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2">
-          <HelpCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-          No approved detail quotation found for this lead. You can still add materials in the Extra / General section below.
-        </div>
-      )}
-
-
-      {/* ── Saved Successfully Timed Alert Dialog (Portaled to document.body for full-screen coverage) ── */}
-      {isSavedDialogVisible && typeof document !== 'undefined' && createPortal(
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-md animate-in fade-in duration-200"
-          style={{ minHeight: '100dvh', width: '100vw' }}
-          onClick={() => setIsSavedDialogVisible(false)}
-        >
-          <div
-            className="relative bg-card border-2 border-emerald-500/40 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl flex flex-col items-center text-center max-w-[340px] sm:max-w-sm w-full animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3.5 shadow-inner">
-              <CheckCircle2 className="w-8 h-8 sm:w-9 sm:h-9" />
-            </div>
-            <h3 className="text-base sm:text-lg font-black text-foreground tracking-tight">
-              {savedDialogMessage}
-            </h3>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 leading-relaxed">
-              All material changes are saved successfully.
-            </p>
-            <button
-              type="button"
-              onClick={() => setIsSavedDialogVisible(false)}
-              className="mt-4 px-5 py-1.5 rounded-full text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer"
-            >
-              OK
-            </button>
-          </div>
-        </div>,
-        document.body
-      )}
+        )}
+      </header>
 
       {/* ── Add Section Modal ── */}
       {isAddSectionModalOpen && (
@@ -1963,15 +1958,15 @@ export function RequisitionBuilderClient({
                   try {
                     const res = await createBoqAmendment(lead.id, amendmentText)
                     if (res.success) {
-                      setSaveSuccess('Amendment request submitted to Procurement team.')
+                      toast.success('Amendment request submitted to Procurement team.')
                       setIsAmendmentModalOpen(false)
                       setAmendmentText('')
                       router.refresh()
                     } else {
-                      setSaveError(res.error || 'Failed to submit amendment.')
+                      toast.error(res.error || 'Failed to submit amendment.')
                     }
                   } catch (e) {
-                    setSaveError(e instanceof Error ? e.message : 'Error submitting amendment.')
+                    toast.error(e instanceof Error ? e.message : 'Error submitting amendment.')
                   } finally {
                     setIsSubmittingAmendment(false)
                   }
@@ -2484,16 +2479,16 @@ export function RequisitionBuilderClient({
       </div>
 
       {/* ── Always-visible Bottom Workspace Bar (Contextual Smart Bar) ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/80 bg-background/95 px-4 py-2.5 shadow-2xl backdrop-blur-md md:px-6">
+      <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/80 bg-background/95 px-4 py-4 shadow-2xl backdrop-blur-md md:px-6">
         <div className="mx-auto flex w-full max-w-[1600px] flex-wrap items-center justify-between gap-3">
           {/* Left: Product slide info & Navigator trigger */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsDrawerOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 transition-colors shadow-2xs"
+              className="inline-flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-3.5 py-2.5 text-sm font-bold text-primary hover:bg-primary/20 transition-colors shadow-sm"
               title="Open Product List Drawer"
             >
-              <Layers className="w-3.5 h-3.5" />
+              <Layers className="w-5 h-5" />
               <span className="font-extrabold">{safeSlideIndex + 1}/{productSlides.length}</span>
               <span className="hidden sm:inline truncate max-w-[150px] font-semibold">{currentSlide?.title}</span>
             </button>
@@ -2503,18 +2498,18 @@ export function RequisitionBuilderClient({
                 <button
                   onClick={() => goToSlide((prev) => Math.max(0, prev - 1))}
                   disabled={safeSlideIndex === 0}
-                  className="p-1.5 rounded-md border border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
+                  className="p-2.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
                   title="Previous Product"
                 >
-                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => goToSlide((prev) => Math.min(productSlides.length - 1, prev + 1))}
                   disabled={safeSlideIndex === productSlides.length - 1}
-                  className="p-1.5 rounded-md border border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
+                  className="p-2.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted disabled:opacity-30 transition-colors"
                   title="Next Product"
                 >
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
             )}
@@ -2525,8 +2520,8 @@ export function RequisitionBuilderClient({
             {activeSectionObj ? (
               <>
                 {/* Target section badge */}
-                <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/60 border border-border/60 text-xs">
-                  <Target className="w-3.5 h-3.5 text-primary animate-pulse" />
+                <div className="hidden lg:flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-muted/60 border border-border/60 text-sm">
+                  <Target className="w-5 h-5 text-primary animate-pulse" />
                   <span className="text-muted-foreground font-medium">Target:</span>
                   <span className="font-bold text-foreground truncate max-w-[200px]">
                     {activeSectionName}
@@ -2553,10 +2548,10 @@ export function RequisitionBuilderClient({
                       }, 50)
                     }
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 text-xs font-bold shadow-sm transition-colors"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-sm font-bold shadow-sm transition-colors"
                   title={`Add a material row to ${activeSectionName}`}
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-5 h-5" />
                   <span>Add Material</span>
                   <span className="hidden sm:inline font-semibold opacity-90">({activeSectionName})</span>
                 </button>
@@ -2564,10 +2559,10 @@ export function RequisitionBuilderClient({
                 {/* Add Section button */}
                 <button
                   onClick={() => setIsAddSectionModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/80 bg-card hover:bg-muted px-3 py-1.5 text-xs font-bold text-foreground shadow-2xs transition-colors"
+                  className="inline-flex items-center gap-2 rounded-xl border border-border/80 bg-card hover:bg-muted px-4 py-2.5 text-sm font-bold text-foreground shadow-2xs transition-colors"
                   title="Add a new section to this product"
                 >
-                  <Plus className="w-3.5 h-3.5 text-primary" />
+                  <Plus className="w-5 h-5 text-primary" />
                   <span>Add Section</span>
                 </button>
               </>
@@ -2584,10 +2579,10 @@ export function RequisitionBuilderClient({
             {/* Used Materials trigger in Bottom Bar */}
             <button
               onClick={() => setIsUsedPaletteOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 text-xs font-bold text-amber-800 dark:text-amber-300 transition-colors shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-2.5 text-sm font-bold text-amber-800 dark:text-amber-300 transition-colors shadow-2xs cursor-pointer"
               title="Open Used Materials in this Project (Drag & drop to reuse)"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <Sparkles className="w-5 h-5 text-amber-500" />
               <span className="hidden sm:inline">Used Materials</span>
             </button>
           </div>
@@ -2596,29 +2591,28 @@ export function RequisitionBuilderClient({
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => handleSave('DRAFT')}
-              disabled={isPending}
-              className="inline-flex items-center justify-center rounded-lg border border-input bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-xl border border-input bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50"
             >
-              <Save className="mr-1.5 h-3.5 w-3.5 text-amber-500" />
+              <Save className="mr-2 h-5 w-5 text-amber-500" />
               <span className="hidden sm:inline">Save</span> Draft
-              <span className="ml-1.5 hidden xl:inline rounded border border-border bg-muted px-1 py-0.5 text-[9px] font-bold text-muted-foreground">
+              <span className="ml-2 hidden xl:inline rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
                 Ctrl+S
               </span>
             </button>
             <button
               onClick={() => setIsPdfModalOpen(true)}
               disabled={isPending || totalMaterialRows === 0}
-              className="inline-flex items-center justify-center rounded-lg border border-input bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-xl border border-input bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50"
             >
-              <Receipt className="mr-1.5 h-3.5 w-3.5 text-blue-600" />
+              <Receipt className="mr-2 h-5 w-5 text-blue-600" />
               PDF
             </button>
             <button
               onClick={() => handleSave('SUBMITTED')}
               disabled={isPending || totalMaterialRows === 0}
-              className="inline-flex items-center justify-center rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
-              <Send className="mr-1.5 h-3.5 w-3.5" />
+              <Send className="mr-2 h-5 w-5" />
               <span className="hidden sm:inline">Submit</span>
             </button>
           </div>
