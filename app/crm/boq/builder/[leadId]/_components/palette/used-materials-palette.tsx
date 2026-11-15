@@ -23,6 +23,7 @@ import type {
   RequisitionWorkCategory,
 } from '../types/boq-builder-types'
 import { getSectionTypeLabel } from '../helpers/boq-pdf-builder'
+import { getSectionCanonicalType, inferItemCanonicalType } from '../helpers/boq-clipboard-helper'
 
 export interface UsedMaterialEntry {
   id: string
@@ -122,21 +123,9 @@ function determineGroup(item: RequisitionItemInput): { key: string; label: strin
 function matchesActiveSection(entry: UsedMaterialEntry, section: CardSection | null): boolean {
   if (!section) return true
 
-  const itemCeilingSubType = entry.item.variantAttributes?.ceilingSubType
-  if (section.category === 'CEILING') {
-    if (section.ceilingSubType === 'ELECTRICAL_DEVICES') {
-      return entry.category === 'ELECTRICAL_WORK' ||
-        (entry.category === 'CEILING' && itemCeilingSubType === 'ELECTRICAL_DEVICES')
-    }
-    return entry.category === 'CEILING' && itemCeilingSubType !== 'ELECTRICAL_DEVICES'
-  }
-
-  if (section.category === 'ELECTRICAL_WORK') {
-    return entry.category === 'ELECTRICAL_WORK' ||
-      (entry.category === 'CEILING' && itemCeilingSubType === 'ELECTRICAL_DEVICES')
-  }
-
-  return entry.category === section.category
+  const itemType = inferItemCanonicalType(entry.item)
+  const targetType = getSectionCanonicalType(section)
+  return itemType.typeKey === targetType.typeKey
 }
 
 function buildDisplayDetails(item: RequisitionItemInput): {

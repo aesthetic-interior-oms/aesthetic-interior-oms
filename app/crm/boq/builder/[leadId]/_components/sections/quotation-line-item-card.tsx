@@ -17,6 +17,7 @@ import type {
   BoqSavedApplianceItem,
   CardSection,
 } from '../types/boq-builder-types'
+import type { BoqCopiedRowPayload } from '../helpers/boq-clipboard-helper'
 import { formatBdtRounded } from '../helpers/boq-pdf-builder'
 import { SectionBlock } from './section-block'
 import { AddSectionForm } from './add-section-modal'
@@ -45,6 +46,7 @@ export function QuotationLineItemCard({
   onPasteItem,
   onCopyRow,
   copiedItem,
+  copiedRowData,
 }: {
   item: QuotationLineItem
   area?: QuotationArea
@@ -69,6 +71,7 @@ export function QuotationLineItemCard({
   onPasteItem?: (sectionId: string, item: RequisitionItemInput) => void
   onCopyRow?: (sectionId: string, rowIndex: number) => void
   copiedItem?: RequisitionItemInput | null
+  copiedRowData?: BoqCopiedRowPayload | null
 }) {
   const [cardExpanded, setCardExpanded] = useState(true)
   const [showAddSection, setShowAddSection] = useState(false)
@@ -176,6 +179,7 @@ export function QuotationLineItemCard({
               onPasteItem={(pItem) => onPasteItem?.(section.id, pItem)}
               onCopyRow={(ri) => onCopyRow?.(section.id, ri)}
               copiedItem={copiedItem}
+              copiedRowData={copiedRowData}
             />
           ))}
 

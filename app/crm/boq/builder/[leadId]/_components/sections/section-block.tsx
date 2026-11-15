@@ -27,6 +27,8 @@ import {
 } from '../constants/boq-builder-constants'
 import { getViewModeForSection } from '../helpers/boq-pdf-builder'
 import { MaterialRowsTable } from './material-rows-table'
+import type { BoqCopiedRowPayload } from '../helpers/boq-clipboard-helper'
+import { getSectionCanonicalType, isBoqRowCompatible } from '../helpers/boq-clipboard-helper'
 
 export const SectionBlock = memo(function SectionBlock({
   section,
@@ -50,6 +52,7 @@ export const SectionBlock = memo(function SectionBlock({
   onPasteItem,
   onCopyRow,
   copiedItem,
+  copiedRowData,
 }: {
   section: CardSection
   rows: RequisitionItemInput[]
@@ -72,6 +75,7 @@ export const SectionBlock = memo(function SectionBlock({
   onPasteItem?: (item: RequisitionItemInput) => void
   onCopyRow?: (rowIndex: number) => void
   copiedItem?: RequisitionItemInput | null
+  copiedRowData?: BoqCopiedRowPayload | null
 }) {
   const viewMode = getViewModeForSection(section)
   const isHardwareSection = section.wallPanelingSubType === 'SCREWS_FASTENERS' || section.wallPanelingSubType === 'NAILS_PINS' || section.wallPanelingSubType === 'ADHESIVES'
@@ -89,6 +93,11 @@ export const SectionBlock = memo(function SectionBlock({
     : section.ceilingSubType
     ? CEILING_SUBTYPES.find((s) => s.key === section.ceilingSubType)
     : (section.category === 'CEILING' ? CEILING_SUBTYPES[0] : section.category === 'ELECTRICAL_WORK' ? CEILING_SUBTYPES[1] : null)
+
+  const sectionTypeMeta = getSectionCanonicalType(section)
+  const isPasteCompatible = copiedRowData ? isBoqRowCompatible(copiedRowData, section) : true
+  const activeCopiedItem = copiedRowData?.item || copiedItem
+  const activeCopiedName = copiedRowData?.item?.materialName || copiedItem?.materialName || 'Material'
   const colors = isHardwareSection ? HARDWARE_COLORS : CATEGORY_COLORS[section.category]
   const importedRows = rows.filter((item) => item.variantAttributes?.sourceScheduleKey)
   const pendingImportedRows = importedRows.filter((item) => item.variantAttributes?.sourceQuantityStatus === 'NEEDS_CONFIRMATION')
@@ -162,15 +171,28 @@ export const SectionBlock = memo(function SectionBlock({
 
           {/* Right: Paste, Row count & Remove */}
           <div className="flex items-center gap-2">
-            {copiedItem && onPasteItem && (
+            {activeCopiedItem && onPasteItem && (
               <button
                 type="button"
-                onClick={() => onPasteItem(copiedItem)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 border border-amber-500/40 rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer"
-                title={`Paste copied material into this section: ${copiedItem.materialName || 'Material'}`}
+                onClick={() => onPasteItem(activeCopiedItem)}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer border ${
+                  isPasteCompatible
+                    ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 border-amber-500/40'
+                    : 'bg-muted/70 hover:bg-muted text-muted-foreground border-border/70 hover:border-border'
+                }`}
+                title={
+                  isPasteCompatible
+                    ? `Paste copied material into this section: ${activeCopiedName}${copiedRowData?.typeLabel ? ` (${copiedRowData.typeLabel})` : ''}`
+                    : `Cannot paste: Copied row is for "${copiedRowData?.typeLabel || 'Other type'}", but this section is "${sectionTypeMeta.typeLabel}". Click to view details.`
+                }
               >
                 <Copy className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Paste Row</span>
+                {!isPasteCompatible && (
+                  <span className="text-[10px] font-normal opacity-80 hidden md:inline">
+                    (Mismatch)
+                  </span>
+                )}
               </button>
             )}
             <span className="text-[11px] font-bold text-muted-foreground bg-background/90 px-2.5 py-1 rounded-full border border-border/70 shadow-2xs">
@@ -233,9 +255,12 @@ export const SectionBlock = memo(function SectionBlock({
             boqSavedAppliances={boqSavedAppliances}
             onSelectSavedAppliance={onSelectSavedAppliance}
             onCopyRow={onCopyRow}
-            onPasteRow={copiedItem && onPasteItem ? () => onPasteItem(copiedItem) : undefined}
-            hasCopiedRow={!!copiedItem}
-            copiedItemName={copiedItem?.materialName || 'Material'}
+            onPasteRow={activeCopiedItem && onPasteItem ? () => onPasteItem(activeCopiedItem) : undefined}
+            hasCopiedRow={!!activeCopiedItem}
+            copiedItemName={activeCopiedName}
+            isPasteCompatible={isPasteCompatible}
+            copiedTypeLabel={copiedRowData?.typeLabel}
+            sectionTypeLabel={sectionTypeMeta.typeLabel}
           />
         </div>
       )}

@@ -16,6 +16,7 @@ import type {
   BoqSavedApplianceItem,
   CardSection,
 } from '../types/boq-builder-types'
+import type { BoqCopiedRowPayload } from '../helpers/boq-clipboard-helper'
 import { SectionBlock } from './section-block'
 import { AddSectionForm } from './add-section-modal'
 
@@ -41,6 +42,7 @@ export function ExtraCard({
   onPasteItem,
   onCopyRow,
   copiedItem,
+  copiedRowData,
 }: {
   sections: CardSection[]
   getRowsForSection: (sectionId: string) => RequisitionItemInput[]
@@ -63,6 +65,7 @@ export function ExtraCard({
   onPasteItem?: (sectionId: string, item: RequisitionItemInput) => void
   onCopyRow?: (sectionId: string, rowIndex: number) => void
   copiedItem?: RequisitionItemInput | null
+  copiedRowData?: BoqCopiedRowPayload | null
 }) {
   const [expanded, setExpanded] = useState(true)
   const [showAddSection, setShowAddSection] = useState(false)
@@ -124,6 +127,7 @@ export function ExtraCard({
               onPasteItem={(pItem) => onPasteItem?.(section.id, pItem)}
               onCopyRow={(ri) => onCopyRow?.(section.id, ri)}
               copiedItem={copiedItem}
+              copiedRowData={copiedRowData}
             />
           ))}
 

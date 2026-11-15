@@ -379,13 +379,13 @@ export default function JrArchitectMyWorkPage() {
     : null
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background w-full">
       <CrmPageHeader
         title="CAD Architecture File Explorer"
         subtitle="Browse, search, and manage your assigned architectural drafting projects organized as a PC file directory by Year and Month."
       />
 
-      <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-4">
+      <main className="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-4">
         {/* Top Summary Badges */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2 items-center">
@@ -423,8 +423,8 @@ export default function JrArchitectMyWorkPage() {
           </div>
         </div>
 
-        {/* --- LOCAL PC FILE EXPLORER WINDOW --- */}
-        <div className="rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col">
+        {/* --- LOCAL PC FILE EXPLORER WINDOW (FLUID FULL-WIDTH) --- */}
+        <div className="w-full rounded-xl border border-border/80 bg-card shadow-sm overflow-hidden flex flex-col">
           {/* File Explorer Titlebar */}
           <div className="bg-muted/40 border-b border-border/60 px-4 py-2.5 flex items-center justify-between">
             <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
@@ -504,7 +504,7 @@ export default function JrArchitectMyWorkPage() {
 
             {/* Right Controls: Search & View Toggle */}
             <div className="flex items-center gap-2">
-              <div className="relative w-48 sm:w-60">
+              <div className="relative w-48 sm:w-64">
                 <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   placeholder="Search CAD projects..."
@@ -550,7 +550,7 @@ export default function JrArchitectMyWorkPage() {
           </div>
 
           {/* Explorer Main Content Area */}
-          <div className="p-5 min-h-[460px] bg-muted/5">
+          <div className="p-4 sm:p-6 min-h-[460px] bg-muted/5">
             {loading ? (
               <div className="flex flex-col items-center justify-center py-24 space-y-3">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -579,7 +579,7 @@ export default function JrArchitectMyWorkPage() {
                     No CAD architecture files match &quot;{searchQuery}&quot;
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3.5">
                     {searchMatchedLeads.map((lead) => (
                       <ProjectCadCard
                         key={lead.id}
@@ -605,7 +605,7 @@ export default function JrArchitectMyWorkPage() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-12 gap-4">
                   {availableYears.map((year) => {
                     const yearMap = leadsByYearMonth.get(year)
                     let yearProjectCount = 0
@@ -659,7 +659,7 @@ export default function JrArchitectMyWorkPage() {
                   <span className="text-xs text-muted-foreground">12 Months</span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-3.5">
                   {MONTH_NAMES.map((m) => {
                     const yearMap = leadsByYearMonth.get(currentYear)
                     const monthLeads = yearMap?.get(m.num) || []
@@ -768,8 +768,8 @@ export default function JrArchitectMyWorkPage() {
                     </p>
                   </div>
                 ) : viewMode === 'grid' ? (
-                  /* Grid View of Project Files */
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  /* Grid View of Project Files (Fluid Responsive Grid) */
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3.5">
                     {currentMonthLeads.map((lead) => (
                       <ProjectCadCard
                         key={lead.id}
@@ -784,151 +784,189 @@ export default function JrArchitectMyWorkPage() {
                 ) : (
                   /* Table / Details List View */
                   <div className="rounded-xl border bg-card overflow-hidden">
-                    <table className="w-full text-xs text-left">
-                      <thead className="bg-muted/50 border-b text-muted-foreground uppercase text-[10px] tracking-wider">
-                        <tr>
-                          <th className="py-2.5 px-3">CAD Project</th>
-                          <th className="py-2.5 px-3">Status</th>
-                          <th className="py-2.5 px-3">First Assigned Date</th>
-                          <th className="py-2.5 px-3">Location &amp; Sqft</th>
-                          <th className="py-2.5 px-3">Deliverables</th>
-                          <th className="py-2.5 px-3 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/60">
-                        {currentMonthLeads.map((lead) => {
-                          const allFiles = lead.submissions.flatMap((s) => s.files)
-                          const latestFile = allFiles[0]
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs text-left">
+                        <thead className="bg-muted/50 border-b text-muted-foreground uppercase text-[10px] tracking-wider">
+                          <tr>
+                            <th className="py-2.5 px-3">CAD Project</th>
+                            <th className="py-2.5 px-3">Status</th>
+                            <th className="py-2.5 px-3">First Assigned Date</th>
+                            <th className="py-2.5 px-3">Location &amp; Sqft</th>
+                            <th className="py-2.5 px-3 min-w-[240px]">Version Deliverables &amp; Downloads</th>
+                            <th className="py-2.5 px-3 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/60">
+                          {currentMonthLeads.map((lead) => {
+                            const allFiles = lead.submissions.flatMap((s) => s.files)
 
-                          return (
-                            <tr key={lead.id} className="hover:bg-muted/30">
-                              <td className="py-3 px-3">
-                                <div className="flex items-center gap-2">
-                                  <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
-                                    <PenTool className="h-3.5 w-3.5" />
+                            return (
+                              <tr key={lead.id} className="hover:bg-muted/30">
+                                <td className="py-3 px-3">
+                                  <div className="flex items-center gap-2">
+                                    <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0">
+                                      <PenTool className="h-3.5 w-3.5" />
+                                    </div>
+                                    <div>
+                                      <Link
+                                        href={`/crm/jr-architecture/leads/${lead.id}`}
+                                        className="font-semibold text-foreground hover:text-primary hover:underline"
+                                      >
+                                        {lead.name}
+                                      </Link>
+                                      {lead.phone ? (
+                                        <p className="text-[10px] text-muted-foreground">{lead.phone}</p>
+                                      ) : null}
+                                    </div>
                                   </div>
-                                  <div>
-                                    <Link
-                                      href={`/crm/jr-architecture/leads/${lead.id}`}
-                                      className="font-semibold text-foreground hover:text-primary hover:underline"
+                                </td>
+                                <td className="py-3 px-3">
+                                  <div className="flex flex-col gap-1 items-start">
+                                    <Badge
+                                      variant={
+                                        lead.subStatus === 'CAD_APPROVED'
+                                          ? 'default'
+                                          : lead.subStatus === 'CAD_WORKING'
+                                            ? 'secondary'
+                                            : 'outline'
+                                      }
+                                      className={`text-[10px] ${
+                                        lead.subStatus === 'CAD_APPROVED'
+                                          ? 'bg-emerald-600 text-white'
+                                          : lead.subStatus === 'CAD_COMPLETED'
+                                            ? 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200'
+                                            : ''
+                                      }`}
                                     >
-                                      {lead.name}
-                                    </Link>
-                                    {lead.phone ? (
-                                      <p className="text-[10px] text-muted-foreground">{lead.phone}</p>
+                                      {formatLabel(lead.subStatus)}
+                                    </Badge>
+                                    {lead.isRework ? (
+                                      <Badge
+                                        variant="destructive"
+                                        className="text-[9px] px-1.5 py-0 font-bold"
+                                      >
+                                        Rework Round {lead.latestPhaseTask?.currentReviewRound ?? 1}
+                                      </Badge>
                                     ) : null}
                                   </div>
-                                </div>
-                              </td>
-                              <td className="py-3 px-3">
-                                <div className="flex flex-col gap-1 items-start">
-                                  <Badge
-                                    variant={
-                                      lead.subStatus === 'CAD_APPROVED'
-                                        ? 'default'
-                                        : lead.subStatus === 'CAD_WORKING'
-                                          ? 'secondary'
-                                          : 'outline'
-                                    }
-                                    className={`text-[10px] ${
-                                      lead.subStatus === 'CAD_APPROVED'
-                                        ? 'bg-emerald-600 text-white'
-                                        : lead.subStatus === 'CAD_COMPLETED'
-                                          ? 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200'
-                                          : ''
-                                    }`}
-                                  >
-                                    {formatLabel(lead.subStatus)}
-                                  </Badge>
-                                  {lead.isRework ? (
-                                    <Badge
-                                      variant="destructive"
-                                      className="text-[9px] px-1.5 py-0 font-bold"
-                                    >
-                                      Rework Round {lead.latestPhaseTask?.currentReviewRound ?? 1}
-                                    </Badge>
-                                  ) : null}
-                                </div>
-                              </td>
-                              <td className="py-3 px-3 font-semibold text-foreground">
-                                {lead.assignedDate
-                                  ? new Date(lead.assignedDate).toLocaleDateString('en-GB', {
-                                      day: '2-digit',
-                                      month: 'short',
-                                      year: 'numeric',
-                                    })
-                                  : 'Not set'}
-                              </td>
-                              <td className="py-3 px-3">
-                                <p className="truncate max-w-[150px]">{lead.location || '—'}</p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  {lead.projectSqft ? `${lead.projectSqft.toLocaleString()} sqft` : 'Area: —'}
-                                </p>
-                              </td>
-                              <td className="py-3 px-3">
-                                <span className="font-semibold text-foreground block">
-                                  {lead.submissions.length} round(s) • {allFiles.length} file(s)
-                                </span>
-                                {latestFile ? (
-                                  <a
-                                    href={latestFile.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-[10px] text-primary hover:underline inline-flex items-center gap-1 max-w-[160px] truncate mt-0.5"
-                                    title={latestFile.fileName}
-                                  >
-                                    <Download className="h-2.5 w-2.5 flex-shrink-0" />
-                                    <span className="truncate">{latestFile.fileName}</span>
-                                  </a>
-                                ) : (
-                                  <span className="text-[10px] text-muted-foreground italic">None yet</span>
-                                )}
-                              </td>
-                              <td className="py-3 px-3 text-right">
-                                <div className="flex items-center justify-end gap-1.5">
-                                  <Button asChild size="sm" variant="outline" className="h-7 text-xs">
-                                    <Link href={`/crm/jr-architecture/leads/${lead.id}`}>
-                                      Workspace
-                                    </Link>
-                                  </Button>
-                                  {lead.canStart ? (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      disabled={busyId === lead.id}
-                                      onClick={() => void startCadWork(lead.id)}
-                                      className="h-7 text-xs"
-                                    >
-                                      Start
+                                </td>
+                                <td className="py-3 px-3 font-semibold text-foreground">
+                                  {lead.assignedDate
+                                    ? new Date(lead.assignedDate).toLocaleDateString('en-GB', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric',
+                                      })
+                                    : 'Not set'}
+                                </td>
+                                <td className="py-3 px-3">
+                                  <p className="truncate max-w-[150px]">{lead.location || '—'}</p>
+                                  <p className="text-[10px] text-muted-foreground">
+                                    {lead.projectSqft ? `${lead.projectSqft.toLocaleString()} sqft` : 'Area: —'}
+                                  </p>
+                                </td>
+                                <td className="py-3 px-3">
+                                  <div className="space-y-1.5 max-w-[340px]">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-semibold text-foreground text-xs">
+                                        {lead.submissions.length} version{lead.submissions.length === 1 ? '' : 's'}
+                                      </span>
+                                      <span className="text-[10px] text-muted-foreground">
+                                        • {allFiles.length} file{allFiles.length === 1 ? '' : 's'} total
+                                      </span>
+                                    </div>
+
+                                    {lead.submissions.length === 0 ? (
+                                      <span className="text-[10px] text-muted-foreground italic">
+                                        No files uploaded yet
+                                      </span>
+                                    ) : (
+                                      <div className="space-y-1">
+                                        {lead.submissions.map((sub, sIdx) => {
+                                          const vLabel =
+                                            sub.versionName ||
+                                            (sub.versionNumber
+                                              ? `v${sub.versionNumber}`
+                                              : `v${lead.submissions.length - sIdx}`)
+
+                                          return (
+                                            <div
+                                              key={sub.id}
+                                              className="flex items-center gap-1.5 flex-wrap text-[10px]"
+                                            >
+                                              <Badge
+                                                variant="outline"
+                                                className="text-[9px] px-1 py-0 h-4 font-semibold shrink-0"
+                                              >
+                                                {vLabel}
+                                              </Badge>
+                                              {sub.files.map((file) => (
+                                                <a
+                                                  key={file.id}
+                                                  href={file.url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  download
+                                                  className="text-primary hover:underline inline-flex items-center gap-1 max-w-[130px] truncate bg-muted/50 hover:bg-muted px-1.5 py-0.5 rounded border border-border/50 transition-colors"
+                                                  title={`${file.fileName} (${formatCadSubmissionFileType(file.cadFileType as any)})`}
+                                                >
+                                                  <Download className="h-2.5 w-2.5 shrink-0" />
+                                                  <span className="truncate">{file.fileName}</span>
+                                                </a>
+                                              ))}
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-3 px-3 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <Button asChild size="sm" variant="outline" className="h-7 text-xs">
+                                      <Link href={`/crm/jr-architecture/leads/${lead.id}`}>
+                                        Workspace
+                                      </Link>
                                     </Button>
-                                  ) : null}
-                                  {lead.canSubmit ? (
-                                    <Button
-                                      size="sm"
-                                      className="h-7 text-xs"
-                                      onClick={() => setSubmitWorkLead(lead)}
-                                    >
-                                      Upload
-                                    </Button>
-                                  ) : null}
-                                  {lead.submissions.length > 0 ? (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 text-xs p-1"
-                                      onClick={() => setInspectLead(lead)}
-                                      title="Inspect Submissions"
-                                    >
-                                      <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-                                    </Button>
-                                  ) : null}
-                                </div>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
+                                    {lead.canStart ? (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={busyId === lead.id}
+                                        onClick={() => void startCadWork(lead.id)}
+                                        className="h-7 text-xs"
+                                      >
+                                        Start
+                                      </Button>
+                                    ) : null}
+                                    {lead.canSubmit ? (
+                                      <Button
+                                        size="sm"
+                                        className="h-7 text-xs"
+                                        onClick={() => setSubmitWorkLead(lead)}
+                                      >
+                                        Upload
+                                      </Button>
+                                    ) : null}
+                                    {lead.submissions.length > 0 ? (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 text-xs p-1"
+                                        onClick={() => setInspectLead(lead)}
+                                        title="Inspect Submissions"
+                                      >
+                                        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                                      </Button>
+                                    ) : null}
+                                  </div>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1097,7 +1135,7 @@ export default function JrArchitectMyWorkPage() {
   )
 }
 
-// Subcomponent: Project CAD Card inside the Month Directory (Matches Quotation Card Standard)
+// Subcomponent: Project CAD Card with Version-Wise Downloads Directly on the Card Face
 function ProjectCadCard({
   lead,
   busyId,
@@ -1117,9 +1155,13 @@ function ProjectCadCard({
   const isRework = lead.isRework
   const allFiles = lead.submissions.flatMap((s) => s.files)
 
+  // Active version tab for version-wise downloads
+  const [selectedVersionIndex, setSelectedVersionIndex] = useState(0)
+  const currentSub = lead.submissions[selectedVersionIndex] ?? lead.submissions[0] ?? null
+
   return (
     <Card
-      className={`group overflow-hidden border transition-all hover:shadow-md ${
+      className={`group overflow-hidden border transition-all hover:shadow-md flex flex-col justify-between ${
         isRework
           ? 'border-red-300/80 bg-gradient-to-br from-red-500/5 to-rose-500/5 dark:border-red-700/50'
           : isWorking
@@ -1131,100 +1173,229 @@ function ProjectCadCard({
                 : 'border-border/70 hover:border-primary/40 bg-card'
       }`}
     >
-      <CardContent className="p-4 space-y-3">
-        {/* Top Header: Icon + Lead Name + Status */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-start gap-2.5 min-w-0">
-            <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0 group-hover:scale-110 transition-transform">
-              <PenTool className="h-5 w-5" />
-            </div>
-            <div className="space-y-0.5 min-w-0">
-              <Link
-                href={`/crm/jr-architecture/leads/${lead.id}`}
-                className="font-bold text-sm text-foreground hover:text-primary hover:underline line-clamp-1 truncate block"
-                title={lead.name}
-              >
-                {lead.name}
-              </Link>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Badge
-                  variant={isApproved ? 'default' : isWorking ? 'secondary' : 'outline'}
-                  className={`text-[10px] px-1.5 py-0 ${
-                    isApproved
-                      ? 'bg-emerald-600 text-white'
-                      : isUnderReview
-                        ? 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200'
-                        : isWorking
-                          ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
-                          : ''
-                  }`}
+      <CardContent className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+        <div className="space-y-3">
+          {/* Top Header: Icon + Lead Name + Status */}
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2.5 min-w-0 flex-1">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary shrink-0 group-hover:scale-110 transition-transform">
+                <PenTool className="h-5 w-5" />
+              </div>
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <Link
+                  href={`/crm/jr-architecture/leads/${lead.id}`}
+                  className="font-bold text-sm text-foreground hover:text-primary hover:underline line-clamp-1 truncate block"
+                  title={lead.name}
                 >
-                  {formatLabel(lead.subStatus)}
-                </Badge>
-                {isRework ? (
-                  <Badge variant="destructive" className="text-[9px] px-1.5 py-0 font-bold">
-                    Rework Round {lead.latestPhaseTask?.currentReviewRound ?? 1}
+                  {lead.name}
+                </Link>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Badge
+                    variant={isApproved ? 'default' : isWorking ? 'secondary' : 'outline'}
+                    className={`text-[10px] px-1.5 py-0 ${
+                      isApproved
+                        ? 'bg-emerald-600 text-white'
+                        : isUnderReview
+                          ? 'bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-200'
+                          : isWorking
+                            ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200'
+                            : ''
+                    }`}
+                  >
+                    {formatLabel(lead.subStatus)}
                   </Badge>
-                ) : null}
+                  {isRework ? (
+                    <Badge variant="destructive" className="text-[9px] px-1.5 py-0 font-bold">
+                      Rework Round {lead.latestPhaseTask?.currentReviewRound ?? 1}
+                    </Badge>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Lead Metadata */}
-        <div className="text-xs space-y-1 text-muted-foreground pt-1 border-t border-border/40">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="flex items-center gap-1">
-              <CalendarClock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-              <span className="font-semibold text-foreground">Assigned:</span>
-            </span>
-            <span className="font-bold text-foreground">
-              {lead.assignedDate
-                ? new Date(lead.assignedDate).toLocaleDateString('en-GB', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                  })
-                : 'Not set'}
-            </span>
-          </div>
-
-          {lead.location ? (
-            <div className="flex items-center gap-1 truncate text-[11px]" title={lead.location}>
-              <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
-              <span className="truncate">{lead.location}</span>
-            </div>
-          ) : null}
-
-          <div className="flex items-center justify-between text-[11px] pt-1">
-            <span className="text-muted-foreground">Area Sqft:</span>
-            <span className="font-semibold text-foreground">
-              {lead.projectSqft ? `${lead.projectSqft.toLocaleString()} sqft` : '—'}
-            </span>
-          </div>
-
-          {lead.srCrmAssignee ? (
+          {/* Lead Metadata */}
+          <div className="text-xs space-y-1 text-muted-foreground pt-1 border-t border-border/40">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-muted-foreground flex items-center gap-1">
-                <UserRound className="h-3 w-3" />
-                Sr CRM:
+              <span className="flex items-center gap-1">
+                <CalendarClock className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="font-semibold text-foreground">Assigned:</span>
               </span>
-              <span className="font-medium text-foreground truncate max-w-[150px]">
-                {lead.srCrmAssignee.fullName}
+              <span className="font-bold text-foreground">
+                {lead.assignedDate
+                  ? new Date(lead.assignedDate).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : 'Not set'}
               </span>
             </div>
-          ) : null}
 
-          <div className="flex items-center justify-between text-[11px] pt-0.5">
-            <span className="text-muted-foreground">Submissions:</span>
-            <span className="font-semibold text-foreground">
-              {lead.submissions.length} round(s) • {allFiles.length} file(s)
-            </span>
+            {lead.location ? (
+              <div className="flex items-center gap-1 truncate text-[11px]" title={lead.location}>
+                <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" />
+                <span className="truncate">{lead.location}</span>
+              </div>
+            ) : null}
+
+            <div className="flex items-center justify-between text-[11px] pt-0.5">
+              <span className="text-muted-foreground">Area Sqft:</span>
+              <span className="font-semibold text-foreground">
+                {lead.projectSqft ? `${lead.projectSqft.toLocaleString()} sqft` : '—'}
+              </span>
+            </div>
+
+            {lead.srCrmAssignee ? (
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="text-muted-foreground flex items-center gap-1">
+                  <UserRound className="h-3 w-3" />
+                  Sr CRM:
+                </span>
+                <span className="font-medium text-foreground truncate max-w-[150px]">
+                  {lead.srCrmAssignee.fullName}
+                </span>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Version-Wise File Deliverables & Direct Download Section */}
+          <div className="pt-2 border-t border-border/40 space-y-2">
+            <div className="flex items-center justify-between text-[11px]">
+              <span className="font-semibold text-foreground flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-primary" />
+                <span>Uploaded Files</span>
+                <Badge variant="outline" className="text-[9px] px-1 py-0 h-4 font-normal">
+                  {allFiles.length}
+                </Badge>
+              </span>
+              {lead.submissions.length > 0 ? (
+                <span className="text-[10px] text-muted-foreground">
+                  {lead.submissions.length} version{lead.submissions.length === 1 ? '' : 's'}
+                </span>
+              ) : null}
+            </div>
+
+            {lead.submissions.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border/70 bg-muted/20 px-2.5 py-2 text-center text-[10px] text-muted-foreground">
+                No drawing files uploaded yet
+              </div>
+            ) : (
+              <div className="rounded-lg border border-border/70 bg-muted/20 p-2 space-y-2">
+                {/* Version Selector Tabs (if multiple versions) */}
+                {lead.submissions.length > 1 ? (
+                  <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+                    {lead.submissions.map((sub, idx) => {
+                      const vLabel =
+                        sub.versionName ||
+                        (sub.versionNumber
+                          ? `v${sub.versionNumber}`
+                          : `v${lead.submissions.length - idx}`)
+                      const isSelected = selectedVersionIndex === idx
+
+                      return (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          onClick={() => setSelectedVersionIndex(idx)}
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium transition-all whitespace-nowrap cursor-pointer ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground font-bold shadow-xs'
+                              : 'bg-background text-muted-foreground hover:bg-muted hover:text-foreground border border-border/60'
+                          }`}
+                        >
+                          {vLabel} {idx === 0 ? '(Latest)' : ''} ({sub.files.length})
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : null}
+
+                {/* Selected Version Meta & Files */}
+                {currentSub ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground px-0.5">
+                      <span className="font-semibold text-foreground truncate max-w-[150px]">
+                        {currentSub.versionName ||
+                          `Version ${currentSub.versionNumber || lead.submissions.length - selectedVersionIndex}`}
+                      </span>
+                      <span>
+                        {new Date(currentSub.submittedAt).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
+                        })}
+                      </span>
+                    </div>
+
+                    {currentSub.note ? (
+                      <p className="text-[10px] text-muted-foreground italic truncate px-0.5" title={currentSub.note}>
+                        &quot;{currentSub.note}&quot;
+                      </p>
+                    ) : null}
+
+                    {/* Files List with Direct Download */}
+                    {currentSub.files.length === 0 ? (
+                      <p className="text-[10px] text-muted-foreground italic px-0.5">
+                        No files in this version
+                      </p>
+                    ) : (
+                      <div className="space-y-1 max-h-[120px] overflow-y-auto pr-0.5">
+                        {currentSub.files.map((file) => (
+                          <div
+                            key={file.id}
+                            className="flex items-center justify-between gap-1.5 px-2 py-1 rounded-md border border-border/60 bg-card hover:bg-muted/40 transition-colors text-[11px]"
+                          >
+                            <div className="min-w-0 flex items-center gap-1.5 flex-1">
+                              <Badge
+                                variant="secondary"
+                                className="text-[9px] px-1 py-0 h-4 font-semibold uppercase tracking-wider shrink-0"
+                              >
+                                {formatCadSubmissionFileType(file.cadFileType as any)}
+                              </Badge>
+                              <span
+                                className="font-medium truncate text-foreground text-[11px]"
+                                title={file.fileName}
+                              >
+                                {file.fileName}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              {file.sizeBytes ? (
+                                <span className="text-[9px] text-muted-foreground">
+                                  {formatBytesToMbLabel(file.sizeBytes)}
+                                </span>
+                              ) : null}
+                              <Button
+                                asChild
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 w-6 p-0 hover:bg-primary/10 hover:text-primary"
+                                title={`Download ${file.fileName}`}
+                              >
+                                <a
+                                  href={file.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  download
+                                >
+                                  <Download className="h-3 w-3" />
+                                </a>
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 pt-1 border-t border-border/40">
+        <div className="flex items-center gap-2 pt-2 border-t border-border/40">
           <Button
             asChild
             size="sm"
@@ -1266,7 +1437,7 @@ function ProjectCadCard({
               variant="ghost"
               className="h-8 px-2 text-xs"
               onClick={() => onInspectWork(lead)}
-              title="Inspect submissions"
+              title="Inspect all versions and submission history"
             >
               <Eye className="h-3.5 w-3.5" />
             </Button>

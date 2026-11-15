@@ -243,3 +243,4 @@ export interface ProductSlide {
 }
 
 export type Props = RequisitionBuilderProps
+export type { BoqCopiedRowPayload } from '../helpers/boq-clipboard-helper'

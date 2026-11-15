@@ -86,6 +86,9 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
   onPasteRow,
   hasCopiedRow,
   copiedItemName,
+  isPasteCompatible,
+  copiedTypeLabel,
+  sectionTypeLabel,
 }: {
   rows: RequisitionItemInput[]
   viewMode: ViewModeType
@@ -114,6 +117,9 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
   onPasteRow?: () => void
   hasCopiedRow?: boolean
   copiedItemName?: string
+  isPasteCompatible?: boolean
+  copiedTypeLabel?: string
+  sectionTypeLabel?: string
 }) {
   const [justCopiedRowIndex, setJustCopiedRowIndex] = useState<number | null>(null)
 
@@ -163,10 +169,24 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
               <button
                 type="button"
                 onClick={onPasteRow}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 border border-amber-500/40 rounded-lg shadow-sm transition-colors cursor-pointer"
-                title={`Paste copied material: ${copiedItemName || 'Material'}`}
+                className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer border ${
+                  isPasteCompatible !== false
+                    ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 border-amber-500/40 active:scale-95'
+                    : 'bg-muted/70 hover:bg-muted text-muted-foreground border-border/70 hover:border-border'
+                }`}
+                title={
+                  isPasteCompatible !== false
+                    ? `Paste copied material: ${copiedItemName || 'Material'}${copiedTypeLabel ? ` (${copiedTypeLabel})` : ''}`
+                    : `Cannot paste: Copied row is for "${copiedTypeLabel || 'Other type'}", but this section is "${sectionTypeLabel || 'Different type'}". Click to view details.`
+                }
               >
-                <Copy className="w-4 h-4" /> Paste Copied Row
+                <Copy className="w-4 h-4" />
+                <span>Paste Copied Row</span>
+                {isPasteCompatible === false && (
+                  <span className="text-[10px] font-normal opacity-80 ml-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-800 dark:text-amber-300">
+                    Type Mismatch
+                  </span>
+                )}
               </button>
             )}
           </div>
@@ -2570,11 +2590,24 @@ export const MaterialRowsTable = memo(function MaterialRowsTable({
               <button
                 type="button"
                 onClick={onPasteRow}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 border border-amber-500/40 rounded-md shadow-2xs transition-all active:scale-95 cursor-pointer"
-                title={`Paste copied material: ${copiedItemName || 'Material'}`}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md shadow-2xs transition-all active:scale-95 cursor-pointer border ${
+                  isPasteCompatible !== false
+                    ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-800 dark:text-amber-200 border-amber-500/40'
+                    : 'bg-muted/70 hover:bg-muted text-muted-foreground border-border/70 hover:border-border'
+                }`}
+                title={
+                  isPasteCompatible !== false
+                    ? `Paste copied material: ${copiedItemName || 'Material'}${copiedTypeLabel ? ` (${copiedTypeLabel})` : ''}`
+                    : `Cannot paste: Copied row is for "${copiedTypeLabel || 'Other type'}", but this section is "${sectionTypeLabel || 'Different type'}". Click to view details.`
+                }
               >
                 <Copy className="w-3.5 h-3.5" />
                 <span>Paste Row {copiedItemName ? `(${copiedItemName.length > 20 ? copiedItemName.slice(0, 18) + '...' : copiedItemName})` : ''}</span>
+                {isPasteCompatible === false && (
+                  <span className="text-[10px] font-normal opacity-80 ml-0.5 px-1 py-0.5 rounded bg-amber-500/10 text-amber-800 dark:text-amber-300">
+                    Mismatch
+                  </span>
+                )}
               </button>
             )}
           </div>

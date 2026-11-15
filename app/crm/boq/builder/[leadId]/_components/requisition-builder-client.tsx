@@ -43,6 +43,15 @@ import {
   type UiSectionCategory,
 } from '@/lib/boq-product-category-map'
 import { RequisitionPdfExportModal } from './requisition-pdf-modal'
+import { toast } from '@/components/ui/sonner'
+import type { BoqCopiedRowPayload } from './helpers/boq-clipboard-helper'
+import {
+  readGlobalBoqClipboard,
+  writeGlobalBoqClipboard,
+  getSectionCanonicalType,
+  inferItemCanonicalType,
+  BOQ_CLIPBOARD_EVENT,
+} from './helpers/boq-clipboard-helper'
 import type {
   QuotationDraftContent,
   QuotationSection,
@@ -231,6 +240,7 @@ interface SlideSectionItemProps {
   rows: RequisitionItemInput[]
   currentSlideItemId?: string
   copiedMaterial: RequisitionItemInput | null
+  copiedRowData?: BoqCopiedRowPayload | null
   boqSavedAccessories: BoqSavedAccessoryItem[]
   boqSavedAppliances: BoqSavedApplianceItem[]
   updateRow: (cardKey: string, sectionId: string, ri: number, field: keyof RequisitionItemInput, rawValue: RequisitionFieldValue) => void
@@ -257,6 +267,7 @@ const SlideSectionItem = memo(function SlideSectionItem({
   rows,
   currentSlideItemId,
   copiedMaterial,
+  copiedRowData,
   boqSavedAccessories,
   boqSavedAppliances,
   updateRow,
@@ -395,6 +406,7 @@ const SlideSectionItem = memo(function SlideSectionItem({
       onPasteItem={onPasteItem}
       onCopyRow={onCopyRow}
       copiedItem={copiedMaterial}
+      copiedRowData={copiedRowData}
     />
   )
 })
@@ -887,23 +899,52 @@ export function RequisitionBuilderClient({
     setItemsMap((prev) => ({ ...prev, [key]: (prev[key] ?? []).filter((_, i) => i !== rowIndex) }))
   }, [])
 
-  const [copiedMaterial, setCopiedMaterial] = useState<RequisitionItemInput | null>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('boq-copied-material')
-        return stored ? JSON.parse(stored) : null
-      } catch {
-        return null
-      }
-    }
-    return null
+  const [copiedRowData, setCopiedRowData] = useState<BoqCopiedRowPayload | null>(() => {
+    return readGlobalBoqClipboard()
   })
 
-  const handleCopyMaterial = useCallback((item: RequisitionItemInput) => {
-    setCopiedMaterial(item)
-    try {
-      localStorage.setItem('boq-copied-material', JSON.stringify(item))
-    } catch {}
+  const copiedMaterial = copiedRowData?.item ?? null
+
+  useEffect(() => {
+    const handleSync = () => {
+      setCopiedRowData(readGlobalBoqClipboard())
+    }
+    const handleCustom = (e: Event) => {
+      const customEvt = e as CustomEvent<BoqCopiedRowPayload>
+      if (customEvt && customEvt.detail) {
+        setCopiedRowData(customEvt.detail)
+      } else {
+        handleSync()
+      }
+    }
+    window.addEventListener('storage', handleSync)
+    window.addEventListener(BOQ_CLIPBOARD_EVENT as any, handleCustom)
+    return () => {
+      window.removeEventListener('storage', handleSync)
+      window.removeEventListener(BOQ_CLIPBOARD_EVENT as any, handleCustom)
+    }
+  }, [])
+
+  const handleCopyMaterial = useCallback((item: RequisitionItemInput, explicitSection?: CardSection) => {
+    const typeMeta = explicitSection ? getSectionCanonicalType(explicitSection) : inferItemCanonicalType(item)
+    const payload: BoqCopiedRowPayload = {
+      item,
+      category: explicitSection?.category || item.workCategory,
+      wallPanelingSubType: explicitSection?.wallPanelingSubType,
+      cabinetSubType: explicitSection?.cabinetSubType,
+      accessoriesSubType: explicitSection?.accessoriesSubType,
+      applianceSubType: explicitSection?.applianceSubType,
+      ceilingSubType: explicitSection?.ceilingSubType,
+      typeKey: typeMeta.typeKey,
+      typeLabel: typeMeta.typeLabel,
+      copiedAt: Date.now(),
+    }
+    setCopiedRowData(payload)
+    writeGlobalBoqClipboard(payload)
+    const displayName = item.materialName?.trim() || 'Material row'
+    toast.info(`Copied row from "${typeMeta.typeLabel}". Ready to paste into matching sections.`, {
+      description: displayName,
+    })
   }, [])
 
   const handleCopyRowFromSection = useCallback((sectionId: string, rowIndex: number, cardKey?: string) => {
@@ -911,10 +952,35 @@ export function RequisitionBuilderClient({
     const key = sectionItemKey(cKey, sectionId)
     const rows = itemsMap[key] ?? []
     const targetItem = rows[rowIndex]
-    if (targetItem) {
-      handleCopyMaterial(targetItem)
+    if (!targetItem) return
+
+    const cardSections = sectionsMap[cKey] ?? []
+    const sec = cardSections.find((s) => s.id === sectionId)
+    const typeMeta = sec ? getSectionCanonicalType(sec) : inferItemCanonicalType(targetItem)
+
+    const payload: BoqCopiedRowPayload = {
+      item: targetItem,
+      sourceSectionId: sectionId,
+      sourceCardKey: cKey,
+      category: sec?.category || targetItem.workCategory,
+      wallPanelingSubType: sec?.wallPanelingSubType,
+      cabinetSubType: sec?.cabinetSubType,
+      accessoriesSubType: sec?.accessoriesSubType,
+      applianceSubType: sec?.applianceSubType,
+      ceilingSubType: sec?.ceilingSubType,
+      typeKey: typeMeta.typeKey,
+      typeLabel: typeMeta.typeLabel,
+      copiedAt: Date.now(),
     }
-  }, [currentCardKey, itemsMap, handleCopyMaterial])
+
+    setCopiedRowData(payload)
+    writeGlobalBoqClipboard(payload)
+
+    const displayName = targetItem.materialName?.trim() || 'Material row'
+    toast.info(`Copied row from "${typeMeta.typeLabel}". Ready to paste into matching sections.`, {
+      description: displayName,
+    })
+  }, [currentCardKey, itemsMap, sectionsMap])
 
   const handlePasteItemToSection = useCallback((item: RequisitionItemInput, targetSectionId?: string, targetCardKey?: string) => {
     const cardKey = targetCardKey || currentCardKey
@@ -922,7 +988,35 @@ export function RequisitionBuilderClient({
     const secId = targetSectionId || activeSectionObj?.id || cardSections[0]?.id
 
     if (!secId) {
-      setSaveError('Please add a section first before pasting materials.')
+      toast.error('Please add a section first before pasting materials.')
+      return
+    }
+
+    const targetSec = cardSections.find((s) => s.id === secId)
+    if (!targetSec) {
+      toast.error('Target section not found.')
+      return
+    }
+
+    const targetTypeMeta = getSectionCanonicalType(targetSec)
+
+    // Determine the source type of the item being pasted
+    const isClipboardMatch = copiedRowData && (
+      (copiedRowData.item.id && copiedRowData.item.id === item.id) ||
+      copiedRowData.item.materialName === item.materialName
+    )
+    const sourceMeta = isClipboardMatch
+      ? { typeKey: copiedRowData.typeKey, typeLabel: copiedRowData.typeLabel }
+      : inferItemCanonicalType(item)
+
+    // Strict validation: cannot paste into a different section type or subtype
+    if (sourceMeta.typeKey !== targetTypeMeta.typeKey) {
+      toast.error(
+        `Cannot paste into "${targetTypeMeta.typeLabel}". Copied row is for "${sourceMeta.typeLabel}". Data can only be pasted into the same type.`,
+        {
+          duration: 4500,
+        }
+      )
       return
     }
 
@@ -935,12 +1029,16 @@ export function RequisitionBuilderClient({
         quotationLineItemId: cardKey !== EXTRA_KEY ? cardKey : undefined,
         variantAttributes: {
           ...(item.variantAttributes || {}),
+          ...(targetSec.wallPanelingSubType ? { wpSubType: targetSec.wallPanelingSubType } : {}),
+          ...(targetSec.cabinetSubType ? { cabinetSubType: targetSec.cabinetSubType } : {}),
+          ...(targetSec.accessoriesSubType ? { accessoriesSubType: targetSec.accessoriesSubType } : {}),
+          ...(targetSec.applianceSubType ? { applianceSubType: targetSec.applianceSubType } : {}),
+          ...(targetSec.ceilingSubType ? { ceilingSubType: targetSec.ceilingSubType } : {}),
         },
       }
 
       // If cabinet row, ensure appropriate srNo
-      const secInfo = cardSections.find((s) => s.id === secId)
-      if (secInfo?.category === 'CABINETS_CLOSETS') {
+      if (targetSec.category === 'CABINETS_CLOSETS') {
         const nextSrNo = String(existingRows.length + 1)
         clonedItem.variantAttributes = { ...clonedItem.variantAttributes, srNo: nextSrNo, lineNo: nextSrNo }
       }
@@ -964,8 +1062,7 @@ export function RequisitionBuilderClient({
       return { ...prev, [key]: [...existingRows, clonedItem] }
     })
 
-    const secInfo = cardSections.find((s) => s.id === secId)
-    if (secInfo?.collapsed) {
+    if (targetSec.collapsed) {
       toggleSectionCollapse(cardKey, secId)
     }
     setTimeout(() => {
@@ -975,9 +1072,9 @@ export function RequisitionBuilderClient({
       })
     }, 150)
 
-    setSaveSuccess(`Inserted "${item.materialName || 'Material'}" into section!`)
-    setTimeout(() => setSaveSuccess(null), 3000)
-  }, [activeSectionObj, currentCardKey, sectionsMap])
+    const itemName = item.materialName?.trim() || 'Material'
+    toast.success(`Pasted "${itemName}" into "${targetTypeMeta.typeLabel}".`)
+  }, [activeSectionObj, copiedRowData, currentCardKey, sectionsMap, toggleSectionCollapse])
 
   const loadPresetForSection = useCallback((cardKey: string, sectionId: string, subType: WallPanelingSubType, quotationLineItemId?: string) => {
     const presetMap: Record<WallPanelingSubType, RequisitionItemInput[]> = {
@@ -2139,6 +2236,7 @@ export function RequisitionBuilderClient({
                       rows={getRowsForSection(currentCardKey, section.id)}
                       currentSlideItemId={currentSlide.item?.id}
                       copiedMaterial={copiedMaterial}
+                      copiedRowData={copiedRowData}
                       boqSavedAccessories={boqSavedAccessories}
                       boqSavedAppliances={boqSavedAppliances}
                       updateRow={updateRow}
@@ -2243,6 +2341,7 @@ export function RequisitionBuilderClient({
                       rows={getRowsForSection(EXTRA_KEY, section.id)}
                       currentSlideItemId={undefined}
                       copiedMaterial={copiedMaterial}
+                      copiedRowData={copiedRowData}
                       boqSavedAccessories={boqSavedAccessories}
                       boqSavedAppliances={boqSavedAppliances}
                       updateRow={updateRow}
@@ -2331,6 +2430,7 @@ export function RequisitionBuilderClient({
                             onPasteItem={(sectionId, pItem) => handlePasteItemToSection(pItem, sectionId, li.id)}
                             onCopyRow={(sectionId, ri) => handleCopyRowFromSection(sectionId, ri, li.id)}
                             copiedItem={copiedMaterial}
+                            copiedRowData={copiedRowData}
                           />
                         )
                       })}
@@ -2364,6 +2464,7 @@ export function RequisitionBuilderClient({
             onPasteItem={(sectionId, pItem) => handlePasteItemToSection(pItem, sectionId, EXTRA_KEY)}
             onCopyRow={(sectionId, ri) => handleCopyRowFromSection(sectionId, ri, EXTRA_KEY)}
             copiedItem={copiedMaterial}
+            copiedRowData={copiedRowData}
           />
         </div>
       )}
