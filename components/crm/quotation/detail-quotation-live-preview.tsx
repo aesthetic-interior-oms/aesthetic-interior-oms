@@ -45,6 +45,17 @@ type DetailQuotationLivePreviewProps = {
   layout?: 'standard' | 'compact'
 }
 
+function sanitizePreviewPayload(item: DetailPreviewPayload): DetailPreviewPayload {
+  const rawContent = withDetailQuotationDefaults(item.content)
+  const content = { ...rawContent, discountAmount: 0, discountPercent: 0 }
+  const totals = calculateQuotationTotals(content)
+  return {
+    ...item,
+    content,
+    totals,
+  }
+}
+
 export function DetailQuotationLivePreview({
   context,
   contextId,
@@ -62,7 +73,7 @@ export function DetailQuotationLivePreview({
   const loadPayload = useCallback(async () => {
     const cached = readDetailPreview(context, contextId, slotIndex)
     if (cached) {
-      setPayload(cached)
+      setPayload(sanitizePreviewPayload(cached))
       setLoading(false)
       return
     }
@@ -143,9 +154,12 @@ export function DetailQuotationLivePreview({
       
       const contentForDownload = {
         ...payload.content,
+        discountAmount: 0,
+        discountPercent: 0,
         quotationCode,
         downloadedAt,
       }
+      const downloadTotals = calculateQuotationTotals(contentForDownload)
       
       const safeClientName = (payload.clientName || 'Client').replace(/[^a-z0-9]/gi, '_').toLowerCase()
       const prefix = checklist ? 'Checklist_PDF' : isBlank ? 'Blank_Detail_Quotation' : 'Detail_Quotation'
@@ -154,7 +168,7 @@ export function DetailQuotationLivePreview({
           clientName={payload.clientName}
           clientAddress={payload.clientAddress}
           content={contentForDownload}
-          totals={payload.totals}
+          totals={downloadTotals}
           isBlank={isBlank}
           variant={checklist ? 'checklist' : 'quotation'}
           layout={layout}
@@ -165,7 +179,8 @@ export function DetailQuotationLivePreview({
       // Update local preview immediately to show the code
       const nextPayload = {
         ...payload,
-        content: contentForDownload
+        content: contentForDownload,
+        totals: downloadTotals,
       }
       setPayload(nextPayload)
       
@@ -176,13 +191,13 @@ export function DetailQuotationLivePreview({
     } finally {
       setDownloading(false)
     }
-  }, [checklist, isBlank, payload])
+  }, [checklist, isBlank, layout, payload])
 
   useEffect(() => {
     void loadPayload()
     return subscribeDetailPreview(context, contextId, () => {
       const next = readDetailPreview(context, contextId, slotIndex)
-      if (next) setPayload(next)
+      if (next) setPayload(sanitizePreviewPayload(next))
     }, slotIndex)
   }, [context, contextId, loadPayload, slotIndex])
 

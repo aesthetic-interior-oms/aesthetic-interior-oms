@@ -847,13 +847,18 @@ export function DetailQuotationDocument({
             {isBlank ? null : <Text style={styles.inWords}>In Words: {amountInWordsTaka(agreementSummary.totalAmount)}</Text>}
           </>
         ) : (
-          <>
-            <View style={[styles.grandTotalRow, layout === 'compact' ? { marginTop: 10 } : {}]}>
-              <Text style={styles.grandTotalLabel}>{layout === 'compact' ? 'TOTAL AMOUNT' : 'TOTAL'}</Text>
-              <Text style={styles.grandTotalValue}>{isBlank ? '' : formatDetailCurrency(totals.grandTotal)}</Text>
-            </View>
-            {isBlank ? null : <Text style={styles.inWords}>In Words: {amountInWordsTaka(totals.grandTotal)}</Text>}
-          </>
+          (() => {
+            const quotationDisplayTotal = (typeof totals.subtotal === 'number' && totals.subtotal > 0) ? totals.subtotal : totals.grandTotal
+            return (
+              <>
+                <View style={[styles.grandTotalRow, layout === 'compact' ? { marginTop: 10 } : {}]}>
+                  <Text style={styles.grandTotalLabel}>{layout === 'compact' ? 'TOTAL AMOUNT' : 'TOTAL'}</Text>
+                  <Text style={styles.grandTotalValue}>{isBlank ? '' : formatDetailCurrency(quotationDisplayTotal)}</Text>
+                </View>
+                {isBlank ? null : <Text style={styles.inWords}>In Words: {amountInWordsTaka(quotationDisplayTotal)}</Text>}
+              </>
+            )
+          })()
         )}
 
         {/* Terms & Conditions — shown on front page for compact layout only */}

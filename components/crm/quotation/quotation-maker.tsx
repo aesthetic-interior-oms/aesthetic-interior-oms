@@ -770,6 +770,12 @@ export function QuotationMaker({
   useEffect(() => {
     if (!content || !totals) return
     const timer = window.setTimeout(() => {
+      const sanitizedContent = {
+        ...withDetailQuotationDefaults(content),
+        discountAmount: 0,
+        discountPercent: 0,
+      }
+      const sanitizedTotals = calculateQuotationTotals(sanitizedContent)
       publishDetailPreview({
         updatedAt: new Date().toISOString(),
         context: previewContext,
@@ -779,8 +785,8 @@ export function QuotationMaker({
         clientAddress: effectiveClientAddress,
         quotationType,
         projectSqft: projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null,
-        content: withDetailQuotationDefaults(content),
-        totals,
+        content: sanitizedContent,
+        totals: sanitizedTotals,
       })
     }, 250)
     return () => window.clearTimeout(timer)
@@ -971,6 +977,12 @@ export function QuotationMaker({
 
   const openLivePreviewTab = () => {
     if (content && totals) {
+      const sanitizedContent = {
+        ...withDetailQuotationDefaults(content),
+        discountAmount: 0,
+        discountPercent: 0,
+      }
+      const sanitizedTotals = calculateQuotationTotals(sanitizedContent)
       publishDetailPreview({
         updatedAt: new Date().toISOString(),
         context: previewContext,
@@ -980,8 +992,8 @@ export function QuotationMaker({
         clientAddress: effectiveClientAddress,
         quotationType,
         projectSqft: projectSqft.trim() ? Number(projectSqft.replace(/,/g, '')) : null,
-        content: withDetailQuotationDefaults(content),
-        totals,
+        content: sanitizedContent,
+        totals: sanitizedTotals,
       })
     }
     const isQuotationTeam = pathname.startsWith('/quotation-team')
@@ -1971,15 +1983,18 @@ return (
                 const downloadedAt = new Date().toISOString()
                 const contentForDownload = {
                   ...withDetailQuotationDefaults(content),
+                  discountAmount: 0,
+                  discountPercent: 0,
                   downloadedAt,
                 }
+                const totalsForDownload = calculateQuotationTotals(contentForDownload)
                 const safeClientName = (content.clientName || leadName || 'Client').replace(/[^a-z0-9]/gi, '_').toLowerCase()
                 await downloadPdfFromDocument(
                   <DetailQuotationDocument
                     clientName={content.clientName || leadName || 'Client'}
                     clientAddress={content.clientAddress || leadLocation || null}
                     content={contentForDownload}
-                    totals={totals}
+                    totals={totalsForDownload}
                     variant="checklist"
                   />,
                   `Checklist_PDF_${safeClientName}.pdf`,
@@ -2019,15 +2034,18 @@ return (
                   const downloadedAt = new Date().toISOString()
                   const contentForDownload = {
                     ...content,
+                    discountAmount: 0,
+                    discountPercent: 0,
                     downloadedAt,
                   }
+                  const totalsForDownload = calculateQuotationTotals(contentForDownload)
                   const safeClientName = (content.clientName || leadName || 'Client').replace(/[^a-z0-9]/gi, '_').toLowerCase()
                   await downloadPdfFromDocument(
                     <DetailQuotationDocument
                       clientName={content.clientName || leadName || 'Client'}
                       clientAddress={content.clientAddress || leadLocation || null}
                       content={contentForDownload}
-                      totals={totals}
+                      totals={totalsForDownload}
                       isBlank={true}
                       layout={pathname.startsWith('/quotation-team') ? 'standard' : 'compact'}
                     />,
