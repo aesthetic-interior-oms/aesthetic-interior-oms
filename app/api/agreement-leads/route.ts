@@ -18,12 +18,16 @@ export async function GET(request: NextRequest) {
     if (!authResult.ok) return authResult.response
 
     const departments = new Set(authResult.actor.userDepartments ?? [])
+    const actorRoleNames = authResult.actorRoles ?? []
     const isAdmin = departments.has('ADMIN')
     const isSeniorCrm = departments.has('SR_CRM')
+    const isBoqLeader = actorRoleNames.some(
+      (r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER',
+    )
 
-    if (!isAdmin && !isSeniorCrm) {
+    if (!isAdmin && !isSeniorCrm && !isBoqLeader) {
       return NextResponse.json(
-        { success: false, error: 'Only Admin or Senior CRM can access Agreement Leads' },
+        { success: false, error: 'Only Admin, Senior CRM, or BOQ Team Leader can access Agreement Leads' },
         { status: 403 },
       )
     }

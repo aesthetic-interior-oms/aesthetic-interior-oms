@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { Prisma } from '@/generated/prisma/client'
-import { canRequestConveyance, getConveyanceActor, isConveyanceAccounts, parseConveyanceRange } from '@/lib/conveyance'
+import {
+  canRequestConveyance,
+  canVerifyConveyance,
+  getConveyanceActor,
+  isBoqTeamLeader,
+  isConveyanceAccounts,
+  isProjectCoordinator,
+  parseConveyanceRange,
+} from '@/lib/conveyance'
 import { parseConveyanceBills, takaAmountInWords } from '@/lib/conveyance-bills'
 
 export const runtime = 'nodejs'
@@ -12,8 +20,9 @@ export async function GET(request: NextRequest) {
   const actor = await getConveyanceActor()
   if (!actor) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   const params = request.nextUrl.searchParams
-  const manage = params.get('view') === 'accounts'
-  if (manage && !isConveyanceAccounts(actor)) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+  const view = params.get('view')
+  const manage = view === 'accounts' || view === 'verification' || view === 'pc' || view === 'boq'
+  if (manage && !canVerifyConveyance(actor)) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
   const date = parseConveyanceRange(params.get('startDate'), params.get('endDate'))
   if (!date) return NextResponse.json({ success: false, error: 'Invalid date range' }, { status: 400 })
   const billWhere: Prisma.ConveyanceBillWhereInput = { date }
@@ -87,7 +96,23 @@ export async function GET(request: NextRequest) {
     paidAmount: roundMoney(billRows.reduce((sum, bill) => sum + (bill.status === 'PAID' ? bill.amount : 0), 0)),
   }
   const responseRequests = requests.map((row) => ({ ...row, amountInWords: takaAmountInWords(row.amount) }))
-  return NextResponse.json({ success: true, requests: responseRequests, users, totals, userTotals, dateGroups, monthGroups: [...monthGroups.entries()].map(([month, dates]) => ({ month, dates })) })
+  return NextResponse.json({
+    success: true,
+    requests: responseRequests,
+    users,
+    totals,
+    userTotals,
+    dateGroups,
+    monthGroups: [...monthGroups.entries()].map(([month, dates]) => ({ month, dates })),
+    permissions: {
+      canApprove: true,
+      canMarkPaid: isConveyanceAccounts(actor),
+      isAccounts: isConveyanceAccounts(actor),
+      isPc: isProjectCoordinator(actor),
+      isBoqLeader: isBoqTeamLeader(actor),
+      currentUserId: actor.id,
+    },
+  })
 }
 
 export async function POST(request: NextRequest) {

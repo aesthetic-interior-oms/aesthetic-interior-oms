@@ -19,6 +19,7 @@ import { Building2, Mail, Power, RefreshCw, Search, Trash2, UserCheck, UserX, Us
 import { toast } from 'sonner'
 import { VISIT_TEAM_CO_LEADER_ROLE, VISIT_TEAM_LEADER_ROLE } from '@/lib/visit-team-roles'
 import { JR_ARCHITECT_CO_LEADER_ROLE, JR_ARCHITECT_LEADER_ROLE } from '@/lib/jr-architecture-roles'
+import { BOQ_TEAM_LEADER_ROLE, BOQ_TEAM_MEMBER_ROLE } from '@/lib/boq-roles'
 
 type UserApiItem = {
   id: string
@@ -91,7 +92,9 @@ type LeadershipRole = 'LEADER' | 'CO_LEADER' | 'MEMBER'
 type DepartmentLeadershipConfig = {
   departmentName: string
   leaderRoleName: string
-  coLeaderRoleName: string
+  coLeaderRoleName?: string
+  memberRoleName?: string
+  showCoLeader?: boolean
 }
 
 export function UserManagement() {
@@ -278,6 +281,14 @@ export function UserManagement() {
         coLeaderRoleName: JR_ARCHITECT_CO_LEADER_ROLE,
       }
     }
+    if (normalized === 'BOQ') {
+      return {
+        departmentName: 'BOQ',
+        leaderRoleName: BOQ_TEAM_LEADER_ROLE,
+        memberRoleName: BOQ_TEAM_MEMBER_ROLE,
+        showCoLeader: false,
+      }
+    }
     return null
   }
 
@@ -285,9 +296,9 @@ export function UserManagement() {
     user: UserApiItem,
     config: DepartmentLeadershipConfig,
   ): LeadershipRole => {
-    const roleNames = new Set(getUserRoleNames(user).map((name) => name.toUpperCase()))
+    const roleNames = new Set(getUserRoleNames(user).map((name) => name.toUpperCase().replace(/\s+/g, '_')))
     if (roleNames.has(config.leaderRoleName)) return 'LEADER'
-    if (roleNames.has(config.coLeaderRoleName)) return 'CO_LEADER'
+    if (config.coLeaderRoleName && roleNames.has(config.coLeaderRoleName)) return 'CO_LEADER'
     return 'MEMBER'
   }
 
@@ -350,13 +361,18 @@ export function UserManagement() {
     try {
       const existingRoleNames = getUserRoleNames(user)
       const preservedRoleNames = existingRoleNames.filter((roleName) => {
-        const upper = roleName.toUpperCase()
-        return upper !== config.leaderRoleName && upper !== config.coLeaderRoleName
+        const upper = roleName.toUpperCase().replace(/\s+/g, '_')
+        return (
+          upper !== config.leaderRoleName &&
+          upper !== config.coLeaderRoleName &&
+          upper !== config.memberRoleName
+        )
       })
 
       const nextRoleNames = [...preservedRoleNames]
       if (nextRole === 'LEADER') nextRoleNames.push(config.leaderRoleName)
-      if (nextRole === 'CO_LEADER') nextRoleNames.push(config.coLeaderRoleName)
+      if (nextRole === 'CO_LEADER' && config.coLeaderRoleName) nextRoleNames.push(config.coLeaderRoleName)
+      if (nextRole === 'MEMBER' && config.memberRoleName) nextRoleNames.push(config.memberRoleName)
 
       const response = await fetch(`/api/user/${user.id}`, {
         method: 'PATCH',
@@ -849,7 +865,9 @@ export function UserManagement() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="MEMBER">Member</SelectItem>
-                            <SelectItem value="CO_LEADER">Co-Leader</SelectItem>
+                            {leadershipConfig.showCoLeader !== false && (
+                              <SelectItem value="CO_LEADER">Co-Leader</SelectItem>
+                            )}
                             <SelectItem value="LEADER">Leader</SelectItem>
                           </SelectContent>
                         </Select>

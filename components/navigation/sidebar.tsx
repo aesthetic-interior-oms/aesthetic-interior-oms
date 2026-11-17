@@ -36,6 +36,7 @@ import { useTheme } from '@/components/theme-provider'
 import { useEffect, useMemo, useState } from 'react'
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles'
 import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles'
+import { hasBoqLeaderRole } from '@/lib/boq-roles'
 
 interface SidebarProps {
   open: boolean
@@ -733,6 +734,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'My Projects',
           href: '/crm/pc/projects',
         },
+        {
+          icon: Receipt,
+          label: 'Conveyance Verification',
+          href: '/crm/pc/conveyance',
+        },
       ],
     },
   ],
@@ -905,6 +911,78 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
+  'BOQ Team Leader': [
+    {
+      id: 'boq-leader-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/boq/dashboard',
+        },
+      ],
+    },
+    {
+      id: 'boq-leader-workflow',
+      label: 'Workflow',
+      defaultOpen: true,
+      items: [
+        {
+          icon: FileText,
+          label: 'Agreement Leads',
+          href: '/crm/boq/agreement-leads',
+        },
+        {
+          icon: ListTodo,
+          label: 'Assigned Tasks',
+          href: '/crm/boq/assigned-task',
+        },
+        {
+          icon: Receipt,
+          label: 'Conveyance Verification',
+          href: '/crm/boq/conveyance',
+        },
+        {
+          icon: Settings,
+          label: 'BOQ Settings',
+          href: '/crm/boq/settings',
+        },
+      ],
+    },
+  ],
+  'BOQ Team Member': [
+    {
+      id: 'boq-overview',
+      label: 'Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/crm/boq/dashboard',
+        },
+      ],
+    },
+    {
+      id: 'boq-workflow',
+      label: 'Workflow',
+      defaultOpen: true,
+      items: [
+        {
+          icon: ListTodo,
+          label: 'Assigned Task',
+          href: '/crm/boq/assigned-task',
+        },
+        {
+          icon: Settings,
+          label: 'BOQ Settings',
+          href: '/crm/boq/settings',
+        },
+      ],
+    },
+  ],
   Procurement: [
     {
       id: 'procurement-overview',
@@ -1004,6 +1082,9 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
   const [canViewVisitTeamQueue, setCanViewVisitTeamQueue] = useState(false)
   const [canViewJrArchitectLeaderPages, setCanViewJrArchitectLeaderPages] =
     useState(false)
+  const [canViewBoqLeaderPages, setCanViewBoqLeaderPages] = useState(
+    role === 'BOQ Team Leader',
+  )
 
   useEffect(() => {
     const handle = window.requestAnimationFrame(() => setMounted(true))
@@ -1042,6 +1123,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
   const isSpecialistDesignConsultants =
     role === 'Specialist Design Consultants' ||
     role === 'SPECIALIST_DESIGN_CONSULTANTS'
+  const isBoq = Boolean(role && role.toUpperCase().includes('BOQ'))
 
   const groups = useMemo(() => {
     const addConveyanceLink = (groups: NavGroup[]) => {
@@ -1065,6 +1147,13 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
 
     if (isElectrician) {
       return addConveyanceLink(navigationGroups['Electrician'] || [])
+    }
+
+    if (isBoq) {
+      const boqGroups = canViewBoqLeaderPages
+        ? navigationGroups['BOQ Team Leader']
+        : navigationGroups['BOQ Team Member']
+      return addConveyanceLink(boqGroups || [])
     }
 
     const baseGroups = isVisits
@@ -1165,11 +1254,13 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
     isProcurement,
     isSiteEngineer,
     isElectrician,
+    isBoq,
+    canViewBoqLeaderPages,
     role,
   ])
 
   useEffect(() => {
-    if (!isVisits && role !== 'Jr Architect') return
+    if (!isVisits && role !== 'Jr Architect' && !isBoq) return
     let active = true
     fetch('/api/me', { cache: 'no-store' })
       .then(async (response) => {
@@ -1189,6 +1280,9 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
         if (role === 'Jr Architect') {
           setCanViewJrArchitectLeaderPages(hasJrArchitectureLeaderRole(roleNames))
         }
+        if (isBoq) {
+          setCanViewBoqLeaderPages(hasBoqLeaderRole(roleNames))
+        }
         return null
       })
       .catch(() => {
@@ -1199,12 +1293,15 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
         if (role === 'Jr Architect') {
           setCanViewJrArchitectLeaderPages(false)
         }
+        if (isBoq) {
+          setCanViewBoqLeaderPages(false)
+        }
       })
 
     return () => {
       active = false
     }
-  }, [isVisits, role])
+  }, [isVisits, role, isBoq])
 
   const closeOnSmallScreens = () => {
     if (!isLargeScreen) {

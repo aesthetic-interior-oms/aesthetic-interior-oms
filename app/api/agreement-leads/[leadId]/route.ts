@@ -11,10 +11,12 @@ async function authorizedLead(leadId: string) {
   const auth = await requireDatabaseRoles([])
   if (!auth.ok) return { response: auth.response } as const
   const departments = new Set(auth.actor.userDepartments ?? [])
+  const actorRoleNames = auth.actorRoles ?? []
   const isAdmin = departments.has('ADMIN')
   const isSenior = departments.has('SR_CRM')
-  if (!isAdmin && !isSenior) {
-    return { response: NextResponse.json({ success: false, error: 'Only Admin or Senior CRM can access Agreement Leads' }, { status: 403 }) } as const
+  const isBoqLeader = actorRoleNames.some((r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER')
+  if (!isAdmin && !isSenior && !isBoqLeader) {
+    return { response: NextResponse.json({ success: false, error: 'Only Admin, Senior CRM, or BOQ Team Leader can access Agreement Leads' }, { status: 403 }) } as const
   }
   const lead = await prisma.lead.findFirst({
     where: {

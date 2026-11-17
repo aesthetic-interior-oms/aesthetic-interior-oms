@@ -1,4 +1,4 @@
-'use client'
+﻿﻿﻿'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -651,8 +651,35 @@ export function AgreementLeadsBoard({
   const [downloadingMepId, setDownloadingMepId] = useState<string | null>(null)
   const [assignError, setAssignError] = useState<Record<string, string>>({})
   const [editingLeadId, setEditingLeadId] = useState<string | null>(null)
+  const [canAssignBoq, setCanAssignBoq] = useState(false)
 
   const editingLead = useMemo(() => leads.find((l) => l.id === editingLeadId) ?? null, [leads, editingLeadId])
+
+  // Determine whether the current user may assign BOQ staff
+  // (Admin, SR CRM, and BOQ Team Leader can assign; BOQ Team Member cannot)
+  useEffect(() => {
+    let active = true
+    fetch('/api/me', { cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok || !active) return
+        const payload = (await res.json()) as {
+          userRoles?: Array<{ role?: { name?: string | null } | null }>
+          userDepartments?: Array<{ department?: { name?: string | null } | null }>
+        }
+        const roleNames = Array.isArray(payload?.userRoles)
+          ? payload.userRoles.map((e) => e?.role?.name ?? '').filter(Boolean)
+          : []
+        const deptNames = Array.isArray(payload?.userDepartments)
+          ? payload.userDepartments.map((e) => e?.department?.name ?? '').filter(Boolean)
+          : []
+        const isAdmin = deptNames.some((d) => d.toUpperCase() === 'ADMIN')
+        const isSrCrm = deptNames.some((d) => d.toUpperCase() === 'SR_CRM')
+        const isBoqLeader = roleNames.some((r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER')
+        if (active) setCanAssignBoq(isAdmin || isSrCrm || isBoqLeader)
+      })
+      .catch(() => { if (active) setCanAssignBoq(false) })
+    return () => { active = false }
+  }, [])
 
   const loadLeads = useCallback(async () => {
     setLoading(true)
@@ -986,7 +1013,9 @@ export function AgreementLeadsBoard({
                     <TableHead className="w-[110px] text-right font-semibold text-foreground py-3">Discount</TableHead>
                     <TableHead className="w-[140px] text-right font-semibold text-foreground py-3">Settled Value</TableHead>
                     <TableHead className="w-[130px] font-semibold text-foreground py-3">SR CRM</TableHead>
-                    <TableHead className="w-[220px] font-semibold text-foreground py-3">BOQ Staff Assignment</TableHead>
+                    {canAssignBoq && (
+                      <TableHead className="w-[220px] font-semibold text-foreground py-3">BOQ Staff Assignment</TableHead>
+                    )}
                     <TableHead className="w-[170px] text-right font-semibold text-foreground py-3">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1065,49 +1094,51 @@ export function AgreementLeadsBoard({
                         </TableCell>
 
                         {/* 7. BOQ Assignment */}
-                        <TableCell className="align-top py-3.5">
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-1.5">
-                              <Select
-                                value={selectedUserId}
-                                onValueChange={(v) => {
-                                  setSelectedBoq((cur) => ({ ...cur, [lead.id]: v }))
-                                  setAssignError((prev) => ({ ...prev, [lead.id]: '' }))
-                                }}
-                                disabled={!eligible || staffLoading || saving}
-                              >
-                                <SelectTrigger className="h-8 text-xs flex-1 bg-background">
-                                  <SelectValue placeholder="Select BOQ staff" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {staff.map((user) => (
-                                    <SelectItem key={user.id} value={user.id} className="text-xs">{user.fullName}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              {hasPendingChange ? (
-                                <Button size="sm" className="h-8 px-2.5 text-xs shrink-0" disabled={saving} onClick={() => void assignBoq(lead)} title="Confirm BOQ Assignment">
-                                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                                  <span className="ml-1 hidden sm:inline">Save</span>
-                                </Button>
+                        {canAssignBoq && (
+                          <TableCell className="align-top py-3.5">
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <Select
+                                  value={selectedUserId}
+                                  onValueChange={(v) => {
+                                    setSelectedBoq((cur) => ({ ...cur, [lead.id]: v }))
+                                    setAssignError((prev) => ({ ...prev, [lead.id]: '' }))
+                                  }}
+                                  disabled={!eligible || staffLoading || saving}
+                                >
+                                  <SelectTrigger className="h-8 text-xs flex-1 bg-background">
+                                    <SelectValue placeholder="Select BOQ staff" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {staff.map((user) => (
+                                      <SelectItem key={user.id} value={user.id} className="text-xs">{user.fullName}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {hasPendingChange ? (
+                                  <Button size="sm" className="h-8 px-2.5 text-xs shrink-0" disabled={saving} onClick={() => void assignBoq(lead)} title="Confirm BOQ Assignment">
+                                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                                    <span className="ml-1 hidden sm:inline">Save</span>
+                                  </Button>
+                                ) : null}
+                              </div>
+                              {lead.boqAssignee ? (
+                                <div className="flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
+                                  <CheckCircle2 className="h-3 w-3 shrink-0" />
+                                  <span className="truncate max-w-[190px]">Current: {lead.boqAssignee.fullName}</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                                  <AlertCircle className="h-3 w-3 shrink-0" />
+                                  <span>Pending BOQ Assignment</span>
+                                </div>
+                              )}
+                              {assignError[lead.id] ? (
+                                <div className="text-[11px] text-red-600 dark:text-red-400">{assignError[lead.id]}</div>
                               ) : null}
                             </div>
-                            {lead.boqAssignee ? (
-                              <div className="flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
-                                <CheckCircle2 className="h-3 w-3 shrink-0" />
-                                <span className="truncate max-w-[190px]">Current: {lead.boqAssignee.fullName}</span>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                                <AlertCircle className="h-3 w-3 shrink-0" />
-                                <span>Pending BOQ Assignment</span>
-                              </div>
-                            )}
-                            {assignError[lead.id] ? (
-                              <div className="text-[11px] text-red-600 dark:text-red-400">{assignError[lead.id]}</div>
-                            ) : null}
-                          </div>
-                        </TableCell>
+                          </TableCell>
+                        )}
 
                         {/* 8. Actions */}
                         <TableCell className="text-right align-top py-3.5">

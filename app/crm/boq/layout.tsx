@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import { MainLayout } from '@/components/layout/mainlayout'
 import { normalizeDepartmentName } from '@/lib/department-normalization'
+import { hasBoqLeaderRole } from '@/lib/boq-roles'
 
 export const runtime = 'nodejs'
 export const preferredRegion = 'sin1'
@@ -37,6 +38,13 @@ export default async function BoqLayout({
           },
         },
       },
+      userRoles: {
+        select: {
+          role: {
+            select: { name: true },
+          },
+        },
+      },
     },
   })
 
@@ -50,8 +58,14 @@ export default async function BoqLayout({
       .filter((name): name is string => Boolean(name)),
   )
 
+  const roleNames = user.userRoles.map((row) => row.role.name)
+  const isBoqLeader = hasBoqLeaderRole(roleNames)
+
   if (departmentNames.has('BOQ')) {
-    return <MainLayout role="BOQ Department">{children}</MainLayout>
+    // BOQ Team Leader gets a distinct role string so the sidebar displays
+    // the Agreement Leads navigation link exclusively to leaders.
+    const boqRole = isBoqLeader ? 'BOQ Team Leader' : 'BOQ Team Member'
+    return <MainLayout role={boqRole}>{children}</MainLayout>
   }
 
   if (departmentNames.has('ADMIN')) {

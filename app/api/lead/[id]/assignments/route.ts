@@ -120,10 +120,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const actorRoles = new Set(authResult.actorRoles.map((r) => r.trim().toLowerCase()));
     const isAdmin = actorDepartments.has('ADMIN') || actorRoles.has('admin');
     const isSeniorCrm = actorDepartments.has('SR_CRM');
+    const isBoqLeader = authResult.actorRoles.some(
+      (r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER',
+    );
 
-    if (!isAdmin && !isSeniorCrm) {
+    if (!isAdmin && !isSeniorCrm && !isBoqLeader) {
       return NextResponse.json(
-        { success: false, error: 'Only ADMIN or SR_CRM users can assign leads' },
+        { success: false, error: 'Only ADMIN, SR_CRM, or BOQ Team Leader users can assign leads' },
         { status: 403 }
       );
     }

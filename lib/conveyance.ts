@@ -1,5 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import prisma from '@/lib/prisma'
+import { normalizeDepartmentName } from '@/lib/department-normalization'
+import { hasBoqLeaderRole } from '@/lib/boq-roles'
 
 export async function getConveyanceActor() {
   const { userId: clerkUserId } = await auth()
@@ -10,17 +12,42 @@ export async function getConveyanceActor() {
       id: true,
       fullName: true,
       userDepartments: { select: { department: { select: { name: true } } } },
+      userRoles: { select: { role: { select: { name: true } } } },
     },
   })
 }
 
 export function isConveyanceAccounts(actor: NonNullable<Awaited<ReturnType<typeof getConveyanceActor>>>) {
-  const departments = actor.userDepartments.map((row) => row.department.name.trim().toUpperCase())
-  return departments.includes('ACCOUNTS') || departments.includes('ADMIN')
+  const departments = actor.userDepartments
+    .map((row) => normalizeDepartmentName(row.department.name))
+    .filter((name): name is string => Boolean(name))
+  return departments.includes('ACCOUNTS') || departments.includes('ADMIN') || departments.includes('FINANCE')
+}
+
+export function isProjectCoordinator(actor: NonNullable<Awaited<ReturnType<typeof getConveyanceActor>>>) {
+  const departments = actor.userDepartments
+    .map((row) => normalizeDepartmentName(row.department.name))
+    .filter((name): name is string => Boolean(name))
+  const roles = (actor.userRoles ?? []).map((row) => row.role.name.trim().toUpperCase().replace(/\s+/g, '_'))
+  return (
+    departments.includes('PROJECT_CORDINATOR') ||
+    departments.includes('PROJECT_COORDINATOR') ||
+    roles.includes('PROJECT_COORDINATOR') ||
+    roles.includes('PROJECT_CORDINATOR')
+  )
+}
+
+export function isBoqTeamLeader(actor: NonNullable<Awaited<ReturnType<typeof getConveyanceActor>>>) {
+  const roles = (actor.userRoles ?? []).map((row) => row.role.name)
+  return hasBoqLeaderRole(roles)
+}
+
+export function canVerifyConveyance(actor: NonNullable<Awaited<ReturnType<typeof getConveyanceActor>>>) {
+  return isConveyanceAccounts(actor) || isProjectCoordinator(actor) || isBoqTeamLeader(actor)
 }
 
 export function canRequestConveyance(actor: NonNullable<Awaited<ReturnType<typeof getConveyanceActor>>>) {
-  return !actor.userDepartments.some((row) => row.department.name.trim().toUpperCase() === 'ACCOUNTS')
+  return !actor.userDepartments.some((row) => normalizeDepartmentName(row.department.name) === 'ACCOUNTS')
 }
 
 export function parseConveyanceRange(startValue: string | null, endValue: string | null) {

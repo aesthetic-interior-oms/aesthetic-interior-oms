@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { getConveyanceActor, isConveyanceAccounts } from '@/lib/conveyance'
+import { canVerifyConveyance, getConveyanceActor, isConveyanceAccounts } from '@/lib/conveyance'
+import { normalizeDepartmentName } from '@/lib/department-normalization'
 
 export const runtime = 'nodejs'
 export const preferredRegion = 'sin1'
@@ -8,14 +9,28 @@ export const preferredRegion = 'sin1'
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const actor = await getConveyanceActor()
   if (!actor) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-  if (!isConveyanceAccounts(actor)) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+  if (!canVerifyConveyance(actor)) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
   const { id } = await context.params
   const body = await request.json().catch(() => null)
   const status = body?.status
   const note = typeof body?.accountsNote === 'string' ? body.accountsNote.trim().slice(0, 500) : null
   if (!['APPROVED', 'REJECTED', 'PAID'].includes(status)) return NextResponse.json({ success: false, error: 'Invalid status.' }, { status: 400 })
+
+  // Only Accounts or Admin can mark as PAID
+  if (status === 'PAID' && !isConveyanceAccounts(actor)) {
+    return NextResponse.json({ success: false, error: 'Only Accounts or Admin can mark requests as paid.' }, { status: 403 })
+  }
+
   const current = await prisma.conveyanceRequest.findUnique({ where: { id } })
   if (!current) return NextResponse.json({ success: false, error: 'Request not found.' }, { status: 404 })
+
+  // Reviewers cannot approve their own conveyance requests (unless Admin)
+  const departments = actor.userDepartments.map((r) => normalizeDepartmentName(r.department.name))
+  const isAdmin = departments.includes('ADMIN')
+  if (current.requesterId === actor.id && !isAdmin) {
+    return NextResponse.json({ success: false, error: 'You cannot review your own conveyance request.' }, { status: 403 })
+  }
+
   if (status === 'PAID' && current.status !== 'APPROVED') return NextResponse.json({ success: false, error: 'Only approved requests can be marked paid.' }, { status: 409 })
   if (['APPROVED', 'REJECTED'].includes(status) && current.status !== 'PENDING') return NextResponse.json({ success: false, error: 'This request has already been reviewed.' }, { status: 409 })
   const amount = current.amount

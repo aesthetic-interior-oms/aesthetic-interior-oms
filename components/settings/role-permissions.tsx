@@ -111,6 +111,7 @@ const getDepartmentPermissionMap = (department: Department): RolePermissionMap =
     'QUOTATION_TEAM': ['view_leads', 'view_followups'],
     'VISIT_TEAM': ['view_leads', 'view_followups', 'view_visits', 'update_visit_result'],
     'ACCOUNTS': ['view_leads', 'view_followups', 'view_activity_log'],
+    'BOQ': ['view_leads'],
   }
 
   return {
