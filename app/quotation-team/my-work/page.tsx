@@ -3,18 +3,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowUp,
   Building2,
   Calendar,
   CalendarClock,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   Clock,
+  Download,
   ExternalLink,
   FileSpreadsheet,
   FileText,
   Folder,
   FolderOpen,
+  GitBranch,
   HardDrive,
   LayoutGrid,
   List,
@@ -80,6 +85,23 @@ type TaskLead = {
   } | null;
   canStart: boolean;
   canSubmit: boolean;
+  isPostAgreement?: boolean;
+  nextVersionNumber?: number;
+  quotationSubmissions?: Array<{
+    id: string;
+    versionNumber: number;
+    versionName: string;
+    note: string | null;
+    createdAt: string;
+    submittedBy: { id: string; fullName: string } | null;
+    files: Array<{
+      id: string;
+      fileName: string;
+      url: string;
+      fileType: string;
+      sizeBytes: number;
+    }>;
+  }>;
 };
 
 const MONTH_NAMES = [
@@ -122,6 +144,7 @@ export default function QuotationTeamMyWorkPage() {
   ]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [dailyReportModalOpen, setDailyReportModalOpen] = useState(false);
+  const [submitConfirmStep, setSubmitConfirmStep] = useState(false);
 
   // File explorer navigation state
   // Levels: 'ROOT' (Years) -> 'YEAR' (Months) -> 'MONTH' (Projects)
@@ -301,6 +324,7 @@ export default function QuotationTeamMyWorkPage() {
   const openSubmitDialog = (lead: TaskLead) => {
     setSubmitLead(lead);
     setSubmitNote("");
+    setSubmitConfirmStep(false);
     setSubmitAttachments([{ id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" }]);
   };
 
@@ -741,6 +765,7 @@ export default function QuotationTeamMyWorkPage() {
                           <th className="py-2.5 px-3">Status</th>
                           <th className="py-2.5 px-3">First Assigned Date</th>
                           <th className="py-2.5 px-3">Location &amp; Sqft</th>
+                          <th className="py-2.5 px-3">Versions</th>
                           <th className="py-2.5 px-3 text-right">Actions</th>
                         </tr>
                       </thead>
@@ -764,18 +789,25 @@ export default function QuotationTeamMyWorkPage() {
                               </div>
                             </td>
                             <td className="py-3 px-3">
-                              <Badge
-                                variant={
-                                  lead.subStatus === "QUOTATION_COMPLETED"
-                                    ? "default"
-                                    : lead.subStatus === "QUOTATION_WORKING"
-                                    ? "secondary"
-                                    : "outline"
-                                }
-                                className="text-[10px]"
-                              >
-                                {formatLabel(lead.subStatus)}
-                              </Badge>
+                              <div className="flex flex-col gap-1 items-start">
+                                <Badge
+                                  variant={
+                                    lead.subStatus === "QUOTATION_COMPLETED"
+                                      ? "default"
+                                      : lead.subStatus === "QUOTATION_WORKING"
+                                      ? "secondary"
+                                      : "outline"
+                                  }
+                                  className="text-[10px]"
+                                >
+                                  {formatLabel(lead.subStatus)}
+                                </Badge>
+                                {lead.isPostAgreement && (
+                                  <Badge className="text-[9px] px-1 py-0 bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200">
+                                    Revision
+                                  </Badge>
+                                )}
+                              </div>
                             </td>
                             <td className="py-3 px-3 font-semibold text-foreground">
                               {lead.assignedAt
@@ -791,6 +823,37 @@ export default function QuotationTeamMyWorkPage() {
                               <p className="text-[10px] text-muted-foreground">
                                 Short: {lead.avgShortSqft || 0} | Detail: {lead.avgDetailSqft || 0} sqft
                               </p>
+                            </td>
+                            <td className="py-3 px-3">
+                              {lead.quotationSubmissions && lead.quotationSubmissions.length > 0 ? (
+                                <div className="space-y-1">
+                                  <span className="text-[11px] font-bold text-purple-700 dark:text-purple-400">
+                                    {lead.quotationSubmissions.length} version{lead.quotationSubmissions.length !== 1 ? "s" : ""}
+                                  </span>
+                                  <div className="flex flex-col gap-0.5">
+                                    {lead.quotationSubmissions.map((sub) => (
+                                      <div key={sub.id} className="flex items-center gap-1.5 text-[10px]">
+                                        <span className="font-semibold text-foreground">{sub.versionName}</span>
+                                        {sub.files.map((f) => (
+                                          <a
+                                            key={f.id}
+                                            href={f.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            download
+                                            className="inline-flex items-center gap-0.5 text-primary hover:underline font-medium"
+                                            title={f.fileName}
+                                          >
+                                            <Download className="h-2.5 w-2.5" /> PDF
+                                          </a>
+                                        ))}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-[11px] text-muted-foreground italic">None yet</span>
+                              )}
                             </td>
                             <td className="py-3 px-3 text-right">
                               <div className="flex items-center justify-end gap-1.5">
@@ -902,27 +965,88 @@ export default function QuotationTeamMyWorkPage() {
             <p className="text-xs text-muted-foreground">
               Supported for quotation submit: PDF, DOC/DOCX, XLS/XLSX, PPT/PPTX, TXT, CSV, and CAD files when needed.
             </p>
+
+            {(() => {
+              const targetRev = submitLead?.nextVersionNumber || ((submitLead?.quotationSubmissions?.length ?? 0) + 1);
+              const versionLabel = submitLead?.isPostAgreement
+                ? `Quotation Revision ${targetRev}`
+                : `Quotation Version ${targetRev}`;
+              if (!submitConfirmStep) return null;
+              return (
+                <div className="rounded-lg border border-purple-300 bg-purple-50 dark:bg-purple-950/40 p-3 space-y-2">
+                  <div className="flex items-center gap-2 font-semibold text-purple-900 dark:text-purple-200 text-sm">
+                    <AlertCircle className="h-4 w-4 text-purple-600 shrink-0" />
+                    <span>Are you sure to save it as {versionLabel} file?</span>
+                  </div>
+                  <p className="text-xs text-purple-700 dark:text-purple-300">
+                    The uploaded quotation files and data will be archived as <strong>{versionLabel}</strong> and submitted to the Senior CRM Review Center.
+                  </p>
+                </div>
+              );
+            })()}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button
               type="button"
               variant="outline"
-              disabled={Boolean(busyId)}
+              disabled={Boolean(busyId) || uploadingFiles}
               onClick={() => {
                 setSubmitLead(null);
                 setSubmitNote("");
+                setSubmitConfirmStep(false);
                 setSubmitAttachments([{ id: crypto.randomUUID(), file: null, quotationType: "PREMIUM", budget: "" }]);
               }}
             >
               Cancel
             </Button>
-            <Button
-              type="button"
-              disabled={Boolean(busyId)}
-              onClick={() => void submitQuotationWork()}
-            >
-              {uploadingFiles ? "Uploading files..." : busyId ? "Submitting..." : "Submit to Review Center"}
-            </Button>
+            {(() => {
+              const targetRev = submitLead?.nextVersionNumber || ((submitLead?.quotationSubmissions?.length ?? 0) + 1);
+              const versionLabel = submitLead?.isPostAgreement
+                ? `Quotation Revision ${targetRev}`
+                : `Quotation Version ${targetRev}`;
+
+              if (!submitConfirmStep) {
+                return (
+                  <Button
+                    type="button"
+                    disabled={Boolean(busyId)}
+                    className={submitLead?.isPostAgreement ? "bg-purple-700 hover:bg-purple-800 text-white font-semibold" : ""}
+                    onClick={() => {
+                      const validAttachments = submitAttachments.filter((item) => item.file);
+                      const parsedBudgets = validAttachments.map((item) => Number(item.budget.trim().replace(/,/g, "")));
+                      if (parsedBudgets.some((budget) => Number.isNaN(budget) || budget <= 0)) {
+                        toast.error("Please enter a valid positive budget for each attached file");
+                        return;
+                      }
+                      setSubmitConfirmStep(true);
+                    }}
+                  >
+                    Submit as {versionLabel}
+                  </Button>
+                );
+              }
+
+              return (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={Boolean(busyId) || uploadingFiles}
+                    onClick={() => setSubmitConfirmStep(false)}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="button"
+                    className="bg-purple-700 hover:bg-purple-800 text-white font-bold"
+                    disabled={Boolean(busyId) || uploadingFiles}
+                    onClick={() => void submitQuotationWork()}
+                  >
+                    {uploadingFiles ? "Uploading files..." : busyId ? "Submitting..." : `Yes, Save as ${versionLabel}`}
+                  </Button>
+                </div>
+              );
+            })()}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -950,9 +1074,11 @@ function ProjectFileCard({
   onStartWork: (id: string) => Promise<void>;
   onSubmitWork: (lead: TaskLead) => void;
 }) {
+  const [showVersions, setShowVersions] = useState(false);
   const isWorking = lead.subStatus === "QUOTATION_WORKING";
   const isCorrection = lead.subStatus === "QUOTATION_CORRECTION";
   const isCompleted = lead.subStatus === "QUOTATION_COMPLETED";
+  const submissions = lead.quotationSubmissions || [];
 
   return (
     <Card
@@ -985,6 +1111,11 @@ function ProjectFileCard({
                 >
                   {formatLabel(lead.subStatus)}
                 </Badge>
+                {lead.isPostAgreement && (
+                  <Badge className="text-[9px] px-1.5 py-0 bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200">
+                    Scope Revision
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
@@ -1021,6 +1152,79 @@ function ProjectFileCard({
               Short: {lead.avgShortSqft || 0} | Detail: {lead.avgDetailSqft || 0}
             </span>
           </div>
+        </div>
+
+        {/* Versions inside project */}
+        <div className="pt-2 border-t border-border/40">
+          <button
+            type="button"
+            onClick={() => setShowVersions(!showVersions)}
+            className="w-full flex items-center justify-between py-1 text-xs font-semibold text-purple-700 dark:text-purple-400 hover:underline cursor-pointer"
+          >
+            <span className="flex items-center gap-1.5">
+              <GitBranch className="h-3.5 w-3.5" />
+              <span>Quotation Versions ({submissions.length})</span>
+            </span>
+            {showVersions ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+          </button>
+
+          {showVersions && (
+            <div className="mt-2 space-y-2 max-h-48 overflow-y-auto pr-1">
+              {submissions.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground italic py-1">
+                  No submitted version files yet. Working draft is available in workspace.
+                </p>
+              ) : (
+                submissions.map((sub) => (
+                  <div
+                    key={sub.id}
+                    className="rounded-md border border-purple-200/70 bg-purple-50/60 dark:bg-purple-950/30 dark:border-purple-800/50 p-2 space-y-1 text-xs"
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-bold text-purple-950 dark:text-purple-200">
+                        {sub.versionName}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {new Date(sub.createdAt).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    </div>
+                    {sub.submittedBy && (
+                      <p className="text-[10px] text-muted-foreground">
+                        By: {sub.submittedBy.fullName}
+                      </p>
+                    )}
+                    {sub.note && (
+                      <p className="text-[10px] text-muted-foreground italic line-clamp-2" title={sub.note}>
+                        &quot;{sub.note}&quot;
+                      </p>
+                    )}
+                    {sub.files && sub.files.length > 0 && (
+                      <div className="flex flex-col gap-1 pt-1">
+                        {sub.files.map((file) => (
+                          <a
+                            key={file.id}
+                            href={file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download
+                            className="inline-flex items-center gap-1.5 text-[11px] text-primary hover:underline font-medium truncate"
+                            title={file.fileName}
+                          >
+                            <Download className="h-3 w-3 shrink-0 text-primary" />
+                            <span className="truncate">{file.fileName}</span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}

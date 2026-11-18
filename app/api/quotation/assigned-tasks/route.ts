@@ -138,6 +138,29 @@ export async function GET(request: Request) {
             updatedById: true,
           },
         },
+        cadWorkSubmissions: {
+          where: { department: LeadAssignmentDepartment.QUOTATION },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            versionNumber: true,
+            versionName: true,
+            note: true,
+            createdAt: true,
+            submittedBy: {
+              select: { id: true, fullName: true },
+            },
+            files: {
+              select: {
+                id: true,
+                fileName: true,
+                url: true,
+                fileType: true,
+                sizeBytes: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { updated_at: 'desc' },
     })
@@ -217,6 +240,22 @@ export async function GET(request: Request) {
         canSubmit:
           isPostAgreementStage ||
           lead.subStatus === LeadSubStatus.QUOTATION_WORKING,
+        nextVersionNumber: lead.cadWorkSubmissions.length + 1,
+        quotationSubmissions: lead.cadWorkSubmissions.map((sub) => ({
+          id: sub.id,
+          versionNumber: sub.versionNumber,
+          versionName: sub.versionName,
+          note: sub.note,
+          createdAt: sub.createdAt.toISOString(),
+          submittedBy: sub.submittedBy ? { id: sub.submittedBy.id, fullName: sub.submittedBy.fullName } : null,
+          files: sub.files.map((f) => ({
+            id: f.id,
+            fileName: f.fileName,
+            url: f.url,
+            fileType: f.fileType,
+            sizeBytes: f.sizeBytes,
+          })),
+        })),
       }
     })
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, FileText, Loader2, MapPin, UserRound, Sparkles, ClipboardList, PenTool, CheckCircle, RotateCcw, CalendarClock, RefreshCw, X, Search } from "lucide-react";
+import { AlertCircle, Download, FileText, Loader2, MapPin, UserRound, Sparkles, ClipboardList, PenTool, CheckCircle, RotateCcw, CalendarClock, RefreshCw, X, Search } from "lucide-react";
 import { CrmPageHeader } from "@/components/crm/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +60,21 @@ type TaskLead = {
   canStart: boolean;
   canSubmit: boolean;
   isPostAgreement?: boolean;
+  nextVersionNumber?: number;
+  quotationSubmissions?: Array<{
+    id: string;
+    versionNumber: number;
+    versionName: string;
+    note: string | null;
+    createdAt: string;
+    submittedBy: { id: string; fullName: string } | null;
+    files: Array<{
+      id: string;
+      fileName: string;
+      url: string;
+      fileType: string | null;
+    }>;
+  }>;
   attachments?: Array<{
     id: string;
     fileName: string;
@@ -126,6 +141,9 @@ export default function QuotationAssignedTaskPage() {
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
   const availableMonths = useMemo(() => getRecentMonthsList(), []);
   const [selectedMonth, setSelectedMonth] = useState("ALL");
+  // Confirmation step for post-agreement revisions
+  const [submitConfirmStep, setSubmitConfirmStep] = useState(false);
+  const [nextRevisionNumber, setNextRevisionNumber] = useState<number>(1);
   const selectedMonthLabel =
     availableMonths.find((month) => month.value === selectedMonth)?.label ?? "All Assigned Months";
 
@@ -284,6 +302,7 @@ export default function QuotationAssignedTaskPage() {
   const openSubmitDialog = (lead: TaskLead) => {
     setSubmitLead(lead);
     setSubmitNote("");
+    setSubmitConfirmStep(false);
     setSubmitAttachments([{ id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }]);
   };
 
@@ -911,27 +930,88 @@ export default function QuotationAssignedTaskPage() {
                 </ul>
               ) : null}
             </div>
+
+            {(() => {
+              const targetRev = submitLead?.nextVersionNumber || ((submitLead?.quotationSubmissions?.length ?? 0) + 1);
+              const versionLabel = submitLead?.isPostAgreement
+                ? `Quotation Revision ${targetRev}`
+                : `Quotation Version ${targetRev}`;
+              if (!submitConfirmStep) return null;
+              return (
+                <div className="rounded-lg border border-purple-300 bg-purple-50 dark:bg-purple-950/40 p-3 space-y-2">
+                  <div className="flex items-center gap-2 font-semibold text-purple-900 dark:text-purple-200 text-sm">
+                    <AlertCircle className="h-4 w-4 text-purple-600 shrink-0" />
+                    <span>Are you sure to save it as {versionLabel} file?</span>
+                  </div>
+                  <p className="text-xs text-purple-700 dark:text-purple-300">
+                    The uploaded quotation files and data will be archived as <strong>{versionLabel}</strong> and submitted to the Senior CRM Review Center.
+                  </p>
+                </div>
+              );
+            })()}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button
               type="button"
               variant="outline"
-              disabled={Boolean(busyId)}
+              disabled={Boolean(busyId) || uploadingFiles}
               onClick={() => {
                 setSubmitLead(null);
                 setSubmitNote("");
+                setSubmitConfirmStep(false);
                 setSubmitAttachments([{ id: crypto.randomUUID(), file: null, documentType: "SHORT", packageType: "PREMIUM" }]);
               }}
             >
               Cancel
             </Button>
-            <Button
-              type="button"
-              disabled={Boolean(busyId)}
-              onClick={() => void submitQuotationWork()}
-            >
-              {uploadingFiles ? "Uploading files..." : busyId ? "Submitting..." : "Submit to Review Center"}
-            </Button>
+            {(() => {
+              const targetRev = submitLead?.nextVersionNumber || ((submitLead?.quotationSubmissions?.length ?? 0) + 1);
+              const versionLabel = submitLead?.isPostAgreement
+                ? `Quotation Revision ${targetRev}`
+                : `Quotation Version ${targetRev}`;
+
+              if (!submitConfirmStep) {
+                return (
+                  <Button
+                    type="button"
+                    disabled={Boolean(busyId)}
+                    className={submitLead?.isPostAgreement ? "bg-purple-700 hover:bg-purple-800 text-white font-semibold" : ""}
+                    onClick={() => {
+                      const validAttachments = submitAttachments.filter((item) => item.file);
+                      const invalidFiles = validAttachments.filter((item) => item.file?.type && item.file.type !== "application/pdf");
+                      if (invalidFiles.length > 0) {
+                        toast.error("Please upload PDF files only for quotation submissions");
+                        return;
+                      }
+                      setSubmitConfirmStep(true);
+                    }}
+                  >
+                    Submit as {versionLabel}
+                  </Button>
+                );
+              }
+
+              return (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={Boolean(busyId) || uploadingFiles}
+                    onClick={() => setSubmitConfirmStep(false)}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    type="button"
+                    className="bg-purple-700 hover:bg-purple-800 text-white font-bold"
+                    disabled={Boolean(busyId) || uploadingFiles}
+                    onClick={() => void submitQuotationWork()}
+                  >
+                    {uploadingFiles ? "Uploading files..." : busyId ? "Submitting..." : `Yes, Save as ${versionLabel}`}
+                  </Button>
+                </div>
+              );
+            })()}
           </DialogFooter>
         </DialogContent>
       </Dialog>

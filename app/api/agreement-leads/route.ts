@@ -105,6 +105,26 @@ export async function GET(request: NextRequest) {
             user: { select: { id: true, fullName: true, email: true } },
           },
         },
+        cadWorkSubmissions: {
+          where: { department: LeadAssignmentDepartment.QUOTATION },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            versionNumber: true,
+            versionName: true,
+            note: true,
+            createdAt: true,
+            submittedBy: { select: { id: true, fullName: true } },
+            files: {
+              select: {
+                id: true,
+                fileName: true,
+                url: true,
+                fileType: true,
+              },
+            },
+          },
+        },
       },
     })
 
@@ -155,6 +175,15 @@ export async function GET(request: NextRequest) {
         boqAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.BOQ)?.user ?? null,
         quotationAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.QUOTATION)?.user ?? null,
         quotationVersionsCount: lead.quotationDrafts.filter((d) => d.draftKey.includes('version:')).length,
+        quotationSubmissions: lead.cadWorkSubmissions.map((sub) => ({
+          id: sub.id,
+          versionNumber: sub.versionNumber,
+          versionName: sub.versionName,
+          note: sub.note,
+          createdAt: sub.createdAt.toISOString(),
+          submittedBy: sub.submittedBy ? { id: sub.submittedBy.id, fullName: sub.submittedBy.fullName } : null,
+          files: sub.files.map((f) => ({ id: f.id, fileName: f.fileName, url: f.url, fileType: f.fileType })),
+        })),
       }
     })
 

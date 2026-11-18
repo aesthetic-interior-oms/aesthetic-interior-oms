@@ -1,4 +1,4 @@
-﻿﻿'use client'
+'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -13,6 +13,7 @@ import {
   FileEdit,
   FileSpreadsheet,
   FileText,
+  GitBranch,
   Loader2,
   MapPin,
   Phone,
@@ -53,11 +54,31 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 import type { QuotationDraftContent, QuotationTotals } from '@/lib/quotation-types'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Staff = { id: string; fullName: string; email: string }
+
+type QuotationSubmissionFile = { id: string; fileName: string; url: string; fileType: string | null }
+type QuotationSubmission = {
+  id: string
+  versionNumber: number
+  versionName: string
+  note: string | null
+  createdAt: string
+  submittedBy: { id: string; fullName: string } | null
+  files: QuotationSubmissionFile[]
+}
 
 type AgreementLead = {
   id: string
@@ -79,6 +100,7 @@ type AgreementLead = {
   boqAssignee: Staff | null
   quotationAssignee?: Staff | null
   quotationVersionsCount?: number
+  quotationSubmissions?: QuotationSubmission[]
 }
 
 type AgreementLeadsResponse = {
@@ -658,6 +680,15 @@ export function AgreementLeadsBoard({
   const [editingLeadId, setEditingLeadId] = useState<string | null>(null)
   const [canAssignBoq, setCanAssignBoq] = useState(false)
 
+  // Revision Request Dialog state
+  const [revisionDialogLead, setRevisionDialogLead] = useState<AgreementLead | null>(null)
+  const [revisionSelectedUserId, setRevisionSelectedUserId] = useState('')
+  const [revisionNote, setRevisionNote] = useState('')
+  const [savingRevision, setSavingRevision] = useState(false)
+
+  // Quotation version files expand state per lead
+  const [expandedVersionsLeadId, setExpandedVersionsLeadId] = useState<string | null>(null)
+
   const editingLead = useMemo(() => leads.find((l) => l.id === editingLeadId) ?? null, [leads, editingLeadId])
 
   // Determine whether the current user may assign BOQ staff
@@ -738,6 +769,37 @@ export function AgreementLeadsBoard({
     }
     void loadStaff()
   }, [])
+
+  const openRevisionDialog = (lead: AgreementLead) => {
+    setRevisionDialogLead(lead)
+    setRevisionSelectedUserId(lead.quotationAssignee?.id ?? '')
+    setRevisionNote('')
+  }
+
+  const submitRevisionRequest = async () => {
+    if (!revisionDialogLead || !revisionSelectedUserId) return
+    setSavingRevision(true)
+    try {
+      const response = await fetch(`/api/lead/${revisionDialogLead.id}/assignments/QUOTATION`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: revisionSelectedUserId, note: revisionNote.trim() || undefined }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to request revision')
+      }
+      toast.success(`Quotation revision requested — task sent to quotation team member`)
+      setRevisionDialogLead(null)
+      setRevisionSelectedUserId('')
+      setRevisionNote('')
+      await loadLeads()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to request revision')
+    } finally {
+      setSavingRevision(false)
+    }
+  }
 
   const assignQuotation = async (lead: AgreementLead) => {
     const userId = selectedQuotation[lead.id]
@@ -1052,7 +1114,7 @@ export function AgreementLeadsBoard({
                     {canAssignBoq && (
                       <TableHead className="w-[220px] font-semibold text-foreground py-3">BOQ Staff Assignment</TableHead>
                     )}
-                    <TableHead className="w-[210px] font-semibold text-foreground py-3">Quotation Maker (Revisions)</TableHead>
+                    <TableHead className="w-[200px] font-semibold text-foreground py-3">Quotation Revisions</TableHead>
                     <TableHead className="w-[170px] text-right font-semibold text-foreground py-3">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1064,11 +1126,6 @@ export function AgreementLeadsBoard({
                     const selectedUserId = selectedBoq[lead.id] ?? currentBoqId
                     const hasPendingChange = selectedUserId !== currentBoqId && Boolean(selectedUserId)
                     const saving = savingBoqId === lead.id
-
-                    const currentQuotationId = lead.quotationAssignee?.id ?? ''
-                    const selectedQuotationUserId = selectedQuotation[lead.id] ?? currentQuotationId
-                    const hasPendingQuotationChange = selectedQuotationUserId !== currentQuotationId && Boolean(selectedQuotationUserId)
-                    const savingQ = savingQuotationId === lead.id
 
                     return (
                       <TableRow key={lead.id} className="hover:bg-muted/20 transition-colors">
@@ -1182,44 +1239,81 @@ export function AgreementLeadsBoard({
                           </TableCell>
                         )}
 
-                        {/* 7b. Quotation Maker Assignment (Scope Revisions) */}
+                        {/* 7b. Quotation Revisions — on-demand only */}
                         <TableCell className="align-top py-3.5">
-                          <div className="space-y-1.5">
-                            <div className="flex items-center gap-1.5">
-                              <Select
-                                value={selectedQuotationUserId}
-                                onValueChange={(v) => {
-                                  setSelectedQuotation((cur) => ({ ...cur, [lead.id]: v }))
-                                }}
-                                disabled={staffLoading || savingQ}
-                              >
-                                <SelectTrigger className="h-8 text-xs flex-1 bg-background">
-                                  <SelectValue placeholder="Assign quotation maker" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {quotationStaff.map((user) => (
-                                    <SelectItem key={user.id} value={user.id} className="text-xs">{user.fullName}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              {hasPendingQuotationChange ? (
-                                <Button size="sm" className="h-8 px-2.5 text-xs shrink-0 bg-purple-700 hover:bg-purple-800 text-white" disabled={savingQ} onClick={() => void assignQuotation(lead)} title="Confirm Quotation Assignment">
-                                  {savingQ ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-                                  <span className="ml-1 hidden sm:inline">Save</span>
-                                </Button>
-                              ) : null}
-                            </div>
+                          <div className="space-y-2">
+                            {/* Current assignee (if any) */}
                             {lead.quotationAssignee ? (
                               <div className="flex items-center gap-1 text-[11px] text-purple-700 dark:text-purple-400 font-medium">
                                 <CheckCircle2 className="h-3 w-3 shrink-0" />
-                                <span className="truncate max-w-[190px]">Maker: {lead.quotationAssignee.fullName}</span>
+                                <span className="truncate max-w-[140px]">{lead.quotationAssignee.fullName}</span>
+                              </div>
+                            ) : null}
+
+                            {/* Submission files list */}
+                            {(lead.quotationSubmissions?.length ?? 0) > 0 ? (
+                              <div className="space-y-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedVersionsLeadId(expandedVersionsLeadId === lead.id ? null : lead.id)}
+                                  className="flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline"
+                                >
+                                  <GitBranch className="h-3 w-3 shrink-0" />
+                                  {lead.quotationSubmissions!.length} revision{lead.quotationSubmissions!.length !== 1 ? 's' : ''}
+                                  <span className="text-muted-foreground font-normal">{expandedVersionsLeadId === lead.id ? '▲' : '▼'}</span>
+                                </button>
+                                {expandedVersionsLeadId === lead.id && (
+                                  <div className="space-y-1.5 mt-1 max-h-[200px] overflow-y-auto pr-1">
+                                    {lead.quotationSubmissions!.map((sub) => (
+                                      <div key={sub.id} className="rounded-md border border-purple-200/60 bg-purple-50/50 dark:bg-purple-950/20 dark:border-purple-800/40 p-2 space-y-1">
+                                        <div className="flex items-center justify-between gap-1">
+                                          <span className="text-[10px] font-bold text-purple-800 dark:text-purple-300">{sub.versionName}</span>
+                                          <span className="text-[9px] text-muted-foreground">{new Date(sub.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                        </div>
+                                        {sub.submittedBy && (
+                                          <p className="text-[10px] text-muted-foreground">By: {sub.submittedBy.fullName}</p>
+                                        )}
+                                        {sub.note && (
+                                          <p className="text-[10px] text-muted-foreground italic truncate" title={sub.note}>{sub.note}</p>
+                                        )}
+                                        {sub.files.length > 0 && (
+                                          <div className="flex flex-col gap-1 mt-1">
+                                            {sub.files.map((file) => (
+                                              <a
+                                                key={file.id}
+                                                href={file.url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                download
+                                                className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline truncate max-w-full"
+                                                title={file.fileName}
+                                              >
+                                                <Download className="h-2.5 w-2.5 shrink-0" />
+                                                <span className="truncate max-w-[140px]">{file.fileName}</span>
+                                              </a>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             ) : (
-                              <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
-                                <AlertCircle className="h-3 w-3 shrink-0" />
-                                <span>No Quotation Maker</span>
-                              </div>
+                              <p className="text-[11px] text-muted-foreground">No revisions yet</p>
                             )}
+
+                            {/* Request Revision button — only when needed */}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-[11px] font-semibold border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-950/40"
+                              onClick={() => openRevisionDialog(lead)}
+                              disabled={staffLoading}
+                            >
+                              <GitBranch className="h-3 w-3 mr-1" />
+                              Request Revision
+                            </Button>
                           </div>
                         </TableCell>
 
@@ -1273,6 +1367,29 @@ export function AgreementLeadsBoard({
                                   <span>Download Detail Quotation</span>
                                   {!lead.detailQuotationAvailable && <span className="ml-auto text-[10px] text-muted-foreground">N/A</span>}
                                 </DropdownMenuItem>
+                                {lead.quotationSubmissions && lead.quotationSubmissions.length > 0 && (
+                                  <>
+                                    <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-t my-1">
+                                      Revision Files
+                                    </div>
+                                    {lead.quotationSubmissions.flatMap((sub) =>
+                                      sub.files.map((file) => (
+                                        <DropdownMenuItem key={file.id} asChild>
+                                          <a
+                                            href={file.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            download
+                                            className="flex items-center cursor-pointer text-xs text-purple-800 dark:text-purple-300"
+                                          >
+                                            <Download className="mr-2 h-3.5 w-3.5 text-purple-600 shrink-0" />
+                                            <span className="truncate max-w-[190px]">{sub.versionName}: {file.fileName}</span>
+                                          </a>
+                                        </DropdownMenuItem>
+                                      ))
+                                    )}
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -1296,6 +1413,65 @@ export function AgreementLeadsBoard({
           onSaved={() => { /* keep modal open, just mark saved */ }}
         />
       )}
+
+      {/* ─── REVISION REQUEST DIALOG ─────────────────────────────── */}
+      <Dialog open={Boolean(revisionDialogLead)} onOpenChange={(open) => { if (!open && !savingRevision) { setRevisionDialogLead(null); setRevisionSelectedUserId(''); setRevisionNote('') } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4 text-purple-600" />
+              Request Quotation Revision
+            </DialogTitle>
+            <DialogDescription>
+              Assign a quotation team member to revise the quotation for <strong>{revisionDialogLead?.name}</strong>. The project stage will not change.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Assign to Quotation Member *</label>
+              <Select value={revisionSelectedUserId} onValueChange={setRevisionSelectedUserId} disabled={staffLoading || savingRevision}>
+                <SelectTrigger className="h-9 text-sm">
+                  <SelectValue placeholder="Select quotation team member..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {quotationStaff.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>{user.fullName}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {revisionDialogLead?.quotationAssignee && (
+                <p className="text-[11px] text-purple-700 dark:text-purple-400">
+                  Currently: {revisionDialogLead.quotationAssignee.fullName}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">Revision Note (optional)</label>
+              <Textarea
+                rows={3}
+                value={revisionNote}
+                onChange={(e) => setRevisionNote(e.target.value)}
+                placeholder="e.g. Client wants to remove false ceiling, add extra bedroom..."
+                disabled={savingRevision}
+                className="text-sm resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => { setRevisionDialogLead(null); setRevisionSelectedUserId(''); setRevisionNote('') }} disabled={savingRevision}>
+              Cancel
+            </Button>
+            <Button
+              className="bg-purple-700 hover:bg-purple-800 text-white"
+              onClick={() => void submitRevisionRequest()}
+              disabled={!revisionSelectedUserId || savingRevision}
+            >
+              {savingRevision ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <GitBranch className="h-4 w-4 mr-1.5" />}
+              Send Revision Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
