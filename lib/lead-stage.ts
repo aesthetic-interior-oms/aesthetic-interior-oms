@@ -59,3 +59,10 @@ export function isSubStatusAllowedForStage(stage: LeadStage, subStatus: LeadSubS
 
   return subStatus !== null && allowed.includes(subStatus);
 }
+
+export function formatStageDisplay(stage: string | null | undefined): string {
+  if (!stage) return 'N/A';
+  if (stage === 'DISCOVERY') return 'Consulting Phase';
+  if (stage === 'CONVERSION') return 'Agreement Signed';
+  return stage.replace(/_/g, ' ');
+}

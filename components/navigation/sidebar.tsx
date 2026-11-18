@@ -357,7 +357,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
         },
         {
           icon: CheckSquare,
-          label: 'Conversion & Payment',
+          label: 'Agreement Signed & Payment',
           href: '/crm/sr/conversion-payment',
         },
         {

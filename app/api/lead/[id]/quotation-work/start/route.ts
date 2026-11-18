@@ -19,6 +19,16 @@ const STARTABLE_SUBSTATUSES = new Set<LeadSubStatus>([
   LeadSubStatus.CLIENT_FULL_PAID,
 ])
 
+const POST_AGREEMENT_STAGES = new Set<LeadStage>([
+  LeadStage.CONVERSION,
+  LeadStage.PROJECT_SETUP,
+  LeadStage.MATERIAL_PLANNING,
+  LeadStage.PROCUREMENT,
+  LeadStage.SITE_EXECUTION,
+  LeadStage.QUALITY_CHECK,
+  LeadStage.HANDOVER,
+])
+
 type RouteContext = { params: Promise<{ id: string }> }
 
 async function resolveLeadId(context: RouteContext): Promise<string | null> {
@@ -55,7 +65,8 @@ export async function POST(_request: NextRequest, context: RouteContext) {
           id: leadId,
           OR: [
             { subStatus: { in: Array.from(STARTABLE_SUBSTATUSES) } },
-            { stage: LeadStage.CONVERSION },
+            { stage: { in: Array.from(POST_AGREEMENT_STAGES) } },
+            { agreementType: { not: null } },
           ],
           ...(isAdminOrSr
             ? {}
@@ -71,7 +82,9 @@ export async function POST(_request: NextRequest, context: RouteContext) {
         select: {
           id: true,
           name: true,
+          stage: true,
           subStatus: true,
+          agreementType: true,
           assignments: {
             where: { department: LeadAssignmentDepartment.QUOTATION },
             orderBy: { createdAt: 'desc' },
@@ -83,34 +96,48 @@ export async function POST(_request: NextRequest, context: RouteContext) {
 
       if (!lead) throw new Error('LEAD_NOT_FOUND_OR_NOT_STARTABLE')
 
+      const isPostAgreement =
+        POST_AGREEMENT_STAGES.has(lead.stage) ||
+        lead.stage === LeadStage.CONVERSION ||
+        Boolean(lead.agreementType)
+
+      let updatedLead = { id: lead.id, stage: lead.stage, subStatus: lead.subStatus }
+      if (!isPostAgreement) {
+        updatedLead = await tx.lead.update({
+          where: { id: lead.id },
+          data: { subStatus: LeadSubStatus.QUOTATION_WORKING },
+          select: { id: true, stage: true, subStatus: true },
+        })
+
+        await logLeadSubStatusChanged(tx, {
+          leadId: lead.id,
+          userId: authResult.actorUserId,
+          from: lead.subStatus,
+          to: LeadSubStatus.QUOTATION_WORKING,
+          reason: 'Quotation team confirmed work start.',
+        })
+      }
+
       const now = new Date()
-      const updatedLead = await tx.lead.update({
-        where: { id: lead.id },
-        data: { subStatus: LeadSubStatus.QUOTATION_WORKING },
-        select: { id: true, stage: true, subStatus: true },
-      })
-
-      await logLeadSubStatusChanged(tx, {
-        leadId: lead.id,
-        userId: authResult.actorUserId,
-        from: lead.subStatus,
-        to: LeadSubStatus.QUOTATION_WORKING,
-        reason: 'Quotation team confirmed work start.',
-      })
-
       const openTask = await tx.leadPhaseTask.findFirst({
         where: {
           leadId: lead.id,
           phaseType: LeadPhaseType.QUOTATION,
           status: { in: [LeadPhaseTaskStatus.OPEN, LeadPhaseTaskStatus.IN_REVIEW] },
         },
-        select: { id: true, status: true },
+        select: { id: true, status: true, workDetails: true },
       })
 
       if (openTask) {
         await tx.leadPhaseTask.update({
           where: { id: openTask.id },
-          data: { status: LeadPhaseTaskStatus.OPEN, startedAt: now, completedAt: null, updatedAt: now },
+          data: {
+            status: LeadPhaseTaskStatus.OPEN,
+            startedAt: now,
+            completedAt: null,
+            workDetails: isPostAgreement ? 'Post-agreement quotation revision / variation' : openTask.workDetails,
+            updatedAt: now,
+          },
         })
       } else {
         const dueAt = new Date(now)
@@ -122,6 +149,7 @@ export async function POST(_request: NextRequest, context: RouteContext) {
             assigneeUserId: lead.assignments[0]?.userId ?? authResult.actorUserId,
             startedAt: now,
             dueAt,
+            workDetails: isPostAgreement ? 'Post-agreement quotation revision / variation' : 'Quotation work',
             createdById: authResult.actorUserId,
           },
         })
@@ -131,7 +159,9 @@ export async function POST(_request: NextRequest, context: RouteContext) {
         leadId: lead.id,
         userId: authResult.actorUserId,
         type: ActivityType.NOTE,
-        description: 'Quotation work started by quotation team.',
+        description: isPostAgreement
+          ? 'Quotation revision work started by quotation team.'
+          : 'Quotation work started by quotation team.',
       })
 
       return updatedLead

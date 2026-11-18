@@ -149,14 +149,24 @@ export async function GET(request: Request) {
         ? `${visitDate.getFullYear()}-${String(visitDate.getMonth() + 1).padStart(2, '0')}`
         : null
 
-      // Compute assignment date based on quotation assignment or lead created_at
+      // Compute assignment date based on latest quotation assignment or lead created_at
       const quotationAssignments = lead.assignments
         .filter((a) => a.department === LeadAssignmentDepartment.QUOTATION)
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
-      const firstAssignmentDate = quotationAssignments[0]?.createdAt ?? lead.created_at
-      const assignedYear = firstAssignmentDate.getFullYear()
-      const assignedMonth = firstAssignmentDate.getMonth() + 1
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      const assignmentDate = quotationAssignments[0]?.createdAt ?? lead.created_at
+      const assignedYear = assignmentDate.getFullYear()
+      const assignedMonth = assignmentDate.getMonth() + 1
       const assignedMonthKey = `${assignedYear}-${String(assignedMonth).padStart(2, '0')}`
+
+      const isPostAgreementStage =
+        (lead.stage as string) === LeadStage.CONVERSION ||
+        (lead.stage as string) === LeadStage.PROJECT_SETUP ||
+        (lead.stage as string) === LeadStage.MATERIAL_PLANNING ||
+        (lead.stage as string) === LeadStage.PROCUREMENT ||
+        (lead.stage as string) === LeadStage.SITE_EXECUTION ||
+        (lead.stage as string) === LeadStage.QUALITY_CHECK ||
+        (lead.stage as string) === LeadStage.HANDOVER ||
+        Boolean((lead as any).agreementType)
 
       // Filter drafts edited in monthRange by current user if monthRange is provided
       const userMonthDrafts = lead.quotationDrafts.filter(
@@ -181,8 +191,8 @@ export async function GET(request: Request) {
         subStatus: lead.subStatus,
         createdAt: lead.created_at.toISOString(),
         updatedAt: latestDraftUpdate,
-        assignedAt: firstAssignmentDate.toISOString(),
-        assignedDate: firstAssignmentDate.toISOString(),
+        assignedAt: assignmentDate.toISOString(),
+        assignedDate: assignmentDate.toISOString(),
         assignedMonthKey,
         assignedYear,
         assignedMonth,
@@ -199,13 +209,14 @@ export async function GET(request: Request) {
         detailVersionsCount: sqftSummary.detailVersionsCount,
         shortPackagesCount: sqftSummary.shortPackagesCount,
         attachments: lead.attachments,
+        isPostAgreement: isPostAgreementStage,
         canStart:
-          (lead.stage as string) === LeadStage.CONVERSION ||
+          isPostAgreementStage ||
           lead.subStatus === LeadSubStatus.QUOTATION_ASSIGNED ||
           lead.subStatus === LeadSubStatus.QUOTATION_CORRECTION,
         canSubmit:
-          lead.subStatus === LeadSubStatus.QUOTATION_WORKING ||
-          (lead.stage as string) === LeadStage.CONVERSION,
+          isPostAgreementStage ||
+          lead.subStatus === LeadSubStatus.QUOTATION_WORKING,
       }
     })
 

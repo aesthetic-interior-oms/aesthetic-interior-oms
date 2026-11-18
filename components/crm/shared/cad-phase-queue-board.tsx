@@ -214,6 +214,7 @@ const DEFAULT_STAT_META = {
 function formatLabel(value: string | null | undefined) {
   if (!value) return 'N/A'
   if (value === 'DISCOVERY') return 'Consulting Phase'
+  if (value === 'CONVERSION') return 'Agreement Signed'
   if (value === 'PROPOSAL_SENT') return 'Quotation Sent'
   return value
     .replace(/_/g, ' ')

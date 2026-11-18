@@ -1,6 +1,8 @@
 import prisma from '@/lib/prisma'
 import {
   LeadAssignmentDepartment,
+  LeadPhaseTaskStatus,
+  LeadPhaseType,
   LeadPrimaryOwnerDepartment,
   LeadStage,
   LeadSubStatus,
@@ -11,6 +13,16 @@ import { logUserAssigned } from '@/lib/activity-log-service'
 import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete'
 import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles'
 import { sendPushToUser } from '@/lib/fcm-service'
+
+const POST_AGREEMENT_STAGES = new Set<LeadStage>([
+  LeadStage.CONVERSION,
+  LeadStage.PROJECT_SETUP,
+  LeadStage.MATERIAL_PLANNING,
+  LeadStage.PROCUREMENT,
+  LeadStage.SITE_EXECUTION,
+  LeadStage.QUALITY_CHECK,
+  LeadStage.HANDOVER,
+])
 
 /*
   POSTMAN TESTING DATA
@@ -208,10 +220,16 @@ export async function POST(
     const result = await prisma.$transaction(async (tx) => {
       const lead = await tx.lead.findUnique({
         where: { id: leadId },
-        select: { id: true, name: true, stage: true, subStatus: true },
+        select: { id: true, name: true, stage: true, subStatus: true, agreementType: true },
       })
       if (!lead) throw new Error('Lead not found')
-      if (lead.stage !== LeadStage.QUOTATION_PHASE || lead.subStatus !== LeadSubStatus.QUOTATION_APPROVED) {
+
+      const isPostAgreement =
+        POST_AGREEMENT_STAGES.has(lead.stage) ||
+        lead.stage === LeadStage.CONVERSION ||
+        Boolean(lead.agreementType)
+
+      if (!isPostAgreement && (lead.stage !== LeadStage.QUOTATION_PHASE || lead.subStatus !== LeadSubStatus.QUOTATION_APPROVED)) {
         throw new Error('New quotation can only be assigned after quotation approval')
       }
 
@@ -232,15 +250,55 @@ export async function POST(
         include: { user: { select: { id: true, fullName: true, email: true } } },
       })
 
-      await tx.lead.update({
-        where: { id: leadId },
-        data: { stage: LeadStage.QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_ASSIGNED },
+      if (!isPostAgreement) {
+        await tx.lead.update({
+          where: { id: leadId },
+          data: { stage: LeadStage.QUOTATION_PHASE, subStatus: LeadSubStatus.QUOTATION_ASSIGNED },
+        })
+      }
+
+      // Reopen or create LeadPhaseTask for quotation work
+      const now = new Date()
+      const dueAt = new Date(now)
+      dueAt.setDate(dueAt.getDate() + 3)
+      const existingTask = await tx.leadPhaseTask.findFirst({
+        where: { leadId, phaseType: LeadPhaseType.QUOTATION },
+        orderBy: { createdAt: 'desc' },
       })
+      if (existingTask) {
+        await tx.leadPhaseTask.update({
+          where: { id: existingTask.id },
+          data: {
+            assigneeUserId: userId,
+            status: LeadPhaseTaskStatus.OPEN,
+            startedAt: now,
+            completedAt: null,
+            dueAt,
+            workDetails: isPostAgreement ? 'Post-agreement quotation revision / variation' : existingTask.workDetails,
+            updatedAt: now,
+          },
+        })
+      } else {
+        await tx.leadPhaseTask.create({
+          data: {
+            leadId,
+            phaseType: LeadPhaseType.QUOTATION,
+            assigneeUserId: userId,
+            dueAt,
+            startedAt: now,
+            status: LeadPhaseTaskStatus.OPEN,
+            workDetails: isPostAgreement ? 'Post-agreement quotation revision / variation' : 'Quotation task',
+            createdById: authResult.actorUserId,
+          },
+        })
+      }
 
       await logUserAssigned(tx, {
         leadId,
         userId,
-        leadName: `New quotation assignment: ${user.fullName} assigned while preserving previous quotation owners`,
+        leadName: isPostAgreement
+          ? `Quotation revision assignment: ${user.fullName} assigned for scope revision`
+          : `New quotation assignment: ${user.fullName} assigned while preserving previous quotation owners`,
       })
 
       await autoCompletePendingFollowups(tx, {
@@ -249,7 +307,7 @@ export async function POST(
         action: 'new quotation assignment',
       })
 
-      return { assignment, leadName: lead.name }
+      return { assignment, leadName: lead.name, isPostAgreement }
     })
 
     try {
@@ -552,6 +610,47 @@ export async function PUT(
             primaryOwnerUserId: userId,
           },
         })
+      }
+
+      if (department === 'QUOTATION') {
+        const isPostAgreement =
+          POST_AGREEMENT_STAGES.has(lead.stage) ||
+          lead.stage === LeadStage.CONVERSION ||
+          Boolean((lead as any).agreementType)
+        const now = new Date()
+        const dueAt = new Date(now)
+        dueAt.setDate(dueAt.getDate() + 3)
+        const existingTask = await tx.leadPhaseTask.findFirst({
+          where: { leadId, phaseType: LeadPhaseType.QUOTATION },
+          orderBy: { createdAt: 'desc' },
+        })
+        if (existingTask) {
+          await tx.leadPhaseTask.update({
+            where: { id: existingTask.id },
+            data: {
+              assigneeUserId: userId,
+              status: LeadPhaseTaskStatus.OPEN,
+              startedAt: now,
+              completedAt: null,
+              dueAt,
+              workDetails: isPostAgreement ? 'Post-agreement quotation revision / variation' : existingTask.workDetails,
+              updatedAt: now,
+            },
+          })
+        } else {
+          await tx.leadPhaseTask.create({
+            data: {
+              leadId,
+              phaseType: LeadPhaseType.QUOTATION,
+              assigneeUserId: userId,
+              dueAt,
+              startedAt: now,
+              status: LeadPhaseTaskStatus.OPEN,
+              workDetails: isPostAgreement ? 'Post-agreement quotation revision / variation' : 'Quotation task',
+              createdById: actorUserId || userId,
+            },
+          })
+        }
       }
 
       // Log the update activity

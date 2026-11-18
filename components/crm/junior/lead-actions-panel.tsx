@@ -493,7 +493,7 @@ export function LeadActionsPanel({
     QUOTATION_PHASE: 'Lead has moved to quotation phase.',
     BUDGET_PHASE: 'Lead has moved to budget phase.',
     VISUALIZATION_PHASE: 'Lead has moved to visualization phase.',
-    CONVERSION: 'Lead has moved to conversion phase.',
+    CONVERSION: 'Lead has moved to agreement signed phase.',
     PROJECT_SETUP: 'Lead has moved to project setup.',
     MATERIAL_PLANNING: 'Lead has moved to material planning.',
     PROCUREMENT: 'Lead has moved to procurement.',
@@ -1853,7 +1853,7 @@ export function LeadActionsPanel({
               <SelectItem value="QUOTATION_PHASE" disabled={restrictStagesForJrCrm}>Quotation Phase</SelectItem>
               <SelectItem value="BUDGET_PHASE" disabled={restrictStagesForJrCrm}>Budget Phase</SelectItem>
               {!restrictConversionStage && (
-                <SelectItem value="CONVERSION" disabled={restrictStagesForJrCrm}>Conversion</SelectItem>
+                <SelectItem value="CONVERSION" disabled={restrictStagesForJrCrm}>Agreement Signed</SelectItem>
               )}
               <SelectItem value="PROJECT_SETUP" disabled={restrictStagesForJrCrm}>Project Setup</SelectItem>
               <SelectItem value="MATERIAL_PLANNING" disabled={restrictStagesForJrCrm}>Material Planning</SelectItem>

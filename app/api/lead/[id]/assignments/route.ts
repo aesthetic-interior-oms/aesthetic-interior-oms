@@ -6,7 +6,10 @@ import { autoCompletePendingFollowups } from '@/lib/followup-auto-complete';
 import { sendPushToUser } from '@/lib/fcm-service';
 import {
   LeadAssignmentDepartment,
+  LeadPhaseTaskStatus,
+  LeadPhaseType,
   LeadPrimaryOwnerDepartment,
+  LeadStage,
   VisitStatus,
 } from '@/generated/prisma/client';
 import { normalizeDepartmentName } from '@/lib/department-normalization';
@@ -356,6 +359,52 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             primaryOwnerUserId: userId,
           },
         });
+      }
+
+      if (department === 'QUOTATION') {
+        const isPostAgreement =
+          lead.stage === LeadStage.CONVERSION ||
+          lead.stage === LeadStage.PROJECT_SETUP ||
+          lead.stage === LeadStage.MATERIAL_PLANNING ||
+          lead.stage === LeadStage.PROCUREMENT ||
+          lead.stage === LeadStage.SITE_EXECUTION ||
+          lead.stage === LeadStage.QUALITY_CHECK ||
+          lead.stage === LeadStage.HANDOVER ||
+          Boolean((lead as any).agreementType);
+        const now = new Date();
+        const dueAt = new Date(now);
+        dueAt.setDate(dueAt.getDate() + 3);
+        const existingTask = await tx.leadPhaseTask.findFirst({
+          where: { leadId, phaseType: LeadPhaseType.QUOTATION },
+          orderBy: { createdAt: 'desc' },
+        });
+        if (existingTask) {
+          await tx.leadPhaseTask.update({
+            where: { id: existingTask.id },
+            data: {
+              assigneeUserId: userId,
+              status: LeadPhaseTaskStatus.OPEN,
+              startedAt: now,
+              completedAt: null,
+              dueAt,
+              workDetails: isPostAgreement ? 'Post-agreement quotation revision / variation' : existingTask.workDetails,
+              updatedAt: now,
+            },
+          });
+        } else {
+          await tx.leadPhaseTask.create({
+            data: {
+              leadId,
+              phaseType: LeadPhaseType.QUOTATION,
+              assigneeUserId: userId,
+              dueAt,
+              startedAt: now,
+              status: LeadPhaseTaskStatus.OPEN,
+              workDetails: isPostAgreement ? 'Post-agreement quotation revision / variation' : 'Quotation task',
+              createdById: actorUserId || userId,
+            },
+          });
+        }
       }
 
       // Log the assignment activity

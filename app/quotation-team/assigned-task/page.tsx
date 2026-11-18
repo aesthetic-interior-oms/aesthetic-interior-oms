@@ -59,6 +59,7 @@ type TaskLead = {
   shortPackagesCount?: number;
   canStart: boolean;
   canSubmit: boolean;
+  isPostAgreement?: boolean;
   attachments?: Array<{
     id: string;
     fileName: string;
@@ -70,6 +71,13 @@ type TaskLead = {
 function formatLabel(value: string | null | undefined) {
   if (!value) return "N/A";
   if (value === "DISCOVERY") return "Consulting Phase";
+  if (value === "CONVERSION") return "Agreement Signed";
+  if (value === "PROJECT_SETUP") return "Project Setup";
+  if (value === "MATERIAL_PLANNING") return "Material Planning";
+  if (value === "PROCUREMENT") return "Procurement";
+  if (value === "SITE_EXECUTION") return "Site Execution";
+  if (value === "QUALITY_CHECK") return "Quality Check";
+  if (value === "HANDOVER") return "Handover";
   if (value === "PROPOSAL_SENT") return "Quotation Sent";
   return value
     .replace(/_/g, " ")
@@ -597,7 +605,13 @@ export default function QuotationAssignedTaskPage() {
                           <td className="px-4 py-3">
                             <div className="flex flex-col gap-1 items-start">
                               <Badge variant="secondary" className="text-[10px]">{formatLabel(lead.stage)}</Badge>
-                              <Badge variant="outline" className="text-[10px]">{formatLabel(lead.subStatus)}</Badge>
+                              {lead.isPostAgreement ? (
+                                <Badge className="text-[10px] bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200">
+                                  Scope Revision
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px]">{formatLabel(lead.subStatus)}</Badge>
+                              )}
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -692,9 +706,15 @@ export default function QuotationAssignedTaskPage() {
                         <Badge variant="secondary">
                           {formatLabel(lead.stage)}
                         </Badge>
-                        <Badge variant="outline">
-                          {formatLabel(lead.subStatus)}
-                        </Badge>
+                        {lead.isPostAgreement ? (
+                          <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200">
+                            Scope Revision
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">
+                            {formatLabel(lead.subStatus)}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">

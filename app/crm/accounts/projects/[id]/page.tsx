@@ -1229,11 +1229,23 @@ export default function ProjectDetailPage() {
                     Access, preview, and download all quotation versions created for this project, and sync revised agreement values.
                   </CardDescription>
                 </div>
-                {report?.project?.quotationType && (
-                  <Badge variant="outline" className="text-xs uppercase">
-                    {report.project.quotationType}
-                  </Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`/quotation-team/leads/${id}?tab=detail`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs">
+                      <ExternalLink className="h-3.5 w-3.5 text-purple-600" />
+                      Open Quotation Workspace
+                    </Button>
+                  </a>
+                  {report?.project?.quotationType && (
+                    <Badge variant="outline" className="text-xs uppercase">
+                      {report.project.quotationType}
+                    </Badge>
+                  )}
+                </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">

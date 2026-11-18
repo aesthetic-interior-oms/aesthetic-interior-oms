@@ -1,4 +1,4 @@
-﻿﻿﻿'use client'
+﻿﻿'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -77,6 +77,8 @@ type AgreementLead = {
   detailQuotationAvailable: boolean
   srCrm: Staff | null
   boqAssignee: Staff | null
+  quotationAssignee?: Staff | null
+  quotationVersionsCount?: number
 }
 
 type AgreementLeadsResponse = {
@@ -639,13 +641,16 @@ export function AgreementLeadsBoard({
 }) {
   const [leads, setLeads] = useState<AgreementLead[]>([])
   const [staff, setStaff] = useState<Staff[]>([])
+  const [quotationStaff, setQuotationStaff] = useState<Staff[]>([])
   const [selectedBoq, setSelectedBoq] = useState<Record<string, string>>({})
+  const [selectedQuotation, setSelectedQuotation] = useState<Record<string, string>>({})
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<FilterTab>('all')
   const [loading, setLoading] = useState(true)
   const [staffLoading, setStaffLoading] = useState(true)
   const [savingBoqId, setSavingBoqId] = useState<string | null>(null)
+  const [savingQuotationId, setSavingQuotationId] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [downloadingAgreementId, setDownloadingAgreementId] = useState<string | null>(null)
   const [downloadingMepId, setDownloadingMepId] = useState<string | null>(null)
@@ -696,6 +701,11 @@ export function AgreementLeadsBoard({
         nextLeads.forEach((lead) => { if (!(lead.id in next)) next[lead.id] = lead.boqAssignee?.id ?? '' })
         return next
       })
+      setSelectedQuotation((current) => {
+        const next = { ...current }
+        nextLeads.forEach((lead) => { if (!(lead.id in next)) next[lead.id] = lead.quotationAssignee?.id ?? '' })
+        return next
+      })
     } catch (error) {
       setLeads([])
       toast.error(error instanceof Error ? error.message : 'Failed to load Agreement Leads')
@@ -715,16 +725,42 @@ export function AgreementLeadsBoard({
     const loadStaff = async () => {
       setStaffLoading(true)
       try {
-        const response = await fetch('/api/department/available/BOQ', { cache: 'no-store' })
-        const payload = await response.json()
-        if (!response.ok || !payload.success) throw new Error(payload.error ?? 'Failed to load BOQ staff')
-        setStaff(payload.users ?? [])
+        const [boqRes, qRes] = await Promise.all([
+          fetch('/api/department/available/BOQ', { cache: 'no-store' }),
+          fetch('/api/department/available/QUOTATION_TEAM', { cache: 'no-store' }),
+        ])
+        const [boqPayload, qPayload] = await Promise.all([boqRes.json(), qRes.json()])
+        if (boqPayload.success && Array.isArray(boqPayload.users)) setStaff(boqPayload.users)
+        if (qPayload.success && Array.isArray(qPayload.users)) setQuotationStaff(qPayload.users)
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : 'Failed to load BOQ staff')
+        toast.error(error instanceof Error ? error.message : 'Failed to load staff')
       } finally { setStaffLoading(false) }
     }
     void loadStaff()
   }, [])
+
+  const assignQuotation = async (lead: AgreementLead) => {
+    const userId = selectedQuotation[lead.id]
+    if (!userId) return
+    setSavingQuotationId(lead.id)
+    try {
+      const response = await fetch(`/api/lead/${lead.id}/assignments/QUOTATION`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to assign quotation member')
+      }
+      toast.success('Quotation member assigned for scope revision')
+      await loadLeads()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to assign quotation member')
+    } finally {
+      setSavingQuotationId(null)
+    }
+  }
 
   const assignBoq = async (lead: AgreementLead) => {
     const userId = selectedBoq[lead.id]
@@ -1016,6 +1052,7 @@ export function AgreementLeadsBoard({
                     {canAssignBoq && (
                       <TableHead className="w-[220px] font-semibold text-foreground py-3">BOQ Staff Assignment</TableHead>
                     )}
+                    <TableHead className="w-[210px] font-semibold text-foreground py-3">Quotation Maker (Revisions)</TableHead>
                     <TableHead className="w-[170px] text-right font-semibold text-foreground py-3">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1027,6 +1064,11 @@ export function AgreementLeadsBoard({
                     const selectedUserId = selectedBoq[lead.id] ?? currentBoqId
                     const hasPendingChange = selectedUserId !== currentBoqId && Boolean(selectedUserId)
                     const saving = savingBoqId === lead.id
+
+                    const currentQuotationId = lead.quotationAssignee?.id ?? ''
+                    const selectedQuotationUserId = selectedQuotation[lead.id] ?? currentQuotationId
+                    const hasPendingQuotationChange = selectedQuotationUserId !== currentQuotationId && Boolean(selectedQuotationUserId)
+                    const savingQ = savingQuotationId === lead.id
 
                     return (
                       <TableRow key={lead.id} className="hover:bg-muted/20 transition-colors">
@@ -1140,6 +1182,47 @@ export function AgreementLeadsBoard({
                           </TableCell>
                         )}
 
+                        {/* 7b. Quotation Maker Assignment (Scope Revisions) */}
+                        <TableCell className="align-top py-3.5">
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <Select
+                                value={selectedQuotationUserId}
+                                onValueChange={(v) => {
+                                  setSelectedQuotation((cur) => ({ ...cur, [lead.id]: v }))
+                                }}
+                                disabled={staffLoading || savingQ}
+                              >
+                                <SelectTrigger className="h-8 text-xs flex-1 bg-background">
+                                  <SelectValue placeholder="Assign quotation maker" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {quotationStaff.map((user) => (
+                                    <SelectItem key={user.id} value={user.id} className="text-xs">{user.fullName}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {hasPendingQuotationChange ? (
+                                <Button size="sm" className="h-8 px-2.5 text-xs shrink-0 bg-purple-700 hover:bg-purple-800 text-white" disabled={savingQ} onClick={() => void assignQuotation(lead)} title="Confirm Quotation Assignment">
+                                  {savingQ ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                                  <span className="ml-1 hidden sm:inline">Save</span>
+                                </Button>
+                              ) : null}
+                            </div>
+                            {lead.quotationAssignee ? (
+                              <div className="flex items-center gap-1 text-[11px] text-purple-700 dark:text-purple-400 font-medium">
+                                <CheckCircle2 className="h-3 w-3 shrink-0" />
+                                <span className="truncate max-w-[190px]">Maker: {lead.quotationAssignee.fullName}</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400 font-medium">
+                                <AlertCircle className="h-3 w-3 shrink-0" />
+                                <span>No Quotation Maker</span>
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+
                         {/* 8. Actions */}
                         <TableCell className="text-right align-top py-3.5">
                           <div className="flex items-center justify-end gap-1.5">
@@ -1170,7 +1253,13 @@ export function AgreementLeadsBoard({
                                   <ChevronDown className="ml-1 h-3 w-3 opacity-70" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-56">
+                              <DropdownMenuContent align="end" className="w-60">
+                                <DropdownMenuItem asChild>
+                                  <a href={`/quotation-team/leads/${lead.id}?tab=detail`} target="_blank" rel="noopener noreferrer" className="flex items-center cursor-pointer">
+                                    <FileSpreadsheet className="mr-2 h-4 w-4 text-purple-600" />
+                                    <span>Revise Quotation (Workspace)</span>
+                                  </a>
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => void downloadMepCover(lead)}>
                                   <Compass className="mr-2 h-4 w-4 text-blue-600" />
                                   <span className="font-medium text-foreground">Download MEP Cover (A3)</span>

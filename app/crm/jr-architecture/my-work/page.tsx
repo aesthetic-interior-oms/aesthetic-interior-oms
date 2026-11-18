@@ -154,6 +154,7 @@ function formatLabel(value: string | null | undefined): string {
   if (value === 'QUOTATION_PHASE') return 'Quotation Phase'
   if (value === 'VISUALIZATION_PHASE') return '3D Visualization Phase'
   if (value === 'DISCOVERY') return 'Consulting Phase'
+  if (value === 'CONVERSION') return 'Agreement Signed'
   return value
     .replace(/_/g, ' ')
     .toLowerCase()

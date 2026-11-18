@@ -97,7 +97,7 @@ const ALL_MEMBER_FILTER = 'ALL_MEMBERS'
 
 const STAT_META = {
   ALL: {
-    label: 'Total Conversion',
+    label: 'Total Agreement Signed',
     Icon: CircleDollarSign,
     className:
       'border-slate-200/80 from-slate-900 via-slate-800 to-slate-950 text-white dark:border-white/10 dark:from-slate-100 dark:via-white dark:to-slate-200 dark:text-slate-950',
@@ -140,6 +140,7 @@ const SUBSTATUS_KEYS = ['CLIENT_CONFIRMED', 'CLIENT_PARTIALLY_PAID', 'CLIENT_FUL
 
 function formatLabel(value: string | null | undefined) {
   if (!value) return 'N/A'
+  if (value === 'CONVERSION') return 'Agreement Signed'
   return value
     .replace(/_/g, ' ')
     .toLowerCase()
@@ -226,8 +227,8 @@ function StageSubStatusBlock({ lead }: { lead: ConversionLead }) {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function ConversionPaymentBoard({
-  title = 'Conversion & Payment',
-  subtitle = 'Track clients in the conversion stage — confirmed, partially paid, and fully paid.',
+  title = 'Agreement Signed & Payment',
+  subtitle = 'Track clients in the agreement signed stage — confirmed, partially paid, and fully paid.',
   leadBasePath = '/crm/sr/leads',
 }: {
   title?: string
@@ -519,7 +520,7 @@ export function ConversionPaymentBoard({
                     Queue Intelligence
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Live snapshot of conversion & payment status.
+                    Live snapshot of agreement signed & payment status.
                   </p>
                 </div>
                 <Badge variant="secondary" className="rounded-full px-3 py-1 text-xs">
@@ -609,7 +610,7 @@ export function ConversionPaymentBoard({
         ) : filteredLeads.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              No leads found in conversion stage.
+              No leads found in agreement signed stage.
             </CardContent>
           </Card>
         ) : viewMode === 'table' ? (

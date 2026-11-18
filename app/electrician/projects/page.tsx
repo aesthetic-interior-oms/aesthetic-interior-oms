@@ -111,7 +111,11 @@ export default function ElectricianProjectsPage() {
               className="text-xs h-8"
               onClick={() => setStageFilter(stage)}
             >
-              {stage === 'ALL' ? `All Sites (${projects.length})` : stage.replace(/_/g, ' ')}
+              {stage === 'ALL'
+                ? `All Sites (${projects.length})`
+                : stage === 'CONVERSION'
+                ? 'Agreement Signed'
+                : stage.replace(/_/g, ' ')}
             </Button>
           ))}
         </div>
@@ -135,7 +139,9 @@ export default function ElectricianProjectsPage() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base font-semibold leading-snug line-clamp-1">{p.name}</CardTitle>
-                  <Badge variant="outline" className="text-[10px] shrink-0 font-normal">{p.stage.replace(/_/g, ' ')}</Badge>
+                  <Badge variant="outline" className="text-[10px] shrink-0 font-normal">
+                    {p.stage === 'CONVERSION' ? 'Agreement Signed' : p.stage.replace(/_/g, ' ')}
+                  </Badge>
                 </div>
                 <CardDescription className="text-xs text-muted-foreground flex items-center gap-1.5 pt-1">
                   <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />

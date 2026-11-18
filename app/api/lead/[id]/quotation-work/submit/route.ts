@@ -22,6 +22,16 @@ import { isGCSUploadUrl } from "@/lib/gcs-storage";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+const POST_AGREEMENT_STAGES = new Set<LeadStage>([
+  LeadStage.CONVERSION,
+  LeadStage.PROJECT_SETUP,
+  LeadStage.MATERIAL_PLANNING,
+  LeadStage.PROCUREMENT,
+  LeadStage.SITE_EXECUTION,
+  LeadStage.QUALITY_CHECK,
+  LeadStage.HANDOVER,
+]);
+
 type SubmitQuotationBody = {
   note?: unknown;
   files?: unknown;
@@ -150,7 +160,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
           id: leadId,
           OR: [
             { subStatus: LeadSubStatus.QUOTATION_WORKING },
-            { stage: LeadStage.CONVERSION },
+            { stage: { in: Array.from(POST_AGREEMENT_STAGES) } },
+            { agreementType: { not: null } },
           ],
           ...(isAdminOrSr
             ? {}
@@ -166,7 +177,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
         select: {
           id: true,
           name: true,
+          stage: true,
           subStatus: true,
+          agreementType: true,
           assignments: {
             where: {
               department: {
@@ -182,6 +195,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
       });
 
       if (!lead) throw new Error("LEAD_NOT_FOUND_OR_NOT_WORKING");
+
+      const isPostAgreement =
+        POST_AGREEMENT_STAGES.has(lead.stage) ||
+        lead.stage === LeadStage.CONVERSION ||
+        Boolean(lead.agreementType);
 
       const now = new Date();
       const srAssignment = await ensureSeniorCrmAssignment({
@@ -204,7 +222,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
           submittedById: authResult.actorUserId,
           department: LeadAssignmentDepartment.QUOTATION,
           versionNumber,
-          versionName: `Quotation Version ${versionNumber}`,
+          versionName: isPostAgreement
+            ? `Quotation Revision ${versionNumber}`
+            : `Quotation Version ${versionNumber}`,
           note: note ?? null,
           ...(uploadedFiles.length > 0
             ? {
@@ -235,32 +255,45 @@ export async function POST(request: NextRequest, context: RouteContext) {
         },
       });
 
-      const updatedLead = await tx.lead.update({
-        where: { id: lead.id },
-        data: {
-          subStatus: LeadSubStatus.QUOTATION_COMPLETED,
-          ...(budget !== null ? { budget } : {}),
-          ...(quotationType ? { quotationType } : {}),
-        },
-        select: { id: true, stage: true, subStatus: true },
-      });
+      let updatedLead = { id: lead.id, stage: lead.stage, subStatus: lead.subStatus };
+      if (!isPostAgreement) {
+        updatedLead = await tx.lead.update({
+          where: { id: lead.id },
+          data: {
+            subStatus: LeadSubStatus.QUOTATION_COMPLETED,
+            ...(budget !== null ? { budget } : {}),
+            ...(quotationType ? { quotationType } : {}),
+          },
+          select: { id: true, stage: true, subStatus: true },
+        });
 
-      await logLeadSubStatusChanged(tx, {
-        leadId: lead.id,
-        userId: authResult.actorUserId,
-        from: lead.subStatus,
-        to: LeadSubStatus.QUOTATION_COMPLETED,
-        reason:
-          "Quotation team submitted quotation work for Senior CRM review.",
-      });
+        await logLeadSubStatusChanged(tx, {
+          leadId: lead.id,
+          userId: authResult.actorUserId,
+          from: lead.subStatus,
+          to: LeadSubStatus.QUOTATION_COMPLETED,
+          reason:
+            "Quotation team submitted quotation work for Senior CRM review.",
+        });
+      } else {
+        if (budget !== null || quotationType) {
+          await tx.lead.update({
+            where: { id: lead.id },
+            data: {
+              ...(budget !== null ? { budget } : {}),
+              ...(quotationType ? { quotationType } : {}),
+            },
+          });
+        }
+      }
 
       await logActivity(tx, {
         leadId: lead.id,
         userId: authResult.actorUserId,
         type: ActivityType.NOTE,
-        description: note
-          ? `Quotation work submitted for Senior CRM review. Note: ${note}`
-          : "Quotation work submitted for Senior CRM review.",
+        description: isPostAgreement
+          ? (note ? `Quotation revision submitted for review. Note: ${note}` : "Quotation revision submitted for review.")
+          : (note ? `Quotation work submitted for Senior CRM review. Note: ${note}` : "Quotation work submitted for Senior CRM review."),
       });
 
       const adminUsers = await tx.user.findMany({

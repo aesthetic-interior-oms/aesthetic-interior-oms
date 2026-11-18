@@ -94,11 +94,11 @@ export async function GET(request: NextRequest) {
         },
         assignments: {
           where: {
-            department: { in: [LeadAssignmentDepartment.SR_CRM, LeadAssignmentDepartment.BOQ] },
+            department: { in: [LeadAssignmentDepartment.SR_CRM, LeadAssignmentDepartment.BOQ, LeadAssignmentDepartment.QUOTATION] },
             user: { isActive: true },
           },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 15,
           select: {
             id: true,
             department: true,
@@ -153,6 +153,8 @@ export async function GET(request: NextRequest) {
         detailQuotationAvailable: Boolean(detailDraft),
         srCrm: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.SR_CRM)?.user ?? null,
         boqAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.BOQ)?.user ?? null,
+        quotationAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.QUOTATION)?.user ?? null,
+        quotationVersionsCount: lead.quotationDrafts.filter((d) => d.draftKey.includes('version:')).length,
       }
     })
 

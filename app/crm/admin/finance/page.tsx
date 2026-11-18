@@ -1135,7 +1135,7 @@ export default function FinanceDashboard() {
                                     {lead.stage === "QUOTATION_PHASE" ? "Quotation" :
                                      lead.stage === "BUDGET_PHASE" ? "Budget" :
                                      lead.stage === "VISUALIZATION_PHASE" ? "Visualization" :
-                                     lead.stage === "CONVERSION" ? "Conversion" :
+                                     lead.stage === "CONVERSION" ? "Agreement Signed" :
                                      lead.stage === "CLOSED" ? "Closed" : lead.stage}
                                   </Badge>
                                   {leadId === lead.id && (

@@ -135,7 +135,7 @@ export default function SiteEngineerProjectsPage() {
             className="text-xs h-8"
             onClick={() => setStageFilter('CONVERSION')}
           >
-            Conversion
+            Agreement Signed
           </Button>
           <Button
             variant={stageFilter === 'SITE_EXECUTION' ? 'secondary' : 'ghost'}

@@ -188,6 +188,7 @@ const sourceVisualMap: Record<
 
 function formatStageDisplay(stage: string): string {
   if (stage === 'DISCOVERY') return 'Consulting Phase'
+  if (stage === 'CONVERSION') return 'Agreement Signed'
   return stage.replace(/_/g, ' ')
 }
 

@@ -74,6 +74,7 @@ const formatDate = (value: string) => {
 
 const formatLabel = (value: string) => {
   if (value === 'DISCOVERY') return 'Consulting Phase'
+  if (value === 'CONVERSION') return 'Agreement Signed'
   if (value === 'PROPOSAL_SENT') return 'Quotation Sent'
   return value.replace(/_/g, ' ')
 }
