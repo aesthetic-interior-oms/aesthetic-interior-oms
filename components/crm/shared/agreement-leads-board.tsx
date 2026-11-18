@@ -1262,7 +1262,7 @@ export function AgreementLeadsBoard({
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
                     <TableHead className="w-[230px] font-semibold text-foreground py-3">Client / Project</TableHead>
-                    <TableHead className="w-[120px] font-semibold text-foreground py-3">Status</TableHead>
+                    <TableHead className="w-[180px] font-semibold text-foreground py-3">Status</TableHead>
                     <TableHead className="w-[130px] text-right font-semibold text-foreground py-3">Quotation</TableHead>
                     <TableHead className="w-[110px] text-right font-semibold text-foreground py-3">Discount</TableHead>
                     <TableHead className="w-[140px] text-right font-semibold text-foreground py-3">Settled Value</TableHead>
@@ -1313,50 +1313,66 @@ export function AgreementLeadsBoard({
 
                         {/* 2. Status / Agreement Type */}
                         <TableCell className="align-top py-3.5">
-                          <div className="space-y-1.5 min-w-[150px]">
-                            <Select
-                              value={lead.agreementType || 'DESIGN_AGREEMENT'}
-                              onValueChange={(val) => void handleAgreementTypeChange(lead.id, val)}
-                              disabled={updatingAgreementTypeLeadId === lead.id}
-                            >
-                              <SelectTrigger
-                                className={`h-7 px-2.5 text-xs font-semibold rounded-full border shadow-none transition-colors ${
+                          <div className="space-y-1.5 min-w-[170px]">
+
+                            {/* ── Agreement Type native select (reliable in table cells) ── */}
+                            <div className="relative inline-flex items-center">
+                              {updatingAgreementTypeLeadId === lead.id ? (
+                                <span className={`inline-flex items-center gap-1.5 h-7 px-2.5 text-xs font-semibold rounded-full border ${
                                   lead.agreementType === 'FITOUT_AGREEMENT'
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
-                                    : 'bg-purple-50 text-purple-800 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-700 hover:bg-purple-100 dark:hover:bg-purple-900/40'
-                                }`}
-                              >
-                                <div className="flex items-center gap-1.5 truncate">
-                                  {updatingAgreementTypeLeadId === lead.id ? (
-                                    <Loader2 className="h-3 w-3 animate-spin shrink-0" />
-                                  ) : (
-                                    <span
-                                      className={`h-2 w-2 rounded-full shrink-0 ${
-                                        lead.agreementType === 'FITOUT_AGREEMENT'
-                                          ? 'bg-emerald-600 dark:bg-emerald-400'
-                                          : 'bg-purple-600 dark:bg-purple-400'
-                                      }`}
-                                    />
-                                  )}
-                                  <span className="truncate">{formatAgreementType(lead.agreementType)}</span>
-                                </div>
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="DESIGN_AGREEMENT">
-                                  <div className="flex items-center gap-2 py-0.5">
-                                    <span className="h-2 w-2 rounded-full bg-purple-500" />
-                                    <span className="font-medium text-xs">Design Agreement</span>
-                                  </div>
-                                </SelectItem>
-                                <SelectItem value="FITOUT_AGREEMENT">
-                                  <div className="flex items-center gap-2 py-0.5">
-                                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                                    <span className="font-medium text-xs">Fitout Agreement</span>
-                                  </div>
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <div className="flex items-center gap-1.5 flex-wrap pl-1">
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700'
+                                    : 'bg-purple-50 text-purple-800 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-700'
+                                }`}>
+                                  <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                                  <span>{formatAgreementType(lead.agreementType)}</span>
+                                </span>
+                              ) : (
+                                <select
+                                  value={lead.agreementType || 'DESIGN_AGREEMENT'}
+                                  onChange={(e) => void handleAgreementTypeChange(lead.id, e.target.value)}
+                                  className={`h-7 pl-2 pr-6 text-xs font-semibold rounded-full border appearance-none cursor-pointer outline-none transition-colors ${
+                                    lead.agreementType === 'FITOUT_AGREEMENT'
+                                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900'
+                                      : 'bg-purple-50 text-purple-800 border-purple-300 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-700 hover:bg-purple-100 dark:hover:bg-purple-900'
+                                  }`}
+                                >
+                                  <option value="DESIGN_AGREEMENT">Design Agreement</option>
+                                  <option value="FITOUT_AGREEMENT">Fitout Agreement</option>
+                                </select>
+                              )}
+                            </div>
+
+                            {/* ── Account Status warning badge ── */}
+                            {lead.accountStatus ? (
+                              <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                                lead.accountStatus === 'FULL_PAID'
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
+                                  : lead.accountStatus === 'PARTIAL_PAID'
+                                  ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                                  : lead.accountStatus === 'PROCESSING'
+                                  ? 'bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
+                                  : 'bg-red-50 text-red-700 border-red-300 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800'
+                              }`}>
+                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                                  lead.accountStatus === 'FULL_PAID'   ? 'bg-emerald-600 dark:bg-emerald-400'
+                                  : lead.accountStatus === 'PARTIAL_PAID' ? 'bg-amber-500 dark:bg-amber-400'
+                                  : lead.accountStatus === 'PROCESSING'   ? 'bg-blue-500 dark:bg-blue-400'
+                                  : 'bg-red-500 dark:bg-red-400'
+                                }`} />
+                                {lead.accountStatus === 'FULL_PAID'    ? 'Fully Paid'
+                                  : lead.accountStatus === 'PARTIAL_PAID' ? '⚠ Partially Paid'
+                                  : lead.accountStatus === 'PROCESSING'   ? 'Processing'
+                                  : '⚠ Payment Pending'}
+                              </div>
+                            ) : (
+                              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border bg-red-50 text-red-700 border-red-300 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800">
+                                <span className="h-1.5 w-1.5 rounded-full bg-red-500 dark:bg-red-400 shrink-0" />
+                                ⚠ No Payment Status
+                              </div>
+                            )}
+
+                            {/* ── Lead stage + PC badge ── */}
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-[11px] text-muted-foreground capitalize">
                                 {(lead.subStatus || lead.stage).replace(/_/g, ' ').toLowerCase()}
                               </span>
@@ -1366,6 +1382,7 @@ export function AgreementLeadsBoard({
                                 </span>
                               ) : null}
                             </div>
+
                           </div>
                         </TableCell>
 
