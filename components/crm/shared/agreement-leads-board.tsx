@@ -1263,6 +1263,7 @@ export function AgreementLeadsBoard({
                   <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
                     <TableHead className="w-[230px] font-semibold text-foreground py-3">Client / Project</TableHead>
                     <TableHead className="w-[180px] font-semibold text-foreground py-3">Status</TableHead>
+                    <TableHead className="w-[140px] font-semibold text-foreground py-3">Payment Status</TableHead>
                     <TableHead className="w-[130px] text-right font-semibold text-foreground py-3">Quotation</TableHead>
                     <TableHead className="w-[110px] text-right font-semibold text-foreground py-3">Discount</TableHead>
                     <TableHead className="w-[140px] text-right font-semibold text-foreground py-3">Settled Value</TableHead>
@@ -1342,35 +1343,6 @@ export function AgreementLeadsBoard({
                               )}
                             </div>
 
-                            {/* ── Account Status warning badge ── */}
-                            {lead.accountStatus ? (
-                              <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border ${
-                                lead.accountStatus === 'FULL_PAID'
-                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800'
-                                  : lead.accountStatus === 'PARTIAL_PAID'
-                                  ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
-                                  : lead.accountStatus === 'PROCESSING'
-                                  ? 'bg-blue-50 text-blue-800 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800'
-                                  : 'bg-red-50 text-red-700 border-red-300 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800'
-                              }`}>
-                                <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                                  lead.accountStatus === 'FULL_PAID'   ? 'bg-emerald-600 dark:bg-emerald-400'
-                                  : lead.accountStatus === 'PARTIAL_PAID' ? 'bg-amber-500 dark:bg-amber-400'
-                                  : lead.accountStatus === 'PROCESSING'   ? 'bg-blue-500 dark:bg-blue-400'
-                                  : 'bg-red-500 dark:bg-red-400'
-                                }`} />
-                                {lead.accountStatus === 'FULL_PAID'    ? 'Fully Paid'
-                                  : lead.accountStatus === 'PARTIAL_PAID' ? '⚠ Partially Paid'
-                                  : lead.accountStatus === 'PROCESSING'   ? 'Processing'
-                                  : '⚠ Payment Pending'}
-                              </div>
-                            ) : (
-                              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border bg-red-50 text-red-700 border-red-300 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800">
-                                <span className="h-1.5 w-1.5 rounded-full bg-red-500 dark:bg-red-400 shrink-0" />
-                                ⚠ No Payment Status
-                              </div>
-                            )}
-
                             {/* ── Lead stage + PC badge ── */}
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <span className="text-[11px] text-muted-foreground capitalize">
@@ -1384,6 +1356,36 @@ export function AgreementLeadsBoard({
                             </div>
 
                           </div>
+                        </TableCell>
+
+                        {/* 2b. Payment Status — dedicated column */}
+                        <TableCell className="align-top py-3.5">
+                          {lead.accountStatus === 'FULL_PAID' ? (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                              <span className="h-2 w-2 rounded-full bg-emerald-500 dark:bg-emerald-400 shrink-0" />
+                              Fully Paid
+                            </div>
+                          ) : lead.accountStatus === 'PARTIAL_PAID' ? (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+                              <span className="h-2 w-2 rounded-full bg-amber-500 dark:bg-amber-400 shrink-0 animate-pulse" />
+                              Partially Paid
+                            </div>
+                          ) : lead.accountStatus === 'PROCESSING' ? (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+                              <span className="h-2 w-2 rounded-full bg-blue-500 dark:bg-blue-400 shrink-0 animate-pulse" />
+                              Processing
+                            </div>
+                          ) : lead.accountStatus === 'PENDING' ? (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-50 text-red-700 border border-red-300 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800">
+                              <span className="h-2 w-2 rounded-full bg-red-500 dark:bg-red-400 shrink-0 animate-pulse" />
+                              Pending
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-zinc-100 text-zinc-500 border border-zinc-300 dark:bg-zinc-800/50 dark:text-zinc-400 dark:border-zinc-700">
+                              <span className="h-2 w-2 rounded-full bg-zinc-400 dark:bg-zinc-500 shrink-0" />
+                              Not Set
+                            </div>
+                          )}
                         </TableCell>
 
                         {/* 3. Quotation */}
