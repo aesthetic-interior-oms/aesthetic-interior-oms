@@ -98,15 +98,41 @@ export async function getBoqAssignedTasks() {
     const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
     const actorRoles = new Set(authResult.actorRoles.map((r) => r.trim().toLowerCase()))
     const isAdmin = actorDepartments.has('ADMIN') || actorRoles.has('admin')
+    const isBoqLeader =
+      isAdmin ||
+      actorRoles.has('boq_team_leader') ||
+      actorDepartments.has('boq_team_leader')
 
+    // BOQ Team Leader & Admin see all production / agreement projects & BOQ assignments
+    // Downstream BOQ members only see projects explicitly assigned to them
     const leads = await prisma.lead.findMany({
-      where: isAdmin
+      where: isBoqLeader
         ? {
-            assignments: {
-              some: {
-                department: LeadAssignmentDepartment.BOQ,
+            OR: [
+              {
+                assignments: {
+                  some: {
+                    department: LeadAssignmentDepartment.BOQ,
+                  },
+                },
               },
-            },
+              {
+                stage: {
+                  in: [
+                    'CONVERSION' as any,
+                    'PROJECT_SETUP' as any,
+                    'MATERIAL_PLANNING' as any,
+                    'PROCUREMENT' as any,
+                    'SITE_EXECUTION' as any,
+                    'QUALITY_CHECK' as any,
+                    'HANDOVER' as any,
+                  ],
+                },
+              },
+              {
+                agreementType: { not: null },
+              },
+            ],
           }
         : {
             assignments: {

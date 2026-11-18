@@ -83,6 +83,10 @@ export default async function ProductionLayout({
     return <MainLayout role="Procurement">{children}</MainLayout>
   }
 
+  if (departmentNames.has('ACCOUNTS')) {
+    return <MainLayout role="Accounts">{children}</MainLayout>
+  }
+
   if (departmentNames.has('SR_CRM')) {
     return <MainLayout role="SR CRM">{children}</MainLayout>
   }

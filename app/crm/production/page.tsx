@@ -31,13 +31,14 @@ import {
   FolderKanban,
   ExternalLink,
   ShieldAlert,
+  Wallet,
 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 
 type ExecutionDept = {
   key: string
   name: string
-  reportingHead: 'PROJECT_COORDINATOR' | 'BOQ_TEAM_LEADER'
+  reportingHead: 'PROJECT_COORDINATOR' | 'BOQ_TEAM_LEADER' | 'ACCOUNTS'
   assignmentDepartment?: string
   description: string
   primaryRoute: string
@@ -45,7 +46,7 @@ type ExecutionDept = {
 }
 
 type ProductionHead = {
-  key: 'PROJECT_COORDINATOR' | 'BOQ_TEAM_LEADER'
+  key: 'PROJECT_COORDINATOR' | 'BOQ_TEAM_LEADER' | 'ACCOUNTS'
   title: string
   scope: string
   activeCount: number
@@ -162,24 +163,141 @@ export default function ProductionModulePage() {
                     <span className="text-xs text-muted-foreground font-mono">v2.0 Post-Agreement</span>
                   </div>
                   <h2 className="text-xl font-bold tracking-tight mt-2 text-foreground">
-                    Dual Top-Level Heads & Sub-Department Delegation
+                    Initial Entry-Point Roles & Controlled Downstream Delegation
                   </h2>
                   <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
-                    Once an agreement is confirmed, the Lead transitions to the Production Level. 
-                    <strong> Project Coordinator</strong> and <strong>BOQ Team Leader</strong> serve as co-heads,
-                    governing all site execution, material requisitions, and supply chain delivery.
+                    Once a Lead reaches Agreement status, it transitions directly into the Production phase.
+                    Initial visibility and routing is exposed immediately to three entry points:
+                    <strong> Accounts</strong>, <strong>BOQ Team Leader</strong>, and <strong>Project Coordinator</strong>.
+                    Downstream execution roles (BOQ members, Site Engineers) receive access after intake and assignment by these leaders.
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Top-Level Dual Heads */}
+            {/* Top-Level Entry-Point Roles */}
             <div className="space-y-4">
               <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
                 <FolderKanban className="h-4 w-4 text-primary" />
-                Top-Level Heads of Production
+                Initial Entry-Point Roles (Production Gatekeepers)
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Accounts Card */}
+                <Card className="border-emerald-500/30 bg-card hover:border-emerald-500/50 transition-colors shadow-sm">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="h-10 w-10 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                        <Wallet className="h-5 w-5" />
+                      </div>
+                      <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs">
+                        Entry-Point: Finance
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-lg font-bold mt-3">Accounts</CardTitle>
+                    <CardDescription className="text-xs">
+                      Handles advance payment clearance, token money, financial gating, and vendor accounts payable.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-1">
+                    <div className="bg-muted/40 rounded-lg p-3 text-xs space-y-1.5">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Active Accounts Staff:</span>
+                        <span className="font-semibold text-foreground">
+                          {data?.heads.find((h) => h.key === 'ACCOUNTS')?.activeCount ?? 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Intake Scope:</span>
+                        <span className="font-semibold text-foreground">Advance & Token Money</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Quick Workspaces
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" asChild className="text-xs h-8">
+                          <Link href="/crm/accounts/projects">
+                            <ClipboardList className="h-3.5 w-3.5 mr-1" />
+                            Accounts Projects
+                          </Link>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild className="text-xs h-8">
+                          <Link href="/crm/accounts/token-money">
+                            <Wallet className="h-3.5 w-3.5 mr-1" />
+                            Token Money
+                          </Link>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild className="text-xs h-8">
+                          <Link href="/crm/admin/finance">
+                            Finance Dashboard
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* BOQ Team Leader Card */}
+                <Card className="border-amber-500/30 bg-card hover:border-amber-500/50 transition-colors shadow-sm">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="h-10 w-10 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                        <Calculator className="h-5 w-5" />
+                      </div>
+                      <Badge className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs">
+                        Entry-Point: Estimation
+                      </Badge>
+                    </div>
+                    <CardTitle className="text-lg font-bold mt-3">BOQ Team Leader</CardTitle>
+                    <CardDescription className="text-xs">
+                      Governs bill of quantities, costing breakdown, rate approvals, and downstream member assignment.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4 pt-1">
+                    <div className="bg-muted/40 rounded-lg p-3 text-xs space-y-1.5">
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Active Team Leaders:</span>
+                        <span className="font-semibold text-foreground">
+                          {data?.heads.find((h) => h.key === 'BOQ_TEAM_LEADER')?.activeCount ?? 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-muted-foreground">
+                        <span>Mapped Execution Sub-Departments:</span>
+                        <span className="font-semibold text-foreground">
+                          {data?.heads.find((h) => h.key === 'BOQ_TEAM_LEADER')?.reportingDepartments.length ?? 0}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Quick Workspaces
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" asChild className="text-xs h-8">
+                          <Link href="/crm/boq/agreement-leads">
+                            <FileText className="h-3.5 w-3.5 mr-1" />
+                            Agreement Leads
+                          </Link>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild className="text-xs h-8">
+                          <Link href="/crm/boq/assigned-task">
+                            <Calculator className="h-3.5 w-3.5 mr-1" />
+                            BOQ Tasks
+                          </Link>
+                        </Button>
+                        <Button size="sm" variant="outline" asChild className="text-xs h-8">
+                          <Link href="/crm/boq/settings">
+                            Rate Settings
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
                 {/* Project Coordinator Card */}
                 <Card className="border-blue-500/30 bg-card hover:border-blue-500/50 transition-colors shadow-sm">
                   <CardHeader className="pb-3">
@@ -188,12 +306,12 @@ export default function ProductionModulePage() {
                         <HardHat className="h-5 w-5" />
                       </div>
                       <Badge className="bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs">
-                        Production Execution Head
+                        Entry-Point: Execution
                       </Badge>
                     </div>
                     <CardTitle className="text-lg font-bold mt-3">Project Coordinator (PC)</CardTitle>
                     <CardDescription className="text-xs">
-                      Governs on-site execution, milestone management, and supply chain fulfillment.
+                      Governs on-site execution, milestone management, and downstream Site Engineer assignment.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4 pt-1">
@@ -233,65 +351,6 @@ export default function ProductionModulePage() {
                           <Link href="/procurement/projects">
                             <Truck className="h-3.5 w-3.5 mr-1" />
                             Procurement
-                          </Link>
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* BOQ Team Leader Card */}
-                <Card className="border-amber-500/30 bg-card hover:border-amber-500/50 transition-colors shadow-sm">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="h-10 w-10 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
-                        <Calculator className="h-5 w-5" />
-                      </div>
-                      <Badge className="bg-amber-600 hover:bg-amber-700 text-white font-medium text-xs">
-                        Production Estimation Head
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-lg font-bold mt-3">BOQ Team Leader</CardTitle>
-                    <CardDescription className="text-xs">
-                      Governs bill of quantities, costing breakdown, rate approvals, and requisition planning.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4 pt-1">
-                    <div className="bg-muted/40 rounded-lg p-3 text-xs space-y-1.5">
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>Active Team Leaders:</span>
-                        <span className="font-semibold text-foreground">
-                          {data?.heads.find((h) => h.key === 'BOQ_TEAM_LEADER')?.activeCount ?? 0}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-muted-foreground">
-                        <span>Mapped Execution Sub-Departments:</span>
-                        <span className="font-semibold text-foreground">
-                          {data?.heads.find((h) => h.key === 'BOQ_TEAM_LEADER')?.reportingDepartments.length ?? 0}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-                        Quick Workspaces
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" asChild className="text-xs h-8">
-                          <Link href="/crm/boq/agreement-leads">
-                            <FileText className="h-3.5 w-3.5 mr-1" />
-                            Agreement Leads Board
-                          </Link>
-                        </Button>
-                        <Button size="sm" variant="outline" asChild className="text-xs h-8">
-                          <Link href="/crm/boq/assigned-task">
-                            <Calculator className="h-3.5 w-3.5 mr-1" />
-                            BOQ Tasks & Requisitions
-                          </Link>
-                        </Button>
-                        <Button size="sm" variant="outline" asChild className="text-xs h-8">
-                          <Link href="/crm/boq/settings">
-                            BOQ Rate Settings
                           </Link>
                         </Button>
                       </div>

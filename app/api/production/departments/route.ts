@@ -50,7 +50,21 @@ export async function GET() {
       }),
     )
 
-    // Count top level heads
+    // Count top level entry-point roles
+    const accountsAliases = getDepartmentNameAliases('ACCOUNTS')
+    const accountsCount = await prisma.user.count({
+      where: {
+        isActive: true,
+        userDepartments: {
+          some: {
+            department: {
+              name: { in: accountsAliases },
+            },
+          },
+        },
+      },
+    })
+
     const pcAliases = getDepartmentNameAliases('PROJECT_COORDINATOR')
     const pcCount = await prisma.user.count({
       where: {
@@ -85,18 +99,25 @@ export async function GET() {
       data: {
         heads: [
           {
-            key: 'PROJECT_COORDINATOR',
-            title: 'Project Coordinator',
-            scope: 'Site & Project Execution, Timelines, Field Delivery',
-            activeCount: pcCount,
-            reportingDepartments: departmentStats.filter((d) => d.reportingHead === 'PROJECT_COORDINATOR'),
+            key: 'ACCOUNTS',
+            title: 'Accounts & Finance',
+            scope: 'Payment Verification, Booking Advance, Financial Clearance & Client Billing',
+            activeCount: accountsCount,
+            reportingDepartments: [],
           },
           {
             key: 'BOQ_TEAM_LEADER',
             title: 'BOQ Team Leader',
-            scope: 'Estimation, Bill of Quantities, Requisition Planning & Costing',
+            scope: 'Estimation, Bill of Quantities, Requisition Planning & Delegation',
             activeCount: boqLeaderCount,
             reportingDepartments: departmentStats.filter((d) => d.reportingHead === 'BOQ_TEAM_LEADER'),
+          },
+          {
+            key: 'PROJECT_COORDINATOR',
+            title: 'Project Coordinator',
+            scope: 'Site & Project Execution, Timelines, Field Delivery & Site Engineers Delegation',
+            activeCount: pcCount,
+            reportingDepartments: departmentStats.filter((d) => d.reportingHead === 'PROJECT_COORDINATOR'),
           },
         ],
         allExecutionDepartments: departmentStats,

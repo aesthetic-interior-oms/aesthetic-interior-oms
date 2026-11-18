@@ -1,18 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { SiteDeliveryCondition } from '@/generated/prisma/client'
+import { LeadAssignmentDepartment, SiteDeliveryCondition } from '@/generated/prisma/client'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/site-engineer/delivery
  * Returns delivery logs and active site projects.
+ * Project Coordinator & Admin see all site projects.
+ * Downstream Site Engineers only receive visibility after Project Coordinator assigns them.
  */
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) return authResult.response
+
+    const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+    const actorRoles = authResult.actorRoles ?? []
+    const isAdmin = actorDepartments.has('ADMIN') || actorRoles.some((r) => r.toUpperCase() === 'ADMIN')
+    const isPc =
+      actorDepartments.has('PROJECT_COORDINATOR') ||
+      actorDepartments.has('PROJECT_CORDINATOR') ||
+      actorRoles.some((r) => r.toUpperCase().includes('PROJECT_COORDINATOR'))
+
+    const isSiteEngineerLeaderOrAdmin = isAdmin || isPc
 
     const { searchParams } = new URL(request.url)
     const leadId = searchParams.get('leadId')
@@ -22,6 +34,18 @@ export async function GET(request: NextRequest) {
     if (leadId) where.leadId = leadId
     if (condition && Object.values(SiteDeliveryCondition).includes(condition)) {
       where.condition = condition
+    }
+
+    // Downstream Site Engineers only see deliveries of projects assigned to them
+    if (!isSiteEngineerLeaderOrAdmin) {
+      where.lead = {
+        assignments: {
+          some: {
+            department: LeadAssignmentDepartment.SITE_ENGINEER,
+            userId: authResult.actorUserId,
+          },
+        },
+      }
     }
 
     const [deliveries, projects, counts] = await Promise.all([
@@ -46,12 +70,22 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
-      // Active project sites
+      // Active project sites: Project Coordinator sees all; downstream Site Engineer sees only assigned
       prisma.lead.findMany({
         where: {
           stage: {
             notIn: ['CLOSED', 'VISIT_CANCELLED'],
           },
+          ...(!isSiteEngineerLeaderOrAdmin
+            ? {
+                assignments: {
+                  some: {
+                    department: LeadAssignmentDepartment.SITE_ENGINEER,
+                    userId: authResult.actorUserId,
+                  },
+                },
+              }
+            : {}),
         },
         select: {
           id: true,

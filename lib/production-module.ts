@@ -1,14 +1,22 @@
 import { LeadAssignmentDepartment, LeadStage } from '@/generated/prisma/client'
 
 /**
- * Production Module Top-Level Heads
+ * Production Module Top-Level Heads & Entry Roles
  */
 export const PRODUCTION_HEAD_ROLES = {
   PROJECT_COORDINATOR: 'PROJECT_COORDINATOR',
   BOQ_TEAM_LEADER: 'BOQ_TEAM_LEADER',
+  ACCOUNTS: 'ACCOUNTS',
+} as const
+
+export const PRODUCTION_ENTRY_ROLES = {
+  ACCOUNTS: 'ACCOUNTS',
+  BOQ_TEAM_LEADER: 'BOQ_TEAM_LEADER',
+  PROJECT_COORDINATOR: 'PROJECT_COORDINATOR',
 } as const
 
 export type ProductionHeadType = keyof typeof PRODUCTION_HEAD_ROLES
+export type ProductionEntryRoleType = keyof typeof PRODUCTION_ENTRY_ROLES
 
 /**
  * Execution Department definition mapped under a Production Head
@@ -115,7 +123,7 @@ export function isLeadAgreementReady(lead: {
 }
 
 /**
- * Check if user holds any Production Head role/department (Project Coordinator or BOQ Team Leader, or Admin).
+ * Check if user holds any Production Entry/Head role (Accounts, BOQ Team Leader, Project Coordinator, or Admin).
  */
 export function isProductionHeadUser(input: {
   departments?: string[] | Set<string>
@@ -125,6 +133,11 @@ export function isProductionHeadUser(input: {
   const roles = input.roles instanceof Set ? input.roles : new Set((input.roles ?? []).map((r) => r.toUpperCase().replace(/\s+/g, '_')))
 
   if (depts.has('ADMIN') || roles.has('ADMIN')) return true
+
+  // Accounts
+  if (depts.has('ACCOUNTS') || roles.has('ACCOUNTS')) {
+    return true
+  }
 
   // Project Coordinator
   if (
@@ -142,6 +155,24 @@ export function isProductionHeadUser(input: {
   }
 
   return false
+}
+
+/**
+ * Alias for isProductionHeadUser representing the 3 initial entry-point roles.
+ */
+export const isProductionEntryUser = isProductionHeadUser
+
+/**
+ * Check if user is an Accounts entry-point role.
+ */
+export function isAccountsHead(input: {
+  departments?: string[] | Set<string>
+  roles?: string[] | Set<string>
+}): boolean {
+  const depts = input.departments instanceof Set ? input.departments : new Set(input.departments ?? [])
+  const roles = input.roles instanceof Set ? input.roles : new Set((input.roles ?? []).map((r) => r.toUpperCase().replace(/\s+/g, '_')))
+
+  return depts.has('ADMIN') || roles.has('ADMIN') || depts.has('ACCOUNTS') || roles.has('ACCOUNTS')
 }
 
 /**
@@ -190,6 +221,7 @@ export function isProductionLevelMember(input: {
   const roles = input.roles instanceof Set ? input.roles : new Set((input.roles ?? []).map((r) => r.toUpperCase().replace(/\s+/g, '_')))
 
   const executionDeptKeys = [
+    'ACCOUNTS',
     'BOQ',
     'SITE_ENGINEER',
     'PROJECT_ENGINEER',

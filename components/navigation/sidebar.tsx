@@ -137,6 +137,16 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/crm/accounts/procurement-wallets',
         },
         {
+          icon: FolderKanban,
+          label: 'Production Module',
+          href: '/crm/production',
+        },
+        {
+          icon: FileText,
+          label: 'Agreement Leads',
+          href: '/crm/boq/agreement-leads',
+        },
+        {
           icon: ClipboardList,
           label: 'Projects',
           href: '/crm/accounts/projects',
@@ -689,6 +699,16 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: Wallet,
           label: 'Procurement Wallets',
           href: '/crm/accounts/procurement-wallets',
+        },
+        {
+          icon: FolderKanban,
+          label: 'Production Module',
+          href: '/crm/production',
+        },
+        {
+          icon: FileText,
+          label: 'Agreement Leads',
+          href: '/crm/boq/agreement-leads',
         },
         {
           icon: ClipboardList,

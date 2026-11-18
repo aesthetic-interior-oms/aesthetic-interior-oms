@@ -28,10 +28,13 @@ export async function GET(request: NextRequest) {
       departments.has('PROJECT_COORDINATOR') ||
       departments.has('PROJECT_CORDINATOR') ||
       actorRoleNames.some((r) => r.toUpperCase().includes('PROJECT_COORDINATOR'))
+    const isAccounts =
+      departments.has('ACCOUNTS') ||
+      actorRoleNames.some((r) => r.toUpperCase().includes('ACCOUNTS'))
 
-    if (!isAdmin && !isSeniorCrm && !isBoqLeader && !isPc) {
+    if (!isAdmin && !isSeniorCrm && !isBoqLeader && !isPc && !isAccounts) {
       return NextResponse.json(
-        { success: false, error: 'Only Admin, Senior CRM, Project Coordinator, or BOQ Team Leader can access Agreement Leads' },
+        { success: false, error: 'Only Admin, Senior CRM, Accounts, Project Coordinator, or BOQ Team Leader can access Agreement Leads' },
         { status: 403 },
       )
     }
@@ -49,7 +52,7 @@ export async function GET(request: NextRequest) {
       : null
 
     const srScope: Prisma.LeadWhereInput =
-      isSeniorCrm && !isAdmin
+      isSeniorCrm && !isAdmin && !isAccounts
         ? {
             assignments: {
               some: {
@@ -63,6 +66,18 @@ export async function GET(request: NextRequest) {
     const phaseScope: Prisma.LeadWhereInput = {
       OR: [
         { stage: LeadStage.CONVERSION },
+        {
+          stage: {
+            in: [
+              LeadStage.PROJECT_SETUP,
+              LeadStage.MATERIAL_PLANNING,
+              LeadStage.PROCUREMENT,
+              LeadStage.SITE_EXECUTION,
+              LeadStage.QUALITY_CHECK,
+              LeadStage.HANDOVER,
+            ],
+          },
+        },
         { agreementType: { not: null } },
       ],
     }

@@ -19,14 +19,33 @@ async function authorizedLead(leadId: string) {
   const isSenior = departments.has('SR_CRM')
   const isBoqLeader = actorRoleNames.some((r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER')
   const isPc = isProjectCoordinatorHead({ departments, roles: actorRoleNames })
-  if (!isAdmin && !isSenior && !isBoqLeader && !isPc) {
-    return { response: NextResponse.json({ success: false, error: 'Only Admin, Senior CRM, Project Coordinator, or BOQ Team Leader can access Agreement Leads' }, { status: 403 }) } as const
+  const isAccounts =
+    departments.has('ACCOUNTS') ||
+    actorRoleNames.some((r) => r.toUpperCase().includes('ACCOUNTS'))
+
+  if (!isAdmin && !isSenior && !isBoqLeader && !isPc && !isAccounts) {
+    return { response: NextResponse.json({ success: false, error: 'Only Admin, Senior CRM, Accounts, Project Coordinator, or BOQ Team Leader can access Agreement Leads' }, { status: 403 }) } as const
   }
   const lead = await prisma.lead.findFirst({
     where: {
       id: leadId,
-      OR: [{ stage: LeadStage.CONVERSION }, { agreementType: { not: null } }],
-      ...(isSenior && !isAdmin ? { assignments: { some: { department: LeadAssignmentDepartment.SR_CRM, userId: auth.actorUserId } } } : {}),
+      OR: [
+        { stage: LeadStage.CONVERSION },
+        {
+          stage: {
+            in: [
+              LeadStage.PROJECT_SETUP,
+              LeadStage.MATERIAL_PLANNING,
+              LeadStage.PROCUREMENT,
+              LeadStage.SITE_EXECUTION,
+              LeadStage.QUALITY_CHECK,
+              LeadStage.HANDOVER,
+            ],
+          },
+        },
+        { agreementType: { not: null } },
+      ],
+      ...(isSenior && !isAdmin && !isAccounts ? { assignments: { some: { department: LeadAssignmentDepartment.SR_CRM, userId: auth.actorUserId } } } : {}),
     },
     include: {
       agreementDocument: true,

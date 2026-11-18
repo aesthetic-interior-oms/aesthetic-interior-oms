@@ -444,16 +444,23 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
 
       // Automatic post-agreement production workflow:
-      // Transition lead to Production Level when reaching Agreement/Production stages or when agreement type is set.
+      // Once a Lead moves to the Agreement status (CONVERSION) or has agreementType set,
+      // it transitions directly into the Production phase (PROJECT_SETUP).
       const isEnteringProduction =
         Boolean(agreementType) ||
+        nextStage === LeadStage.CONVERSION ||
         isProductionStage(nextStage)
 
       if (isEnteringProduction) {
+        const targetProductionStage =
+          nextStage === LeadStage.CONVERSION
+            ? LeadStage.PROJECT_SETUP
+            : nextStage
+
         await promoteLeadToProduction({
           leadId,
           actorUserId: userId,
-          targetStage: nextStage,
+          targetStage: targetProductionStage,
           tx,
         }).catch((err) => {
           console.error('[stage][promoteLeadToProduction] Auto-promotion error:', err)
