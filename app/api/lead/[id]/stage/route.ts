@@ -19,6 +19,8 @@ import { ensurePhaseTaskForSubStatus } from '@/lib/lead-phase-task';
 import { createSrCadReviewTodosForCadStart } from '@/lib/sr-cad-todo';
 import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles';
 import { processAgreementAndDiscountSync } from '@/lib/agreement-discount-sync';
+import { promoteLeadToProduction } from '@/lib/production-workflow';
+import { isProductionStage } from '@/lib/production-module';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -441,14 +443,21 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         });
       }
 
-      // Auto-assign PROJECT_COORDINATOR when a FITOUT agreement is confirmed
-      if (agreementType === 'FITOUT_AGREEMENT') {
-        await ensureDepartmentAssignment({
-          tx,
+      // Automatic post-agreement production workflow:
+      // Transition lead to Production Level when reaching Agreement/Production stages or when agreement type is set.
+      const isEnteringProduction =
+        Boolean(agreementType) ||
+        isProductionStage(nextStage)
+
+      if (isEnteringProduction) {
+        await promoteLeadToProduction({
           leadId,
-          department: LeadAssignmentDepartment.PROJECT_COORDINATOR,
           actorUserId: userId,
-        });
+          targetStage: nextStage,
+          tx,
+        }).catch((err) => {
+          console.error('[stage][promoteLeadToProduction] Auto-promotion error:', err)
+        })
       }
 
       if (

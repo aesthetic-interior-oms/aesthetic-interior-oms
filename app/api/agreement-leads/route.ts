@@ -24,10 +24,14 @@ export async function GET(request: NextRequest) {
     const isBoqLeader = actorRoleNames.some(
       (r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER',
     )
+    const isPc =
+      departments.has('PROJECT_COORDINATOR') ||
+      departments.has('PROJECT_CORDINATOR') ||
+      actorRoleNames.some((r) => r.toUpperCase().includes('PROJECT_COORDINATOR'))
 
-    if (!isAdmin && !isSeniorCrm && !isBoqLeader) {
+    if (!isAdmin && !isSeniorCrm && !isBoqLeader && !isPc) {
       return NextResponse.json(
-        { success: false, error: 'Only Admin, Senior CRM, or BOQ Team Leader can access Agreement Leads' },
+        { success: false, error: 'Only Admin, Senior CRM, Project Coordinator, or BOQ Team Leader can access Agreement Leads' },
         { status: 403 },
       )
     }
@@ -94,7 +98,15 @@ export async function GET(request: NextRequest) {
         },
         assignments: {
           where: {
-            department: { in: [LeadAssignmentDepartment.SR_CRM, LeadAssignmentDepartment.BOQ, LeadAssignmentDepartment.QUOTATION] },
+            department: {
+              in: [
+                LeadAssignmentDepartment.SR_CRM,
+                LeadAssignmentDepartment.BOQ,
+                LeadAssignmentDepartment.QUOTATION,
+                LeadAssignmentDepartment.PROJECT_COORDINATOR,
+                LeadAssignmentDepartment.SITE_ENGINEER,
+              ],
+            },
             user: { isActive: true },
           },
           orderBy: { createdAt: 'desc' },
@@ -173,6 +185,8 @@ export async function GET(request: NextRequest) {
         detailQuotationAvailable: Boolean(detailDraft),
         srCrm: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.SR_CRM)?.user ?? null,
         boqAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.BOQ)?.user ?? null,
+        pcAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.PROJECT_COORDINATOR)?.user ?? null,
+        siteEngineerAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.SITE_ENGINEER)?.user ?? null,
         quotationAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.QUOTATION)?.user ?? null,
         quotationVersionsCount: lead.quotationDrafts.filter((d) => d.draftKey.includes('version:')).length,
         quotationSubmissions: lead.cadWorkSubmissions.map((sub) => ({

@@ -413,6 +413,9 @@ export async function PUT(
       'VISUALIZER_3D',
       'ACCOUNTS',
       'PROJECT_COORDINATOR',
+      'BOQ',
+      'SITE_ENGINEER',
+      'PROCUREMENT',
     ]
     if (!validDepartments.includes(department)) {
       return NextResponse.json(
@@ -493,6 +496,37 @@ export async function PUT(
               department === 'QUOTATION'
                 ? 'Only Admin, Senior CRM, or Special Design Consultant can reassign quotation member'
                 : 'Only Admin, Senior CRM, or JR Architect can assign 3D Visualizer',
+          },
+          { status: 403 },
+        )
+      }
+    }
+
+    if (
+      department === 'BOQ' ||
+      department === 'PROJECT_COORDINATOR' ||
+      department === 'SITE_ENGINEER' ||
+      department === 'PROCUREMENT'
+    ) {
+      const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+      const actorRoles = authResult.actorRoles ?? []
+      const isPc =
+        actorDepartments.has('PROJECT_COORDINATOR') ||
+        actorDepartments.has('PROJECT_CORDINATOR') ||
+        actorRoles.some((r) => r.toUpperCase().includes('PROJECT_COORDINATOR'))
+      const isBoqLeader = actorRoles.some((r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER')
+      const canUpdateProductionAssignment =
+        actorDepartments.has('ADMIN') ||
+        actorDepartments.has('SR_CRM') ||
+        isPc ||
+        isBoqLeader
+
+      if (!canUpdateProductionAssignment) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              'Only Admin, Senior CRM, Project Coordinator, or BOQ Team Leader can assign Production roles',
           },
           { status: 403 },
         )
@@ -777,6 +811,9 @@ export async function DELETE(
       'VISUALIZER_3D',
       'ACCOUNTS',
       'PROJECT_COORDINATOR',
+      'BOQ',
+      'SITE_ENGINEER',
+      'PROCUREMENT',
     ]
     if (!validDepartments.includes(department)) {
       return NextResponse.json(
@@ -786,6 +823,37 @@ export async function DELETE(
         },
         { status: 400 },
       )
+    }
+
+    if (
+      department === 'BOQ' ||
+      department === 'PROJECT_COORDINATOR' ||
+      department === 'SITE_ENGINEER' ||
+      department === 'PROCUREMENT'
+    ) {
+      const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+      const actorRoles = authResult.actorRoles ?? []
+      const isPc =
+        actorDepartments.has('PROJECT_COORDINATOR') ||
+        actorDepartments.has('PROJECT_CORDINATOR') ||
+        actorRoles.some((r) => r.toUpperCase().includes('PROJECT_COORDINATOR'))
+      const isBoqLeader = actorRoles.some((r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER')
+      const canUpdateProductionAssignment =
+        actorDepartments.has('ADMIN') ||
+        actorDepartments.has('SR_CRM') ||
+        isPc ||
+        isBoqLeader
+
+      if (!canUpdateProductionAssignment) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              'Only Admin, Senior CRM, Project Coordinator, or BOQ Team Leader can assign Production roles',
+          },
+          { status: 403 },
+        )
+      }
     }
 
     // Verify lead exists

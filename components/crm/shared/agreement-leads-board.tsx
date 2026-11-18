@@ -6,9 +6,12 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CircleDollarSign,
   Compass,
   Download,
+  ExternalLink,
   FileCheck2,
   FileEdit,
   FileSpreadsheet,
@@ -98,6 +101,8 @@ type AgreementLead = {
   detailQuotationAvailable: boolean
   srCrm: Staff | null
   boqAssignee: Staff | null
+  pcAssignee?: Staff | null
+  siteEngineerAssignee?: Staff | null
   quotationAssignee?: Staff | null
   quotationVersionsCount?: number
   quotationSubmissions?: QuotationSubmission[]
@@ -127,7 +132,9 @@ function formatMoney(value: number | null | undefined) {
 }
 
 function formatAgreementType(value: string | null) {
-  if (!value) return 'Confirmed'
+  if (!value) return 'Design Agreement'
+  if (value === 'DESIGN_AGREEMENT') return 'Design Agreement'
+  if (value === 'FITOUT_AGREEMENT') return 'Fitout Agreement'
   return value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
@@ -172,21 +179,49 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
 function AgreementEditModal({
   leadId,
   clientName,
+  agreementType,
   onClose,
   onSaved,
+  onAgreementTypeChange,
 }: {
   leadId: string
   clientName: string
+  agreementType?: string | null
   onClose: () => void
   onSaved: () => void
+  onAgreementTypeChange?: (newType: string) => void
 }) {
   const [data, setData] = useState<AgreementData | null>(null)
+  const [currentAgreementType, setCurrentAgreementType] = useState<string>(agreementType || 'DESIGN_AGREEMENT')
+  const [updatingType, setUpdatingType] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const [downloadingMep, setDownloadingMep] = useState(false)
   const [dirty, setDirty] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  const handleModalTypeChange = async (newType: string) => {
+    setCurrentAgreementType(newType)
+    setUpdatingType(true)
+    try {
+      const res = await fetch(`/api/agreement-leads/${leadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agreementType: newType }),
+      })
+      const payload = await res.json()
+      if (!res.ok || !payload?.success) {
+        throw new Error(payload?.error || 'Failed to update agreement type')
+      }
+      toast.success(`Agreement type updated to ${formatAgreementType(newType)}`)
+      if (onAgreementTypeChange) onAgreementTypeChange(newType)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update agreement type')
+    } finally {
+      setUpdatingType(false)
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -317,7 +352,19 @@ function AgreementEditModal({
         {/* Header */}
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5 bg-[#1f363d]">
           <div>
-            <p className="text-xs font-bold text-white/90 uppercase tracking-widest">Edit Agreement</p>
+            <div className="flex items-center gap-2.5">
+              <p className="text-xs font-bold text-white/90 uppercase tracking-widest">Edit Agreement</p>
+              <select
+                value={currentAgreementType}
+                onChange={(e) => void handleModalTypeChange(e.target.value)}
+                disabled={updatingType}
+                aria-label="Agreement Type"
+                className="text-[11px] font-semibold rounded bg-[#16272c] text-white border border-white/20 px-2 py-0.5 outline-none cursor-pointer"
+              >
+                <option value="DESIGN_AGREEMENT">Design Agreement</option>
+                <option value="FITOUT_AGREEMENT">Fitout Agreement</option>
+              </select>
+            </div>
             <p className="text-sm font-semibold text-white mt-0.5">{clientName}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -679,6 +726,10 @@ export function AgreementLeadsBoard({
   const [assignError, setAssignError] = useState<Record<string, string>>({})
   const [editingLeadId, setEditingLeadId] = useState<string | null>(null)
   const [canAssignBoq, setCanAssignBoq] = useState(false)
+  const [updatingAgreementTypeLeadId, setUpdatingAgreementTypeLeadId] = useState<string | null>(null)
+  const [viewingRevisionsLead, setViewingRevisionsLead] = useState<AgreementLead | null>(null)
+  const tableScrollRef = useRef<HTMLDivElement>(null)
+  const [isHoveringTable, setIsHoveringTable] = useState(false)
 
   // Revision Request Dialog state
   const [revisionDialogLead, setRevisionDialogLead] = useState<AgreementLead | null>(null)
@@ -686,10 +737,43 @@ export function AgreementLeadsBoard({
   const [revisionNote, setRevisionNote] = useState('')
   const [savingRevision, setSavingRevision] = useState(false)
 
-  // Quotation version files expand state per lead
-  const [expandedVersionsLeadId, setExpandedVersionsLeadId] = useState<string | null>(null)
-
   const editingLead = useMemo(() => leads.find((l) => l.id === editingLeadId) ?? null, [leads, editingLeadId])
+
+  const scrollTable = useCallback((direction: 'left' | 'right') => {
+    if (!tableScrollRef.current) return
+    const amount = direction === 'left' ? -350 : 350
+    tableScrollRef.current.scrollBy({ left: amount, behavior: 'smooth' })
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+
+      if (e.key === 'ArrowLeft') {
+        if (isHoveringTable || document.activeElement === tableScrollRef.current) {
+          e.preventDefault()
+          scrollTable('left')
+        }
+      } else if (e.key === 'ArrowRight') {
+        if (isHoveringTable || document.activeElement === tableScrollRef.current) {
+          e.preventDefault()
+          scrollTable('right')
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isHoveringTable, scrollTable])
 
   // Determine whether the current user may assign BOQ staff
   // (Admin, SR CRM, and BOQ Team Leader can assign; BOQ Team Member cannot)
@@ -711,7 +795,13 @@ export function AgreementLeadsBoard({
         const isAdmin = deptNames.some((d) => d.toUpperCase() === 'ADMIN')
         const isSrCrm = deptNames.some((d) => d.toUpperCase() === 'SR_CRM')
         const isBoqLeader = roleNames.some((r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER')
-        if (active) setCanAssignBoq(isAdmin || isSrCrm || isBoqLeader)
+        const isPc =
+          deptNames.some(
+            (d) =>
+              d.toUpperCase().includes('PROJECT_COORDINATOR') ||
+              d.toUpperCase().includes('PROJECT_CORDINATOR'),
+          ) || roleNames.some((r) => r.toUpperCase().includes('PROJECT_COORDINATOR'))
+        if (active) setCanAssignBoq(isAdmin || isSrCrm || isBoqLeader || isPc)
       })
       .catch(() => { if (active) setCanAssignBoq(false) })
     return () => { active = false }
@@ -798,6 +888,29 @@ export function AgreementLeadsBoard({
       toast.error(error instanceof Error ? error.message : 'Failed to request revision')
     } finally {
       setSavingRevision(false)
+    }
+  }
+
+  const handleAgreementTypeChange = async (leadId: string, newType: string) => {
+    setUpdatingAgreementTypeLeadId(leadId)
+    try {
+      const response = await fetch(`/api/agreement-leads/${leadId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agreementType: newType }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to update agreement type')
+      }
+      setLeads((prev) =>
+        prev.map((item) => (item.id === leadId ? { ...item, agreementType: newType } : item)),
+      )
+      toast.success(`Agreement type updated to ${formatAgreementType(newType)}`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update agreement type')
+    } finally {
+      setUpdatingAgreementTypeLeadId(null)
     }
   }
 
@@ -977,7 +1090,7 @@ export function AgreementLeadsBoard({
     <div className="min-h-screen bg-muted/20">
       <CrmPageHeader title={title} subtitle={subtitle} />
 
-      <main className="mx-auto max-w-[1600px] px-4 py-6 space-y-5">
+      <main className="w-full px-3 sm:px-6 lg:px-8 py-6 space-y-5">
         {/* ─── METRIC CARDS ────────────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
           <Card className="border-border/80 shadow-xs">
@@ -1101,7 +1214,50 @@ export function AgreementLeadsBoard({
           </Card>
         ) : (
           <Card className="overflow-hidden border-border/80 shadow-xs">
-            <div className="overflow-x-auto">
+            {/* Table toolbar with keyboard scroll indicator & buttons */}
+            <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b border-border/60 text-xs">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span className="font-semibold text-foreground">Confirmed Agreements</span>
+                <span>•</span>
+                <span>{filteredLeads.length} lead{filteredLeads.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <kbd className="px-1.5 py-0.5 rounded border border-border bg-background font-mono text-[10px] shadow-2xs">←</kbd>
+                  <kbd className="px-1.5 py-0.5 rounded border border-border bg-background font-mono text-[10px] shadow-2xs">→</kbd>
+                  <span>scroll table</span>
+                </span>
+                <div className="flex items-center border border-border rounded-md bg-background overflow-hidden shadow-2xs">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-none hover:bg-muted"
+                    onClick={() => scrollTable('left')}
+                    title="Scroll left (Left Arrow key)"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                  <div className="w-[1px] h-4 bg-border" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 rounded-none hover:bg-muted"
+                    onClick={() => scrollTable('right')}
+                    title="Scroll right (Right Arrow key)"
+                  >
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div
+              ref={tableScrollRef}
+              tabIndex={0}
+              onMouseEnter={() => setIsHoveringTable(true)}
+              onMouseLeave={() => setIsHoveringTable(false)}
+              className="overflow-x-auto focus:outline-none focus:ring-1 focus:ring-primary/20"
+            >
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/40 hover:bg-muted/40 border-b">
@@ -1155,13 +1311,61 @@ export function AgreementLeadsBoard({
                           </div>
                         </TableCell>
 
-                        {/* 2. Status */}
+                        {/* 2. Status / Agreement Type */}
                         <TableCell className="align-top py-3.5">
-                          <Badge variant="outline" className="font-medium bg-background border-border text-xs">
-                            {formatAgreementType(lead.agreementType)}
-                          </Badge>
-                          <div className="mt-1 text-[11px] text-muted-foreground capitalize">
-                            {(lead.subStatus || lead.stage).replace(/_/g, ' ').toLowerCase()}
+                          <div className="space-y-1.5 min-w-[150px]">
+                            <Select
+                              value={lead.agreementType || 'DESIGN_AGREEMENT'}
+                              onValueChange={(val) => void handleAgreementTypeChange(lead.id, val)}
+                              disabled={updatingAgreementTypeLeadId === lead.id}
+                            >
+                              <SelectTrigger
+                                className={`h-7 px-2.5 text-xs font-semibold rounded-full border shadow-none transition-colors ${
+                                  lead.agreementType === 'FITOUT_AGREEMENT'
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'
+                                    : 'bg-purple-50 text-purple-800 border-purple-300 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-700 hover:bg-purple-100 dark:hover:bg-purple-900/40'
+                                }`}
+                              >
+                                <div className="flex items-center gap-1.5 truncate">
+                                  {updatingAgreementTypeLeadId === lead.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                                  ) : (
+                                    <span
+                                      className={`h-2 w-2 rounded-full shrink-0 ${
+                                        lead.agreementType === 'FITOUT_AGREEMENT'
+                                          ? 'bg-emerald-600 dark:bg-emerald-400'
+                                          : 'bg-purple-600 dark:bg-purple-400'
+                                      }`}
+                                    />
+                                  )}
+                                  <span className="truncate">{formatAgreementType(lead.agreementType)}</span>
+                                </div>
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="DESIGN_AGREEMENT">
+                                  <div className="flex items-center gap-2 py-0.5">
+                                    <span className="h-2 w-2 rounded-full bg-purple-500" />
+                                    <span className="font-medium text-xs">Design Agreement</span>
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="FITOUT_AGREEMENT">
+                                  <div className="flex items-center gap-2 py-0.5">
+                                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                    <span className="font-medium text-xs">Fitout Agreement</span>
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <div className="flex items-center gap-1.5 flex-wrap pl-1">
+                              <span className="text-[11px] text-muted-foreground capitalize">
+                                {(lead.subStatus || lead.stage).replace(/_/g, ' ').toLowerCase()}
+                              </span>
+                              {lead.pcAssignee?.fullName ? (
+                                <span className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-500/20 font-medium" title={`Project Coordinator: ${lead.pcAssignee.fullName}`}>
+                                  PC: {lead.pcAssignee.fullName.split(' ')[0]}
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
                         </TableCell>
 
@@ -1239,9 +1443,9 @@ export function AgreementLeadsBoard({
                           </TableCell>
                         )}
 
-                        {/* 7b. Quotation Revisions — on-demand only */}
+                        {/* 7b. Quotation Revisions */}
                         <TableCell className="align-top py-3.5">
-                          <div className="space-y-2">
+                          <div className="space-y-2 min-w-[170px]">
                             {/* Current assignee (if any) */}
                             {lead.quotationAssignee ? (
                               <div className="flex items-center gap-1 text-[11px] text-purple-700 dark:text-purple-400 font-medium">
@@ -1250,70 +1454,35 @@ export function AgreementLeadsBoard({
                               </div>
                             ) : null}
 
-                            {/* Submission files list */}
+                            {/* View revisions modal button */}
                             {(lead.quotationSubmissions?.length ?? 0) > 0 ? (
-                              <div className="space-y-1">
-                                <button
-                                  type="button"
-                                  onClick={() => setExpandedVersionsLeadId(expandedVersionsLeadId === lead.id ? null : lead.id)}
-                                  className="flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline"
-                                >
-                                  <GitBranch className="h-3 w-3 shrink-0" />
-                                  {lead.quotationSubmissions!.length} revision{lead.quotationSubmissions!.length !== 1 ? 's' : ''}
-                                  <span className="text-muted-foreground font-normal">{expandedVersionsLeadId === lead.id ? '▲' : '▼'}</span>
-                                </button>
-                                {expandedVersionsLeadId === lead.id && (
-                                  <div className="space-y-1.5 mt-1 max-h-[200px] overflow-y-auto pr-1">
-                                    {lead.quotationSubmissions!.map((sub) => (
-                                      <div key={sub.id} className="rounded-md border border-purple-200/60 bg-purple-50/50 dark:bg-purple-950/20 dark:border-purple-800/40 p-2 space-y-1">
-                                        <div className="flex items-center justify-between gap-1">
-                                          <span className="text-[10px] font-bold text-purple-800 dark:text-purple-300">{sub.versionName}</span>
-                                          <span className="text-[9px] text-muted-foreground">{new Date(sub.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                                        </div>
-                                        {sub.submittedBy && (
-                                          <p className="text-[10px] text-muted-foreground">By: {sub.submittedBy.fullName}</p>
-                                        )}
-                                        {sub.note && (
-                                          <p className="text-[10px] text-muted-foreground italic truncate" title={sub.note}>{sub.note}</p>
-                                        )}
-                                        {sub.files.length > 0 && (
-                                          <div className="flex flex-col gap-1 mt-1">
-                                            {sub.files.map((file) => (
-                                              <a
-                                                key={file.id}
-                                                href={file.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                download
-                                                className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline truncate max-w-full"
-                                                title={file.fileName}
-                                              >
-                                                <Download className="h-2.5 w-2.5 shrink-0" />
-                                                <span className="truncate max-w-[140px]">{file.fileName}</span>
-                                              </a>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setViewingRevisionsLead(lead)}
+                                className="h-7 px-2.5 text-xs font-semibold border-purple-300 text-purple-800 bg-purple-50/70 hover:bg-purple-100 dark:border-purple-800 dark:text-purple-300 dark:bg-purple-950/40 dark:hover:bg-purple-950/70"
+                              >
+                                <GitBranch className="h-3.5 w-3.5 mr-1.5 text-purple-600" />
+                                <span>{lead.quotationSubmissions!.length} revision{lead.quotationSubmissions!.length !== 1 ? 's' : ''}</span>
+                                <ExternalLink className="h-3 w-3 ml-1.5 opacity-70" />
+                              </Button>
                             ) : (
                               <p className="text-[11px] text-muted-foreground">No revisions yet</p>
                             )}
 
-                            {/* Request Revision button — only when needed */}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 px-2 text-[11px] font-semibold border-purple-300 text-purple-700 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-300 dark:hover:bg-purple-950/40"
-                              onClick={() => openRevisionDialog(lead)}
-                              disabled={staffLoading}
-                            >
-                              <GitBranch className="h-3 w-3 mr-1" />
-                              Request Revision
-                            </Button>
+                            {/* Request Revision button */}
+                            <div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-[11px] font-medium text-purple-700 hover:text-purple-900 hover:bg-purple-100/60 dark:text-purple-400 dark:hover:bg-purple-950/40"
+                                onClick={() => openRevisionDialog(lead)}
+                                disabled={staffLoading}
+                              >
+                                <Plus className="h-3 w-3 mr-1" />
+                                Request Revision
+                              </Button>
+                            </div>
                           </div>
                         </TableCell>
 
@@ -1369,7 +1538,15 @@ export function AgreementLeadsBoard({
                                 </DropdownMenuItem>
                                 {lead.quotationSubmissions && lead.quotationSubmissions.length > 0 && (
                                   <>
-                                    <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-t my-1">
+                                    <div className="border-t my-1" />
+                                    <DropdownMenuItem
+                                      onClick={() => setViewingRevisionsLead(lead)}
+                                      className="cursor-pointer text-purple-700 dark:text-purple-300 font-medium"
+                                    >
+                                      <GitBranch className="mr-2 h-4 w-4 text-purple-600" />
+                                      <span>View Revisions Modal ({lead.quotationSubmissions.length})</span>
+                                    </DropdownMenuItem>
+                                    <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                                       Revision Files
                                     </div>
                                     {lead.quotationSubmissions.flatMap((sub) =>
@@ -1409,8 +1586,12 @@ export function AgreementLeadsBoard({
         <AgreementEditModal
           leadId={editingLeadId}
           clientName={editingLead.name}
+          agreementType={editingLead.agreementType}
           onClose={() => setEditingLeadId(null)}
           onSaved={() => { /* keep modal open, just mark saved */ }}
+          onAgreementTypeChange={(newType) => {
+            setLeads((prev) => prev.map((l) => (l.id === editingLeadId ? { ...l, agreementType: newType } : l)))
+          }}
         />
       )}
 
@@ -1468,6 +1649,149 @@ export function AgreementLeadsBoard({
             >
               {savingRevision ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <GitBranch className="h-4 w-4 mr-1.5" />}
               Send Revision Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── VIEW REVISION FILES MODAL ─────────────────────────────── */}
+      <Dialog
+        open={Boolean(viewingRevisionsLead)}
+        onOpenChange={(open) => {
+          if (!open) setViewingRevisionsLead(null)
+        }}
+      >
+        <DialogContent className="sm:max-w-xl max-h-[85vh] flex flex-col p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border bg-muted/20">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <DialogTitle className="text-lg font-bold flex items-center gap-2">
+                  <GitBranch className="h-5 w-5 text-purple-600" />
+                  Quotation Revision Files
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-1">
+                  Revision history & documents for <strong>{viewingRevisionsLead?.name}</strong>
+                </DialogDescription>
+              </div>
+              {viewingRevisionsLead && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs font-semibold text-purple-700 border-purple-300 hover:bg-purple-50 dark:text-purple-300 dark:border-purple-800 shrink-0"
+                  onClick={() => {
+                    const lead = viewingRevisionsLead
+                    setViewingRevisionsLead(null)
+                    openRevisionDialog(lead)
+                  }}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Request Revision
+                </Button>
+              )}
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            {(!viewingRevisionsLead?.quotationSubmissions || viewingRevisionsLead.quotationSubmissions.length === 0) ? (
+              <div className="text-center py-12 space-y-3">
+                <FileSpreadsheet className="h-10 w-10 text-muted-foreground/40 mx-auto" />
+                <p className="text-sm font-medium text-foreground">No quotation revisions submitted yet</p>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  When a scope revision is requested and submitted by the quotation team, all version files and logs will appear here.
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-2 text-xs"
+                  onClick={() => {
+                    const lead = viewingRevisionsLead
+                    setViewingRevisionsLead(null)
+                    if (lead) openRevisionDialog(lead)
+                  }}
+                >
+                  Request First Revision
+                </Button>
+              </div>
+            ) : (
+              viewingRevisionsLead.quotationSubmissions.map((sub, idx) => (
+                <div
+                  key={sub.id}
+                  className="rounded-xl border border-border bg-card p-4 shadow-xs space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                        {sub.versionName}
+                      </span>
+                      {idx === 0 && (
+                        <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300">
+                          Latest Version
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(sub.createdAt).toLocaleDateString('en-GB', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+
+                  {sub.submittedBy && (
+                    <p className="text-xs text-muted-foreground">
+                      Submitted by <strong className="text-foreground">{sub.submittedBy.fullName}</strong>
+                    </p>
+                  )}
+
+                  {sub.note && (
+                    <div className="rounded-lg bg-muted/40 p-2.5 text-xs text-muted-foreground border border-border/50">
+                      <p className="font-semibold text-foreground text-[11px] mb-0.5">Revision Note:</p>
+                      <p className="whitespace-pre-wrap">{sub.note}</p>
+                    </div>
+                  )}
+
+                  {sub.files && sub.files.length > 0 ? (
+                    <div className="space-y-1.5 pt-1 border-t border-border/50">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        Revision Documents ({sub.files.length})
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {sub.files.map((file) => (
+                          <a
+                            key={file.id}
+                            href={file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download
+                            className="flex items-center justify-between gap-2 p-2.5 rounded-lg border border-purple-200/70 bg-purple-50/40 hover:bg-purple-100/70 dark:border-purple-900/60 dark:bg-purple-950/20 dark:hover:bg-purple-950/50 transition group"
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FileSpreadsheet className="h-4 w-4 text-purple-600 shrink-0" />
+                              <span
+                                className="text-xs font-medium text-foreground truncate group-hover:text-purple-700 dark:group-hover:text-purple-300"
+                                title={file.fileName}
+                              >
+                                {file.fileName}
+                              </span>
+                            </div>
+                            <Download className="h-4 w-4 text-purple-600 shrink-0 group-hover:scale-110 transition" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">No files attached to this revision submission.</p>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+
+          <DialogFooter className="px-6 py-3 border-t border-border bg-muted/20">
+            <Button variant="outline" onClick={() => setViewingRevisionsLead(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

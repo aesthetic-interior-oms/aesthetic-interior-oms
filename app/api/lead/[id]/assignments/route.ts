@@ -126,10 +126,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const isBoqLeader = authResult.actorRoles.some(
       (r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER',
     );
+    const isPc =
+      actorDepartments.has('PROJECT_COORDINATOR') ||
+      actorDepartments.has('PROJECT_CORDINATOR') ||
+      actorRoles.has('project_coordinator');
 
-    if (!isAdmin && !isSeniorCrm && !isBoqLeader) {
+    if (!isAdmin && !isSeniorCrm && !isBoqLeader && !isPc) {
       return NextResponse.json(
-        { success: false, error: 'Only ADMIN, SR_CRM, or BOQ Team Leader users can assign leads' },
+        { success: false, error: 'Only ADMIN, SR_CRM, Project Coordinator, or BOQ Team Leader users can assign leads' },
         { status: 403 }
       );
     }
@@ -173,6 +177,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       'VISUALIZER_3D',
       'BOQ',
       'ACCOUNTS',
+      'PROJECT_COORDINATOR',
+      'SITE_ENGINEER',
+      'PROCUREMENT',
+      'SPECIALIST_DESIGN_CONSULTANTS',
     ];
     debugLog('🔎 [POST /api/lead/[id]/assignments] - Validating department');
     if (!validDepartments.includes(department)) {

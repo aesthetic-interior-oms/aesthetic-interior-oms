@@ -714,7 +714,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
   'Project Coordinator': [
     {
       id: 'pc-overview',
-      label: 'Overview',
+      label: 'Production Overview',
       defaultOpen: true,
       items: [
         {
@@ -722,18 +722,52 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Dashboard',
           href: '/crm/pc/dashboard',
         },
+        {
+          icon: FolderKanban,
+          label: 'Production Module',
+          href: '/crm/production',
+        },
       ],
     },
     {
-      id: 'pc-workflow',
-      label: 'Projects',
+      id: 'pc-production-pipeline',
+      label: 'Production Pipeline',
       defaultOpen: true,
       items: [
         {
+          icon: FileText,
+          label: 'Agreement Leads',
+          href: '/crm/boq/agreement-leads',
+        },
+        {
           icon: ClipboardList,
-          label: 'My Projects',
+          label: 'Active Projects',
           href: '/crm/pc/projects',
         },
+      ],
+    },
+    {
+      id: 'pc-execution-teams',
+      label: 'Execution Teams',
+      defaultOpen: true,
+      items: [
+        {
+          icon: Wrench,
+          label: 'Site Engineering',
+          href: '/site-engineer/projects',
+        },
+        {
+          icon: Truck,
+          label: 'Procurement Center',
+          href: '/procurement/projects',
+        },
+      ],
+    },
+    {
+      id: 'pc-operations',
+      label: 'Operations',
+      defaultOpen: true,
+      items: [
         {
           icon: Receipt,
           label: 'Conveyance Verification',
@@ -914,7 +948,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
   'BOQ Team Leader': [
     {
       id: 'boq-leader-overview',
-      label: 'Overview',
+      label: 'Production Overview',
       defaultOpen: true,
       items: [
         {
@@ -922,11 +956,16 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Dashboard',
           href: '/crm/boq/dashboard',
         },
+        {
+          icon: FolderKanban,
+          label: 'Production Module',
+          href: '/crm/production',
+        },
       ],
     },
     {
       id: 'boq-leader-workflow',
-      label: 'Workflow',
+      label: 'Production Workflow',
       defaultOpen: true,
       items: [
         {

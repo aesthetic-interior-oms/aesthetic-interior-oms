@@ -5,6 +5,9 @@ import { requireDatabaseRoles } from '@/lib/authz'
 import { calculateQuotationTotals, normalizeQuotationContent } from '@/lib/quotation-calculations'
 import { isDetailQuotationContent } from '@/lib/quotation-document'
 import { defaultAgreementContent, parseAgreementContent } from '@/lib/agreement-template'
+import { ensureDepartmentAssignment } from '@/lib/lead-handoff'
+import { promoteLeadToProduction } from '@/lib/production-workflow'
+import { isProjectCoordinatorHead } from '@/lib/production-module'
 import type { QuotationDraftContent } from '@/lib/quotation-types'
 
 async function authorizedLead(leadId: string) {
@@ -15,8 +18,9 @@ async function authorizedLead(leadId: string) {
   const isAdmin = departments.has('ADMIN')
   const isSenior = departments.has('SR_CRM')
   const isBoqLeader = actorRoleNames.some((r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER')
-  if (!isAdmin && !isSenior && !isBoqLeader) {
-    return { response: NextResponse.json({ success: false, error: 'Only Admin, Senior CRM, or BOQ Team Leader can access Agreement Leads' }, { status: 403 }) } as const
+  const isPc = isProjectCoordinatorHead({ departments, roles: actorRoleNames })
+  if (!isAdmin && !isSenior && !isBoqLeader && !isPc) {
+    return { response: NextResponse.json({ success: false, error: 'Only Admin, Senior CRM, Project Coordinator, or BOQ Team Leader can access Agreement Leads' }, { status: 403 }) } as const
   }
   const lead = await prisma.lead.findFirst({
     where: {
@@ -77,5 +81,47 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   } catch (error) {
     console.error('[agreement-leads][detail][PUT]', error)
     return NextResponse.json({ success: false, error: 'Failed to save agreement' }, { status: 500 })
+  }
+}
+
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ leadId: string }> }) {
+  try {
+    const { leadId } = await params
+    const access = await authorizedLead(leadId)
+    if ('response' in access) return access.response
+    const body = await request.json()
+    const { agreementType } = body
+    if (!agreementType || typeof agreementType !== 'string') {
+      return NextResponse.json({ success: false, error: 'Valid agreementType is required' }, { status: 400 })
+    }
+
+    const updated = await prisma.lead.update({
+      where: { id: leadId },
+      data: { agreementType },
+      select: { id: true, agreementType: true },
+    })
+
+    // Promote to Production Level (auto-assigns Project Coordinator and BOQ Team oversight)
+    await promoteLeadToProduction({
+      leadId,
+      actorUserId: access.auth.actorUserId,
+      note: `Agreement type set to ${agreementType.replace(/_/g, ' ')}`,
+    }).catch((err) => {
+      console.error('[agreement-leads][PATCH] Failed to promote lead to production:', err)
+    })
+
+    await prisma.activityLog.create({
+      data: {
+        leadId,
+        userId: access.auth.actorUserId,
+        type: 'STATUS_CHANGE',
+        description: `Agreement type changed to ${agreementType.replace(/_/g, ' ')}`,
+      },
+    }).catch(() => null)
+
+    return NextResponse.json({ success: true, data: updated })
+  } catch (error) {
+    console.error('[agreement-leads][detail][PATCH]', error)
+    return NextResponse.json({ success: false, error: 'Failed to update agreement type' }, { status: 500 })
   }
 }

@@ -4,6 +4,7 @@ import { requireDatabaseRoles } from '@/lib/authz'
 import { processAgreementAndDiscountSync } from '@/lib/agreement-discount-sync'
 import { LeadAssignmentDepartment, LeadStage, LeadSubStatus } from '@/generated/prisma/client'
 import { getDepartmentNameAliases } from '@/lib/department-normalization'
+import { promoteLeadToProduction } from '@/lib/production-workflow'
 
 export async function POST(req: Request) {
   try {
@@ -146,40 +147,15 @@ export async function POST(req: Request) {
       }
     })
 
-    // 4. Auto-assign PROJECT_COORDINATOR for FITOUT agreements
-    if (agreementType === 'FITOUT_AGREEMENT') {
-      const pcUser = await prisma.user.findFirst({
-        where: {
-          isActive: true,
-          userDepartments: {
-            some: {
-              department: {
-                name: { in: getDepartmentNameAliases('PROJECT_COORDINATOR') },
-              },
-            },
-          },
-        },
-        select: { id: true },
-        orderBy: [{ fullName: 'asc' }, { created_at: 'asc' }],
-      })
-      if (pcUser) {
-        await prisma.leadAssignment.upsert({
-          where: {
-            leadId_department_userId: {
-              leadId,
-              department: LeadAssignmentDepartment.PROJECT_COORDINATOR,
-              userId: pcUser.id,
-            },
-          },
-          update: {},
-          create: {
-            leadId,
-            department: LeadAssignmentDepartment.PROJECT_COORDINATOR,
-            userId: pcUser.id,
-          },
-        })
-      }
-    }
+    // 4. Post-Agreement Production Workflow:
+    // Induct lead into Production Level under Project Coordinator & BOQ Team Leader oversight
+    await promoteLeadToProduction({
+      leadId,
+      actorUserId: actor.id,
+      note: `Agreement confirmed: Type ${agreementType}, Value ${finalAgreementValue}. Inducted into Production.`,
+    }).catch((prodErr) => {
+      console.error('[finance/start] Error promoting lead to production:', prodErr)
+    })
 
     return NextResponse.json({ success: true, lead: updatedLead })
   } catch (error: unknown) {
