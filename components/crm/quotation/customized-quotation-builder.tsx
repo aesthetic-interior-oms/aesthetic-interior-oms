@@ -523,7 +523,7 @@ export function CustomizedQuotationBuilder({
       return
     }
     const nextTitle = editingTitleText.trim()
-    setActiveContent((prev) => (prev ? { ...prev, title: nextTitle, subject: `${nextTitle} for interior work` } : prev))
+    setActiveContent((prev) => (prev ? { ...prev, title: nextTitle, subject: '' } : prev))
     setIsEditingTitle(false)
   }
 
@@ -1305,41 +1305,6 @@ export function CustomizedQuotationBuilder({
           )}
         </CardContent>
       </Card>
-
-      {/* Notes & Terms Collapsible */}
-      <details className="rounded-lg border bg-card text-xs">
-        <summary className="cursor-pointer px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">
-          Quotation Terms & Conditions / Notes
-        </summary>
-        <div className="border-t p-4 space-y-3">
-          <div>
-            <label className="font-medium text-muted-foreground block mb-1">Terms & Conditions:</label>
-            {canEdit ? (
-              <Textarea
-                value={activeContent.terms}
-                onChange={(e) => setActiveContent((prev) => (prev ? { ...prev, terms: e.target.value } : prev))}
-                rows={4}
-                className="text-xs"
-              />
-            ) : (
-              <p className="whitespace-pre-wrap text-muted-foreground">{activeContent.terms}</p>
-            )}
-          </div>
-          <div>
-            <label className="font-medium text-muted-foreground block mb-1">Payment Schedule:</label>
-            {canEdit ? (
-              <Textarea
-                value={activeContent.paymentTerms}
-                onChange={(e) => setActiveContent((prev) => (prev ? { ...prev, paymentTerms: e.target.value } : prev))}
-                rows={3}
-                className="text-xs"
-              />
-            ) : (
-              <p className="whitespace-pre-wrap text-muted-foreground">{activeContent.paymentTerms}</p>
-            )}
-          </div>
-        </div>
-      </details>
 
       {/* Create New Quotation Dialog */}
       <Dialog open={newQuotationModalOpen} onOpenChange={setNewQuotationModalOpen}>

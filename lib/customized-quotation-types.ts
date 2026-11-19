@@ -96,7 +96,7 @@ export function buildDefaultCustomizedQuotationContent(input?: {
     quotationDate: new Date().toISOString().slice(0, 10),
     clientName: input?.clientName ?? '',
     clientAddress: input?.clientAddress ?? '',
-    subject: `${input?.title?.trim() || DEFAULT_CUSTOMIZED_TITLE} for interior work`,
+    subject: '',
     introLetter: DEFAULT_CUSTOMIZED_INTRO,
     notes: '',
     terms: DEFAULT_CUSTOMIZED_TERMS,

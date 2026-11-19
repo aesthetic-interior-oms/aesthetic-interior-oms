@@ -248,36 +248,6 @@ const styles = StyleSheet.create({
     textDecoration: 'underline',
   },
 
-  // Terms & Conditions
-  termTitle: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: PRIMARY,
-    marginBottom: 3,
-    marginTop: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  termContent: {
-    fontSize: 8.5,
-    color: '#555555',
-    lineHeight: 1.45,
-  },
-
-  // Signatures
-  signatoryRow: {
-    marginTop: 22,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  signatoryBlock: {
-    width: '38%',
-    borderTopWidth: 1,
-    borderTopColor: '#000000',
-    paddingTop: 5,
-  },
-
   // Footer Fixed
   footerFixed: {
     position: 'absolute',
@@ -428,14 +398,6 @@ export function CustomizedQuotationDocument({
           {clientAddress ? <Text style={styles.clientAddress}>{clientAddress}</Text> : null}
         </View>
 
-        {/* Subject */}
-        {content.subject ? (
-          <Text style={{ fontSize: 9.5, marginBottom: 10 }}>
-            <Text style={styles.bold}>Subject: </Text>
-            {content.subject}
-          </Text>
-        ) : null}
-
         {/* Dear Sir, & Intro Letter */}
         <View style={{ marginBottom: 16 }}>
           <Text style={[styles.metaText, styles.bold]}>Dear Sir,</Text>
@@ -565,39 +527,6 @@ export function CustomizedQuotationDocument({
         <Text style={styles.inWords} wrap={false}>
           In Words: {amountInWordsTaka(totals.grandTotal)}
         </Text>
-
-        {/* Terms & Conditions */}
-        {content.terms ? (
-          <View wrap={false}>
-            <Text style={styles.termTitle}>Terms & Conditions</Text>
-            <Text style={styles.termContent}>{content.terms}</Text>
-          </View>
-        ) : null}
-
-        {/* Payment Terms */}
-        {content.paymentTerms ? (
-          <View wrap={false}>
-            <Text style={styles.termTitle}>Payment Schedule</Text>
-            <Text style={styles.termContent}>{content.paymentTerms}</Text>
-          </View>
-        ) : null}
-
-        {/* Signatures */}
-        <View style={styles.signatoryRow} wrap={false}>
-          <View style={styles.signatoryBlock}>
-            <Text style={[styles.bold, { color: PRIMARY, fontSize: 9.5 }]}>
-              {content.signatoryName || 'Md Johirul Islam'}
-            </Text>
-            <Text style={{ fontSize: 8, color: '#64748b' }}>
-              {content.signatoryTitle || 'Chief Executive Officer'}
-            </Text>
-            <Text style={{ fontSize: 7.5, color: '#94a3b8' }}>Aesthetic Interior Studio</Text>
-          </View>
-          <View style={[styles.signatoryBlock, { alignItems: 'flex-end' }]}>
-            <Text style={[styles.bold, { color: PRIMARY, fontSize: 9.5 }]}>Client Acceptance</Text>
-            <Text style={{ fontSize: 8, color: '#64748b' }}>Signature & Date</Text>
-          </View>
-        </View>
 
         {/* Official Fixed Footer */}
         <View style={styles.footerFixed} fixed>
