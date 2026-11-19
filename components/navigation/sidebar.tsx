@@ -294,6 +294,38 @@ const navigationGroups: Record<string, NavGroup[]> = {
         },
       ],
     },
+    {
+      id: 'admin-procurement',
+      label: 'Procurement Department',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Procurement Dashboard',
+          href: '/procurement/dashboard',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Requisitions & Indents',
+          href: '/procurement/requisitions',
+        },
+        {
+          icon: Receipt,
+          label: 'Billing Center',
+          href: '/procurement/billing-center',
+        },
+        {
+          icon: Wallet,
+          label: 'Procurement Finance',
+          href: '/procurement/finance',
+        },
+        {
+          icon: FolderKanban,
+          label: 'Project List',
+          href: '/procurement/projects',
+        },
+      ],
+    },
   ],
   'Senior CRM': [
     {
@@ -781,6 +813,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           icon: Truck,
           label: 'Procurement Center',
           href: '/procurement/projects',
+        },
+        {
+          icon: ClipboardList,
+          label: 'Requisitions & Indents',
+          href: '/procurement/requisitions',
         },
       ],
     },
