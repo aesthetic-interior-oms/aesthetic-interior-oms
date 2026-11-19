@@ -7,21 +7,31 @@ import {
   CheckCircle2,
   Truck,
   ShoppingCart,
+  Layers,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { revalidatePath } from 'next/cache'
+import { auth } from '@clerk/nextjs/server'
+import { isProcurementLeader } from '@/lib/procurement-roles'
 import { WallPanelingBillMaker } from './_components/wall-paneling-bill-maker'
+import { RequisitionIndentWorkspace } from './_components/requisition-indent-workspace'
 
 export const revalidate = 0
 
 interface BillingRequisitionDetailPageProps {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ view?: string }>
 }
 
-export default async function BillingRequisitionDetailPage({ params }: BillingRequisitionDetailPageProps) {
+export default async function BillingRequisitionDetailPage({
+  params,
+  searchParams,
+}: BillingRequisitionDetailPageProps) {
   const { id } = await params
+  const { view = 'indent' } = await searchParams
+  const { userId } = await auth()
 
-  const [requisition, rawSuppliers] = await Promise.all([
+  const [requisition, rawSuppliers, dbUser] = await Promise.all([
     prisma.materialRequisition.findUnique({
       where: { id },
       include: {
@@ -31,8 +41,35 @@ export default async function BillingRequisitionDetailPage({ params }: BillingRe
         createdBy: {
           select: { fullName: true, email: true },
         },
+        procurementAssignee: {
+          select: { id: true, fullName: true, email: true },
+        },
+        indents: {
+          include: {
+            items: true,
+            createdBy: { select: { fullName: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
         items: {
           orderBy: { workCategory: 'asc' },
+          include: {
+            indentItems: {
+              include: {
+                indent: {
+                  select: {
+                    id: true,
+                    indentNo: true,
+                    createdAt: true,
+                    createdBy: { select: { fullName: true } },
+                  },
+                },
+                billedBy: {
+                  select: { fullName: true },
+                },
+              },
+            },
+          },
         },
       },
     }),
@@ -47,7 +84,21 @@ export default async function BillingRequisitionDetailPage({ params }: BillingRe
       },
       orderBy: { name: 'asc' },
     }),
+    userId
+      ? prisma.user.findUnique({
+          where: { clerkUserId: userId },
+          select: {
+            id: true,
+            userRoles: { select: { role: { select: { name: true } } } },
+            userDepartments: { select: { department: { select: { name: true } } } },
+          },
+        })
+      : null,
   ])
+
+  if (!requisition) {
+    notFound()
+  }
 
   // Map supplier fields into supplier options for bill maker
   const suppliers = rawSuppliers.map((s) => ({
@@ -58,8 +109,55 @@ export default async function BillingRequisitionDetailPage({ params }: BillingRe
     primaryEmail: s.email,
   }))
 
-  if (!requisition) {
-    notFound()
+  const userRoles = dbUser?.userRoles.map((r) => r.role.name) || []
+  const userDepts = dbUser?.userDepartments.map((d) => d.department.name) || []
+  const isLeader = isProcurementLeader(userRoles, userDepts)
+
+  let teamMembers: Array<{ id: string; fullName: string; email?: string | null }> = []
+  if (isLeader) {
+    teamMembers = await prisma.user.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          {
+            userDepartments: {
+              some: {
+                department: {
+                  name: {
+                    in: [
+                      'PROCUREMENT',
+                      'Procurement',
+                      'Procurement & Supply Chain',
+                      'PROCUREMENT_DEPARTMENT',
+                    ],
+                  },
+                },
+              },
+            },
+          },
+          {
+            userRoles: {
+              some: {
+                role: {
+                  name: {
+                    in: [
+                      'PROCUREMENT_TEAM_MEMBER',
+                      'Procurement Team Member',
+                      'PROCUREMENT_TEAM_LEADER',
+                      'Procurement Team Leader',
+                      'procurement_team_member',
+                      'Procurement Member',
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+      select: { id: true, fullName: true, email: true },
+      orderBy: { fullName: 'asc' },
+    })
   }
 
   async function handleUpdateStatus(formData: FormData) {
@@ -76,16 +174,19 @@ export default async function BillingRequisitionDetailPage({ params }: BillingRe
     revalidatePath(`/procurement/billing-center/${id}/delivery`)
     revalidatePath('/procurement/billing-center')
     revalidatePath('/procurement/dashboard')
+    revalidatePath('/procurement/requisitions')
   }
 
   const uniqueCategories = Array.from(new Set(requisition.items.map((i) => i.workCategory)))
   const totalUnits = requisition.items.reduce((sum, item) => sum + (item.finalQuantity || 0), 0)
 
-  // Count items with existing billing records
+  // Count items with existing billing records or indent items
   const billedItemsCount = requisition.items.filter((item) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const attrs = (item.variantAttributes as Record<string, any>) || {}
-    return Boolean(attrs.billingRecord?.isBought || attrs.purchaseRecord?.isBought)
+    const hasLegacyRecord = Boolean(attrs.billingRecord?.isBought || attrs.purchaseRecord?.isBought)
+    const hasIndentRecord = item.indentItems && item.indentItems.length > 0
+    return hasLegacyRecord || hasIndentRecord
   }).length
 
   return (
@@ -112,12 +213,12 @@ export default async function BillingRequisitionDetailPage({ params }: BillingRe
             {requisition.status === 'FULFILLED' ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                Completed & Billed
+                Completed &amp; Billed
               </span>
             ) : requisition.status === 'IN_PROCUREMENT' ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
-                In Billing & Sourcing
+                In Billing &amp; Sourcing
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
@@ -170,17 +271,33 @@ export default async function BillingRequisitionDetailPage({ params }: BillingRe
         </div>
       </div>
 
-      {/* Primary Page View Navigation Tabs: Purchases vs Delivery */}
-      <div className="flex items-center gap-2 border-b border-border pb-3">
+      {/* Primary Page Navigation Tabs */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
         <Link
           href={`/procurement/billing-center/${id}`}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold bg-foreground text-background shadow-xs transition-colors"
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors ${
+            view !== 'spec'
+              ? 'bg-foreground text-background'
+              : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-border'
+          }`}
         >
-          <ShoppingCart className="w-3.5 h-3.5" />
-          <span>Purchases & Billing</span>
+          <Receipt className="w-3.5 h-3.5" />
+          <span>Generate Indent &amp; Tracking</span>
           <span className="text-[10px] px-1.5 py-0.2 rounded bg-background/20 font-mono">
             {billedItemsCount}/{requisition.items.length}
           </span>
+        </Link>
+
+        <Link
+          href={`/procurement/billing-center/${id}?view=spec`}
+          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors ${
+            view === 'spec'
+              ? 'bg-foreground text-background'
+              : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-border'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>Wall &amp; Cabinet Specifications</span>
         </Link>
 
         <Link
@@ -188,7 +305,7 @@ export default async function BillingRequisitionDetailPage({ params }: BillingRe
           className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-border transition-colors"
         >
           <Truck className="w-3.5 h-3.5" />
-          <span>Delivery & Logistics</span>
+          <span>Delivery &amp; Logistics</span>
         </Link>
       </div>
 
@@ -226,17 +343,26 @@ export default async function BillingRequisitionDetailPage({ params }: BillingRe
 
         <div className="rounded-lg border border-border bg-card p-4 sm:p-5 shadow-xs space-y-1">
           <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Work Scope Categories
+            Indents Issued
           </span>
-          <div className="font-bold text-foreground text-xl sm:text-2xl">
-            {uniqueCategories.length} categories
+          <div className="font-bold text-foreground text-xl sm:text-2xl font-mono text-emerald-600">
+            {requisition.indents?.length || 0} bills
           </div>
-          <p className="text-xs text-muted-foreground">Wall Paneling &amp; Cabinets active</p>
+          <p className="text-xs text-muted-foreground">Sequential batches</p>
         </div>
       </div>
 
-      {/* Main Interactive Bill Maker Workspace with Supplier Dropdown */}
-      <WallPanelingBillMaker requisition={requisition} vendors={suppliers} />
+      {/* Main Workspace: Default to Indent Generator with Generate Indent button, or Spec Bill Maker */}
+      {view === 'spec' ? (
+        <WallPanelingBillMaker requisition={requisition} vendors={suppliers} />
+      ) : (
+        <RequisitionIndentWorkspace
+          requisition={requisition}
+          teamMembers={teamMembers}
+          isLeader={isLeader}
+          defaultVendors={suppliers}
+        />
+      )}
     </div>
   )
 }
