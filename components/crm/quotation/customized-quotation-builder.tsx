@@ -407,7 +407,7 @@ export function CustomizedQuotationBuilder({
         ),
       )
 
-      toast.success(`Saved "${contentToSave.title || 'Customized Quotation'}"`)
+      toast.success(`Saved "${contentToSave.title || 'Quotation'}"`)
       onDraftSaved?.()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to save quotation')
@@ -498,8 +498,9 @@ export function CustomizedQuotationBuilder({
     if (!activeContent) return
     setDownloading(true)
     try {
-      const title = activeContent.title?.trim() || 'Customized-Quotation'
-      const sanitizedName = (leadName || 'Lead').replace(/[^a-zA-Z0-9_-]/g, '_')
+      const rawTitle = activeContent.title?.trim()
+      const title = rawTitle && rawTitle.toLowerCase() !== 'customized quotation' ? rawTitle : 'Quotation'
+      const sanitizedName = (activeContent.clientName || leadName || 'Client').replace(/[^a-zA-Z0-9_-]/g, '_')
       const sanitizedTitle = title.replace(/[^a-zA-Z0-9_-]/g, '_')
       const fileName = `${sanitizedName}_${sanitizedTitle}.pdf`
 
@@ -882,7 +883,7 @@ export function CustomizedQuotationBuilder({
                       : 'bg-white hover:bg-muted text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700'
                   }`}
                 >
-                  <span>{q.title || 'Customized Quotation'}</span>
+                  <span>{q.title || 'Quotation'}</span>
                   <span className={`text-[10px] font-bold ${isActive ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>
                     {money(q.grandTotal)}
                   </span>
@@ -896,7 +897,7 @@ export function CustomizedQuotationBuilder({
                 size="sm"
                 className="h-7 rounded-full text-xs text-primary hover:bg-primary/10 gap-1 px-2.5"
                 onClick={() => {
-                  setNewQuotationTitle(`Customized Quotation ${quotations.length + 1}`)
+                  setNewQuotationTitle(`Quotation ${quotations.length + 1}`)
                   setNewQuotationModalOpen(true)
                 }}
               >
@@ -965,6 +966,71 @@ export function CustomizedQuotationBuilder({
           <p className="text-[10px] text-muted-foreground mt-1">Updates SQFT lines without changing NOS items</p>
         </div>
       </div>
+
+      {/* Client Info & Editable Intro Letter Block */}
+      <Card>
+        <CardHeader className="py-2.5 px-4 border-b bg-muted/20">
+          <span className="font-semibold text-xs tracking-wider uppercase text-muted-foreground">
+            Cover Letter & Client Scope (Printed on PDF)
+          </span>
+        </CardHeader>
+        <CardContent className="p-4 space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                Client Name:
+              </label>
+              {canEdit ? (
+                <Input
+                  type="text"
+                  value={activeContent.clientName}
+                  onChange={(e) => setActiveContent((prev) => (prev ? { ...prev, clientName: e.target.value } : prev))}
+                  placeholder="Client Name"
+                  className="h-8 text-xs font-semibold"
+                />
+              ) : (
+                <span className="text-xs font-semibold">{activeContent.clientName}</span>
+              )}
+            </div>
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground block mb-1">
+                Client Address:
+              </label>
+              {canEdit ? (
+                <Input
+                  type="text"
+                  value={activeContent.clientAddress}
+                  onChange={(e) => setActiveContent((prev) => (prev ? { ...prev, clientAddress: e.target.value } : prev))}
+                  placeholder="Client Address"
+                  className="h-8 text-xs font-medium"
+                />
+              ) : (
+                <span className="text-xs">{activeContent.clientAddress}</span>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Dear Sir, (Intro Letter - Editable)
+              </label>
+              <span className="text-[10px] text-muted-foreground">Editable letter rendered on PDF</span>
+            </div>
+            {canEdit ? (
+              <Textarea
+                value={activeContent.introLetter}
+                onChange={(e) => setActiveContent((prev) => (prev ? { ...prev, introLetter: e.target.value } : prev))}
+                placeholder="We are delighted to partner with you on transforming your residence into an aesthetic, thoughtfully designed space..."
+                rows={3}
+                className="text-xs leading-relaxed"
+              />
+            ) : (
+              <p className="text-xs text-muted-foreground whitespace-pre-wrap">{activeContent.introLetter}</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Main Quotation Table (Floor - Area - Product Layout with DnD) */}
       <Card>
@@ -1279,7 +1345,7 @@ export function CustomizedQuotationBuilder({
       <Dialog open={newQuotationModalOpen} onOpenChange={setNewQuotationModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Create New Customized Quotation</DialogTitle>
+            <DialogTitle>Create New Quotation Draft</DialogTitle>
             <DialogDescription>
               Define what kind of quotation this is (e.g. Civil Quotation, Glass Work, Kitchen Scope).
             </DialogDescription>

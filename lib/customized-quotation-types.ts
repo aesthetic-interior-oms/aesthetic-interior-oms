@@ -63,10 +63,9 @@ export type CustomizedQuotationTotals = {
   itemCount: number
 }
 
-export const DEFAULT_CUSTOMIZED_TITLE = 'Customized Quotation'
+export const DEFAULT_CUSTOMIZED_TITLE = 'Quotation'
 
-export const DEFAULT_CUSTOMIZED_INTRO = `Dear Sir,
-We are pleased to submit our customized quotation for the proposed interior and fit-out work. Below is the detailed breakdown itemized by area and scope of work.`
+export const DEFAULT_CUSTOMIZED_INTRO = `We are delighted to partner with you on transforming your residence into an aesthetic, thoughtfully designed space. Separate cost estimates have been provided for each room to give you a clear breakdown of the budget and scope.`
 
 export const DEFAULT_CUSTOMIZED_PAYMENT_TERMS = `Mode of Payment:
 1. 60% advance payment upon signing the work order.

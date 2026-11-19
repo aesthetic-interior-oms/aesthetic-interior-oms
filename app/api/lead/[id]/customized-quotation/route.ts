@@ -147,7 +147,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
-    const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : `Customized Quotation ${Date.now().toString().slice(-4)}`
+    const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim() : `Quotation ${Date.now().toString().slice(-4)}`
 
     const newDraftKey = `customized:${Date.now()}`
     const defaultContent = buildDefaultCustomizedQuotationContent({
