@@ -9,9 +9,13 @@ interface PageProps {
   params: Promise<{
     leadId: string
   }>
+  searchParams?: Promise<{
+    requisitionId?: string
+    newBatch?: string
+  }>
 }
 
-export default async function RequisitionBuilderPage({ params }: PageProps) {
+export default async function RequisitionBuilderPage({ params, searchParams }: PageProps) {
   const { userId } = await auth()
   if (!userId) {
     redirect('/')
@@ -22,7 +26,11 @@ export default async function RequisitionBuilderPage({ params }: PageProps) {
     notFound()
   }
 
-  const data = await getLeadRequisitionData(leadId)
+  const resolvedSearchParams = searchParams ? await searchParams : undefined
+  const requisitionId = resolvedSearchParams?.requisitionId
+  const isNewBatch = resolvedSearchParams?.newBatch === 'true'
+
+  const data = await getLeadRequisitionData(leadId, requisitionId, isNewBatch)
   if (!data) {
     notFound()
   }
@@ -32,6 +40,7 @@ export default async function RequisitionBuilderPage({ params }: PageProps) {
       lead={data.lead}
       detailQuotation={data.detailQuotation}
       existingRequisition={data.requisition}
+      allRequisitions={data.allRequisitions}
     />
   )
 }

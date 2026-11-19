@@ -118,6 +118,11 @@ export default async function BoqAssignedTasksPage() {
                           ? 'Not Started'
                           : task.requisitionStatus}
                       </span>
+                      {task.totalRequisitions > 1 && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                          {task.totalRequisitions} Batches
+                        </span>
+                      )}
                     </div>
                     {task.requisitionItemCount > 0 && (
                       <p className="text-xs text-muted-foreground mt-0.5">

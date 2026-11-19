@@ -258,7 +258,10 @@ export default async function ProcurementBillingCenterPage({ searchParams }: Bil
                   return (
                     <tr key={req.id} className="hover:bg-muted/20 transition-colors">
                       <td className="py-3 px-4 font-mono font-semibold text-xs text-foreground">
-                        {req.requisitionNo}
+                        <div>{req.requisitionNo}</div>
+                        {req.notes && (
+                          <div className="text-[10px] text-purple-700 dark:text-purple-300 font-sans font-medium">{req.notes}</div>
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         <div className="font-semibold text-foreground text-xs">{req.lead.name}</div>

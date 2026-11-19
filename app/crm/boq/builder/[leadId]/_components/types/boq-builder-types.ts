@@ -194,6 +194,16 @@ export type BoqSavedApplianceItem = {
   imageUrl?: string | null
 }
 
+export interface RequisitionSummary {
+  id: string
+  requisitionNo: string
+  status: string
+  notes: string | null
+  itemCount: number
+  createdAt: Date | string
+  updatedAt: Date | string
+}
+
 export interface RequisitionBuilderProps {
   lead: {
     id: string
@@ -202,6 +212,7 @@ export interface RequisitionBuilderProps {
     email: string | null
     location: string | null
     stage: string
+    subStatus?: string | null
   }
   detailQuotation: {
     id: string
@@ -224,6 +235,7 @@ export interface RequisitionBuilderProps {
     }>
     items: SavedRequisitionItem[]
   } | null
+  allRequisitions?: RequisitionSummary[]
 }
 
 export interface ProductSlide {

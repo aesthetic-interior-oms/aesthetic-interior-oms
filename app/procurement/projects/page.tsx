@@ -195,21 +195,28 @@ export default async function ProcurementProjectsPage() {
                       </td>
 
                       <td className="px-5 py-3.5">
-                        {latestReq ? (
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              latestReq.status === 'FULFILLED'
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                                : latestReq.status === 'IN_PROCUREMENT'
-                                ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
-                                : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
-                            }`}
-                          >
-                            {latestReq.status}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">No Requisitions</span>
-                        )}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {lead.materialRequisitions.length > 0 ? (
+                            lead.materialRequisitions.map((r) => (
+                              <Link
+                                key={r.id}
+                                href={`/procurement/billing-center/${r.id}`}
+                                className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-medium transition-colors border hover:opacity-80 ${
+                                  r.status === 'FULFILLED'
+                                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300'
+                                    : r.status === 'IN_PROCUREMENT'
+                                    ? 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950 dark:text-indigo-300'
+                                    : 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300'
+                                }`}
+                                title={`${r.requisitionNo} (${r.status})`}
+                              >
+                                {r.requisitionNo}
+                              </Link>
+                            ))
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No Requisitions</span>
+                          )}
+                        </div>
                       </td>
 
                       <td className="px-5 py-3.5 text-xs text-muted-foreground">

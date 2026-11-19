@@ -165,8 +165,7 @@ export async function getBoqAssignedTasks() {
           },
         },
         materialRequisitions: {
-          take: 1,
-          orderBy: { updatedAt: 'desc' },
+          orderBy: { createdAt: 'desc' },
           include: {
             _count: { select: { items: true } },
           },
@@ -191,6 +190,14 @@ export async function getBoqAssignedTasks() {
         requisitionStatus: requisition?.status || 'NOT_STARTED',
         requisitionItemCount: requisition?._count.items || 0,
         requisitionId: requisition?.id || null,
+        totalRequisitions: lead.materialRequisitions.length,
+        requisitionBatches: lead.materialRequisitions.map((r) => ({
+          id: r.id,
+          requisitionNo: r.requisitionNo,
+          status: r.status,
+          notes: r.notes,
+          itemCount: r._count.items,
+        })),
         updatedAt: lead.updated_at,
       }
     })
@@ -200,7 +207,11 @@ export async function getBoqAssignedTasks() {
   }
 }
 
-export async function getLeadRequisitionData(leadId: string) {
+export async function getLeadRequisitionData(
+  leadId: string,
+  requisitionId?: string,
+  isNewBatch?: boolean
+) {
   try {
     const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) return null
@@ -223,8 +234,7 @@ export async function getLeadRequisitionData(leadId: string) {
           take: 1,
         },
         materialRequisitions: {
-          take: 1,
-          orderBy: { updatedAt: 'desc' },
+          orderBy: { createdAt: 'desc' },
           include: {
             items: {
               orderBy: { id: 'asc' },
@@ -235,6 +245,9 @@ export async function getLeadRequisitionData(leadId: string) {
                 requestedBy: { select: { fullName: true } },
               },
             },
+            _count: {
+              select: { items: true },
+            },
           },
         },
       },
@@ -243,7 +256,31 @@ export async function getLeadRequisitionData(leadId: string) {
     if (!lead) return null
 
     const detailQuotation = lead.quotationDrafts[0] || null
-    const existingRequisition = lead.materialRequisitions[0] || null
+
+    const allRequisitions = lead.materialRequisitions.map((r) => ({
+      id: r.id,
+      requisitionNo: r.requisitionNo,
+      status: r.status,
+      notes: r.notes,
+      itemCount: r._count?.items ?? r.items?.length ?? 0,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+    }))
+
+    let activeRequisition = null
+    if (isNewBatch) {
+      activeRequisition = null
+    } else if (requisitionId) {
+      activeRequisition = lead.materialRequisitions.find((r) => r.id === requisitionId) || null
+    } else {
+      // Pick the most relevant batch:
+      // Prefer latest DRAFT, then SUBMITTED, then latest overall
+      activeRequisition =
+        lead.materialRequisitions.find((r) => r.status === 'DRAFT') ||
+        lead.materialRequisitions.find((r) => r.status === 'SUBMITTED') ||
+        lead.materialRequisitions[0] ||
+        null
+    }
 
     return {
       lead: {
@@ -254,6 +291,7 @@ export async function getLeadRequisitionData(leadId: string) {
         location: lead.location,
         budget: lead.budget,
         stage: lead.stage,
+        subStatus: lead.subStatus,
       },
       detailQuotation: detailQuotation
         ? {
@@ -264,18 +302,19 @@ export async function getLeadRequisitionData(leadId: string) {
             content: detailQuotation.content,
           }
         : null,
-      requisition: existingRequisition
+      requisition: activeRequisition
         ? {
-            id: existingRequisition.id,
-            requisitionNo: existingRequisition.requisitionNo,
-            status: existingRequisition.status,
-            notes: existingRequisition.notes,
-            rejectionReason: existingRequisition.rejectionReason,
-            cancellationReason: existingRequisition.cancellationReason,
-            items: existingRequisition.items,
-            amendments: existingRequisition.amendments,
+            id: activeRequisition.id,
+            requisitionNo: activeRequisition.requisitionNo,
+            status: activeRequisition.status,
+            notes: activeRequisition.notes,
+            rejectionReason: activeRequisition.rejectionReason,
+            cancellationReason: activeRequisition.cancellationReason,
+            items: activeRequisition.items,
+            amendments: activeRequisition.amendments,
           }
         : null,
+      allRequisitions,
     }
   } catch (error) {
     console.error('Error fetching lead requisition data:', error)
@@ -285,6 +324,9 @@ export async function getLeadRequisitionData(leadId: string) {
 
 export async function saveMaterialRequisition(input: {
   leadId: string
+  requisitionId?: string | null
+  isNewBatch?: boolean
+  batchTitle?: string
   quotationDraftId?: string
   status?: RequisitionStatus
   notes?: string
@@ -306,59 +348,102 @@ export async function saveMaterialRequisition(input: {
 
     const requisitionNo = `REQ-${Date.now().toString().slice(-6)}`
 
-    // Check if requisition exists for lead
-    const existing = await prisma.materialRequisition.findFirst({
-      where: { leadId: input.leadId },
-    })
+    let targetRequisition = null
 
-    let requisitionId = existing?.id
-
-    if (existing) {
-      // Guard against deleting purchase lines while in procurement or fulfilled (Question 9)
-      if (existing.status === 'IN_PROCUREMENT' || existing.status === 'FULFILLED') {
-        return {
-          success: false,
-          error:
-            'This requisition is currently in procurement. Active supplier orders are attached. Please use "Request Amendment" to propose changes.',
-        }
-      }
-
-      // Update header
-      await prisma.materialRequisition.update({
-        where: { id: existing.id },
-        data: {
-          status: input.status || existing.status,
-          notes: input.notes,
-          quotationDraftId: input.quotationDraftId || existing.quotationDraftId,
-          ...(input.status === 'SUBMITTED' ? { rejectionReason: null } : {}),
+    if (input.requisitionId && !input.isNewBatch) {
+      targetRequisition = await prisma.materialRequisition.findUnique({
+        where: { id: input.requisitionId },
+      })
+    } else if (!input.isNewBatch) {
+      // Find an editable draft or rejected requisition for this lead
+      targetRequisition = await prisma.materialRequisition.findFirst({
+        where: {
+          leadId: input.leadId,
+          status: { in: ['DRAFT', 'REJECTED'] },
         },
+        orderBy: { updatedAt: 'desc' },
       })
-      // Clear old items and recreate
-      await prisma.materialRequisitionItem.deleteMany({
-        where: { requisitionId: existing.id },
-      })
+    }
+
+    let requisitionId: string
+    let finalRequisitionNo = requisitionNo
+
+    if (targetRequisition) {
+      // If target batch is in procurement or fulfilled and user tried to overwrite it in-place:
+      if (targetRequisition.status === 'IN_PROCUREMENT' || targetRequisition.status === 'FULFILLED') {
+        // Auto-create as new supplemental batch so ongoing site work/procurement NEVER blocks new requisitions!
+        const newReq = await prisma.materialRequisition.create({
+          data: {
+            leadId: input.leadId,
+            quotationDraftId: input.quotationDraftId,
+            requisitionNo,
+            status: input.status || 'DRAFT',
+            notes: input.notes || `Supplemental: ${input.batchTitle || 'Batch'}`,
+            createdById: authResult.actorUserId,
+          },
+        })
+        requisitionId = newReq.id
+        finalRequisitionNo = newReq.requisitionNo
+      } else {
+        // Update existing editable requisition
+        await prisma.materialRequisition.update({
+          where: { id: targetRequisition.id },
+          data: {
+            status: input.status || targetRequisition.status,
+            notes: input.notes !== undefined ? input.notes : targetRequisition.notes,
+            quotationDraftId: input.quotationDraftId || targetRequisition.quotationDraftId,
+            ...(input.status === 'SUBMITTED' ? { rejectionReason: null } : {}),
+          },
+        })
+        // Clear old items and recreate
+        await prisma.materialRequisitionItem.deleteMany({
+          where: { requisitionId: targetRequisition.id },
+        })
+        requisitionId = targetRequisition.id
+        finalRequisitionNo = targetRequisition.requisitionNo
+      }
     } else {
-      // Create new header
+      // Create new header (new batch or supplemental)
       const newReq = await prisma.materialRequisition.create({
         data: {
           leadId: input.leadId,
           quotationDraftId: input.quotationDraftId,
           requisitionNo,
           status: input.status || 'DRAFT',
-          notes: input.notes,
+          notes: input.notes || input.batchTitle || null,
           createdById: authResult.actorUserId,
         },
       })
       requisitionId = newReq.id
+      finalRequisitionNo = newReq.requisitionNo
     }
 
-    const nextSubStatus = input.status === RequisitionStatus.SUBMITTED
-      ? LeadSubStatus.BOQ_COMPLETED
-      : LeadSubStatus.BOQ_WORKING
-    await prisma.lead.update({
+    // Non-blocking decoupled state update:
+    // Only advance lead subStatus if it's still in initial BOQ intake.
+    // NEVER downgrade or block if site work is already underway!
+    const lead = await prisma.lead.findUnique({
       where: { id: input.leadId },
-      data: { subStatus: nextSubStatus },
+      select: { subStatus: true, stage: true },
     })
+
+    if (lead) {
+      const isEarlyBoqPhase = [
+        LeadSubStatus.BOQ_ASSIGNED,
+        LeadSubStatus.BOQ_WORKING,
+        LeadSubStatus.BOQ_CORRECTION,
+      ].includes(lead.subStatus as any)
+
+      if (isEarlyBoqPhase) {
+        const nextSubStatus =
+          input.status === RequisitionStatus.SUBMITTED
+            ? LeadSubStatus.BOQ_COMPLETED
+            : LeadSubStatus.BOQ_WORKING
+        await prisma.lead.update({
+          where: { id: input.leadId },
+          data: { subStatus: nextSubStatus },
+        })
+      }
+    }
 
     // Insert line items
     if (requisitionId && input.items.length > 0) {
@@ -369,13 +454,12 @@ export async function saveMaterialRequisition(input: {
           const parsedWastagePercent = Number(item.wastagePercent)
           const parsedFinalQuantity = Number(item.finalQuantity)
           return {
-            requisitionId: requisitionId!,
+            requisitionId,
             quotationLineItemId: item.quotationLineItemId,
             workCategory: item.workCategory,
             materialName: item.materialName,
             specifications: item.specifications,
             variantAttributes: (item.variantAttributes || {}) as Prisma.InputJsonValue,
-            // Zero is used for schedule items whose quantity still needs confirmation.
             netQuantity,
             wastagePercent: Number.isFinite(parsedWastagePercent) ? parsedWastagePercent : 0,
             finalQuantity: Number.isFinite(parsedFinalQuantity) ? parsedFinalQuantity : netQuantity,
@@ -387,9 +471,75 @@ export async function saveMaterialRequisition(input: {
       })
     }
 
-    return { success: true, requisitionId }
+    return {
+      success: true,
+      requisitionId,
+      requisitionNo: finalRequisitionNo,
+      status: input.status || 'DRAFT',
+    }
   } catch (error) {
     console.error('Error saving material requisition:', error)
+    return { success: false, error: String(error) }
+  }
+}
+
+export async function pushPartialRequisition(input: {
+  leadId: string
+  batchTitle?: string
+  notes?: string
+  quotationDraftId?: string
+  items: RequisitionItemInput[]
+}) {
+  try {
+    const authResult = await requireDatabaseRoles([])
+    if (!authResult.ok) return { success: false, error: 'Unauthorized' }
+    if (!input.items || input.items.length === 0) {
+      return { success: false, error: 'No items selected to push into Purchase pipeline.' }
+    }
+
+    const requisitionNo = `REQ-P-${Date.now().toString().slice(-6)}`
+    const newReq = await prisma.materialRequisition.create({
+      data: {
+        leadId: input.leadId,
+        quotationDraftId: input.quotationDraftId,
+        requisitionNo,
+        status: RequisitionStatus.SUBMITTED,
+        notes: input.batchTitle || input.notes || 'Partial Requisition Batch',
+        createdById: authResult.actorUserId,
+      },
+    })
+
+    await prisma.materialRequisitionItem.createMany({
+      data: input.items.map((item) => {
+        const parsedNetQuantity = Number(item.netQuantity)
+        const netQuantity = Number.isFinite(parsedNetQuantity) ? parsedNetQuantity : 1
+        const parsedWastagePercent = Number(item.wastagePercent)
+        const parsedFinalQuantity = Number(item.finalQuantity)
+        return {
+          requisitionId: newReq.id,
+          quotationLineItemId: item.quotationLineItemId,
+          workCategory: item.workCategory,
+          materialName: item.materialName,
+          specifications: item.specifications,
+          variantAttributes: (item.variantAttributes || {}) as Prisma.InputJsonValue,
+          netQuantity,
+          wastagePercent: Number.isFinite(parsedWastagePercent) ? parsedWastagePercent : 0,
+          finalQuantity: Number.isFinite(parsedFinalQuantity) ? parsedFinalQuantity : netQuantity,
+          unit: item.unit || 'Pcs',
+          productionPhase: item.productionPhase,
+          remarks: item.remarks,
+        }
+      }),
+    })
+
+    return {
+      success: true,
+      requisitionId: newReq.id,
+      requisitionNo: newReq.requisitionNo,
+      message: `Pushed ${input.items.length} items to Purchase as ${newReq.requisitionNo}`,
+    }
+  } catch (error) {
+    console.error('Error pushing partial requisition:', error)
     return { success: false, error: String(error) }
   }
 }

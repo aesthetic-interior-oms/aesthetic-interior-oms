@@ -36,7 +36,7 @@ import {
   X,
   Truck,
 } from 'lucide-react'
-import { saveMaterialRequisition, createBoqAmendment, RequisitionItemInput } from '@/lib/boq-service'
+import { saveMaterialRequisition, createBoqAmendment, pushPartialRequisition, RequisitionItemInput } from '@/lib/boq-service'
 import { DEFAULT_CABINET_CATALOG, getCabinetThicknessOptions } from '@/lib/boq-cabinet-catalog'
 import {
   inferProductCategoryRule,
@@ -428,9 +428,19 @@ export function RequisitionBuilderClient({
   lead,
   detailQuotation,
   existingRequisition,
+  allRequisitions = [],
 }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [activeRequisitionId, setActiveRequisitionId] = useState<string | null>(existingRequisition?.id || null)
+  const [activeRequisitionNo, setActiveRequisitionNo] = useState<string>(
+    existingRequisition?.requisitionNo || 'New Draft'
+  )
+  const [activeRequisitionStatus, setActiveRequisitionStatus] = useState<string>(
+    existingRequisition?.status || 'DRAFT'
+  )
+  const [isPartialPushModalOpen, setIsPartialPushModalOpen] = useState(false)
+  const [isPushingPartial, setIsPushingPartial] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [lastSavedStatus, setLastSavedStatus] = useState<SaveStatus | null>(
     existingRequisition?.status === 'SUBMITTED' ? 'SUBMITTED' : existingRequisition ? 'DRAFT' : null
@@ -1416,7 +1426,7 @@ export function RequisitionBuilderClient({
     // Don't auto-save if nothing has been added yet
     if (requisitionItems.length === 0) return
     // Don't auto-save if already submitted/in-procurement
-    if (lastSavedStatus === 'SUBMITTED') return
+    if (lastSavedStatus === 'SUBMITTED' || activeRequisitionStatus === 'IN_PROCUREMENT' || activeRequisitionStatus === 'FULFILLED') return
 
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     autoSaveTimerRef.current = setTimeout(async () => {
@@ -1426,12 +1436,17 @@ export function RequisitionBuilderClient({
       try {
         const res = await saveMaterialRequisition({
           leadId: lead.id,
+          requisitionId: activeRequisitionId,
           quotationDraftId: detailQuotation?.id,
           status: 'DRAFT',
           notes,
           items: requisitionItems,
         })
         if (res.success) {
+          if (res.requisitionId && !activeRequisitionId) {
+            setActiveRequisitionId(res.requisitionId)
+            if (res.requisitionNo) setActiveRequisitionNo(res.requisitionNo)
+          }
           setLastSavedAt(new Date())
           setLastSavedStatus('DRAFT')
           setAutoSaveStatus('saved')
@@ -1449,37 +1464,38 @@ export function RequisitionBuilderClient({
     return () => {
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     }
-  }, [requisitionItems, notes, lead.id, detailQuotation?.id, lastSavedStatus])
+  }, [requisitionItems, notes, lead.id, detailQuotation?.id, lastSavedStatus, activeRequisitionId, activeRequisitionStatus])
 
   // ── Save / Submit ──
   const saveRequisition = useCallback(async (status: SaveStatus = 'DRAFT', successMessage?: string) => {
     try {
       const res = await saveMaterialRequisition({
         leadId: lead.id,
+        requisitionId: activeRequisitionId,
         quotationDraftId: detailQuotation?.id,
         status,
         notes,
         items: requisitionItems,
       })
       if (res.success) {
+        if (res.requisitionId) setActiveRequisitionId(res.requisitionId)
+        if (res.requisitionNo) setActiveRequisitionNo(res.requisitionNo)
+        if (res.status) setActiveRequisitionStatus(res.status)
         setLastSavedAt(new Date())
         setLastSavedStatus(status)
         const msg = successMessage ??
           (status === 'SUBMITTED'
-            ? 'Material requisition submitted to Procurement team successfully!'
+            ? `Requisition batch ${res.requisitionNo || ''} submitted to Procurement successfully!`
             : 'Saved successfully')
         if (status === 'SUBMITTED') {
-          toast.success(msg, { description: 'Material requisition sent to Procurement team.', duration: 3500 })
+          toast.success(msg, { description: 'Batch pushed to Procurement. Site and other batches continue in parallel.', duration: 3500 })
         } else {
           toast.success('✨ All changes saved', {
-            description: 'Your BOQ is safely up to date.',
+            description: `Batch ${res.requisitionNo || ''} is safely up to date.`,
             duration: 2200,
             className: 'border-emerald-200 bg-emerald-50 text-emerald-950 shadow-lg dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-50',
           })
         }
-        // Only refresh server state for status changes (submit/amendment), not for routine draft saves.
-        // Refreshing on every draft save can cause Next.js to re-render server components and
-        // lose unsaved in-progress edits if the DB write and client state diverge momentarily.
         if (status === 'SUBMITTED') {
           router.refresh()
         }
@@ -1493,7 +1509,72 @@ export function RequisitionBuilderClient({
       toast.error('Not saved', { description: err })
       return false
     }
-  }, [detailQuotation?.id, lead.id, notes, requisitionItems, router])
+  }, [activeRequisitionId, detailQuotation?.id, lead.id, notes, requisitionItems, router])
+
+  // ── Partial Category Push to Purchase ──
+  const availableCategoriesForPush = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const item of requisitionItems) {
+      const cat = item.workCategory || 'CABINETS_CLOSETS'
+      counts[cat] = (counts[cat] || 0) + 1
+    }
+    return Object.entries(counts).map(([category, count]) => ({
+      category,
+      label: getWorkCategoryLabel(category as RequisitionWorkCategory),
+      count,
+    }))
+  }, [requisitionItems])
+
+  const handlePushCategory = useCallback(
+    async (category: string) => {
+      const targetItems = requisitionItems.filter(
+        (i) => (i.workCategory || 'CABINETS_CLOSETS') === category
+      )
+      if (targetItems.length === 0) {
+        toast.error('No items found in this category to push.')
+        return
+      }
+
+      setIsPushingPartial(true)
+      try {
+        const label = getWorkCategoryLabel(category as RequisitionWorkCategory)
+        const res = await pushPartialRequisition({
+          leadId: lead.id,
+          batchTitle: `Batch: ${label}`,
+          quotationDraftId: detailQuotation?.id,
+          items: targetItems,
+        })
+
+        if (res.success) {
+          toast.success(`🚀 ${label} pushed to Purchase pipeline!`, {
+            description: `Batch ${res.requisitionNo} is now ready for Procurement. Continue drafting remaining categories!`,
+            duration: 4500,
+          })
+
+          // Remove pushed category rows from client working state
+          setItemsMap((prev) => {
+            const updated: ItemsMap = {}
+            for (const [key, rows] of Object.entries(prev)) {
+              updated[key] = rows.filter(
+                (r) => (r.workCategory || 'CABINETS_CLOSETS') !== category
+              )
+            }
+            return updated
+          })
+
+          setIsPartialPushModalOpen(false)
+          router.refresh()
+        } else {
+          toast.error('Failed to push category', { description: res.error })
+        }
+      } catch (e) {
+        toast.error('Failed to push category', { description: String(e) })
+      } finally {
+        setIsPushingPartial(false)
+      }
+    },
+    [detailQuotation?.id, lead.id, requisitionItems, router]
+  )
 
   const handleSave = useCallback((status: SaveStatus = 'DRAFT') => {
     if (status === 'SUBMITTED') {
@@ -1850,8 +1931,55 @@ export function RequisitionBuilderClient({
             </button>
           </div>
 
-          {/* Top-Right: Auto-save status & Collapsible Project Info Drawer Toggle */}
+          {/* Top-Right: Batch Selector, New Batch button, Push to Purchase, & Collapsible Project Info Drawer Toggle */}
           <div className="flex items-center gap-2">
+            {/* Active Batch Badge & Batch Switcher */}
+            <div className="flex items-center gap-1.5">
+              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-mono font-bold border ${
+                activeRequisitionStatus === 'FULFILLED'
+                  ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30'
+                  : activeRequisitionStatus === 'IN_PROCUREMENT'
+                  ? 'bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30'
+                  : activeRequisitionStatus === 'SUBMITTED'
+                  ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30'
+                  : 'bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-500/30'
+              }`}>
+                <Package className="w-3.5 h-3.5" />
+                <span>{activeRequisitionNo}</span>
+                <span className="text-[10px] font-sans font-normal opacity-80 uppercase">({activeRequisitionStatus})</span>
+              </span>
+
+              {allRequisitions.length > 1 && (
+                <select
+                  value={activeRequisitionId || ''}
+                  onChange={(e) => {
+                    const selId = e.target.value
+                    if (selId) {
+                      router.push(`/crm/boq/builder/${lead.id}?requisitionId=${selId}`)
+                    }
+                  }}
+                  className="hidden sm:inline-block text-xs bg-card border border-border rounded-xl px-2 py-1 text-foreground cursor-pointer"
+                  title="Switch Requisition Batch"
+                >
+                  {allRequisitions.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.requisitionNo} ({r.status}) - {r.notes || `${r.itemCount} items`}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              <button
+                type="button"
+                onClick={() => router.push(`/crm/boq/builder/${lead.id}?newBatch=true`)}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition-colors cursor-pointer"
+                title="Create a new concurrent requisition batch or supplemental requisition (Site Work continues in parallel)"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">New Batch</span>
+              </button>
+            </div>
+
             {/* Project Details & KPIs Drawer Toggle */}
             <button
               onClick={() => setIsTopDrawerOpen((v) => !v)}
@@ -1902,7 +2030,16 @@ export function RequisitionBuilderClient({
               </div>
 
               {/* Quick action buttons in drawer */}
-              <div className="flex items-center gap-2 self-start sm:self-auto">
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                <button
+                  onClick={() => setIsPartialPushModalOpen(true)}
+                  disabled={isPending || requisitionItems.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 px-3 py-1.5 text-xs font-bold text-purple-800 dark:text-purple-300 transition-colors disabled:opacity-50 cursor-pointer"
+                  title="Push a specific category (e.g. Wall Paneling) directly into the Purchase pipeline"
+                >
+                  <Truck className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                  Push to Purchase
+                </button>
                 <button
                   onClick={() => handleSave('DRAFT')}
                   disabled={isPending}
@@ -1925,7 +2062,7 @@ export function RequisitionBuilderClient({
                   className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  Submit
+                  Submit Batch
                 </button>
               </div>
             </div>
@@ -2724,8 +2861,17 @@ export function RequisitionBuilderClient({
             </button>
           </div>
 
-          {/* Right: Save / Submit / PDF */}
+          {/* Right: Push to Purchase / Save / Submit / PDF */}
           <div className="flex items-center gap-2 ml-auto">
+            <button
+              onClick={() => setIsPartialPushModalOpen(true)}
+              disabled={isPending || requisitionItems.length === 0}
+              className="inline-flex items-center justify-center rounded-xl border border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20 px-3.5 py-2.5 text-sm font-bold text-purple-800 dark:text-purple-300 shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+              title="Push partial / category (e.g. Wall Paneling) directly into Purchase pipeline while continuing other categories"
+            >
+              <Truck className="mr-1.5 h-4 w-4 text-purple-600 dark:text-purple-400" />
+              <span className="hidden md:inline">Push</span> to Purchase
+            </button>
             <button
               onClick={() => handleSave('DRAFT')}
               className="inline-flex items-center justify-center rounded-xl border border-input bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-2xs transition-colors hover:bg-muted disabled:opacity-50"
@@ -2750,11 +2896,74 @@ export function RequisitionBuilderClient({
               className="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               <Send className="mr-2 h-5 w-5" />
-              <span className="hidden sm:inline">Submit</span>
+              <span className="hidden sm:inline">Submit Batch</span>
             </button>
           </div>
         </div>
       </div>
+
+      {/* ── Push Partial / Category to Purchase Modal ── */}
+      {isPartialPushModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  Push Partial to Purchase Pipeline
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Decouple and push specific categories directly into the Purchase pipeline.
+                  Procurement can immediately buy materials while you simultaneously draft other categories (or while Site Work is already active).
+                </p>
+              </div>
+              <button
+                onClick={() => setIsPartialPushModalOpen(false)}
+                className="p-1.5 rounded-lg border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              {availableCategoriesForPush.length === 0 ? (
+                <div className="p-6 text-center text-xs text-muted-foreground">
+                  No material items currently added to push.
+                </div>
+              ) : (
+                availableCategoriesForPush.map(({ category, label, count }) => (
+                  <div
+                    key={category}
+                    className="flex items-center justify-between p-3.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors"
+                  >
+                    <div>
+                      <div className="text-sm font-bold text-foreground">{label}</div>
+                      <div className="text-xs text-muted-foreground font-mono">{count} items configured</div>
+                    </div>
+                    <button
+                      onClick={() => handlePushCategory(category)}
+                      disabled={isPushingPartial}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-purple-600 hover:bg-purple-700 text-white shadow transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      {isPushingPartial ? 'Pushing...' : 'Push to Purchase 🚀'}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="flex items-center justify-end pt-2 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setIsPartialPushModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-input hover:bg-muted transition-colors cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
