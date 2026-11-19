@@ -1,6 +1,6 @@
 'use client'
 
-// Summary PDF Document — one-page project cost summary combining detail + furniture + electrical quotation data
+// Summary PDF Document — one-page project cost summary combining detail (selected version) + furniture + electrical + customized quotation data
 import { Document, Font, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import type { QuotationDraftContent } from '@/lib/quotation-types'
 import type { FurnitureQuotationContent } from '@/lib/furniture-quotation-template'
@@ -44,14 +44,12 @@ const watermarkSrc = isBrowser
     ? `${process.cwd()}/public/android-chrome-512x512.png`
     : '/android-chrome-512x512.png'
 
-// ─── Font Registration ───────────────────────────────────────────────────────
+// ─── Font Registration (Explicitly avoiding italic fontStyle to prevent resolution errors) ─────
 Font.register({
   family: 'Noto Sans Bengali',
   fonts: [
     { src: fontRegular },
-    { src: fontRegular, fontStyle: 'italic' },
     { src: fontBold, fontWeight: 'bold' },
-    { src: fontBold, fontWeight: 'bold', fontStyle: 'italic' },
   ],
 })
 
@@ -306,13 +304,21 @@ const FooterFixed = ({ generatedAt }: { generatedAt?: string | null }) => (
 )
 
 // ─── Props ────────────────────────────────────────────────────────────────────
+export type CustomizedQuotationSummaryItem = {
+  draftKey?: string
+  title: string
+  grandTotal: number
+}
+
 export type SummaryDocumentProps = {
   clientName: string
   clientAddress: string | null
   quotationDate?: string | null
   detailContent: QuotationDraftContent | null
+  detailVersionTitle?: string | null
   furnitureContent: FurnitureQuotationContent | null
   electricalContent: ElectricalQuotationContent | null
+  customizedQuotations?: CustomizedQuotationSummaryItem[]
 }
 
 // ─── Main Document ────────────────────────────────────────────────────────────
@@ -321,16 +327,23 @@ export function SummaryDocument({
   clientAddress,
   quotationDate,
   detailContent,
+  detailVersionTitle,
   furnitureContent,
   electricalContent,
+  customizedQuotations,
 }: SummaryDocumentProps) {
   // Build floor summaries from detail quotation
   const floorSummaries = detailContent ? buildDetailFloorSummaries(detailContent) : []
 
   // Furniture total
   const furnitureTotal =
-    furnitureContent && furnitureContent.items.length > 0
-      ? Math.round(furnitureContent.items.reduce((sum, item) => sum + item.quantity * item.rate, 0))
+    furnitureContent && Array.isArray(furnitureContent.items) && furnitureContent.items.length > 0
+      ? Math.round(
+          furnitureContent.items.reduce(
+            (sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.rate) || 0),
+            0,
+          ),
+        )
       : null
 
   // Electrical total
@@ -344,9 +357,15 @@ export function SummaryDocument({
     }
   }
 
+  // Customized quotations (filtered to those with positive grandTotal or explicit title)
+  const customizedList = Array.isArray(customizedQuotations)
+    ? customizedQuotations.filter((item) => (Number(item.grandTotal) || 0) > 0 || Boolean(item.title?.trim()))
+    : []
+  const customizedTotal = customizedList.reduce((sum, item) => sum + (Number(item.grandTotal) || 0), 0)
+
   // Grand total
   const detailTotal = floorSummaries.reduce((sum, entry) => sum + entry.total, 0)
-  const grandTotal = detailTotal + (furnitureTotal ?? 0) + (electricalTotal ?? 0)
+  const grandTotal = detailTotal + (furnitureTotal ?? 0) + (electricalTotal ?? 0) + customizedTotal
 
   const today = new Date()
   const generatedAt = new Intl.DateTimeFormat('en-GB', {
@@ -404,10 +423,18 @@ export function SummaryDocument({
           {/* Detail Quotation Rows */}
           {floorSummaries.map((entry) => {
             sl += 1
+            const floorName = (entry.floor.name || 'FLOOR WORKS').toUpperCase()
+            const hasVersion =
+              detailVersionTitle && floorName.toLowerCase().includes(detailVersionTitle.toLowerCase())
+            const displayName =
+              detailVersionTitle && !hasVersion
+                ? `${floorName} (${detailVersionTitle.toUpperCase()})`
+                : floorName
+
             return (
               <View key={entry.floor.id} style={styles.tRow} wrap={false}>
                 <Text style={[styles.tdCol, styles.wSl]}>{sl}</Text>
-                <Text style={[styles.tdCol, styles.wSumName]}>{(entry.floor.name || '').toUpperCase()}</Text>
+                <Text style={[styles.tdCol, styles.wSumName]}>{displayName}</Text>
                 <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>
                   {formatDetailAmount(entry.total)}
                 </Text>
@@ -416,7 +443,7 @@ export function SummaryDocument({
           })}
 
           {/* Furniture Row */}
-          {furnitureTotal !== null && (
+          {furnitureTotal !== null && furnitureTotal > 0 && (
             (() => {
               sl += 1
               return (
@@ -432,7 +459,7 @@ export function SummaryDocument({
           )}
 
           {/* Electrical Row */}
-          {electricalTotal !== null && (
+          {electricalTotal !== null && electricalTotal > 0 && (
             (() => {
               sl += 1
               return (
@@ -448,6 +475,21 @@ export function SummaryDocument({
               )
             })()
           )}
+
+          {/* Customized Quotation Rows — displaying the REAL user-defined name */}
+          {customizedList.map((item, idx) => {
+            sl += 1
+            const realTitle = (item.title?.trim() || 'QUOTATION').toUpperCase()
+            return (
+              <View key={item.draftKey || `customized-${idx}`} style={styles.tRow} wrap={false}>
+                <Text style={[styles.tdCol, styles.wSl]}>{sl}</Text>
+                <Text style={[styles.tdCol, styles.wSumName]}>{realTitle}</Text>
+                <Text style={[styles.tdCol, styles.summaryTdCol, styles.wSumTotal, styles.tdColLast]}>
+                  {formatDetailAmount(item.grandTotal)}
+                </Text>
+              </View>
+            )
+          })}
         </View>
 
         {/* Grand Total */}
