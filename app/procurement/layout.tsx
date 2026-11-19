@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import prisma from '@/lib/prisma'
 import { MainLayout } from '@/components/layout/mainlayout'
 import { normalizeDepartmentName } from '@/lib/department-normalization'
+import { hasProcurementLeaderRole, hasProcurementRole } from '@/lib/procurement-roles'
 
 export const runtime = 'nodejs'
 
@@ -27,6 +28,13 @@ export default async function ProcurementLayout({
           },
         },
       },
+      userRoles: {
+        select: {
+          role: {
+            select: { name: true },
+          },
+        },
+      },
     },
   })
 
@@ -34,22 +42,25 @@ export default async function ProcurementLayout({
     redirect('/onboarding')
   }
 
-  const departmentNames = new Set(
-    user.userDepartments
-      .map((row) => normalizeDepartmentName(row.department.name))
-      .filter((name): name is string => Boolean(name)),
-  )
+  const departmentNames = user.userDepartments
+    .map((row) => normalizeDepartmentName(row.department.name))
+    .filter((name): name is string => Boolean(name))
 
-  const isProcurement =
-    departmentNames.has('ADMIN') ||
-    departmentNames.has('PROCUREMENT') ||
-    departmentNames.has('PROCUREMENT_DEPARTMENT') ||
-    departmentNames.has('PROCUREMENT_SUPPLY_CHAIN')
+  const roleNames = user.userRoles.map((row) => row.role.name)
+
+  const isProcurement = hasProcurementRole(roleNames, departmentNames)
 
   // Allow admins and procurement team members to view
   if (!isProcurement) {
     redirect('/onboarding')
   }
 
-  return <MainLayout role="Procurement">{children}</MainLayout>
+  const isLeader =
+    hasProcurementLeaderRole(roleNames) ||
+    departmentNames.some((d) => d === 'ADMIN') ||
+    roleNames.some((r) => r.trim().toUpperCase() === 'ADMIN')
+
+  const procurementRole = isLeader ? 'Procurement Team Leader' : 'Procurement Team Member'
+
+  return <MainLayout role={procurementRole}>{children}</MainLayout>
 }

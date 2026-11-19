@@ -515,18 +515,20 @@ export async function PUT(
         actorDepartments.has('PROJECT_CORDINATOR') ||
         actorRoles.some((r) => r.toUpperCase().includes('PROJECT_COORDINATOR'))
       const isBoqLeader = actorRoles.some((r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER')
+      const isProcurementLeader = actorRoles.some((r) => r.trim().toUpperCase() === 'PROCUREMENT_TEAM_LEADER')
       const canUpdateProductionAssignment =
         actorDepartments.has('ADMIN') ||
         actorDepartments.has('SR_CRM') ||
         isPc ||
-        isBoqLeader
+        isBoqLeader ||
+        (department === 'PROCUREMENT' && isProcurementLeader)
 
       if (!canUpdateProductionAssignment) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'Only Admin, Senior CRM, Project Coordinator, or BOQ Team Leader can assign Production roles',
+              'Only Admin, Senior CRM, Project Coordinator, BOQ Team Leader, or Procurement Team Leader can assign Production roles',
           },
           { status: 403 },
         )
@@ -838,18 +840,20 @@ export async function DELETE(
         actorDepartments.has('PROJECT_CORDINATOR') ||
         actorRoles.some((r) => r.toUpperCase().includes('PROJECT_COORDINATOR'))
       const isBoqLeader = actorRoles.some((r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER')
+      const isProcurementLeader = actorRoles.some((r) => r.trim().toUpperCase() === 'PROCUREMENT_TEAM_LEADER')
       const canUpdateProductionAssignment =
         actorDepartments.has('ADMIN') ||
         actorDepartments.has('SR_CRM') ||
         isPc ||
-        isBoqLeader
+        isBoqLeader ||
+        (department === 'PROCUREMENT' && isProcurementLeader)
 
       if (!canUpdateProductionAssignment) {
         return NextResponse.json(
           {
             success: false,
             error:
-              'Only Admin, Senior CRM, Project Coordinator, or BOQ Team Leader can assign Production roles',
+              'Only Admin, Senior CRM, Project Coordinator, BOQ Team Leader, or Procurement Team Leader can assign Production roles',
           },
           { status: 403 },
         )

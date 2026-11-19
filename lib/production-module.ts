@@ -154,6 +154,11 @@ export function isProductionHeadUser(input: {
     return true
   }
 
+  // Procurement Team Leader
+  if (roles.has('PROCUREMENT_TEAM_LEADER')) {
+    return true
+  }
+
   return false
 }
 
@@ -206,6 +211,19 @@ export function isBoqTeamLeaderHead(input: {
   const roles = input.roles instanceof Set ? input.roles : new Set((input.roles ?? []).map((r) => r.toUpperCase().replace(/\s+/g, '_')))
 
   return depts.has('ADMIN') || roles.has('ADMIN') || roles.has('BOQ_TEAM_LEADER')
+}
+
+/**
+ * Check if user is a Procurement Team Leader head.
+ */
+export function isProcurementTeamLeaderHead(input: {
+  departments?: string[] | Set<string>
+  roles?: string[] | Set<string>
+}): boolean {
+  const depts = input.departments instanceof Set ? input.departments : new Set(input.departments ?? [])
+  const roles = input.roles instanceof Set ? input.roles : new Set((input.roles ?? []).map((r) => r.toUpperCase().replace(/\s+/g, '_')))
+
+  return depts.has('ADMIN') || roles.has('ADMIN') || roles.has('PROCUREMENT_TEAM_LEADER')
 }
 
 /**

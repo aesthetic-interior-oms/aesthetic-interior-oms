@@ -82,6 +82,12 @@ export default async function ProcurementBillingCenterPage({ searchParams }: Bil
 
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm" className="h-9">
+            <Link href="/procurement/requisitions">
+              <Package className="w-4 h-4 mr-1.5" />
+              Requisitions &amp; Indents
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="h-9">
             <Link href="/procurement/dashboard">
               <ArrowLeft className="w-4 h-4 mr-1.5" />
               Back to Dashboard

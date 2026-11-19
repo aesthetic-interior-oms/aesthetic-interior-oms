@@ -126,14 +126,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const isBoqLeader = authResult.actorRoles.some(
       (r) => r.trim().toUpperCase() === 'BOQ_TEAM_LEADER',
     );
+    const isProcurementLeader = authResult.actorRoles.some(
+      (r) => r.trim().toUpperCase() === 'PROCUREMENT_TEAM_LEADER',
+    );
     const isPc =
       actorDepartments.has('PROJECT_COORDINATOR') ||
       actorDepartments.has('PROJECT_CORDINATOR') ||
       actorRoles.has('project_coordinator');
 
-    if (!isAdmin && !isSeniorCrm && !isBoqLeader && !isPc) {
+    if (!isAdmin && !isSeniorCrm && !isBoqLeader && !isPc && !isProcurementLeader) {
       return NextResponse.json(
-        { success: false, error: 'Only ADMIN, SR_CRM, Project Coordinator, or BOQ Team Leader users can assign leads' },
+        { success: false, error: 'Only ADMIN, SR_CRM, Project Coordinator, BOQ Team Leader, or Procurement Team Leader users can assign leads' },
         { status: 403 }
       );
     }

@@ -37,6 +37,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { hasVisitTeamLeadershipRole } from '@/lib/visit-team-roles'
 import { hasJrArchitectureLeaderRole } from '@/lib/jr-architecture-roles'
 import { hasBoqLeaderRole } from '@/lib/boq-roles'
+import { hasProcurementLeaderRole } from '@/lib/procurement-roles'
 
 interface SidebarProps {
   open: boolean
@@ -1042,6 +1043,103 @@ const navigationGroups: Record<string, NavGroup[]> = {
       ],
     },
   ],
+  'Procurement Team Leader': [
+    {
+      id: 'procurement-leader-overview',
+      label: 'Procurement Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/procurement/dashboard',
+        },
+        {
+          icon: FolderKanban,
+          label: 'Production Module',
+          href: '/crm/production',
+        },
+      ],
+    },
+    {
+      id: 'procurement-leader-workflow',
+      label: 'Procurement & Billing',
+      defaultOpen: true,
+      items: [
+        {
+          icon: ClipboardList,
+          label: 'Requisitions & Delegation',
+          href: '/procurement/requisitions',
+        },
+        {
+          icon: Receipt,
+          label: 'Billing Center',
+          href: '/procurement/billing-center',
+        },
+        {
+          icon: FolderKanban,
+          label: 'Project List',
+          href: '/procurement/projects',
+        },
+        {
+          icon: Wallet,
+          label: 'Procurement Finance',
+          href: '/procurement/finance',
+        },
+        {
+          icon: Settings,
+          label: 'Settings',
+          href: '/procurement/settings',
+        },
+      ],
+    },
+  ],
+  'Procurement Team Member': [
+    {
+      id: 'procurement-member-overview',
+      label: 'Procurement Overview',
+      defaultOpen: true,
+      items: [
+        {
+          icon: LayoutDashboard,
+          label: 'Dashboard',
+          href: '/procurement/dashboard',
+        },
+      ],
+    },
+    {
+      id: 'procurement-member-workflow',
+      label: 'Procurement & Billing',
+      defaultOpen: true,
+      items: [
+        {
+          icon: ClipboardList,
+          label: 'Assigned Requisitions & Indents',
+          href: '/procurement/requisitions',
+        },
+        {
+          icon: Receipt,
+          label: 'Billing Center',
+          href: '/procurement/billing-center',
+        },
+        {
+          icon: FolderKanban,
+          label: 'Project List',
+          href: '/procurement/projects',
+        },
+        {
+          icon: Wallet,
+          label: 'Procurement Finance',
+          href: '/procurement/finance',
+        },
+        {
+          icon: Settings,
+          label: 'Settings',
+          href: '/procurement/settings',
+        },
+      ],
+    },
+  ],
   Procurement: [
     {
       id: 'procurement-overview',
@@ -1149,6 +1247,9 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
   const [canViewBoqLeaderPages, setCanViewBoqLeaderPages] = useState(
     role === 'BOQ Team Leader',
   )
+  const [canViewProcurementLeaderPages, setCanViewProcurementLeaderPages] = useState(
+    role === 'Procurement Team Leader',
+  )
 
   useEffect(() => {
     const handle = window.requestAnimationFrame(() => setMounted(true))
@@ -1202,7 +1303,10 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
     }
 
     if (isProcurement) {
-      return navigationGroups['Procurement'] || []
+      const procGroups = canViewProcurementLeaderPages
+        ? navigationGroups['Procurement Team Leader']
+        : navigationGroups['Procurement Team Member']
+      return addConveyanceLink(procGroups || navigationGroups['Procurement'] || [])
     }
 
     if (isSiteEngineer) {
@@ -1316,6 +1420,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
     isSpecialistDesignConsultants,
     isVisits,
     isProcurement,
+    canViewProcurementLeaderPages,
     isSiteEngineer,
     isElectrician,
     isBoq,
@@ -1324,7 +1429,7 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
   ])
 
   useEffect(() => {
-    if (!isVisits && role !== 'Jr Architect' && !isBoq) return
+    if (!isVisits && role !== 'Jr Architect' && !isBoq && !isProcurement) return
     let active = true
     fetch('/api/me', { cache: 'no-store' })
       .then(async (response) => {
@@ -1347,6 +1452,9 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
         if (isBoq) {
           setCanViewBoqLeaderPages(hasBoqLeaderRole(roleNames))
         }
+        if (isProcurement) {
+          setCanViewProcurementLeaderPages(hasProcurementLeaderRole(roleNames))
+        }
         return null
       })
       .catch(() => {
@@ -1360,12 +1468,15 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
         if (isBoq) {
           setCanViewBoqLeaderPages(false)
         }
+        if (isProcurement) {
+          setCanViewProcurementLeaderPages(false)
+        }
       })
 
     return () => {
       active = false
     }
-  }, [isVisits, role, isBoq])
+  }, [isVisits, role, isBoq, isProcurement])
 
   const closeOnSmallScreens = () => {
     if (!isLargeScreen) {

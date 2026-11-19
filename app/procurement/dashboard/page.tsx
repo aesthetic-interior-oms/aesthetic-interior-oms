@@ -39,6 +39,12 @@ export default async function ProcurementDashboardPage() {
 
         <div className="flex items-center gap-2.5">
           <Button asChild variant="outline" size="sm">
+            <Link href="/procurement/requisitions">
+              <ClipboardList className="w-4 h-4 mr-2" />
+              Requisitions &amp; Indents
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
             <Link href="/procurement/projects">
               <FolderKanban className="w-4 h-4 mr-2" />
               Project List
