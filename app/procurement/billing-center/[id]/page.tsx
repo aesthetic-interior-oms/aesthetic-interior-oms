@@ -5,30 +5,23 @@ import {
   ArrowLeft,
   Receipt,
   CheckCircle2,
-  Truck,
-  ShoppingCart,
-  Layers,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@clerk/nextjs/server'
 import { isProcurementLeader } from '@/lib/procurement-roles'
-import { WallPanelingBillMaker } from './_components/wall-paneling-bill-maker'
 import { RequisitionIndentWorkspace } from './_components/requisition-indent-workspace'
 
 export const revalidate = 0
 
 interface BillingRequisitionDetailPageProps {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ view?: string }>
 }
 
 export default async function BillingRequisitionDetailPage({
   params,
-  searchParams,
 }: BillingRequisitionDetailPageProps) {
   const { id } = await params
-  const { view = 'indent' } = await searchParams
   const { userId } = await auth()
 
   const [requisition, rawSuppliers, dbUser] = await Promise.all([
@@ -36,7 +29,21 @@ export default async function BillingRequisitionDetailPage({
       where: { id },
       include: {
         lead: {
-          select: { id: true, name: true, phone: true, location: true, stage: true },
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            location: true,
+            stage: true,
+            assignments: {
+              where: { department: 'SITE_ENGINEER' },
+              include: {
+                user: {
+                  select: { id: true, fullName: true, phone: true, email: true },
+                },
+              },
+            },
+          },
         },
         createdBy: {
           select: { fullName: true, email: true },
@@ -271,44 +278,6 @@ export default async function BillingRequisitionDetailPage({
         </div>
       </div>
 
-      {/* Primary Page Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-border pb-3">
-        <Link
-          href={`/procurement/billing-center/${id}`}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors ${
-            view !== 'spec'
-              ? 'bg-foreground text-background'
-              : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-border'
-          }`}
-        >
-          <Receipt className="w-3.5 h-3.5" />
-          <span>Generate Indent &amp; Tracking</span>
-          <span className="text-[10px] px-1.5 py-0.2 rounded bg-background/20 font-mono">
-            {billedItemsCount}/{requisition.items.length}
-          </span>
-        </Link>
-
-        <Link
-          href={`/procurement/billing-center/${id}?view=spec`}
-          className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs transition-colors ${
-            view === 'spec'
-              ? 'bg-foreground text-background'
-              : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-border'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5" />
-          <span>Wall &amp; Cabinet Specifications</span>
-        </Link>
-
-        <Link
-          href={`/procurement/billing-center/${id}/delivery`}
-          className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-border transition-colors"
-        >
-          <Truck className="w-3.5 h-3.5" />
-          <span>Delivery &amp; Logistics</span>
-        </Link>
-      </div>
-
       {/* KPI Cards: Clean Minimal Monochrome Design */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="rounded-lg border border-border bg-card p-4 sm:p-5 shadow-xs space-y-1">
@@ -352,17 +321,13 @@ export default async function BillingRequisitionDetailPage({
         </div>
       </div>
 
-      {/* Main Workspace: Default to Indent Generator with Generate Indent button, or Spec Bill Maker */}
-      {view === 'spec' ? (
-        <WallPanelingBillMaker requisition={requisition} vendors={suppliers} />
-      ) : (
-        <RequisitionIndentWorkspace
-          requisition={requisition}
-          teamMembers={teamMembers}
-          isLeader={isLeader}
-          defaultVendors={suppliers}
-        />
-      )}
+      {/* Main Single Source Billing Workspace */}
+      <RequisitionIndentWorkspace
+        requisition={requisition}
+        teamMembers={teamMembers}
+        isLeader={isLeader}
+        defaultVendors={suppliers}
+      />
     </div>
   )
 }
