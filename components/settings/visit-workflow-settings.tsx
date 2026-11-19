@@ -80,7 +80,7 @@ export function VisitWorkflowSettings() {
         <CardHeader>
           <CardTitle>Visit Team Workflow</CardTitle>
           <CardDescription>
-            Control whether support members can submit support data and whether lead completion depends on it.
+            Control whether support members can submit support data for visits.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -92,7 +92,7 @@ export function VisitWorkflowSettings() {
             Support Data Workflow
           </CardTitle>
           <CardDescription>
-            When off: support members become read-only and visit leads can complete visits without waiting for support submission.
+            When off: support members become read-only. Visit leads can always complete visits independently.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -100,7 +100,7 @@ export function VisitWorkflowSettings() {
             <div>
               <p className="text-sm font-medium text-foreground">Enable Support Data Workflow</p>
               <p className="text-xs text-muted-foreground">
-                Requires first support member submission before lead completion and allows support data actions.
+                Allows support members to submit project details and support data for assigned visits.
               </p>
             </div>
             <Switch

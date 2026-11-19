@@ -441,11 +441,6 @@ export default function VisitTodayPage() {
     if (!currentUserId) return false
     return getPrimarySupportAssignment(visit)?.supportUserId === currentUserId
   }
-  const hasPendingPrimarySupportData = (visit: VisitRecord | null) => {
-    if (!visit) return false
-    const primarySupportAssignment = getPrimarySupportAssignment(visit)
-    return Boolean(primarySupportAssignment && !primarySupportAssignment.result)
-  }
   const canManageSupportForVisit = (visit: VisitRecord) => {
     if (!currentUserId) return false
     return visit.assignedTo?.id === currentUserId
@@ -455,7 +450,6 @@ export default function VisitTodayPage() {
     if (visit.status === 'COMPLETED' || visit.status === 'CANCELLED') return false
     return getVisitRole(visit) === 'LEAD'
   }
-  const isSupportCompletionRequirementDisabled = !supportDataEnabled
 
   const todayVisits = useMemo(() => {
     return visits
@@ -826,14 +820,6 @@ export default function VisitTodayPage() {
 
   const handleCompleteVisit = async () => {
     if (!completeVisit) return
-    const primarySupportPending =
-      completeRole === 'LEAD' && supportDataEnabled ? hasPendingPrimarySupportData(completeVisit) : false
-    if (primarySupportPending) {
-      setCompleteError(
-        'Visit cannot be completed yet. The first support member must submit support data first.',
-      )
-      return
-    }
     if (completeRole === 'SUPPORT' && !canSubmitSupportData(completeVisit)) {
       setCompleteError('Only the first assigned support member can submit support data for this visit.')
       return
@@ -1059,11 +1045,6 @@ export default function VisitTodayPage() {
         subtitle="Track today&apos;s visit queue and complete outcomes quickly."
       />
       <div className="mx-auto max-w-[1440px] overflow-x-hidden px-4 py-5 sm:px-6 sm:py-6">
-        {isSupportCompletionRequirementDisabled ? (
-          <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Admin has disabled only the support-data completion requirement. Support members can still be assigned, see today&apos;s work, and submit support data.
-          </div>
-        ) : null}
         <div className="mb-6 flex justify-end">
           <Badge variant="secondary" className="w-fit gap-1.5 px-3 py-1 text-sm font-semibold">
             <CalendarDays className="size-3.5" />
@@ -1274,14 +1255,6 @@ export default function VisitTodayPage() {
           </DialogHeader>
 
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-0 sm:py-4">
-            {completeRole === 'LEAD' &&
-            completeVisit &&
-            supportDataEnabled &&
-            hasPendingPrimarySupportData(completeVisit) ? (
-              <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-                This visit cannot be completed yet. The first support member must submit support data first.
-              </div>
-            ) : null}
             {completeRole === 'SUPPORT' ? (
               <>
                 <div className="space-y-2">
@@ -1626,12 +1599,7 @@ export default function VisitTodayPage() {
             <Button
               type="button"
               onClick={handleCompleteVisit}
-              disabled={
-                submittingComplete ||
-                (completeRole === 'LEAD' &&
-                  supportDataEnabled &&
-                  Boolean(hasPendingPrimarySupportData(completeVisit)))
-              }
+              disabled={submittingComplete}
               className="text-sm gap-2"
             >
               {submittingComplete && <Loader2 className="h-4 w-4 animate-spin" />}

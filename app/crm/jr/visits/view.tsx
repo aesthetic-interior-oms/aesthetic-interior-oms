@@ -747,11 +747,6 @@ export function VisitsPageView({
     if (!currentUserId) return false
     return getPrimarySupportAssignment(visit)?.supportUserId === currentUserId
   }
-  const hasPendingPrimarySupportData = (visit: VisitRecord | null) => {
-    if (!visit) return false
-    const primarySupportAssignment = getPrimarySupportAssignment(visit)
-    return Boolean(primarySupportAssignment && !primarySupportAssignment.result)
-  }
   const isSupportReadOnly = !supportDataEnabled
 
   const leadRoleVisits = useMemo(
@@ -1170,12 +1165,6 @@ export function VisitsPageView({
   const submitCompleteVisit = async () => {
     if (!completeVisitId) return
     const currentVisit = visits.find((visit) => visit.id === completeVisitId) ?? null
-    const primarySupportPending =
-      completeRole === 'LEAD' && supportDataEnabled ? hasPendingPrimarySupportData(currentVisit) : false
-    if (primarySupportPending) {
-      setCompleteError('Visit cannot be completed yet. The first support member must submit support data first.')
-      return
-    }
     if (completeRole === 'SUPPORT' && isSupportReadOnly) {
       setCompleteError('Support data workflow is disabled by admin. Support members are read-only.')
       return
@@ -2574,14 +2563,6 @@ export function VisitsPageView({
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-0 sm:py-4">
-            {completeRole === 'LEAD' &&
-            completeVisitId &&
-            supportDataEnabled &&
-            hasPendingPrimarySupportData(visits.find((visit) => visit.id === completeVisitId) ?? null) ? (
-              <div className="rounded-md border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
-                This visit cannot be completed yet. The first support member must submit support data first.
-              </div>
-            ) : null}
             {completeRole === 'SUPPORT' ? (
               <>
                 <div className="space-y-2">
@@ -2855,16 +2836,7 @@ export function VisitsPageView({
             </Button>
             <Button
               onClick={submitCompleteVisit}
-              disabled={
-                submittingComplete ||
-                (completeRole === 'LEAD' &&
-                  supportDataEnabled &&
-                  Boolean(
-                    hasPendingPrimarySupportData(
-                      visits.find((visit) => visit.id === completeVisitId) ?? null,
-                    ),
-                  ))
-              }
+              disabled={submittingComplete}
             >
               {submittingComplete ? (
                 <>
