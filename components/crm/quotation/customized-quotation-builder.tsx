@@ -8,14 +8,30 @@ import {
   Save,
   Trash2,
   Copy,
-  ArrowUp,
-  ArrowDown,
   Layers,
   Sparkles,
   Edit2,
   FolderPlus,
   Check,
+  GripVertical,
 } from 'lucide-react'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { toast } from '@/components/ui/sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -54,12 +70,188 @@ type Props = {
 
 const money = (value: number) => `৳${Math.round(value).toLocaleString('en-BD')}`
 
+// Sortable Product Row Component
+function SortableProductRow({
+  line,
+  slNumber,
+  canEdit,
+  onUpdateLine,
+  onDuplicateLine,
+  onDeleteLine,
+}: {
+  line: CustomizedQuotationLineItem
+  slNumber: string
+  canEdit: boolean
+  onUpdateLine: (lineId: string, patch: Partial<CustomizedQuotationLineItem>) => void
+  onDuplicateLine: (line: CustomizedQuotationLineItem) => void
+  onDeleteLine: (lineId: string) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: line.id,
+    disabled: !canEdit,
+  })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.35 : 1,
+  }
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className={`hover:bg-muted/20 transition-colors ${isDragging ? 'bg-muted/40 shadow-xs' : ''}`}
+    >
+      <td className="px-2 py-2 text-center w-12">
+        <div className="flex items-center justify-center gap-1">
+          {canEdit && (
+            <button
+              type="button"
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none p-0.5 rounded"
+              title="Drag to reorder"
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+          )}
+          <span className="font-bold text-xs text-muted-foreground">{slNumber}</span>
+        </div>
+      </td>
+      <td className="px-3 py-2 min-w-[180px]">
+        {canEdit ? (
+          <Input
+            type="text"
+            value={line.description}
+            onChange={(e) => onUpdateLine(line.id, { description: e.target.value })}
+            placeholder="Product name"
+            className="h-7 text-xs font-medium"
+          />
+        ) : (
+          <span className="font-medium text-xs">{line.description}</span>
+        )}
+      </td>
+      <td className="px-3 py-2 min-w-[240px]">
+        {canEdit ? (
+          <Textarea
+            value={line.materials ?? ''}
+            onChange={(e) => onUpdateLine(line.id, { materials: e.target.value })}
+            placeholder="Specifications & material details"
+            className="min-h-[30px] h-7 text-xs py-1"
+            rows={1}
+          />
+        ) : (
+          <span className="text-muted-foreground text-xs">{line.materials || '—'}</span>
+        )}
+      </td>
+      <td className="px-3 py-2 w-[120px]">
+        {canEdit ? (
+          <Input
+            type="text"
+            inputMode="decimal"
+            value={line.rate > 0 ? String(line.rate) : ''}
+            onChange={(e) =>
+              onUpdateLine(line.id, { rate: Number(e.target.value.replace(/,/g, '')) || 0 })
+            }
+            placeholder="0"
+            className="h-7 text-xs text-right"
+          />
+        ) : (
+          <span className="text-right block text-xs">{line.rate > 0 ? line.rate.toLocaleString() : '—'}</span>
+        )}
+      </td>
+      <td className="px-3 py-2 w-[160px]">
+        {canEdit ? (
+          <div className="flex items-center gap-1.5">
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={line.quantity > 0 ? String(line.quantity) : ''}
+              onChange={(e) =>
+                onUpdateLine(line.id, {
+                  quantity: Number(e.target.value.replace(/,/g, '')) || 0,
+                })
+              }
+              placeholder="Qty"
+              className="h-7 text-xs flex-1 min-w-[55px]"
+            />
+            <Select
+              value={line.unit || 'sqft'}
+              onValueChange={(val) => onUpdateLine(line.id, { unit: val as CustomizedQuotationUnit })}
+            >
+              <SelectTrigger className="h-7 text-[11px] px-1.5 w-[70px] font-semibold bg-background">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="sqft" className="font-semibold text-emerald-700">sqft</SelectItem>
+                <SelectItem value="nos" className="font-semibold text-blue-700">nos</SelectItem>
+                <SelectItem value="ls">ls</SelectItem>
+                <SelectItem value="rft">rft</SelectItem>
+                <SelectItem value="rmt">rmt</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <span className="font-medium text-xs">
+            {line.quantity} {line.unit}
+          </span>
+        )}
+      </td>
+      <td className="px-3 py-2 text-right font-bold text-xs text-slate-900 dark:text-slate-100 w-[120px]">
+        {canEdit && line.unit === 'ls' ? (
+          <Input
+            type="text"
+            inputMode="decimal"
+            value={line.amount > 0 ? String(line.amount) : ''}
+            onChange={(e) =>
+              onUpdateLine(line.id, {
+                amount: Number(e.target.value.replace(/,/g, '')) || 0,
+              })
+            }
+            placeholder="Total"
+            className="h-7 text-xs text-right font-bold"
+          />
+        ) : (
+          money(line.amount)
+        )}
+      </td>
+      {canEdit && (
+        <td className="px-2 py-2 text-center w-16">
+          <div className="flex items-center justify-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+              onClick={() => onDuplicateLine(line)}
+              title="Duplicate product"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+              onClick={() => onDeleteLine(line.id)}
+              title="Delete product"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </td>
+      )}
+    </tr>
+  )
+}
+
 export function CustomizedQuotationBuilder({
   leadId,
   leadName,
   leadLocation,
   onDraftSaved,
 }: Props) {
+  // Client mount check to eliminate hydration mismatches (Error #418)
+  const [mounted, setMounted] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [downloading, setDownloading] = useState(false)
@@ -69,6 +261,10 @@ export function CustomizedQuotationBuilder({
   const [activeDraftKey, setActiveDraftKey] = useState<string>('customized:default')
   const [activeContent, setActiveContent] = useState<CustomizedQuotationContent | null>(null)
   const [defaultSqftInput, setDefaultSqftInput] = useState<string>('')
+
+  // Active floor and area tracking for bottom quick access
+  const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null)
+  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(null)
 
   // New quotation modal
   const [newQuotationModalOpen, setNewQuotationModalOpen] = useState(false)
@@ -81,6 +277,16 @@ export function CustomizedQuotationBuilder({
 
   // Snapshot for dirty checking
   const lastSavedSnapshotRef = useRef<string>('')
+
+  // DnD sensors
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Load all customized quotations for this lead
   const loadQuotations = useCallback(async (preferredDraftKey?: string) => {
@@ -106,6 +312,12 @@ export function CustomizedQuotationBuilder({
         setActiveContent(content)
         setDefaultSqftInput(content.projectSqft ? String(content.projectSqft) : '')
         lastSavedSnapshotRef.current = JSON.stringify(content)
+
+        if (content.sections?.length > 0) {
+          setSelectedFloorId(content.sections[0].id)
+          const firstArea = content.areas?.find((a) => a.floorId === content.sections[0].id)
+          if (firstArea) setSelectedAreaId(firstArea.id)
+        }
       } else {
         const def = buildDefaultCustomizedQuotationContent({ clientName: leadName, clientAddress: leadLocation ?? '' })
         setActiveContent(def)
@@ -119,8 +331,10 @@ export function CustomizedQuotationBuilder({
   }, [leadId, leadName, leadLocation])
 
   useEffect(() => {
-    void loadQuotations()
-  }, [loadQuotations])
+    if (mounted) {
+      void loadQuotations()
+    }
+  }, [mounted, loadQuotations])
 
   // Calculated totals for current active content
   const totals = useMemo(() => {
@@ -138,6 +352,12 @@ export function CustomizedQuotationBuilder({
     setActiveContent(target.content)
     setDefaultSqftInput(target.content.projectSqft ? String(target.content.projectSqft) : '')
     lastSavedSnapshotRef.current = JSON.stringify(target.content)
+
+    if (target.content.sections?.length > 0) {
+      setSelectedFloorId(target.content.sections[0].id)
+      const firstArea = target.content.areas?.find((a) => a.floorId === target.content.sections[0].id)
+      if (firstArea) setSelectedAreaId(firstArea.id)
+    }
   }
 
   // Save current active quotation
@@ -334,10 +554,10 @@ export function CustomizedQuotationBuilder({
     toast.success(`Applied ${val.toLocaleString()} sqft to ${updatedCount} sqft line item(s).`)
   }
 
-  // Section manipulation
-  const handleAddSection = () => {
+  // Floor manipulation (formerly Section)
+  const handleAddFloor = () => {
     if (!activeContent) return
-    const newSecId = `sec-${Date.now()}`
+    const newFloorId = `floor-${Date.now()}`
     const newAreaId = `area-${Date.now()}`
     const sortOrder = (activeContent.sections.length || 0) + 1
 
@@ -345,46 +565,53 @@ export function CustomizedQuotationBuilder({
       if (!prev) return prev
       return {
         ...prev,
-        sections: [...prev.sections, { id: newSecId, name: `Section ${sortOrder}`, sortOrder }],
-        areas: [...prev.areas, { id: newAreaId, floorId: newSecId, name: 'General Area', sortOrder: 1 }],
+        sections: [...prev.sections, { id: newFloorId, name: `Floor ${sortOrder}`, sortOrder }],
+        areas: [...prev.areas, { id: newAreaId, floorId: newFloorId, name: 'Main Area', sortOrder: 1 }],
       }
     })
+    setSelectedFloorId(newFloorId)
+    setSelectedAreaId(newAreaId)
+    toast.success(`Added Floor ${sortOrder}`)
   }
 
-  const handleUpdateSectionName = (sectionId: string, name: string) => {
+  const handleUpdateFloorName = (floorId: string, name: string) => {
     setActiveContent((prev) => {
       if (!prev) return prev
       return {
         ...prev,
-        sections: prev.sections.map((s) => (s.id === sectionId ? { ...s, name } : s)),
+        sections: prev.sections.map((s) => (s.id === floorId ? { ...s, name } : s)),
       }
     })
   }
 
-  const handleDeleteSection = (sectionId: string) => {
+  const handleDeleteFloor = (floorId: string) => {
     if (!activeContent) return
     if (activeContent.sections.length <= 1) {
-      toast.error('Cannot remove the only section.')
+      toast.error('Cannot remove the only floor.')
       return
     }
-    if (!window.confirm('Delete this section and all its areas and items?')) return
+    if (!window.confirm('Delete this floor and all its areas and products?')) return
 
     setActiveContent((prev) => {
       if (!prev) return prev
+      const remainingSections = prev.sections.filter((s) => s.id !== floorId)
       return {
         ...prev,
-        sections: prev.sections.filter((s) => s.id !== sectionId),
-        areas: prev.areas.filter((a) => a.floorId !== sectionId),
-        lineItems: prev.lineItems.filter((l) => l.sectionId !== sectionId),
+        sections: remainingSections,
+        areas: prev.areas.filter((a) => a.floorId !== floorId),
+        lineItems: prev.lineItems.filter((l) => l.sectionId !== floorId),
       }
     })
   }
 
   // Area manipulation
-  const handleAddArea = (sectionId: string) => {
+  const handleAddArea = (floorId?: string) => {
     if (!activeContent) return
+    const targetFloorId = floorId || selectedFloorId || activeContent.sections[0]?.id
+    if (!targetFloorId) return
+
     const newAreaId = `area-${Date.now()}`
-    const sectionAreas = activeContent.areas.filter((a) => a.floorId === sectionId)
+    const floorAreas = activeContent.areas.filter((a) => a.floorId === targetFloorId)
 
     setActiveContent((prev) => {
       if (!prev) return prev
@@ -392,10 +619,13 @@ export function CustomizedQuotationBuilder({
         ...prev,
         areas: [
           ...prev.areas,
-          { id: newAreaId, floorId: sectionId, name: `Area ${sectionAreas.length + 1}`, sortOrder: sectionAreas.length + 1 },
+          { id: newAreaId, floorId: targetFloorId, name: `Area ${floorAreas.length + 1}`, sortOrder: floorAreas.length + 1 },
         ],
       }
     })
+    setSelectedFloorId(targetFloorId)
+    setSelectedAreaId(newAreaId)
+    toast.success('Added new area')
   }
 
   const handleUpdateAreaName = (areaId: string, name: string) => {
@@ -410,7 +640,7 @@ export function CustomizedQuotationBuilder({
 
   const handleDeleteArea = (areaId: string) => {
     if (!activeContent) return
-    if (!window.confirm('Delete this area and its items?')) return
+    if (!window.confirm('Delete this area and its products?')) return
 
     setActiveContent((prev) => {
       if (!prev) return prev
@@ -422,16 +652,21 @@ export function CustomizedQuotationBuilder({
     })
   }
 
-  // Line item manipulation
-  const handleAddLineItem = (sectionId: string, areaId?: string) => {
+  // Product line manipulation
+  const handleAddProduct = (floorId?: string, areaId?: string) => {
     if (!activeContent) return
+    const targetFloorId = floorId || selectedFloorId || activeContent.sections[0]?.id
+    if (!targetFloorId) return
+
+    const targetAreaId = areaId || selectedAreaId || activeContent.areas.find((a) => a.floorId === targetFloorId)?.id
+
     const parsedSqft = Number(defaultSqftInput.replace(/,/g, ''))
     const defaultQty = Number.isFinite(parsedSqft) && parsedSqft > 0 ? parsedSqft : 1
 
     const newLine: CustomizedQuotationLineItem = {
       id: `line-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      sectionId,
-      areaId,
+      sectionId: targetFloorId,
+      areaId: targetAreaId,
       serialNo: activeContent.lineItems.length + 1,
       description: '',
       materials: '',
@@ -459,10 +694,8 @@ export function CustomizedQuotationBuilder({
         lineItems: prev.lineItems.map((line) => {
           if (line.id !== lineId) return line
           const next = { ...line, ...patch }
-          // Recalculate amount if rate or quantity or unit changed
           if ('rate' in patch || 'quantity' in patch || 'unit' in patch) {
             if (next.unit === 'ls') {
-              // Keep amount as entered or rate
               if ('rate' in patch && !('amount' in patch)) next.amount = next.rate
             } else {
               next.amount = Math.round(Number(next.rate) * Number(next.quantity))
@@ -490,7 +723,7 @@ export function CustomizedQuotationBuilder({
       nextLines.splice(index + 1, 0, duplicated)
       return { ...prev, lineItems: nextLines }
     })
-    toast.success('Item duplicated')
+    toast.success('Product duplicated')
   }
 
   const handleDeleteLine = (lineId: string) => {
@@ -503,23 +736,26 @@ export function CustomizedQuotationBuilder({
     })
   }
 
-  const handleMoveLine = (lineId: string, direction: 'up' | 'down') => {
-    if (!activeContent) return
-    const index = activeContent.lineItems.findIndex((l) => l.id === lineId)
-    if (index < 0) return
-    if (direction === 'up' && index === 0) return
-    if (direction === 'down' && index === activeContent.lineItems.length - 1) return
+  // Drag and drop reordering of product lines
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id || !activeContent) return
 
-    const targetIndex = direction === 'up' ? index - 1 : index + 1
-    const nextLines = [...activeContent.lineItems]
-    const temp = nextLines[index]
-    nextLines[index] = nextLines[targetIndex]
-    nextLines[targetIndex] = temp
+    setActiveContent((prev) => {
+      if (!prev) return prev
+      const oldIndex = prev.lineItems.findIndex((l) => l.id === active.id)
+      const newIndex = prev.lineItems.findIndex((l) => l.id === over.id)
+      if (oldIndex < 0 || newIndex < 0) return prev
 
-    setActiveContent((prev) => (prev ? { ...prev, lineItems: nextLines } : prev))
+      const reordered = arrayMove(prev.lineItems, oldIndex, newIndex)
+      return {
+        ...prev,
+        lineItems: reordered,
+      }
+    })
   }
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <Card>
         <CardContent className="py-12 text-center text-sm text-muted-foreground flex flex-col items-center justify-center gap-2">
@@ -541,7 +777,7 @@ export function CustomizedQuotationBuilder({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-24">
       {/* Top Banner & Multi-Quotation Selector */}
       <Card className="border-emerald-200/60 bg-gradient-to-r from-emerald-50/70 via-white to-teal-50/40 dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-slate-900 dark:to-teal-950/10">
         <CardHeader className="pb-3">
@@ -571,7 +807,13 @@ export function CustomizedQuotationBuilder({
                     </Button>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 group cursor-pointer" onClick={() => { setEditingTitleText(activeContent.title || DEFAULT_CUSTOMIZED_TITLE); setIsEditingTitle(true); }}>
+                  <div
+                    className="flex items-center gap-2 group cursor-pointer"
+                    onClick={() => {
+                      setEditingTitleText(activeContent.title || DEFAULT_CUSTOMIZED_TITLE)
+                      setIsEditingTitle(true)
+                    }}
+                  >
                     <CardTitle className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                       {activeContent.title || DEFAULT_CUSTOMIZED_TITLE}
                     </CardTitle>
@@ -584,7 +826,7 @@ export function CustomizedQuotationBuilder({
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Customized quotation draft for {leadName} • Detail-style breakdown with SQFT & NOS units
+                  Customized quotation draft for {leadName} • Floor & Area breakdown with SQFT & NOS units
                 </p>
               </div>
             </div>
@@ -673,7 +915,7 @@ export function CustomizedQuotationBuilder({
           <p className="mt-1 text-2xl font-black text-emerald-600 dark:text-emerald-400">
             {money(totals.grandTotal)}
           </p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">{totals.itemCount} item(s) included</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">{totals.itemCount} product(s) included</p>
         </div>
 
         <div className="rounded-xl border bg-card p-3.5 shadow-sm">
@@ -724,479 +966,274 @@ export function CustomizedQuotationBuilder({
         </div>
       </div>
 
-      {/* Main Quotation Table (Detail Table Layout) */}
+      {/* Main Quotation Table (Floor - Area - Product Layout with DnD) */}
       <Card>
         <CardHeader className="py-3 px-4 flex flex-row items-center justify-between border-b">
           <div className="flex items-center gap-2">
             <Layers className="h-4 w-4 text-emerald-600" />
-            <span className="font-semibold text-sm">Quotation Breakdown & Items</span>
+            <span className="font-semibold text-sm">Floor, Area & Product Breakdown</span>
           </div>
           {canEdit && (
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={handleAddSection}>
+              <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={handleAddFloor}>
                 <FolderPlus className="h-3.5 w-3.5" />
-                Add Section
+                Add Floor
               </Button>
             </div>
           )}
         </CardHeader>
 
         <CardContent className="p-0 space-y-6 pt-4">
-          {activeContent.sections.map((section, secIdx) => {
-            const sectionAreas = activeContent.areas.filter((a) => a.floorId === section.id).sort((a, b) => a.sortOrder - b.sortOrder)
-            const sectionLines = activeContent.lineItems.filter((l) => l.sectionId === section.id)
-            const sectionTotal = sectionLines.reduce((sum, l) => sum + (l.included !== false ? l.amount : 0), 0)
+          <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            {activeContent.sections.map((floor, floorIdx) => {
+              const floorAreas = activeContent.areas.filter((a) => a.floorId === floor.id).sort((a, b) => a.sortOrder - b.sortOrder)
+              const floorLines = activeContent.lineItems.filter((l) => l.sectionId === floor.id)
+              const floorTotal = floorLines.reduce((sum, l) => sum + (l.included !== false ? l.amount : 0), 0)
 
-            return (
-              <div key={section.id} className="mx-4 rounded-lg border bg-card overflow-hidden shadow-xs">
-                {/* Section Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-100/80 dark:bg-slate-800/60 px-4 py-2.5 border-b">
-                  <div className="flex items-center gap-2 flex-1">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Section {secIdx + 1}:
-                    </span>
-                    {canEdit ? (
-                      <Input
-                        type="text"
-                        value={section.name}
-                        onChange={(e) => handleUpdateSectionName(section.id, e.target.value)}
-                        placeholder="Section Name (e.g. Civil Works, Ground Floor)"
-                        className="h-7 text-sm font-bold max-w-[280px] bg-background"
-                      />
-                    ) : (
-                      <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{section.name}</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950 px-2 py-0.5 rounded">
-                      Section Total: {money(sectionTotal)}
-                    </span>
-                    {canEdit && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs gap-1 px-2"
-                          onClick={() => handleAddArea(section.id)}
-                          title="Add Area to this Section"
-                        >
-                          <Plus className="h-3 w-3" />
-                          Area
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs text-destructive hover:bg-destructive/10 px-2"
-                          onClick={() => handleDeleteSection(section.id)}
-                          title="Delete Section"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Section Contents (by Areas or Unassigned) */}
-                <div className="p-3 space-y-4">
-                  {sectionAreas.length > 0 ? (
-                    sectionAreas.map((area) => {
-                      const areaLines = sectionLines.filter((l) => l.areaId === area.id)
-                      const areaTotal = areaLines.reduce((sum, l) => sum + (l.included !== false ? l.amount : 0), 0)
-
-                      return (
-                        <div key={area.id} className="rounded-md border border-slate-200 dark:border-slate-800 overflow-hidden">
-                          {/* Area Subheader */}
-                          <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900/60 px-3 py-1.5 border-b text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground font-medium">Area:</span>
-                              {canEdit ? (
-                                <Input
-                                  type="text"
-                                  value={area.name}
-                                  onChange={(e) => handleUpdateAreaName(area.id, e.target.value)}
-                                  placeholder="Area name (e.g. Living Room)"
-                                  className="h-6 text-xs font-semibold max-w-[200px] bg-background"
-                                />
-                              ) : (
-                                <span className="font-semibold">{area.name}</span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground font-medium">
-                                Subtotal: <strong>{money(areaTotal)}</strong>
-                              </span>
-                              {canEdit && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-6 text-[11px] gap-1 px-2"
-                                    onClick={() => handleAddLineItem(section.id, area.id)}
-                                  >
-                                    <Plus className="h-3 w-3" /> Item
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 w-6 p-0 text-destructive"
-                                    onClick={() => handleDeleteArea(area.id)}
-                                    title="Delete Area"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Items Table inside Area */}
-                          <div className="overflow-x-auto">
-                            <table className="w-full min-w-[760px] text-xs">
-                              <thead className="bg-muted/40 text-left font-semibold text-muted-foreground">
-                                <tr>
-                                  <th className="w-10 px-2.5 py-2 text-center">SL</th>
-                                  <th className="min-w-[180px] px-3 py-2">Item Name</th>
-                                  <th className="min-w-[240px] px-3 py-2">Materials & Specifications</th>
-                                  <th className="w-[120px] px-3 py-2">Unit Price (৳)</th>
-                                  <th className="w-[160px] px-3 py-2">Qty & Unit (sqft / nos)</th>
-                                  <th className="w-[120px] px-3 py-2 text-right">Total (৳)</th>
-                                  {canEdit && <th className="w-20 px-2 py-2 text-center">Actions</th>}
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y">
-                                {areaLines.length === 0 ? (
-                                  <tr>
-                                    <td colSpan={canEdit ? 7 : 6} className="py-6 text-center text-muted-foreground">
-                                      No items in this area yet.{' '}
-                                      {canEdit && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleAddLineItem(section.id, area.id)}
-                                          className="text-primary underline font-medium hover:text-primary/80 ml-1"
-                                        >
-                                          + Add first item
-                                        </button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ) : (
-                                  areaLines.map((line, lineIdx) => (
-                                    <tr key={line.id} className="hover:bg-muted/20 transition-colors">
-                                      <td className="px-2.5 py-2 text-center font-bold text-muted-foreground">
-                                        {String(lineIdx + 1).padStart(2, '0')}
-                                      </td>
-                                      <td className="px-3 py-2">
-                                        {canEdit ? (
-                                          <Input
-                                            type="text"
-                                            value={line.description}
-                                            onChange={(e) => handleUpdateLine(line.id, { description: e.target.value })}
-                                            placeholder="Item name"
-                                            className="h-7 text-xs font-medium"
-                                          />
-                                        ) : (
-                                          <span className="font-medium">{line.description}</span>
-                                        )}
-                                      </td>
-                                      <td className="px-3 py-2">
-                                        {canEdit ? (
-                                          <Textarea
-                                            value={line.materials ?? ''}
-                                            onChange={(e) => handleUpdateLine(line.id, { materials: e.target.value })}
-                                            placeholder="Material specifications & details"
-                                            className="min-h-[30px] h-7 text-xs py-1"
-                                            rows={1}
-                                          />
-                                        ) : (
-                                          <span className="text-muted-foreground">{line.materials || '—'}</span>
-                                        )}
-                                      </td>
-                                      <td className="px-3 py-2">
-                                        {canEdit ? (
-                                          <Input
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={line.rate > 0 ? String(line.rate) : ''}
-                                            onChange={(e) =>
-                                              handleUpdateLine(line.id, { rate: Number(e.target.value.replace(/,/g, '')) || 0 })
-                                            }
-                                            placeholder="0"
-                                            className="h-7 text-xs text-right"
-                                          />
-                                        ) : (
-                                          <span className="text-right block">{line.rate > 0 ? line.rate.toLocaleString() : '—'}</span>
-                                        )}
-                                      </td>
-                                      <td className="px-3 py-2">
-                                        {canEdit ? (
-                                          <div className="flex items-center gap-1.5">
-                                            <Input
-                                              type="text"
-                                              inputMode="decimal"
-                                              value={line.quantity > 0 ? String(line.quantity) : ''}
-                                              onChange={(e) =>
-                                                handleUpdateLine(line.id, {
-                                                  quantity: Number(e.target.value.replace(/,/g, '')) || 0,
-                                                })
-                                              }
-                                              placeholder="Qty"
-                                              className="h-7 text-xs flex-1 min-w-[55px]"
-                                            />
-                                            <Select
-                                              value={line.unit || 'sqft'}
-                                              onValueChange={(val) => handleUpdateLine(line.id, { unit: val as CustomizedQuotationUnit })}
-                                            >
-                                              <SelectTrigger className="h-7 text-[11px] px-1.5 w-[70px] font-semibold bg-background">
-                                                <SelectValue />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                <SelectItem value="sqft" className="font-semibold text-emerald-700">sqft</SelectItem>
-                                                <SelectItem value="nos" className="font-semibold text-blue-700">nos</SelectItem>
-                                                <SelectItem value="ls">ls</SelectItem>
-                                                <SelectItem value="rft">rft</SelectItem>
-                                                <SelectItem value="rmt">rmt</SelectItem>
-                                              </SelectContent>
-                                            </Select>
-                                          </div>
-                                        ) : (
-                                          <span className="font-medium">
-                                            {line.quantity} {line.unit}
-                                          </span>
-                                        )}
-                                      </td>
-                                      <td className="px-3 py-2 text-right font-bold text-slate-900 dark:text-slate-100">
-                                        {canEdit && line.unit === 'ls' ? (
-                                          <Input
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={line.amount > 0 ? String(line.amount) : ''}
-                                            onChange={(e) =>
-                                              handleUpdateLine(line.id, {
-                                                amount: Number(e.target.value.replace(/,/g, '')) || 0,
-                                              })
-                                            }
-                                            placeholder="Total"
-                                            className="h-7 text-xs text-right font-bold"
-                                          />
-                                        ) : (
-                                          money(line.amount)
-                                        )}
-                                      </td>
-                                      {canEdit && (
-                                        <td className="px-2 py-2 text-center">
-                                          <div className="flex items-center justify-center gap-0.5">
-                                            <Button
-                                              size="icon"
-                                              variant="ghost"
-                                              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                                              onClick={() => handleDuplicateLine(line)}
-                                              title="Duplicate item"
-                                            >
-                                              <Copy className="h-3 w-3" />
-                                            </Button>
-                                            <Button
-                                              size="icon"
-                                              variant="ghost"
-                                              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                                              onClick={() => handleMoveLine(line.id, 'up')}
-                                              title="Move up"
-                                            >
-                                              <ArrowUp className="h-3 w-3" />
-                                            </Button>
-                                            <Button
-                                              size="icon"
-                                              variant="ghost"
-                                              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                                              onClick={() => handleMoveLine(line.id, 'down')}
-                                              title="Move down"
-                                            >
-                                              <ArrowDown className="h-3 w-3" />
-                                            </Button>
-                                            <Button
-                                              size="icon"
-                                              variant="ghost"
-                                              className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
-                                              onClick={() => handleDeleteLine(line.id)}
-                                              title="Delete item"
-                                            >
-                                              <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                          </div>
-                                        </td>
-                                      )}
-                                    </tr>
-                                  ))
-                                )}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )
-                    })
-                  ) : (
-                    /* Fallback when section has no distinct areas */
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">General Items</span>
-                        {canEdit && (
+              return (
+                <div key={floor.id} className="mx-4 rounded-lg border bg-card overflow-hidden shadow-xs">
+                  {/* Floor Header */}
+                  <div
+                    className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-2.5 border-b transition-colors ${
+                      selectedFloorId === floor.id ? 'bg-emerald-50/50 dark:bg-emerald-950/20' : 'bg-slate-100/80 dark:bg-slate-800/60'
+                    }`}
+                    onClick={() => setSelectedFloorId(floor.id)}
+                  >
+                    <div className="flex items-center gap-2 flex-1">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        Floor {floorIdx + 1}:
+                      </span>
+                      {canEdit ? (
+                        <Input
+                          type="text"
+                          value={floor.name}
+                          onChange={(e) => handleUpdateFloorName(floor.id, e.target.value)}
+                          placeholder="Floor Name (e.g. Ground Floor, 1st Floor)"
+                          className="h-7 text-sm font-bold max-w-[280px] bg-background"
+                        />
+                      ) : (
+                        <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{floor.name}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950 px-2 py-0.5 rounded">
+                        Floor Total: {money(floorTotal)}
+                      </span>
+                      {canEdit && (
+                        <>
                           <Button
                             size="sm"
-                            variant="outline"
-                            className="h-6 text-xs gap-1"
-                            onClick={() => handleAddLineItem(section.id)}
+                            variant="ghost"
+                            className="h-7 text-xs gap-1 px-2"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleAddArea(floor.id)
+                            }}
+                            title="Add Area to this Floor"
                           >
-                            <Plus className="h-3 w-3" /> Add Item
+                            <Plus className="h-3 w-3" />
+                            Area
                           </Button>
-                        )}
-                      </div>
-                      <div className="overflow-x-auto rounded-md border">
-                        <table className="w-full min-w-[760px] text-xs">
-                          <thead className="bg-muted/40 text-left font-semibold text-muted-foreground">
-                            <tr>
-                              <th className="w-10 px-2.5 py-2 text-center">SL</th>
-                              <th className="min-w-[180px] px-3 py-2">Item Name</th>
-                              <th className="min-w-[240px] px-3 py-2">Materials & Specifications</th>
-                              <th className="w-[120px] px-3 py-2">Unit Price (৳)</th>
-                              <th className="w-[160px] px-3 py-2">Qty & Unit (sqft / nos)</th>
-                              <th className="w-[120px] px-3 py-2 text-right">Total (৳)</th>
-                              {canEdit && <th className="w-20 px-2 py-2 text-center">Actions</th>}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {sectionLines.map((line, lineIdx) => (
-                              <tr key={line.id} className="hover:bg-muted/20 transition-colors">
-                                <td className="px-2.5 py-2 text-center font-bold text-muted-foreground">
-                                  {String(lineIdx + 1).padStart(2, '0')}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {canEdit ? (
-                                    <Input
-                                      type="text"
-                                      value={line.description}
-                                      onChange={(e) => handleUpdateLine(line.id, { description: e.target.value })}
-                                      placeholder="Item name"
-                                      className="h-7 text-xs font-medium"
-                                    />
-                                  ) : (
-                                    <span className="font-medium">{line.description}</span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {canEdit ? (
-                                    <Textarea
-                                      value={line.materials ?? ''}
-                                      onChange={(e) => handleUpdateLine(line.id, { materials: e.target.value })}
-                                      placeholder="Material specifications"
-                                      className="min-h-[30px] h-7 text-xs py-1"
-                                      rows={1}
-                                    />
-                                  ) : (
-                                    <span className="text-muted-foreground">{line.materials || '—'}</span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {canEdit ? (
-                                    <Input
-                                      type="text"
-                                      inputMode="decimal"
-                                      value={line.rate > 0 ? String(line.rate) : ''}
-                                      onChange={(e) =>
-                                        handleUpdateLine(line.id, { rate: Number(e.target.value.replace(/,/g, '')) || 0 })
-                                      }
-                                      placeholder="0"
-                                      className="h-7 text-xs text-right"
-                                    />
-                                  ) : (
-                                    <span className="text-right block">{line.rate > 0 ? line.rate.toLocaleString() : '—'}</span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2">
-                                  {canEdit ? (
-                                    <div className="flex items-center gap-1.5">
-                                      <Input
-                                        type="text"
-                                        inputMode="decimal"
-                                        value={line.quantity > 0 ? String(line.quantity) : ''}
-                                        onChange={(e) =>
-                                          handleUpdateLine(line.id, {
-                                            quantity: Number(e.target.value.replace(/,/g, '')) || 0,
-                                          })
-                                        }
-                                        placeholder="Qty"
-                                        className="h-7 text-xs flex-1 min-w-[55px]"
-                                      />
-                                      <Select
-                                        value={line.unit || 'sqft'}
-                                        onValueChange={(val) => handleUpdateLine(line.id, { unit: val as CustomizedQuotationUnit })}
-                                      >
-                                        <SelectTrigger className="h-7 text-[11px] px-1.5 w-[70px] font-semibold bg-background">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="sqft" className="font-semibold text-emerald-700">sqft</SelectItem>
-                                          <SelectItem value="nos" className="font-semibold text-blue-700">nos</SelectItem>
-                                          <SelectItem value="ls">ls</SelectItem>
-                                          <SelectItem value="rft">rft</SelectItem>
-                                          <SelectItem value="rmt">rmt</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                  ) : (
-                                    <span className="font-medium">
-                                      {line.quantity} {line.unit}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2 text-right font-bold text-slate-900 dark:text-slate-100">
-                                  {money(line.amount)}
-                                </td>
-                                {canEdit && (
-                                  <td className="px-2 py-2 text-center">
-                                    <div className="flex items-center justify-center gap-0.5">
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                                        onClick={() => handleDuplicateLine(line)}
-                                        title="Duplicate item"
-                                      >
-                                        <Copy className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
-                                        onClick={() => handleDeleteLine(line.id)}
-                                        title="Delete item"
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
-                                    </div>
-                                  </td>
-                                )}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs text-destructive hover:bg-destructive/10 px-2"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteFloor(floor.id)
+                            }}
+                            title="Delete Floor"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+                  </div>
 
-          {/* Add Section Button at Bottom */}
+                  {/* Floor Contents (by Areas or Unassigned Products) */}
+                  <div className="p-3 space-y-4">
+                    {floorAreas.length > 0 ? (
+                      floorAreas.map((area) => {
+                        const areaLines = floorLines.filter((l) => l.areaId === area.id)
+                        const areaTotal = areaLines.reduce((sum, l) => sum + (l.included !== false ? l.amount : 0), 0)
+
+                        return (
+                          <div
+                            key={area.id}
+                            className={`rounded-md border overflow-hidden transition-colors ${
+                              selectedAreaId === area.id ? 'border-emerald-300 dark:border-emerald-700' : 'border-slate-200 dark:border-slate-800'
+                            }`}
+                            onClick={() => {
+                              setSelectedFloorId(floor.id)
+                              setSelectedAreaId(area.id)
+                            }}
+                          >
+                            {/* Area Subheader */}
+                            <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-900/60 px-3 py-1.5 border-b text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground font-medium">Area:</span>
+                                {canEdit ? (
+                                  <Input
+                                    type="text"
+                                    value={area.name}
+                                    onChange={(e) => handleUpdateAreaName(area.id, e.target.value)}
+                                    placeholder="Area name (e.g. Living Room)"
+                                    className="h-6 text-xs font-semibold max-w-[200px] bg-background"
+                                  />
+                                ) : (
+                                  <span className="font-semibold">{area.name}</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground font-medium">
+                                  Subtotal: <strong>{money(areaTotal)}</strong>
+                                </span>
+                                {canEdit && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-6 text-[11px] gap-1 px-2"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleAddProduct(floor.id, area.id)
+                                      }}
+                                    >
+                                      <Plus className="h-3 w-3" /> Product
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-6 w-6 p-0 text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleDeleteArea(area.id)
+                                      }}
+                                      title="Delete Area"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Products Table inside Area with Drag & Drop */}
+                            <div className="overflow-x-auto">
+                              <table className="w-full min-w-[760px] text-xs">
+                                <thead className="bg-muted/40 text-left font-semibold text-muted-foreground">
+                                  <tr>
+                                    <th className="w-12 px-2 py-2 text-center">SL</th>
+                                    <th className="min-w-[180px] px-3 py-2">Product Name</th>
+                                    <th className="min-w-[240px] px-3 py-2">Materials & Specifications</th>
+                                    <th className="w-[120px] px-3 py-2">Unit Price (৳)</th>
+                                    <th className="w-[160px] px-3 py-2">Qty & Unit (sqft / nos)</th>
+                                    <th className="w-[120px] px-3 py-2 text-right">Total (৳)</th>
+                                    {canEdit && <th className="w-16 px-2 py-2 text-center">Actions</th>}
+                                  </tr>
+                                </thead>
+                                <SortableContext items={areaLines.map((l) => l.id)} strategy={verticalListSortingStrategy}>
+                                  <tbody className="divide-y">
+                                    {areaLines.length === 0 ? (
+                                      <tr>
+                                        <td colSpan={canEdit ? 7 : 6} className="py-6 text-center text-muted-foreground">
+                                          No products in this area yet.{' '}
+                                          {canEdit && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleAddProduct(floor.id, area.id)}
+                                              className="text-primary underline font-medium hover:text-primary/80 ml-1"
+                                            >
+                                              + Add first product
+                                            </button>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ) : (
+                                      areaLines.map((line, lineIdx) => (
+                                        <SortableProductRow
+                                          key={line.id}
+                                          line={line}
+                                          slNumber={String(lineIdx + 1).padStart(2, '0')}
+                                          canEdit={canEdit}
+                                          onUpdateLine={handleUpdateLine}
+                                          onDuplicateLine={handleDuplicateLine}
+                                          onDeleteLine={handleDeleteLine}
+                                        />
+                                      ))
+                                    )}
+                                  </tbody>
+                                </SortableContext>
+                              </table>
+                            </div>
+                          </div>
+                        )
+                      })
+                    ) : (
+                      /* Fallback when floor has no distinct areas */
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-muted-foreground">General Products</span>
+                          {canEdit && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-xs gap-1"
+                              onClick={() => handleAddProduct(floor.id)}
+                            >
+                              <Plus className="h-3 w-3" /> Add Product
+                            </Button>
+                          )}
+                        </div>
+                        <div className="overflow-x-auto rounded-md border">
+                          <table className="w-full min-w-[760px] text-xs">
+                            <thead className="bg-muted/40 text-left font-semibold text-muted-foreground">
+                              <tr>
+                                <th className="w-12 px-2 py-2 text-center">SL</th>
+                                <th className="min-w-[180px] px-3 py-2">Product Name</th>
+                                <th className="min-w-[240px] px-3 py-2">Materials & Specifications</th>
+                                <th className="w-[120px] px-3 py-2">Unit Price (৳)</th>
+                                <th className="w-[160px] px-3 py-2">Qty & Unit (sqft / nos)</th>
+                                <th className="w-[120px] px-3 py-2 text-right">Total (৳)</th>
+                                {canEdit && <th className="w-16 px-2 py-2 text-center">Actions</th>}
+                              </tr>
+                            </thead>
+                            <SortableContext items={floorLines.map((l) => l.id)} strategy={verticalListSortingStrategy}>
+                              <tbody className="divide-y">
+                                {floorLines.map((line, lineIdx) => (
+                                  <SortableProductRow
+                                    key={line.id}
+                                    line={line}
+                                    slNumber={String(lineIdx + 1).padStart(2, '0')}
+                                    canEdit={canEdit}
+                                    onUpdateLine={handleUpdateLine}
+                                    onDuplicateLine={handleDuplicateLine}
+                                    onDeleteLine={handleDeleteLine}
+                                  />
+                                ))}
+                              </tbody>
+                            </SortableContext>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </DndContext>
+
+          {/* Add Floor Button at Bottom */}
           {canEdit && (
             <div className="px-4 pb-4">
               <Button
                 variant="outline"
                 className="w-full border-dashed py-5 text-sm gap-2 text-muted-foreground hover:text-foreground"
-                onClick={handleAddSection}
+                onClick={handleAddFloor}
               >
                 <Plus className="h-4 w-4" />
-                Add New Section (e.g. Civil, Demolition, Ceiling, etc.)
+                Add New Floor (e.g. Ground Floor, 1st Floor, Rooftop)
               </Button>
             </div>
           )}
@@ -1273,6 +1310,72 @@ export function CustomizedQuotationBuilder({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Fixed Sticky Bottom Action Bar for Always-Accessible Keys */}
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/70 bg-background/95 px-3 py-3 shadow-[0_-18px_45px_-28px_rgba(15,23,42,0.55)] backdrop-blur print:hidden">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200 hidden sm:inline">
+              {activeContent.title || DEFAULT_CUSTOMIZED_TITLE}:
+            </span>
+            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+              {money(totals.grandTotal)}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {canEdit && (
+              <>
+                <Button type="button" size="sm" variant="outline" onClick={handleAddFloor}>
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Add Floor
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!activeContent.sections?.length}
+                  onClick={() => handleAddArea(selectedFloorId || activeContent.sections[0]?.id)}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Add Area
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!activeContent.sections?.length}
+                  onClick={() => handleAddProduct(selectedFloorId || activeContent.sections[0]?.id, selectedAreaId || undefined)}
+                >
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  Add Product
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={saving}
+                  onClick={() => void handleSaveDraft()}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {saving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
+                  Save Draft
+                </Button>
+              </>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={downloading}
+              onClick={() => void handleDownloadPdf()}
+              className="border-emerald-300 hover:bg-emerald-50 dark:border-emerald-800"
+            >
+              {downloading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4 text-emerald-600" />}
+              Download PDF
+            </Button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -187,7 +187,6 @@ const styles = StyleSheet.create({
   },
   wordsText: {
     fontSize: 8.5,
-    fontStyle: 'italic',
     color: '#475569',
     marginTop: 4,
   },
@@ -330,7 +329,7 @@ export function CustomizedQuotationDocument({
             return (
               <View key={section.id}>
                 <View style={styles.sectionTitleRow} wrap={false}>
-                  <Text style={styles.sectionTitleText}>{section.name || 'Section'}</Text>
+                  <Text style={styles.sectionTitleText}>{section.name || 'Floor'}</Text>
                 </View>
 
                 {sectionAreas.length > 0 ? (

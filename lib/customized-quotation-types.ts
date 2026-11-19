@@ -6,6 +6,8 @@ export type CustomizedQuotationSection = {
   sortOrder: number
 }
 
+export type CustomizedQuotationFloor = CustomizedQuotationSection
+
 export type CustomizedQuotationArea = {
   id: string
   floorId: string
@@ -108,7 +110,7 @@ export function buildDefaultCustomizedQuotationContent(input?: {
     sections: [
       {
         id: sectionId,
-        name: 'General Scope',
+        name: 'Floor 1',
         sortOrder: 1,
       },
     ],
@@ -126,7 +128,7 @@ export function buildDefaultCustomizedQuotationContent(input?: {
         sectionId,
         areaId,
         serialNo: 1,
-        description: 'Sample Customized Work',
+        description: 'Sample Product',
         materials: 'Specification and materials details',
         unit: 'sqft',
         rate: 0,
