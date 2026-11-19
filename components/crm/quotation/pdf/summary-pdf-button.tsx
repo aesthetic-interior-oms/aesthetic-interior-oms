@@ -116,10 +116,9 @@ export function SummaryPdfButton({ leadId, leadName }: Props) {
       const safeName = (data.lead.name || leadName || 'client')
         .replace(/[^a-zA-Z0-9-_ ]/g, '')
         .trim()
-      const versionSlug = data.detailVersionTitle ? ` - ${data.detailVersionTitle}` : ''
       await downloadPdfFromDocument(
         doc as Parameters<typeof pdf>[0],
-        `${safeName}${versionSlug} - Project Summary.pdf`,
+        `${safeName} - Project Summary.pdf`,
       )
       setOpen(false)
     } catch (err) {

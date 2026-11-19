@@ -423,13 +423,7 @@ export function SummaryDocument({
           {/* Detail Quotation Rows */}
           {floorSummaries.map((entry) => {
             sl += 1
-            const floorName = (entry.floor.name || 'FLOOR WORKS').toUpperCase()
-            const hasVersion =
-              detailVersionTitle && floorName.toLowerCase().includes(detailVersionTitle.toLowerCase())
-            const displayName =
-              detailVersionTitle && !hasVersion
-                ? `${floorName} (${detailVersionTitle.toUpperCase()})`
-                : floorName
+            const displayName = (entry.floor.name || 'FLOOR WORKS').toUpperCase()
 
             return (
               <View key={entry.floor.id} style={styles.tRow} wrap={false}>
