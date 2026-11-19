@@ -398,6 +398,12 @@ export function CustomizedQuotationDocument({
           {clientAddress ? <Text style={styles.clientAddress}>{clientAddress}</Text> : null}
         </View>
 
+        {/* Subject */}
+        <Text style={{ fontSize: 9.5, marginBottom: 12 }}>
+          <Text style={styles.bold}>Subject: </Text>
+          {content.subject?.trim() || 'Quotation for Customize section work'}
+        </Text>
+
         {/* Dear Sir, & Intro Letter */}
         <View style={{ marginBottom: 16 }}>
           <Text style={[styles.metaText, styles.bold]}>Dear Sir,</Text>

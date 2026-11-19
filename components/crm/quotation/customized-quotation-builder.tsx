@@ -309,6 +309,9 @@ export function CustomizedQuotationBuilder({
 
         setActiveDraftKey(target.draftKey)
         const content = target.content || buildDefaultCustomizedQuotationContent({ clientName: leadName, clientAddress: leadLocation ?? '' })
+        if (!content.subject?.trim()) {
+          content.subject = 'Quotation for Customize section work'
+        }
         setActiveContent(content)
         setDefaultSqftInput(content.projectSqft ? String(content.projectSqft) : '')
         lastSavedSnapshotRef.current = JSON.stringify(content)
@@ -349,9 +352,13 @@ export function CustomizedQuotationBuilder({
     if (!target) return
 
     setActiveDraftKey(draftKey)
-    setActiveContent(target.content)
+    const content = { ...target.content }
+    if (!content.subject?.trim()) {
+      content.subject = 'Quotation for Customize section work'
+    }
+    setActiveContent(content)
     setDefaultSqftInput(target.content.projectSqft ? String(target.content.projectSqft) : '')
-    lastSavedSnapshotRef.current = JSON.stringify(target.content)
+    lastSavedSnapshotRef.current = JSON.stringify(content)
 
     if (target.content.sections?.length > 0) {
       setSelectedFloorId(target.content.sections[0].id)
@@ -1008,6 +1015,25 @@ export function CustomizedQuotationBuilder({
                 <span className="text-xs">{activeContent.clientAddress}</span>
               )}
             </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Subject: (Printed on PDF)
+              </label>
+            </div>
+            {canEdit ? (
+              <Input
+                type="text"
+                value={activeContent.subject ?? ''}
+                onChange={(e) => setActiveContent((prev) => (prev ? { ...prev, subject: e.target.value } : prev))}
+                placeholder="Quotation for Customize section work"
+                className="h-8 text-xs font-semibold"
+              />
+            ) : (
+              <span className="text-xs font-semibold">{activeContent.subject || 'Quotation for Customize section work'}</span>
+            )}
           </div>
 
           <div>

@@ -64,6 +64,7 @@ export type CustomizedQuotationTotals = {
 }
 
 export const DEFAULT_CUSTOMIZED_TITLE = 'Quotation'
+export const DEFAULT_CUSTOMIZED_SUBJECT = 'Quotation for Customize section work'
 
 export const DEFAULT_CUSTOMIZED_INTRO = `We are delighted to partner with you on transforming your residence into an aesthetic, thoughtfully designed space. Separate cost estimates have been provided for each room to give you a clear breakdown of the budget and scope.`
 
@@ -82,6 +83,7 @@ export const DEFAULT_CUSTOMIZED_TERMS = `Terms & Conditions:
 
 export function buildDefaultCustomizedQuotationContent(input?: {
   title?: string
+  subject?: string
   clientName?: string
   clientAddress?: string
   projectSqft?: number | null
@@ -96,7 +98,7 @@ export function buildDefaultCustomizedQuotationContent(input?: {
     quotationDate: new Date().toISOString().slice(0, 10),
     clientName: input?.clientName ?? '',
     clientAddress: input?.clientAddress ?? '',
-    subject: '',
+    subject: input?.subject?.trim() || DEFAULT_CUSTOMIZED_SUBJECT,
     introLetter: DEFAULT_CUSTOMIZED_INTRO,
     notes: '',
     terms: DEFAULT_CUSTOMIZED_TERMS,
