@@ -67,7 +67,7 @@ export default function QuotationLeadWorkspacePage() {
     <div className="min-h-screen bg-background">
       <CrmPageHeader
         title={lead ? `${lead.name} - Quotation Workspace` : 'Quotation Workspace'}
-        subtitle="Create separate short, detail, and furniture quotation drafts for this lead."
+        subtitle="Create separate short, detail, furniture, electrical, and customized quotation drafts for this lead."
       />
 
       <main className="mx-auto max-w-[1440px] px-6 py-6 space-y-4">

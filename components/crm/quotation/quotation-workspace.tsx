@@ -8,6 +8,7 @@ import { QuotationMaker } from '@/components/crm/quotation/quotation-maker'
 import { ShortQuotationBuilder } from '@/components/crm/quotation/short-quotation-builder'
 import { FurnitureQuotationBuilder } from '@/components/crm/quotation/furniture-quotation-builder'
 import { ElectricalQuotationBuilder } from '@/components/crm/quotation/electrical-quotation-builder'
+import { CustomizedQuotationBuilder } from '@/components/crm/quotation/customized-quotation-builder'
 
 type QuotationWorkspaceProps = {
   leadId: string
@@ -23,10 +24,10 @@ function QuotationWorkspaceContent({
   leadSubStatus,
 }: QuotationWorkspaceProps) {
   const searchParams = useSearchParams()
-  const tabParam = searchParams?.get('tab') as 'short' | 'detail' | 'furniture' | 'electrical' | null
+  const tabParam = searchParams?.get('tab') as 'short' | 'detail' | 'furniture' | 'electrical' | 'customized' | null
 
-  const [activeTab, setActiveTab] = useState<'short' | 'detail' | 'furniture' | 'electrical'>(
-    tabParam === 'detail' || tabParam === 'short' || tabParam === 'furniture' || tabParam === 'electrical'
+  const [activeTab, setActiveTab] = useState<'short' | 'detail' | 'furniture' | 'electrical' | 'customized'>(
+    tabParam === 'detail' || tabParam === 'short' || tabParam === 'furniture' || tabParam === 'electrical' || tabParam === 'customized'
       ? tabParam
       : 'short',
   )
@@ -120,7 +121,7 @@ function QuotationWorkspaceContent({
       <Tabs
         value={activeTab}
         onValueChange={(value) => {
-          setActiveTab(value as 'short' | 'detail' | 'furniture' | 'electrical')
+          setActiveTab(value as 'short' | 'detail' | 'furniture' | 'electrical' | 'customized')
         }}
       >
         <TabsList className="h-auto flex-wrap print:hidden">
@@ -128,6 +129,7 @@ function QuotationWorkspaceContent({
           <TabsTrigger value="detail">Detail Quotation</TabsTrigger>
           <TabsTrigger value="furniture">Furniture Quotation</TabsTrigger>
           <TabsTrigger value="electrical">Electrical Quotation</TabsTrigger>
+          <TabsTrigger value="customized">Customized Quotation</TabsTrigger>
         </TabsList>
         <TabsContent value="short" className="mt-4">
           {activeTab === 'short' ? (
@@ -167,6 +169,17 @@ function QuotationWorkspaceContent({
               leadId={leadId}
               leadName={leadName}
               leadLocation={leadLocation}
+              onDraftSaved={() => void loadDraftMeta({ updateActiveTab: false })}
+            />
+          ) : null}
+        </TabsContent>
+        <TabsContent value="customized" className="mt-4">
+          {activeTab === 'customized' ? (
+            <CustomizedQuotationBuilder
+              leadId={leadId}
+              leadName={leadName}
+              leadLocation={leadLocation}
+              leadSubStatus={leadSubStatus}
               onDraftSaved={() => void loadDraftMeta({ updateActiveTab: false })}
             />
           ) : null}
