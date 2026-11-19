@@ -36,6 +36,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  HardHat,
+  ShieldCheck,
 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
@@ -131,6 +133,20 @@ export default function PCProjectDetailPage() {
 
   // Delete Version State
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null)
+  const [ceilingWorkOrders, setCeilingWorkOrders] = useState<any[]>([])
+
+  const fetchCeilingWorkOrders = useCallback(async () => {
+    if (!leadId) return
+    try {
+      const res = await fetch(`/api/vendors/agreements?leadId=${leadId}`)
+      const json = await res.json()
+      if (json.success && Array.isArray(json.data)) {
+        setCeilingWorkOrders(json.data.filter((ag: any) => ag.workCategory === 'CEILING'))
+      }
+    } catch {
+      // ignore
+    }
+  }, [leadId])
 
   const fetchProjectDetail = useCallback(async () => {
     if (!leadId) return
@@ -154,7 +170,8 @@ export default function PCProjectDetailPage() {
 
   useEffect(() => {
     void fetchProjectDetail()
-  }, [fetchProjectDetail])
+    void fetchCeilingWorkOrders()
+  }, [fetchProjectDetail, fetchCeilingWorkOrders])
 
   const sortedDrafts = useMemo(() => {
     if (!lead?.quotationDrafts) return []
@@ -604,6 +621,94 @@ export default function PCProjectDetailPage() {
           </Card>
         ) : null}
 
+        {/* Ceiling Vendor Work Orders Management */}
+        <Card className="border border-purple-500/30 bg-purple-500/[0.02]">
+          <CardHeader className="pb-3 border-b border-purple-500/20 bg-purple-500/5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <HardHat className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                <div>
+                  <CardTitle className="text-base text-foreground flex items-center gap-2">
+                    Ceiling Scope Vendor Work Orders
+                    <Badge variant="outline" className="border-purple-300 text-purple-700 dark:text-purple-300 text-xs font-mono">
+                      {ceilingWorkOrders.length} {ceilingWorkOrders.length === 1 ? 'Work Order' : 'Work Orders'}
+                    </Badge>
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Project Coordinator & BOQ Team Leader management. Work orders and financial terms automatically sync with Accounts.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={`/crm/boq/builder/${lead.id}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-2xs"
+              >
+                <Plus className="w-3.5 h-3.5" /> Manage in BOQ Builder
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4">
+            {ceilingWorkOrders.length === 0 ? (
+              <div className="py-6 text-center text-xs text-muted-foreground space-y-1">
+                <p>No direct vendor work orders issued for ceiling items on this project yet.</p>
+                <p className="text-[11px]">
+                  Use the <Link href={`/crm/boq/builder/${lead.id}`} className="text-purple-600 underline font-semibold">BOQ Builder</Link> to switch ceiling items from standard material requisition to direct vendor work orders.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {ceilingWorkOrders.map((wo) => (
+                  <div
+                    key={wo.id}
+                    className="p-3.5 rounded-xl border border-purple-500/20 bg-card space-y-2.5 shadow-2xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-mono text-xs font-bold text-purple-700 dark:text-purple-300 block">
+                          {wo.workOrderNo || 'WO-CEIL'}
+                        </span>
+                        <h4 className="font-bold text-sm text-foreground">{wo.vendor?.vendorName}</h4>
+                        {wo.vendor?.primaryPhone && (
+                          <span className="text-[11px] text-muted-foreground">{wo.vendor.primaryPhone}</span>
+                        )}
+                      </div>
+                      <Badge className="text-[10px] uppercase font-bold">
+                        {wo.workStatus?.replace(/_/g, ' ') || 'NOT STARTED'}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs p-2 rounded-lg bg-muted/40 border border-border/40">
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">Agreed Value</span>
+                        <span className="font-bold text-foreground">৳{wo.agreementValue.toLocaleString('en-BD')}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground block">Paid / Balance</span>
+                        <span className="font-semibold text-emerald-600">৳{wo.totalPaid.toLocaleString('en-BD')}</span>
+                        <span className="text-muted-foreground"> / </span>
+                        <span className="font-semibold text-amber-600">৳{wo.balance.toLocaleString('en-BD')}</span>
+                      </div>
+                    </div>
+
+                    {wo.workScope && (
+                      <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                        {wo.workScope}
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-1 text-emerald-600 font-semibold">
+                        <ShieldCheck className="w-3 h-3" /> Synced with Accounts
+                      </span>
+                      {wo.createdBy && <span>By: {wo.createdBy.fullName}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Quotation Breakdown & Version Management */}
         <Card>
           <CardHeader className="pb-3 space-y-4">
@@ -629,6 +734,14 @@ export default function PCProjectDetailPage() {
 
                 {selectedDraft ? (
                   <div className="flex items-center gap-2">
+                    <Link
+                      href={`/crm/boq/builder/${lead.id}`}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-purple-500/30 bg-purple-500/10 text-purple-700 dark:text-purple-300 px-3 py-1.5 text-xs font-semibold hover:bg-purple-500/20 transition-colors shadow-2xs"
+                    >
+                      <HardHat className="h-3.5 w-3.5 text-purple-600" />
+                      Ceiling Work Orders & BOQ
+                    </Link>
+
                     <Link
                       href={buildDetailPreviewUrl({ context: 'lead', contextId: lead.id, slotIndex: selectedDraftSlotIndex })}
                       target="_blank"

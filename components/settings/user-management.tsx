@@ -20,6 +20,7 @@ import { toast } from 'sonner'
 import { VISIT_TEAM_CO_LEADER_ROLE, VISIT_TEAM_LEADER_ROLE } from '@/lib/visit-team-roles'
 import { JR_ARCHITECT_CO_LEADER_ROLE, JR_ARCHITECT_LEADER_ROLE } from '@/lib/jr-architecture-roles'
 import { BOQ_TEAM_LEADER_ROLE, BOQ_TEAM_MEMBER_ROLE } from '@/lib/boq-roles'
+import { PROCUREMENT_TEAM_LEADER_ROLE, PROCUREMENT_TEAM_MEMBER_ROLE } from '@/lib/procurement-roles'
 
 type UserApiItem = {
   id: string
@@ -288,6 +289,9 @@ export function UserManagement() {
         memberRoleName: BOQ_TEAM_MEMBER_ROLE,
         showCoLeader: false,
       }
+    }
+    if (normalized === 'PROCUREMENT') {
+      return { departmentName: 'PROCUREMENT', leaderRoleName: PROCUREMENT_TEAM_LEADER_ROLE, memberRoleName: PROCUREMENT_TEAM_MEMBER_ROLE, showCoLeader: false }
     }
     return null
   }

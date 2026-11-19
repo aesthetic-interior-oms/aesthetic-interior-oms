@@ -94,6 +94,10 @@ type VendorAgreement = {
   id: string
   vendorId: string
   leadId: string
+  workOrderNo?: string | null
+  workCategory?: string | null
+  quotationLineItemId?: string | null
+  createdBy?: { id: string; fullName: string } | null
   agreementValue: number
   workScope: string | null
   workStatus: "NOT_STARTED" | "IN_PROGRESS" | "WORK_DONE" | "CLOSED"
@@ -506,8 +510,25 @@ export default function ProjectVendorsTab({ leadId }: { leadId: string }) {
                         )}
                         <Badge variant="outline" className="text-xs font-mono">{ag.vendor.vendorId}</Badge>
                         <Badge className="text-xs font-semibold">{ag.vendor.vendorType.replace(/_/g, " ")}</Badge>
+                        {ag.workCategory === 'CEILING' && (
+                          <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300 border-purple-300">
+                            💡 Ceiling Work Order
+                          </Badge>
+                        )}
+                        {ag.workOrderNo && (
+                          <Badge variant="secondary" className="font-mono text-xs font-bold text-primary">
+                            {ag.workOrderNo}
+                          </Badge>
+                        )}
                       </div>
-                      {ag.workScope && <p className="text-xs text-muted-foreground">{ag.workScope}</p>}
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                        {ag.workScope && <p>{ag.workScope}</p>}
+                        {ag.createdBy && (
+                          <span className="text-[11px] bg-muted/60 px-2 py-0.5 rounded border border-border/40">
+                            Created by: <strong className="text-foreground">{ag.createdBy.fullName}</strong>
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Work status selector */}

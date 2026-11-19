@@ -56,6 +56,7 @@ model Lead {
   vendorAgreements       VendorAgreement[]
   stockMovements         StockMovement[]
   materialRequisitions   MaterialRequisition[]
+  materialIndents        MaterialIndent[]
   procurementWalletTransactions ProcurementWalletTransaction[]
   siteDeliveryLogs       SiteDeliveryLog[]
 
@@ -204,6 +205,10 @@ model User {
   stockMovements              StockMovement[]
   stockReceived               StockMovement[]            @relation("StockMovementRecipient")
   materialRequisitionsCreated MaterialRequisition[]      @relation("MaterialRequisitionCreatedBy")
+  procurementAssignments MaterialRequisition[] @relation("MaterialRequisitionProcurementAssignee")
+  materialIndentsCreated MaterialIndent[] @relation("MaterialIndentCreatedBy")
+  materialIndentItemsBilled MaterialIndentItem[] @relation("MaterialIndentItemBilledBy")
+  vendorAgreementsCreated     VendorAgreement[]          @relation("VendorAgreementCreatedBy")
   conveyanceRequests          ConveyanceRequest[]         @relation("ConveyanceRequester")
   conveyanceReviewed          ConveyanceRequest[]         @relation("ConveyanceReviewer")
   requisitionAmendmentsRequested RequisitionAmendment[]  @relation("RequisitionAmendmentRequestedBy")
@@ -1412,28 +1417,35 @@ model Vendor {
 }
 
 model VendorAgreement {
-  id                String                    @id @default(cuid())
-  vendorId          String
-  leadId            String
-  agreementValue    Float
-  workScope         String?
-  workStatus        VendorWorkStatus          @default(NOT_STARTED)
-  retentionPercent  Float                     @default(0)
-  retentionReleased Boolean                   @default(false)
-  notes             String?
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
+  id                  String                    @id @default(cuid())
+  workOrderNo         String?                   @unique
+  vendorId            String
+  leadId              String
+  quotationLineItemId String?
+  workCategory        RequisitionWorkCategory?
+  agreementValue      Float
+  workScope           String?
+  workStatus          VendorWorkStatus          @default(NOT_STARTED)
+  retentionPercent    Float                     @default(0)
+  retentionReleased   Boolean                   @default(false)
+  notes               String?
+  createdById         String?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
 
-  vendor            Vendor                    @relation(fields: [vendorId], references: [id])
-  lead              Lead                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  revisions         VendorAgreementRevision[]
-  milestones        VendorPaymentMilestone[]
-  payments          VendorPayment[]
+  vendor              Vendor                    @relation(fields: [vendorId], references: [id])
+  lead                Lead                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy           User?                     @relation("VendorAgreementCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  revisions           VendorAgreementRevision[]
+  milestones          VendorPaymentMilestone[]
+  payments            VendorPayment[]
 
-  @@unique([vendorId, leadId])
   @@index([vendorId])
   @@index([leadId])
   @@index([workStatus])
+  @@index([quotationLineItemId])
+  @@index([workCategory])
+  @@index([createdById])
 }
 
 model VendorAgreementRevision {
@@ -1606,6 +1618,8 @@ model MaterialRequisition {
   notes              String?
   rejectionReason    String?
   cancellationReason String?
+  procurementAssigneeId String?
+  procurementAssignedAt DateTime?
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
 
@@ -1613,12 +1627,15 @@ model MaterialRequisition {
   quotationDraft     QuotationDraft?           @relation(fields: [quotationDraftId], references: [id])
   createdBy          User                      @relation("MaterialRequisitionCreatedBy", fields: [createdById], references: [id])
   items              MaterialRequisitionItem[]
+  procurementAssignee User? @relation("MaterialRequisitionProcurementAssignee", fields: [procurementAssigneeId], references: [id], onDelete: SetNull)
+  indents             MaterialIndent[]
   amendments         RequisitionAmendment[]
   procurementWalletTransactions ProcurementWalletTransaction[]
 
   @@index([leadId])
   @@index([quotationDraftId])
   @@index([status])
+  @@index([procurementAssigneeId])
 }
 
 model MaterialRequisitionItem {
@@ -1639,10 +1656,56 @@ model MaterialRequisitionItem {
 
   requisition         MaterialRequisition     @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
   stockItem           StockItem?              @relation(fields: [stockItemId], references: [id])
+  indentItems         MaterialIndentItem[]
 
   @@index([requisitionId])
   @@index([stockItemId])
   @@index([workCategory])
+}
+
+model MaterialIndent {
+  id             String @id @default(cuid())
+  indentNo       String @unique
+  requisitionId  String
+  leadId         String
+  status         MaterialIndentStatus @default(ISSUED)
+  vendorName     String?
+  transportCost Decimal @default(0) @db.Decimal(14, 2)
+  otherCosts     Decimal @default(0) @db.Decimal(14, 2)
+  subtotal       Decimal @default(0) @db.Decimal(14, 2)
+  total          Decimal @default(0) @db.Decimal(14, 2)
+  notes          String?
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  requisition    MaterialRequisition @relation(fields: [requisitionId], references: [id], onDelete: Restrict)
+  lead           Lead @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  createdBy      User @relation("MaterialIndentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  items          MaterialIndentItem[]
+  @@index([requisitionId, createdAt])
+  @@index([leadId])
+}
+
+model MaterialIndentItem {
+  id                    String @id @default(cuid())
+  indentId              String
+  requisitionItemId     String
+  quantity              Decimal @db.Decimal(14, 3)
+  unitPrice             Decimal @db.Decimal(14, 2)
+  total                 Decimal @db.Decimal(14, 2)
+  vendorName            String?
+  billedById            String
+  billedAt              DateTime @default(now())
+  billedBy              User @relation("MaterialIndentItemBilledBy", fields: [billedById], references: [id], onDelete: Restrict)
+  indent                MaterialIndent @relation(fields: [indentId], references: [id], onDelete: Cascade)
+  requisitionItem       MaterialRequisitionItem @relation(fields: [requisitionItemId], references: [id], onDelete: Restrict)
+  @@unique([indentId, requisitionItemId])
+  @@index([requisitionItemId])
+}
+
+enum MaterialIndentStatus {
+  ISSUED
+  CANCELLED
 }
 
 model BoqSavedAccessoryItem {

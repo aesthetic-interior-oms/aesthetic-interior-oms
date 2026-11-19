@@ -47,6 +47,7 @@ export function QuotationLineItemCard({
   onCopyRow,
   copiedItem,
   copiedRowData,
+  ceilingWorkOrder,
 }: {
   item: QuotationLineItem
   area?: QuotationArea
@@ -72,6 +73,7 @@ export function QuotationLineItemCard({
   onCopyRow?: (sectionId: string, rowIndex: number) => void
   copiedItem?: RequisitionItemInput | null
   copiedRowData?: BoqCopiedRowPayload | null
+  ceilingWorkOrder?: any
 }) {
   const [cardExpanded, setCardExpanded] = useState(true)
   const [showAddSection, setShowAddSection] = useState(false)
@@ -100,6 +102,11 @@ export function QuotationLineItemCard({
                     {area.name}
                   </span>
                 )}
+                {ceilingWorkOrder && (
+                  <span className="text-[11px] font-bold text-purple-700 dark:text-purple-300 bg-purple-500/10 px-2.5 py-0.5 rounded-md border border-purple-500/25 flex items-center gap-1 font-mono">
+                    💡 Vendor WO: {ceilingWorkOrder.workOrderNo || 'Active'} ({ceilingWorkOrder.vendor?.vendorName})
+                  </span>
+                )}
               </div>
               <p className="truncate text-base font-bold text-foreground">{item.description}</p>
               {item.materials && (
@@ -125,12 +132,22 @@ export function QuotationLineItemCard({
               </span>
             </div>
             <p className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground lg:justify-end">
-              {totalRows > 0 ? (
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              {ceilingWorkOrder ? (
+                <>
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-purple-500" />
+                  <span className="text-purple-700 dark:text-purple-300 font-bold">Vendor Work Order Active</span>
+                </>
+              ) : totalRows > 0 ? (
+                <>
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span>Configured</span>
+                </>
               ) : (
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+                <>
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  <span>Needs material rows</span>
+                </>
               )}
-              {totalRows > 0 ? 'Configured' : 'Needs material rows'}
             </p>
           </div>
         </div>

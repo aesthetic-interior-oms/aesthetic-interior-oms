@@ -236,6 +236,10 @@ export interface RequisitionBuilderProps {
     items: SavedRequisitionItem[]
   } | null
   allRequisitions?: RequisitionSummary[]
+  initialVendorAgreements?: any[]
+  canManageCeilingWorkOrder?: boolean
+  isBoqLeader?: boolean
+  isPc?: boolean
 }
 
 export interface ProductSlide {

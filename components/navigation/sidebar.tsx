@@ -1064,6 +1064,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/procurement/billing-center',
         },
         {
+          icon: ClipboardList,
+          label: 'Requisition & Indents',
+          href: '/procurement/requisitions',
+        },
+        {
           icon: FolderKanban,
           label: 'Project List',
           href: '/procurement/projects',

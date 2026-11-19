@@ -41,6 +41,10 @@ export default async function RequisitionBuilderPage({ params, searchParams }: P
       detailQuotation={data.detailQuotation}
       existingRequisition={data.requisition}
       allRequisitions={data.allRequisitions}
+      initialVendorAgreements={data.vendorAgreements}
+      canManageCeilingWorkOrder={data.canManageCeilingWorkOrder}
+      isBoqLeader={data.isBoqLeader}
+      isPc={data.isPc}
     />
   )
 }

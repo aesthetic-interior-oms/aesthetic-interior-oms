@@ -199,6 +199,7 @@ import { AccessoryItemCombobox } from './inputs/accessory-item-combobox'
 import { ApplianceItemCombobox } from './inputs/appliance-item-combobox'
 import { LaminateFinishPicker } from './inputs/laminate-finish-picker'
 import { AddSectionForm, AddSectionModal, ScheduleSelection } from './sections/add-section-modal'
+import { CeilingVendorWorkOrderCard, type CeilingVendorAgreement } from './ceiling-vendor-work-order-card'
 
 
 
@@ -429,8 +430,26 @@ export function RequisitionBuilderClient({
   detailQuotation,
   existingRequisition,
   allRequisitions = [],
+  initialVendorAgreements = [],
+  canManageCeilingWorkOrder = false,
+  isBoqLeader = false,
+  isPc = false,
 }: Props) {
   const router = useRouter()
+  const [vendorAgreements, setVendorAgreements] = useState<CeilingVendorAgreement[]>(initialVendorAgreements || [])
+  const [executionModes, setExecutionModes] = useState<Record<string, 'REQUISITION' | 'WORK_ORDER'>>({})
+
+  const reloadVendorAgreements = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/vendors/agreements?leadId=${lead.id}`)
+      const json = await res.json()
+      if (json.success && Array.isArray(json.data)) {
+        setVendorAgreements(json.data)
+      }
+    } catch (e) {
+      console.error('Failed to reload vendor agreements', e)
+    }
+  }, [lead.id])
   const [isPending, startTransition] = useTransition()
   const [activeRequisitionId, setActiveRequisitionId] = useState<string | null>(existingRequisition?.id || null)
   const [activeRequisitionNo, setActiveRequisitionNo] = useState<string>(
@@ -716,6 +735,51 @@ export function RequisitionBuilderClient({
   const currentSlide = productSlides[safeSlideIndex] ?? productSlides[0]
   const currentCardKey = currentSlide?.id ?? EXTRA_KEY
   const currentSlideSections = sectionsMap[currentCardKey] ?? []
+
+  // Check if current active product is a Ceiling item
+  const isCurrentSlideCeiling = useMemo(() => {
+    if (!currentSlide || currentSlide.type !== 'LINE_ITEM') return false
+    const title = (currentSlide.title || '').toLowerCase()
+    const materials = (currentSlide.materials || '').toLowerCase()
+    const secName = (currentSlide.sectionName || '').toLowerCase()
+    const rule = inferProductCategoryRule(currentSlide.title)
+
+    const hasCeilingAgreement = vendorAgreements.some(
+      (ag) => ag.quotationLineItemId === currentSlide.item?.id && ag.workCategory === 'CEILING'
+    )
+    const hasCeilingSection = (sectionsMap[currentCardKey] || []).some((s) => s.category === 'CEILING')
+
+    return (
+      rule.defaultUiCategory === 'CEILING' ||
+      title.includes('ceiling') ||
+      materials.includes('ceiling') ||
+      secName.includes('ceiling') ||
+      hasCeilingAgreement ||
+      hasCeilingSection
+    )
+  }, [currentSlide, vendorAgreements, sectionsMap, currentCardKey])
+
+  // Active ceiling work order for current slide line item (if any)
+  const currentSlideCeilingWorkOrder = useMemo(() => {
+    if (!currentSlide?.item?.id) return null
+    return (
+      vendorAgreements.find(
+        (ag) =>
+          ag.quotationLineItemId === currentSlide.item?.id &&
+          ag.workCategory === 'CEILING'
+      ) ||
+      vendorAgreements.find(
+        (ag) => ag.workCategory === 'CEILING' && ag.workScope?.toLowerCase().includes(currentSlide.title.toLowerCase())
+      ) ||
+      null
+    )
+  }, [vendorAgreements, currentSlide])
+
+  const currentExecutionMode = useMemo<'REQUISITION' | 'WORK_ORDER'>(() => {
+    if (executionModes[currentCardKey]) return executionModes[currentCardKey]
+    if (currentSlideCeilingWorkOrder) return 'WORK_ORDER'
+    return 'REQUISITION'
+  }, [executionModes, currentCardKey, currentSlideCeilingWorkOrder])
 
   // Restore slide by product ID if products reordered or on fresh mount
   useEffect(() => {
@@ -2467,8 +2531,42 @@ export function RequisitionBuilderClient({
                 </div>
               </div>
 
-              {/* Level 2 Requisition Sections for this active product */}
+              {/* Ceiling Scope Workflow & Direct Vendor Work Order Component */}
+              {isCurrentSlideCeiling && (
+                <CeilingVendorWorkOrderCard
+                  leadId={lead.id}
+                  lineItemId={currentSlide.item?.id}
+                  lineItemTitle={currentSlide.title}
+                  lineItemAmount={currentSlide.amount}
+                  lineItemQuantity={currentSlide.quantity}
+                  lineItemUnit={currentSlide.unit}
+                  lineItemMaterials={currentSlide.materials}
+                  areaName={currentSlide.areaName}
+                  activeWorkOrder={currentSlideCeilingWorkOrder}
+                  canManage={canManageCeilingWorkOrder}
+                  isBoqLeader={isBoqLeader}
+                  isPc={isPc}
+                  executionMode={currentExecutionMode}
+                  onChangeExecutionMode={(mode) =>
+                    setExecutionModes((prev) => ({ ...prev, [currentCardKey]: mode }))
+                  }
+                  onWorkOrderSaved={reloadVendorAgreements}
+                />
+              )}
+
+              {/* Level 2 Requisition Sections for this active product (Only when in Requisition mode or if supplementary rows exist) */}
+              {(!isCurrentSlideCeiling || currentExecutionMode === 'REQUISITION' || currentSlideSections.length > 0) && (
               <div className="space-y-5">
+                {isCurrentSlideCeiling && currentExecutionMode === 'WORK_ORDER' && (
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-muted/40 border border-border/60 text-xs">
+                    <span className="font-semibold text-muted-foreground">
+                      Supplementary Site Materials (Optional with Vendor Work Order)
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">
+                      Main scope is handled by contractor. Only add items if Aesthetic Interior supplies raw materials directly.
+                    </span>
+                  </div>
+                )}
                 {currentSlideSections.length === 0 ? (
                   <div className="rounded-2xl border-2 border-dashed border-border/80 bg-card/50 p-8 text-center space-y-3">
                     <Package className="w-8 h-8 mx-auto text-muted-foreground/40" />
@@ -2531,6 +2629,7 @@ export function RequisitionBuilderClient({
                   </button>
                 </div>
               </div>
+              )}
             </div>
           ) : (
             /* Extra & General Materials Slide */
@@ -2697,6 +2796,7 @@ export function RequisitionBuilderClient({
                             onCopyRow={(sectionId, ri) => handleCopyRowFromSection(sectionId, ri, li.id)}
                             copiedItem={copiedMaterial}
                             copiedRowData={copiedRowData}
+                            ceilingWorkOrder={vendorAgreements.find((ag) => ag.quotationLineItemId === li.id && ag.workCategory === 'CEILING')}
                           />
                         )
                       })}

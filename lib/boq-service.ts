@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma'
 import { RequisitionWorkCategory, RequisitionStatus, LeadSubStatus, LeadAssignmentDepartment } from '@/generated/prisma/client'
 import type { Prisma } from '@/generated/prisma/client'
 import { requireDatabaseRoles } from '@/lib/authz'
+import { hasBoqLeaderRole, isProjectCoordinator, canManageCeilingVendorWorkOrders } from '@/lib/boq-roles'
 
 type RequisitionVariantAttributes = Record<string, string | number | boolean | null | undefined>
 
@@ -218,7 +219,28 @@ export async function getLeadRequisitionData(
     const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
     const actorRoles = new Set(authResult.actorRoles.map((r) => r.trim().toLowerCase()))
     const actorIsAdmin = actorDepartments.has('ADMIN') || actorRoles.has('admin')
-    if (!actorIsAdmin) {
+    const isBoqLeader =
+      actorRoles.has('boq_team_leader') ||
+      actorDepartments.has('boq_team_leader') ||
+      hasBoqLeaderRole(authResult.actorRoles)
+    const isPc =
+      actorDepartments.has('PROJECT_COORDINATOR') ||
+      actorDepartments.has('PROJECT_CORDINATOR') ||
+      actorRoles.has('project_coordinator') ||
+      authResult.actorRoles.some((r) => r.toUpperCase().includes('PROJECT_COORDINATOR'))
+
+    const isAssignedPc = Boolean(
+      await prisma.leadAssignment.findFirst({
+        where: {
+          leadId,
+          userId: authResult.actorUserId,
+          department: LeadAssignmentDepartment.PROJECT_COORDINATOR,
+        },
+        select: { id: true },
+      })
+    )
+
+    if (!actorIsAdmin && !isBoqLeader && !isPc && !isAssignedPc) {
       const assigned = await prisma.leadAssignment.findFirst({
         where: { leadId, department: LeadAssignmentDepartment.BOQ, userId: authResult.actorUserId },
         select: { id: true },
@@ -282,6 +304,83 @@ export async function getLeadRequisitionData(
         null
     }
 
+    const canManageCeilingWorkOrder =
+      actorIsAdmin || isBoqLeader || isPc || isAssignedPc
+
+    const rawAgreements = await prisma.vendorAgreement.findMany({
+      where: { leadId },
+      include: {
+        vendor: {
+          select: {
+            id: true,
+            vendorId: true,
+            vendorName: true,
+            vendorCompanyName: true,
+            vendorType: true,
+            primaryPhone: true,
+            primaryEmail: true,
+          },
+        },
+        createdBy: {
+          select: { id: true, fullName: true },
+        },
+        milestones: {
+          orderBy: { createdAt: 'asc' },
+        },
+        payments: {
+          orderBy: { paymentDate: 'desc' },
+          include: {
+            milestone: { select: { id: true, title: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    const vendorAgreements = rawAgreements.map((ag) => {
+      const totalPaid = ag.payments.reduce((sum, p) => sum + p.amount, 0)
+      const balance = ag.agreementValue - totalPaid
+      const paidPercent = ag.agreementValue > 0 ? (totalPaid / ag.agreementValue) * 100 : 0
+      const retentionHeld = ag.retentionReleased ? 0 : (ag.agreementValue * ag.retentionPercent) / 100
+      return {
+        id: ag.id,
+        workOrderNo: ag.workOrderNo,
+        workCategory: ag.workCategory,
+        quotationLineItemId: ag.quotationLineItemId,
+        agreementValue: ag.agreementValue,
+        workScope: ag.workScope,
+        workStatus: ag.workStatus,
+        retentionPercent: ag.retentionPercent,
+        retentionReleased: ag.retentionReleased,
+        notes: ag.notes,
+        createdAt: ag.createdAt.toISOString(),
+        vendor: ag.vendor,
+        createdBy: ag.createdBy,
+        totalPaid,
+        balance,
+        paidPercent,
+        retentionHeld,
+        milestones: ag.milestones.map((m) => ({
+          id: m.id,
+          title: m.title,
+          amount: m.amount,
+          dueDate: m.dueDate ? m.dueDate.toISOString() : null,
+          isPaid: m.isPaid,
+          paidAt: m.paidAt ? m.paidAt.toISOString() : null,
+          notes: m.notes,
+        })),
+        payments: ag.payments.map((p) => ({
+          id: p.id,
+          amount: p.amount,
+          paymentDate: p.paymentDate.toISOString(),
+          paymentMethod: p.paymentMethod,
+          voucherNo: p.voucherNo,
+          note: p.note,
+          milestone: p.milestone,
+        })),
+      }
+    })
+
     return {
       lead: {
         id: lead.id,
@@ -315,6 +414,10 @@ export async function getLeadRequisitionData(
           }
         : null,
       allRequisitions,
+      vendorAgreements,
+      canManageCeilingWorkOrder,
+      isBoqLeader,
+      isPc: isPc || isAssignedPc,
     }
   } catch (error) {
     console.error('Error fetching lead requisition data:', error)
@@ -338,7 +441,28 @@ export async function saveMaterialRequisition(input: {
     const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
     const actorRoles = new Set(authResult.actorRoles.map((r) => r.trim().toLowerCase()))
     const actorIsAdmin = actorDepartments.has('ADMIN') || actorRoles.has('admin')
-    if (!actorIsAdmin) {
+    const isBoqLeader =
+      actorRoles.has('boq_team_leader') ||
+      actorDepartments.has('boq_team_leader') ||
+      hasBoqLeaderRole(authResult.actorRoles)
+    const isPc =
+      actorDepartments.has('PROJECT_COORDINATOR') ||
+      actorDepartments.has('PROJECT_CORDINATOR') ||
+      actorRoles.has('project_coordinator') ||
+      authResult.actorRoles.some((r) => r.toUpperCase().includes('PROJECT_COORDINATOR'))
+
+    const isAssignedPc = Boolean(
+      await prisma.leadAssignment.findFirst({
+        where: {
+          leadId: input.leadId,
+          userId: authResult.actorUserId,
+          department: LeadAssignmentDepartment.PROJECT_COORDINATOR,
+        },
+        select: { id: true },
+      })
+    )
+
+    if (!actorIsAdmin && !isBoqLeader && !isPc && !isAssignedPc) {
       const assigned = await prisma.leadAssignment.findFirst({
         where: { leadId: input.leadId, department: LeadAssignmentDepartment.BOQ, userId: authResult.actorUserId },
         select: { id: true },

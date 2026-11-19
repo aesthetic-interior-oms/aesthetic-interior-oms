@@ -1,5 +1,6 @@
 import prisma from '@/lib/prisma'
 import { BOQ_TEAM_LEADER_ROLE, BOQ_TEAM_MEMBER_ROLE } from '@/lib/boq-roles'
+import { PROCUREMENT_TEAM_LEADER_ROLE, PROCUREMENT_TEAM_MEMBER_ROLE } from '@/lib/procurement-roles'
 
 async function main() {
   console.log('Seeding BOQ roles...')
@@ -22,6 +23,10 @@ async function main() {
       name: 'BOQ Team Member',
       description: 'BOQ Team Member assigned to project quantity takeoff and bill of quantities',
     },
+    { name: PROCUREMENT_TEAM_LEADER_ROLE, description: 'Procurement Team Leader with requisition oversight and delegation access' },
+    { name: PROCUREMENT_TEAM_MEMBER_ROLE, description: 'Procurement Team Member assigned pricing, vendor sourcing, and indent work' },
+    { name: 'Procurement Team Leader', description: 'Procurement Team Leader with requisition oversight and delegation access' },
+    { name: 'Procurement Team Member', description: 'Procurement Team Member assigned pricing, vendor sourcing, and indent work' },
   ]
 
   for (const role of rolesToEnsure) {
