@@ -126,6 +126,12 @@ export default function ProductionModulePage() {
         subtitle="Post-Agreement execution governed jointly by Project Coordinator & BOQ Team Leader."
         actions={
           <div className="flex items-center gap-2">
+            <Button asChild className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs h-9">
+              <Link href="/production/projects">
+                <FolderKanban className="h-4 w-4" />
+                Active Projects &amp; Hub
+              </Link>
+            </Button>
             {data?.userCanManage && (
               <Button
                 onClick={() => setPromoteOpen(true)}

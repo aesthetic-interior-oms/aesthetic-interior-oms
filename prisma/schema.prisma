@@ -59,6 +59,7 @@ model Lead {
   materialIndents        MaterialIndent[]
   procurementWalletTransactions ProcurementWalletTransaction[]
   siteDeliveryLogs       SiteDeliveryLog[]
+  purchaseOrders         PurchaseOrder[]
 
   @@index([assignedTo])
   @@index([primaryOwnerUserId])
@@ -217,6 +218,9 @@ model User {
   procurementWalletTxSubmitted   ProcurementWalletTransaction[] @relation("ProcurementWalletSubmittedBy")
   procurementWalletTxReviewed    ProcurementWalletTransaction[] @relation("ProcurementWalletReviewedBy")
   siteDeliveriesReceived         SiteDeliveryLog[]          @relation("SiteDeliveryReceivedBy")
+  purchaseOrdersCreated     PurchaseOrder[]  @relation("PurchaseOrderCreatedBy")
+  purchaseOrdersApproved    PurchaseOrder[]  @relation("PurchaseOrderApprovedBy")
+  purchaseOrdersRejected    PurchaseOrder[]  @relation("PurchaseOrderRejectedBy")
 }
 
 model DeviceToken {
@@ -1682,6 +1686,7 @@ model MaterialIndent {
   lead           Lead @relation(fields: [leadId], references: [id], onDelete: Restrict)
   createdBy      User @relation("MaterialIndentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
   items          MaterialIndentItem[]
+  purchaseOrder  PurchaseOrder?
   @@index([requisitionId, createdAt])
   @@index([leadId])
 }
@@ -1980,5 +1985,39 @@ model QuotationWorkActivityLog {
   @@index([leadId])
 }
 
+enum PurchaseOrderStatus {
+  PENDING_ACCOUNTS_APPROVAL
+  APPROVED
+  REJECTED
+  FULFILLED
+}
 
+model PurchaseOrder {
+  id              String              @id @default(cuid())
+  poNo            String              @unique
+  indentId        String              @unique
+  leadId          String
+  status          PurchaseOrderStatus @default(PENDING_ACCOUNTS_APPROVAL)
+  totalAmount     Float
+  supplierName    String?
+  notes           String?
+  accountsNote    String?
+  createdById     String
+  approvedById    String?
+  approvedAt      DateTime?
+  rejectedById    String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
+  indent          MaterialIndent      @relation(fields: [indentId], references: [id], onDelete: Restrict)
+  lead            Lead                @relation(fields: [leadId], references: [id], onDelete: Restrict)
+  createdBy       User                @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
+  approvedBy      User?               @relation("PurchaseOrderApprovedBy", fields: [approvedById], references: [id])
+  rejectedBy      User?               @relation("PurchaseOrderRejectedBy", fields: [rejectedById], references: [id])
+
+  @@index([leadId])
+  @@index([status])
+  @@index([createdById])
+}
