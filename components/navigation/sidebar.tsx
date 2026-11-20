@@ -790,7 +790,7 @@ const navigationGroups: Record<string, NavGroup[]> = {
         {
           icon: FileText,
           label: 'Agreement Leads',
-          href: '/crm/boq/agreement-leads',
+          href: '/crm/pc/agreement-leads',
         },
         {
           icon: ClipboardList,
