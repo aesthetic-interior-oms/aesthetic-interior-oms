@@ -1339,6 +1339,12 @@ export function Sidebar({ open, onOpenChange, role }: SidebarProps) {
       return [...groups, { id: 'employee-finance', label: 'Finance', defaultOpen: true, items: [conveyanceItem] }]
     }
 
+    // Project Coordinator always keeps their own sidebar regardless of which
+    // sub-department route they are visiting (site-engineer, procurement, etc.)
+    if (role === 'Project Coordinator') {
+      return addConveyanceLink(navigationGroups['Project Coordinator'] || [])
+    }
+
     if (isProcurement) {
       const procGroups = canViewProcurementLeaderPages
         ? navigationGroups['Procurement Team Leader']
