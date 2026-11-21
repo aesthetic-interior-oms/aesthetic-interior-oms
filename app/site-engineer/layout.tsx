@@ -40,15 +40,25 @@ export default async function SiteEngineerLayout({
       .filter((name): name is string => Boolean(name)),
   )
 
+  const isProjectCoordinator =
+    departmentNames.has('PROJECT_COORDINATOR') ||
+    departmentNames.has('PROJECT_CORDINATOR')
+
   const isSiteEngineer =
     departmentNames.has('ADMIN') ||
     departmentNames.has('SITE_ENGINEER') ||
     departmentNames.has('PROJECT_ENGINEER') ||
-    departmentNames.has('IMPLEMENTATION_TEAM')
+    departmentNames.has('IMPLEMENTATION_TEAM') ||
+    isProjectCoordinator
 
   if (!isSiteEngineer) {
     redirect('/onboarding')
   }
 
-  return <MainLayout role="Site Engineer">{children}</MainLayout>
+  // PC users get the PC sidebar (not the site-engineer sidebar)
+  const role = isProjectCoordinator && !departmentNames.has('SITE_ENGINEER') && !departmentNames.has('ADMIN')
+    ? 'Project Coordinator'
+    : 'Site Engineer'
+
+  return <MainLayout role={role}>{children}</MainLayout>
 }

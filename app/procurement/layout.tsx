@@ -48,9 +48,12 @@ export default async function ProcurementLayout({
 
   const roleNames = user.userRoles.map((row) => row.role.name)
 
-  const isProcurement = hasProcurementRole(roleNames, departmentNames)
+  const isProjectCoordinator =
+    departmentNames.some((d) => d === 'PROJECT_COORDINATOR' || d === 'PROJECT_CORDINATOR')
 
-  // Allow admins and procurement team members to view
+  const isProcurement = hasProcurementRole(roleNames, departmentNames) || isProjectCoordinator
+
+  // Allow admins, procurement team members, and project coordinators (read-only observer) to view
   if (!isProcurement) {
     redirect('/onboarding')
   }
@@ -60,7 +63,12 @@ export default async function ProcurementLayout({
     departmentNames.some((d) => d === 'ADMIN') ||
     roleNames.some((r) => r.trim().toUpperCase() === 'ADMIN')
 
-  const procurementRole = isLeader ? 'Procurement Team Leader' : 'Procurement Team Member'
+  // PC users keep their own sidebar, not the procurement sidebar
+  const procurementRole = isProjectCoordinator && !isLeader && !hasProcurementRole(roleNames, departmentNames)
+    ? 'Project Coordinator'
+    : isLeader
+    ? 'Procurement Team Leader'
+    : 'Procurement Team Member'
 
   return <MainLayout role={procurementRole}>{children}</MainLayout>
 }
