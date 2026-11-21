@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Loader2,
   Upload,
+  Package,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -67,6 +68,26 @@ type Project = {
   location: string | null
 }
 
+type IncomingPurchaseOrder = {
+  id: string
+  poNo: string
+  status: string
+  totalAmount: number
+  supplierName: string | null
+  leadId: string
+  lead: { id: string; name: string; location: string | null }
+  indent?: {
+    indentNo: string
+    items: Array<{
+      id: string
+      quantity: number
+      unitPrice: number
+      total: number
+      requisitionItem: { materialName: string; unit: string }
+    }>
+  }
+}
+
 export default function SiteEngineerDeliveryPageWrapper() {
   return (
     <Suspense fallback={<div className="p-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div>}>
@@ -81,6 +102,7 @@ function SiteEngineerDeliveryPage() {
 
   const [deliveries, setDeliveries] = useState<DeliveryItem[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [incomingPOs, setIncomingPOs] = useState<IncomingPurchaseOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -106,6 +128,28 @@ function SiteEngineerDeliveryPage() {
   // Slip Preview Modal
   const [previewSlipUrl, setPreviewSlipUrl] = useState<string | null>(null)
 
+  const handleSelectPOForDelivery = (po: IncomingPurchaseOrder) => {
+    setSelectedLeadId(po.leadId)
+    setVendorName(po.supplierName || '')
+    if (po.indent?.items && po.indent.items.length > 0) {
+      const summary = po.indent.items
+        .map(
+          (it) =>
+            `${it.requisitionItem?.materialName || 'Material'} (${it.quantity} ${
+              it.requisitionItem?.unit || 'Pcs'
+            })`,
+        )
+        .join(', ')
+      setItemsSummary(summary)
+      const totalQty = po.indent.items.reduce((s, it) => s + Number(it.quantity || 0), 0)
+      setQuantity(totalQty > 0 ? String(totalQty) : '')
+      setUnit(po.indent.items[0]?.requisitionItem?.unit || 'Pcs')
+    } else {
+      setItemsSummary(`Materials under Purchase Order ${po.poNo}`)
+    }
+    setDeliveryModalOpen(true)
+  }
+
   const fetchData = useCallback(async () => {
     try {
       setRefreshing(true)
@@ -114,6 +158,7 @@ function SiteEngineerDeliveryPage() {
       if (!json.success) throw new Error(json.error || 'Failed to load site deliveries')
       setDeliveries(json.data.deliveries || [])
       setProjects(json.data.projects || [])
+      setIncomingPOs(json.data.purchaseOrders || [])
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Error loading site data')
     } finally {
@@ -304,6 +349,72 @@ function SiteEngineerDeliveryPage() {
           </Select>
         </div>
       </div>
+
+      {/* ── Approved Orders Awaiting Site Delivery ── */}
+      {incomingPOs.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/40 dark:bg-amber-950/20 dark:border-amber-900 shadow-xs">
+          <CardHeader className="pb-2.5">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-amber-900 dark:text-amber-200">
+                <Package className="w-4 h-4 text-amber-600" />
+                Purchased Orders Ready for Gate Receipt ({incomingPOs.length})
+              </CardTitle>
+              <Badge variant="outline" className="text-[10px] border-amber-300 text-amber-800 dark:text-amber-300">
+                Action Required
+              </Badge>
+            </div>
+            <CardDescription className="text-xs text-amber-700/80 dark:text-amber-300/80">
+              These orders have been approved/paid by Accounts. Click &quot;Confirm Arrival&quot; to log incoming materials into the site gate register.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-3 pt-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {incomingPOs.map((po) => (
+                <div
+                  key={po.id}
+                  className="p-3 rounded-lg border border-amber-200/80 bg-card hover:border-amber-400 transition-all flex flex-col justify-between gap-2 shadow-2xs"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-mono font-bold text-xs text-foreground">{po.poNo}</span>
+                      <Badge className="text-[10px] h-4 bg-emerald-600 text-white font-semibold">
+                        {po.status}
+                      </Badge>
+                    </div>
+                    <div className="text-xs font-semibold text-foreground truncate">
+                      {po.lead.name}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      Supplier: <strong className="text-foreground">{po.supplierName || 'Direct Vendor'}</strong>
+                    </div>
+                    {po.indent?.items && po.indent.items.length > 0 && (
+                      <div className="text-[11px] text-muted-foreground line-clamp-1 italic">
+                        {po.indent.items
+                          .map((i) => i.requisitionItem?.materialName)
+                          .filter(Boolean)
+                          .join(', ')}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-border/40 flex items-center justify-between">
+                    <span className="font-mono font-bold text-xs text-foreground">
+                      ৳{po.totalAmount.toLocaleString()} BDT
+                    </span>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs px-2.5 bg-amber-600 hover:bg-amber-700 text-white gap-1"
+                      onClick={() => handleSelectPOForDelivery(po)}
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" /> Confirm Arrival
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Deliveries Table ── */}
       <Card className="border-border shadow-sm">

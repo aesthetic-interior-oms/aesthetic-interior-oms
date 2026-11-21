@@ -44,21 +44,42 @@ export async function PATCH(
 
     const isAdmin = deptNames.has('ADMIN')
     const isPc = deptNames.has('PROJECT_COORDINATOR')
+    const isSiteEngineer =
+      deptNames.has('SITE_ENGINEER') ||
+      deptNames.has('PROJECT_ENGINEER') ||
+      deptNames.has('IMPLEMENTATION_TEAM')
 
-    if (!isAdmin && !isPc) {
+    if (!isAdmin && !isPc && !isSiteEngineer) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
     }
 
-    if (isPc && !isAdmin) {
-      const assignment = await prisma.leadAssignment.findFirst({
-        where: {
-          leadId,
-          userId: user.id,
-          department: 'PROJECT_COORDINATOR',
-        },
-      })
-      if (!assignment) {
-        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    if (!isAdmin) {
+      if (isPc) {
+        const pcAssignment = await prisma.leadAssignment.findFirst({
+          where: {
+            leadId,
+            userId: user.id,
+            department: 'PROJECT_COORDINATOR',
+          },
+        })
+        if (!pcAssignment && !isSiteEngineer) {
+          return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+        }
+      }
+      if (isSiteEngineer && !isPc) {
+        const seAssignment = await prisma.leadAssignment.findFirst({
+          where: {
+            leadId,
+            userId: user.id,
+            department: 'SITE_ENGINEER',
+          },
+        })
+        const anySeAssignment = await prisma.leadAssignment.findFirst({
+          where: { leadId, department: 'SITE_ENGINEER' },
+        })
+        if (anySeAssignment && !seAssignment) {
+          return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+        }
       }
     }
 

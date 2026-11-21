@@ -17,17 +17,44 @@ export async function PATCH(
   const departments = auth.actor.userDepartments ?? []
 
   const body = await request.json().catch(() => null)
-  if (!body || !['APPROVED', 'REJECTED'].includes(body.action)) {
-    return NextResponse.json({ error: 'action must be APPROVED or REJECTED' }, { status: 400 })
+  if (!body || !['APPROVED', 'REJECTED', 'FULFILLED'].includes(body.action)) {
+    return NextResponse.json({ error: 'action must be APPROVED, REJECTED, or FULFILLED' }, { status: 400 })
   }
 
-  // Only Accounts can approve/reject
-  if (!canApprovePO(roles, departments)) {
+  const isProcurement =
+    departments.some((d) => d.toUpperCase().includes('PROCUREMENT')) ||
+    roles.some((r) => r.toUpperCase().includes('PROCUREMENT'))
+  const isAccounts = canApprovePO(roles, departments)
+
+  if (body.action === 'FULFILLED') {
+    if (!isProcurement && !isAccounts) {
+      return NextResponse.json({ error: 'Only Procurement or Accounts can mark a PO as fulfilled' }, { status: 403 })
+    }
+  } else if (!isAccounts) {
     return NextResponse.json({ error: 'Only Accounts team can approve or reject Purchase Orders' }, { status: 403 })
   }
 
   const po = await prisma.purchaseOrder.findUnique({ where: { id } })
   if (!po) return NextResponse.json({ error: 'Purchase Order not found' }, { status: 404 })
+
+  if (body.action === 'FULFILLED') {
+    if (po.status !== 'APPROVED') {
+      return NextResponse.json({ error: 'Only approved Purchase Orders can be marked as fulfilled' }, { status: 409 })
+    }
+    const updated = await prisma.purchaseOrder.update({
+      where: { id },
+      data: {
+        status: 'FULFILLED',
+        notes: body.notes ? `${po.notes ? po.notes + '\n' : ''}${body.notes.trim()}` : po.notes,
+      },
+      include: {
+        approvedBy: { select: { fullName: true } },
+        rejectedBy: { select: { fullName: true } },
+      },
+    })
+    return NextResponse.json({ success: true, data: updated })
+  }
+
   if (po.status !== 'PENDING_ACCOUNTS_APPROVAL') {
     return NextResponse.json({ error: `Purchase Order is already ${po.status}` }, { status: 409 })
   }

@@ -44,28 +44,53 @@ export async function GET(
 
     const isAdmin = deptNames.has('ADMIN')
     const isPc = deptNames.has('PROJECT_COORDINATOR')
+    const isSiteEngineer =
+      deptNames.has('SITE_ENGINEER') ||
+      deptNames.has('PROJECT_ENGINEER') ||
+      deptNames.has('IMPLEMENTATION_TEAM')
 
-    if (!isAdmin && !isPc) {
+    if (!isAdmin && !isPc && !isSiteEngineer) {
       return NextResponse.json(
         { success: false, error: 'Forbidden' },
         { status: 403 },
       )
     }
 
-    // PC users can only view their own assigned projects
-    if (isPc && !isAdmin) {
-      const assignment = await prisma.leadAssignment.findFirst({
-        where: {
-          leadId,
-          userId: user.id,
-          department: 'PROJECT_COORDINATOR',
-        },
-      })
-      if (!assignment) {
-        return NextResponse.json(
-          { success: false, error: 'Forbidden' },
-          { status: 403 },
-        )
+    // Role-specific assignment checks for non-admins
+    if (!isAdmin) {
+      if (isPc) {
+        const pcAssignment = await prisma.leadAssignment.findFirst({
+          where: {
+            leadId,
+            userId: user.id,
+            department: 'PROJECT_COORDINATOR',
+          },
+        })
+        if (!pcAssignment && !isSiteEngineer) {
+          return NextResponse.json(
+            { success: false, error: 'Forbidden' },
+            { status: 403 },
+          )
+        }
+      }
+      if (isSiteEngineer && !isPc) {
+        const seAssignment = await prisma.leadAssignment.findFirst({
+          where: {
+            leadId,
+            userId: user.id,
+            department: 'SITE_ENGINEER',
+          },
+        })
+        // If there are specific assignments, ensure access; or allow general site engineer view
+        const anySeAssignment = await prisma.leadAssignment.findFirst({
+          where: { leadId, department: 'SITE_ENGINEER' },
+        })
+        if (anySeAssignment && !seAssignment) {
+          return NextResponse.json(
+            { success: false, error: 'Forbidden' },
+            { status: 403 },
+          )
+        }
       }
     }
 
@@ -98,6 +123,79 @@ export async function GET(
             content: true,
           },
           orderBy: { updatedAt: 'desc' },
+        },
+        materialRequisitions: {
+          select: {
+            id: true,
+            requisitionNo: true,
+            status: true,
+            notes: true,
+            createdAt: true,
+            createdBy: { select: { fullName: true } },
+            items: {
+              select: {
+                id: true,
+                materialName: true,
+                workCategory: true,
+                finalQuantity: true,
+                unit: true,
+                specifications: true,
+                remarks: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        purchaseOrders: {
+          select: {
+            id: true,
+            poNo: true,
+            status: true,
+            totalAmount: true,
+            supplierName: true,
+            notes: true,
+            accountsNote: true,
+            createdAt: true,
+            approvedAt: true,
+            createdBy: { select: { fullName: true } },
+            approvedBy: { select: { fullName: true } },
+            indent: {
+              select: {
+                indentNo: true,
+                items: {
+                  select: {
+                    id: true,
+                    quantity: true,
+                    unitPrice: true,
+                    total: true,
+                    requisitionItem: {
+                      select: {
+                        materialName: true,
+                        unit: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        siteDeliveryLogs: {
+          select: {
+            id: true,
+            challanNo: true,
+            vendorName: true,
+            itemsSummary: true,
+            quantity: true,
+            unit: true,
+            deliveryDate: true,
+            condition: true,
+            slipUrl: true,
+            notes: true,
+            receivedBy: { select: { fullName: true } },
+          },
+          orderBy: { deliveryDate: 'desc' },
         },
       },
     })

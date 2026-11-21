@@ -38,6 +38,9 @@ import {
   ChevronUp,
   HardHat,
   ShieldCheck,
+  Boxes,
+  Truck,
+  Package,
 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
@@ -65,6 +68,38 @@ type LeadDetail = {
   created_at: string
   assignments: Array<{ user: { fullName: string } }>
   quotationDrafts: QuotationDraft[]
+  materialRequisitions?: Array<{
+    id: string
+    requisitionNo: string
+    status: string
+    notes: string | null
+    createdAt: string
+    createdBy: { fullName: string }
+    items: Array<{
+      id: string
+      materialName: string
+      workCategory: string
+      finalQuantity: number
+      unit: string
+    }>
+  }>
+  purchaseOrders?: Array<{
+    id: string
+    poNo: string
+    status: string
+    totalAmount: number
+    supplierName: string | null
+  }>
+  siteDeliveryLogs?: Array<{
+    id: string
+    challanNo: string | null
+    vendorName: string | null
+    itemsSummary: string
+    quantity: number | null
+    unit: string | null
+    condition: string
+    deliveryDate: string
+  }>
 }
 
 type QuotationLineItem = {
@@ -708,6 +743,83 @@ export default function PCProjectDetailPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* BOQ Material Requisitions & Site Gate Deliveries Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Requisitions Card */}
+          <Card className="border border-blue-500/30 bg-blue-500/[0.02]">
+            <CardHeader className="pb-2.5 border-b border-blue-500/20 bg-blue-500/5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Boxes className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  <CardTitle className="text-sm font-bold text-foreground">
+                    BOQ Material Requisitions ({lead.materialRequisitions?.length || 0})
+                  </CardTitle>
+                </div>
+                <Link
+                  href={`/crm/boq/builder/${lead.id}`}
+                  className="text-xs text-blue-600 hover:underline font-semibold"
+                >
+                  Open BOQ Builder →
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs space-y-2">
+              {(!lead.materialRequisitions || lead.materialRequisitions.length === 0) ? (
+                <p className="text-muted-foreground py-2 text-center">No requisitions submitted yet.</p>
+              ) : (
+                lead.materialRequisitions.slice(0, 3).map((req) => (
+                  <div key={req.id} className="flex items-center justify-between p-2 rounded-lg bg-card border">
+                    <div>
+                      <span className="font-mono font-bold">{req.requisitionNo}</span>
+                      <div className="text-[10px] text-muted-foreground">{req.items?.length || 0} items • By {req.createdBy?.fullName}</div>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] font-semibold">
+                      {req.status}
+                    </Badge>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Site Gate Deliveries Card */}
+          <Card className="border border-amber-500/30 bg-amber-500/[0.02]">
+            <CardHeader className="pb-2.5 border-b border-amber-500/20 bg-amber-500/5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Truck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  <CardTitle className="text-sm font-bold text-foreground">
+                    Site Gate Deliveries ({lead.siteDeliveryLogs?.length || 0})
+                  </CardTitle>
+                </div>
+                <Link
+                  href={`/site-engineer/delivery?leadId=${lead.id}`}
+                  className="text-xs text-amber-600 hover:underline font-semibold"
+                >
+                  View All Deliveries →
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent className="p-3 text-xs space-y-2">
+              {(!lead.siteDeliveryLogs || lead.siteDeliveryLogs.length === 0) ? (
+                <p className="text-muted-foreground py-2 text-center">No deliveries logged at gate yet.</p>
+              ) : (
+                lead.siteDeliveryLogs.slice(0, 3).map((log) => (
+                  <div key={log.id} className="flex items-center justify-between p-2 rounded-lg bg-card border">
+                    <div className="truncate max-w-[200px]">
+                      <span className="font-semibold block truncate">{log.itemsSummary}</span>
+                      <div className="text-[10px] text-muted-foreground font-mono">Challan: {log.challanNo || 'N/A'}</div>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] font-semibold">
+                      {log.condition}
+                    </Badge>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Quotation Breakdown & Version Management */}
         <Card>

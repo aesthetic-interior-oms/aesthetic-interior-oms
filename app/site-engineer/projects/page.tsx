@@ -205,7 +205,17 @@ export default function SiteEngineerProjectsPage() {
                   </div>
                 )}
 
-                <div className="pt-2 border-t border-border/50 flex items-center justify-between text-xs">
+                <div className="pt-2 border-t border-border/50 flex flex-col gap-2 text-xs">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="h-8 text-[11px] gap-1.5 bg-blue-600 hover:bg-blue-700 text-white w-full font-semibold"
+                  >
+                    <Link href={`/site-engineer/projects/${p.id}`}>
+                      <FolderKanban className="w-3.5 h-3.5" />
+                      Open Project Scope &amp; Quotation
+                    </Link>
+                  </Button>
                   <Button
                     asChild
                     variant="outline"

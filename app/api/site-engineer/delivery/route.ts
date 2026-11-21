@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const [deliveries, projects, counts] = await Promise.all([
+    const [deliveries, projects, counts, purchaseOrders] = await Promise.all([
       prisma.siteDeliveryLog.findMany({
         where,
         orderBy: { deliveryDate: 'desc' },
@@ -102,9 +102,42 @@ export async function GET(request: NextRequest) {
         by: ['condition'],
         _count: { _all: true },
       }),
+      // Active approved purchase orders waiting for delivery
+      prisma.purchaseOrder.findMany({
+        where: {
+          ...(leadId ? { leadId } : {}),
+          status: { in: ['APPROVED', 'FULFILLED'] },
+          ...(!isSiteEngineerLeaderOrAdmin
+            ? {
+                lead: {
+                  assignments: {
+                    some: {
+                      department: LeadAssignmentDepartment.SITE_ENGINEER,
+                      userId: authResult.actorUserId,
+                    },
+                  },
+                },
+              }
+            : {}),
+        },
+        include: {
+          lead: { select: { id: true, name: true, location: true } },
+          indent: {
+            include: {
+              items: {
+                include: {
+                  requisitionItem: { select: { materialName: true, unit: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
     ])
 
-    const conditionCounts = {
+    const conditionCounts: Record<string, number> = {
       TOTAL: deliveries.length,
       GOOD: 0,
       PARTIAL: 0,
@@ -112,7 +145,7 @@ export async function GET(request: NextRequest) {
       REJECTED: 0,
     }
 
-    counts.forEach((c) => {
+    counts.forEach((c: any) => {
       conditionCounts[c.condition] = c._count._all
     })
 
@@ -122,6 +155,7 @@ export async function GET(request: NextRequest) {
         deliveries,
         projects,
         counts: conditionCounts,
+        purchaseOrders: purchaseOrders || [],
       },
     })
   } catch (error: unknown) {
