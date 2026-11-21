@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,6 +20,9 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
+  Save,
+  RotateCcw,
+  ShieldCheck,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
@@ -261,6 +264,7 @@ export function RequisitionIndentWorkspace({
   const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({})
   const [billQuantities, setBillQuantities] = useState<Record<string, string>>({})
   const [unitPrices, setUnitPrices] = useState<Record<string, string>>({})
+  const [itemVendors, setItemVendors] = useState<Record<string, string>>({})
 
   // Vendor selection
   const [selectedVendorId, setSelectedVendorId] = useState<string>('')
@@ -271,6 +275,151 @@ export function RequisitionIndentWorkspace({
   const [transportCost, setTransportCost] = useState<string>('')
   const [otherCosts, setOtherCosts] = useState<string>('')
   const [indentNotes, setIndentNotes] = useState<string>('')
+
+  // Save Section & Auto-Save State (Resistant against sudden page refreshes)
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null)
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(false)
+  const [autoCreatePO, setAutoCreatePO] = useState(true)
+
+  // Restore saved draft from localStorage on load
+  useEffect(() => {
+    try {
+      const key = `indent_draft_${requisition.id}`
+      const saved = localStorage.getItem(key)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.selectedItems) setSelectedItems(parsed.selectedItems)
+        if (parsed.billQuantities) setBillQuantities(parsed.billQuantities)
+        if (parsed.unitPrices) setUnitPrices(parsed.unitPrices)
+        if (parsed.itemVendors) setItemVendors(parsed.itemVendors)
+        if (parsed.vendorName) setVendorName(parsed.vendorName)
+        if (parsed.customVendorName) setCustomVendorName(parsed.customVendorName)
+        if (parsed.selectedVendorId) setSelectedVendorId(parsed.selectedVendorId)
+        if (parsed.transportCost) setTransportCost(parsed.transportCost)
+        if (parsed.otherCosts) setOtherCosts(parsed.otherCosts)
+        if (parsed.indentNotes) setIndentNotes(parsed.indentNotes)
+        if (parsed.savedAt) setLastSavedTime(parsed.savedAt)
+        toast.info('Restored your unsaved working draft from previous session.', {
+          description: `Auto-saved at ${parsed.savedAt || 'recently'}`,
+        })
+      }
+    } catch {
+      // ignore JSON parse errors
+    } finally {
+      setHasRestoredDraft(true)
+    }
+  }, [requisition.id])
+
+  // Auto-save changes to localStorage (debounced)
+  useEffect(() => {
+    if (!hasRestoredDraft) return
+    const hasContent =
+      Object.values(selectedItems).some(Boolean) ||
+      Object.keys(unitPrices).length > 0 ||
+      Object.keys(itemVendors).length > 0 ||
+      vendorName ||
+      transportCost ||
+      otherCosts ||
+      indentNotes
+
+    if (!hasContent) return
+
+    const timer = setTimeout(() => {
+      const now = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+      const draft = {
+        selectedItems,
+        billQuantities,
+        unitPrices,
+        itemVendors,
+        vendorName,
+        customVendorName,
+        selectedVendorId,
+        transportCost,
+        otherCosts,
+        indentNotes,
+        savedAt: now,
+      }
+      try {
+        localStorage.setItem(`indent_draft_${requisition.id}`, JSON.stringify(draft))
+        setLastSavedTime(now)
+      } catch {
+        // storage quota exceeded or disabled
+      }
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [
+    hasRestoredDraft,
+    selectedItems,
+    billQuantities,
+    unitPrices,
+    itemVendors,
+    vendorName,
+    customVendorName,
+    selectedVendorId,
+    transportCost,
+    otherCosts,
+    indentNotes,
+    requisition.id,
+  ])
+
+  // Explicit Manual Save
+  const handleManualSaveDraft = () => {
+    const now = new Date().toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+    const draft = {
+      selectedItems,
+      billQuantities,
+      unitPrices,
+      itemVendors,
+      vendorName,
+      customVendorName,
+      selectedVendorId,
+      transportCost,
+      otherCosts,
+      indentNotes,
+      savedAt: now,
+    }
+    try {
+      localStorage.setItem(`indent_draft_${requisition.id}`, JSON.stringify(draft))
+      setLastSavedTime(now)
+      toast.success('Working draft saved safely!', {
+        description: 'Rates, suppliers, and quantities are preserved. A sudden refresh will not lose your data.',
+      })
+    } catch {
+      toast.error('Could not save draft locally')
+    }
+  }
+
+  // Clear Draft
+  const handleClearDraft = () => {
+    if (confirm('Are you sure you want to clear this working draft? All entered quantities and rates will reset.')) {
+      try {
+        localStorage.removeItem(`indent_draft_${requisition.id}`)
+      } catch {
+        // ignore
+      }
+      setSelectedItems({})
+      setBillQuantities({})
+      setUnitPrices({})
+      setItemVendors({})
+      setVendorName('')
+      setCustomVendorName('')
+      setSelectedVendorId('')
+      setTransportCost('')
+      setOtherCosts('')
+      setIndentNotes('')
+      setLastSavedTime(null)
+      toast.success('Working draft cleared')
+    }
+  }
 
   // Expandable Indents in Issued view
   const [expandedIndentId, setExpandedIndentId] = useState<string | null>(null)
@@ -502,10 +651,12 @@ export function RequisitionIndentWorkspace({
         transportCost: Number(transportCost || 0),
         otherCosts: Number(otherCosts || 0),
         notes: indentNotes.trim() || null,
+        createPurchaseOrder: autoCreatePO,
         items: indentPreview.chosenItems.map((item) => ({
           itemId: item.id,
           quantity: Number(billQuantities[item.id] || getRemainingQty(item)),
           unitPrice: Number(unitPrices[item.id]),
+          vendorName: itemVendors[item.id]?.trim() || vendorName.trim() || null,
         })),
       }
 
@@ -520,20 +671,34 @@ export function RequisitionIndentWorkspace({
         throw new Error(data.error || 'Failed to create Indent')
       }
 
-      toast.success(`Indent ${data.data?.indentNo || 'Bill'} Created & Dispatched!`, {
-        description: `Auto-routed to ${requisition.lead.name} site for receiving.`,
-      })
+      toast.success(
+        autoCreatePO
+          ? `Indent ${data.data?.indentNo || 'Bill'} Created & Dispatched to Accounts!`
+          : `Indent ${data.data?.indentNo || 'Bill'} Created & Dispatched!`,
+        {
+          description: `Auto-routed to ${requisition.lead.name} site for receiving.`,
+        },
+      )
+
+      // Clear saved draft from localStorage
+      try {
+        localStorage.removeItem(`indent_draft_${requisition.id}`)
+      } catch {
+        // ignore
+      }
 
       // Reset selection and inputs
       setSelectedItems({})
       setBillQuantities({})
       setUnitPrices({})
+      setItemVendors({})
       setVendorName('')
       setCustomVendorName('')
       setSelectedVendorId('')
       setTransportCost('')
       setOtherCosts('')
       setIndentNotes('')
+      setLastSavedTime(null)
 
       router.refresh()
       setActiveTab('indents')
@@ -1030,7 +1195,7 @@ export function RequisitionIndentWorkspace({
 
               {/* Action Bar & Selection Toggle */}
               <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-card border border-border rounded-lg text-xs shadow-xs">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -1040,22 +1205,71 @@ export function RequisitionIndentWorkspace({
                   >
                     Select / Deselect Visible ({filteredUnbilledItems.length})
                   </Button>
-                  <span className="text-muted-foreground">
-                    <strong className="text-foreground">{indentPreview.selectedCount}</strong> material(s) chosen for this indent
+
+                  {/* Save Section / Draft Button */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleManualSaveDraft}
+                    className="h-7 text-xs gap-1 font-medium text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-300 dark:border-emerald-800"
+                    title="Safely save working draft to browser storage so refresh won't remove data"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    Save Section
+                  </Button>
+
+                  {lastSavedTime && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleClearDraft}
+                      className="h-7 text-xs text-muted-foreground hover:text-rose-600 gap-1 px-2"
+                      title="Clear working draft"
+                    >
+                      <RotateCcw className="w-3 h-3" /> Clear
+                    </Button>
+                  )}
+
+                  {lastSavedTime && (
+                    <span className="inline-flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-400 font-mono pl-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                      Saved at {lastSavedTime} (Refresh Safe)
+                    </span>
+                  )}
+
+                  <span className="text-muted-foreground pl-1">
+                    <strong className="text-foreground">{indentPreview.selectedCount}</strong> material(s) chosen
                   </span>
                 </div>
 
-                {indentPreview.selectedCount > 0 && (
-                  <div className="flex items-center gap-3">
-                    <span className="text-muted-foreground">
-                      Subtotal: <strong className="text-foreground font-mono">৳{indentPreview.subtotal.toLocaleString('en-BD')}</strong>
-                    </span>
-                    <span>•</span>
-                    <span className="text-foreground font-bold text-sm font-mono">
-                      Total Indent: ৳{indentPreview.total.toLocaleString('en-BD')}
-                    </span>
-                  </div>
-                )}
+                <div className="flex flex-wrap items-center gap-3">
+                  {indentPreview.selectedCount > 0 && (
+                    <>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">
+                          Subtotal: <strong className="text-foreground font-mono">৳{indentPreview.subtotal.toLocaleString('en-BD')}</strong>
+                        </span>
+                        <span>•</span>
+                        <span className="text-foreground font-bold text-sm font-mono">
+                          Total: ৳{indentPreview.total.toLocaleString('en-BD')}
+                        </span>
+                      </div>
+
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleCreateIndent}
+                        disabled={indentPreview.selectedCount === 0 || actionBusy}
+                        className="h-7 text-xs px-3 font-semibold bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 gap-1 shadow-2xs"
+                      >
+                        <Receipt className="w-3.5 h-3.5" />
+                        {actionBusy ? 'Generating...' : 'Generate & Dispatch'}
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* High-Contrast Table Container with MaterialScopeDisplay */}
@@ -1077,6 +1291,7 @@ export function RequisitionIndentWorkspace({
                           <th className="py-2.5 px-3 w-10 text-center">SL</th>
                           <th className="py-2.5 px-3 min-w-[220px]">Material &amp; Scope Specification</th>
                           <th className="py-2.5 px-3 min-w-[120px]">Sub-Type / Classification</th>
+                          <th className="py-2.5 px-3 min-w-[150px]">Supplier / Vendor</th>
                           <th className="py-2.5 px-3 text-center min-w-[120px]">Req / Remaining</th>
                           <th className="py-2.5 px-3 min-w-[120px]">Bill Qty</th>
                           <th className="py-2.5 px-3 min-w-[120px] text-right">Unit Rate (৳)</th>
@@ -1134,6 +1349,23 @@ export function RequisitionIndentWorkspace({
                                 <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground border border-border">
                                   {subTypeLabel}
                                 </span>
+                              </td>
+
+                              {/* Supplier / Vendor per item */}
+                              <td className="py-2.5 px-3">
+                                <input
+                                  list="registered-vendors-datalist"
+                                  placeholder={vendorName || 'Pick / Type Supplier'}
+                                  value={itemVendors[item.id] ?? ''}
+                                  onChange={(e) =>
+                                    setItemVendors((prev) => ({
+                                      ...prev,
+                                      [item.id]: e.target.value,
+                                    }))
+                                  }
+                                  disabled={!isSelected}
+                                  className="h-7 text-xs bg-background border border-border rounded px-2 w-36 font-medium placeholder:text-muted-foreground/60 disabled:opacity-50 disabled:bg-muted/30 focus:outline-none focus:ring-1 focus:ring-foreground"
+                                />
                               </td>
 
                               {/* Req / Remaining */}
@@ -1200,6 +1432,14 @@ export function RequisitionIndentWorkspace({
                         })}
                       </tbody>
                     </table>
+                    <datalist id="registered-vendors-datalist">
+                      {defaultVendors.map((v) => {
+                        const val = v.vendorCompanyName
+                          ? `${v.vendorCompanyName} (${v.vendorName})`
+                          : v.vendorName
+                        return <option key={v.id} value={val}>{val}</option>
+                      })}
+                    </datalist>
                   </div>
                 )}
               </div>
@@ -1207,12 +1447,12 @@ export function RequisitionIndentWorkspace({
               {/* Accounts Summary & Dispatch Card */}
               <div className="rounded-lg border border-border bg-card p-4 sm:p-5 shadow-xs space-y-4">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                         Indent Spend Summary
                       </span>
-                      <span className="text-xs text-muted-foreground">• Ready to Dispatch to Site</span>
+                      <span className="text-xs text-muted-foreground">• Ready to Dispatch to Accounts &amp; Site</span>
                     </div>
                     <div className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
                       <span>Total Indent Value:</span>
@@ -1224,9 +1464,30 @@ export function RequisitionIndentWorkspace({
                       <span>Other: <strong className="text-foreground">৳{indentPreview.other.toLocaleString('en-BD')}</strong></span>
                       <span>({indentPreview.selectedCount} material(s) chosen)</span>
                     </div>
+
+                    <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-foreground select-none pt-1">
+                      <input
+                        type="checkbox"
+                        checked={autoCreatePO}
+                        onChange={(e) => setAutoCreatePO(e.target.checked)}
+                        className="h-4 w-4 rounded border-border text-foreground focus:ring-foreground cursor-pointer"
+                      />
+                      <span>Auto-create Purchase Order and dispatch to Accounts for approval</span>
+                    </label>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleManualSaveDraft}
+                      className="h-10 px-4 gap-1.5 font-medium border-border"
+                      title="Safely save working draft to browser storage so refresh won't remove data"
+                    >
+                      <Save className="w-4 h-4 text-emerald-600" />
+                      Save Section
+                    </Button>
+
                     <Button
                       type="button"
                       onClick={handleCreateIndent}
@@ -1235,7 +1496,7 @@ export function RequisitionIndentWorkspace({
                     >
                       <Receipt className="w-4 h-4" />
                       {actionBusy
-                        ? 'Generating Indent...'
+                        ? 'Generating & Dispatching...'
                         : `Generate Indent & Dispatch (৳${indentPreview.total.toLocaleString('en-BD')})`}
                     </Button>
                   </div>
