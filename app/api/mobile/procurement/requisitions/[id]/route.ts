@@ -25,6 +25,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
           },
           items: {
             orderBy: [{ workCategory: 'asc' }, { id: 'asc' }],
+            include: {
+              indentItems: {
+                select: {
+                  id: true,
+                  quantity: true,
+                  unitPrice: true,
+                  total: true,
+                  vendorName: true,
+                },
+              },
+            },
           },
         },
       }),

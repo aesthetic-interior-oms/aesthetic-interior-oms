@@ -599,7 +599,11 @@ export async function PUT(
           department === 'VISUALIZER_3D' ||
           department === 'JR_ARCHITECT' ||
           department === 'SR_CRM' ||
-          department === 'SPECIALIST_DESIGN_CONSULTANTS'
+          department === 'SPECIALIST_DESIGN_CONSULTANTS' ||
+          department === 'SITE_ENGINEER' ||
+          department === 'PROJECT_COORDINATOR' ||
+          department === 'BOQ' ||
+          department === 'PROCUREMENT'
 
         if (!canCreateMissingAssignment) {
           throw new Error('Assignment not found for this lead and department')

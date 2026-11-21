@@ -57,23 +57,8 @@ export async function GET(
     }
 
     // Role-specific assignment checks for non-admins
-    if (!isAdmin) {
-      if (isPc) {
-        const pcAssignment = await prisma.leadAssignment.findFirst({
-          where: {
-            leadId,
-            userId: user.id,
-            department: 'PROJECT_COORDINATOR',
-          },
-        })
-        if (!pcAssignment && !isSiteEngineer) {
-          return NextResponse.json(
-            { success: false, error: 'Forbidden' },
-            { status: 403 },
-          )
-        }
-      }
-      if (isSiteEngineer && !isPc) {
+    if (!isAdmin && !isPc) {
+      if (isSiteEngineer) {
         const seAssignment = await prisma.leadAssignment.findFirst({
           where: {
             leadId,

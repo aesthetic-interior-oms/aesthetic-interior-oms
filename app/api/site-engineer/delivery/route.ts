@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { LeadAssignmentDepartment, SiteDeliveryCondition } from '@/generated/prisma/client'
+import { LeadAssignmentDepartment, LeadStage, SiteDeliveryCondition } from '@/generated/prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,12 +70,29 @@ export async function GET(request: NextRequest) {
           },
         },
       }),
-      // Active project sites: Project Coordinator sees all; downstream Site Engineer sees only assigned
+      // Active project sites with Agreement Done: Project Coordinator sees all; downstream Site Engineer sees only assigned
       prisma.lead.findMany({
         where: {
           stage: {
-            notIn: ['CLOSED', 'VISIT_CANCELLED'],
+            notIn: [LeadStage.CLOSED, LeadStage.VISIT_CANCELLED],
           },
+          OR: [
+            { stage: LeadStage.CONVERSION },
+            {
+              stage: {
+                in: [
+                  LeadStage.PROJECT_SETUP,
+                  LeadStage.MATERIAL_PLANNING,
+                  LeadStage.PROCUREMENT,
+                  LeadStage.SITE_EXECUTION,
+                  LeadStage.QUALITY_CHECK,
+                  LeadStage.HANDOVER,
+                ],
+              },
+            },
+            { agreementType: { not: null } },
+            { agreementValue: { gt: 0 } },
+          ],
           ...(!isSiteEngineerLeaderOrAdmin
             ? {
                 assignments: {
