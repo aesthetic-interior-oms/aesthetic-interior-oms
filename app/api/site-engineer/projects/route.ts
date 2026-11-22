@@ -95,6 +95,7 @@ export async function GET(request: NextRequest) {
           subStatus: true,
           agreementType: true,
           agreementValue: true,
+          budget: true,
           created_at: true,
           isSiteWorkActive: true,
           siteWorkStartedAt: true,
@@ -137,6 +138,9 @@ export async function GET(request: NextRequest) {
               deliveryDate: true,
               condition: true,
               challanNo: true,
+              itemsSummary: true,
+              quantity: true,
+              unit: true,
             },
             orderBy: { deliveryDate: 'desc' },
           },
@@ -147,6 +151,23 @@ export async function GET(request: NextRequest) {
               status: true,
               totalAmount: true,
               supplierName: true,
+              indent: {
+                select: {
+                  indentNo: true,
+                  items: {
+                    select: {
+                      id: true,
+                      quantity: true,
+                      requisitionItem: {
+                        select: {
+                          materialName: true,
+                          unit: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
           quotationDrafts: {
@@ -243,16 +264,65 @@ export async function GET(request: NextRequest) {
       // Deliveries calculations
       const deliveries = lead.siteDeliveryLogs || []
       totalDeliveries += deliveries.length
-      const deliveryIssues = deliveries.filter(
-        (d) => d.condition === 'DAMAGED' || d.condition === 'REJECTED' || d.condition === 'PARTIAL',
-      ).length
+      const goodDeliveries = deliveries.filter((d) => d.condition === 'GOOD').length
+      const partialDeliveries = deliveries.filter((d) => d.condition === 'PARTIAL').length
+      const damagedDeliveries = deliveries.filter((d) => d.condition === 'DAMAGED').length
+      const rejectedDeliveries = deliveries.filter((d) => d.condition === 'REJECTED').length
+      const deliveryIssues = partialDeliveries + damagedDeliveries + rejectedDeliveries
       const latestDeliveryDate = deliveries.length > 0 ? deliveries[0].deliveryDate : null
+      const totalDeliveredQty = deliveries.reduce((sum, d) => sum + (Number(d.quantity) || 0), 0)
 
       // Purchase orders calculations
       const pos = lead.purchaseOrders || []
+      const completedPos = pos.filter((po) => po.status === 'FULFILLED')
       const approvedPos = pos.filter((po) => po.status === 'APPROVED' || po.status === 'FULFILLED')
+      const pendingPos = pos.filter((po) => po.status === 'PENDING_ACCOUNTS_APPROVAL')
       const leadPurchasedAmount = approvedPos.reduce((sum, po) => sum + (po.totalAmount || 0), 0)
       totalPurchased += leadPurchasedAmount
+
+      // Calculate purchased items & quantities from approved/fulfilled POs
+      let totalPurchasedItemsCount = 0
+      let totalPurchasedQty = 0
+      for (const po of approvedPos) {
+        if (po.indent?.items && Array.isArray(po.indent.items)) {
+          for (const item of po.indent.items) {
+            totalPurchasedItemsCount++
+            totalPurchasedQty += Number(item.quantity) || 0
+          }
+        }
+      }
+
+      // Materials Comparison
+      let comparisonStatus: 'NO_PURCHASES' | 'AWAITING_DELIVERY' | 'PARTIALLY_DELIVERED' | 'FULLY_DELIVERED' = 'NO_PURCHASES'
+      let comparisonLabel = 'No POs Issued'
+      let deliveryPercent = 0
+
+      if (approvedPos.length === 0) {
+        comparisonStatus = 'NO_PURCHASES'
+        comparisonLabel = 'No POs Issued'
+        deliveryPercent = 0
+      } else if (deliveries.length === 0) {
+        comparisonStatus = 'AWAITING_DELIVERY'
+        comparisonLabel = 'Awaiting Delivery'
+        deliveryPercent = 0
+      } else {
+        if (totalPurchasedQty > 0 && totalDeliveredQty > 0) {
+          deliveryPercent = Math.min(100, Math.round((totalDeliveredQty / totalPurchasedQty) * 100))
+        } else {
+          const ratio = completedPos.length > 0
+            ? (completedPos.length / approvedPos.length)
+            : Math.min(1, deliveries.length / approvedPos.length)
+          deliveryPercent = Math.min(100, Math.round(ratio * 100))
+        }
+
+        if (deliveryPercent >= 100 || (completedPos.length === approvedPos.length && completedPos.length > 0)) {
+          comparisonStatus = 'FULLY_DELIVERED'
+          comparisonLabel = 'Fully Delivered'
+        } else {
+          comparisonStatus = 'PARTIALLY_DELIVERED'
+          comparisonLabel = `Partially Delivered (${deliveryPercent}%)`
+        }
+      }
 
       // Scope / BOQ Progress calculation
       let totalLineItems = 0
@@ -278,6 +348,7 @@ export async function GET(request: NextRequest) {
         subStatus: lead.subStatus,
         agreementType: lead.agreementType,
         agreementValue: lead.agreementValue,
+        budget: lead.budget,
         created_at: lead.created_at,
         isSiteWorkActive: Boolean(lead.isSiteWorkActive),
         siteWorkStartedAt: lead.siteWorkStartedAt,
@@ -286,20 +357,37 @@ export async function GET(request: NextRequest) {
         assignedSiteEngineers,
         assignedProjectCoordinator: pcAssignment?.user || null,
         assignedSrCrm: srCrmAssignment?.user || null,
+        quotationProductsCount: totalLineItems,
         deliveriesSummary: {
           total: deliveries.length,
           issues: deliveryIssues,
+          goodCount: goodDeliveries,
+          partialCount: partialDeliveries,
+          damagedCount: damagedDeliveries,
+          rejectedCount: rejectedDeliveries,
+          totalQuantity: totalDeliveredQty,
           latestDate: latestDeliveryDate,
         },
         purchasedSummary: {
           totalPOs: pos.length,
           approvedPOs: approvedPos.length,
+          completedPOs: completedPos.length,
+          pendingPOs: pendingPos.length,
           totalAmount: leadPurchasedAmount,
+          totalItemsCount: totalPurchasedItemsCount,
+          totalQuantity: totalPurchasedQty,
         },
         scopeProgress: {
           total: totalLineItems,
           completed: completedLineItems,
           percent: progressPercent,
+        },
+        materialsComparison: {
+          status: comparisonStatus,
+          label: comparisonLabel,
+          purchasedQty: totalPurchasedQty,
+          deliveredQty: totalDeliveredQty,
+          deliveryPercent,
         },
       }
     })

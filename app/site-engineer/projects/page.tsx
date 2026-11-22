@@ -74,6 +74,7 @@ type ProjectSite = {
   subStatus: string | null
   agreementType: string | null
   agreementValue: number | null
+  budget?: number | null
   created_at: string
   isSiteWorkActive?: boolean
   siteWorkStartedAt?: string | null
@@ -87,20 +88,37 @@ type ProjectSite = {
   assignedSiteEngineers?: SiteEngineerUser[]
   assignedProjectCoordinator: { id: string; fullName: string } | null
   assignedSrCrm: { id: string; fullName: string } | null
+  quotationProductsCount?: number
   deliveriesSummary: {
     total: number
     issues: number
+    goodCount?: number
+    partialCount?: number
+    damagedCount?: number
+    rejectedCount?: number
+    totalQuantity?: number
     latestDate: string | null
   }
   purchasedSummary: {
     totalPOs: number
     approvedPOs: number
+    completedPOs?: number
+    pendingPOs?: number
     totalAmount: number
+    totalItemsCount?: number
+    totalQuantity?: number
   }
   scopeProgress: {
     total: number
     completed: number
     percent: number
+  }
+  materialsComparison?: {
+    status: 'NO_PURCHASES' | 'AWAITING_DELIVERY' | 'PARTIALLY_DELIVERED' | 'FULLY_DELIVERED'
+    label: string
+    purchasedQty: number
+    deliveredQty: number
+    deliveryPercent: number
   }
 }
 
@@ -709,21 +727,39 @@ export default function SiteEngineerProjectsPage() {
                     key={p.id}
                     className="border-border hover:shadow-md transition-all bg-card flex flex-col justify-between overflow-hidden"
                   >
-                    {/* Card Header */}
-                    <CardHeader className="pb-3 border-b border-border/40 space-y-2">
+                    {/* ── 1. Client Name, Address, Phone & 2. Agreement Budget Header ── */}
+                    <CardHeader className="pb-3 border-b border-border/40 space-y-2.5">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
+                        <div className="min-w-0 flex-1">
+                          {/* 1. Client Name */}
                           <Link
                             href={`/site-engineer/projects/${p.id}`}
-                            className="text-base font-bold text-foreground hover:text-blue-600 transition line-clamp-1 flex items-center gap-1.5"
+                            className="text-base font-bold text-foreground hover:text-blue-600 transition flex items-center gap-1.5"
                           >
-                            {p.name}
-                            <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground opacity-60" />
+                            <span className="line-clamp-1">{p.name}</span>
+                            <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground opacity-60 shrink-0" />
                           </Link>
-                          <CardDescription className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                            <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                            <span className="truncate">{p.location || 'Location not specified'}</span>
-                          </CardDescription>
+
+                          {/* 1. Client Address */}
+                          <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
+                            <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                            <span className="truncate">{p.location || 'Address not specified'}</span>
+                          </div>
+
+                          {/* 1. Client Phone */}
+                          <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1 font-mono">
+                            <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            {p.phone ? (
+                              <a
+                                href={`tel:${p.phone}`}
+                                className="font-semibold text-foreground hover:text-blue-600 hover:underline"
+                              >
+                                {p.phone}
+                              </a>
+                            ) : (
+                              <span className="text-muted-foreground/70 italic text-[11px]">Phone not provided</span>
+                            )}
+                          </div>
                         </div>
 
                         <div className="flex flex-col items-end gap-1 shrink-0">
@@ -733,120 +769,222 @@ export default function SiteEngineerProjectsPage() {
                           >
                             {p.isSiteWorkActive ? 'Active Site' : p.stage.replace(/_/g, ' ')}
                           </Badge>
-                          {p.agreementValue ? (
-                            <span className="text-[11px] font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                              {formatCurrency(p.agreementValue)}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {p.phone && (
-                        <div className="text-xs text-muted-foreground flex items-center gap-1.5 font-mono">
-                          <Phone className="w-3 h-3 text-muted-foreground" />
-                          <span>{p.phone}</span>
-                        </div>
-                      )}
-                    </CardHeader>
-
-                    <CardContent className="space-y-4 pt-3 pb-4">
-                      {/* Assigned Site Engineers Row */}
-                      <div className="bg-muted/40 p-2.5 rounded-lg border border-border/60 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div
-                            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                              hasEngineer
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                            }`}
-                          >
-                            {hasEngineer ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
-                          </div>
-
-                          <div className="min-w-0">
-                            <div className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider flex items-center gap-1">
-                              <span>Site Engineer(s)</span>
-                              {assignedEngs.length > 1 && (
-                                <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">
-                                  {assignedEngs.length}
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-xs font-medium text-foreground truncate">
-                              {hasEngineer
-                                ? assignedEngs.map((e) => e.fullName).join(', ')
-                                : 'Not Assigned Yet'}
-                            </div>
-                          </div>
-                        </div>
-
-                        {canManageAssignments && (
-                          <Button
-                            size="sm"
-                            variant={hasEngineer ? 'ghost' : 'outline'}
-                            onClick={() => handleOpenAssignModal(p)}
-                            className={`h-7 px-2 text-xs shrink-0 ${
-                              !hasEngineer
-                                ? 'border-amber-500/50 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10'
-                                : ''
-                            }`}
-                          >
-                            {hasEngineer ? 'Manage' : 'Assign'}
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Operational Metrics (Purchased, Deliveries, Scope) */}
-                      <div className="grid grid-cols-3 gap-2 py-1 text-center">
-                        {/* Deliveries */}
-                        <div className="bg-background p-2 rounded border border-border/50">
-                          <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
-                            <Truck className="w-3 h-3 text-amber-600" />
-                            <span>Deliveries</span>
-                          </div>
-                          <div className="text-xs font-bold mt-0.5 text-foreground">
-                            {p.deliveriesSummary.total}
-                          </div>
-                          {p.deliveriesSummary.issues > 0 ? (
-                            <span className="text-[9px] text-destructive font-medium block truncate">
-                              {p.deliveriesSummary.issues} issue(s)
-                            </span>
-                          ) : (
-                            <span className="text-[9px] text-muted-foreground block truncate">
-                              {p.deliveriesSummary.total > 0 ? 'Logged' : 'None yet'}
+                          {p.assignedSrCrm && (
+                            <span className="text-[10px] text-muted-foreground">
+                              CRM: {p.assignedSrCrm.fullName}
                             </span>
                           )}
                         </div>
+                      </div>
 
-                        {/* Purchased / POs */}
-                        <div className="bg-background p-2 rounded border border-border/50">
-                          <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
-                            <ShoppingCart className="w-3 h-3 text-purple-600" />
-                            <span>Purchased</span>
+                      {/* 2. Agreement Budget Highlight Banner */}
+                      <div className="flex items-center justify-between gap-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-lg px-2.5 py-1.5">
+                        <span className="text-[11px] font-semibold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <span>Agreement Budget</span>
+                        </span>
+                        <span className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
+                          {formatCurrency(p.agreementValue || p.budget)}
+                        </span>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="space-y-3.5 pt-3 pb-4">
+                      {/* ── 3. Site Engineers (Multiple) & 4. Add Site Engineers Button ── */}
+                      <div className="bg-muted/40 p-2.5 rounded-lg border border-border/60 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider flex items-center gap-1.5">
+                            <HardHat className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Site Engineers</span>
+                            {assignedEngs.length > 0 && (
+                              <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">
+                                {assignedEngs.length}
+                              </Badge>
+                            )}
                           </div>
-                          <div className="text-xs font-bold mt-0.5 text-foreground">
-                            {p.purchasedSummary.approvedPOs} POs
-                          </div>
-                          <span className="text-[9px] text-muted-foreground block truncate">
-                            {p.purchasedSummary.totalAmount > 0
-                              ? formatCurrency(p.purchasedSummary.totalAmount)
-                              : '৳0'}
-                          </span>
+
+                          {/* 4. Add Site Engineers Button */}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenAssignModal(p)}
+                            className="h-6 px-2 text-[11px] font-medium gap-1 text-blue-700 border-blue-200 bg-blue-50/70 hover:bg-blue-100 hover:text-blue-800 dark:text-blue-300 dark:border-blue-800 dark:bg-blue-950/50"
+                          >
+                            <UserPlus className="w-3 h-3" />
+                            {hasEngineer ? 'Add / Manage' : 'Add Site Engineers'}
+                          </Button>
                         </div>
 
-                        {/* Scope / BOQ Progress */}
-                        <div className="bg-background p-2 rounded border border-border/50">
-                          <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
-                            <ClipboardList className="w-3 h-3 text-blue-600" />
-                            <span>Scope</span>
+                        {/* 3. Site Engineers Badges */}
+                        {hasEngineer ? (
+                          <div className="flex flex-wrap gap-1.5 pt-0.5">
+                            {assignedEngs.map((eng) => (
+                              <Badge
+                                key={eng.id}
+                                variant="secondary"
+                                className="text-[11px] py-0.5 px-2 bg-blue-50 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 font-medium border border-blue-200/60 flex items-center gap-1"
+                              >
+                                <UserCheck className="w-3 h-3 text-blue-600 shrink-0" />
+                                <span>{eng.fullName}</span>
+                                {eng.phone && <span className="text-[10px] opacity-70 font-mono">({eng.phone})</span>}
+                              </Badge>
+                            ))}
                           </div>
-                          <div className="text-xs font-bold mt-0.5 text-foreground">
+                        ) : (
+                          <div className="flex items-center justify-between p-1.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-xs">
+                            <span className="flex items-center gap-1 text-[11px]">
+                              <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                              No Site Engineer assigned
+                            </span>
+                            <Button
+                              size="sm"
+                              onClick={() => handleOpenAssignModal(p)}
+                              className="h-5 px-1.5 text-[10px] bg-amber-600 hover:bg-amber-700 text-white font-medium gap-1"
+                            >
+                              <UserPlus className="w-2.5 h-2.5" /> Assign Now
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* ── 5. Progress Bar & 6. Number of Quotation Products ── */}
+                      <div className="bg-muted/30 p-2.5 rounded-lg border border-border/60 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-foreground flex items-center gap-1.5">
+                            <ClipboardList className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Execution Progress</span>
+                          </span>
+                          <span className="font-mono font-bold text-xs text-blue-600 dark:text-blue-400">
                             {p.scopeProgress.percent}%
-                          </div>
-                          <span className="text-[9px] text-muted-foreground block truncate">
-                            {p.scopeProgress.completed}/{p.scopeProgress.total} Items
                           </span>
                         </div>
+
+                        {/* 5. Visual Progress Bar */}
+                        <div className="w-full bg-muted rounded-full h-2 overflow-hidden border border-border/30">
+                          <div
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              p.scopeProgress.percent === 100
+                                ? 'bg-emerald-600'
+                                : p.scopeProgress.percent > 50
+                                ? 'bg-blue-600'
+                                : 'bg-amber-500'
+                            }`}
+                            style={{ width: `${Math.min(100, Math.max(0, p.scopeProgress.percent))}%` }}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                          <span>
+                            Completed: <strong className="text-foreground">{p.scopeProgress.completed}</strong> / {p.scopeProgress.total} items
+                          </span>
+                          {/* 6. Number of Quotation Products */}
+                          <span className="font-medium text-foreground">
+                            Quotation Products: <strong className="text-blue-600 dark:text-blue-400 font-bold">{p.quotationProductsCount || p.scopeProgress.total}</strong>
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* ── 7. Purchase Orders Completed & 8. Comparison Between Purchased & Delivered Materials ── */}
+                      <div className="space-y-2 border border-border/60 rounded-lg p-2.5 bg-card">
+                        <div className="flex items-center justify-between text-xs pb-1 border-b border-border/40">
+                          <span className="font-semibold text-foreground flex items-center gap-1.5">
+                            <Truck className="w-3.5 h-3.5 text-purple-600" />
+                            <span>Purchased vs Delivered</span>
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] font-semibold ${
+                              p.materialsComparison?.status === 'FULLY_DELIVERED'
+                                ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                : p.materialsComparison?.status === 'PARTIALLY_DELIVERED'
+                                ? 'border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300'
+                                : p.materialsComparison?.status === 'AWAITING_DELIVERY'
+                                ? 'border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                                : 'border-muted text-muted-foreground'
+                            }`}
+                          >
+                            {p.materialsComparison?.label || 'No POs Issued'}
+                          </Badge>
+                        </div>
+
+                        {/* Split Comparison Cards */}
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {/* 7. Purchased Side (Completed POs) */}
+                          <div className="bg-muted/30 p-2 rounded border border-border/40 text-left space-y-0.5">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                              <ShoppingCart className="w-3 h-3 text-purple-600" />
+                              <span>Purchased</span>
+                            </div>
+                            {/* 7. Completed POs count */}
+                            <div className="text-xs font-bold text-foreground">
+                              <span className="text-emerald-600 font-extrabold">{p.purchasedSummary.completedPOs || 0}</span>
+                              <span className="text-muted-foreground font-normal"> / {p.purchasedSummary.totalPOs} POs Done</span>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground truncate">
+                              Approved: {p.purchasedSummary.approvedPOs} • {formatCurrency(p.purchasedSummary.totalAmount)}
+                            </div>
+                            {Boolean(p.purchasedSummary.totalQuantity) && (
+                              <div className="text-[10px] text-purple-700 dark:text-purple-400 font-medium">
+                                Qty: {p.purchasedSummary.totalQuantity} units ({p.purchasedSummary.totalItemsCount || 0} items)
+                              </div>
+                            )}
+                          </div>
+
+                          {/* 8. Delivered Side (Gate Logs) */}
+                          <div className="bg-muted/30 p-2 rounded border border-border/40 text-left space-y-0.5">
+                            <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                              <Truck className="w-3 h-3 text-blue-600" />
+                              <span>Delivered</span>
+                            </div>
+                            <div className="text-xs font-bold text-foreground">
+                              <span>{p.deliveriesSummary.total} Deliveries</span>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground truncate">
+                              {p.deliveriesSummary.issues > 0 ? (
+                                <span className="text-rose-600 font-medium">{p.deliveriesSummary.issues} issues reported</span>
+                              ) : (
+                                <span className="text-emerald-600 font-medium">All verified good</span>
+                              )}
+                            </div>
+                            {Boolean(p.deliveriesSummary.totalQuantity) ? (
+                              <div className="text-[10px] text-blue-700 dark:text-blue-400 font-medium">
+                                Received: {p.deliveriesSummary.totalQuantity} units
+                              </div>
+                            ) : (
+                              <div className="text-[10px] text-muted-foreground truncate">
+                                {p.deliveriesSummary.latestDate
+                                  ? new Date(p.deliveriesSummary.latestDate).toLocaleDateString('en-GB')
+                                  : 'No gate logs yet'}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* 8. Delivery Fulfillment Progress Bar */}
+                        {p.purchasedSummary.totalPOs > 0 && (
+                          <div className="space-y-1 pt-1">
+                            <div className="flex justify-between items-center text-[10px] text-muted-foreground">
+                              <span>Delivery Fulfillment</span>
+                              <span className="font-semibold text-foreground font-mono">
+                                {p.materialsComparison?.deliveryPercent || 0}%
+                              </span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all duration-300 ${
+                                  (p.materialsComparison?.deliveryPercent || 0) >= 100
+                                    ? 'bg-emerald-600'
+                                    : (p.materialsComparison?.deliveryPercent || 0) > 0
+                                    ? 'bg-purple-600'
+                                    : 'bg-muted-foreground/30'
+                                }`}
+                                style={{
+                                  width: `${Math.min(100, Math.max(0, p.materialsComparison?.deliveryPercent || 0))}%`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Action Buttons */}
@@ -886,14 +1024,14 @@ export default function SiteEngineerProjectsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40 border-b">
-                      <TableHead className="w-[240px] font-semibold text-foreground py-3">Site / Client</TableHead>
-                      <TableHead className="w-[180px] font-semibold text-foreground py-3">Location &amp; Phone</TableHead>
-                      <TableHead className="w-[140px] font-semibold text-foreground py-3 text-right">Agreement Value</TableHead>
-                      <TableHead className="w-[240px] font-semibold text-foreground py-3">Assigned Site Engineer(s)</TableHead>
-                      <TableHead className="w-[130px] font-semibold text-foreground py-3 text-center">Deliveries</TableHead>
-                      <TableHead className="w-[140px] font-semibold text-foreground py-3 text-center">Purchased POs</TableHead>
-                      <TableHead className="w-[120px] font-semibold text-foreground py-3 text-center">Scope Progress</TableHead>
-                      <TableHead className="w-[160px] font-semibold text-foreground py-3 text-right">Actions</TableHead>
+                      <TableHead className="w-[230px] font-semibold text-foreground py-3">Client &amp; Site</TableHead>
+                      <TableHead className="w-[180px] font-semibold text-foreground py-3">Address &amp; Phone</TableHead>
+                      <TableHead className="w-[130px] font-semibold text-foreground py-3 text-right">Agreement Budget</TableHead>
+                      <TableHead className="w-[230px] font-semibold text-foreground py-3">Site Engineer(s)</TableHead>
+                      <TableHead className="w-[180px] font-semibold text-foreground py-3">Execution &amp; Products</TableHead>
+                      <TableHead className="w-[150px] font-semibold text-foreground py-3 text-center">Completed POs</TableHead>
+                      <TableHead className="w-[160px] font-semibold text-foreground py-3 text-center">Material Deliveries</TableHead>
+                      <TableHead className="w-[120px] font-semibold text-foreground py-3 text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -907,7 +1045,7 @@ export default function SiteEngineerProjectsPage() {
 
                       return (
                         <TableRow key={p.id} className="hover:bg-muted/30">
-                          {/* Site / Client */}
+                          {/* 1. Client Name & Stage */}
                           <TableCell className="align-top py-3.5">
                             <div>
                               <Link
@@ -930,37 +1068,41 @@ export default function SiteEngineerProjectsPage() {
                             </div>
                           </TableCell>
 
-                          {/* Location & Phone */}
+                          {/* 1. Address & Phone */}
                           <TableCell className="align-top py-3.5 text-xs text-muted-foreground">
-                            <div>
+                            <div className="space-y-1">
                               <div className="flex items-center gap-1">
-                                <MapPin className="w-3 h-3 shrink-0" />
-                                <span className="truncate max-w-[170px]">{p.location || 'N/A'}</span>
+                                <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                <span className="truncate max-w-[170px]">{p.location || 'Address not specified'}</span>
                               </div>
-                              {p.phone && (
-                                <div className="flex items-center gap-1 mt-1 font-mono">
-                                  <Phone className="w-3 h-3 shrink-0" />
-                                  <span>{p.phone}</span>
-                                </div>
-                              )}
+                              <div className="flex items-center gap-1 font-mono">
+                                <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                {p.phone ? (
+                                  <a href={`tel:${p.phone}`} className="hover:underline font-semibold text-foreground">
+                                    {p.phone}
+                                  </a>
+                                ) : (
+                                  <span className="text-muted-foreground/60 italic text-[11px]">N/A</span>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
 
-                          {/* Agreement Value */}
-                          <TableCell className="align-top py-3.5 text-right font-mono font-semibold text-xs text-emerald-600 dark:text-emerald-400">
-                            {formatCurrency(p.agreementValue)}
+                          {/* 2. Agreement Budget */}
+                          <TableCell className="align-top py-3.5 text-right font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                            {formatCurrency(p.agreementValue || p.budget)}
                           </TableCell>
 
-                          {/* Assigned Site Engineers */}
+                          {/* 3. Site Engineers & 4. Add Site Engineers Button */}
                           <TableCell className="align-top py-3.5">
-                            <div className="space-y-1">
+                            <div className="space-y-1.5">
                               {hasEngineer ? (
                                 <div className="flex flex-wrap gap-1 items-center">
                                   {assignedEngs.map((eng) => (
                                     <Badge
                                       key={eng.id}
                                       variant="secondary"
-                                      className="text-[11px] py-0.5 px-2 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 font-medium"
+                                      className="text-[10px] py-0.5 px-1.5 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 font-medium"
                                     >
                                       {eng.fullName}
                                     </Badge>
@@ -970,15 +1112,15 @@ export default function SiteEngineerProjectsPage() {
                                       size="sm"
                                       variant="ghost"
                                       onClick={() => handleOpenAssignModal(p)}
-                                      className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                                      className="h-5 px-1 text-[10px] text-blue-700 dark:text-blue-300 hover:text-foreground"
                                     >
-                                      Manage
+                                      + Add
                                     </Button>
                                   )}
                                 </div>
                               ) : (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">
                                     Unassigned
                                   </span>
                                   {canManageAssignments && (
@@ -986,9 +1128,9 @@ export default function SiteEngineerProjectsPage() {
                                       size="sm"
                                       variant="outline"
                                       onClick={() => handleOpenAssignModal(p)}
-                                      className="h-6 px-2 text-[11px] border-amber-500/50 text-amber-700 hover:bg-amber-50"
+                                      className="h-5 px-1.5 text-[10px] border-amber-500/50 text-amber-700 hover:bg-amber-50"
                                     >
-                                      Assign
+                                      <UserPlus className="w-2.5 h-2.5 mr-0.5" /> Add
                                     </Button>
                                   )}
                                 </div>
@@ -996,32 +1138,62 @@ export default function SiteEngineerProjectsPage() {
                             </div>
                           </TableCell>
 
-                          {/* Deliveries */}
-                          <TableCell className="align-top py-3.5 text-center text-xs">
-                            <span className="font-bold text-foreground">{p.deliveriesSummary.total}</span>
-                            {p.deliveriesSummary.issues > 0 ? (
-                              <span className="text-[10px] text-destructive block">
-                                {p.deliveriesSummary.issues} issues
-                              </span>
-                            ) : null}
+                          {/* 5. Progress Bar & 6. Number of Quotation Products */}
+                          <TableCell className="align-top py-3.5">
+                            <div className="space-y-1 min-w-[140px]">
+                              <div className="flex justify-between items-center text-[11px]">
+                                <span className="font-semibold text-blue-600">{p.scopeProgress.percent}%</span>
+                                <span className="text-[10px] text-muted-foreground">
+                                  {p.scopeProgress.completed}/{p.quotationProductsCount || p.scopeProgress.total} products
+                                </span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-300 ${
+                                    p.scopeProgress.percent === 100
+                                      ? 'bg-emerald-600'
+                                      : p.scopeProgress.percent > 50
+                                      ? 'bg-blue-600'
+                                      : 'bg-amber-500'
+                                  }`}
+                                  style={{ width: `${Math.min(100, Math.max(0, p.scopeProgress.percent))}%` }}
+                                />
+                              </div>
+                            </div>
                           </TableCell>
 
-                          {/* Purchased POs */}
+                          {/* 7. Number of Purchase Orders Completed */}
                           <TableCell className="align-top py-3.5 text-center text-xs">
-                            <span className="font-bold text-foreground">
-                              {p.purchasedSummary.approvedPOs} POs
-                            </span>
+                            <div className="font-bold text-foreground">
+                              <span className="text-emerald-600">{p.purchasedSummary.completedPOs || 0}</span>
+                              <span className="text-muted-foreground font-normal"> / {p.purchasedSummary.totalPOs} Done</span>
+                            </div>
                             <span className="text-[10px] text-muted-foreground block font-mono">
                               {formatCurrency(p.purchasedSummary.totalAmount)}
                             </span>
                           </TableCell>
 
-                          {/* Scope Progress */}
+                          {/* 8. Comparison: Purchased vs Delivered */}
                           <TableCell className="align-top py-3.5 text-center text-xs">
-                            <span className="font-bold text-blue-600">{p.scopeProgress.percent}%</span>
-                            <span className="text-[10px] text-muted-foreground block">
-                              {p.scopeProgress.completed}/{p.scopeProgress.total} items
-                            </span>
+                            <div>
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] py-0 px-1 font-semibold ${
+                                  p.materialsComparison?.status === 'FULLY_DELIVERED'
+                                    ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                                    : p.materialsComparison?.status === 'PARTIALLY_DELIVERED'
+                                    ? 'border-blue-300 bg-blue-50 text-blue-800'
+                                    : p.materialsComparison?.status === 'AWAITING_DELIVERY'
+                                    ? 'border-amber-300 bg-amber-50 text-amber-800'
+                                    : 'border-muted text-muted-foreground'
+                                }`}
+                              >
+                                {p.materialsComparison?.label || `${p.deliveriesSummary.total} Deliveries`}
+                              </Badge>
+                              <span className="text-[10px] text-muted-foreground block mt-0.5">
+                                {p.deliveriesSummary.total} deliveries logged
+                              </span>
+                            </div>
                           </TableCell>
 
                           {/* Actions */}

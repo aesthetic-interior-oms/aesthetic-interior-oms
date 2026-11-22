@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { LeadSiteWorkRequestStatus } from '@/generated/prisma/client'
+import { LeadSiteWorkRequestStatus, NotificationType } from '@/generated/prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -214,7 +214,7 @@ export async function POST(request: NextRequest) {
           data: pcUsers.map((pc) => ({
             userId: pc.id,
             leadId,
-            type: 'LEAD_ASSIGNED_TO_YOU',
+            type: NotificationType.LEAD_ASSIGNED_TO_YOU,
             title: 'New Site Work Request',
             message: `${siteWorkRequest.requestedBy.fullName} requested to start site work for ${lead.name}.`,
             scheduledFor: new Date(),

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { LeadAssignmentDepartment, LeadSiteWorkRequestStatus } from '@/generated/prisma/client'
+import { LeadAssignmentDepartment, LeadSiteWorkRequestStatus, NotificationType } from '@/generated/prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -98,7 +98,7 @@ export async function PATCH(
           data: {
             userId: existingRequest.requestedById,
             leadId: existingRequest.leadId,
-            type: 'LEAD_STAGE_CHANGED',
+            type: NotificationType.LEAD_ASSIGNED_TO_YOU,
             title: 'Site Work Request Rejected',
             message: `Project Coordinator declined site work for ${existingRequest.lead.name}: "${reasonTrimmed}"`,
             scheduledFor: now,
@@ -193,7 +193,7 @@ export async function PATCH(
         data: {
           userId: existingRequest.requestedById,
           leadId: existingRequest.leadId,
-          type: 'LEAD_STAGE_CHANGED',
+          type: NotificationType.LEAD_ASSIGNED_TO_YOU,
           title: 'Site Work Accepted',
           message: `Site work request for ${existingRequest.lead.name} was accepted by Project Coordinator.`,
           scheduledFor: now,
