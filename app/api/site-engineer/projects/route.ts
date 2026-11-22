@@ -197,6 +197,12 @@ export async function GET(request: NextRequest) {
             orderBy: { fullName: 'asc' },
           })
         : Promise.resolve([]),
+      // Fetch count of pending site work requests
+      prisma.leadSiteWorkRequest.count({
+        where: {
+          status: 'PENDING',
+        },
+      }),
     ])
 
     // Format site engineers with active project counts
