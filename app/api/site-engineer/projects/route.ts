@@ -171,6 +171,7 @@ export async function GET(request: NextRequest) {
           quotationDrafts: {
             select: {
               id: true,
+              projectSqft: true,
               content: true,
             },
             orderBy: { updatedAt: 'desc' },
@@ -346,7 +347,7 @@ export async function GET(request: NextRequest) {
         subStatus: lead.subStatus,
         agreementType: lead.agreementType,
         agreementValue: lead.agreementValue,
-        agreementSqft: lead.agreementSqft || (activeDraft?.projectSqft as number | undefined) || null,
+        agreementSqft: lead.agreementSqft || (activeDraft as { projectSqft?: number | null } | undefined)?.projectSqft || null,
         budget: lead.budget,
         created_at: lead.created_at,
         isSiteWorkActive: Boolean(lead.isSiteWorkActive),
