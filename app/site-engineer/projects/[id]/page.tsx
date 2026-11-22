@@ -242,10 +242,14 @@ export default function SiteEngineerProjectDetailPage() {
     fetchProjectData()
   }, [fetchProjectData])
 
-  // Select active quotation draft (latest active or first)
+  // Select active quotation draft:
+  // Prefer 'detail:*' draft (has lineItems/sections/areas) over 'short:*' package drafts.
+  // Within the same type, pick the most recently updated one.
   const activeDraft = useMemo(() => {
     if (!lead?.quotationDrafts || lead.quotationDrafts.length === 0) return null
-    return lead.quotationDrafts[0]
+    // Prefer any draft whose draftKey starts with 'detail'
+    const detailDraft = lead.quotationDrafts.find((d) => d.draftKey?.startsWith('detail'))
+    return detailDraft ?? lead.quotationDrafts[0]
   }, [lead])
 
   // Extract content object
