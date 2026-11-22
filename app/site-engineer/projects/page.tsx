@@ -74,6 +74,7 @@ type ProjectSite = {
   subStatus: string | null
   agreementType: string | null
   agreementValue: number | null
+  agreementSqft?: number | null
   budget?: number | null
   created_at: string
   isSiteWorkActive?: boolean
@@ -590,14 +591,20 @@ export default function SiteEngineerProjectsPage() {
 
         <Card className="p-4 bg-card border-border hover:border-purple-500/40 transition">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Purchased &amp; Delivered</span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {canManageAssignments ? 'Purchased & Delivered' : 'Gate Deliveries Logged'}
+            </span>
             <ShoppingCart className="w-4 h-4 text-purple-600" />
           </div>
           <div className="text-xl sm:text-2xl font-bold mt-1 text-foreground truncate">
-            {formatCurrency(stats.totalPurchased)}
+            {canManageAssignments
+              ? formatCurrency(stats.totalPurchased)
+              : `${stats.totalDeliveries} Deliveries`}
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            {stats.totalDeliveries} site deliveries logged
+            {canManageAssignments
+              ? 'Procured materials value across sites'
+              : `${stats.totalDeliveries} site deliveries logged`}
           </p>
         </Card>
       </div>
@@ -764,16 +771,28 @@ export default function SiteEngineerProjectsPage() {
                         </div>
                       </div>
 
-                      {/* 2. Agreement Budget Highlight Banner */}
-                      <div className="flex items-center justify-between gap-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-lg px-2.5 py-1.5">
-                        <span className="text-[11px] font-semibold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                          <span>Agreement Budget</span>
-                        </span>
-                        <span className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
-                          {formatCurrency(p.agreementValue || p.budget)}
-                        </span>
-                      </div>
+                      {/* 2. Agreement Budget or Scope / Sqft Highlight Banner */}
+                      {canManageAssignments ? (
+                        <div className="flex items-center justify-between gap-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-lg px-2.5 py-1.5">
+                          <span className="text-[11px] font-semibold text-emerald-900 dark:text-emerald-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <Building2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span>Agreement Budget</span>
+                          </span>
+                          <span className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">
+                            {formatCurrency(p.agreementValue || p.budget)}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-2 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 rounded-lg px-2.5 py-1.5">
+                          <span className="text-[11px] font-semibold text-blue-900 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
+                            <Building2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                            <span>Project Scope Area</span>
+                          </span>
+                          <span className="font-mono font-bold text-sm text-blue-700 dark:text-blue-400">
+                            {p.agreementSqft ? `${p.agreementSqft.toLocaleString()} sqft` : `${p.quotationProductsCount || 0} Work Items`}
+                          </span>
+                        </div>
+                      )}
                     </CardHeader>
 
                     <CardContent className="space-y-3.5 pt-3 pb-4">
@@ -908,7 +927,8 @@ export default function SiteEngineerProjectsPage() {
                               <span className="text-muted-foreground font-normal"> / {p.purchasedSummary.totalPOs} POs Done</span>
                             </div>
                             <div className="text-[10px] text-muted-foreground truncate">
-                              Approved: {p.purchasedSummary.approvedPOs} • {formatCurrency(p.purchasedSummary.totalAmount)}
+                              Approved: {p.purchasedSummary.approvedPOs} POs
+                              {canManageAssignments ? ` • ${formatCurrency(p.purchasedSummary.totalAmount)}` : ''}
                             </div>
                             {Boolean(p.purchasedSummary.totalQuantity) && (
                               <div className="text-[10px] text-purple-700 dark:text-purple-400 font-medium">
@@ -1013,7 +1033,9 @@ export default function SiteEngineerProjectsPage() {
                     <TableRow className="bg-muted/40 border-b">
                       <TableHead className="w-[230px] font-semibold text-foreground py-3">Client &amp; Site</TableHead>
                       <TableHead className="w-[180px] font-semibold text-foreground py-3">Address &amp; Phone</TableHead>
-                      <TableHead className="w-[130px] font-semibold text-foreground py-3 text-right">Agreement Budget</TableHead>
+                      <TableHead className="w-[130px] font-semibold text-foreground py-3 text-right">
+                        {canManageAssignments ? 'Agreement Budget' : 'Project Sqft / Scope'}
+                      </TableHead>
                       <TableHead className="w-[230px] font-semibold text-foreground py-3">Site Engineer(s)</TableHead>
                       <TableHead className="w-[180px] font-semibold text-foreground py-3">Execution &amp; Products</TableHead>
                       <TableHead className="w-[150px] font-semibold text-foreground py-3 text-center">Completed POs</TableHead>
@@ -1075,9 +1097,17 @@ export default function SiteEngineerProjectsPage() {
                             </div>
                           </TableCell>
 
-                          {/* 2. Agreement Budget */}
-                          <TableCell className="align-top py-3.5 text-right font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
-                            {formatCurrency(p.agreementValue || p.budget)}
+                          {/* 2. Agreement Budget or Project Sqft */}
+                          <TableCell className="align-top py-3.5 text-right font-mono font-bold text-xs text-foreground">
+                            {canManageAssignments ? (
+                              <span className="text-emerald-600 dark:text-emerald-400">
+                                {formatCurrency(p.agreementValue || p.budget)}
+                              </span>
+                            ) : (
+                              <span className="text-blue-600 dark:text-blue-400">
+                                {p.agreementSqft ? `${p.agreementSqft.toLocaleString()} sqft` : `${p.quotationProductsCount || 0} items`}
+                              </span>
+                            )}
                           </TableCell>
 
                           {/* 3. Site Engineers & 4. Add Site Engineers Button */}
@@ -1156,7 +1186,9 @@ export default function SiteEngineerProjectsPage() {
                               <span className="text-muted-foreground font-normal"> / {p.purchasedSummary.totalPOs} Done</span>
                             </div>
                             <span className="text-[10px] text-muted-foreground block font-mono">
-                              {formatCurrency(p.purchasedSummary.totalAmount)}
+                              {canManageAssignments
+                                ? formatCurrency(p.purchasedSummary.totalAmount)
+                                : `${p.purchasedSummary.approvedPOs} Approved POs`}
                             </span>
                           </TableCell>
 
@@ -1318,7 +1350,7 @@ export default function SiteEngineerProjectsPage() {
                           >
                             {req.status}
                           </Badge>
-                          {req.lead?.agreementValue ? (
+                          {canManageAssignments && req.lead?.agreementValue ? (
                             <span className="text-xs font-mono font-bold text-emerald-600">
                               {formatCurrency(req.lead.agreementValue)}
                             </span>
@@ -1518,12 +1550,14 @@ export default function SiteEngineerProjectsPage() {
                 <span className="text-muted-foreground">Location:</span>
                 <span className="font-semibold text-foreground">{acceptingRequest?.lead.location || 'N/A'}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Agreement Value:</span>
-                <span className="font-mono font-bold text-emerald-600">
-                  {formatCurrency(acceptingRequest?.lead.agreementValue)}
-                </span>
-              </div>
+              {canManageAssignments && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Agreement Value:</span>
+                  <span className="font-mono font-bold text-emerald-600">
+                    {formatCurrency(acceptingRequest?.lead.agreementValue)}
+                  </span>
+                </div>
+              )}
               {acceptingRequest?.note && (
                 <div className="pt-1 mt-1 border-t text-muted-foreground italic">
                   &ldquo;{acceptingRequest.note}&rdquo;
