@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import {
   AlertCircle,
   AlertTriangle,
@@ -720,11 +721,13 @@ function AgreementEditModal({
 export function AgreementLeadsBoard({
   title = 'Agreement Leads',
   subtitle = 'Confirmed agreements with quotation totals, discounts, settled values, and detail quotation downloads.',
+  editorBasePath,
 }: {
   title?: string
   subtitle?: string
   editorBasePath?: string
 }) {
+  const pathname = usePathname()
   const [leads, setLeads] = useState<AgreementLead[]>([])
   const [staff, setStaff] = useState<Staff[]>([])
   const [quotationStaff, setQuotationStaff] = useState<Staff[]>([])
@@ -827,7 +830,9 @@ export function AgreementLeadsBoard({
               d.toUpperCase().includes('PROJECT_COORDINATOR') ||
               d.toUpperCase().includes('PROJECT_CORDINATOR'),
           ) || roleNames.some((r) => r.toUpperCase().includes('PROJECT_COORDINATOR'))
-        const isPcPath = Boolean(editorBasePath?.includes('/crm/pc'))
+        const isPcPath = Boolean(
+          editorBasePath?.includes('/crm/pc') || pathname?.includes('/crm/pc'),
+        )
         if (active) {
           setCanAssignBoq(isAdmin || isSrCrm || isBoqLeader || isPc)
           setCanRequestSiteWork((isAdmin || isSrCrm) && !isPcPath)
