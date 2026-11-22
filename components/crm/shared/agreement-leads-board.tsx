@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
+  AlertTriangle,
   Check,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleDollarSign,
+  Clock,
   Compass,
   Download,
   ExternalLink,
@@ -17,6 +19,7 @@ import {
   FileSpreadsheet,
   FileText,
   GitBranch,
+  HardHat,
   Loader2,
   MapPin,
   Phone,
@@ -28,6 +31,7 @@ import {
   UserRound,
   Users,
   X,
+  XCircle,
 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { CrmPageHeader } from '@/components/crm/shared/page-header'
@@ -103,6 +107,19 @@ type AgreementLead = {
   boqAssignee: Staff | null
   pcAssignee?: Staff | null
   siteEngineerAssignee?: Staff | null
+  siteEngineerAssignees?: Staff[]
+  isSiteWorkActive?: boolean
+  siteWorkStartedAt?: string | null
+  latestSiteWorkRequest?: {
+    id: string
+    status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
+    note: string | null
+    rejectionReason: string | null
+    createdAt: string
+    reviewedAt: string | null
+    requestedBy?: Staff | null
+    reviewedBy?: Staff | null
+  } | null
   quotationAssignee?: Staff | null
   quotationVersionsCount?: number
   quotationSubmissions?: QuotationSubmission[]
@@ -737,6 +754,14 @@ export function AgreementLeadsBoard({
   const [revisionNote, setRevisionNote] = useState('')
   const [savingRevision, setSavingRevision] = useState(false)
 
+  // Site Work Request Dialog state
+  const [siteWorkRequestLead, setSiteWorkRequestLead] = useState<AgreementLead | null>(null)
+  const [siteWorkNote, setSiteWorkNote] = useState('')
+  const [submittingSiteWork, setSubmittingSiteWork] = useState(false)
+
+  // Rejection Reason Modal State
+  const [viewingRejectionLead, setViewingRejectionLead] = useState<AgreementLead | null>(null)
+
   const editingLead = useMemo(() => leads.find((l) => l.id === editingLeadId) ?? null, [leads, editingLeadId])
 
   const scrollTable = useCallback((direction: 'left' | 'right') => {
@@ -888,6 +913,33 @@ export function AgreementLeadsBoard({
       toast.error(error instanceof Error ? error.message : 'Failed to request revision')
     } finally {
       setSavingRevision(false)
+    }
+  }
+
+  const submitSiteWorkRequest = async () => {
+    if (!siteWorkRequestLead) return
+    setSubmittingSiteWork(true)
+    try {
+      const response = await fetch('/api/site-engineer/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: siteWorkRequestLead.id,
+          note: siteWorkNote.trim() || undefined,
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error ?? 'Failed to submit site work request')
+      }
+      toast.success(`Site work requested for ${siteWorkRequestLead.name}`)
+      setSiteWorkRequestLead(null)
+      setSiteWorkNote('')
+      await loadLeads()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to request site work')
+    } finally {
+      setSubmittingSiteWork(false)
     }
   }
 
@@ -1272,6 +1324,7 @@ export function AgreementLeadsBoard({
                       <TableHead className="w-[220px] font-semibold text-foreground py-3">BOQ Staff Assignment</TableHead>
                     )}
                     <TableHead className="w-[200px] font-semibold text-foreground py-3">Quotation Revisions</TableHead>
+                    <TableHead className="w-[190px] font-semibold text-foreground py-3">Site Work</TableHead>
                     <TableHead className="w-[170px] text-right font-semibold text-foreground py-3">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1502,6 +1555,90 @@ export function AgreementLeadsBoard({
                                 Request Revision
                               </Button>
                             </div>
+                          </div>
+                        </TableCell>
+
+                        {/* 7c. Site Work Execution */}
+                        <TableCell className="align-top py-3.5">
+                          <div className="space-y-1.5 min-w-[170px]">
+                            {lead.isSiteWorkActive ? (
+                              <div className="space-y-1">
+                                <Badge className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-[11px] font-semibold">
+                                  <HardHat className="h-3 w-3" />
+                                  Site Work Active
+                                </Badge>
+                                {lead.siteEngineerAssignees && lead.siteEngineerAssignees.length > 0 ? (
+                                  <div className="text-[11px] text-muted-foreground leading-tight">
+                                    <span className="font-medium text-foreground">SE: </span>
+                                    {lead.siteEngineerAssignees.map((se) => se.fullName).join(', ')}
+                                  </div>
+                                ) : lead.siteEngineerAssignee ? (
+                                  <div className="text-[11px] text-muted-foreground leading-tight">
+                                    <span className="font-medium text-foreground">SE: </span>
+                                    {lead.siteEngineerAssignee.fullName}
+                                  </div>
+                                ) : (
+                                  <div className="text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
+                                    <AlertCircle className="h-3 w-3" />
+                                    <span>Pending SE Assignment</span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : lead.latestSiteWorkRequest?.status === 'PENDING' ? (
+                              <div className="space-y-1">
+                                <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 gap-1 text-[11px] font-semibold">
+                                  <Clock className="h-3 w-3" />
+                                  Pending PC Review
+                                </Badge>
+                                <p className="text-[10px] text-muted-foreground">
+                                  Requested {new Date(lead.latestSiteWorkRequest.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                            ) : lead.latestSiteWorkRequest?.status === 'REJECTED' ? (
+                              <div className="space-y-1">
+                                <Badge variant="outline" className="border-red-400 bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300 gap-1 text-[11px] font-semibold">
+                                  <XCircle className="h-3 w-3" />
+                                  Site Work Declined
+                                </Badge>
+                                <div className="flex items-center gap-1 text-[11px]">
+                                  <Button
+                                    size="sm"
+                                    variant="link"
+                                    onClick={() => setViewingRejectionLead(lead)}
+                                    className="h-auto p-0 text-[11px] text-red-600 dark:text-red-400 font-medium underline"
+                                  >
+                                    View Reason
+                                  </Button>
+                                  <span className="text-muted-foreground">•</span>
+                                  <Button
+                                    size="sm"
+                                    variant="link"
+                                    onClick={() => {
+                                      setSiteWorkRequestLead(lead)
+                                      setSiteWorkNote('')
+                                    }}
+                                    className="h-auto p-0 text-[11px] text-blue-600 dark:text-blue-400 font-medium underline"
+                                  >
+                                    Re-request
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSiteWorkRequestLead(lead)
+                                    setSiteWorkNote('')
+                                  }}
+                                  className="h-7 px-2.5 text-xs font-semibold border-blue-300 text-blue-800 bg-blue-50/70 hover:bg-blue-100 dark:border-blue-800 dark:text-blue-300 dark:bg-blue-950/40"
+                                >
+                                  <HardHat className="h-3.5 w-3.5 mr-1 text-blue-600" />
+                                  Request Site Work
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         </TableCell>
 
@@ -1811,6 +1948,144 @@ export function AgreementLeadsBoard({
           <DialogFooter className="px-6 py-3 border-t border-border bg-muted/20">
             <Button variant="outline" onClick={() => setViewingRevisionsLead(null)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── REQUEST SITE WORK MODAL ─────────────────────────────── */}
+      <Dialog
+        open={Boolean(siteWorkRequestLead)}
+        onOpenChange={(open) => {
+          if (!open && !submittingSiteWork) {
+            setSiteWorkRequestLead(null)
+            setSiteWorkNote('')
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold">
+              <HardHat className="h-5 w-5 text-blue-600" />
+              Request to Start Site Work
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Send a request to the Project Coordinator to initiate physical site mobilization for{' '}
+              <strong>{siteWorkRequestLead?.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="bg-muted/40 p-3 rounded-lg border space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Location:</span>
+                <span className="font-medium text-foreground">{siteWorkRequestLead?.location || 'Not specified'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Agreement Value:</span>
+                <span className="font-medium text-emerald-600 font-mono">
+                  {formatMoney(siteWorkRequestLead?.settledAgreementValue)}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Site Readiness Notes (optional)
+              </label>
+              <Textarea
+                rows={3}
+                value={siteWorkNote}
+                onChange={(e) => setSiteWorkNote(e.target.value)}
+                placeholder="e.g. Client handed over site keys, civil clearance received, ready for material delivery & site engineer assignment..."
+                disabled={submittingSiteWork}
+                className="text-sm resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setSiteWorkRequestLead(null)
+                setSiteWorkNote('')
+              }}
+              disabled={submittingSiteWork}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => void submitSiteWorkRequest()}
+              disabled={submittingSiteWork}
+            >
+              {submittingSiteWork ? (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              ) : (
+                <HardHat className="h-4 w-4 mr-1.5" />
+              )}
+              Send Request to PC
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── VIEW REJECTION REASON MODAL ─────────────────────────── */}
+      <Dialog
+        open={Boolean(viewingRejectionLead)}
+        onOpenChange={(open) => {
+          if (!open) setViewingRejectionLead(null)
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base font-bold text-red-600 dark:text-red-400">
+              <AlertTriangle className="h-5 w-5" />
+              Site Work Request Declined
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Project Coordinator feedback for <strong>{viewingRejectionLead?.name}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/60 p-3.5 rounded-lg text-xs space-y-2">
+              <span className="font-semibold text-red-800 dark:text-red-300 block">
+                Reason for Rejection:
+              </span>
+              <p className="text-red-900 dark:text-red-200 whitespace-pre-wrap leading-relaxed">
+                {viewingRejectionLead?.latestSiteWorkRequest?.rejectionReason || 'No detailed reason provided.'}
+              </p>
+            </div>
+
+            {viewingRejectionLead?.latestSiteWorkRequest?.reviewedBy && (
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground px-1">
+                <span>Reviewed by: {viewingRejectionLead.latestSiteWorkRequest.reviewedBy.fullName}</span>
+                {viewingRejectionLead.latestSiteWorkRequest.reviewedAt && (
+                  <span>{new Date(viewingRejectionLead.latestSiteWorkRequest.reviewedAt).toLocaleDateString()}</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setViewingRejectionLead(null)}>
+              Close
+            </Button>
+            <Button
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => {
+                const lead = viewingRejectionLead
+                setViewingRejectionLead(null)
+                if (lead) {
+                  setSiteWorkRequestLead(lead)
+                  setSiteWorkNote('')
+                }
+              }}
+            >
+              <HardHat className="h-4 w-4 mr-1.5" />
+              Re-request Site Work
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -30,6 +30,19 @@ export async function GET(request: NextRequest) {
     const canManageAssignments = isAdmin || isPc || isSrCrm
     const isSiteEngineerLeaderOrAdmin = isAdmin || isPc
 
+    const { searchParams } = new URL(request.url)
+    const scopeParam = searchParams.get('scope') // 'ongoing' (default), 'all'
+
+    // Ongoing sites: site work started / active OR accepted request OR in execution
+    const ongoingCondition = {
+      OR: [
+        { isSiteWorkActive: true },
+        { siteWorkRequests: { some: { status: 'ACCEPTED' as const } } },
+        { stage: { in: [LeadStage.SITE_EXECUTION, LeadStage.QUALITY_CHECK, LeadStage.HANDOVER] } },
+        { siteDeliveryLogs: { some: {} } },
+      ],
+    }
+
     // Filter strictly for Agreement Done / Production Ready projects
     const agreementFilter = {
       stage: {
@@ -56,6 +69,7 @@ export async function GET(request: NextRequest) {
 
     const where = {
       ...agreementFilter,
+      ...(scopeParam === 'all' ? {} : ongoingCondition),
       ...(!isSiteEngineerLeaderOrAdmin
         ? {
             assignments: {
@@ -69,7 +83,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch projects with related assignments, deliveries, POs, and quotation drafts
-    const [leads, siteEngineersList] = await Promise.all([
+    const [leads, siteEngineersList, pendingRequestsCount] = await Promise.all([
       prisma.lead.findMany({
         where,
         select: {
@@ -82,6 +96,18 @@ export async function GET(request: NextRequest) {
           agreementType: true,
           agreementValue: true,
           created_at: true,
+          isSiteWorkActive: true,
+          siteWorkStartedAt: true,
+          siteWorkRequests: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              status: true,
+              note: true,
+              createdAt: true,
+            },
+          },
           assignments: {
             where: {
               department: {
@@ -189,9 +215,11 @@ export async function GET(request: NextRequest) {
     let inExecutionCount = 0
 
     const projects = leads.map((lead) => {
-      const siteEngAssignment = lead.assignments.find(
+      const siteEngAssignments = lead.assignments.filter(
         (a) => a.department === LeadAssignmentDepartment.SITE_ENGINEER,
       )
+      const assignedSiteEngineers = siteEngAssignments.map((a) => a.user)
+      const siteEngAssignment = siteEngAssignments[0] || null
       const pcAssignment = lead.assignments.find(
         (a) => a.department === LeadAssignmentDepartment.PROJECT_COORDINATOR,
       )
@@ -199,7 +227,7 @@ export async function GET(request: NextRequest) {
         (a) => a.department === LeadAssignmentDepartment.SR_CRM,
       )
 
-      if (!siteEngAssignment) {
+      if (assignedSiteEngineers.length === 0) {
         unassignedCount++
       }
       if (lead.stage === LeadStage.SITE_EXECUTION) {
@@ -245,7 +273,11 @@ export async function GET(request: NextRequest) {
         agreementType: lead.agreementType,
         agreementValue: lead.agreementValue,
         created_at: lead.created_at,
+        isSiteWorkActive: Boolean(lead.isSiteWorkActive),
+        siteWorkStartedAt: lead.siteWorkStartedAt,
+        latestSiteWorkRequest: lead.siteWorkRequests?.[0] || null,
         assignedSiteEngineer: siteEngAssignment?.user || null,
+        assignedSiteEngineers,
         assignedProjectCoordinator: pcAssignment?.user || null,
         assignedSrCrm: srCrmAssignment?.user || null,
         deliveriesSummary: {
@@ -276,6 +308,7 @@ export async function GET(request: NextRequest) {
           inExecutionCount,
           totalDeliveries,
           totalPurchased,
+          pendingRequestsCount,
         },
         siteEngineers,
         canManageAssignments,

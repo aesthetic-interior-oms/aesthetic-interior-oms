@@ -12,21 +12,26 @@ import {
   Loader2,
   UserCheck,
   UserPlus,
-  UserX,
   ShoppingCart,
   CheckCircle2,
   AlertTriangle,
   Building2,
-  Filter,
   ArrowUpRight,
-  ShieldCheck,
-  Boxes,
   ClipboardList,
+  LayoutGrid,
+  List,
+  Clock,
+  XCircle,
+  HardHat,
+  MessageSquare,
+  Check,
+  Users,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -42,6 +47,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { toast } from 'sonner'
 
 type SiteEngineerUser = {
@@ -62,7 +75,16 @@ type ProjectSite = {
   agreementType: string | null
   agreementValue: number | null
   created_at: string
+  isSiteWorkActive?: boolean
+  siteWorkStartedAt?: string | null
+  latestSiteWorkRequest?: {
+    id: string
+    status: string
+    note: string | null
+    createdAt: string
+  } | null
   assignedSiteEngineer: SiteEngineerUser | null
+  assignedSiteEngineers?: SiteEngineerUser[]
   assignedProjectCoordinator: { id: string; fullName: string } | null
   assignedSrCrm: { id: string; fullName: string } | null
   deliveriesSummary: {
@@ -82,15 +104,48 @@ type ProjectSite = {
   }
 }
 
+type SiteWorkRequestItem = {
+  id: string
+  leadId: string
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED'
+  note: string | null
+  rejectionReason: string | null
+  createdAt: string
+  reviewedAt: string | null
+  lead: {
+    id: string
+    name: string
+    phone: string | null
+    email: string | null
+    location: string | null
+    stage: string
+    subStatus: string | null
+    agreementType: string | null
+    agreementValue: number | null
+    isSiteWorkActive: boolean
+    assignments?: Array<{
+      department: string
+      user: { id: string; fullName: string; email: string }
+    }>
+  }
+  requestedBy: { id: string; fullName: string; email: string }
+  reviewedBy: { id: string; fullName: string; email: string } | null
+}
+
 type Stats = {
   totalProjects: number
   unassignedCount: number
   inExecutionCount: number
   totalDeliveries: number
   totalPurchased: number
+  pendingRequestsCount?: number
 }
 
 export default function SiteEngineerProjectsPage() {
+  const [activeMainTab, setActiveMainTab] = useState<'ONGOING' | 'REQUESTS' | 'ALL'>('ONGOING')
+  const [viewMode, setViewMode] = useState<'CARDS' | 'LIST'>('CARDS')
+
+  // Projects State
   const [projects, setProjects] = useState<ProjectSite[]>([])
   const [siteEngineers, setSiteEngineers] = useState<SiteEngineerUser[]>([])
   const [canManageAssignments, setCanManageAssignments] = useState(false)
@@ -100,34 +155,55 @@ export default function SiteEngineerProjectsPage() {
     inExecutionCount: 0,
     totalDeliveries: 0,
     totalPurchased: 0,
+    pendingRequestsCount: 0,
   })
 
+  // Pending Requests State
+  const [requests, setRequests] = useState<SiteWorkRequestItem[]>([])
+  const [loadingRequests, setLoadingRequests] = useState(false)
+  const [requestsFilter, setRequestsFilter] = useState<'PENDING' | 'ALL' | 'ACCEPTED' | 'REJECTED'>('PENDING')
+
+  // Common UI State
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [search, setSearch] = useState('')
-  const [filterMode, setFilterMode] = useState<'ALL' | 'UNASSIGNED' | 'SITE_EXECUTION' | 'SETUP' | 'QC'>('ALL')
+  const [filterMode, setFilterMode] = useState<'ALL' | 'UNASSIGNED' | 'SITE_EXECUTION'>('ALL')
   const [engineerFilter, setEngineerFilter] = useState('ALL')
 
-  // Assignment Modal State
+  // Multi-Site Engineer Assignment Dialog
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false)
   const [selectedProject, setSelectedProject] = useState<ProjectSite | null>(null)
-  const [selectedEngineerId, setSelectedEngineerId] = useState<string>('')
+  const [selectedEngineerIds, setSelectedEngineerIds] = useState<string[]>([])
   const [assigning, setAssigning] = useState(false)
 
+  // Request Action Modals
+  const [acceptingRequest, setAcceptingRequest] = useState<SiteWorkRequestItem | null>(null)
+  const [acceptEngineerIds, setAcceptEngineerIds] = useState<string[]>([])
+  const [processingAccept, setProcessingAccept] = useState(false)
+
+  const [rejectingRequest, setRejectingRequest] = useState<SiteWorkRequestItem | null>(null)
+  const [rejectionReasonText, setRejectionReasonText] = useState('')
+  const [processingReject, setProcessingReject] = useState(false)
+
+  // Fetch Projects
   const fetchProjects = useCallback(async () => {
     try {
       setRefreshing(true)
-      const res = await fetch('/api/site-engineer/projects')
+      const scope = activeMainTab === 'ALL' ? 'all' : 'ongoing'
+      const res = await fetch(`/api/site-engineer/projects?scope=${scope}`)
       const json = await res.json()
       if (!json.success) throw new Error(json.error || 'Failed to load projects')
       setProjects(json.data.projects || [])
-      setStats(json.data.stats || {
-        totalProjects: 0,
-        unassignedCount: 0,
-        inExecutionCount: 0,
-        totalDeliveries: 0,
-        totalPurchased: 0,
-      })
+      setStats(
+        json.data.stats || {
+          totalProjects: 0,
+          unassignedCount: 0,
+          inExecutionCount: 0,
+          totalDeliveries: 0,
+          totalPurchased: 0,
+          pendingRequestsCount: 0,
+        },
+      )
       setSiteEngineers(json.data.siteEngineers || [])
       setCanManageAssignments(Boolean(json.data.canManageAssignments))
     } catch (e) {
@@ -136,58 +212,72 @@ export default function SiteEngineerProjectsPage() {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [activeMainTab])
+
+  // Fetch Site Work Requests
+  const fetchRequests = useCallback(async () => {
+    try {
+      setLoadingRequests(true)
+      const res = await fetch(`/api/site-engineer/requests?status=${requestsFilter}`)
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error || 'Failed to load requests')
+      setRequests(json.data || [])
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error loading requests')
+    } finally {
+      setLoadingRequests(false)
+    }
+  }, [requestsFilter])
 
   useEffect(() => {
     fetchProjects()
   }, [fetchProjects])
 
-  // Open assignment dialog
+  useEffect(() => {
+    if (activeMainTab === 'REQUESTS') {
+      fetchRequests()
+    }
+  }, [activeMainTab, fetchRequests])
+
+  // Open Multi-Engineer Assignment Modal
   const handleOpenAssignModal = (project: ProjectSite) => {
     setSelectedProject(project)
-    setSelectedEngineerId(project.assignedSiteEngineer?.id || '')
+    const currentIds = (project.assignedSiteEngineers || [])
+      .map((e) => e.id)
+      .concat(project.assignedSiteEngineer ? [project.assignedSiteEngineer.id] : [])
+    const uniqueIds = Array.from(new Set(currentIds.filter(Boolean)))
+    setSelectedEngineerIds(uniqueIds)
     setAssignmentModalOpen(true)
   }
 
-  // Submit assignment or reassignment
-  const handleAssignEngineer = async () => {
+  // Toggle engineer selection in assignment modal
+  const toggleEngineerSelection = (engId: string) => {
+    setSelectedEngineerIds((prev) =>
+      prev.includes(engId) ? prev.filter((id) => id !== engId) : [...prev, engId],
+    )
+  }
+
+  // Save assignment of multiple site engineers
+  const handleSaveMultiAssignment = async () => {
     if (!selectedProject) return
 
     try {
       setAssigning(true)
-
-      // If "UNASSIGN" chosen
-      if (selectedEngineerId === 'UNASSIGN') {
-        const res = await fetch(`/api/lead/${selectedProject.id}/assignments/SITE_ENGINEER`, {
-          method: 'DELETE',
-        })
-        const json = await res.json()
-        if (!res.ok || !json.success) {
-          throw new Error(json.error || 'Failed to unassign Site Engineer')
-        }
-        toast.success(`Site Engineer removed from ${selectedProject.name}`)
-      } else {
-        if (!selectedEngineerId) {
-          toast.error('Please select a Site Engineer')
-          return
-        }
-
-        const res = await fetch(`/api/lead/${selectedProject.id}/assignments/SITE_ENGINEER`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: selectedEngineerId }),
-        })
-        const json = await res.json()
-        if (!res.ok || !json.success) {
-          throw new Error(json.error || 'Failed to assign Site Engineer')
-        }
-
-        const assignedUser = siteEngineers.find((se) => se.id === selectedEngineerId)
-        toast.success(
-          `Assigned ${assignedUser?.fullName || 'Site Engineer'} to ${selectedProject.name}`,
-        )
+      const res = await fetch(`/api/lead/${selectedProject.id}/site-engineers`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userIds: selectedEngineerIds }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Failed to update site engineer assignments')
       }
 
+      toast.success(
+        selectedEngineerIds.length > 0
+          ? `Assigned ${selectedEngineerIds.length} Site Engineer(s) to ${selectedProject.name}`
+          : `Removed all Site Engineers from ${selectedProject.name}`,
+      )
       setAssignmentModalOpen(false)
       fetchProjects()
     } catch (e) {
@@ -197,34 +287,109 @@ export default function SiteEngineerProjectsPage() {
     }
   }
 
+  // Submit Accept Site Work Request
+  const handleAcceptRequest = async () => {
+    if (!acceptingRequest) return
+
+    try {
+      setProcessingAccept(true)
+      const res = await fetch(`/api/site-engineer/requests/${acceptingRequest.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'ACCEPT',
+          siteEngineerUserIds: acceptEngineerIds,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Failed to accept site work request')
+      }
+
+      toast.success(`Site work accepted for ${acceptingRequest.lead.name}!`)
+      setAcceptingRequest(null)
+      setAcceptEngineerIds([])
+      // Refresh requests and projects
+      fetchRequests()
+      fetchProjects()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to accept request')
+    } finally {
+      setProcessingAccept(false)
+    }
+  }
+
+  // Submit Reject Site Work Request
+  const handleRejectRequest = async () => {
+    if (!rejectingRequest) return
+    const reason = rejectionReasonText.trim()
+    if (!reason) {
+      toast.error('Please enter a rejection reason')
+      return
+    }
+
+    try {
+      setProcessingReject(true)
+      const res = await fetch(`/api/site-engineer/requests/${rejectingRequest.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'REJECT',
+          rejectionReason: reason,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Failed to reject site work request')
+      }
+
+      toast.success(`Request declined. Feedback saved for Admin / Sr CRM.`)
+      setRejectingRequest(null)
+      setRejectionReasonText('')
+      fetchRequests()
+      fetchProjects()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to reject request')
+    } finally {
+      setProcessingReject(false)
+    }
+  }
+
   // Filter projects
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
       const q = search.toLowerCase().trim()
+      const engineerNames = (p.assignedSiteEngineers || [p.assignedSiteEngineer])
+        .filter(Boolean)
+        .map((e) => e?.fullName.toLowerCase())
+        .join(' ')
+
       const matchesSearch =
         !q ||
         p.name.toLowerCase().includes(q) ||
         (p.location && p.location.toLowerCase().includes(q)) ||
         (p.phone && p.phone.includes(q)) ||
-        (p.assignedSiteEngineer && p.assignedSiteEngineer.fullName.toLowerCase().includes(q))
+        engineerNames.includes(q)
 
       let matchesFilter = true
+      const hasEngineer =
+        (p.assignedSiteEngineers && p.assignedSiteEngineers.length > 0) || Boolean(p.assignedSiteEngineer)
+
       if (filterMode === 'UNASSIGNED') {
-        matchesFilter = !p.assignedSiteEngineer
+        matchesFilter = !hasEngineer
       } else if (filterMode === 'SITE_EXECUTION') {
-        matchesFilter = p.stage === 'SITE_EXECUTION'
-      } else if (filterMode === 'SETUP') {
-        matchesFilter = p.stage === 'CONVERSION' || p.stage === 'PROJECT_SETUP' || p.stage === 'MATERIAL_PLANNING'
-      } else if (filterMode === 'QC') {
-        matchesFilter = p.stage === 'QUALITY_CHECK' || p.stage === 'HANDOVER'
+        matchesFilter = p.stage === 'SITE_EXECUTION' || Boolean(p.isSiteWorkActive)
       }
 
       let matchesEngineer = true
       if (engineerFilter !== 'ALL') {
         if (engineerFilter === 'UNASSIGNED') {
-          matchesEngineer = !p.assignedSiteEngineer
+          matchesEngineer = !hasEngineer
         } else {
-          matchesEngineer = p.assignedSiteEngineer?.id === engineerFilter
+          const assignedIds = (p.assignedSiteEngineers || [p.assignedSiteEngineer])
+            .filter(Boolean)
+            .map((e) => e?.id)
+          matchesEngineer = assignedIds.includes(engineerFilter)
         }
       }
 
@@ -243,18 +408,18 @@ export default function SiteEngineerProjectsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-            <Link href="/site-engineer/dashboard" className="hover:text-foreground">
-              Site Operations
+            <Link href="/crm/pc/dashboard" className="hover:text-foreground">
+              Project Coordinator
             </Link>
             <span>/</span>
-            <span className="text-foreground font-medium">Projects Directory</span>
+            <span className="text-foreground font-medium">Site Engineering</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground flex items-center gap-2.5">
             <FolderKanban className="w-7 h-7 text-blue-600 shrink-0" />
-            Active Site Projects
+            Site Engineering &amp; Execution
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Confirmed agreement sites: Assign Site Engineers, track materials purchased, and monitor delivery gate checks.
+            Review site work requests from CRM, assign Site Engineers, and monitor ongoing field construction.
           </p>
         </div>
 
@@ -262,11 +427,14 @@ export default function SiteEngineerProjectsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={fetchProjects}
-            disabled={refreshing}
+            onClick={() => {
+              fetchProjects()
+              if (activeMainTab === 'REQUESTS') fetchRequests()
+            }}
+            disabled={refreshing || loadingRequests}
             className="text-xs gap-1.5"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing || loadingRequests ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
 
@@ -279,15 +447,99 @@ export default function SiteEngineerProjectsPage() {
         </div>
       </div>
 
-      {/* ── Top Overview KPI Cards ── */}
+      {/* ── Primary Navigation Tabs ── */}
+      <div className="flex items-center justify-between border-b pb-1 gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={activeMainTab === 'ONGOING' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveMainTab('ONGOING')}
+            className={`text-xs gap-2 font-medium ${
+              activeMainTab === 'ONGOING' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''
+            }`}
+          >
+            <HardHat className="w-4 h-4" />
+            Ongoing Sites
+            <Badge
+              variant="secondary"
+              className={`text-[10px] ml-1 px-1.5 py-0 ${
+                activeMainTab === 'ONGOING' ? 'bg-white/20 text-white' : ''
+              }`}
+            >
+              {projects.length}
+            </Badge>
+          </Button>
+
+          <Button
+            variant={activeMainTab === 'REQUESTS' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveMainTab('REQUESTS')}
+            className={`text-xs gap-2 font-medium relative ${
+              activeMainTab === 'REQUESTS' ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            Pending Requests
+            {(stats.pendingRequestsCount ?? 0) > 0 ? (
+              <Badge
+                className={`text-[10px] ml-1 px-1.5 py-0 ${
+                  activeMainTab === 'REQUESTS'
+                    ? 'bg-white text-amber-900 font-bold'
+                    : 'bg-amber-600 text-white'
+                }`}
+              >
+                {stats.pendingRequestsCount}
+              </Badge>
+            ) : null}
+          </Button>
+
+          <Button
+            variant={activeMainTab === 'ALL' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setActiveMainTab('ALL')}
+            className={`text-xs gap-1.5 font-medium ${
+              activeMainTab === 'ALL' ? 'bg-muted text-foreground' : 'text-muted-foreground'
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            All Agreement Leads
+          </Button>
+        </div>
+
+        {/* View Mode Switcher (Card vs List) */}
+        {activeMainTab !== 'REQUESTS' && (
+          <div className="flex items-center border rounded-lg p-0.5 bg-muted/40">
+            <Button
+              variant={viewMode === 'CARDS' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('CARDS')}
+              className="h-7 px-2.5 text-xs gap-1.5"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              Cards
+            </Button>
+            <Button
+              variant={viewMode === 'LIST' ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('LIST')}
+              className="h-7 px-2.5 text-xs gap-1.5"
+            >
+              <List className="w-3.5 h-3.5" />
+              List
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* ── TOP METRICS CARDS ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card className="p-4 bg-card border-border hover:border-blue-500/40 transition">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Active Agreement Sites</span>
+            <span className="text-xs font-medium text-muted-foreground">Active Ongoing Sites</span>
             <Building2 className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-2xl font-bold mt-1 text-foreground">{stats.totalProjects}</div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Confirmed production sites</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Approved site execution projects</p>
         </Card>
 
         <Card
@@ -296,10 +548,13 @@ export default function SiteEngineerProjectsPage() {
               ? 'bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/15'
               : 'bg-card'
           }`}
-          onClick={() => setFilterMode(stats.unassignedCount > 0 ? 'UNASSIGNED' : 'ALL')}
+          onClick={() => {
+            setActiveMainTab('ONGOING')
+            setFilterMode(stats.unassignedCount > 0 ? 'UNASSIGNED' : 'ALL')
+          }}
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Needs Engineer</span>
+            <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Needs Site Engineer</span>
             <AlertTriangle className="w-4 h-4 text-amber-600" />
           </div>
           <div className="text-2xl font-bold mt-1 text-amber-700 dark:text-amber-300">
@@ -310,13 +565,22 @@ export default function SiteEngineerProjectsPage() {
           </p>
         </Card>
 
-        <Card className="p-4 bg-card border-border hover:border-emerald-500/40 transition">
+        <Card
+          className={`p-4 border-border transition cursor-pointer ${
+            (stats.pendingRequestsCount ?? 0) > 0
+              ? 'bg-blue-500/10 border-blue-500/40 hover:bg-blue-500/15'
+              : 'bg-card'
+          }`}
+          onClick={() => setActiveMainTab('REQUESTS')}
+        >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">In Site Execution</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span className="text-xs font-medium text-blue-700 dark:text-blue-400">Pending Requests</span>
+            <Clock className="w-4 h-4 text-blue-600" />
           </div>
-          <div className="text-2xl font-bold mt-1 text-foreground">{stats.inExecutionCount}</div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Active civil / interior work</p>
+          <div className="text-2xl font-bold mt-1 text-blue-700 dark:text-blue-300">
+            {stats.pendingRequestsCount ?? 0}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Awaiting PC approval to mobilize</p>
         </Card>
 
         <Card className="p-4 bg-card border-border hover:border-purple-500/40 transition">
@@ -333,350 +597,716 @@ export default function SiteEngineerProjectsPage() {
         </Card>
       </div>
 
-      {/* ── Search & Filter Controls ── */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-card p-3 rounded-xl border">
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-          <Input
-            placeholder="Search site name, location, phone, or engineer..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 text-xs"
-          />
-        </div>
+      {/* ─────────────────────────────────────────────────────────────
+          TAB 1 & 3: ONGOING SITES & ALL AGREEMENT LEADS
+      ───────────────────────────────────────────────────────────── */}
+      {activeMainTab !== 'REQUESTS' && (
+        <div className="space-y-4">
+          {/* Search & Filter Controls */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-card p-3 rounded-xl border">
+            <div className="relative w-full md:w-80">
+              <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                placeholder="Search site name, location, phone, or engineer..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 text-xs"
+              />
+            </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Button
-            variant={filterMode === 'ALL' ? 'secondary' : 'ghost'}
-            size="sm"
-            className="text-xs h-8"
-            onClick={() => setFilterMode('ALL')}
-          >
-            All Sites ({projects.length})
-          </Button>
-
-          <Button
-            variant={filterMode === 'UNASSIGNED' ? 'secondary' : 'ghost'}
-            size="sm"
-            className={`text-xs h-8 ${
-              stats.unassignedCount > 0 ? 'text-amber-700 dark:text-amber-300 font-semibold' : ''
-            }`}
-            onClick={() => setFilterMode('UNASSIGNED')}
-          >
-            Unassigned ({stats.unassignedCount})
-          </Button>
-
-          <Button
-            variant={filterMode === 'SITE_EXECUTION' ? 'secondary' : 'ghost'}
-            size="sm"
-            className="text-xs h-8"
-            onClick={() => setFilterMode('SITE_EXECUTION')}
-          >
-            Site Execution ({stats.inExecutionCount})
-          </Button>
-
-          <Button
-            variant={filterMode === 'SETUP' ? 'secondary' : 'ghost'}
-            size="sm"
-            className="text-xs h-8"
-            onClick={() => setFilterMode('SETUP')}
-          >
-            Project Setup
-          </Button>
-
-          <Button
-            variant={filterMode === 'QC' ? 'secondary' : 'ghost'}
-            size="sm"
-            className="text-xs h-8"
-            onClick={() => setFilterMode('QC')}
-          >
-            QC &amp; Handover
-          </Button>
-
-          {siteEngineers.length > 0 && (
-            <Select value={engineerFilter} onValueChange={setEngineerFilter}>
-              <SelectTrigger className="h-8 text-xs w-[160px]">
-                <SelectValue placeholder="All Engineers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All Engineers</SelectItem>
-                <SelectItem value="UNASSIGNED">Unassigned Only</SelectItem>
-                {siteEngineers.map((se) => (
-                  <SelectItem key={se.id} value={se.id}>
-                    {se.fullName} ({se.activeProjectsCount || 0})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
-      </div>
-
-      {/* ── Project Cards Grid ── */}
-      {loading ? (
-        <div className="flex flex-col justify-center items-center p-20 text-muted-foreground gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          <p className="text-sm font-medium">Loading agreement project sites...</p>
-        </div>
-      ) : filteredProjects.length === 0 ? (
-        <div className="p-16 text-center space-y-3 border rounded-xl bg-card">
-          <FolderKanban className="w-12 h-12 text-muted-foreground/30 mx-auto" />
-          <h3 className="text-base font-semibold">No agreement sites found</h3>
-          <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            {search || filterMode !== 'ALL' || engineerFilter !== 'ALL'
-              ? 'No projects match your active search and filter filters.'
-              : 'Only projects with a signed agreement will appear here for site engineering.'}
-          </p>
-          {(search || filterMode !== 'ALL' || engineerFilter !== 'ALL') && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setSearch('')
-                setFilterMode('ALL')
-                setEngineerFilter('ALL')
-              }}
-              className="text-xs"
-            >
-              Clear Filters
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredProjects.map((p) => {
-            const hasEngineer = Boolean(p.assignedSiteEngineer)
-
-            return (
-              <Card
-                key={p.id}
-                className="border-border hover:shadow-md transition-all bg-card flex flex-col justify-between overflow-hidden"
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Button
+                variant={filterMode === 'ALL' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="text-xs h-8"
+                onClick={() => setFilterMode('ALL')}
               >
-                {/* Card Header */}
-                <CardHeader className="pb-3 border-b border-border/40 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <Link
-                        href={`/site-engineer/projects/${p.id}`}
-                        className="text-base font-bold text-foreground hover:text-blue-600 transition line-clamp-1 flex items-center gap-1.5"
-                      >
-                        {p.name}
-                        <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground opacity-60" />
-                      </Link>
-                      <CardDescription className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                        <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate">{p.location || 'Location not specified'}</span>
-                      </CardDescription>
-                    </div>
+                All ({projects.length})
+              </Button>
 
-                    <div className="flex flex-col items-end gap-1 shrink-0">
-                      <Badge
-                        variant={p.stage === 'SITE_EXECUTION' ? 'default' : 'outline'}
-                        className="text-[10px] font-medium"
-                      >
-                        {p.stage.replace(/_/g, ' ')}
-                      </Badge>
-                      {p.agreementValue ? (
-                        <span className="text-[11px] font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                          {formatCurrency(p.agreementValue)}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
+              <Button
+                variant={filterMode === 'UNASSIGNED' ? 'secondary' : 'ghost'}
+                size="sm"
+                className={`text-xs h-8 ${
+                  stats.unassignedCount > 0 ? 'text-amber-700 dark:text-amber-300 font-semibold' : ''
+                }`}
+                onClick={() => setFilterMode('UNASSIGNED')}
+              >
+                Unassigned ({stats.unassignedCount})
+              </Button>
 
-                  {p.phone && (
-                    <div className="text-xs text-muted-foreground flex items-center gap-1.5 font-mono">
-                      <Phone className="w-3 h-3 text-muted-foreground" />
-                      <span>{p.phone}</span>
-                    </div>
-                  )}
-                </CardHeader>
+              <Button
+                variant={filterMode === 'SITE_EXECUTION' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="text-xs h-8"
+                onClick={() => setFilterMode('SITE_EXECUTION')}
+              >
+                In Execution ({stats.inExecutionCount})
+              </Button>
 
-                <CardContent className="space-y-4 pt-3 pb-4">
-                  {/* Site Engineer Assignment Row */}
-                  <div className="bg-muted/40 p-2.5 rounded-lg border border-border/60 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div
-                        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                          hasEngineer
-                            ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
-                        }`}
-                      >
-                        {hasEngineer ? (
-                          <UserCheck className="w-3.5 h-3.5" />
-                        ) : (
-                          <UserPlus className="w-3.5 h-3.5" />
+              {siteEngineers.length > 0 && (
+                <Select value={engineerFilter} onValueChange={setEngineerFilter}>
+                  <SelectTrigger className="h-8 text-xs w-[160px]">
+                    <SelectValue placeholder="All Engineers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Engineers</SelectItem>
+                    <SelectItem value="UNASSIGNED">Unassigned Only</SelectItem>
+                    {siteEngineers.map((se) => (
+                      <SelectItem key={se.id} value={se.id}>
+                        {se.fullName} ({se.activeProjectsCount || 0})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+
+          {/* Loading State */}
+          {loading ? (
+            <div className="flex flex-col justify-center items-center p-20 text-muted-foreground gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              <p className="text-sm font-medium">Loading project sites...</p>
+            </div>
+          ) : filteredProjects.length === 0 ? (
+            <div className="p-16 text-center space-y-3 border rounded-xl bg-card">
+              <FolderKanban className="w-12 h-12 text-muted-foreground/30 mx-auto" />
+              <h3 className="text-base font-semibold">No ongoing sites found</h3>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                {search || filterMode !== 'ALL' || engineerFilter !== 'ALL'
+                  ? 'No projects match your active search and filter filters.'
+                  : 'Site projects will appear here once accepted from the Pending Requests queue.'}
+              </p>
+              {(search || filterMode !== 'ALL' || engineerFilter !== 'ALL') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearch('')
+                    setFilterMode('ALL')
+                    setEngineerFilter('ALL')
+                  }}
+                  className="text-xs"
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          ) : viewMode === 'CARDS' ? (
+            /* ── VIEW MODE: CARDS ── */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredProjects.map((p) => {
+                const assignedEngs = (p.assignedSiteEngineers && p.assignedSiteEngineers.length > 0)
+                  ? p.assignedSiteEngineers
+                  : p.assignedSiteEngineer
+                  ? [p.assignedSiteEngineer]
+                  : []
+                const hasEngineer = assignedEngs.length > 0
+
+                return (
+                  <Card
+                    key={p.id}
+                    className="border-border hover:shadow-md transition-all bg-card flex flex-col justify-between overflow-hidden"
+                  >
+                    {/* Card Header */}
+                    <CardHeader className="pb-3 border-b border-border/40 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <Link
+                            href={`/site-engineer/projects/${p.id}`}
+                            className="text-base font-bold text-foreground hover:text-blue-600 transition line-clamp-1 flex items-center gap-1.5"
+                          >
+                            {p.name}
+                            <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground opacity-60" />
+                          </Link>
+                          <CardDescription className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                            <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                            <span className="truncate">{p.location || 'Location not specified'}</span>
+                          </CardDescription>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <Badge
+                            variant={p.isSiteWorkActive || p.stage === 'SITE_EXECUTION' ? 'default' : 'outline'}
+                            className="text-[10px] font-medium"
+                          >
+                            {p.isSiteWorkActive ? 'Active Site' : p.stage.replace(/_/g, ' ')}
+                          </Badge>
+                          {p.agreementValue ? (
+                            <span className="text-[11px] font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                              {formatCurrency(p.agreementValue)}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {p.phone && (
+                        <div className="text-xs text-muted-foreground flex items-center gap-1.5 font-mono">
+                          <Phone className="w-3 h-3 text-muted-foreground" />
+                          <span>{p.phone}</span>
+                        </div>
+                      )}
+                    </CardHeader>
+
+                    <CardContent className="space-y-4 pt-3 pb-4">
+                      {/* Assigned Site Engineers Row */}
+                      <div className="bg-muted/40 p-2.5 rounded-lg border border-border/60 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div
+                            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                              hasEngineer
+                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'
+                            }`}
+                          >
+                            {hasEngineer ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider flex items-center gap-1">
+                              <span>Site Engineer(s)</span>
+                              {assignedEngs.length > 1 && (
+                                <Badge variant="secondary" className="text-[9px] px-1 py-0 h-4">
+                                  {assignedEngs.length}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-xs font-medium text-foreground truncate">
+                              {hasEngineer
+                                ? assignedEngs.map((e) => e.fullName).join(', ')
+                                : 'Not Assigned Yet'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {canManageAssignments && (
+                          <Button
+                            size="sm"
+                            variant={hasEngineer ? 'ghost' : 'outline'}
+                            onClick={() => handleOpenAssignModal(p)}
+                            className={`h-7 px-2 text-xs shrink-0 ${
+                              !hasEngineer
+                                ? 'border-amber-500/50 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10'
+                                : ''
+                            }`}
+                          >
+                            {hasEngineer ? 'Manage' : 'Assign'}
+                          </Button>
                         )}
                       </div>
 
-                      <div className="min-w-0">
-                        <div className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-                          Site Engineer
+                      {/* Operational Metrics (Purchased, Deliveries, Scope) */}
+                      <div className="grid grid-cols-3 gap-2 py-1 text-center">
+                        {/* Deliveries */}
+                        <div className="bg-background p-2 rounded border border-border/50">
+                          <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                            <Truck className="w-3 h-3 text-amber-600" />
+                            <span>Deliveries</span>
+                          </div>
+                          <div className="text-xs font-bold mt-0.5 text-foreground">
+                            {p.deliveriesSummary.total}
+                          </div>
+                          {p.deliveriesSummary.issues > 0 ? (
+                            <span className="text-[9px] text-destructive font-medium block truncate">
+                              {p.deliveriesSummary.issues} issue(s)
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-muted-foreground block truncate">
+                              {p.deliveriesSummary.total > 0 ? 'Logged' : 'None yet'}
+                            </span>
+                          )}
                         </div>
-                        <div className="text-xs font-medium text-foreground truncate">
-                          {p.assignedSiteEngineer ? p.assignedSiteEngineer.fullName : 'Not Assigned Yet'}
+
+                        {/* Purchased / POs */}
+                        <div className="bg-background p-2 rounded border border-border/50">
+                          <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                            <ShoppingCart className="w-3 h-3 text-purple-600" />
+                            <span>Purchased</span>
+                          </div>
+                          <div className="text-xs font-bold mt-0.5 text-foreground">
+                            {p.purchasedSummary.approvedPOs} POs
+                          </div>
+                          <span className="text-[9px] text-muted-foreground block truncate">
+                            {p.purchasedSummary.totalAmount > 0
+                              ? formatCurrency(p.purchasedSummary.totalAmount)
+                              : '৳0'}
+                          </span>
+                        </div>
+
+                        {/* Scope / BOQ Progress */}
+                        <div className="bg-background p-2 rounded border border-border/50">
+                          <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                            <ClipboardList className="w-3 h-3 text-blue-600" />
+                            <span>Scope</span>
+                          </div>
+                          <div className="text-xs font-bold mt-0.5 text-foreground">
+                            {p.scopeProgress.percent}%
+                          </div>
+                          <span className="text-[9px] text-muted-foreground block truncate">
+                            {p.scopeProgress.completed}/{p.scopeProgress.total} Items
+                          </span>
                         </div>
                       </div>
-                    </div>
 
-                    {canManageAssignments && (
-                      <Button
-                        size="sm"
-                        variant={hasEngineer ? 'ghost' : 'outline'}
-                        onClick={() => handleOpenAssignModal(p)}
-                        className={`h-7 px-2 text-xs shrink-0 ${
-                          !hasEngineer
-                            ? 'border-amber-500/50 text-amber-700 dark:text-amber-300 hover:bg-amber-500/10'
-                            : ''
-                        }`}
-                      >
-                        {hasEngineer ? 'Change' : 'Assign'}
-                      </Button>
-                    )}
-                  </div>
+                      {/* Action Buttons */}
+                      <div className="pt-2 border-t border-border/50 flex flex-col gap-2 text-xs">
+                        <Button
+                          asChild
+                          size="sm"
+                          className="h-8 text-[11px] gap-1.5 bg-blue-600 hover:bg-blue-700 text-white w-full font-semibold"
+                        >
+                          <Link href={`/site-engineer/projects/${p.id}`}>
+                            <FolderKanban className="w-3.5 h-3.5" />
+                            Site Scope &amp; BOQ Progress
+                          </Link>
+                        </Button>
 
-                  {/* Operational Metrics (Purchased, Deliveries, Scope) */}
-                  <div className="grid grid-cols-3 gap-2 py-1 text-center">
-                    {/* Deliveries */}
-                    <div className="bg-background p-2 rounded border border-border/50">
-                      <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
-                        <Truck className="w-3 h-3 text-amber-600" />
-                        <span>Deliveries</span>
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-[11px] gap-1 text-amber-700 dark:text-amber-300 w-full"
+                        >
+                          <Link href={`/site-engineer/delivery?leadId=${p.id}`}>
+                            <Truck className="w-3.5 h-3.5" />
+                            Deliveries &amp; Gate Pass
+                          </Link>
+                        </Button>
                       </div>
-                      <div className="text-xs font-bold mt-0.5 text-foreground">
-                        {p.deliveriesSummary.total}
-                      </div>
-                      {p.deliveriesSummary.issues > 0 ? (
-                        <span className="text-[9px] text-destructive font-medium block truncate">
-                          {p.deliveriesSummary.issues} issue(s)
-                        </span>
-                      ) : (
-                        <span className="text-[9px] text-muted-foreground block truncate">
-                          {p.deliveriesSummary.total > 0 ? 'Logged' : 'None yet'}
-                        </span>
-                      )}
-                    </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          ) : (
+            /* ── VIEW MODE: LIST / TABLE ── */
+            <Card className="border overflow-hidden">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/40 border-b">
+                      <TableHead className="w-[240px] font-semibold text-foreground py-3">Site / Client</TableHead>
+                      <TableHead className="w-[180px] font-semibold text-foreground py-3">Location &amp; Phone</TableHead>
+                      <TableHead className="w-[140px] font-semibold text-foreground py-3 text-right">Agreement Value</TableHead>
+                      <TableHead className="w-[240px] font-semibold text-foreground py-3">Assigned Site Engineer(s)</TableHead>
+                      <TableHead className="w-[130px] font-semibold text-foreground py-3 text-center">Deliveries</TableHead>
+                      <TableHead className="w-[140px] font-semibold text-foreground py-3 text-center">Purchased POs</TableHead>
+                      <TableHead className="w-[120px] font-semibold text-foreground py-3 text-center">Scope Progress</TableHead>
+                      <TableHead className="w-[160px] font-semibold text-foreground py-3 text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredProjects.map((p) => {
+                      const assignedEngs = (p.assignedSiteEngineers && p.assignedSiteEngineers.length > 0)
+                        ? p.assignedSiteEngineers
+                        : p.assignedSiteEngineer
+                        ? [p.assignedSiteEngineer]
+                        : []
+                      const hasEngineer = assignedEngs.length > 0
 
-                    {/* Purchased / POs */}
-                    <div className="bg-background p-2 rounded border border-border/50">
-                      <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
-                        <ShoppingCart className="w-3 h-3 text-purple-600" />
-                        <span>Purchased</span>
-                      </div>
-                      <div className="text-xs font-bold mt-0.5 text-foreground">
-                        {p.purchasedSummary.approvedPOs} POs
-                      </div>
-                      <span className="text-[9px] text-muted-foreground block truncate">
-                        {p.purchasedSummary.totalAmount > 0
-                          ? formatCurrency(p.purchasedSummary.totalAmount)
-                          : '৳0'}
-                      </span>
-                    </div>
+                      return (
+                        <TableRow key={p.id} className="hover:bg-muted/30">
+                          {/* Site / Client */}
+                          <TableCell className="align-top py-3.5">
+                            <div>
+                              <Link
+                                href={`/site-engineer/projects/${p.id}`}
+                                className="font-bold text-foreground hover:text-blue-600 transition flex items-center gap-1"
+                              >
+                                {p.name}
+                                <ArrowUpRight className="w-3 h-3 text-muted-foreground opacity-60" />
+                              </Link>
+                              <div className="flex items-center gap-1.5 mt-1">
+                                <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+                                  {p.isSiteWorkActive ? 'Active Site' : p.stage.replace(/_/g, ' ')}
+                                </Badge>
+                                {p.assignedSrCrm && (
+                                  <span className="text-[11px] text-muted-foreground">
+                                    CRM: {p.assignedSrCrm.fullName}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
 
-                    {/* Scope / BOQ Progress */}
-                    <div className="bg-background p-2 rounded border border-border/50">
-                      <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
-                        <ClipboardList className="w-3 h-3 text-blue-600" />
-                        <span>Scope</span>
-                      </div>
-                      <div className="text-xs font-bold mt-0.5 text-foreground">
-                        {p.scopeProgress.percent}%
-                      </div>
-                      <span className="text-[9px] text-muted-foreground block truncate">
-                        {p.scopeProgress.completed}/{p.scopeProgress.total} Items
-                      </span>
-                    </div>
-                  </div>
+                          {/* Location & Phone */}
+                          <TableCell className="align-top py-3.5 text-xs text-muted-foreground">
+                            <div>
+                              <div className="flex items-center gap-1">
+                                <MapPin className="w-3 h-3 shrink-0" />
+                                <span className="truncate max-w-[170px]">{p.location || 'N/A'}</span>
+                              </div>
+                              {p.phone && (
+                                <div className="flex items-center gap-1 mt-1 font-mono">
+                                  <Phone className="w-3 h-3 shrink-0" />
+                                  <span>{p.phone}</span>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
 
-                  {/* Scope Progress Bar */}
-                  {p.scopeProgress.total > 0 && (
-                    <div className="space-y-1">
-                      <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                        <div
-                          className="bg-blue-600 h-1.5 rounded-full transition-all"
-                          style={{ width: `${p.scopeProgress.percent}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
+                          {/* Agreement Value */}
+                          <TableCell className="align-top py-3.5 text-right font-mono font-semibold text-xs text-emerald-600 dark:text-emerald-400">
+                            {formatCurrency(p.agreementValue)}
+                          </TableCell>
 
-                  {/* Action Buttons */}
-                  <div className="pt-2 border-t border-border/50 flex flex-col gap-2 text-xs">
-                    <Button
-                      asChild
-                      size="sm"
-                      className="h-8 text-[11px] gap-1.5 bg-blue-600 hover:bg-blue-700 text-white w-full font-semibold"
-                    >
-                      <Link href={`/site-engineer/projects/${p.id}`}>
-                        <FolderKanban className="w-3.5 h-3.5" />
-                        Site Scope &amp; BOQ Progress
-                      </Link>
-                    </Button>
+                          {/* Assigned Site Engineers */}
+                          <TableCell className="align-top py-3.5">
+                            <div className="space-y-1">
+                              {hasEngineer ? (
+                                <div className="flex flex-wrap gap-1 items-center">
+                                  {assignedEngs.map((eng) => (
+                                    <Badge
+                                      key={eng.id}
+                                      variant="secondary"
+                                      className="text-[11px] py-0.5 px-2 bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300 font-medium"
+                                    >
+                                      {eng.fullName}
+                                    </Badge>
+                                  ))}
+                                  {canManageAssignments && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleOpenAssignModal(p)}
+                                      className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                                    >
+                                      Manage
+                                    </Button>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                                    Unassigned
+                                  </span>
+                                  {canManageAssignments && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleOpenAssignModal(p)}
+                                      className="h-6 px-2 text-[11px] border-amber-500/50 text-amber-700 hover:bg-amber-50"
+                                    >
+                                      Assign
+                                    </Button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
 
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-[11px] gap-1 text-amber-700 dark:text-amber-300 w-full"
-                    >
-                      <Link href={`/site-engineer/delivery?leadId=${p.id}`}>
-                        <Truck className="w-3.5 h-3.5" />
-                        View Deliveries &amp; Gate Pass
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
+                          {/* Deliveries */}
+                          <TableCell className="align-top py-3.5 text-center text-xs">
+                            <span className="font-bold text-foreground">{p.deliveriesSummary.total}</span>
+                            {p.deliveriesSummary.issues > 0 ? (
+                              <span className="text-[10px] text-destructive block">
+                                {p.deliveriesSummary.issues} issues
+                              </span>
+                            ) : null}
+                          </TableCell>
+
+                          {/* Purchased POs */}
+                          <TableCell className="align-top py-3.5 text-center text-xs">
+                            <span className="font-bold text-foreground">
+                              {p.purchasedSummary.approvedPOs} POs
+                            </span>
+                            <span className="text-[10px] text-muted-foreground block font-mono">
+                              {formatCurrency(p.purchasedSummary.totalAmount)}
+                            </span>
+                          </TableCell>
+
+                          {/* Scope Progress */}
+                          <TableCell className="align-top py-3.5 text-center text-xs">
+                            <span className="font-bold text-blue-600">{p.scopeProgress.percent}%</span>
+                            <span className="text-[10px] text-muted-foreground block">
+                              {p.scopeProgress.completed}/{p.scopeProgress.total} items
+                            </span>
+                          </TableCell>
+
+                          {/* Actions */}
+                          <TableCell className="align-top py-3.5 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Button asChild size="sm" variant="outline" className="h-7 text-xs px-2.5">
+                                <Link href={`/site-engineer/projects/${p.id}`}>
+                                  Scope
+                                </Link>
+                              </Button>
+                              <Button asChild size="sm" variant="ghost" className="h-7 text-xs px-2 text-amber-700">
+                                <Link href={`/site-engineer/delivery?leadId=${p.id}`}>
+                                  <Truck className="w-3.5 h-3.5" />
+                                </Link>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </Card>
+          )}
         </div>
       )}
 
-      {/* ── Assign Site Engineer Dialog ── */}
+      {/* ─────────────────────────────────────────────────────────────
+          TAB 2: PENDING SITE WORK REQUESTS (FROM AGREEMENT LEAD PAGE)
+      ───────────────────────────────────────────────────────────── */}
+      {activeMainTab === 'REQUESTS' && (
+        <div className="space-y-4">
+          {/* Header & Filter for Requests */}
+          <div className="flex items-center justify-between gap-3 bg-card p-3 rounded-xl border flex-wrap">
+            <div>
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-600" />
+                Incoming Site Work Requests
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Requests submitted by Admin &amp; Senior CRM from the Agreement Lead page to commence site operations.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant={requestsFilter === 'PENDING' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setRequestsFilter('PENDING')}
+                className={`text-xs h-8 ${
+                  requestsFilter === 'PENDING' ? 'bg-amber-600 hover:bg-amber-700 text-white font-semibold' : ''
+                }`}
+              >
+                Pending Review
+              </Button>
+              <Button
+                variant={requestsFilter === 'ACCEPTED' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setRequestsFilter('ACCEPTED')}
+                className="text-xs h-8"
+              >
+                Accepted
+              </Button>
+              <Button
+                variant={requestsFilter === 'REJECTED' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setRequestsFilter('REJECTED')}
+                className="text-xs h-8"
+              >
+                Declined
+              </Button>
+              <Button
+                variant={requestsFilter === 'ALL' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setRequestsFilter('ALL')}
+                className="text-xs h-8"
+              >
+                All Requests
+              </Button>
+            </div>
+          </div>
+
+          {/* Loading or List */}
+          {loadingRequests ? (
+            <div className="flex flex-col justify-center items-center p-20 text-muted-foreground gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-amber-600" />
+              <p className="text-sm font-medium">Loading requests...</p>
+            </div>
+          ) : requests.length === 0 ? (
+            <div className="p-16 text-center space-y-3 border rounded-xl bg-card">
+              <CheckCircle2 className="w-12 h-12 text-emerald-600/40 mx-auto" />
+              <h3 className="text-base font-semibold">No requests in this view</h3>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                {requestsFilter === 'PENDING'
+                  ? 'All site work requests have been reviewed and processed.'
+                  : 'No site work requests match this filter.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {requests.map((req) => {
+                const isPending = req.status === 'PENDING'
+                const isAccepted = req.status === 'ACCEPTED'
+                const isRejected = req.status === 'REJECTED'
+
+                return (
+                  <Card
+                    key={req.id}
+                    className={`border transition bg-card overflow-hidden ${
+                      isPending ? 'border-amber-400/80 shadow-xs' : 'border-border'
+                    }`}
+                  >
+                    <CardHeader className="pb-3 border-b bg-muted/20 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-base font-bold text-foreground">
+                            {req.lead?.name || 'Project'}
+                          </div>
+                          <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3.5 h-3.5 shrink-0" />
+                            <span>{req.lead?.location || 'Location not specified'}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-1">
+                          <Badge
+                            className={`text-[10px] font-semibold ${
+                              isPending
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                : isAccepted
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                            }`}
+                          >
+                            {req.status}
+                          </Badge>
+                          {req.lead?.agreementValue ? (
+                            <span className="text-xs font-mono font-bold text-emerald-600">
+                              {formatCurrency(req.lead.agreementValue)}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {req.lead?.phone && (
+                        <div className="text-xs text-muted-foreground flex items-center gap-1 font-mono">
+                          <Phone className="w-3 h-3" />
+                          <span>{req.lead.phone}</span>
+                        </div>
+                      )}
+                    </CardHeader>
+
+                    <CardContent className="space-y-4 pt-3.5 pb-4">
+                      {/* Requester Info */}
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <div className="flex justify-between">
+                          <span>Requested By:</span>
+                          <span className="font-semibold text-foreground">
+                            {req.requestedBy?.fullName} ({req.requestedBy?.email})
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Requested At:</span>
+                          <span>{new Date(req.createdAt).toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      {/* Requester Note */}
+                      {req.note && (
+                        <div className="bg-muted/40 p-2.5 rounded-lg border text-xs space-y-1">
+                          <span className="font-semibold text-foreground flex items-center gap-1">
+                            <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                            Notes from CRM:
+                          </span>
+                          <p className="text-muted-foreground italic whitespace-pre-wrap">{req.note}</p>
+                        </div>
+                      )}
+
+                      {/* Rejection Reason (if rejected) */}
+                      {isRejected && req.rejectionReason && (
+                        <div className="bg-red-50 dark:bg-red-950/40 p-2.5 rounded-lg border border-red-200 dark:border-red-900/60 text-xs space-y-1">
+                          <span className="font-semibold text-red-800 dark:text-red-300">
+                            Rejection Reason:
+                          </span>
+                          <p className="text-red-900 dark:text-red-200">{req.rejectionReason}</p>
+                        </div>
+                      )}
+
+                      {/* Action Buttons for Pending Requests */}
+                      {isPending && canManageAssignments && (
+                        <div className="pt-2 border-t flex items-center justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setRejectingRequest(req)
+                              setRejectionReasonText('')
+                            }}
+                            className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 border-red-200"
+                          >
+                            <XCircle className="w-3.5 h-3.5 mr-1" />
+                            Reject
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setAcceptingRequest(req)
+                              setAcceptEngineerIds([])
+                            }}
+                            className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                          >
+                            <Check className="w-3.5 h-3.5 mr-1" />
+                            Accept &amp; Assign Engineer
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL 1: MULTI-SITE ENGINEER ASSIGNMENT MODAL
+      ───────────────────────────────────────────────────────────── */}
       <Dialog open={assignmentModalOpen} onOpenChange={setAssignmentModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
-              <UserCheck className="w-5 h-5 text-blue-600" />
-              Assign Site Engineer
+              <Users className="w-5 h-5 text-blue-600" />
+              Manage Site Engineers
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Allocate a dedicated Site Engineer to oversee construction execution, material deliveries, and site scope for{' '}
+              Assign one or multiple Site Engineers to oversee site execution for{' '}
               <strong className="text-foreground">{selectedProject?.name}</strong>.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="text-xs text-muted-foreground">
-              Current Assignee:{' '}
-              <span className="font-semibold text-foreground">
-                {selectedProject?.assignedSiteEngineer
-                  ? selectedProject.assignedSiteEngineer.fullName
-                  : 'Unassigned'}
-              </span>
+              Select all Site Engineers who should have access and responsibility for this site:
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-foreground">Select Site Engineer</label>
-              <Select value={selectedEngineerId} onValueChange={setSelectedEngineerId}>
-                <SelectTrigger className="w-full text-xs">
-                  <SelectValue placeholder="Choose a Site Engineer..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {selectedProject?.assignedSiteEngineer && (
-                    <SelectItem value="UNASSIGN" className="text-destructive font-medium">
-                      ✕ Unassign (Remove current engineer)
-                    </SelectItem>
-                  )}
-                  {siteEngineers.map((se) => (
-                    <SelectItem key={se.id} value={se.id}>
-                      {se.fullName} {se.activeProjectsCount ? `(${se.activeProjectsCount} active sites)` : '(0 sites)'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-2 max-h-60 overflow-y-auto border rounded-lg p-2 divide-y">
+              {siteEngineers.map((se) => {
+                const isSelected = selectedEngineerIds.includes(se.id)
+                return (
+                  <div
+                    key={se.id}
+                    onClick={() => toggleEngineerSelection(se.id)}
+                    className={`flex items-center justify-between p-2 rounded cursor-pointer transition text-xs ${
+                      isSelected ? 'bg-blue-50/80 dark:bg-blue-950/40' : 'hover:bg-muted/40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`w-4 h-4 rounded border flex items-center justify-center ${
+                          isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-input'
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3" />}
+                      </div>
+                      <div>
+                        <div className="font-semibold text-foreground">{se.fullName}</div>
+                        <div className="text-[11px] text-muted-foreground">{se.email}</div>
+                      </div>
+                    </div>
+                    <Badge variant="outline" className="text-[10px]">
+                      {se.activeProjectsCount ? `${se.activeProjectsCount} sites` : 'Available'}
+                    </Badge>
+                  </div>
+                )
+              })}
             </div>
+
+            {selectedEngineerIds.length === 0 && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                Notice: Saving with 0 engineers will unassign all engineers from this project.
+              </p>
+            )}
           </div>
 
           <DialogFooter className="flex sm:justify-between items-center gap-2">
@@ -691,8 +1321,8 @@ export default function SiteEngineerProjectsPage() {
             </Button>
             <Button
               size="sm"
-              onClick={handleAssignEngineer}
-              disabled={assigning || !selectedEngineerId}
+              onClick={handleSaveMultiAssignment}
+              disabled={assigning}
               className="text-xs bg-blue-600 hover:bg-blue-700 text-white font-medium"
             >
               {assigning ? (
@@ -700,10 +1330,171 @@ export default function SiteEngineerProjectsPage() {
                   <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
                   Updating...
                 </>
-              ) : selectedEngineerId === 'UNASSIGN' ? (
-                'Confirm Unassign'
               ) : (
-                'Save Assignment'
+                `Save (${selectedEngineerIds.length} assigned)`
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL 2: ACCEPT SITE WORK REQUEST & ASSIGN ENGINEER
+      ───────────────────────────────────────────────────────────── */}
+      <Dialog open={Boolean(acceptingRequest)} onOpenChange={(open) => !open && setAcceptingRequest(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="w-5 h-5" />
+              Accept Site Work Request
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Confirm site mobilization for <strong>{acceptingRequest?.lead.name}</strong> and assign Site Engineer(s).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="bg-muted/40 p-2.5 rounded-lg border text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Location:</span>
+                <span className="font-semibold text-foreground">{acceptingRequest?.lead.location || 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Agreement Value:</span>
+                <span className="font-mono font-bold text-emerald-600">
+                  {formatCurrency(acceptingRequest?.lead.agreementValue)}
+                </span>
+              </div>
+              {acceptingRequest?.note && (
+                <div className="pt-1 mt-1 border-t text-muted-foreground italic">
+                  &ldquo;{acceptingRequest.note}&rdquo;
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Assign Site Engineer(s) (optional now, can be updated later)
+              </label>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto border rounded-lg p-2 divide-y">
+                {siteEngineers.map((se) => {
+                  const isSelected = acceptEngineerIds.includes(se.id)
+                  return (
+                    <div
+                      key={se.id}
+                      onClick={() =>
+                        setAcceptEngineerIds((prev) =>
+                          prev.includes(se.id) ? prev.filter((id) => id !== se.id) : [...prev, se.id],
+                        )
+                      }
+                      className={`flex items-center justify-between p-1.5 rounded cursor-pointer text-xs ${
+                        isSelected ? 'bg-blue-50/80 dark:bg-blue-950/40' : 'hover:bg-muted/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-4 h-4 rounded border flex items-center justify-center ${
+                            isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-input'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3 h-3" />}
+                        </div>
+                        <span className="font-medium text-foreground">{se.fullName}</span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px]">
+                        {se.activeProjectsCount ? `${se.activeProjectsCount} sites` : '0 sites'}
+                      </Badge>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setAcceptingRequest(null)}
+              disabled={processingAccept}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleAcceptRequest}
+              disabled={processingAccept}
+              className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+            >
+              {processingAccept ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                  Accepting...
+                </>
+              ) : (
+                'Accept & Mobilize Site'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─────────────────────────────────────────────────────────────
+          MODAL 3: REJECT SITE WORK REQUEST
+      ───────────────────────────────────────────────────────────── */}
+      <Dialog open={Boolean(rejectingRequest)} onOpenChange={(open) => !open && setRejectingRequest(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base text-red-600 dark:text-red-400">
+              <XCircle className="w-5 h-5" />
+              Decline Site Work Request
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              State the reason why site mobilization cannot start for{' '}
+              <strong>{rejectingRequest?.lead.name}</strong>. This feedback will be saved and shown to Admin / Sr. CRM.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground">
+                Rejection Reason <span className="text-red-500">*</span>
+              </label>
+              <Textarea
+                rows={3}
+                value={rejectionReasonText}
+                onChange={(e) => setRejectionReasonText(e.target.value)}
+                placeholder="e.g. Site is not yet ready, client has not completed first installment, civil handover pending..."
+                disabled={processingReject}
+                className="text-xs resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRejectingRequest(null)}
+              disabled={processingReject}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleRejectRequest}
+              disabled={processingReject || !rejectionReasonText.trim()}
+              className="text-xs bg-red-600 hover:bg-red-700 text-white font-semibold"
+            >
+              {processingReject ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
+                  Rejecting...
+                </>
+              ) : (
+                'Confirm Rejection'
               )}
             </Button>
           </DialogFooter>

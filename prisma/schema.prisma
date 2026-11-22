@@ -30,6 +30,8 @@ model Lead {
   accountStatus          AccountStatus?
   agreementSqft          Float?
   initialAgreementValue  Float?
+  isSiteWorkActive       Boolean                     @default(false)
+  siteWorkStartedAt      DateTime?
   activities             ActivityLog[]
   agreementValueLogs     AgreementValueLog[]
   cadWorkSubmissions     CadWorkSubmission[]
@@ -60,6 +62,7 @@ model Lead {
   procurementWalletTransactions ProcurementWalletTransaction[]
   siteDeliveryLogs       SiteDeliveryLog[]
   purchaseOrders         PurchaseOrder[]
+  siteWorkRequests       LeadSiteWorkRequest[]
 
   @@index([assignedTo])
   @@index([primaryOwnerUserId])
@@ -169,6 +172,8 @@ model User {
   leadAssignments             LeadAssignment[]
   jrArchitectRequests         LeadJrArchitectRequest[]   @relation("LeadJrArchitectRequestRequestedBy")
   jrArchitectReviewedRequests LeadJrArchitectRequest[]   @relation("LeadJrArchitectRequestReviewedBy")
+  siteWorkRequestsRequested   LeadSiteWorkRequest[]      @relation("LeadSiteWorkRequestRequestedBy")
+  siteWorkRequestsReviewed    LeadSiteWorkRequest[]      @relation("LeadSiteWorkRequestReviewedBy")
   meetingEventsCreated        LeadMeetingEvent[]
   phaseReviews                LeadPhaseReview[]
   phaseTasksAssigned          LeadPhaseTask[]            @relation("LeadPhaseTaskAssignee")
@@ -295,6 +300,27 @@ model LeadJrArchitectRequest {
   lead          Lead                         @relation(fields: [leadId], references: [id], onDelete: Cascade)
   requestedBy   User                         @relation("LeadJrArchitectRequestRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
   reviewedBy    User?                        @relation("LeadJrArchitectRequestReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([leadId])
+  @@index([requestedById])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model LeadSiteWorkRequest {
+  id              String                    @id @default(cuid())
+  leadId          String
+  requestedById   String
+  status          LeadSiteWorkRequestStatus @default(PENDING)
+  note            String?
+  rejectionReason String?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  lead            Lead                      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  requestedBy     User                      @relation("LeadSiteWorkRequestRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedBy      User?                     @relation("LeadSiteWorkRequestReviewedBy", fields: [reviewedById], references: [id])
 
   @@index([leadId])
   @@index([requestedById])
@@ -1217,6 +1243,12 @@ enum LeadPhaseTaskStatus {
 enum LeadJrArchitectRequestStatus {
   PENDING
   APPROVED
+  REJECTED
+}
+
+enum LeadSiteWorkRequestStatus {
+  PENDING
+  ACCEPTED
   REJECTED
 }
 
