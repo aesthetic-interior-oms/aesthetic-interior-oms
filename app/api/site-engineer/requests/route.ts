@@ -118,13 +118,10 @@ export async function POST(request: NextRequest) {
       actorDepartments.has('ADMIN') ||
       actorRoles.some((r) => r.toUpperCase() === 'ADMIN')
     const isSrCrm = actorDepartments.has('SR_CRM')
-    const isPc =
-      actorDepartments.has('PROJECT_COORDINATOR') ||
-      actorDepartments.has('PROJECT_CORDINATOR')
 
-    if (!isAdmin && !isSrCrm && !isPc) {
+    if (!isAdmin && !isSrCrm) {
       return NextResponse.json(
-        { success: false, error: 'Only Admin, Senior CRM, or Project Coordinator can request site work' },
+        { success: false, error: 'Only Admin or Senior CRM can request to start site work' },
         { status: 403 },
       )
     }

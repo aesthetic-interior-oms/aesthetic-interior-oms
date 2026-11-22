@@ -160,7 +160,7 @@ type Stats = {
 }
 
 export default function SiteEngineerProjectsPage() {
-  const [activeMainTab, setActiveMainTab] = useState<'ONGOING' | 'REQUESTS' | 'ALL'>('ONGOING')
+  const [activeMainTab, setActiveMainTab] = useState<'ONGOING' | 'REQUESTS'>('ONGOING')
   const [viewMode, setViewMode] = useState<'CARDS' | 'LIST'>('CARDS')
 
   // Projects State
@@ -207,8 +207,7 @@ export default function SiteEngineerProjectsPage() {
   const fetchProjects = useCallback(async () => {
     try {
       setRefreshing(true)
-      const scope = activeMainTab === 'ALL' ? 'all' : 'ongoing'
-      const res = await fetch(`/api/site-engineer/projects?scope=${scope}`)
+      const res = await fetch('/api/site-engineer/projects')
       const json = await res.json()
       if (!json.success) throw new Error(json.error || 'Failed to load projects')
       setProjects(json.data.projects || [])
@@ -509,18 +508,6 @@ export default function SiteEngineerProjectsPage() {
                 {stats.pendingRequestsCount}
               </Badge>
             ) : null}
-          </Button>
-
-          <Button
-            variant={activeMainTab === 'ALL' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setActiveMainTab('ALL')}
-            className={`text-xs gap-1.5 font-medium ${
-              activeMainTab === 'ALL' ? 'bg-muted text-foreground' : 'text-muted-foreground'
-            }`}
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            All Agreement Leads
           </Button>
         </div>
 

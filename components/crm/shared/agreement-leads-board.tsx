@@ -743,6 +743,7 @@ export function AgreementLeadsBoard({
   const [assignError, setAssignError] = useState<Record<string, string>>({})
   const [editingLeadId, setEditingLeadId] = useState<string | null>(null)
   const [canAssignBoq, setCanAssignBoq] = useState(false)
+  const [canRequestSiteWork, setCanRequestSiteWork] = useState(false)
   const [updatingAgreementTypeLeadId, setUpdatingAgreementTypeLeadId] = useState<string | null>(null)
   const [viewingRevisionsLead, setViewingRevisionsLead] = useState<AgreementLead | null>(null)
   const tableScrollRef = useRef<HTMLDivElement>(null)
@@ -826,9 +827,18 @@ export function AgreementLeadsBoard({
               d.toUpperCase().includes('PROJECT_COORDINATOR') ||
               d.toUpperCase().includes('PROJECT_CORDINATOR'),
           ) || roleNames.some((r) => r.toUpperCase().includes('PROJECT_COORDINATOR'))
-        if (active) setCanAssignBoq(isAdmin || isSrCrm || isBoqLeader || isPc)
+        const isPcPath = Boolean(editorBasePath?.includes('/crm/pc'))
+        if (active) {
+          setCanAssignBoq(isAdmin || isSrCrm || isBoqLeader || isPc)
+          setCanRequestSiteWork((isAdmin || isSrCrm) && !isPcPath)
+        }
       })
-      .catch(() => { if (active) setCanAssignBoq(false) })
+      .catch(() => {
+        if (active) {
+          setCanAssignBoq(false)
+          setCanRequestSiteWork(false)
+        }
+      })
     return () => { active = false }
   }, [])
 
@@ -1623,7 +1633,7 @@ export function AgreementLeadsBoard({
                                   </Button>
                                 </div>
                               </div>
-                            ) : (
+                            ) : canRequestSiteWork ? (
                               <div>
                                 <Button
                                   size="sm"
@@ -1638,6 +1648,8 @@ export function AgreementLeadsBoard({
                                   Request Site Work
                                 </Button>
                               </div>
+                            ) : (
+                              <span className="text-[11px] text-muted-foreground/60 italic">—</span>
                             )}
                           </div>
                         </TableCell>

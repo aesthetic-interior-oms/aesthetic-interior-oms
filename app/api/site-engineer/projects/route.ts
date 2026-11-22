@@ -30,10 +30,7 @@ export async function GET(request: NextRequest) {
     const canManageAssignments = isAdmin || isPc || isSrCrm
     const isSiteEngineerLeaderOrAdmin = isAdmin || isPc
 
-    const { searchParams } = new URL(request.url)
-    const scopeParam = searchParams.get('scope') // 'ongoing' (default), 'all'
-
-    // Ongoing sites: site work started / active OR accepted request OR in execution
+    // Strictly ongoing sites: site work started / active OR accepted request OR in site execution
     const ongoingCondition = {
       OR: [
         { isSiteWorkActive: true },
@@ -69,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     const where = {
       ...agreementFilter,
-      ...(scopeParam === 'all' ? {} : ongoingCondition),
+      ...ongoingCondition,
       ...(!isSiteEngineerLeaderOrAdmin
         ? {
             assignments: {
