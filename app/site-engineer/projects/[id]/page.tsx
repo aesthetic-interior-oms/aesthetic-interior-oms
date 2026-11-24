@@ -35,8 +35,6 @@ type QuotationLineItem = {
   description?: string
   quantity?: number
   unit?: string
-  rate?: number
-  amount?: number
   materials?: string
   sectionId?: string
   areaId?: string
@@ -48,7 +46,6 @@ type QuotationDraft = {
   id: string
   draftKey: string
   quotationType?: string
-  grandTotal: number
   status: string
   updatedAt: string
   content: unknown
@@ -192,7 +189,7 @@ export default function SiteEngineerProjectDetailPage() {
     const nextCompleted = !currentCompleted
 
     try {
-      const response = await fetch(`/api/pc/projects/${leadId}/item-status`, {
+      const response = await fetch(`/api/site-engineer/projects/${leadId}/item-status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -507,22 +504,6 @@ export default function SiteEngineerProjectDetailPage() {
                               {item.quantity ?? 1} {item.unit || 'sqft'}
                             </strong>
                           </span>
-                          {item.rate && (
-                            <>
-                              <span>•</span>
-                              <span>
-                                Rate: <strong className="text-foreground">৳{item.rate.toLocaleString()}</strong>
-                              </span>
-                            </>
-                          )}
-                          {item.amount && (
-                            <>
-                              <span>•</span>
-                              <span>
-                                Total: <strong className="text-foreground">৳{item.amount.toLocaleString()}</strong>
-                              </span>
-                            </>
-                          )}
                         </div>
                       </div>
 
@@ -702,8 +683,10 @@ export default function SiteEngineerProjectDetailPage() {
                     </CardHeader>
                     <CardContent className="space-y-2 text-xs pt-0">
                       <div className="flex items-center justify-between border-t pt-2">
-                        <span className="text-muted-foreground">Total PO Value:</span>
-                        <strong className="text-foreground font-mono font-bold">৳{po.totalAmount.toLocaleString()} BDT</strong>
+                        <span className="text-muted-foreground">Ordered Materials:</span>
+                        <strong className="text-foreground font-medium">
+                          {po.indent?.items?.length || 0} Material Line Item(s)
+                        </strong>
                       </div>
                       {po.approvedBy && (
                         <div className="text-[11px] text-emerald-600 dark:text-emerald-400">

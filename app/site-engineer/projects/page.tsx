@@ -12,18 +12,19 @@ import {
   Loader2,
   UserCheck,
   UserPlus,
-  UserX,
   ShoppingCart,
   CheckCircle2,
   AlertTriangle,
   Building2,
-  Filter,
   ArrowUpRight,
-  ShieldCheck,
-  Boxes,
   ClipboardList,
+  CheckSquare,
+  Square,
+  Clock,
+  Sparkles,
+  Layers,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -52,6 +53,24 @@ type SiteEngineerUser = {
   activeProjectsCount?: number
 }
 
+type QuotationProduct = {
+  id: string
+  description: string
+  quantity: number
+  unit: string
+  materials: string | null
+  areaName?: string | null
+  completed: boolean
+}
+
+type ProjectQuotation = {
+  draftId: string
+  totalItems: number
+  completedItems: number
+  progressPercent: number
+  items: QuotationProduct[]
+}
+
 type ProjectSite = {
   id: string
   name: string
@@ -60,7 +79,6 @@ type ProjectSite = {
   stage: string
   subStatus: string | null
   agreementType: string | null
-  agreementValue: number | null
   created_at: string
   assignedSiteEngineer: SiteEngineerUser | null
   assignedProjectCoordinator: { id: string; fullName: string } | null
@@ -73,13 +91,13 @@ type ProjectSite = {
   purchasedSummary: {
     totalPOs: number
     approvedPOs: number
-    totalAmount: number
   }
   scopeProgress: {
     total: number
     completed: number
     percent: number
   }
+  quotation?: ProjectQuotation | null
 }
 
 type Stats = {
@@ -87,7 +105,9 @@ type Stats = {
   unassignedCount: number
   inExecutionCount: number
   totalDeliveries: number
-  totalPurchased: number
+  overallCompletedItems: number
+  overallTotalItems: number
+  overallProgressPercent: number
 }
 
 export default function SiteEngineerProjectsPage() {
@@ -99,7 +119,9 @@ export default function SiteEngineerProjectsPage() {
     unassignedCount: 0,
     inExecutionCount: 0,
     totalDeliveries: 0,
-    totalPurchased: 0,
+    overallCompletedItems: 0,
+    overallTotalItems: 0,
+    overallProgressPercent: 0,
   })
 
   const [loading, setLoading] = useState(true)
@@ -114,6 +136,13 @@ export default function SiteEngineerProjectsPage() {
   const [selectedEngineerId, setSelectedEngineerId] = useState<string>('')
   const [assigning, setAssigning] = useState(false)
 
+  // Quotation Checklist Modal State
+  const [quotationModalOpen, setQuotationModalOpen] = useState(false)
+  const [quotationProject, setQuotationProject] = useState<ProjectSite | null>(null)
+  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null)
+  const [quotationSearch, setQuotationSearch] = useState('')
+  const [quotationFilter, setQuotationFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED'>('ALL')
+
   const fetchProjects = useCallback(async () => {
     try {
       setRefreshing(true)
@@ -126,7 +155,9 @@ export default function SiteEngineerProjectsPage() {
         unassignedCount: 0,
         inExecutionCount: 0,
         totalDeliveries: 0,
-        totalPurchased: 0,
+        overallCompletedItems: 0,
+        overallTotalItems: 0,
+        overallProgressPercent: 0,
       })
       setSiteEngineers(json.data.siteEngineers || [])
       setCanManageAssignments(Boolean(json.data.canManageAssignments))
@@ -147,6 +178,14 @@ export default function SiteEngineerProjectsPage() {
     setSelectedProject(project)
     setSelectedEngineerId(project.assignedSiteEngineer?.id || '')
     setAssignmentModalOpen(true)
+  }
+
+  // Open quotation checklist modal
+  const handleOpenQuotationModal = (project: ProjectSite) => {
+    setQuotationProject(project)
+    setQuotationSearch('')
+    setQuotationFilter('ALL')
+    setQuotationModalOpen(true)
   }
 
   // Submit assignment or reassignment
@@ -197,6 +236,91 @@ export default function SiteEngineerProjectsPage() {
     }
   }
 
+  // Toggle Quotation Product Status
+  const handleToggleProductStatus = async (
+    projectId: string,
+    draftId: string,
+    lineId: string,
+    currentCompleted: boolean,
+  ) => {
+    setUpdatingItemId(lineId)
+    const nextCompleted = !currentCompleted
+
+    try {
+      const res = await fetch(`/api/site-engineer/projects/${projectId}/item-status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draftId, lineId, completed: nextCompleted }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Failed to update work item status')
+      }
+
+      // Optimistically update projects list
+      setProjects((prev) =>
+        prev.map((p) => {
+          if (p.id !== projectId || !p.quotation) return p
+          const nextItems = p.quotation.items.map((it) =>
+            it.id === lineId ? { ...it, completed: nextCompleted } : it,
+          )
+          const completedCount = nextItems.filter((i) => i.completed).length
+          const totalCount = nextItems.length
+          const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+
+          const updatedQuotation: ProjectQuotation = {
+            ...p.quotation,
+            items: nextItems,
+            completedItems: completedCount,
+            progressPercent: percent,
+          }
+
+          return {
+            ...p,
+            scopeProgress: {
+              total: totalCount,
+              completed: completedCount,
+              percent,
+            },
+            quotation: updatedQuotation,
+          }
+        }),
+      )
+
+      // Update active modal view
+      setQuotationProject((prev) => {
+        if (!prev || prev.id !== projectId || !prev.quotation) return prev
+        const nextItems = prev.quotation.items.map((it) =>
+          it.id === lineId ? { ...it, completed: nextCompleted } : it,
+        )
+        const completedCount = nextItems.filter((i) => i.completed).length
+        const totalCount = nextItems.length
+        const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+
+        return {
+          ...prev,
+          scopeProgress: {
+            total: totalCount,
+            completed: completedCount,
+            percent,
+          },
+          quotation: {
+            ...prev.quotation,
+            items: nextItems,
+            completedItems: completedCount,
+            progressPercent: percent,
+          },
+        }
+      })
+
+      toast.success(nextCompleted ? 'Work item marked as completed ✓' : 'Marked as pending')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error updating product status')
+    } finally {
+      setUpdatingItemId(null)
+    }
+  }
+
   // Filter projects
   const filteredProjects = useMemo(() => {
     return projects.filter((p) => {
@@ -232,10 +356,25 @@ export default function SiteEngineerProjectsPage() {
     })
   }, [projects, search, filterMode, engineerFilter])
 
-  const formatCurrency = (val: number | null | undefined) => {
-    if (!val || val === 0) return '৳0'
-    return `৳${Number(val).toLocaleString('en-IN')}`
-  }
+  // Filter quotation products inside modal
+  const modalFilteredProducts = useMemo(() => {
+    if (!quotationProject?.quotation?.items) return []
+    return quotationProject.quotation.items.filter((item) => {
+      const q = quotationSearch.toLowerCase().trim()
+      const matchesSearch =
+        !q ||
+        item.description.toLowerCase().includes(q) ||
+        (item.materials && item.materials.toLowerCase().includes(q)) ||
+        (item.areaName && item.areaName.toLowerCase().includes(q))
+
+      const matchesFilter =
+        quotationFilter === 'ALL' ||
+        (quotationFilter === 'COMPLETED' && item.completed) ||
+        (quotationFilter === 'PENDING' && !item.completed)
+
+      return matchesSearch && matchesFilter
+    })
+  }, [quotationProject, quotationSearch, quotationFilter])
 
   return (
     <div className="w-full p-4 sm:p-6 lg:p-8 space-y-6 min-h-full">
@@ -254,7 +393,7 @@ export default function SiteEngineerProjectsPage() {
             Active Site Projects
           </h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Confirmed agreement sites: Assign Site Engineers, track materials purchased, and monitor delivery gate checks.
+            Monitor confirmed sites: Inspect quotation product scope, tick completed items, and log delivery gate checks.
           </p>
         </div>
 
@@ -283,7 +422,7 @@ export default function SiteEngineerProjectsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <Card className="p-4 bg-card border-border hover:border-blue-500/40 transition">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Active Agreement Sites</span>
+            <span className="text-xs font-medium text-muted-foreground">Active Site Projects</span>
             <Building2 className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-2xl font-bold mt-1 text-foreground">{stats.totalProjects}</div>
@@ -316,19 +455,19 @@ export default function SiteEngineerProjectsPage() {
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-2xl font-bold mt-1 text-foreground">{stats.inExecutionCount}</div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Active civil / interior work</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Active civil / interior sites</p>
         </Card>
 
-        <Card className="p-4 bg-card border-border hover:border-purple-500/40 transition">
+        <Card className="p-4 bg-card border-border hover:border-emerald-500/40 transition">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Purchased &amp; Delivered</span>
-            <ShoppingCart className="w-4 h-4 text-purple-600" />
+            <span className="text-xs font-medium text-muted-foreground">Overall Scope Done</span>
+            <ClipboardList className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-xl sm:text-2xl font-bold mt-1 text-foreground truncate">
-            {formatCurrency(stats.totalPurchased)}
+          <div className="text-2xl font-bold mt-1 text-emerald-600 dark:text-emerald-400">
+            {stats.overallProgressPercent || 0}%
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5">
-            {stats.totalDeliveries} site deliveries logged
+            {stats.overallCompletedItems} of {stats.overallTotalItems} products completed
           </p>
         </Card>
       </div>
@@ -446,6 +585,7 @@ export default function SiteEngineerProjectsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredProjects.map((p) => {
             const hasEngineer = Boolean(p.assignedSiteEngineer)
+            const hasQuotation = Boolean(p.quotation && p.quotation.items.length > 0)
 
             return (
               <Card
@@ -476,11 +616,9 @@ export default function SiteEngineerProjectsPage() {
                       >
                         {p.stage.replace(/_/g, ' ')}
                       </Badge>
-                      {p.agreementValue ? (
-                        <span className="text-[11px] font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                          {formatCurrency(p.agreementValue)}
-                        </span>
-                      ) : null}
+                      <span className="text-[11px] font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                        {p.scopeProgress.percent}% Done
+                      </span>
                     </div>
                   </div>
 
@@ -562,29 +700,27 @@ export default function SiteEngineerProjectsPage() {
                     <div className="bg-background p-2 rounded border border-border/50">
                       <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
                         <ShoppingCart className="w-3 h-3 text-purple-600" />
-                        <span>Purchased</span>
+                        <span>Orders</span>
                       </div>
                       <div className="text-xs font-bold mt-0.5 text-foreground">
                         {p.purchasedSummary.approvedPOs} POs
                       </div>
                       <span className="text-[9px] text-muted-foreground block truncate">
-                        {p.purchasedSummary.totalAmount > 0
-                          ? formatCurrency(p.purchasedSummary.totalAmount)
-                          : '৳0'}
+                        Approved for Site
                       </span>
                     </div>
 
-                    {/* Scope / BOQ Progress */}
+                    {/* Scope / Quotation Products Progress */}
                     <div className="bg-background p-2 rounded border border-border/50">
                       <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
                         <ClipboardList className="w-3 h-3 text-blue-600" />
-                        <span>Scope</span>
+                        <span>Products</span>
                       </div>
                       <div className="text-xs font-bold mt-0.5 text-foreground">
-                        {p.scopeProgress.percent}%
+                        {p.scopeProgress.completed}/{p.scopeProgress.total}
                       </div>
-                      <span className="text-[9px] text-muted-foreground block truncate">
-                        {p.scopeProgress.completed}/{p.scopeProgress.total} Items
+                      <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold block truncate">
+                        {p.scopeProgress.percent}% Done
                       </span>
                     </div>
                   </div>
@@ -592,9 +728,18 @@ export default function SiteEngineerProjectsPage() {
                   {/* Scope Progress Bar */}
                   {p.scopeProgress.total > 0 && (
                     <div className="space-y-1">
-                      <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>Quotation Completion</span>
+                        </span>
+                        <span className="font-semibold text-foreground">
+                          {p.scopeProgress.completed} of {p.scopeProgress.total} done
+                        </span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                         <div
-                          className="bg-blue-600 h-1.5 rounded-full transition-all"
+                          className="bg-emerald-600 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${p.scopeProgress.percent}%` }}
                         />
                       </div>
@@ -603,28 +748,41 @@ export default function SiteEngineerProjectsPage() {
 
                   {/* Action Buttons */}
                   <div className="pt-2 border-t border-border/50 flex flex-col gap-2 text-xs">
+                    {/* Primary Button: View & Tick Quotation Products */}
                     <Button
-                      asChild
                       size="sm"
-                      className="h-8 text-[11px] gap-1.5 bg-blue-600 hover:bg-blue-700 text-white w-full font-semibold"
+                      onClick={() => handleOpenQuotationModal(p)}
+                      className="h-8 text-[11px] gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white w-full font-semibold shadow-xs"
                     >
-                      <Link href={`/site-engineer/projects/${p.id}`}>
-                        <FolderKanban className="w-3.5 h-3.5" />
-                        Site Scope &amp; BOQ Progress
-                      </Link>
+                      <CheckSquare className="w-3.5 h-3.5" />
+                      View &amp; Tick Quotation Products ({p.scopeProgress.completed}/{p.scopeProgress.total})
                     </Button>
 
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="h-7 text-[11px] gap-1 text-amber-700 dark:text-amber-300 w-full"
-                    >
-                      <Link href={`/site-engineer/delivery?leadId=${p.id}`}>
-                        <Truck className="w-3.5 h-3.5" />
-                        View Deliveries &amp; Gate Pass
-                      </Link>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-[11px] gap-1 flex-1"
+                      >
+                        <Link href={`/site-engineer/projects/${p.id}`}>
+                          <FolderKanban className="w-3 h-3" />
+                          Full Scope
+                        </Link>
+                      </Button>
+
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-[11px] gap-1 text-amber-700 dark:text-amber-300 flex-1"
+                      >
+                        <Link href={`/site-engineer/delivery?leadId=${p.id}`}>
+                          <Truck className="w-3 h-3" />
+                          Gate Passes
+                        </Link>
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -632,6 +790,221 @@ export default function SiteEngineerProjectsPage() {
           })}
         </div>
       )}
+
+      {/* ── Quotation Checklist Dialog (Modal to Tick Products without Prices) ── */}
+      <Dialog open={quotationModalOpen} onOpenChange={setQuotationModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[88vh] flex flex-col p-0 gap-0 overflow-hidden">
+          <DialogHeader className="p-4 sm:p-5 border-b bg-card">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <DialogTitle className="flex items-center gap-2 text-base sm:text-lg font-bold">
+                  <CheckSquare className="w-5 h-5 text-emerald-600" />
+                  Quotation Products Checklist
+                </DialogTitle>
+                <DialogDescription className="text-xs text-muted-foreground mt-0.5">
+                  Project: <strong className="text-foreground">{quotationProject?.name}</strong> •{' '}
+                  {quotationProject?.location || 'On-site'}
+                </DialogDescription>
+              </div>
+
+              {quotationProject?.quotation && (
+                <div className="text-right">
+                  <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                    {quotationProject.scopeProgress.percent}%
+                  </div>
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold">
+                    Work Completed
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Live Progress Meter inside Dialog */}
+            {quotationProject?.scopeProgress && (
+              <div className="mt-3 pt-3 border-t border-border/60 space-y-1.5">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">
+                    Progress: <strong className="text-foreground">{quotationProject.scopeProgress.completed}</strong> of{' '}
+                    <strong className="text-foreground">{quotationProject.scopeProgress.total}</strong> products finished
+                  </span>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {quotationProject.scopeProgress.total - quotationProject.scopeProgress.completed} pending
+                  </span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-emerald-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${quotationProject.scopeProgress.percent}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </DialogHeader>
+
+          {/* Search & Filter Toolbar inside Dialog */}
+          <div className="p-3 bg-muted/30 border-b flex flex-col sm:flex-row items-center justify-between gap-2">
+            <div className="relative w-full sm:w-64">
+              <Search className="w-3.5 h-3.5 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                placeholder="Search product or material..."
+                value={quotationSearch}
+                onChange={(e) => setQuotationSearch(e.target.value)}
+                className="pl-8 text-xs h-8 bg-background"
+              />
+            </div>
+
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <Button
+                variant={quotationFilter === 'ALL' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="text-xs h-7 px-2.5"
+                onClick={() => setQuotationFilter('ALL')}
+              >
+                All ({quotationProject?.quotation?.items.length || 0})
+              </Button>
+              <Button
+                variant={quotationFilter === 'PENDING' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="text-xs h-7 px-2.5 text-amber-700 dark:text-amber-400"
+                onClick={() => setQuotationFilter('PENDING')}
+              >
+                Pending ({quotationProject?.quotation?.items.filter((i) => !i.completed).length || 0})
+              </Button>
+              <Button
+                variant={quotationFilter === 'COMPLETED' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="text-xs h-7 px-2.5 text-emerald-700 dark:text-emerald-400"
+                onClick={() => setQuotationFilter('COMPLETED')}
+              >
+                Done ({quotationProject?.quotation?.items.filter((i) => i.completed).length || 0})
+              </Button>
+            </div>
+          </div>
+
+          {/* Quotation Products Checklist (NO PRICES, STRICT OPERATIONAL WORK ITEMS) */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+            {!quotationProject?.quotation || quotationProject.quotation.items.length === 0 ? (
+              <div className="p-10 text-center space-y-2">
+                <ClipboardList className="w-10 h-10 text-muted-foreground/40 mx-auto" />
+                <h4 className="text-sm font-semibold">No quotation products available</h4>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  A quotation has not yet been prepared or approved for this site project.
+                </p>
+              </div>
+            ) : modalFilteredProducts.length === 0 ? (
+              <div className="p-8 text-center space-y-1">
+                <p className="text-xs text-muted-foreground">No quotation products match your active filter.</p>
+              </div>
+            ) : (
+              modalFilteredProducts.map((item, idx) => {
+                const isCompleted = item.completed
+                const isUpdating = updatingItemId === item.id
+
+                return (
+                  <div
+                    key={item.id || idx}
+                    className={`p-3 rounded-lg border transition-all flex items-start justify-between gap-3 ${
+                      isCompleted
+                        ? 'border-emerald-300/80 bg-emerald-50/40 dark:border-emerald-950 dark:bg-emerald-950/20'
+                        : 'border-border/70 bg-card hover:border-border'
+                    }`}
+                  >
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-[10px] text-muted-foreground font-semibold">
+                          #{idx + 1}
+                        </span>
+                        <span
+                          className={`text-xs sm:text-sm font-semibold leading-tight ${
+                            isCompleted ? 'text-foreground line-through opacity-80' : 'text-foreground'
+                          }`}
+                        >
+                          {item.description}
+                        </span>
+                        {isCompleted ? (
+                          <Badge className="bg-emerald-600 text-white text-[9px] h-4 gap-0.5 font-semibold">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> Done
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] h-4 text-amber-700 dark:text-amber-400 border-amber-300"
+                          >
+                            <Clock className="w-2.5 h-2.5 mr-0.5" /> In Progress
+                          </Badge>
+                        )}
+                      </div>
+
+                      {item.materials && (
+                        <p className="text-xs text-muted-foreground line-clamp-2 pl-4">
+                          {item.materials}
+                        </p>
+                      )}
+
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground pl-4 pt-0.5">
+                        <span className="bg-muted px-1.5 py-0.5 rounded text-[11px] font-medium text-foreground">
+                          Qty: {item.quantity} {item.unit}
+                        </span>
+                        {item.areaName && (
+                          <span className="text-[11px] text-muted-foreground">
+                            • Area: <strong className="text-foreground">{item.areaName}</strong>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Checkbox Button */}
+                    <div className="shrink-0 self-center">
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isUpdating || !quotationProject}
+                        variant={isCompleted ? 'default' : 'outline'}
+                        className={`text-xs h-8 px-3 font-semibold gap-1.5 transition-colors ${
+                          isCompleted
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                            : 'hover:bg-muted text-foreground'
+                        }`}
+                        onClick={() =>
+                          handleToggleProductStatus(
+                            quotationProject!.id,
+                            quotationProject!.quotation!.draftId,
+                            item.id,
+                            isCompleted,
+                          )
+                        }
+                      >
+                        {isUpdating ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : isCompleted ? (
+                          <CheckSquare className="w-3.5 h-3.5" />
+                        ) : (
+                          <Square className="w-3.5 h-3.5" />
+                        )}
+                        <span>{isCompleted ? 'Done ✓' : 'Mark Done'}</span>
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+
+          <DialogFooter className="p-3 bg-card border-t flex sm:justify-between items-center gap-2">
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              Site Engineer Checklist • No prices displayed
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuotationModalOpen(false)}
+              className="text-xs"
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Assign Site Engineer Dialog ── */}
       <Dialog open={assignmentModalOpen} onOpenChange={setAssignmentModalOpen}>

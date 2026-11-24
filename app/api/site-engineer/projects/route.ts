@@ -16,7 +16,11 @@ export async function GET(request: NextRequest) {
     const authResult = await requireDatabaseRoles([])
     if (!authResult.ok) return authResult.response
 
-    const actorDepartments = new Set(authResult.actor.userDepartments ?? [])
+    const actorDepartments = new Set(
+      (authResult.actor.userDepartments ?? []).map((d: any) =>
+        typeof d === 'string' ? d.trim().toUpperCase().replace(/\s+/g, '_') : ''
+      )
+    )
     const actorRoles = authResult.actorRoles ?? []
     const isAdmin =
       actorDepartments.has('ADMIN') ||
@@ -183,10 +187,11 @@ export async function GET(request: NextRequest) {
     }))
 
     // Process and enrich projects
-    let totalPurchased = 0
     let totalDeliveries = 0
     let unassignedCount = 0
     let inExecutionCount = 0
+    let overallTotalItems = 0
+    let overallCompletedItems = 0
 
     const projects = leads.map((lead) => {
       const siteEngAssignment = lead.assignments.find(
@@ -214,26 +219,119 @@ export async function GET(request: NextRequest) {
       ).length
       const latestDeliveryDate = deliveries.length > 0 ? deliveries[0].deliveryDate : null
 
-      // Purchase orders calculations
+      // Purchase orders count (NO pricing/amounts exposed to Site Engineers)
       const pos = lead.purchaseOrders || []
       const approvedPos = pos.filter((po) => po.status === 'APPROVED' || po.status === 'FULFILLED')
-      const leadPurchasedAmount = approvedPos.reduce((sum, po) => sum + (po.totalAmount || 0), 0)
-      totalPurchased += leadPurchasedAmount
 
-      // Scope / BOQ Progress calculation
+      // Quotation Products & Scope Progress (STRICTLY NO PRICES, RATES, OR TOTAL AMOUNTS)
+      let quotation = null
       let totalLineItems = 0
       let completedLineItems = 0
       const activeDraft = lead.quotationDrafts?.[0]
+
       if (activeDraft?.content && typeof activeDraft.content === 'object') {
         const content = activeDraft.content as Record<string, unknown>
-        if (Array.isArray(content.lineItems)) {
-          const items = content.lineItems.filter((i: any) => i && i.included !== false)
-          totalLineItems = items.length
-          completedLineItems = items.filter((i: any) => i.completed === true).length
+
+        // Build Floor & Area maps for proper hierarchy
+        const floorsMap = new Map<string, string>()
+        if (Array.isArray(content.floors)) {
+          content.floors.forEach((f: any) => {
+            if (f && f.id && f.name) floorsMap.set(String(f.id), String(f.name))
+          })
+        }
+
+        const areasMap = new Map<string, string>()
+        const areaFloorMap = new Map<string, string>()
+        if (Array.isArray(content.areas)) {
+          content.areas.forEach((a: any) => {
+            if (a && a.id) {
+              const aId = String(a.id)
+              if (a.name) areasMap.set(aId, String(a.name))
+              if (a.floorId && floorsMap.has(String(a.floorId))) {
+                areaFloorMap.set(aId, floorsMap.get(String(a.floorId))!)
+              }
+            }
+          })
+        }
+
+        const sectionsMap = new Map<string, string>()
+        if (Array.isArray(content.sections)) {
+          content.sections.forEach((s: any) => {
+            if (s && s.id && s.name) sectionsMap.set(String(s.id), String(s.name))
+          })
+        }
+
+        const rawLineItems = Array.isArray(content.lineItems) ? (content.lineItems as any[]) : []
+        const validItems = rawLineItems.filter((i) => i && i.included !== false)
+
+        const sanitizedItems = validItems.map((item, idx) => {
+          const aId = item.areaId ? String(item.areaId) : null
+          const sId = item.sectionId ? String(item.sectionId) : null
+          const areaName = (aId && areasMap.has(aId))
+            ? areasMap.get(aId)!
+            : (item.areaName ? String(item.areaName) : (item.room ? String(item.room) : null))
+          const floorName = (aId && areaFloorMap.has(aId))
+            ? areaFloorMap.get(aId)!
+            : (item.floorName ? String(item.floorName) : (item.floor ? String(item.floor) : null))
+          const sectionName = (sId && sectionsMap.has(sId))
+            ? sectionsMap.get(sId)!
+            : (item.sectionName ? String(item.sectionName) : null)
+
+          return {
+            id: String(item.id || `item-${idx}`),
+            description: String(item.description || item.name || item.title || 'Work Product Item'),
+            quantity: typeof item.quantity === 'number' ? item.quantity : (Number(item.quantity) || 1),
+            unit: String(item.unit || 'sqft'),
+            materials: item.materials ? String(item.materials) : (item.specifications ? String(item.specifications) : null),
+            floorName,
+            areaName,
+            sectionName,
+            completed: Boolean(item.completed),
+          }
+        })
+
+        // If no lineItems found, check short quotation rooms
+        if (sanitizedItems.length === 0 && Array.isArray(content.rooms)) {
+          content.rooms.forEach((rm: any) => {
+            const rFloor = (rm.floorId && floorsMap.has(String(rm.floorId)))
+              ? floorsMap.get(String(rm.floorId))!
+              : 'Main Floor'
+            const rName = rm.name ? String(rm.name) : 'Room'
+            const lines = Array.isArray(rm.lines) ? rm.lines : []
+
+            lines.forEach((l: any, lIdx: number) => {
+              sanitizedItems.push({
+                id: String(l.id || `short-${lIdx}`),
+                description: String(l.description || l.title || 'Work Item'),
+                quantity: typeof l.quantity === 'number' ? l.quantity : (Number(l.quantity) || 1),
+                unit: String(l.unit || 'sqft'),
+                materials: l.materials ? String(l.materials) : null,
+                floorName: rFloor,
+                areaName: rName,
+                sectionName: null,
+                completed: Boolean(l.completed),
+              })
+            })
+          })
+        }
+
+        totalLineItems = sanitizedItems.length
+        completedLineItems = sanitizedItems.filter((i) => i.completed).length
+
+        quotation = {
+          draftId: activeDraft.id,
+          totalItems: totalLineItems,
+          completedItems: completedLineItems,
+          progressPercent: totalLineItems > 0 ? Math.round((completedLineItems / totalLineItems) * 100) : 0,
+          items: sanitizedItems,
         }
       }
+
       const progressPercent =
         totalLineItems > 0 ? Math.round((completedLineItems / totalLineItems) * 100) : 0
+
+      overallTotalItems += totalLineItems
+      overallCompletedItems += completedLineItems
 
       return {
         id: lead.id,
@@ -243,7 +341,7 @@ export async function GET(request: NextRequest) {
         stage: lead.stage,
         subStatus: lead.subStatus,
         agreementType: lead.agreementType,
-        agreementValue: lead.agreementValue,
+        agreementValue: null, // Strictly hidden from Site Engineers
         created_at: lead.created_at,
         assignedSiteEngineer: siteEngAssignment?.user || null,
         assignedProjectCoordinator: pcAssignment?.user || null,
@@ -256,15 +354,18 @@ export async function GET(request: NextRequest) {
         purchasedSummary: {
           totalPOs: pos.length,
           approvedPOs: approvedPos.length,
-          totalAmount: leadPurchasedAmount,
         },
         scopeProgress: {
           total: totalLineItems,
           completed: completedLineItems,
           percent: progressPercent,
         },
+        quotation,
       }
     })
+
+    const overallProgressPercent =
+      overallTotalItems > 0 ? Math.round((overallCompletedItems / overallTotalItems) * 100) : 0
 
     return NextResponse.json({
       success: true,
@@ -275,7 +376,9 @@ export async function GET(request: NextRequest) {
           unassignedCount,
           inExecutionCount,
           totalDeliveries,
-          totalPurchased,
+          overallCompletedItems,
+          overallTotalItems,
+          overallProgressPercent,
         },
         siteEngineers,
         canManageAssignments,

@@ -1,33 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@clerk/nextjs/server'
 import prisma from '@/lib/prisma'
 import { normalizeDepartmentName } from '@/lib/department-normalization'
+import { requireDatabaseRoles } from '@/lib/authz'
 
 export const runtime = 'nodejs'
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId: clerkUserId } = await auth()
-    if (!clerkUserId) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 },
-      )
-    }
+    const authResult = await requireDatabaseRoles([], req)
+    if (!authResult.ok) return authResult.response
 
-    const user = await prisma.user.findUnique({
-      where: { clerkUserId },
-      select: { id: true },
-    })
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'User not found' },
-        { status: 404 },
-      )
-    }
+    const user = { id: authResult.actorUserId }
 
     const { id: leadId } = await params
 

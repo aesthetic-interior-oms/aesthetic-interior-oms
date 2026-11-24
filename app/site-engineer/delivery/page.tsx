@@ -398,8 +398,8 @@ function SiteEngineerDeliveryPage() {
                   </div>
 
                   <div className="pt-2 border-t border-border/40 flex items-center justify-between">
-                    <span className="font-mono font-bold text-xs text-foreground">
-                      ৳{po.totalAmount.toLocaleString()} BDT
+                    <span className="font-medium text-xs text-muted-foreground">
+                      Ready for Site Gate Check
                     </span>
                     <Button
                       size="sm"
