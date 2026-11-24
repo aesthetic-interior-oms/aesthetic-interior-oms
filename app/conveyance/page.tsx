@@ -4,13 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { CONVEYANCE_MODES } from '@/lib/conveyance-bills'
 import {
   CalendarDays,
@@ -30,7 +23,6 @@ import {
   Receipt,
   Banknote,
   Ban,
-  Tag,
   Scissors
 } from 'lucide-react'
 
@@ -87,7 +79,30 @@ export default function ConveyancePage() {
   const [clientName, setClientName] = useState('')
   const [clientLocation, setClientLocation] = useState('')
   const [bills, setBills] = useState<BillDraft[]>([blankBill()])
-  const [modalOpen, setModalOpen] = useState(false)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+
+  const openForm = () => {
+    setIsFormOpen(true)
+    setTimeout(() => {
+      document.getElementById('new-conveyance-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 50)
+  }
+
+  const toggleForm = () => {
+    setIsFormOpen((prev) => {
+      const next = !prev
+      if (next) {
+        setTimeout(() => {
+          document.getElementById('new-conveyance-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 50)
+      }
+      return next
+    })
+  }
+
+  const closeForm = () => {
+    setIsFormOpen(false)
+  }
 
   // Current logged in user actor information & department
   const [actorInfo, setActorInfo] = useState<{ id?: string; fullName?: string; departments?: string[] }>({})
@@ -192,7 +207,7 @@ export default function ConveyancePage() {
       setClientLocation('')
       setBills([blankBill()])
       setAmountInWords('')
-      setModalOpen(false)
+      setIsFormOpen(false)
       await load()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Could not submit request')
@@ -330,17 +345,449 @@ export default function ConveyancePage() {
           </p>
         </div>
 
-        {/* Modal Trigger: Write Cheque Book */}
+        {/* Action Trigger: Write Cheque Book / Close Form */}
         <div className="flex items-center gap-3">
           <Button
-            onClick={() => setModalOpen(true)}
-            className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 font-serif font-bold text-sm tracking-wide shadow-md transition-all active:scale-95 flex items-center gap-2"
+            onClick={toggleForm}
+            className={`px-5 py-2.5 font-serif font-bold text-sm tracking-wide shadow-md transition-all active:scale-95 flex items-center gap-2 ${
+              isFormOpen
+                ? 'bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 hover:bg-rose-200/70'
+                : 'bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900'
+            }`}
           >
-            <Wallet className="h-4 w-4" />
-            + Write Conveyance Cheque
+            {isFormOpen ? (
+              <>
+                <XCircle className="h-4 w-4" />
+                Close Cheque Form
+              </>
+            ) : (
+              <>
+                <Wallet className="h-4 w-4" />
+                + Write Conveyance Cheque
+              </>
+            )}
           </Button>
         </div>
       </div>
+
+      {/* ============================================================ */}
+      {/* IN-PAGE SECTION: REALISTIC BANK CHEQUE BOOK SUBMISSION FORM  */}
+      {/* ============================================================ */}
+      {isFormOpen && (
+        <section
+          id="new-conveyance-section"
+          className="scroll-mt-6 transition-all duration-300 space-y-3"
+          aria-label="New Conveyance Entry Form"
+        >
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold tracking-widest bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 uppercase flex items-center gap-1.5">
+                <Wallet className="w-3.5 h-3.5" />
+                New Cheque Entry
+              </span>
+              <span className="text-sm font-serif font-bold text-slate-900 dark:text-zinc-100">
+                Write & Issue Conveyance Cheque
+              </span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={closeForm}
+              className="text-xs font-mono text-slate-500 hover:text-slate-800 dark:hover:text-zinc-200 hover:bg-slate-200/60 dark:hover:bg-zinc-800"
+            >
+              <XCircle className="w-3.5 h-3.5 mr-1 text-slate-400" />
+              Close Form
+            </Button>
+          </div>
+
+          {/* Authentic Bank Cheque Book Container */}
+          <form onSubmit={submit}>
+            <div className="relative rounded-2xl border-2 border-slate-400 dark:border-zinc-700 bg-amber-50 dark:bg-zinc-900 shadow-2xl overflow-hidden transition-all flex flex-col lg:flex-row">
+              {/* Top Security Gradient Stripe across the whole cheque leaf */}
+              <div className="absolute top-0 left-0 right-0 h-2.5 bg-gradient-to-r from-emerald-800 via-teal-700 to-emerald-900 opacity-90 z-20" />
+
+              {/* ==================================================== */}
+              {/* LEFT: CHEQUE COUNTERFOIL / STUB RECORD (Desktop)     */}
+              {/* ==================================================== */}
+              <div className="hidden lg:flex w-72 shrink-0 border-r-2 border-dashed border-slate-300 dark:border-zinc-700 bg-amber-100/60 dark:bg-zinc-850 p-6 flex-col justify-between relative">
+                {/* Perforation circle notch graphic on the right boundary */}
+                <div className="absolute -right-2 top-10 w-4 h-4 rounded-full bg-slate-100 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700" />
+                <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-slate-100 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700" />
+                <div className="absolute -right-2 bottom-10 w-4 h-4 rounded-full bg-slate-100 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700" />
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b border-dashed border-slate-300 dark:border-zinc-700 pb-2">
+                    <span className="text-[11px] font-mono font-bold tracking-widest text-slate-700 dark:text-zinc-300 uppercase">
+                      COUNTERFOIL STUB
+                    </span>
+                    <Scissors className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
+
+                  <div className="space-y-3 text-xs font-mono">
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase block">Dept Ledger:</span>
+                      <span className="font-bold text-slate-800 dark:text-zinc-200">
+                        {departmentDisplay}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase block">Date Issued:</span>
+                      <span className="font-semibold text-slate-800 dark:text-zinc-200">
+                        {submitDate}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase block">Client Ref:</span>
+                      <span className="font-semibold text-slate-800 dark:text-zinc-200 break-words">
+                        {clientName || '— (Fill on right)'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase block">Site Location:</span>
+                      <span className="font-semibold text-slate-800 dark:text-zinc-200 break-words">
+                        {clientLocation || '—'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] text-slate-400 uppercase block">Journey Slips:</span>
+                      <span className="font-bold text-slate-800 dark:text-zinc-200">
+                        {bills.length} {bills.length === 1 ? 'Leg' : 'Legs'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Counterfoil Net Box */}
+                <div className="border-t border-dashed border-slate-300 dark:border-zinc-700 pt-3 space-y-1">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">
+                    TOTAL AMOUNT
+                  </span>
+                  <div className="text-xl font-mono font-black text-slate-900 dark:text-zinc-100">
+                    ৳ {calculatedTotal.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <span className="text-[9px] font-mono text-slate-400 block">
+                    Record for employee books
+                  </span>
+                </div>
+              </div>
+
+              {/* ==================================================== */}
+              {/* RIGHT: MAIN CHEQUE LEAF (Wide Panoramic Canvas)     */}
+              {/* ==================================================== */}
+              <div className="flex-1 p-5 sm:p-7 space-y-6 flex flex-col justify-between">
+                {/* Cheque Header: Crossed lines + Bank Title + Department Badge + Date */}
+                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-300/80 dark:border-zinc-800 pb-4">
+                  {/* Two Parallel Lines Crossing */}
+                  <div className="relative py-1 pr-4 pl-1">
+                    <div className="border-t-2 border-b-2 border-slate-800 dark:border-zinc-200 py-0.5 px-3 transform -rotate-12 inline-block shadow-xs">
+                      <span className="text-[10px] font-mono font-black tracking-widest text-slate-800 dark:text-zinc-200 uppercase">
+                        {'// A/C PAYEE ONLY //'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Cheque Identification Details & Department Emblem */}
+                  <div className="text-center sm:text-left flex-1 px-2">
+                    <div className="flex items-center gap-2 justify-center sm:justify-start">
+                      <Building2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
+                      <span className="text-base font-serif font-black tracking-wider text-slate-900 dark:text-zinc-100 uppercase">
+                        AESTHETIC INTERIOR OMS
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start mt-0.5">
+                      <span className="text-[11px] font-mono tracking-wider text-slate-500 dark:text-zinc-400">
+                        CONVEYANCE DISBURSEMENT CHEQUE VOUCHER
+                      </span>
+                      <span className="text-slate-300 dark:text-zinc-700">•</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider bg-amber-200/90 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 uppercase">
+                        {departmentDisplay}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Cheque Date Box */}
+                  <div className="flex flex-col items-end">
+                    <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 dark:text-zinc-400 mb-1">
+                      ISSUE DATE
+                    </span>
+                    <div className="flex items-center gap-1 bg-white dark:bg-zinc-800 border-2 border-slate-700 dark:border-zinc-400 rounded px-3 py-1 shadow-inner">
+                      <span className="font-mono text-sm font-bold tracking-widest text-slate-900 dark:text-zinc-100">
+                        {submitDate}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Horizontal Payee Lines: Client Name & Site Location (Side-by-Side Wide) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Client Payee */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm">
+                    <span className="font-serif font-bold text-slate-700 dark:text-zinc-300 min-w-[130px] uppercase text-xs tracking-wider">
+                      Pay Against Client:
+                    </span>
+                    <div className="flex-1 relative">
+                      <Input
+                        required
+                        maxLength={250}
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                        placeholder="Client name or project title"
+                        className="bg-transparent border-0 border-b-2 border-dotted border-slate-400 dark:border-zinc-600 rounded-none px-2 py-1 text-slate-900 dark:text-zinc-100 font-serif font-bold text-base focus-visible:ring-0 focus-visible:border-slate-800 dark:focus-visible:border-zinc-200 placeholder:font-sans placeholder:text-xs placeholder:text-slate-400 placeholder:font-normal"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Client Location */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm">
+                    <span className="font-serif font-bold text-slate-700 dark:text-zinc-300 min-w-[140px] uppercase text-xs tracking-wider">
+                      Client / Site Location:
+                    </span>
+                    <div className="flex-1 relative">
+                      <Input
+                        required
+                        maxLength={500}
+                        value={clientLocation}
+                        onChange={(e) => setClientLocation(e.target.value)}
+                        placeholder="e.g. Plot 14, Road 11, Banani, Dhaka"
+                        className="bg-transparent border-0 border-b-2 border-dotted border-slate-400 dark:border-zinc-600 rounded-none px-2 py-1 text-slate-900 dark:text-zinc-100 font-serif font-medium text-sm focus-visible:ring-0 focus-visible:border-slate-800 dark:focus-visible:border-zinc-200 placeholder:font-sans placeholder:text-xs placeholder:text-slate-400 placeholder:font-normal"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Wide Cheque Expense Ledger (Attached Bill Slips Table) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between border-b border-slate-300 dark:border-zinc-700 pb-2">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
+                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
+                        Itemized Travel Expense Ledger ({bills.length} {bills.length === 1 ? 'Slip' : 'Slips'})
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setBills((current) => [...current, blankBill()])}
+                      className="h-7 text-xs bg-white dark:bg-zinc-800 border-dashed border-slate-400 dark:border-zinc-600 hover:bg-amber-100/60 dark:hover:bg-zinc-750"
+                    >
+                      <Plus className="mr-1 h-3.5 w-3.5" /> + Add Bill Slip
+                    </Button>
+                  </div>
+
+                  {/* Horizontal Scrollable/Spacious Ledger Table */}
+                  <div className="overflow-x-auto rounded-lg border border-slate-300 dark:border-zinc-700 bg-white/90 dark:bg-zinc-850 shadow-inner">
+                    <table className="w-full min-w-[760px] text-xs">
+                      <thead>
+                        <tr className="border-b bg-slate-100 dark:bg-zinc-800 text-left font-mono uppercase text-slate-500 dark:text-zinc-400">
+                          <th className="py-2.5 px-3 w-10 text-center">#</th>
+                          <th className="py-2.5 px-3 w-32">Date</th>
+                          <th className="py-2.5 px-3 w-40">Transport Mode</th>
+                          <th className="py-2.5 px-3 w-44">From (Origin)</th>
+                          <th className="py-2.5 px-3 w-44">To (Destination)</th>
+                          <th className="py-2.5 px-3">Official Purpose</th>
+                          <th className="py-2.5 px-3 w-36 text-right">Amount (৳)</th>
+                          <th className="py-2.5 px-2 w-10 text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-zinc-750">
+                        {bills.map((bill, index) => (
+                          <tr key={index} className="hover:bg-amber-50/50 dark:hover:bg-zinc-800/50 transition-colors">
+                            <td className="py-2 px-3 text-center font-mono font-bold text-slate-400">
+                              {index + 1}
+                            </td>
+                            <td className="py-2 px-3">
+                              <Input
+                                type="date"
+                                required
+                                value={bill.date}
+                                onChange={(e) => updateBill(index, 'date', e.target.value)}
+                                className="h-8 text-xs font-mono bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700"
+                              />
+                            </td>
+                            <td className="py-2 px-3">
+                              <select
+                                required
+                                className="h-8 w-full rounded-md border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 text-xs font-sans text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                                value={bill.mode}
+                                onChange={(e) => updateBill(index, 'mode', e.target.value)}
+                              >
+                                <option value="">Select transport</option>
+                                {CONVEYANCE_MODES.map((mode) => (
+                                  <option key={mode.value} value={mode.value}>
+                                    {mode.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="py-2 px-3">
+                              <Input
+                                required
+                                maxLength={250}
+                                value={bill.from}
+                                onChange={(e) => updateBill(index, 'from', e.target.value)}
+                                placeholder="Starting location"
+                                className="h-8 text-xs bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700"
+                              />
+                            </td>
+                            <td className="py-2 px-3">
+                              <Input
+                                required
+                                maxLength={250}
+                                value={bill.to}
+                                onChange={(e) => updateBill(index, 'to', e.target.value)}
+                                placeholder="Destination point"
+                                className="h-8 text-xs bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700"
+                              />
+                            </td>
+                            <td className="py-2 px-3">
+                              <Input
+                                required
+                                maxLength={500}
+                                value={bill.purpose}
+                                onChange={(e) => updateBill(index, 'purpose', e.target.value)}
+                                placeholder="Meeting, inspection, sample delivery..."
+                                className="h-8 text-xs bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700"
+                              />
+                            </td>
+                            <td className="py-2 px-3">
+                              <div className="relative">
+                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-slate-400">
+                                  ৳
+                                </span>
+                                <Input
+                                  type="number"
+                                  min="0.01"
+                                  max="100000000"
+                                  step="0.01"
+                                  required
+                                  value={bill.amount}
+                                  onChange={(e) => updateBill(index, 'amount', e.target.value)}
+                                  placeholder="0.00"
+                                  className="h-8 text-xs font-mono pl-6 bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 text-right font-bold"
+                                />
+                              </div>
+                            </td>
+                            <td className="py-2 px-2 text-center">
+                              {bills.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setBills((current) => current.filter((_, rIdx) => rIdx !== index))}
+                                  className="p-1 rounded text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
+                                  title="Remove bill slip"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Amount in Words ("The Sum of Taka ...") & Cheque Box Amount */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center pt-2 border-t border-slate-300 dark:border-zinc-700">
+                  {/* Wide Amount in Words Line (Left 8 cols) */}
+                  <div className="md:col-span-8 space-y-1">
+                    <span className="font-serif font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-zinc-300">
+                      The Sum of Taka (in words):
+                    </span>
+                    <div className="min-h-[44px] border-b-2 border-dotted border-slate-500 dark:border-zinc-500 px-2 py-1 flex items-center">
+                      <p className="font-serif italic text-sm text-slate-900 dark:text-zinc-100 leading-snug">
+                        {estimateLoading ? (
+                          <span className="text-slate-400 font-sans text-xs">Computing bank words...</span>
+                        ) : amountInWords ? (
+                          <>
+                            <span className="font-bold underline decoration-slate-400 decoration-1 underline-offset-4">
+                              {amountInWords}
+                            </span>
+                            <span className="text-slate-400 ml-2 font-mono">---------------------------------- ⑈</span>
+                          </>
+                        ) : (
+                          <span className="text-slate-400 font-sans text-xs not-italic">
+                            (Enter transit bill amounts above to generate words)
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Cheque Box Amount (Right 4 cols) */}
+                  <div className="md:col-span-4 flex flex-col items-end">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">
+                      TOTAL SUM (৳)
+                    </span>
+                    <div className="w-full bg-white dark:bg-zinc-950 border-2 border-slate-800 dark:border-zinc-200 rounded px-4 py-2.5 flex items-center justify-between shadow-inner">
+                      <span className="font-mono text-lg font-black text-slate-900 dark:text-zinc-100">
+                        ৳
+                      </span>
+                      <span className="font-mono text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-wider">
+                        {calculatedTotal.toLocaleString('en-BD', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
+                        <span className="text-sm text-slate-500 dark:text-zinc-400 font-normal ml-1">/-</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Signature & Submission Area */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-dashed border-slate-300 dark:border-zinc-700">
+                  {/* MICR Bank Code Line Graphic */}
+                  <div className="font-mono text-xs tracking-[0.25em] text-slate-500 dark:text-zinc-500 select-none hidden sm:block">
+                    ⑈ 104820 ⑈ 020084012 ⑈ 92
+                  </div>
+
+                  {/* Signatory Box & Actions */}
+                  <div className="w-full sm:w-auto flex items-center justify-end gap-4">
+                    <div className="text-right hidden sm:block">
+                      <span className="text-[10px] font-serif uppercase tracking-wider text-slate-400 block border-b border-slate-300 dark:border-zinc-700 pb-0.5">
+                        Authorised Employee Signatory
+                      </span>
+                      <span className="text-[10px] font-mono font-medium text-slate-600 dark:text-zinc-300">
+                        {actorInfo.fullName || 'Employee Signature'} · {departmentDisplay}
+                      </span>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={closeForm}
+                      className="border-slate-300 hover:bg-slate-100 text-xs font-mono"
+                    >
+                      Close Form
+                    </Button>
+
+                    <Button
+                      type="submit"
+                      disabled={saving || estimateLoading || calculatedTotal <= 0}
+                      className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 font-serif font-bold text-sm tracking-wide shadow-md transition-all active:scale-95"
+                    >
+                      {saving ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Issuing Cheque...
+                        </>
+                      ) : (
+                        <>
+                          <Wallet className="mr-2 h-4 w-4" /> Sign & Issue Cheque
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </form>
+        </section>
+      )}
 
       {/* ============================================================ */}
       {/* STATISTICS SECTION (Monthly by default) */}
@@ -613,7 +1060,7 @@ export default function ConveyancePage() {
             </p>
             <div className="pt-2">
               <Button
-                onClick={() => setModalOpen(true)}
+                onClick={openForm}
                 variant="outline"
                 size="sm"
                 className="font-serif font-semibold border-slate-300 hover:bg-slate-100"
@@ -744,404 +1191,6 @@ export default function ConveyancePage() {
           </div>
         )}
       </div>
-
-      {/* ============================================================ */}
-      {/* MODAL: REALISTIC WIDE BANK CHEQUE BOOK SUBMISSION FORM       */}
-      {/* ============================================================ */}
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="w-[96vw] max-w-[1360px] max-h-[94vh] overflow-y-auto p-0 border-0 bg-transparent shadow-2xl">
-          <DialogHeader className="sr-only">
-            <DialogTitle>{departmentDisplay} Conveyance Cheque Book Voucher</DialogTitle>
-            <DialogDescription>Write and issue a bank-styled travel conveyance cheque voucher.</DialogDescription>
-          </DialogHeader>
-
-          {/* Authentic Bank Cheque Book Container */}
-          <form onSubmit={submit}>
-            <div className="relative rounded-2xl border-2 border-slate-400 dark:border-zinc-700 bg-amber-50 dark:bg-zinc-900 shadow-2xl overflow-hidden transition-all flex flex-col lg:flex-row">
-              {/* Top Security Gradient Stripe across the whole cheque leaf */}
-              <div className="absolute top-0 left-0 right-0 h-2.5 bg-gradient-to-r from-emerald-800 via-teal-700 to-emerald-900 opacity-90 z-20" />
-
-              {/* ==================================================== */}
-              {/* LEFT: CHEQUE COUNTERFOIL / STUB RECORD (Desktop)     */}
-              {/* ==================================================== */}
-              <div className="hidden lg:flex w-72 shrink-0 border-r-2 border-dashed border-slate-300 dark:border-zinc-700 bg-amber-100/60 dark:bg-zinc-850 p-6 flex-col justify-between relative">
-                {/* Perforation circle notch graphic on the right boundary */}
-                <div className="absolute -right-2 top-10 w-4 h-4 rounded-full bg-slate-100 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700" />
-                <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-slate-100 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700" />
-                <div className="absolute -right-2 bottom-10 w-4 h-4 rounded-full bg-slate-100 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-700" />
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-dashed border-slate-300 dark:border-zinc-700 pb-2">
-                    <span className="text-[11px] font-mono font-bold tracking-widest text-slate-700 dark:text-zinc-300 uppercase">
-                      COUNTERFOIL STUB
-                    </span>
-                    <Scissors className="w-3.5 h-3.5 text-slate-400" />
-                  </div>
-
-                  <div className="space-y-3 text-xs font-mono">
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase block">Dept Ledger:</span>
-                      <span className="font-bold text-slate-800 dark:text-zinc-200">
-                        {departmentDisplay}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase block">Date Issued:</span>
-                      <span className="font-semibold text-slate-800 dark:text-zinc-200">
-                        {submitDate}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase block">Client Ref:</span>
-                      <span className="font-semibold text-slate-800 dark:text-zinc-200 break-words">
-                        {clientName || '— (Fill on right)'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase block">Site Location:</span>
-                      <span className="font-semibold text-slate-800 dark:text-zinc-200 break-words">
-                        {clientLocation || '—'}
-                      </span>
-                    </div>
-
-                    <div>
-                      <span className="text-[10px] text-slate-400 uppercase block">Journey Slips:</span>
-                      <span className="font-bold text-slate-800 dark:text-zinc-200">
-                        {bills.length} {bills.length === 1 ? 'Leg' : 'Legs'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Counterfoil Net Box */}
-                <div className="border-t border-dashed border-slate-300 dark:border-zinc-700 pt-3 space-y-1">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 block">
-                    TOTAL AMOUNT
-                  </span>
-                  <div className="text-xl font-mono font-black text-slate-900 dark:text-zinc-100">
-                    ৳ {calculatedTotal.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </div>
-                  <span className="text-[9px] font-mono text-slate-400 block">
-                    Record for employee books
-                  </span>
-                </div>
-              </div>
-
-              {/* ==================================================== */}
-              {/* RIGHT: MAIN CHEQUE LEAF (Wide Panoramic Canvas)     */}
-              {/* ==================================================== */}
-              <div className="flex-1 p-5 sm:p-7 space-y-6 flex flex-col justify-between">
-                {/* Cheque Header: Crossed lines + Bank Title + Department Badge + Date */}
-                <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-300/80 dark:border-zinc-800 pb-4">
-                  {/* Two Parallel Lines Crossing */}
-                  <div className="relative py-1 pr-4 pl-1">
-                    <div className="border-t-2 border-b-2 border-slate-800 dark:border-zinc-200 py-0.5 px-3 transform -rotate-12 inline-block shadow-xs">
-                      <span className="text-[10px] font-mono font-black tracking-widest text-slate-800 dark:text-zinc-200 uppercase">
-                        // A/C PAYEE ONLY //
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Cheque Identification Details & Department Emblem */}
-                  <div className="text-center sm:text-left flex-1 px-2">
-                    <div className="flex items-center gap-2 justify-center sm:justify-start">
-                      <Building2 className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-                      <span className="text-base font-serif font-black tracking-wider text-slate-900 dark:text-zinc-100 uppercase">
-                        AESTHETIC INTERIOR OMS
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 justify-center sm:justify-start mt-0.5">
-                      <span className="text-[11px] font-mono tracking-wider text-slate-500 dark:text-zinc-400">
-                        CONVEYANCE DISBURSEMENT CHEQUE VOUCHER
-                      </span>
-                      <span className="text-slate-300 dark:text-zinc-700">•</span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold tracking-wider bg-amber-200/90 dark:bg-amber-900/60 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700 uppercase">
-                        {departmentDisplay}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Cheque Date Box */}
-                  <div className="flex flex-col items-end">
-                    <span className="text-[9px] font-mono uppercase tracking-widest text-slate-500 dark:text-zinc-400 mb-1">
-                      ISSUE DATE
-                    </span>
-                    <div className="flex items-center gap-1 bg-white dark:bg-zinc-800 border-2 border-slate-700 dark:border-zinc-400 rounded px-3 py-1 shadow-inner">
-                      <span className="font-mono text-sm font-bold tracking-widest text-slate-900 dark:text-zinc-100">
-                        {submitDate}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Horizontal Payee Lines: Client Name & Site Location (Side-by-Side Wide) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Client Payee */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm">
-                    <span className="font-serif font-bold text-slate-700 dark:text-zinc-300 min-w-[130px] uppercase text-xs tracking-wider">
-                      Pay Against Client:
-                    </span>
-                    <div className="flex-1 relative">
-                      <Input
-                        required
-                        maxLength={250}
-                        value={clientName}
-                        onChange={(e) => setClientName(e.target.value)}
-                        placeholder="Client name or project title"
-                        className="bg-transparent border-0 border-b-2 border-dotted border-slate-400 dark:border-zinc-600 rounded-none px-2 py-1 text-slate-900 dark:text-zinc-100 font-serif font-bold text-base focus-visible:ring-0 focus-visible:border-slate-800 dark:focus-visible:border-zinc-200 placeholder:font-sans placeholder:text-xs placeholder:text-slate-400 placeholder:font-normal"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Client Location */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm">
-                    <span className="font-serif font-bold text-slate-700 dark:text-zinc-300 min-w-[140px] uppercase text-xs tracking-wider">
-                      Client / Site Location:
-                    </span>
-                    <div className="flex-1 relative">
-                      <Input
-                        required
-                        maxLength={500}
-                        value={clientLocation}
-                        onChange={(e) => setClientLocation(e.target.value)}
-                        placeholder="e.g. Plot 14, Road 11, Banani, Dhaka"
-                        className="bg-transparent border-0 border-b-2 border-dotted border-slate-400 dark:border-zinc-600 rounded-none px-2 py-1 text-slate-900 dark:text-zinc-100 font-serif font-medium text-sm focus-visible:ring-0 focus-visible:border-slate-800 dark:focus-visible:border-zinc-200 placeholder:font-sans placeholder:text-xs placeholder:text-slate-400 placeholder:font-normal"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Wide Cheque Expense Ledger (Attached Bill Slips Table) */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between border-b border-slate-300 dark:border-zinc-700 pb-2">
-                    <div className="flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-slate-600 dark:text-zinc-400" />
-                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
-                        Itemized Travel Expense Ledger ({bills.length} {bills.length === 1 ? 'Slip' : 'Slips'})
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setBills((current) => [...current, blankBill()])}
-                      className="h-7 text-xs bg-white dark:bg-zinc-800 border-dashed border-slate-400 dark:border-zinc-600 hover:bg-amber-100/60 dark:hover:bg-zinc-750"
-                    >
-                      <Plus className="mr-1 h-3.5 w-3.5" /> + Add Bill Slip
-                    </Button>
-                  </div>
-
-                  {/* Horizontal Scrollable/Spacious Ledger Table */}
-                  <div className="overflow-x-auto rounded-lg border border-slate-300 dark:border-zinc-750 bg-white/90 dark:bg-zinc-850 shadow-inner">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b bg-slate-100 dark:bg-zinc-800 text-left font-mono uppercase text-slate-500 dark:text-zinc-400">
-                          <th className="py-2.5 px-3 w-10 text-center">#</th>
-                          <th className="py-2.5 px-3 w-32">Date</th>
-                          <th className="py-2.5 px-3 w-40">Transport Mode</th>
-                          <th className="py-2.5 px-3 w-44">From (Origin)</th>
-                          <th className="py-2.5 px-3 w-44">To (Destination)</th>
-                          <th className="py-2.5 px-3">Official Purpose</th>
-                          <th className="py-2.5 px-3 w-36 text-right">Amount (৳)</th>
-                          <th className="py-2.5 px-2 w-10 text-center"></th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200 dark:divide-zinc-750">
-                        {bills.map((bill, index) => (
-                          <tr key={index} className="hover:bg-amber-50/50 dark:hover:bg-zinc-800/50 transition-colors">
-                            <td className="py-2 px-3 text-center font-mono font-bold text-slate-400">
-                              {index + 1}
-                            </td>
-                            <td className="py-2 px-3">
-                              <Input
-                                type="date"
-                                required
-                                value={bill.date}
-                                onChange={(e) => updateBill(index, 'date', e.target.value)}
-                                className="h-8 text-xs font-mono bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700"
-                              />
-                            </td>
-                            <td className="py-2 px-3">
-                              <select
-                                required
-                                className="h-8 w-full rounded-md border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-2 text-xs font-sans text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-slate-400"
-                                value={bill.mode}
-                                onChange={(e) => updateBill(index, 'mode', e.target.value)}
-                              >
-                                <option value="">Select transport</option>
-                                {CONVEYANCE_MODES.map((mode) => (
-                                  <option key={mode.value} value={mode.value}>
-                                    {mode.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="py-2 px-3">
-                              <Input
-                                required
-                                maxLength={250}
-                                value={bill.from}
-                                onChange={(e) => updateBill(index, 'from', e.target.value)}
-                                placeholder="Starting location"
-                                className="h-8 text-xs bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700"
-                              />
-                            </td>
-                            <td className="py-2 px-3">
-                              <Input
-                                required
-                                maxLength={250}
-                                value={bill.to}
-                                onChange={(e) => updateBill(index, 'to', e.target.value)}
-                                placeholder="Destination point"
-                                className="h-8 text-xs bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700"
-                              />
-                            </td>
-                            <td className="py-2 px-3">
-                              <Input
-                                required
-                                maxLength={500}
-                                value={bill.purpose}
-                                onChange={(e) => updateBill(index, 'purpose', e.target.value)}
-                                placeholder="Meeting, inspection, sample delivery..."
-                                className="h-8 text-xs bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700"
-                              />
-                            </td>
-                            <td className="py-2 px-3">
-                              <div className="relative">
-                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono font-bold text-slate-400">
-                                  ৳
-                                </span>
-                                <Input
-                                  type="number"
-                                  min="0.01"
-                                  max="100000000"
-                                  step="0.01"
-                                  required
-                                  value={bill.amount}
-                                  onChange={(e) => updateBill(index, 'amount', e.target.value)}
-                                  placeholder="0.00"
-                                  className="h-8 text-xs font-mono pl-6 bg-white dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 text-right font-bold"
-                                />
-                              </div>
-                            </td>
-                            <td className="py-2 px-2 text-center">
-                              {bills.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => setBills((current) => current.filter((_, rIdx) => rIdx !== index))}
-                                  className="p-1 rounded text-rose-500 hover:text-rose-700 hover:bg-rose-50 transition-colors"
-                                  title="Remove bill slip"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                {/* Amount in Words ("The Sum of Taka ...") & Cheque Box Amount */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center pt-2 border-t border-slate-300 dark:border-zinc-700">
-                  {/* Wide Amount in Words Line (Left 8 cols) */}
-                  <div className="md:col-span-8 space-y-1">
-                    <span className="font-serif font-bold text-xs uppercase tracking-wider text-slate-700 dark:text-zinc-300">
-                      The Sum of Taka (in words):
-                    </span>
-                    <div className="min-h-[44px] border-b-2 border-dotted border-slate-500 dark:border-zinc-500 px-2 py-1 flex items-center">
-                      <p className="font-serif italic text-sm text-slate-900 dark:text-zinc-100 leading-snug">
-                        {estimateLoading ? (
-                          <span className="text-slate-400 font-sans text-xs">Computing bank words...</span>
-                        ) : amountInWords ? (
-                          <>
-                            <span className="font-bold underline decoration-slate-400 decoration-1 underline-offset-4">
-                              {amountInWords}
-                            </span>
-                            <span className="text-slate-400 ml-2 font-mono">---------------------------------- ⑈</span>
-                          </>
-                        ) : (
-                          <span className="text-slate-400 font-sans text-xs not-italic">
-                            (Enter transit bill amounts above to generate words)
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Cheque Box Amount (Right 4 cols) */}
-                  <div className="md:col-span-4 flex flex-col items-end">
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-zinc-400 mb-1">
-                      TOTAL SUM (৳)
-                    </span>
-                    <div className="w-full bg-white dark:bg-zinc-950 border-2 border-slate-800 dark:border-zinc-200 rounded px-4 py-2.5 flex items-center justify-between shadow-inner">
-                      <span className="font-mono text-lg font-black text-slate-900 dark:text-zinc-100">
-                        ৳
-                      </span>
-                      <span className="font-mono text-2xl font-black text-slate-900 dark:text-zinc-100 tracking-wider">
-                        {calculatedTotal.toLocaleString('en-BD', {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2
-                        })}
-                        <span className="text-sm text-slate-500 dark:text-zinc-400 font-normal ml-1">/-</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Signature & Submission Area */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-dashed border-slate-300 dark:border-zinc-700">
-                  {/* MICR Bank Code Line Graphic */}
-                  <div className="font-mono text-xs tracking-[0.25em] text-slate-500 dark:text-zinc-500 select-none hidden sm:block">
-                    ⑈ 104820 ⑈ 020084012 ⑈ 92
-                  </div>
-
-                  {/* Signatory Box & Actions */}
-                  <div className="w-full sm:w-auto flex items-center justify-end gap-4">
-                    <div className="text-right hidden sm:block">
-                      <span className="text-[10px] font-serif uppercase tracking-wider text-slate-400 block border-b border-slate-300 dark:border-zinc-700 pb-0.5">
-                        Authorised Employee Signatory
-                      </span>
-                      <span className="text-[10px] font-mono font-medium text-slate-600 dark:text-zinc-300">
-                        {actorInfo.fullName || 'Employee Signature'} · {departmentDisplay}
-                      </span>
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setModalOpen(false)}
-                      className="border-slate-300 hover:bg-slate-100 text-xs font-mono"
-                    >
-                      Close Cheque
-                    </Button>
-
-                    <Button
-                      type="submit"
-                      disabled={saving || estimateLoading || calculatedTotal <= 0}
-                      className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:hover:bg-white text-white dark:text-zinc-900 font-serif font-bold text-sm tracking-wide shadow-md transition-all active:scale-95"
-                    >
-                      {saving ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Issuing Cheque...
-                        </>
-                      ) : (
-                        <>
-                          <Wallet className="mr-2 h-4 w-4" /> Sign & Issue Cheque
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
