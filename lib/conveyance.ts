@@ -1,20 +1,59 @@
 import { auth } from '@clerk/nextjs/server'
+import { headers } from 'next/headers'
 import prisma from '@/lib/prisma'
 import { normalizeDepartmentName } from '@/lib/department-normalization'
 import { hasBoqLeaderRole } from '@/lib/boq-roles'
+import { verifyMobileToken } from '@/lib/mobile-auth'
 
-export async function getConveyanceActor() {
-  const { userId: clerkUserId } = await auth()
-  if (!clerkUserId) return null
-  return prisma.user.findUnique({
-    where: { clerkUserId },
-    select: {
-      id: true,
-      fullName: true,
-      userDepartments: { select: { department: { select: { name: true } } } },
-      userRoles: { select: { role: { select: { name: true } } } },
-    },
-  })
+export async function getConveyanceActor(request?: Request) {
+  // 1. Check for Mobile App JWT Bearer Token
+  let token: string | null = null
+  if (request) {
+    const authHeader = request.headers.get('authorization') || request.headers.get('Authorization')
+    if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+      token = authHeader.trim().split(' ')[1]
+    }
+  } else {
+    try {
+      const headerList = await headers()
+      const authHeader = headerList.get('authorization') || headerList.get('Authorization')
+      if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+        token = authHeader.trim().split(' ')[1]
+      }
+    } catch {}
+  }
+
+  if (token) {
+    const payload = verifyMobileToken(token)
+    if (payload?.userId) {
+      return prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: {
+          id: true,
+          fullName: true,
+          userDepartments: { select: { department: { select: { name: true } } } },
+          userRoles: { select: { role: { select: { name: true } } } },
+        },
+      })
+    }
+  }
+
+  // 2. Fallback to Clerk Web session cookie
+  try {
+    const { userId: clerkUserId } = await auth()
+    if (!clerkUserId) return null
+    return prisma.user.findUnique({
+      where: { clerkUserId },
+      select: {
+        id: true,
+        fullName: true,
+        userDepartments: { select: { department: { select: { name: true } } } },
+        userRoles: { select: { role: { select: { name: true } } } },
+      },
+    })
+  } catch {
+    return null
+  }
 }
 
 export function isConveyanceAccounts(actor: NonNullable<Awaited<ReturnType<typeof getConveyanceActor>>>) {

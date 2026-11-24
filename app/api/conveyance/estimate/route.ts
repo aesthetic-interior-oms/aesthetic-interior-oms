@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 export const preferredRegion = 'sin1'
 
 export async function POST(request: NextRequest) {
-  const actor = await getConveyanceActor()
+  const actor = await getConveyanceActor(request)
   if (!actor) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   if (!canRequestConveyance(actor)) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
   const body = await request.json().catch(() => null)

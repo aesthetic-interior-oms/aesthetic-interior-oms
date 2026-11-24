@@ -17,7 +17,7 @@ export const preferredRegion = 'sin1'
 const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
 
 export async function GET(request: NextRequest) {
-  const actor = await getConveyanceActor()
+  const actor = await getConveyanceActor(request)
   if (!actor) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   const params = request.nextUrl.searchParams
   const view = params.get('view')
@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const actor = await getConveyanceActor()
+  const actor = await getConveyanceActor(request)
   if (!actor) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
   if (!canRequestConveyance(actor)) return NextResponse.json({ success: false, error: 'Accounts users cannot submit employee conveyance requests.' }, { status: 403 })
   const body = await request.json().catch(() => null)
