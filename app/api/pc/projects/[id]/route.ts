@@ -77,6 +77,7 @@ export async function GET(
         stage: true,
         subStatus: true,
         budget: true,
+        agreementSqft: true,
         created_at: true,
         assignments: {
           where: { department: 'SR_CRM' },
@@ -88,6 +89,7 @@ export async function GET(
             id: true,
             draftKey: true,
             quotationType: true,
+            projectSqft: true,
             grandTotal: true,
             status: true,
             updatedAt: true,
@@ -106,11 +108,13 @@ export async function GET(
             items: {
               select: {
                 id: true,
+                quotationLineItemId: true,
                 materialName: true,
                 workCategory: true,
                 finalQuantity: true,
                 unit: true,
                 specifications: true,
+                variantAttributes: true,
                 remarks: true,
               },
             },
@@ -141,8 +145,12 @@ export async function GET(
                     total: true,
                     requisitionItem: {
                       select: {
+                        id: true,
                         materialName: true,
                         unit: true,
+                        specifications: true,
+                        workCategory: true,
+                        quotationLineItemId: true,
                       },
                     },
                   },

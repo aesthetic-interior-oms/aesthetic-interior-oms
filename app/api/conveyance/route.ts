@@ -112,6 +112,11 @@ export async function GET(request: NextRequest) {
       isBoqLeader: isBoqTeamLeader(actor),
       currentUserId: actor.id,
     },
+    actor: {
+      id: actor.id,
+      fullName: actor.fullName,
+      departments: actor.userDepartments.map((d) => d.department.name),
+    },
   })
 }
 

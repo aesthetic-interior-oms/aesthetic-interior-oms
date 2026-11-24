@@ -34,6 +34,16 @@ export async function GET(request: NextRequest) {
     const canManageAssignments = isAdmin || isPc || isSrCrm
     const isSiteEngineerLeaderOrAdmin = isAdmin || isPc
 
+    // Strictly ongoing sites: site work started / active OR accepted request OR in site execution
+    const ongoingCondition = {
+      OR: [
+        { isSiteWorkActive: true },
+        { siteWorkRequests: { some: { status: 'ACCEPTED' as const } } },
+        { stage: { in: [LeadStage.SITE_EXECUTION, LeadStage.QUALITY_CHECK, LeadStage.HANDOVER] } },
+        { siteDeliveryLogs: { some: {} } },
+      ],
+    }
+
     // Filter strictly for Agreement Done / Production Ready projects
     const agreementFilter = {
       stage: {
@@ -60,6 +70,7 @@ export async function GET(request: NextRequest) {
 
     const where = {
       ...agreementFilter,
+      ...ongoingCondition,
       ...(!isSiteEngineerLeaderOrAdmin
         ? {
             assignments: {
@@ -73,7 +84,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch projects with related assignments, deliveries, POs, and quotation drafts
-    const [leads, siteEngineersList] = await Promise.all([
+    const [leads, siteEngineersList, pendingRequestsCount] = await Promise.all([
       prisma.lead.findMany({
         where,
         select: {
@@ -85,7 +96,21 @@ export async function GET(request: NextRequest) {
           subStatus: true,
           agreementType: true,
           agreementValue: true,
+          agreementSqft: true,
+          budget: true,
           created_at: true,
+          isSiteWorkActive: true,
+          siteWorkStartedAt: true,
+          siteWorkRequests: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              status: true,
+              note: true,
+              createdAt: true,
+            },
+          },
           assignments: {
             where: {
               department: {
@@ -115,6 +140,9 @@ export async function GET(request: NextRequest) {
               deliveryDate: true,
               condition: true,
               challanNo: true,
+              itemsSummary: true,
+              quantity: true,
+              unit: true,
             },
             orderBy: { deliveryDate: 'desc' },
           },
@@ -125,11 +153,29 @@ export async function GET(request: NextRequest) {
               status: true,
               totalAmount: true,
               supplierName: true,
+              indent: {
+                select: {
+                  indentNo: true,
+                  items: {
+                    select: {
+                      id: true,
+                      quantity: true,
+                      requisitionItem: {
+                        select: {
+                          materialName: true,
+                          unit: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
           quotationDrafts: {
             select: {
               id: true,
+              projectSqft: true,
               content: true,
             },
             orderBy: { updatedAt: 'desc' },
@@ -175,6 +221,12 @@ export async function GET(request: NextRequest) {
             orderBy: { fullName: 'asc' },
           })
         : Promise.resolve([]),
+      // Fetch count of pending site work requests
+      prisma.leadSiteWorkRequest.count({
+        where: {
+          status: 'PENDING',
+        },
+      }),
     ])
 
     // Format site engineers with active project counts
@@ -187,6 +239,7 @@ export async function GET(request: NextRequest) {
     }))
 
     // Process and enrich projects
+    let totalPurchased = 0
     let totalDeliveries = 0
     let unassignedCount = 0
     let inExecutionCount = 0
@@ -194,9 +247,11 @@ export async function GET(request: NextRequest) {
     let overallCompletedItems = 0
 
     const projects = leads.map((lead) => {
-      const siteEngAssignment = lead.assignments.find(
+      const siteEngAssignments = lead.assignments.filter(
         (a) => a.department === LeadAssignmentDepartment.SITE_ENGINEER,
       )
+      const assignedSiteEngineers = siteEngAssignments.map((a) => a.user)
+      const siteEngAssignment = siteEngAssignments[0] || null
       const pcAssignment = lead.assignments.find(
         (a) => a.department === LeadAssignmentDepartment.PROJECT_COORDINATOR,
       )
@@ -204,7 +259,7 @@ export async function GET(request: NextRequest) {
         (a) => a.department === LeadAssignmentDepartment.SR_CRM,
       )
 
-      if (!siteEngAssignment) {
+      if (assignedSiteEngineers.length === 0) {
         unassignedCount++
       }
       if (lead.stage === LeadStage.SITE_EXECUTION) {
@@ -214,16 +269,67 @@ export async function GET(request: NextRequest) {
       // Deliveries calculations
       const deliveries = lead.siteDeliveryLogs || []
       totalDeliveries += deliveries.length
-      const deliveryIssues = deliveries.filter(
-        (d) => d.condition === 'DAMAGED' || d.condition === 'REJECTED' || d.condition === 'PARTIAL',
-      ).length
+      const goodDeliveries = deliveries.filter((d) => d.condition === 'GOOD').length
+      const partialDeliveries = deliveries.filter((d) => d.condition === 'PARTIAL').length
+      const damagedDeliveries = deliveries.filter((d) => d.condition === 'DAMAGED').length
+      const rejectedDeliveries = deliveries.filter((d) => d.condition === 'REJECTED').length
+      const deliveryIssues = partialDeliveries + damagedDeliveries + rejectedDeliveries
       const latestDeliveryDate = deliveries.length > 0 ? deliveries[0].deliveryDate : null
+      const totalDeliveredQty = deliveries.reduce((sum, d) => sum + (Number(d.quantity) || 0), 0)
 
-      // Purchase orders count (NO pricing/amounts exposed to Site Engineers)
+      // Purchase orders count & amounts
       const pos = lead.purchaseOrders || []
+      const completedPos = pos.filter((po) => po.status === 'FULFILLED')
       const approvedPos = pos.filter((po) => po.status === 'APPROVED' || po.status === 'FULFILLED')
+      const pendingPos = pos.filter((po) => po.status === 'PENDING_ACCOUNTS_APPROVAL')
+      const leadPurchasedAmount = approvedPos.reduce((sum, po) => sum + (po.totalAmount || 0), 0)
+      totalPurchased += leadPurchasedAmount
 
-      // Quotation Products & Scope Progress (STRICTLY NO PRICES, RATES, OR TOTAL AMOUNTS)
+      // Calculate purchased items & quantities from approved/fulfilled POs
+      let totalPurchasedItemsCount = 0
+      let totalPurchasedQty = 0
+      for (const po of approvedPos) {
+        if (po.indent?.items && Array.isArray(po.indent.items)) {
+          for (const item of po.indent.items) {
+            totalPurchasedItemsCount++
+            totalPurchasedQty += Number(item.quantity) || 0
+          }
+        }
+      }
+
+      // Materials Comparison
+      let comparisonStatus: 'NO_PURCHASES' | 'AWAITING_DELIVERY' | 'PARTIALLY_DELIVERED' | 'FULLY_DELIVERED' = 'NO_PURCHASES'
+      let comparisonLabel = 'No POs Issued'
+      let deliveryPercent = 0
+
+      if (approvedPos.length === 0) {
+        comparisonStatus = 'NO_PURCHASES'
+        comparisonLabel = 'No POs Issued'
+        deliveryPercent = 0
+      } else if (deliveries.length === 0) {
+        comparisonStatus = 'AWAITING_DELIVERY'
+        comparisonLabel = 'Awaiting Delivery'
+        deliveryPercent = 0
+      } else {
+        if (totalPurchasedQty > 0 && totalDeliveredQty > 0) {
+          deliveryPercent = Math.min(100, Math.round((totalDeliveredQty / totalPurchasedQty) * 100))
+        } else {
+          const ratio = completedPos.length > 0
+            ? (completedPos.length / approvedPos.length)
+            : Math.min(1, deliveries.length / approvedPos.length)
+          deliveryPercent = Math.min(100, Math.round(ratio * 100))
+        }
+
+        if (deliveryPercent >= 100 || (completedPos.length === approvedPos.length && completedPos.length > 0)) {
+          comparisonStatus = 'FULLY_DELIVERED'
+          comparisonLabel = 'Fully Delivered'
+        } else {
+          comparisonStatus = 'PARTIALLY_DELIVERED'
+          comparisonLabel = `Partially Delivered (${deliveryPercent}%)`
+        }
+      }
+
+      // Scope / BOQ Progress calculation
       let quotation = null
       let totalLineItems = 0
       let completedLineItems = 0
@@ -341,24 +447,48 @@ export async function GET(request: NextRequest) {
         stage: lead.stage,
         subStatus: lead.subStatus,
         agreementType: lead.agreementType,
-        agreementValue: null, // Strictly hidden from Site Engineers
+        agreementValue: canManageAssignments ? lead.agreementValue : null,
+        agreementSqft: lead.agreementSqft || (activeDraft as { projectSqft?: number | null } | undefined)?.projectSqft || null,
+        budget: canManageAssignments ? lead.budget : null,
         created_at: lead.created_at,
+        isSiteWorkActive: Boolean(lead.isSiteWorkActive),
+        siteWorkStartedAt: lead.siteWorkStartedAt,
+        latestSiteWorkRequest: lead.siteWorkRequests?.[0] || null,
         assignedSiteEngineer: siteEngAssignment?.user || null,
+        assignedSiteEngineers,
         assignedProjectCoordinator: pcAssignment?.user || null,
         assignedSrCrm: srCrmAssignment?.user || null,
+        quotationProductsCount: totalLineItems,
         deliveriesSummary: {
           total: deliveries.length,
           issues: deliveryIssues,
+          goodCount: goodDeliveries,
+          partialCount: partialDeliveries,
+          damagedCount: damagedDeliveries,
+          rejectedCount: rejectedDeliveries,
+          totalQuantity: totalDeliveredQty,
           latestDate: latestDeliveryDate,
         },
         purchasedSummary: {
           totalPOs: pos.length,
           approvedPOs: approvedPos.length,
+          completedPOs: completedPos.length,
+          pendingPOs: pendingPos.length,
+          totalAmount: leadPurchasedAmount,
+          totalItemsCount: totalPurchasedItemsCount,
+          totalQuantity: totalPurchasedQty,
         },
         scopeProgress: {
           total: totalLineItems,
           completed: completedLineItems,
           percent: progressPercent,
+        },
+        materialsComparison: {
+          status: comparisonStatus,
+          label: comparisonLabel,
+          purchasedQty: totalPurchasedQty,
+          deliveredQty: totalDeliveredQty,
+          deliveryPercent,
         },
         quotation,
       }
@@ -376,6 +506,8 @@ export async function GET(request: NextRequest) {
           unassignedCount,
           inExecutionCount,
           totalDeliveries,
+          totalPurchased,
+          pendingRequestsCount,
           overallCompletedItems,
           overallTotalItems,
           overallProgressPercent,

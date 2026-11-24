@@ -98,7 +98,23 @@ export async function GET(request: NextRequest) {
         agreementType: true,
         agreementValue: true,
         accountStatus: true,
+        isSiteWorkActive: true,
+        siteWorkStartedAt: true,
         updated_at: true,
+        siteWorkRequests: {
+          orderBy: { createdAt: 'desc' },
+          take: 3,
+          select: {
+            id: true,
+            status: true,
+            note: true,
+            rejectionReason: true,
+            createdAt: true,
+            reviewedAt: true,
+            requestedBy: { select: { id: true, fullName: true, email: true } },
+            reviewedBy: { select: { id: true, fullName: true, email: true } },
+          },
+        },
         quotationDrafts: {
           orderBy: { updatedAt: 'desc' },
           select: {
@@ -198,10 +214,37 @@ export async function GET(request: NextRequest) {
         settledAgreementValue,
         updatedAt: lead.updated_at.toISOString(),
         detailQuotationAvailable: Boolean(detailDraft),
+        isSiteWorkActive: Boolean(lead.isSiteWorkActive),
+        siteWorkStartedAt: lead.siteWorkStartedAt ? lead.siteWorkStartedAt.toISOString() : null,
+        latestSiteWorkRequest: lead.siteWorkRequests[0]
+          ? {
+              id: lead.siteWorkRequests[0].id,
+              status: lead.siteWorkRequests[0].status,
+              note: lead.siteWorkRequests[0].note,
+              rejectionReason: lead.siteWorkRequests[0].rejectionReason,
+              createdAt: lead.siteWorkRequests[0].createdAt.toISOString(),
+              reviewedAt: lead.siteWorkRequests[0].reviewedAt ? lead.siteWorkRequests[0].reviewedAt.toISOString() : null,
+              requestedBy: lead.siteWorkRequests[0].requestedBy,
+              reviewedBy: lead.siteWorkRequests[0].reviewedBy,
+            }
+          : null,
+        siteWorkRequests: lead.siteWorkRequests.map((r) => ({
+          id: r.id,
+          status: r.status,
+          note: r.note,
+          rejectionReason: r.rejectionReason,
+          createdAt: r.createdAt.toISOString(),
+          reviewedAt: r.reviewedAt ? r.reviewedAt.toISOString() : null,
+          requestedBy: r.requestedBy,
+          reviewedBy: r.reviewedBy,
+        })),
         srCrm: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.SR_CRM)?.user ?? null,
         boqAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.BOQ)?.user ?? null,
         pcAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.PROJECT_COORDINATOR)?.user ?? null,
         siteEngineerAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.SITE_ENGINEER)?.user ?? null,
+        siteEngineerAssignees: lead.assignments
+          .filter((assignment) => assignment.department === LeadAssignmentDepartment.SITE_ENGINEER)
+          .map((a) => a.user),
         quotationAssignee: lead.assignments.find((assignment) => assignment.department === LeadAssignmentDepartment.QUOTATION)?.user ?? null,
         quotationVersionsCount: lead.quotationDrafts.filter((d) => d.draftKey.includes('version:')).length,
         quotationSubmissions: lead.cadWorkSubmissions.map((sub) => ({
