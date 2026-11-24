@@ -95,6 +95,33 @@ export async function GET(request: NextRequest) {
     approvedAmount: roundMoney(billRows.reduce((sum, bill) => sum + (bill.status === 'APPROVED' || bill.status === 'PAID' ? bill.amount : 0), 0)),
     paidAmount: roundMoney(billRows.reduce((sum, bill) => sum + (bill.status === 'PAID' ? bill.amount : 0), 0)),
   }
+
+  const statusGroup = manage
+    ? await prisma.conveyanceRequest.groupBy({
+        by: ['status'],
+        where: {
+          bills: { some: billWhere },
+          ...(requesterId ? { requesterId } : {}),
+          ...(voucher ? { voucherNo: { contains: voucher, mode: 'insensitive' } } : {}),
+        },
+        _count: { id: true },
+      })
+    : []
+
+  const statusCounts: Record<string, number> = {
+    ALL: 0,
+    PENDING: 0,
+    APPROVED: 0,
+    PAID: 0,
+    REJECTED: 0,
+  }
+  for (const item of statusGroup) {
+    if (item.status in statusCounts) {
+      statusCounts[item.status] = item._count.id
+    }
+    statusCounts.ALL += item._count.id
+  }
+
   const responseRequests = requests.map((row) => ({ ...row, amountInWords: takaAmountInWords(row.amount) }))
   return NextResponse.json({
     success: true,
@@ -104,6 +131,7 @@ export async function GET(request: NextRequest) {
     userTotals,
     dateGroups,
     monthGroups: [...monthGroups.entries()].map(([month, dates]) => ({ month, dates })),
+    statusCounts,
     permissions: {
       canApprove: true,
       canMarkPaid: isConveyanceAccounts(actor),

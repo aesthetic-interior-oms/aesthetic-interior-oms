@@ -37,6 +37,7 @@ import {
   Loader2,
   MapPin,
   RefreshCw,
+  Scissors,
   Search,
   ShieldCheck,
   User,
@@ -132,6 +133,7 @@ type Payload = {
   }>
   dateGroups: DateGroup[]
   monthGroups: Array<{ month: string; dates: DateGroup[] }>
+  statusCounts?: Record<string, number>
   permissions?: Permissions
 }
 
@@ -196,23 +198,27 @@ interface ConveyanceVerificationModuleProps {
   roleTitle: string
   roleSubtitle?: string
   departmentBadgeText?: string
+  initialStatus?: string
+  initialViewMode?: 'cheque' | 'list'
 }
 
 export function ConveyanceVerificationModule({
   roleTitle,
   roleSubtitle = 'Review, verify, and approve/reject conveyance expense requests submitted across teams.',
   departmentBadgeText,
+  initialStatus = 'PENDING',
+  initialViewMode = 'cheque',
 }: ConveyanceVerificationModuleProps) {
   const [range, setRange] = useState(initialRange)
   const [receivedBy, setReceivedBy] = useState('ALL')
   const [voucher, setVoucher] = useState('')
-  const [status, setStatus] = useState('PENDING')
+  const [status, setStatus] = useState(initialStatus)
   const [searchQuery, setSearchQuery] = useState('')
   const [payload, setPayload] = useState<Payload | null>(null)
   const [loading, setLoading] = useState(true)
   const [workingId, setWorkingId] = useState('')
   const [exporting, setExporting] = useState(false)
-  const [viewMode, setViewMode] = useState<'cheque' | 'list'>('cheque')
+  const [viewMode, setViewMode] = useState<'cheque' | 'list'>(initialViewMode)
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
 
   const toggleRowExpand = (id: string) => {
@@ -540,26 +546,53 @@ export function ConveyanceVerificationModule({
                 <Filter className="h-3 w-3" /> Status:
               </span>
               {[
-                { key: 'PENDING', label: 'Pending' },
-                { key: 'ALL', label: 'All Statuses' },
-                { key: 'APPROVED', label: 'Approved' },
-                { key: 'PAID', label: 'Paid' },
-                { key: 'REJECTED', label: 'Rejected' },
+                {
+                  key: 'PENDING',
+                  label: 'Pending',
+                  count: payload?.statusCounts?.PENDING ?? pendingCount,
+                  badgeClass: 'bg-amber-500 text-white',
+                },
+                {
+                  key: 'APPROVED',
+                  label: 'Approved (Ready to Pay)',
+                  count: payload?.statusCounts?.APPROVED,
+                  badgeClass: 'bg-blue-600 text-white',
+                },
+                {
+                  key: 'ALL',
+                  label: 'All Statuses',
+                  count: payload?.statusCounts?.ALL,
+                  badgeClass: 'bg-slate-500 text-white',
+                },
+                {
+                  key: 'PAID',
+                  label: 'Paid',
+                  count: payload?.statusCounts?.PAID,
+                  badgeClass: 'bg-emerald-600 text-white',
+                },
+                {
+                  key: 'REJECTED',
+                  label: 'Rejected',
+                  count: payload?.statusCounts?.REJECTED,
+                  badgeClass: 'bg-rose-500 text-white',
+                },
               ].map((tab) => (
                 <button
                   key={tab.key}
                   type="button"
                   onClick={() => setStatus(tab.key)}
-                  className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-all ${
+                  className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-all inline-flex items-center gap-1.5 ${
                     status === tab.key
                       ? 'bg-primary text-primary-foreground border-primary shadow-xs'
                       : 'bg-background hover:bg-muted text-foreground border-border'
                   }`}
                 >
-                  {tab.label}
-                  {tab.key === 'PENDING' && pendingCount > 0 ? (
-                    <span className="ml-1.5 rounded-full bg-amber-500 px-1.5 py-0.2 text-[10px] text-white">
-                      {pendingCount}
+                  <span>{tab.label}</span>
+                  {typeof tab.count === 'number' && tab.count > 0 ? (
+                    <span
+                      className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-bold ${tab.badgeClass}`}
+                    >
+                      {tab.count}
                     </span>
                   ) : null}
                 </button>
@@ -723,23 +756,96 @@ export function ConveyanceVerificationModule({
                 return (
                   <div
                     key={req.id}
-                    className={`relative rounded-xl border-2 transition-all hover:shadow-lg flex flex-col justify-between overflow-hidden shadow-md ${
+                    className={`relative rounded-xl border-2 transition-all hover:shadow-lg flex flex-col lg:flex-row overflow-hidden shadow-md ${
                       req.status === 'PENDING'
-                        ? 'border-amber-300 dark:border-amber-800 bg-amber-50/40 dark:bg-zinc-900'
-                        : 'border-slate-300 dark:border-zinc-700 bg-amber-50/20 dark:bg-zinc-900'
+                        ? 'border-amber-300 dark:border-amber-800 bg-[#fdfbf7] dark:bg-zinc-900'
+                        : req.status === 'APPROVED'
+                        ? 'border-blue-300 dark:border-blue-800 bg-[#fbfdf9] dark:bg-zinc-900'
+                        : req.status === 'PAID'
+                        ? 'border-emerald-300 dark:border-emerald-800 bg-[#f7fbf8] dark:bg-zinc-900'
+                        : 'border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-900'
                     }`}
                   >
-                    {/* Top Security Edge Bar */}
-                    <div className="h-1.5 bg-gradient-to-r from-emerald-700 via-teal-600 to-emerald-800 opacity-80" />
+                    {/* Top Security Edge Bar spanning whole leaf */}
+                    <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-800 via-teal-700 to-emerald-900 opacity-90 z-10" />
 
-                    <div className="p-4 sm:p-5 space-y-4">
+                    {/* LEFT: CHEQUE COUNTERFOIL / STUB RECORD (Desktop) */}
+                    <div className="hidden lg:flex w-52 shrink-0 border-r-2 border-dashed border-slate-300 dark:border-zinc-700 bg-amber-100/50 dark:bg-zinc-850/80 p-4 pt-5 flex-col justify-between relative">
+                      {/* Perforation circle notch graphics on the right border */}
+                      <div className="absolute -right-2 top-8 w-3.5 h-3.5 rounded-full bg-background border border-slate-300 dark:border-zinc-700" />
+                      <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-background border border-slate-300 dark:border-zinc-700" />
+                      <div className="absolute -right-2 bottom-8 w-3.5 h-3.5 rounded-full bg-background border border-slate-300 dark:border-zinc-700" />
+
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between border-b border-dashed border-slate-300 dark:border-zinc-700 pb-1.5">
+                          <span className="text-[10px] font-mono font-bold tracking-widest text-slate-600 dark:text-zinc-400 uppercase">
+                            COUNTERFOIL
+                          </span>
+                          <Scissors className="w-3 h-3 text-slate-400" />
+                        </div>
+
+                        <div className="space-y-2 text-xs font-mono">
+                          <div>
+                            <span className="text-[9px] text-slate-400 uppercase block">VOUCHER REF:</span>
+                            <span className="font-bold text-slate-800 dark:text-zinc-200 text-[11px] break-all">
+                              {req.voucherNo ? `№ ${req.voucherNo}` : `№ CHQ-${req.id.slice(-6).toUpperCase()}`}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[9px] text-slate-400 uppercase block">DATE ISSUED:</span>
+                            <span className="font-semibold text-slate-700 dark:text-zinc-300 text-[11px]">
+                              {formatDate(req.createdAt)}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[9px] text-slate-400 uppercase block">PAYEE:</span>
+                            <span className="font-bold text-slate-900 dark:text-zinc-100 text-[11px] truncate block">
+                              {req.requester.fullName}
+                            </span>
+                            <span className="text-[10px] text-slate-500 block truncate">{deptName}</span>
+                          </div>
+
+                          <div>
+                            <span className="text-[9px] text-slate-400 uppercase block">CLIENT:</span>
+                            <span className="font-semibold text-slate-800 dark:text-zinc-200 text-[11px] truncate block">
+                              {req.clientName}
+                            </span>
+                          </div>
+
+                          <div>
+                            <span className="text-[9px] text-slate-400 uppercase block">TRANSIT SLIPS:</span>
+                            <span className="font-semibold text-slate-700 dark:text-zinc-300 text-[11px]">
+                              {req.bills.length} {req.bills.length === 1 ? 'Leg' : 'Legs'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Counterfoil Net Amount */}
+                      <div className="border-t border-dashed border-slate-300 dark:border-zinc-700 pt-2 space-y-0.5">
+                        <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 block">
+                          RECORD AMOUNT
+                        </span>
+                        <div className="text-base font-mono font-black text-slate-900 dark:text-zinc-100">
+                          {money(req.amount)}
+                        </div>
+                        <span className="text-[9px] font-mono text-slate-400 block">
+                          Disbursement stub
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* RIGHT: MAIN CHEQUE LEAF */}
+                    <div className="flex-1 p-4 sm:p-5 pt-5 space-y-4 flex flex-col justify-between">
                       {/* Cheque Header: Crossing + Brand + Voucher Ref + Status Stamp */}
                       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-dashed border-slate-200 dark:border-zinc-800 pb-3">
                         <div className="flex flex-wrap items-center gap-3">
                           {/* Double-line A/C Payee Only */}
                           <div className="border-t-2 border-b-2 border-slate-800 dark:border-zinc-200 py-0.5 px-2 transform -rotate-12 inline-block">
                             <span className="text-[9px] font-mono font-black tracking-wider text-slate-800 dark:text-zinc-200 uppercase">
-                              // A/C PAYEE ONLY //
+                              {'// A/C PAYEE ONLY //'}
                             </span>
                           </div>
 
@@ -920,11 +1026,32 @@ export function ConveyanceVerificationModule({
                               size="sm"
                               disabled={isWorking}
                               onClick={() => openActionDialog(req, 'PAID')}
-                              className="h-8 gap-1.5 text-xs bg-primary font-semibold"
+                              className="h-8 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-serif font-bold shadow-xs"
+                              title="Mark this approved conveyance request as paid"
                             >
                               <Wallet className="h-3.5 w-3.5" />
                               <span>Mark Paid</span>
                             </Button>
+                          )}
+
+                          {req.status === 'APPROVED' && !permissions?.canMarkPaid && (
+                            <span className="text-[11px] font-mono font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-1 rounded border border-blue-200 dark:border-blue-900">
+                              Approved · Awaiting Payment
+                            </span>
+                          )}
+
+                          {req.status === 'PAID' && (
+                            <div className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950/50 px-2.5 py-1 rounded border border-emerald-300 dark:border-emerald-800">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>Disbursed & Settled</span>
+                            </div>
+                          )}
+
+                          {req.status === 'REJECTED' && (
+                            <div className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-rose-700 dark:text-rose-400 bg-rose-100/70 dark:bg-rose-950/50 px-2.5 py-1 rounded border border-rose-300 dark:border-rose-800">
+                              <XCircle className="h-3.5 w-3.5" />
+                              <span>Rejected</span>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1059,16 +1186,30 @@ export function ConveyanceVerificationModule({
                                   size="sm"
                                   disabled={isWorking}
                                   onClick={() => openActionDialog(req, 'PAID')}
-                                  className="h-7 px-2.5 gap-1 text-[11px] bg-primary font-semibold"
+                                  className="h-7 px-2.5 gap-1 text-[11px] bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
                                 >
                                   <Wallet className="h-3 w-3" />
                                   <span>Mark Paid</span>
                                 </Button>
                               )}
 
-                              {req.status !== 'PENDING' && (!permissions?.canMarkPaid || req.status === 'PAID' || req.status === 'REJECTED') && (
-                                <span className="text-[11px] text-muted-foreground italic font-mono">
-                                  Completed
+                              {req.status === 'APPROVED' && !permissions?.canMarkPaid && (
+                                <span className="text-[11px] text-blue-600 dark:text-blue-400 font-mono">
+                                  Awaiting Payment
+                                </span>
+                              )}
+
+                              {req.status === 'PAID' && (
+                                <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold font-mono flex items-center gap-1">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  Disbursed
+                                </span>
+                              )}
+
+                              {req.status === 'REJECTED' && (
+                                <span className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold font-mono flex items-center gap-1">
+                                  <XCircle className="h-3 w-3" />
+                                  Rejected
                                 </span>
                               )}
                             </div>
