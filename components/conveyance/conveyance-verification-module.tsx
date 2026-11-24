@@ -739,9 +739,9 @@ export function ConveyanceVerificationModule({
             </Card>
           ) : viewMode === 'cheque' ? (
             /* ======================================================== */
-            /* CHEQUE BOOK CARD VIEW */
+            /* CHEQUE BOOK CARD VIEW (1 Card per Row)                   */
             /* ======================================================== */
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 gap-6">
               {filteredRequests.map((req) => {
                 const isWorking = workingId === req.id
                 const isOwnRequest =
@@ -756,7 +756,7 @@ export function ConveyanceVerificationModule({
                 return (
                   <div
                     key={req.id}
-                    className={`relative rounded-xl border-2 transition-all hover:shadow-lg flex flex-col lg:flex-row overflow-hidden shadow-md ${
+                    className={`relative rounded-xl border-2 transition-all hover:shadow-lg flex flex-col md:flex-row overflow-hidden shadow-md ${
                       req.status === 'PENDING'
                         ? 'border-amber-300 dark:border-amber-800 bg-[#fdfbf7] dark:bg-zinc-900'
                         : req.status === 'APPROVED'
@@ -769,8 +769,8 @@ export function ConveyanceVerificationModule({
                     {/* Top Security Edge Bar spanning whole leaf */}
                     <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-800 via-teal-700 to-emerald-900 opacity-90 z-10" />
 
-                    {/* LEFT: CHEQUE COUNTERFOIL / STUB RECORD (Desktop) */}
-                    <div className="hidden lg:flex w-52 shrink-0 border-r-2 border-dashed border-slate-300 dark:border-zinc-700 bg-amber-100/50 dark:bg-zinc-850/80 p-4 pt-5 flex-col justify-between relative">
+                    {/* LEFT: CHEQUE COUNTERFOIL / STUB RECORD (Desktop / Tablet) */}
+                    <div className="hidden md:flex w-60 lg:w-72 shrink-0 border-r-2 border-dashed border-slate-300 dark:border-zinc-700 bg-amber-100/50 dark:bg-zinc-850/80 p-4 pt-5 flex-col justify-between relative">
                       {/* Perforation circle notch graphics on the right border */}
                       <div className="absolute -right-2 top-8 w-3.5 h-3.5 rounded-full bg-background border border-slate-300 dark:border-zinc-700" />
                       <div className="absolute -right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-background border border-slate-300 dark:border-zinc-700" />
