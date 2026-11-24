@@ -51,8 +51,19 @@ export async function POST(
         .filter((name): name is string => Boolean(name)),
     )
 
-    const isAdmin = deptNames.has('ADMIN')
-    const isPc = deptNames.has('PROJECT_COORDINATOR')
+    const userRoles = await prisma.userRole.findMany({
+      where: { userId: user.id },
+      select: { role: { select: { name: true } } },
+    })
+    const roleNames = new Set(userRoles.map((r) => r.role.name.toUpperCase()))
+
+    const isAdmin = deptNames.has('ADMIN') || roleNames.has('ADMIN')
+    const isPc =
+      deptNames.has('PROJECT_COORDINATOR') ||
+      deptNames.has('PROJECT_CORDINATOR') ||
+      roleNames.has('PROJECT_COORDINATOR') ||
+      roleNames.has('PROJECT_CORDINATOR') ||
+      Array.from(roleNames).some((r) => r.includes('PROJECT_COORDINATOR') || r.includes('PROJECT_CORDINATOR'))
 
     if (!isAdmin && !isPc) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
@@ -66,7 +77,10 @@ export async function POST(
           department: 'PROJECT_COORDINATOR',
         },
       })
-      if (!assignment) {
+      const anyAssignment = await prisma.leadAssignment.findFirst({
+        where: { leadId, department: 'PROJECT_COORDINATOR' },
+      })
+      if (anyAssignment && !assignment) {
         return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
       }
     }
@@ -228,8 +242,19 @@ export async function DELETE(
         .filter((name): name is string => Boolean(name)),
     )
 
-    const isAdmin = deptNames.has('ADMIN')
-    const isPc = deptNames.has('PROJECT_COORDINATOR')
+    const userRoles = await prisma.userRole.findMany({
+      where: { userId: user.id },
+      select: { role: { select: { name: true } } },
+    })
+    const roleNames = new Set(userRoles.map((r) => r.role.name.toUpperCase()))
+
+    const isAdmin = deptNames.has('ADMIN') || roleNames.has('ADMIN')
+    const isPc =
+      deptNames.has('PROJECT_COORDINATOR') ||
+      deptNames.has('PROJECT_CORDINATOR') ||
+      roleNames.has('PROJECT_COORDINATOR') ||
+      roleNames.has('PROJECT_CORDINATOR') ||
+      Array.from(roleNames).some((r) => r.includes('PROJECT_COORDINATOR') || r.includes('PROJECT_CORDINATOR'))
 
     if (!isAdmin && !isPc) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })

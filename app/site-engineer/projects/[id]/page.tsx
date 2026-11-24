@@ -199,6 +199,10 @@ export default function SiteEngineerProjectDetailPage() {
   const [filterFloor, setFilterFloor] = useState<string>('ALL')
   const [filterArea, setFilterArea] = useState<string>('ALL')
 
+  // Quotation Worklist Collapsible States
+  const [collapsedFloors, setCollapsedFloors] = useState<Record<string, boolean>>({})
+  const [collapsedAreas, setCollapsedAreas] = useState<Record<string, boolean>>({})
+
   // Requisitions filters
   const [reqViewMode, setReqViewMode] = useState<'HIERARCHY' | 'LIST'>('HIERARCHY')
   const [reqSearch, setReqSearch] = useState('')
@@ -410,6 +414,193 @@ export default function SiteEngineerProjectDetailPage() {
       return matchesSearch && matchesStatus && matchesFloor && matchesArea
     })
   }, [quotationLineItems, searchQuery, filterStatus, filterFloor, filterArea, getFloorName, getAreaName])
+
+  // ── HIERARCHICAL QUOTATION WORKLIST (Floor -> Area -> Quotation Products) ──
+  const hierarchicalQuotationWorklist = useMemo(() => {
+    const floorMap = new Map<
+      string,
+      {
+        floorId: string
+        floorName: string
+        sortOrder: number
+        areaMap: Map<
+          string,
+          {
+            areaId: string
+            areaName: string
+            sortOrder: number
+            items: QuotationLineItem[]
+          }
+        >
+      }
+    >()
+
+    // Pre-populate floors from sections
+    sections.forEach((sec, idx) => {
+      floorMap.set(sec.id, {
+        floorId: sec.id,
+        floorName: sec.name,
+        sortOrder: sec.sortOrder ?? idx,
+        areaMap: new Map(),
+      })
+    })
+
+    // Pre-populate areas from areas list
+    areas.forEach((area, idx) => {
+      const fId = area.floorId && floorMap.has(area.floorId) ? area.floorId : (area.floorId || 'general-floor')
+      let fEntry = floorMap.get(fId)
+      if (!fEntry) {
+        fEntry = {
+          floorId: fId,
+          floorName: sectionMap.get(fId) || 'General Floor / Scope',
+          sortOrder: 9999,
+          areaMap: new Map(),
+        }
+        floorMap.set(fId, fEntry)
+      }
+      if (!fEntry.areaMap.has(area.id)) {
+        fEntry.areaMap.set(area.id, {
+          areaId: area.id,
+          areaName: area.name,
+          sortOrder: area.sortOrder ?? idx,
+          items: [],
+        })
+      }
+    })
+
+    // Distribute filteredLineItems
+    for (const item of filteredLineItems) {
+      let fId = item.sectionId
+      if (!fId && item.areaId && areaMap.has(item.areaId)) {
+        fId = areaMap.get(item.areaId)!.floorId
+      }
+      if (!fId || (!sectionMap.has(fId) && fId !== 'general-floor')) {
+        fId = 'general-floor'
+      }
+
+      const fName = sectionMap.get(fId) || (fId === 'general-floor' ? 'General Floor / Scope' : fId)
+      let fEntry = floorMap.get(fId)
+      if (!fEntry) {
+        fEntry = {
+          floorId: fId,
+          floorName: fName,
+          sortOrder: 9999,
+          areaMap: new Map(),
+        }
+        floorMap.set(fId, fEntry)
+      }
+
+      let aId = item.areaId
+      let aName = aId && areaMap.has(aId) ? areaMap.get(aId)!.name : null
+      if (!aId) {
+        if (item.sectionId) {
+          aId = `general-area-${item.sectionId}`
+          aName = 'General Scope'
+        } else {
+          aId = 'general-area'
+          aName = 'General Area'
+        }
+      }
+
+      let aEntry = fEntry.areaMap.get(aId)
+      if (!aEntry) {
+        aEntry = {
+          areaId: aId,
+          areaName: aName || 'General Area',
+          sortOrder: 9999,
+          items: [],
+        }
+        fEntry.areaMap.set(aId, aEntry)
+      }
+
+      aEntry.items.push(item)
+    }
+
+    // Convert map to ordered array with only floors and areas that contain matching items
+    const result: Array<{
+      floorId: string
+      floorName: string
+      totalCount: number
+      completedCount: number
+      areas: Array<{
+        areaId: string
+        areaName: string
+        totalCount: number
+        completedCount: number
+        items: QuotationLineItem[]
+      }>
+    }> = []
+
+    const sortedFloors = Array.from(floorMap.values()).sort((a, b) => a.sortOrder - b.sortOrder)
+
+    for (const f of sortedFloors) {
+      const sortedAreas = Array.from(f.areaMap.values()).sort((a, b) => a.sortOrder - b.sortOrder)
+      const validAreas: Array<{
+        areaId: string
+        areaName: string
+        totalCount: number
+        completedCount: number
+        items: QuotationLineItem[]
+      }> = []
+
+      for (const a of sortedAreas) {
+        if (a.items.length > 0) {
+          validAreas.push({
+            areaId: a.areaId,
+            areaName: a.areaName,
+            totalCount: a.items.length,
+            completedCount: a.items.filter((it) => it.completed === true).length,
+            items: a.items,
+          })
+        }
+      }
+
+      if (validAreas.length > 0) {
+        result.push({
+          floorId: f.floorId,
+          floorName: f.floorName,
+          totalCount: validAreas.reduce((sum, a) => sum + a.totalCount, 0),
+          completedCount: validAreas.reduce((sum, a) => sum + a.completedCount, 0),
+          areas: validAreas,
+        })
+      }
+    }
+
+    return result
+  }, [filteredLineItems, sections, areas, sectionMap, areaMap])
+
+  // Collapsible Toggles
+  const toggleFloorCollapse = useCallback((floorId: string) => {
+    setCollapsedFloors((prev) => ({
+      ...prev,
+      [floorId]: !prev[floorId],
+    }))
+  }, [])
+
+  const toggleAreaCollapse = useCallback((areaId: string) => {
+    setCollapsedAreas((prev) => ({
+      ...prev,
+      [areaId]: !prev[areaId],
+    }))
+  }, [])
+
+  const handleExpandAll = useCallback(() => {
+    setCollapsedFloors({})
+    setCollapsedAreas({})
+  }, [])
+
+  const handleCollapseAll = useCallback(() => {
+    const allF: Record<string, boolean> = {}
+    const allA: Record<string, boolean> = {}
+    hierarchicalQuotationWorklist.forEach((f) => {
+      allF[f.floorId] = true
+      f.areas.forEach((a) => {
+        allA[a.areaId] = true
+      })
+    })
+    setCollapsedFloors(allF)
+    setCollapsedAreas(allA)
+  }, [hierarchicalQuotationWorklist])
 
   // ── MATERIAL REQUISITIONS HIERARCHICAL BOQ MAPPING ──
   const allRequisitionItems = useMemo(() => {
@@ -1036,122 +1227,259 @@ export default function SiteEngineerProjectDetailPage() {
                   Completed ({quotationLineItems.filter((i) => i.completed).length})
                 </Button>
               </div>
+
+              {/* Expand / Collapse All */}
+              <div className="flex items-center gap-1 border-l pl-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-7 px-2.5 gap-1"
+                  onClick={handleExpandAll}
+                  title="Expand all floors and areas"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Expand All</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-7 px-2.5 gap-1"
+                  onClick={handleCollapseAll}
+                  title="Collapse all floors and areas"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Collapse All</span>
+                </Button>
+              </div>
             </div>
           </div>
 
-          {/* Checklist Items */}
-          {filteredLineItems.length === 0 ? (
+          {/* Hierarchical Checklist Items (Floor -> Area -> Quotation Product) */}
+          {hierarchicalQuotationWorklist.length === 0 ? (
             <div className="p-12 text-center border rounded-xl bg-card space-y-2">
               <CheckCircle2 className="w-8 h-8 text-muted-foreground/40 mx-auto" />
               <h3 className="text-sm font-semibold">No work items found</h3>
               <p className="text-xs text-muted-foreground">Adjust your search or filter settings.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {filteredLineItems.map((item, idx) => {
-                const isCompleted = item.completed === true
-                const isUpdating = updatingItemId === item.id
-                const floorName = getFloorName(item)
-                const areaName = getAreaName(item)
-                const isSqft = item.unit?.toLowerCase() === 'sqft'
+            <div className="space-y-4">
+              {hierarchicalQuotationWorklist.map((floor) => {
+                const isFloorCollapsed = !searchQuery.trim() && Boolean(collapsedFloors[floor.floorId])
+                const floorPercent = floor.totalCount > 0 ? Math.round((floor.completedCount / floor.totalCount) * 100) : 0
 
                 return (
-                  <Card
-                    key={item.id || idx}
-                    className={`transition-all duration-200 border ${
-                      isCompleted
-                        ? 'border-emerald-300 bg-emerald-50/30 dark:border-emerald-950 dark:bg-emerald-950/10'
-                        : 'border-border bg-card hover:border-border/80'
-                    }`}
+                  <div
+                    key={floor.floorId}
+                    className="border border-border/80 rounded-xl overflow-hidden bg-card shadow-xs transition-all"
                   >
-                    <CardContent className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="space-y-1.5 flex-1">
-                        {/* Floor, Area & Sqft Tags */}
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-[11px] text-muted-foreground font-semibold">
-                            #{idx + 1}
-                          </span>
-                          <Badge
-                            variant="secondary"
-                            className="text-[10px] bg-blue-50 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 border-blue-200 gap-1 font-medium"
-                          >
-                            <Building2 className="w-3 h-3 text-blue-600" />
-                            Floor: {floorName}
-                          </Badge>
-                          <Badge
-                            variant="secondary"
-                            className="text-[10px] bg-indigo-50 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 border-indigo-200 gap-1 font-medium"
-                          >
-                            <Layers className="w-3 h-3 text-indigo-600" />
-                            Area: {areaName}
-                          </Badge>
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] font-mono font-bold px-2 py-0.5 gap-1 ${
-                              isSqft
-                                ? 'bg-amber-50 text-amber-900 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300'
-                                : 'bg-muted text-foreground'
-                            }`}
-                          >
-                            <Ruler className="w-3 h-3 text-amber-600" />
-                            {item.quantity ?? 1} {item.unit || 'sqft'}
-                          </Badge>
+                    {/* ── Floor Header Bar (Expandable / Collapsible Segment) ── */}
+                    <button
+                      type="button"
+                      onClick={() => toggleFloorCollapse(floor.floorId)}
+                      className="w-full flex items-center justify-between p-3.5 sm:p-4 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-b border-border/60"
+                    >
+                      <div className="flex items-center gap-2.5 sm:gap-3 flex-1 min-w-0">
+                        <div className="p-2 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 shrink-0">
+                          <Building2 className="w-4 h-4" />
                         </div>
-
-                        {/* Title & Status */}
-                        <div className="flex items-center gap-2 pt-0.5">
-                          <span
-                            className={`text-sm font-semibold leading-tight ${
-                              isCompleted ? 'text-foreground line-through opacity-85' : 'text-foreground'
-                            }`}
-                          >
-                            {item.description || 'Custom Product / Work Scope'}
-                          </span>
-                          {isCompleted ? (
-                            <Badge className="bg-emerald-600 text-white text-[10px] h-5 gap-1 font-semibold">
-                              <CheckCircle2 className="w-3 h-3" /> Done
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-[10px] h-5 text-amber-700 dark:text-amber-400 border-amber-300">
-                              <Clock className="w-3 h-3 mr-1" /> In Progress
-                            </Badge>
-                          )}
-                        </div>
-
-                        {/* Specifications & Materials Text */}
-                        {item.materials && (
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {item.materials}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h4 className="text-sm sm:text-base font-bold text-foreground truncate">
+                              {floor.floorName}
+                            </h4>
+                            {floor.completedCount === floor.totalCount && floor.totalCount > 0 ? (
+                              <Badge className="bg-emerald-600 text-white text-[10px] h-5 gap-1 font-semibold">
+                                <CheckCircle2 className="w-3 h-3" /> All Done
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] h-5 text-muted-foreground">
+                                {floor.completedCount} / {floor.totalCount} completed
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {floor.areas.length} {floor.areas.length === 1 ? 'Area' : 'Areas'} • {floor.totalCount} Quotation {floor.totalCount === 1 ? 'Product' : 'Products'}
                           </p>
-                        )}
+                        </div>
                       </div>
 
-                      {/* Checkmark Action Button */}
-                      <div className="flex items-center gap-2 shrink-0 sm:self-center">
-                        <Button
-                          type="button"
-                          size="sm"
-                          disabled={isUpdating}
-                          variant={isCompleted ? 'default' : 'outline'}
-                          className={`text-xs h-9 px-4 font-semibold gap-1.5 transition-colors ${
-                            isCompleted
-                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                              : 'hover:bg-muted/60 text-foreground'
-                          }`}
-                          onClick={() => handleToggleItemStatus(item.id, isCompleted)}
-                        >
-                          {isUpdating ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : isCompleted ? (
-                            <CheckSquare className="w-4 h-4" />
+                      <div className="flex items-center gap-3 shrink-0 ml-2">
+                        <div className="hidden sm:flex items-center gap-2">
+                          <div className="w-20 bg-muted rounded-full h-2 overflow-hidden border">
+                            <div
+                              className="bg-emerald-600 h-full rounded-full transition-all"
+                              style={{ width: `${floorPercent}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-mono font-semibold text-muted-foreground">
+                            {floorPercent}%
+                          </span>
+                        </div>
+                        <div className="p-1 text-muted-foreground hover:text-foreground">
+                          {isFloorCollapsed ? (
+                            <ChevronRight className="w-5 h-5 transition-transform" />
                           ) : (
-                            <Square className="w-4 h-4" />
+                            <ChevronDown className="w-5 h-5 transition-transform" />
                           )}
-                          <span>{isCompleted ? 'Completed ✓' : 'Mark Complete'}</span>
-                        </Button>
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </button>
+
+                    {/* ── Floor Areas Segment ── */}
+                    {!isFloorCollapsed && (
+                      <div className="p-3 sm:p-4 space-y-3.5 bg-muted/10">
+                        {floor.areas.map((area) => {
+                          const isAreaCollapsed = !searchQuery.trim() && Boolean(collapsedAreas[area.areaId])
+                          const areaPercent = area.totalCount > 0 ? Math.round((area.completedCount / area.totalCount) * 100) : 0
+
+                          return (
+                            <div
+                              key={area.areaId}
+                              className="border border-border/80 rounded-lg overflow-hidden bg-background shadow-xs transition-all"
+                            >
+                              {/* ── Area Header Bar (Expandable / Collapsible Segment) ── */}
+                              <button
+                                type="button"
+                                onClick={() => toggleAreaCollapse(area.areaId)}
+                                className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-muted/20 hover:bg-muted/40 transition-colors text-left border-b border-border/50"
+                              >
+                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                  <div className="p-1.5 rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 shrink-0">
+                                    <Layers className="w-3.5 h-3.5" />
+                                  </div>
+                                  <div className="min-w-0 flex-1 flex flex-wrap items-center gap-2">
+                                    <span className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                                      Area: <strong className="text-indigo-950 dark:text-indigo-200">{area.areaName}</strong>
+                                    </span>
+                                    <span className="text-[11px] text-muted-foreground font-normal">
+                                      ({area.completedCount}/{area.totalCount} completed)
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2.5 shrink-0 ml-2">
+                                  {area.completedCount === area.totalCount && area.totalCount > 0 ? (
+                                    <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 text-[10px] h-5 gap-1">
+                                      <CheckCircle2 className="w-3 h-3" /> Done
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-[10px] font-mono font-medium text-muted-foreground hidden sm:inline">
+                                      {areaPercent}%
+                                    </span>
+                                  )}
+                                  <div className="text-muted-foreground p-0.5">
+                                    {isAreaCollapsed ? (
+                                      <ChevronRight className="w-4 h-4" />
+                                    ) : (
+                                      <ChevronDown className="w-4 h-4" />
+                                    )}
+                                  </div>
+                                </div>
+                              </button>
+
+                              {/* ── Area Quotation Products ── */}
+                              {!isAreaCollapsed && (
+                                <div className="p-2 sm:p-3 space-y-2.5 bg-card/40">
+                                  {area.items.map((item, idx) => {
+                                    const isCompleted = item.completed === true
+                                    const isUpdating = updatingItemId === item.id
+                                    const isSqft = item.unit?.toLowerCase() === 'sqft'
+
+                                    return (
+                                      <Card
+                                        key={item.id || idx}
+                                        className={`transition-all duration-200 border ${
+                                          isCompleted
+                                            ? 'border-emerald-300 bg-emerald-50/30 dark:border-emerald-950 dark:bg-emerald-950/10'
+                                            : 'border-border bg-card hover:border-border/80'
+                                        }`}
+                                      >
+                                        <CardContent className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                          <div className="space-y-1.5 flex-1 min-w-0">
+                                            {/* Product Meta Tags */}
+                                            <div className="flex flex-wrap items-center gap-2">
+                                              <span className="font-mono text-[11px] text-muted-foreground font-semibold">
+                                                #{idx + 1}
+                                              </span>
+                                              <Badge
+                                                variant="outline"
+                                                className={`text-[10px] font-mono font-bold px-2 py-0.5 gap-1 ${
+                                                  isSqft
+                                                    ? 'bg-amber-50 text-amber-900 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300'
+                                                    : 'bg-muted text-foreground'
+                                                }`}
+                                              >
+                                                <Ruler className="w-3 h-3 text-amber-600" />
+                                                {item.quantity ?? 1} {item.unit || 'sqft'}
+                                              </Badge>
+                                              {isCompleted ? (
+                                                <Badge className="bg-emerald-600 text-white text-[10px] h-5 gap-1 font-semibold">
+                                                  <CheckCircle2 className="w-3 h-3" /> Done
+                                                </Badge>
+                                              ) : (
+                                                <Badge variant="outline" className="text-[10px] h-5 text-amber-700 dark:text-amber-400 border-amber-300">
+                                                  <Clock className="w-3 h-3 mr-1" /> In Progress
+                                                </Badge>
+                                              )}
+                                            </div>
+
+                                            {/* Title */}
+                                            <div className="pt-0.5">
+                                              <span
+                                                className={`text-sm font-semibold leading-tight ${
+                                                  isCompleted ? 'text-foreground line-through opacity-85' : 'text-foreground'
+                                                }`}
+                                              >
+                                                {item.description || 'Custom Product / Work Scope'}
+                                              </span>
+                                            </div>
+
+                                            {/* Specifications & Materials Text */}
+                                            {item.materials && (
+                                              <p className="text-xs text-muted-foreground line-clamp-2">
+                                                {item.materials}
+                                              </p>
+                                            )}
+                                          </div>
+
+                                          {/* Checkmark Action Button */}
+                                          <div className="flex items-center gap-2 shrink-0 sm:self-center">
+                                            <Button
+                                              type="button"
+                                              size="sm"
+                                              disabled={isUpdating}
+                                              variant={isCompleted ? 'default' : 'outline'}
+                                              className={`text-xs h-9 px-4 font-semibold gap-1.5 transition-colors ${
+                                                isCompleted
+                                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                                  : 'hover:bg-muted/60 text-foreground'
+                                              }`}
+                                              onClick={() => handleToggleItemStatus(item.id, isCompleted)}
+                                            >
+                                              {isUpdating ? (
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                              ) : isCompleted ? (
+                                                <CheckSquare className="w-4 h-4" />
+                                              ) : (
+                                                <Square className="w-4 h-4" />
+                                              )}
+                                              <span>{isCompleted ? 'Completed ✓' : 'Mark Complete'}</span>
+                                            </Button>
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
                 )
               })}
             </div>

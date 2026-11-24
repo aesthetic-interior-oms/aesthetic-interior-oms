@@ -28,12 +28,27 @@ export async function GET(
         .filter((name): name is string => Boolean(name)),
     )
 
-    const isAdmin = deptNames.has('ADMIN')
-    const isPc = deptNames.has('PROJECT_COORDINATOR')
+    const userRoles = await prisma.userRole.findMany({
+      where: { userId: user.id },
+      select: { role: { select: { name: true } } },
+    })
+    const roleNames = new Set([
+      ...userRoles.map((r) => r.role.name.toUpperCase()),
+      ...(authResult.actorRoles || []).map((r) => r.toUpperCase()),
+    ])
+
+    const isAdmin = deptNames.has('ADMIN') || roleNames.has('ADMIN')
+    const isPc =
+      deptNames.has('PROJECT_COORDINATOR') ||
+      deptNames.has('PROJECT_CORDINATOR') ||
+      roleNames.has('PROJECT_COORDINATOR') ||
+      roleNames.has('PROJECT_CORDINATOR') ||
+      Array.from(roleNames).some((r) => r.includes('PROJECT_COORDINATOR') || r.includes('PROJECT_CORDINATOR'))
     const isSiteEngineer =
       deptNames.has('SITE_ENGINEER') ||
       deptNames.has('PROJECT_ENGINEER') ||
-      deptNames.has('IMPLEMENTATION_TEAM')
+      deptNames.has('IMPLEMENTATION_TEAM') ||
+      roleNames.has('SITE_ENGINEER')
 
     if (!isAdmin && !isPc && !isSiteEngineer) {
       return NextResponse.json(

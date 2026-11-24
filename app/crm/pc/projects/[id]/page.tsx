@@ -35,12 +35,17 @@ import {
   Search,
   X,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   HardHat,
   ShieldCheck,
   Boxes,
   Truck,
   Package,
+  Building2,
+  Layers,
+  Ruler,
+  Clock,
 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
@@ -169,6 +174,10 @@ export default function PCProjectDetailPage() {
   // Delete Version State
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null)
   const [ceilingWorkOrders, setCeilingWorkOrders] = useState<any[]>([])
+
+  // Quotation Worklist Collapsible States (Floor → Area → Product)
+  const [collapsedFloors, setCollapsedFloors] = useState<Record<string, boolean>>({})
+  const [collapsedAreas, setCollapsedAreas] = useState<Record<string, boolean>>({})
 
   const fetchCeilingWorkOrders = useCallback(async () => {
     if (!leadId) return
@@ -414,7 +423,7 @@ export default function PCProjectDetailPage() {
     )
   }
 
-  // Render Quotation To-Do Checklist Content
+  // Render Quotation To-Do Checklist Content — Hierarchical Floor → Area → Product
   const renderChecklistQuotationContent = (content: unknown) => {
     if (!content || typeof content !== 'object') {
       return <p className="text-muted-foreground text-sm py-4">No product items found.</p>
@@ -426,138 +435,100 @@ export default function PCProjectDetailPage() {
     const discountPercent = typeof c.discountPercent === 'number' ? c.discountPercent : 0
     const grandTotal = typeof c.grandTotal === 'number' ? c.grandTotal : 0
 
-    if (Array.isArray(c.lineItems) && c.lineItems.length > 0) {
-      const rawLines = c.lineItems as QuotationLineItem[]
-      const includedLines = rawLines.filter((l) => l.included !== false)
-
-      const sectionsMap = new Map<string, string>()
-      if (Array.isArray(c.sections)) {
-        ;(c.sections as Array<{ id: string; name?: string }>).forEach((s) => {
-          if (s.id && s.name) sectionsMap.set(s.id, s.name)
-        })
-      }
-
-      const areasMap = new Map<string, string>()
-      if (Array.isArray(c.areas)) {
-        ;(c.areas as Array<{ id: string; name?: string }>).forEach((a) => {
-          if (a.id && a.name) areasMap.set(a.id, a.name)
-        })
-      }
-
-      const grouped = new Map<string, typeof includedLines>()
-      includedLines.forEach((line) => {
-        let groupName = 'Products & Execution Tasks'
-        if (line.areaId && areasMap.has(line.areaId)) {
-          groupName = areasMap.get(line.areaId)!
-        } else if (line.sectionId && sectionsMap.has(line.sectionId)) {
-          groupName = sectionsMap.get(line.sectionId)!
-        }
-        if (!grouped.has(groupName)) {
-          grouped.set(groupName, [])
-        }
-        grouped.get(groupName)!.push(line)
-      })
-
+    if (!Array.isArray(c.lineItems) || c.lineItems.length === 0) {
       return (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {subject ? (
             <div className="p-3 rounded-md bg-muted/30 border text-xs font-medium text-foreground">
               Subject: {subject}
             </div>
           ) : null}
-
-          {Array.from(grouped.entries()).map(([groupTitle, lines], gi) => (
-            <div key={gi} className="space-y-3">
-              <h4 className="font-semibold text-sm text-foreground border-b pb-1.5 flex items-center justify-between">
-                <span>{groupTitle}</span>
-                <span className="text-xs font-normal text-muted-foreground">
-                  {lines.filter((l) => l.completed).length}/{lines.length} done
-                </span>
-              </h4>
-              <div className="overflow-x-auto rounded-md border">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-muted/40 text-left text-xs font-semibold text-muted-foreground border-b">
-                      <th className="py-2.5 px-3 w-10 text-center">Done</th>
-                      <th className="py-2.5 pr-4 font-semibold">Product & Work Specification</th>
-                      <th className="py-2.5 pr-3 font-semibold text-right w-24">Qty / Sqft</th>
-                      <th className="py-2.5 pr-3 font-semibold text-right w-24">Rate (৳)</th>
-                      <th className="py-2.5 pr-3 font-semibold text-right w-28">Total (৳)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/40">
-                    {lines.map((line) => {
-                      const isDone = Boolean(line.completed)
-                      const isUpdating = updatingItemId === line.id
-
-                      return (
-                        <tr
-                          key={line.id}
-                          className={`align-top transition-colors ${
-                            isDone ? 'bg-emerald-50/40 dark:bg-emerald-950/20' : 'hover:bg-muted/20'
-                          }`}
-                        >
-                          <td className="py-3 px-3 text-center">
-                            <button
-                              type="button"
-                              disabled={isUpdating}
-                              onClick={() => handleToggleItemStatus(line.id, isDone)}
-                              className="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
-                              title={isDone ? 'Mark as Pending' : 'Mark as Done'}
-                            >
-                              {isUpdating ? (
-                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                              ) : isDone ? (
-                                <CheckSquare className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                              ) : (
-                                <Square className="h-5 w-5 text-muted-foreground hover:text-primary" />
-                              )}
-                            </button>
-                          </td>
-                          <td className="py-3 pr-4">
-                            <div className={`font-semibold ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
-                              {line.description || 'Custom Product Item'}
-                            </div>
-                            {line.materials ? (
-                              <div className="mt-1.5 text-xs text-muted-foreground whitespace-pre-line bg-muted/30 p-2 rounded border border-border/40">
-                                {line.materials}
-                              </div>
-                            ) : null}
-                          </td>
-                          <td className="py-3 pr-3 text-right tabular-nums font-medium">
-                            {line.quantity != null ? `${line.quantity} ${line.unit ?? ''}` : '—'}
-                          </td>
-                          <td className="py-3 pr-3 text-right tabular-nums">
-                            {line.rate != null ? `৳${line.rate.toLocaleString()}` : '—'}
-                          </td>
-                          <td className="py-3 pr-3 text-right tabular-nums font-semibold">
-                            {line.amount != null ? `৳${line.amount.toLocaleString()}` : '—'}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
-
-          {/* Totals Summary */}
-          <div className="flex flex-col items-end border-t pt-4 space-y-1 text-sm">
-            {discountAmount > 0 ? (
-              <div className="flex justify-between w-64 text-xs text-muted-foreground">
-                <span>Discount ({discountPercent > 0 ? `${discountPercent}%` : 'Fixed'}):</span>
-                <span>- ৳{discountAmount.toLocaleString()}</span>
-              </div>
-            ) : null}
-            <div className="flex justify-between w-64 font-bold text-base pt-1 text-foreground">
-              <span>Grand Total:</span>
-              <span>৳{grandTotal.toLocaleString()}</span>
-            </div>
-          </div>
+          <p className="text-muted-foreground text-sm py-2">
+            Quotation saved. Grand Total: <span className="font-semibold text-foreground">৳{grandTotal.toLocaleString()}</span>
+          </p>
         </div>
       )
     }
+
+    const rawLines = c.lineItems as QuotationLineItem[]
+    const includedLines = rawLines.filter((l) => l.included !== false)
+
+    // Build section (floor) and area maps
+    const sectionsMap = new Map<string, { id: string; name: string; sortOrder: number }>()
+    if (Array.isArray(c.sections)) {
+      ;(c.sections as Array<{ id: string; name?: string; sortOrder?: number }>).forEach((s, idx) => {
+        if (s.id && s.name) sectionsMap.set(s.id, { id: s.id, name: s.name, sortOrder: s.sortOrder ?? idx })
+      })
+    }
+
+    const areasMap = new Map<string, { id: string; name: string; floorId?: string; sortOrder: number }>()
+    if (Array.isArray(c.areas)) {
+      ;(c.areas as Array<{ id: string; name?: string; floorId?: string; sortOrder?: number }>).forEach((a, idx) => {
+        if (a.id && a.name) areasMap.set(a.id, { id: a.id, name: a.name, floorId: a.floorId, sortOrder: a.sortOrder ?? idx })
+      })
+    }
+
+    // Build Floor → Area → Product hierarchy
+    type AreaEntry = { areaId: string; areaName: string; sortOrder: number; lines: QuotationLineItem[] }
+    type FloorEntry = { floorId: string; floorName: string; sortOrder: number; areaMap: Map<string, AreaEntry> }
+
+    const floorMap = new Map<string, FloorEntry>()
+
+    sectionsMap.forEach((sec) => {
+      floorMap.set(sec.id, { floorId: sec.id, floorName: sec.name, sortOrder: sec.sortOrder, areaMap: new Map() })
+    })
+
+    areasMap.forEach((area) => {
+      const fId = area.floorId && floorMap.has(area.floorId) ? area.floorId : (area.floorId || 'general-floor')
+      let fEntry = floorMap.get(fId)
+      if (!fEntry) {
+        fEntry = { floorId: fId, floorName: sectionsMap.get(fId)?.name || 'General Floor / Scope', sortOrder: 9999, areaMap: new Map() }
+        floorMap.set(fId, fEntry)
+      }
+      if (!fEntry.areaMap.has(area.id)) {
+        fEntry.areaMap.set(area.id, { areaId: area.id, areaName: area.name, sortOrder: area.sortOrder, lines: [] })
+      }
+    })
+
+    for (const line of includedLines) {
+      let fId = line.sectionId
+      if (!fId && line.areaId && areasMap.has(line.areaId)) {
+        fId = areasMap.get(line.areaId)!.floorId
+      }
+      if (!fId || (!sectionsMap.has(fId) && fId !== 'general-floor')) {
+        fId = 'general-floor'
+      }
+      const fName = sectionsMap.get(fId!)?.name || (fId === 'general-floor' ? 'General Floor / Scope' : fId!)
+      let fEntry = floorMap.get(fId!)
+      if (!fEntry) {
+        fEntry = { floorId: fId!, floorName: fName, sortOrder: 9999, areaMap: new Map() }
+        floorMap.set(fId!, fEntry)
+      }
+      let aId = line.areaId
+      let aName = aId && areasMap.has(aId) ? areasMap.get(aId)!.name : null
+      let aSortOrder = aId && areasMap.has(aId) ? areasMap.get(aId)!.sortOrder : 9999
+      if (!aId) {
+        if (line.sectionId) { aId = `general-area-${line.sectionId}`; aName = 'General Scope'; aSortOrder = 9999 }
+        else { aId = 'general-area'; aName = 'General Area'; aSortOrder = 9999 }
+      }
+      let aEntry = fEntry.areaMap.get(aId)
+      if (!aEntry) {
+        aEntry = { areaId: aId, areaName: aName || 'General Area', sortOrder: aSortOrder, lines: [] }
+        fEntry.areaMap.set(aId, aEntry)
+      }
+      aEntry.lines.push(line)
+    }
+
+    const floors = Array.from(floorMap.values())
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((f) => ({
+        ...f,
+        areas: Array.from(f.areaMap.values()).sort((a, b) => a.sortOrder - b.sortOrder).filter((a) => a.lines.length > 0),
+      }))
+      .filter((f) => f.areas.length > 0)
+
+    const totalIncluded = includedLines.length
+    const totalCompleted = includedLines.filter((l) => l.completed === true).length
 
     return (
       <div className="space-y-4">
@@ -566,12 +537,228 @@ export default function PCProjectDetailPage() {
             Subject: {subject}
           </div>
         ) : null}
-        <p className="text-muted-foreground text-sm py-2">
-          Quotation saved. Grand Total: <span className="font-semibold text-foreground">৳{grandTotal.toLocaleString()}</span>
-        </p>
+
+        {/* Expand / Collapse toolbar */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground">
+            {totalCompleted} / {totalIncluded} items completed across {floors.length} floor{floors.length !== 1 ? 's' : ''}
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs h-7 px-2.5 gap-1"
+              onClick={() => { setCollapsedFloors({}); setCollapsedAreas({}) }}
+            >
+              <ChevronDown className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Expand All</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs h-7 px-2.5 gap-1"
+              onClick={() => {
+                const cf: Record<string, boolean> = {}
+                const ca: Record<string, boolean> = {}
+                floors.forEach((f) => { cf[f.floorId] = true; f.areas.forEach((a) => { ca[a.areaId] = true }) })
+                setCollapsedFloors(cf)
+                setCollapsedAreas(ca)
+              }}
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Collapse All</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Hierarchical Floor → Area → Product list */}
+        <div className="space-y-4">
+          {floors.map((floor) => {
+            const isFloorCollapsed = Boolean(collapsedFloors[floor.floorId])
+            const floorTotal = floor.areas.reduce((s, a) => s + a.lines.length, 0)
+            const floorCompleted = floor.areas.reduce((s, a) => s + a.lines.filter((l) => l.completed).length, 0)
+            const floorPercent = floorTotal > 0 ? Math.round((floorCompleted / floorTotal) * 100) : 0
+
+            return (
+              <div key={floor.floorId} className="border border-border/80 rounded-xl overflow-hidden bg-card shadow-xs">
+                {/* Floor Header */}
+                <button
+                  type="button"
+                  onClick={() => setCollapsedFloors((prev) => ({ ...prev, [floor.floorId]: !prev[floor.floorId] }))}
+                  className="w-full flex items-center justify-between p-3.5 sm:p-4 bg-muted/40 hover:bg-muted/60 transition-colors text-left border-b border-border/60"
+                >
+                  <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                    <div className="p-2 rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-950/80 dark:text-blue-300 shrink-0">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-sm sm:text-base font-bold text-foreground truncate">{floor.floorName}</h4>
+                        {floorCompleted === floorTotal && floorTotal > 0 ? (
+                          <Badge className="bg-emerald-600 text-white text-[10px] h-5 gap-1 font-semibold">
+                            <CheckCircle2 className="w-3 h-3" /> All Done
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] h-5 text-muted-foreground">
+                            {floorCompleted}/{floorTotal} done
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {floor.areas.length} {floor.areas.length === 1 ? 'Area' : 'Areas'} · {floorTotal} {floorTotal === 1 ? 'Product' : 'Products'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 ml-2">
+                    <div className="hidden sm:flex items-center gap-2">
+                      <div className="w-20 bg-muted rounded-full h-2 overflow-hidden border">
+                        <div className="bg-emerald-600 h-full rounded-full transition-all" style={{ width: `${floorPercent}%` }} />
+                      </div>
+                      <span className="text-xs font-mono font-semibold text-muted-foreground">{floorPercent}%</span>
+                    </div>
+                    <div className="p-1 text-muted-foreground">
+                      {isFloorCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    </div>
+                  </div>
+                </button>
+
+                {/* Areas */}
+                {!isFloorCollapsed && (
+                  <div className="p-3 sm:p-4 space-y-3 bg-muted/10">
+                    {floor.areas.map((area) => {
+                      const isAreaCollapsed = Boolean(collapsedAreas[area.areaId])
+                      const areaCompleted = area.lines.filter((l) => l.completed).length
+                      const areaPercent = area.lines.length > 0 ? Math.round((areaCompleted / area.lines.length) * 100) : 0
+
+                      return (
+                        <div key={area.areaId} className="border border-border/70 rounded-lg overflow-hidden bg-background shadow-xs">
+                          {/* Area Header */}
+                          <button
+                            type="button"
+                            onClick={() => setCollapsedAreas((prev) => ({ ...prev, [area.areaId]: !prev[area.areaId] }))}
+                            className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-muted/20 hover:bg-muted/40 transition-colors text-left border-b border-border/50"
+                          >
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <div className="p-1.5 rounded-md bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 shrink-0">
+                                <Layers className="w-3.5 h-3.5" />
+                              </div>
+                              <div className="min-w-0 flex-1 flex flex-wrap items-center gap-2">
+                                <span className="text-xs sm:text-sm font-semibold text-foreground">
+                                  Area: <strong className="text-indigo-900 dark:text-indigo-200">{area.areaName}</strong>
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  ({areaCompleted}/{area.lines.length} done)
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0 ml-2">
+                              {areaCompleted === area.lines.length && area.lines.length > 0 ? (
+                                <Badge variant="outline" className="border-emerald-300 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 text-[10px] h-5 gap-1">
+                                  <CheckCircle2 className="w-3 h-3" /> Done
+                                </Badge>
+                              ) : (
+                                <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">{areaPercent}%</span>
+                              )}
+                              <div className="text-muted-foreground p-0.5">
+                                {isAreaCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              </div>
+                            </div>
+                          </button>
+
+                          {/* Quotation Products inside Area */}
+                          {!isAreaCollapsed && (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-sm">
+                                <thead>
+                                  <tr className="bg-muted/40 text-left text-xs font-semibold text-muted-foreground border-b">
+                                    <th className="py-2.5 px-3 w-10 text-center">Done</th>
+                                    <th className="py-2.5 pr-4 font-semibold">Product &amp; Work Specification</th>
+                                    <th className="py-2.5 pr-3 font-semibold text-right w-24">Qty / Sqft</th>
+                                    <th className="py-2.5 pr-3 font-semibold text-right w-24">Rate (৳)</th>
+                                    <th className="py-2.5 pr-3 font-semibold text-right w-28">Total (৳)</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border/40">
+                                  {area.lines.map((line) => {
+                                    const isDone = Boolean(line.completed)
+                                    const isUpdating = updatingItemId === line.id
+                                    return (
+                                      <tr
+                                        key={line.id}
+                                        className={`align-top transition-colors ${isDone ? 'bg-emerald-50/40 dark:bg-emerald-950/20' : 'hover:bg-muted/20'}`}
+                                      >
+                                        <td className="py-3 px-3 text-center">
+                                          <button
+                                            type="button"
+                                            disabled={isUpdating}
+                                            onClick={() => handleToggleItemStatus(line.id, isDone)}
+                                            className="inline-flex items-center justify-center rounded p-1 text-muted-foreground hover:text-foreground focus:outline-none transition-colors"
+                                            title={isDone ? 'Mark as Pending' : 'Mark as Done'}
+                                          >
+                                            {isUpdating ? (
+                                              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                            ) : isDone ? (
+                                              <CheckSquare className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                                            ) : (
+                                              <Square className="h-5 w-5 text-muted-foreground hover:text-primary" />
+                                            )}
+                                          </button>
+                                        </td>
+                                        <td className="py-3 pr-4">
+                                          <div className={`font-semibold ${isDone ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                                            {line.description || 'Custom Product Item'}
+                                          </div>
+                                          {line.materials ? (
+                                            <div className="mt-1.5 text-xs text-muted-foreground whitespace-pre-line bg-muted/30 p-2 rounded border border-border/40">
+                                              {line.materials}
+                                            </div>
+                                          ) : null}
+                                        </td>
+                                        <td className="py-3 pr-3 text-right tabular-nums font-medium">
+                                          {line.quantity != null ? `${line.quantity} ${line.unit ?? ''}` : '—'}
+                                        </td>
+                                        <td className="py-3 pr-3 text-right tabular-nums">
+                                          {line.rate != null ? `৳${line.rate.toLocaleString()}` : '—'}
+                                        </td>
+                                        <td className="py-3 pr-3 text-right tabular-nums font-semibold">
+                                          {line.amount != null ? `৳${line.amount.toLocaleString()}` : '—'}
+                                        </td>
+                                      </tr>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Totals Summary */}
+        <div className="flex flex-col items-end border-t pt-4 space-y-1 text-sm">
+          {discountAmount > 0 ? (
+            <div className="flex justify-between w-64 text-xs text-muted-foreground">
+              <span>Discount ({discountPercent > 0 ? `${discountPercent}%` : 'Fixed'}):</span>
+              <span>- ৳{discountAmount.toLocaleString()}</span>
+            </div>
+          ) : null}
+          <div className="flex justify-between w-64 font-bold text-base pt-1 text-foreground">
+            <span>Grand Total:</span>
+            <span>৳{grandTotal.toLocaleString()}</span>
+          </div>
+        </div>
       </div>
     )
   }
+
 
   return (
     <div className="flex flex-col min-h-screen">
