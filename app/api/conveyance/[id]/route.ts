@@ -33,7 +33,29 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 
   if (status === 'PAID' && current.status !== 'APPROVED') return NextResponse.json({ success: false, error: 'Only approved requests can be marked paid.' }, { status: 409 })
   if (['APPROVED', 'REJECTED'].includes(status) && current.status !== 'PENDING') return NextResponse.json({ success: false, error: 'This request has already been reviewed.' }, { status: 409 })
-  const amount = current.amount
+
+  const originalAmount = current.amount
+
+  // PC-adjusted approved amount: validate if provided
+  let resolvedApprovedAmount = originalAmount
+  if (status === 'APPROVED' && typeof body?.approvedAmount === 'number') {
+    const proposed = Math.round((body.approvedAmount + Number.EPSILON) * 100) / 100
+    if (!Number.isFinite(proposed) || proposed < 0) {
+      return NextResponse.json({ success: false, error: 'Approved amount must be a positive number.' }, { status: 400 })
+    }
+    if (proposed > originalAmount) {
+      return NextResponse.json({ success: false, error: 'Approved amount cannot exceed the original requested amount.' }, { status: 400 })
+    }
+    resolvedApprovedAmount = proposed
+  }
+
+  // Auto-generate PC deduction note when amount is reduced
+  let pcNote: string | null = null
+  if (status === 'APPROVED' && resolvedApprovedAmount < originalAmount) {
+    const deducted = Math.round((originalAmount - resolvedApprovedAmount + Number.EPSILON) * 100) / 100
+    pcNote = `PC deducted ৳${deducted.toLocaleString('en-BD', { maximumFractionDigits: 2 })} from prepared amount of ৳${originalAmount.toLocaleString('en-BD', { maximumFractionDigits: 2 })}.`
+  }
+
   const voucherNo = typeof body?.voucherNo === 'string' ? body.voucherNo.trim() || null : current.voucherNo
   if (status === 'APPROVED' && voucherNo?.length && voucherNo.length > 80) return NextResponse.json({ success: false, error: 'Voucher number is too long.' }, { status: 400 })
   try {
@@ -42,7 +64,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       : voucherNo
     const updated = await prisma.conveyanceRequest.update({ where: { id }, data: {
       status,
-      ...(status === 'APPROVED' ? { approvedAmount: amount, voucherNo: assignedVoucher } : {}),
+      ...(status === 'APPROVED' ? { approvedAmount: resolvedApprovedAmount, voucherNo: assignedVoucher, pcNote } : {}),
       ...(status === 'REJECTED' ? { approvedAmount: 0 } : {}),
       ...(note !== null ? { accountsNote: note } : {}),
       reviewedById: actor.id,

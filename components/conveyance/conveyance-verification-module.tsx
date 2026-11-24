@@ -79,6 +79,8 @@ type ConveyanceRow = {
   createdAt: string
   status: string
   voucherNo: string | null
+  approvedAmount: number | null
+  pcNote: string | null
   accountsNote: string | null
   bills: Array<{
     id: string
@@ -261,11 +263,13 @@ export function ConveyanceVerificationModule({
     request: ConveyanceRow | null
     action: 'APPROVED' | 'REJECTED' | 'PAID' | null
     note: string
+    approvedAmount: string
   }>({
     open: false,
     request: null,
     action: null,
     note: '',
+    approvedAmount: '',
   })
 
   const params = useMemo(
@@ -314,23 +318,33 @@ export function ConveyanceVerificationModule({
       request,
       action,
       note: '',
+      approvedAmount: action === 'APPROVED' ? String(request.amount) : '',
     })
   }
 
   const handleConfirmAction = async () => {
     if (!reviewDialog.request || !reviewDialog.action) return
-    const { request, action, note } = reviewDialog
+    const { request, action, note, approvedAmount } = reviewDialog
     setWorkingId(request.id)
     setReviewDialog((prev) => ({ ...prev, open: false }))
+
+    // Build payload — include approvedAmount only when PC is approving
+    const bodyPayload: Record<string, unknown> = {
+      status: action,
+      accountsNote: note.trim() || undefined,
+    }
+    if (action === 'APPROVED' && permissions?.isPc) {
+      const parsed = parseFloat(approvedAmount)
+      if (!isNaN(parsed) && parsed >= 0) {
+        bodyPayload.approvedAmount = parsed
+      }
+    }
 
     try {
       const response = await fetch(`/api/conveyance/${request.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: action,
-          accountsNote: note.trim() || undefined,
-        }),
+        body: JSON.stringify(bodyPayload),
       })
       const data = await response.json()
       if (!response.ok || !data.success) {
@@ -913,10 +927,27 @@ export function ConveyanceVerificationModule({
 
                         {/* Cheque Box Amount */}
                         <div className="bg-white dark:bg-zinc-950 border-2 border-slate-800 dark:border-zinc-300 rounded px-3 py-1.5 text-right shadow-inner min-w-[120px] self-start sm:self-auto">
-                          <span className="text-[9px] font-mono uppercase text-slate-400 block">TOTAL SUM</span>
-                          <span className="font-mono text-base sm:text-lg font-black text-slate-900 dark:text-zinc-100">
-                            {money(req.amount)}
-                          </span>
+                          {/* Show approved amount prominently when approved/paid and PC has set one */}
+                          {(req.status === 'APPROVED' || req.status === 'PAID') && req.approvedAmount != null ? (
+                            <>
+                              <span className="text-[9px] font-mono uppercase text-emerald-600 dark:text-emerald-400 block font-bold">APPROVED SUM</span>
+                              <span className="font-mono text-base sm:text-lg font-black text-emerald-700 dark:text-emerald-300">
+                                {money(req.approvedAmount)}
+                              </span>
+                              {req.approvedAmount < req.amount && (
+                                <span className="text-[9px] font-mono text-slate-400 line-through block">
+                                  {money(req.amount)}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-[9px] font-mono uppercase text-slate-400 block">TOTAL SUM</span>
+                              <span className="font-mono text-base sm:text-lg font-black text-slate-900 dark:text-zinc-100">
+                                {money(req.amount)}
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -964,6 +995,30 @@ export function ConveyanceVerificationModule({
                           </p>
                         </div>
                       ) : null}
+
+                      {/* Prepared vs Approved breakdown — visible when PC has set an approvedAmount */}
+                      {(req.status === 'APPROVED' || req.status === 'PAID') && req.approvedAmount != null && (
+                        <div className={`rounded border px-3 py-2 space-y-1 ${
+                          req.approvedAmount < req.amount
+                            ? 'bg-amber-50/80 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
+                            : 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800'
+                        }`}>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500 dark:text-zinc-400">Prepared Value</span>
+                            <span className="font-mono font-semibold text-slate-700 dark:text-zinc-300">{money(req.amount)}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-mono text-[10px] uppercase tracking-wider text-emerald-700 dark:text-emerald-400 font-bold">Approved Value</span>
+                            <span className="font-mono font-black text-emerald-800 dark:text-emerald-300 text-sm">{money(req.approvedAmount)}</span>
+                          </div>
+                          {req.approvedAmount < req.amount && req.pcNote && (
+                            <div className="text-[10px] text-amber-700 dark:text-amber-300 border-t border-amber-200 dark:border-amber-800 pt-1 flex items-start gap-1">
+                              <Scissors className="h-3 w-3 shrink-0 mt-0.5" />
+                              <span>{req.pcNote}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Reviewer / Accounts Note */}
                       {req.reviewedBy ? (
@@ -1147,7 +1202,16 @@ export function ConveyanceVerificationModule({
                             </button>
                           </td>
                           <td className="py-2.5 px-4 text-right font-bold text-foreground font-mono text-sm tabular-nums">
-                            {money(req.amount)}
+                            {(req.status === 'APPROVED' || req.status === 'PAID') && req.approvedAmount != null ? (
+                              <div className="space-y-0.5">
+                                <div className="text-emerald-700 dark:text-emerald-400">{money(req.approvedAmount)}</div>
+                                {req.approvedAmount < req.amount && (
+                                  <div className="text-[10px] text-muted-foreground line-through font-normal">{money(req.amount)}</div>
+                                )}
+                              </div>
+                            ) : (
+                              money(req.amount)
+                            )}
                           </td>
                           <td className="py-2.5 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
@@ -1264,6 +1328,19 @@ export function ConveyanceVerificationModule({
                                     <strong>Accounts Note:</strong> {req.accountsNote}
                                   </div>
                                 ) : null}
+                                {/* Prepared vs Approved summary in list expanded row */}
+                                {(req.status === 'APPROVED' || req.status === 'PAID') && req.approvedAmount != null && (
+                                  <div className={`text-[11px] p-2 rounded border flex flex-wrap items-center gap-3 ${
+                                    req.approvedAmount < req.amount
+                                      ? 'bg-amber-50/70 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200'
+                                      : 'bg-emerald-50/60 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                                  }`}>
+                                    <span><strong>Prepared:</strong> {money(req.amount)}</span>
+                                    <span>→</span>
+                                    <span><strong>Approved:</strong> {money(req.approvedAmount)}</span>
+                                    {req.pcNote && <span className="text-[10px] opacity-80 flex items-center gap-1"><Scissors className="h-3 w-3 inline" /> {req.pcNote}</span>}
+                                  </div>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -1423,7 +1500,9 @@ export function ConveyanceVerificationModule({
             </DialogTitle>
             <DialogDescription className="text-xs">
               {reviewDialog.action === 'APPROVED'
-                ? 'Approving will verify this conveyance expense and assign an official voucher ready for Accounts disbursement.'
+                ? permissions?.isPc
+                  ? 'Review and set the approved amount. If you reduce it, accounts will see both the prepared and approved values with a deduction note.'
+                  : 'Approving will verify this conveyance expense and assign an official voucher ready for Accounts disbursement.'
                 : reviewDialog.action === 'REJECTED'
                 ? 'Are you sure you want to reject this request? The employee will see this request marked as rejected.'
                 : 'Confirm that this approved conveyance bill has been paid/disbursed to the employee.'}
@@ -1446,11 +1525,54 @@ export function ConveyanceVerificationModule({
                 </span>
               </div>
               <div className="flex justify-between border-t pt-1">
-                <span className="text-muted-foreground">Requested Amount:</span>
+                <span className="text-muted-foreground">Prepared Amount:</span>
                 <strong className="text-primary font-bold">
                   {money(reviewDialog.request.amount)}
                 </strong>
               </div>
+            </div>
+          )}
+
+          {/* PC-only: Approved Amount Input */}
+          {reviewDialog.action === 'APPROVED' && permissions?.isPc && reviewDialog.request && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                <Wallet className="h-3.5 w-3.5 text-emerald-600" />
+                Approved Amount (BDT)
+              </label>
+              <Input
+                type="number"
+                min={0}
+                max={reviewDialog.request.amount}
+                step="0.01"
+                value={reviewDialog.approvedAmount}
+                onChange={(e) =>
+                  setReviewDialog((prev) => ({ ...prev, approvedAmount: e.target.value }))
+                }
+                className="text-sm font-mono"
+                placeholder={String(reviewDialog.request.amount)}
+              />
+              {(() => {
+                const parsed = parseFloat(reviewDialog.approvedAmount)
+                const original = reviewDialog.request?.amount ?? 0
+                if (!isNaN(parsed) && parsed < original && parsed >= 0) {
+                  const deducted = Math.round((original - parsed + Number.EPSILON) * 100) / 100
+                  return (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300 flex items-center gap-1">
+                      <Scissors className="h-3 w-3 shrink-0" />
+                      Deducting {money(deducted)} from prepared amount. Accounts will see this note.
+                    </p>
+                  )
+                }
+                if (!isNaN(parsed) && parsed === original) {
+                  return (
+                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                      ✓ Full amount approved.
+                    </p>
+                  )
+                }
+                return null
+              })()}
             </div>
           )}
 

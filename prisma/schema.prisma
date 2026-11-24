@@ -896,6 +896,7 @@ model ConveyanceRequest {
   status         String   @default("PENDING")
   voucherNo      String?  @unique
   approvedAmount Float?
+  pcNote         String?
   accountsNote   String?
   reviewedById   String?
   reviewedAt     DateTime?

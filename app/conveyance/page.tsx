@@ -37,6 +37,8 @@ type RequestRow = {
   createdAt: string
   status: string
   voucherNo: string | null
+  approvedAmount: number | null
+  pcNote: string | null
   accountsNote: string | null
   bills: BillRow[]
 }
@@ -233,10 +235,11 @@ export default function ConveyancePage() {
         pendingAmount += row.amount
       } else if (row.status === 'APPROVED') {
         approvedCount += 1
-        approvedAmount += row.amount
+        // Use PC-approved amount if available, otherwise fall back to submitted amount
+        approvedAmount += row.approvedAmount != null ? row.approvedAmount : row.amount
       } else if (row.status === 'PAID') {
         paidCount += 1
-        paidAmount += row.amount
+        paidAmount += row.approvedAmount != null ? row.approvedAmount : row.amount
       } else if (row.status === 'REJECTED') {
         rejectedCount += 1
         rejectedAmount += row.amount
@@ -1118,10 +1121,26 @@ export default function ConveyancePage() {
 
                     {/* Boxed Amount */}
                     <div className="bg-white dark:bg-zinc-950 border-2 border-slate-700 dark:border-zinc-400 rounded px-3 py-1.5 text-right shadow-sm self-start sm:self-auto">
-                      <span className="text-[9px] font-mono uppercase text-slate-400 block">Total Cleared</span>
-                      <span className="font-mono text-base font-black text-slate-900 dark:text-zinc-100">
-                        {money(row.amount)}
-                      </span>
+                      {(row.status === 'APPROVED' || row.status === 'PAID') && row.approvedAmount != null ? (
+                        <>
+                          <span className="text-[9px] font-mono uppercase text-emerald-600 dark:text-emerald-400 block font-bold">Approved</span>
+                          <span className="font-mono text-base font-black text-emerald-700 dark:text-emerald-300">
+                            {money(row.approvedAmount)}
+                          </span>
+                          {row.approvedAmount < row.amount && (
+                            <span className="text-[9px] font-mono text-slate-400 line-through block">
+                              {money(row.amount)}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-[9px] font-mono uppercase text-slate-400 block">Total Cleared</span>
+                          <span className="font-mono text-base font-black text-slate-900 dark:text-zinc-100">
+                            {money(row.amount)}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -1142,6 +1161,25 @@ export default function ConveyancePage() {
                         Accounts Note:
                       </span>
                       {row.accountsNote}
+                    </div>
+                  )}
+
+                  {/* PC Deduction note — shown to SE when their amount was adjusted */}
+                  {(row.status === 'APPROVED' || row.status === 'PAID') && row.approvedAmount != null && row.approvedAmount < row.amount && (
+                    <div className="rounded border border-amber-200 dark:border-amber-800 bg-amber-50/80 dark:bg-amber-950/30 p-2 space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-mono text-[10px] uppercase text-slate-500 dark:text-zinc-400">Prepared Value</span>
+                        <span className="font-mono font-semibold text-slate-600 dark:text-zinc-300">{money(row.amount)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-mono text-[10px] uppercase text-emerald-700 dark:text-emerald-400 font-bold">Approved Value</span>
+                        <span className="font-mono font-black text-emerald-800 dark:text-emerald-300">{money(row.approvedAmount)}</span>
+                      </div>
+                      {row.pcNote && (
+                        <p className="text-[10px] text-amber-700 dark:text-amber-300 border-t border-amber-200 dark:border-amber-800 pt-1">
+                          {row.pcNote}
+                        </p>
+                      )}
                     </div>
                   )}
 
