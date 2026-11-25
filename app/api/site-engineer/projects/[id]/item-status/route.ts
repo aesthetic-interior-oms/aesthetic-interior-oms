@@ -71,6 +71,18 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
     }
 
+    // Site Engineers cannot directly mark items as completed; they must submit a request for PC approval.
+    if (!isAdmin && !isPc && isSiteEngineer) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            'Site Engineers cannot mark items as completed directly. Please select items and submit a completion request to the Project Coordinator.',
+        },
+        { status: 403 },
+      )
+    }
+
     // Role-specific assignment check for non-admin/non-PC
     if (!isAdmin && !isPc && isSiteEngineer) {
       const seAssignment = await prisma.leadAssignment.findFirst({

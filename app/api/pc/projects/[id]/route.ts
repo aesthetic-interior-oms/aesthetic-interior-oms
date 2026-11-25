@@ -191,6 +191,22 @@ export async function GET(
           },
           orderBy: { deliveryDate: 'desc' },
         },
+        siteItemCompletionRequests: {
+          select: {
+            id: true,
+            draftId: true,
+            status: true,
+            lineIds: true,
+            itemsSnapshot: true,
+            note: true,
+            rejectionReason: true,
+            createdAt: true,
+            reviewedAt: true,
+            requestedBy: { select: { id: true, fullName: true, email: true } },
+            reviewedBy: { select: { id: true, fullName: true, email: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     })
 

@@ -8,9 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
@@ -46,6 +50,8 @@ import {
   Layers,
   Ruler,
   Clock,
+  Check,
+  XCircle,
 } from 'lucide-react'
 import { toast } from '@/components/ui/sonner'
 import { buildDetailPreviewUrl } from '@/lib/detail-quotation-preview-sync'
@@ -105,6 +111,28 @@ type LeadDetail = {
     condition: string
     deliveryDate: string
   }>
+  siteItemCompletionRequests?: SiteItemCompletionRequest[]
+}
+
+type SiteItemCompletionRequest = {
+  id: string
+  draftId: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  lineIds: string[]
+  itemsSnapshot: Array<{
+    lineId: string
+    description: string
+    floorName?: string
+    areaName?: string
+    quantity?: number | null
+    unit?: string | null
+  }>
+  note: string | null
+  rejectionReason: string | null
+  createdAt: string
+  reviewedAt: string | null
+  requestedBy: { id: string; fullName: string; email: string }
+  reviewedBy: { id: string; fullName: string; email: string } | null
 }
 
 type QuotationLineItem = {
@@ -174,6 +202,10 @@ export default function PCProjectDetailPage() {
   // Delete Version State
   const [deletingDraftId, setDeletingDraftId] = useState<string | null>(null)
   const [ceilingWorkOrders, setCeilingWorkOrders] = useState<any[]>([])
+  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null)
+  const [rejectModalRequest, setRejectModalRequest] = useState<SiteItemCompletionRequest | null>(null)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [showAllCompletionRequests, setShowAllCompletionRequests] = useState(false)
 
   // Quotation Worklist Collapsible States (Floor → Area → Product)
   const [collapsedFloors, setCollapsedFloors] = useState<Record<string, boolean>>({})
@@ -314,6 +346,56 @@ export default function PCProjectDetailPage() {
       toast.error(error instanceof Error ? error.message : 'Failed to update status')
     } finally {
       setUpdatingItemId(null)
+    }
+  }
+
+  const handleApproveCompletionRequest = async (requestId: string) => {
+    setReviewingRequestId(requestId)
+    try {
+      const response = await fetch(`/api/pc/completion-requests/${requestId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'APPROVE' }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.error ?? 'Failed to approve completion request')
+      }
+      toast.success(data.message || 'Completion request approved and project progress updated')
+      await fetchProjectDetail()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to approve completion request')
+    } finally {
+      setReviewingRequestId(null)
+    }
+  }
+
+  const handleRejectCompletionRequest = async () => {
+    if (!rejectModalRequest) return
+    const trimmed = rejectionReason.trim()
+    if (!trimmed) {
+      toast.error('Please enter a rejection reason')
+      return
+    }
+    setReviewingRequestId(rejectModalRequest.id)
+    try {
+      const response = await fetch(`/api/pc/completion-requests/${rejectModalRequest.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'REJECT', rejectionReason: trimmed }),
+      })
+      const data = await response.json()
+      if (!response.ok || !data.success) {
+        throw new Error(data.error ?? 'Failed to reject completion request')
+      }
+      toast.success('Completion request rejected')
+      setRejectModalRequest(null)
+      setRejectionReason('')
+      await fetchProjectDetail()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to reject completion request')
+    } finally {
+      setReviewingRequestId(null)
     }
   }
 
@@ -932,6 +1014,152 @@ export default function PCProjectDetailPage() {
         </Card>
 
         {/* BOQ Material Requisitions & Site Gate Deliveries Summary */}
+        {/* Site Engineer Completion Requests */}
+        {(() => {
+          const allRequests = lead.siteItemCompletionRequests ?? []
+          const pendingRequests = allRequests.filter((r) => r.status === 'PENDING')
+          const visibleRequests = showAllCompletionRequests ? allRequests : pendingRequests
+          if (allRequests.length === 0) return null
+
+          return (
+            <Card className="border border-blue-500/30 bg-blue-500/[0.02]">
+              <CardHeader className="pb-3 border-b border-blue-500/20 bg-blue-500/5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <HardHat className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    <CardTitle className="text-sm font-bold text-foreground">
+                      Site Engineer Completion Requests
+                    </CardTitle>
+                    {pendingRequests.length > 0 && (
+                      <Badge className="bg-amber-500 text-white text-[10px] h-5">
+                        {pendingRequests.length} Pending Approval
+                      </Badge>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7"
+                    onClick={() => setShowAllCompletionRequests((prev) => !prev)}
+                  >
+                    {showAllCompletionRequests
+                      ? `Show Pending Only (${pendingRequests.length})`
+                      : `Show All History (${allRequests.length})`}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                {visibleRequests.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-3">
+                    No pending completion requests. Click &ldquo;Show All History&rdquo; to view past requests.
+                  </p>
+                ) : (
+                  visibleRequests.map((req) => {
+                    const itemsList = Array.isArray(req.itemsSnapshot) ? req.itemsSnapshot : []
+                    const isReviewing = reviewingRequestId === req.id
+                    return (
+                      <div
+                        key={req.id}
+                        className="p-3.5 rounded-xl border bg-card space-y-2.5 shadow-2xs"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              className={`text-[10px] h-5 font-semibold ${
+                                req.status === 'APPROVED'
+                                  ? 'bg-emerald-600 text-white'
+                                  : req.status === 'REJECTED'
+                                    ? 'bg-destructive text-destructive-foreground'
+                                    : 'bg-amber-500 text-white'
+                              }`}
+                            >
+                              {req.status}
+                            </Badge>
+                            <span className="text-xs font-bold">
+                              {req.requestedBy?.fullName || 'Site Engineer'}
+                            </span>
+                            <span className="text-[11px] text-muted-foreground">
+                              • {req.lineIds.length} {req.lineIds.length === 1 ? 'item' : 'items'} •{' '}
+                              {new Date(req.createdAt).toLocaleString()}
+                            </span>
+                          </div>
+
+                          {req.status === 'PENDING' && (
+                            <div className="flex items-center gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={isReviewing}
+                                className="text-xs h-8 border-destructive/40 text-destructive hover:bg-destructive/10 gap-1"
+                                onClick={() => {
+                                  setRejectModalRequest(req)
+                                  setRejectionReason('')
+                                }}
+                              >
+                                <XCircle className="w-3.5 h-3.5" />
+                                Reject
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={isReviewing}
+                                className="text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white gap-1 font-semibold"
+                                onClick={() => handleApproveCompletionRequest(req.id)}
+                              >
+                                {isReviewing ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Check className="w-3.5 h-3.5" />
+                                )}
+                                Approve &amp; Mark Completed
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        {req.note && (
+                          <p className="text-xs text-muted-foreground italic">
+                            Site Engineer Note: &ldquo;{req.note}&rdquo;
+                          </p>
+                        )}
+
+                        {req.status === 'REJECTED' && req.rejectionReason && (
+                          <div className="p-2 rounded bg-destructive/10 border border-destructive/30 text-xs text-destructive">
+                            <strong>Rejection Reason:</strong> {req.rejectionReason}
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                          {itemsList.map((snap) => (
+                            <div
+                              key={snap.lineId}
+                              className="p-2 rounded-lg border bg-muted/30 text-xs flex items-center justify-between gap-2"
+                            >
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{snap.description}</p>
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {snap.floorName || 'Floor'} • {snap.areaName || 'Area'}
+                                </p>
+                              </div>
+                              {snap.quantity != null && (
+                                <Badge variant="outline" className="text-[10px] shrink-0">
+                                  {snap.quantity} {snap.unit || ''}
+                                </Badge>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </CardContent>
+            </Card>
+          )
+        })()}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Requisitions Card */}
           <Card className="border border-blue-500/30 bg-blue-500/[0.02]">
@@ -1534,6 +1762,71 @@ export default function PCProjectDetailPage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject Completion Request Dialog */}
+      <Dialog
+        open={Boolean(rejectModalRequest)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRejectModalRequest(null)
+            setRejectionReason('')
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <XCircle className="w-4 h-4" />
+              Reject Completion Request
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Provide a reason so the Site Engineer knows what needs to be fixed before resubmitting.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            <Label className="text-xs font-semibold">Rejection Reason *</Label>
+            <Textarea
+              placeholder="e.g. Finishing work on kitchen cabinets is incomplete."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              rows={3}
+              className="text-xs"
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setRejectModalRequest(null)
+                setRejectionReason('')
+              }}
+              disabled={Boolean(reviewingRequestId)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={Boolean(reviewingRequestId) || !rejectionReason.trim()}
+              onClick={handleRejectCompletionRequest}
+            >
+              {reviewingRequestId ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                  Rejecting...
+                </>
+              ) : (
+                'Confirm Rejection'
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

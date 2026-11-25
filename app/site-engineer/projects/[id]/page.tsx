@@ -34,6 +34,7 @@ import {
   Upload,
   Check,
   XCircle,
+  Send,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -165,6 +166,27 @@ type SiteDeliveryLog = {
   receivedBy: { fullName: string }
 }
 
+type SiteItemCompletionRequest = {
+  id: string
+  draftId: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  lineIds: string[]
+  itemsSnapshot: Array<{
+    lineId: string
+    description: string
+    floorName?: string
+    areaName?: string
+    quantity?: number | null
+    unit?: string | null
+  }>
+  note: string | null
+  rejectionReason: string | null
+  createdAt: string
+  reviewedAt: string | null
+  requestedBy: { id: string; fullName: string; email: string }
+  reviewedBy: { id: string; fullName: string; email: string } | null
+}
+
 type LeadProject = {
   id: string
   name: string
@@ -180,6 +202,7 @@ type LeadProject = {
   materialRequisitions: MaterialRequisition[]
   purchaseOrders: PurchaseOrder[]
   siteDeliveryLogs: SiteDeliveryLog[]
+  siteItemCompletionRequests?: SiteItemCompletionRequest[]
 }
 
 export default function SiteEngineerProjectDetailPage() {
@@ -191,7 +214,10 @@ export default function SiteEngineerProjectDetailPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState<'QUOTATION' | 'REQUISITION' | 'DELIVERY'>('QUOTATION')
-  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null)
+  const [selectedLineIds, setSelectedLineIds] = useState<string[]>([])
+  const [requestModalOpen, setRequestModalOpen] = useState(false)
+  const [requestNote, setRequestNote] = useState('')
+  const [submittingRequest, setSubmittingRequest] = useState(false)
 
   // Checklist filters
   const [searchQuery, setSearchQuery] = useState('')
@@ -344,49 +370,54 @@ export default function SiteEngineerProjectDetailPage() {
     return { total, completed, percent }
   }, [quotationLineItems])
 
-  // Toggle Item Completion Checkmark
-  const handleToggleItemStatus = async (lineId: string, currentCompleted: boolean) => {
-    if (!activeDraft || !leadId) return
-    setUpdatingItemId(lineId)
-    const nextCompleted = !currentCompleted
+  // Items currently pending Project Coordinator approval
+  const pendingApprovalLineIds = useMemo(() => {
+    const set = new Set<string>()
+    const requests = lead?.siteItemCompletionRequests ?? []
+    for (const r of requests) {
+      if (r.status === 'PENDING' && Array.isArray(r.lineIds)) {
+        for (const id of r.lineIds) set.add(id)
+      }
+    }
+    return set
+  }, [lead?.siteItemCompletionRequests])
 
+  // Toggle local selection of an item for a completion request
+  const handleToggleSelectItem = (lineId: string, isCompleted: boolean) => {
+    if (isCompleted || pendingApprovalLineIds.has(lineId)) return
+    setSelectedLineIds((prev) =>
+      prev.includes(lineId) ? prev.filter((id) => id !== lineId) : [...prev, lineId],
+    )
+  }
+
+  // Submit selected items as a completion request to the Project Coordinator
+  const handleSubmitCompletionRequest = async () => {
+    if (!activeDraft || !leadId || selectedLineIds.length === 0) return
+    setSubmittingRequest(true)
     try {
-      const response = await fetch(`/api/site-engineer/projects/${leadId}/item-status`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/site-engineer/projects/${leadId}/completion-requests`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           draftId: activeDraft.id,
-          lineId,
-          completed: nextCompleted,
+          lineIds: selectedLineIds,
+          note: requestNote.trim() || undefined,
         }),
       })
       const data = await response.json()
       if (!response.ok || !data.success) {
-        throw new Error(data.error ?? 'Failed to update item status')
+        throw new Error(data.error ?? 'Failed to submit completion request')
       }
 
-      // Optimistically update local state
-      setLead((prev) => {
-        if (!prev) return prev
-        const updatedDrafts = prev.quotationDrafts.map((d) => {
-          if (d.id !== activeDraft.id) return d
-          const contentObj = (d.content as Record<string, unknown>) ?? {}
-          const lineItems = Array.isArray(contentObj.lineItems)
-            ? (contentObj.lineItems as QuotationLineItem[])
-            : []
-          const nextItems = lineItems.map((item) =>
-            item.id === lineId ? { ...item, completed: nextCompleted } : item,
-          )
-          return { ...d, content: { ...contentObj, lineItems: nextItems } }
-        })
-        return { ...prev, quotationDrafts: updatedDrafts }
-      })
-
-      toast.success(nextCompleted ? 'Work item marked as completed ✓' : 'Marked as pending')
+      toast.success(data.message || 'Completion request sent to Project Coordinator')
+      setSelectedLineIds([])
+      setRequestNote('')
+      setRequestModalOpen(false)
+      await fetchProjectData()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update work item status')
+      toast.error(error instanceof Error ? error.message : 'Failed to submit completion request')
     } finally {
-      setUpdatingItemId(null)
+      setSubmittingRequest(false)
     }
   }
 
@@ -1256,6 +1287,45 @@ export default function SiteEngineerProjectDetailPage() {
             </div>
           </div>
 
+          {/* Selection Action Bar (for sending completion request to PC) */}
+          {selectedLineIds.length > 0 && (
+            <div className="sticky top-3 z-20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl border border-blue-300 bg-blue-50/95 dark:bg-blue-950/90 dark:border-blue-800 shadow-md backdrop-blur">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-blue-600 text-white">
+                  <CheckSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-blue-950 dark:text-blue-100">
+                    {selectedLineIds.length} {selectedLineIds.length === 1 ? 'item' : 'items'} selected for completion
+                  </p>
+                  <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80">
+                    Items will be marked completed once approved by the Project Coordinator.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8 bg-background"
+                  onClick={() => setSelectedLineIds([])}
+                >
+                  Clear
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="text-xs h-8 bg-blue-600 hover:bg-blue-700 text-white gap-1.5 font-semibold"
+                  onClick={() => setRequestModalOpen(true)}
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  Send Request to PC
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Hierarchical Checklist Items (Floor -> Area -> Quotation Product) */}
           {hierarchicalQuotationWorklist.length === 0 ? (
             <div className="p-12 text-center border rounded-xl bg-card space-y-2">
@@ -1384,7 +1454,8 @@ export default function SiteEngineerProjectDetailPage() {
                                 <div className="p-2 sm:p-3 space-y-2.5 bg-card/40">
                                   {area.items.map((item, idx) => {
                                     const isCompleted = item.completed === true
-                                    const isUpdating = updatingItemId === item.id
+                                    const isPendingApproval = pendingApprovalLineIds.has(item.id)
+                                    const isSelected = selectedLineIds.includes(item.id)
                                     const isSqft = item.unit?.toLowerCase() === 'sqft'
 
                                     return (
@@ -1393,7 +1464,11 @@ export default function SiteEngineerProjectDetailPage() {
                                         className={`transition-all duration-200 border ${
                                           isCompleted
                                             ? 'border-emerald-300 bg-emerald-50/30 dark:border-emerald-950 dark:bg-emerald-950/10'
-                                            : 'border-border bg-card hover:border-border/80'
+                                            : isPendingApproval
+                                              ? 'border-amber-300 bg-amber-50/30 dark:border-amber-900 dark:bg-amber-950/10'
+                                              : isSelected
+                                                ? 'border-blue-400 bg-blue-50/40 dark:border-blue-800 dark:bg-blue-950/20'
+                                                : 'border-border bg-card hover:border-border/80'
                                         }`}
                                       >
                                         <CardContent className="p-3 sm:p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1416,7 +1491,15 @@ export default function SiteEngineerProjectDetailPage() {
                                               </Badge>
                                               {isCompleted ? (
                                                 <Badge className="bg-emerald-600 text-white text-[10px] h-5 gap-1 font-semibold">
-                                                  <CheckCircle2 className="w-3 h-3" /> Done
+                                                  <CheckCircle2 className="w-3 h-3" /> Approved &amp; Done
+                                                </Badge>
+                                              ) : isPendingApproval ? (
+                                                <Badge className="bg-amber-500 text-white text-[10px] h-5 gap-1 font-semibold">
+                                                  <Clock className="w-3 h-3" /> Pending PC Approval
+                                                </Badge>
+                                              ) : isSelected ? (
+                                                <Badge className="bg-blue-600 text-white text-[10px] h-5 gap-1 font-semibold">
+                                                  <CheckSquare className="w-3 h-3" /> Selected
                                                 </Badge>
                                               ) : (
                                                 <Badge variant="outline" className="text-[10px] h-5 text-amber-700 dark:text-amber-400 border-amber-300">
@@ -1444,29 +1527,50 @@ export default function SiteEngineerProjectDetailPage() {
                                             )}
                                           </div>
 
-                                          {/* Checkmark Action Button */}
+                                          {/* Selection / Status Action Button */}
                                           <div className="flex items-center gap-2 shrink-0 sm:self-center">
-                                            <Button
-                                              type="button"
-                                              size="sm"
-                                              disabled={isUpdating}
-                                              variant={isCompleted ? 'default' : 'outline'}
-                                              className={`text-xs h-9 px-4 font-semibold gap-1.5 transition-colors ${
-                                                isCompleted
-                                                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                                                  : 'hover:bg-muted/60 text-foreground'
-                                              }`}
-                                              onClick={() => handleToggleItemStatus(item.id, isCompleted)}
-                                            >
-                                              {isUpdating ? (
-                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                              ) : isCompleted ? (
-                                                <CheckSquare className="w-4 h-4" />
-                                              ) : (
-                                                <Square className="w-4 h-4" />
-                                              )}
-                                              <span>{isCompleted ? 'Completed ✓' : 'Mark Complete'}</span>
-                                            </Button>
+                                            {isCompleted ? (
+                                              <Button
+                                                type="button"
+                                                size="sm"
+                                                disabled
+                                                variant="default"
+                                                className="text-xs h-9 px-4 font-semibold gap-1.5 bg-emerald-600 text-white opacity-90"
+                                              >
+                                                <CheckCircle2 className="w-4 h-4" />
+                                                <span>Completed ✓</span>
+                                              </Button>
+                                            ) : isPendingApproval ? (
+                                              <Button
+                                                type="button"
+                                                size="sm"
+                                                disabled
+                                                variant="outline"
+                                                className="text-xs h-9 px-4 font-semibold gap-1.5 border-amber-300 text-amber-700 dark:text-amber-400"
+                                              >
+                                                <Clock className="w-4 h-4" />
+                                                <span>Awaiting PC</span>
+                                              </Button>
+                                            ) : (
+                                              <Button
+                                                type="button"
+                                                size="sm"
+                                                variant={isSelected ? 'default' : 'outline'}
+                                                className={`text-xs h-9 px-4 font-semibold gap-1.5 transition-colors ${
+                                                  isSelected
+                                                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                                    : 'hover:bg-muted/60 text-foreground'
+                                                }`}
+                                                onClick={() => handleToggleSelectItem(item.id, isCompleted)}
+                                              >
+                                                {isSelected ? (
+                                                  <CheckSquare className="w-4 h-4" />
+                                                ) : (
+                                                  <Square className="w-4 h-4" />
+                                                )}
+                                                <span>{isSelected ? 'Selected ✓' : 'Select Complete'}</span>
+                                              </Button>
+                                            )}
                                           </div>
                                         </CardContent>
                                       </Card>
@@ -1483,6 +1587,80 @@ export default function SiteEngineerProjectDetailPage() {
                 )
               })}
             </div>
+          )}
+
+          {/* Completion Requests History */}
+          {(lead?.siteItemCompletionRequests?.length ?? 0) > 0 && (
+            <Card className="border-border/80">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <Send className="w-4 h-4 text-blue-600" />
+                  Completion Requests Sent to Project Coordinator
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Only approved requests mark items as completed and update overall project progress.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {lead?.siteItemCompletionRequests?.map((req) => {
+                  const itemsList = Array.isArray(req.itemsSnapshot) ? req.itemsSnapshot : []
+                  return (
+                    <div
+                      key={req.id}
+                      className="p-3 rounded-lg border bg-muted/20 space-y-2"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            className={`text-[10px] h-5 font-semibold ${
+                              req.status === 'APPROVED'
+                                ? 'bg-emerald-600 text-white'
+                                : req.status === 'REJECTED'
+                                  ? 'bg-destructive text-destructive-foreground'
+                                  : 'bg-amber-500 text-white'
+                            }`}
+                          >
+                            {req.status}
+                          </Badge>
+                          <span className="text-xs font-semibold">
+                            {req.lineIds.length} {req.lineIds.length === 1 ? 'item' : 'items'}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground">
+                            • Sent {new Date(req.createdAt).toLocaleString()}
+                          </span>
+                        </div>
+                        {req.reviewedBy && (
+                          <span className="text-[11px] text-muted-foreground">
+                            Reviewed by {req.reviewedBy.fullName}
+                          </span>
+                        )}
+                      </div>
+
+                      {req.note && (
+                        <p className="text-xs text-muted-foreground italic">
+                          Note: &ldquo;{req.note}&rdquo;
+                        </p>
+                      )}
+
+                      {req.status === 'REJECTED' && req.rejectionReason && (
+                        <div className="p-2 rounded bg-destructive/10 border border-destructive/30 text-xs text-destructive">
+                          <strong>Rejection Reason:</strong> {req.rejectionReason}
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {itemsList.map((snap) => (
+                          <Badge key={snap.lineId} variant="outline" className="text-[11px] font-normal bg-background">
+                            {snap.description}
+                            {snap.floorName ? ` (${snap.floorName})` : ''}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </CardContent>
+            </Card>
           )}
         </div>
       )}
@@ -2307,6 +2485,91 @@ export default function SiteEngineerProjectDetailPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Completion Request Confirmation Dialog */}
+      <Dialog open={requestModalOpen} onOpenChange={setRequestModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-4 h-4 text-blue-600" />
+              Send Completion Request to Project Coordinator
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Selected items will be sent to the Project Coordinator for verification. Project progress will update once approved.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                Selected Items ({selectedLineIds.length})
+              </Label>
+              <div className="max-h-48 overflow-y-auto space-y-1.5 border rounded-lg p-2.5 bg-muted/20">
+                {quotationLineItems
+                  .filter((i) => selectedLineIds.includes(i.id))
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between gap-2 text-xs p-1.5 rounded bg-background border"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{item.description}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {getFloorName(item)} • {getAreaName(item)}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] shrink-0">
+                        {item.quantity ?? 1} {item.unit || 'sqft'}
+                      </Badge>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Note for Project Coordinator (Optional)</Label>
+              <Textarea
+                placeholder="e.g. Work completed and inspected on site, ready for PC approval."
+                value={requestNote}
+                onChange={(e) => setRequestNote(e.target.value)}
+                rows={3}
+                className="text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setRequestModalOpen(false)}
+              disabled={submittingRequest}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSubmitCompletionRequest}
+              disabled={submittingRequest || selectedLineIds.length === 0}
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+            >
+              {submittingRequest ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  Submit Request
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -63,6 +63,7 @@ model Lead {
   siteDeliveryLogs       SiteDeliveryLog[]
   purchaseOrders         PurchaseOrder[]
   siteWorkRequests       LeadSiteWorkRequest[]
+  siteItemCompletionRequests SiteItemCompletionRequest[]
 
   @@index([assignedTo])
   @@index([primaryOwnerUserId])
@@ -226,6 +227,8 @@ model User {
   purchaseOrdersCreated     PurchaseOrder[]  @relation("PurchaseOrderCreatedBy")
   purchaseOrdersApproved    PurchaseOrder[]  @relation("PurchaseOrderApprovedBy")
   purchaseOrdersRejected    PurchaseOrder[]  @relation("PurchaseOrderRejectedBy")
+  siteItemCompletionRequested SiteItemCompletionRequest[] @relation("SiteItemCompletionRequestedBy")
+  siteItemCompletionReviewed  SiteItemCompletionRequest[] @relation("SiteItemCompletionReviewedBy")
 }
 
 model DeviceToken {
@@ -328,6 +331,39 @@ model LeadSiteWorkRequest {
   @@index([createdAt])
 }
 
+enum SiteItemCompletionRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model SiteItemCompletionRequest {
+  id              String                          @id @default(cuid())
+  leadId          String
+  draftId         String
+  requestedById   String
+  status          SiteItemCompletionRequestStatus @default(PENDING)
+  lineIds         String[]
+  itemsSnapshot   Json
+  note            String?
+  rejectionReason String?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  createdAt       DateTime                        @default(now())
+  updatedAt       DateTime                        @updatedAt
+
+  lead            Lead                            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  draft           QuotationDraft                  @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  requestedBy     User                            @relation("SiteItemCompletionRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedBy      User?                           @relation("SiteItemCompletionReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([leadId])
+  @@index([draftId])
+  @@index([requestedById])
+  @@index([status])
+  @@index([createdAt])
+}
+
 model LeadPhaseReview {
   id           String                  @id @default(cuid())
   taskId       String
@@ -403,6 +439,7 @@ model QuotationDraft {
   lead               Lead                 @relation(fields: [leadId], references: [id], onDelete: Cascade)
   updatedBy          User?                @relation("QuotationDraftUpdatedBy", fields: [updatedById], references: [id])
   materialRequisitions MaterialRequisition[]
+  siteItemCompletionRequests SiteItemCompletionRequest[]
 
   @@unique([leadId, draftKey])
   @@index([createdById])
