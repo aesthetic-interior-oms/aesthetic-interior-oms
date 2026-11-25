@@ -797,6 +797,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           label: 'Active Projects',
           href: '/crm/pc/projects',
         },
+        {
+          icon: CheckSquare,
+          label: 'Completion Requests',
+          href: '/crm/pc/completion-requests',
+        },
       ],
     },
     {
