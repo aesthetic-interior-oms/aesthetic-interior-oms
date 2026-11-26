@@ -23,7 +23,21 @@ import {
   Save,
   RotateCcw,
   ShieldCheck,
+  Lock,
+  Pencil,
+  Trash2,
+  Plus,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { useRouter } from 'next/navigation'
 import {
   MaterialScopeDisplay,
@@ -78,6 +92,7 @@ export type IssuedIndentData = {
     quantity: any
     unitPrice: any
     total: any
+    vendorName?: string | null
     requisitionItemId: string
   }>
 }
@@ -249,6 +264,28 @@ export function RequisitionIndentWorkspace({
 }: RequisitionIndentWorkspaceProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'unbilled' | 'billed' | 'indents'>('unbilled')
+  const [indentTargetMode, setIndentTargetMode] = useState<'NEW' | 'EXISTING'>('NEW')
+  const [targetIndentId, setTargetIndentId] = useState<string>(
+    requisition.indents?.[0]?.id ?? '',
+  )
+  const [editingIndent, setEditingIndent] = useState<IssuedIndentData | null>(null)
+  const [editForm, setEditForm] = useState<{
+    vendorName: string
+    transportCost: string
+    otherCosts: string
+    notes: string
+    items: Array<{
+      id: string
+      requisitionItemId: string
+      materialName: string
+      unit: string
+      quantity: string
+      unitPrice: string
+      vendorName: string
+    }>
+  } | null>(null)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [removingItemId, setRemovingItemId] = useState<string | null>(null)
   const [actionBusy, setActionBusy] = useState(false)
 
   // Scope Category filter (e.g. ALL, WALL_PANELING, CABINETS_CLOSETS, etc.)
@@ -490,9 +527,9 @@ export function RequisitionIndentWorkspace({
     return counts
   }, [cabinetItems])
 
-  // Filtered Unbilled Items based on Category, Sub-section, and Search
+  // Filtered Requisition Items (keep billed items visible as locked/dimmed!)
   const filteredUnbilledItems = useMemo(() => {
-    return unbilledItems.filter((item) => {
+    const filtered = requisition.items.filter((item) => {
       // 1. Category Filter
       if (selectedCategory !== 'ALL' && item.workCategory !== selectedCategory) {
         return false
@@ -523,7 +560,14 @@ export function RequisitionIndentWorkspace({
 
       return true
     })
-  }, [unbilledItems, selectedCategory, wallSubFilter, cabinetSubFilter, searchQuery])
+
+    // Show unbilled/available items first, then locked (fully billed) items
+    return [...filtered].sort((a, b) => {
+      const aLocked = getRemainingQty(a) <= 0 ? 1 : 0
+      const bLocked = getRemainingQty(b) <= 0 ? 1 : 0
+      return aLocked - bLocked
+    })
+  }, [requisition.items, selectedCategory, wallSubFilter, cabinetSubFilter, searchQuery])
 
   // Vendor selection handler
   const handleVendorDropdownChange = (vId: string) => {
@@ -551,13 +595,15 @@ export function RequisitionIndentWorkspace({
     })
   }
 
-  // Select / Deselect all visible filtered unbilled items
+  // Select / Deselect all visible unlocked items
   const toggleSelectFiltered = () => {
-    const allSelected = filteredUnbilledItems.every((i) => selectedItems[i.id])
+    const selectable = filteredUnbilledItems.filter((i) => getRemainingQty(i) > 0)
+    if (selectable.length === 0) return
+    const allSelected = selectable.every((i) => selectedItems[i.id])
     const next: Record<string, boolean> = { ...selectedItems }
     const nextQtys = { ...billQuantities }
 
-    filteredUnbilledItems.forEach((i) => {
+    selectable.forEach((i) => {
       next[i.id] = !allSelected
       if (!allSelected && !nextQtys[i.id]) {
         nextQtys[i.id] = String(getRemainingQty(i))
@@ -660,23 +706,42 @@ export function RequisitionIndentWorkspace({
         })),
       }
 
-      const response = await fetch('/api/procurement/indents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      const isAddingToExisting = indentTargetMode === 'EXISTING' && Boolean(targetIndentId)
+
+      const response = isAddingToExisting
+        ? await fetch(`/api/procurement/indents/${targetIndentId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'ADD_ITEMS',
+              vendorName: payload.vendorName,
+              transportCost: payload.transportCost,
+              otherCosts: payload.otherCosts,
+              notes: payload.notes,
+              items: payload.items,
+            }),
+          })
+        : await fetch('/api/procurement/indents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
 
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create Indent')
+        throw new Error(
+          data.error || (isAddingToExisting ? 'Failed to add items to Indent' : 'Failed to create Indent'),
+        )
       }
 
       toast.success(
-        autoCreatePO
-          ? `Indent ${data.data?.indentNo || 'Bill'} Created & Dispatched to Accounts!`
-          : `Indent ${data.data?.indentNo || 'Bill'} Created & Dispatched!`,
+        isAddingToExisting
+          ? `Added ${indentPreview.selectedCount} item(s) to Indent ${data.data?.indentNo || ''}!`
+          : autoCreatePO
+            ? `Indent ${data.data?.indentNo || 'Bill'} Created & Dispatched to Accounts!`
+            : `Indent ${data.data?.indentNo || 'Bill'} Created & Dispatched!`,
         {
-          description: `Auto-routed to ${requisition.lead.name} site for receiving.`,
+          description: `Updated for ${requisition.lead.name}.`,
         },
       )
 
@@ -706,6 +771,83 @@ export function RequisitionIndentWorkspace({
       toast.error(err instanceof Error ? err.message : 'Could not generate Indent')
     } finally {
       setActionBusy(false)
+    }
+  }
+
+  const openEditIndentModal = (indent: IssuedIndentData) => {
+    setEditingIndent(indent)
+    setEditForm({
+      vendorName: indent.vendorName ?? '',
+      transportCost: String(Number(indent.transportCost ?? 0)),
+      otherCosts: String(Number(indent.otherCosts ?? 0)),
+      notes: indent.notes ?? '',
+      items: (indent.items ?? []).map((row) => {
+        const original = requisition.items.find((i) => i.id === row.requisitionItemId)
+        return {
+          id: row.id,
+          requisitionItemId: row.requisitionItemId,
+          materialName: original ? getMaterialDisplayName(original) : 'Material Item',
+          unit: original?.unit || 'units',
+          quantity: String(Number(row.quantity)),
+          unitPrice: String(Number(row.unitPrice)),
+          vendorName: row.vendorName ?? indent.vendorName ?? '',
+        }
+      }),
+    })
+  }
+
+  const handleSaveEditIndent = async () => {
+    if (!editingIndent || !editForm) return
+    setSavingEdit(true)
+    try {
+      const response = await fetch(`/api/procurement/indents/${editingIndent.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'EDIT',
+          vendorName: editForm.vendorName.trim() || null,
+          transportCost: Number(editForm.transportCost || 0),
+          otherCosts: Number(editForm.otherCosts || 0),
+          notes: editForm.notes.trim() || null,
+          items: editForm.items.map((item) => ({
+            id: item.id,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.unitPrice),
+            vendorName: item.vendorName.trim() || null,
+          })),
+        }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update indent')
+      }
+      toast.success(`Indent ${editingIndent.indentNo} updated`)
+      setEditingIndent(null)
+      setEditForm(null)
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update indent')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  const handleRemoveIndentItem = async (indentId: string, itemId: string, materialName: string) => {
+    setRemovingItemId(itemId)
+    try {
+      const response = await fetch(`/api/procurement/indents/${indentId}/items/${itemId}`, {
+        method: 'DELETE',
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to remove product from indent')
+      }
+      toast.success(`Removed "${materialName}" from indent and unlocked it in requisition list`)
+      router.refresh()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to remove product')
+    } finally {
+      setRemovingItemId(null)
     }
   }
 
@@ -827,21 +969,27 @@ export function RequisitionIndentWorkspace({
         </button>
       </div>
 
-      {/* TAB 1: UNBILLED MATERIALS (HIGH-DESIGN INDENT WORKSPACE) */}
+      {/* TAB 1: REQUISITION MATERIALS (HIGH-DESIGN INDENT WORKSPACE) */}
       {activeTab === 'unbilled' && (
         <div className="space-y-4">
-          {unbilledItems.length === 0 ? (
-            <div className="rounded-lg border border-border bg-card p-12 text-center text-muted-foreground space-y-2">
-              <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-600" />
-              <p className="text-base font-semibold text-foreground">
-                All materials in this requisition are fully billed!
-              </p>
-              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                All items have been converted into official Indents. View issued bills under the &ldquo;Issued Indents &amp; Site Dispatches&rdquo; tab.
-              </p>
+          {unbilledItems.length === 0 && (
+            <div className="rounded-lg border border-emerald-300/60 bg-emerald-50/40 dark:bg-emerald-950/20 px-4 py-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300 font-medium">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span>All materials in this requisition have been added to indents and are locked below.</span>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs"
+                onClick={() => setActiveTab('indents')}
+              >
+                View Issued Indents ({requisition.indents.length})
+              </Button>
             </div>
-          ) : (
-            <>
+          )}
+          <>
               {/* Category Scope Selector (Wall Paneling, Cabinets, etc.) */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -1300,11 +1448,15 @@ export function RequisitionIndentWorkspace({
                       </thead>
                       <tbody className="divide-y divide-border">
                         {filteredUnbilledItems.map((item, idx) => {
-                          const isSelected = Boolean(selectedItems[item.id])
                           const remaining = getRemainingQty(item)
+                          const isLocked = remaining <= 0
+                          const isSelected = !isLocked && Boolean(selectedItems[item.id])
                           const currentQty = Number(billQuantities[item.id] || remaining)
                           const currentPrice = Number(unitPrices[item.id] || 0)
                           const lineTotal = currentQty * currentPrice
+                          const linkedIndentNos = Array.from(
+                            new Set((item.indentItems || []).map((r) => r.indent.indentNo)),
+                          )
 
                           // Determine sub-type for badge display
                           let subTypeLabel = ''
@@ -1319,19 +1471,32 @@ export function RequisitionIndentWorkspace({
                           return (
                             <tr
                               key={item.id}
-                              className={`transition-colors hover:bg-muted/20 ${
-                                isSelected ? 'bg-muted/10' : ''
+                              className={`transition-colors ${
+                                isLocked
+                                  ? 'opacity-55 bg-muted/30 cursor-not-allowed'
+                                  : isSelected
+                                    ? 'bg-muted/10 hover:bg-muted/20'
+                                    : 'hover:bg-muted/20'
                               }`}
                             >
-                              {/* Checkbox */}
+                              {/* Checkbox / Lock */}
                               <td className="py-2.5 px-3 text-center">
-                                <input
-                                  type="checkbox"
-                                  aria-label={`Select ${item.materialName}`}
-                                  checked={isSelected}
-                                  onChange={() => toggleItem(item.id, remaining)}
-                                  className="h-4 w-4 rounded border-border text-foreground focus:ring-foreground cursor-pointer"
-                                />
+                                {isLocked ? (
+                                  <span
+                                    title="Already added to an indent (locked)"
+                                    className="inline-flex items-center justify-center w-5 h-5 rounded bg-muted text-muted-foreground border border-border"
+                                  >
+                                    <Lock className="w-3 h-3" />
+                                  </span>
+                                ) : (
+                                  <input
+                                    type="checkbox"
+                                    aria-label={`Select ${item.materialName}`}
+                                    checked={isSelected}
+                                    onChange={() => toggleItem(item.id, remaining)}
+                                    className="h-4 w-4 rounded border-border text-foreground focus:ring-foreground cursor-pointer"
+                                  />
+                                )}
                               </td>
 
                               {/* SL */}
@@ -1342,6 +1507,14 @@ export function RequisitionIndentWorkspace({
                               {/* Material Scope Display (Blue front laminate, orange back laminate, thickness, etc.) */}
                               <td className="py-2.5 px-3">
                                 <MaterialScopeDisplay item={item} subType={subTypeLabel} />
+                                {isLocked && (
+                                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                                      <Lock className="w-2.5 h-2.5" />
+                                      Added to Indent{linkedIndentNos.length > 0 ? `: ${linkedIndentNos.join(', ')}` : ''}
+                                    </span>
+                                  </div>
+                                )}
                               </td>
 
                               {/* Sub-type classification */}
@@ -1355,16 +1528,16 @@ export function RequisitionIndentWorkspace({
                               <td className="py-2.5 px-3">
                                 <input
                                   list="registered-vendors-datalist"
-                                  placeholder={vendorName || 'Pick / Type Supplier'}
-                                  value={itemVendors[item.id] ?? ''}
+                                  placeholder={isLocked ? 'Locked' : vendorName || 'Pick / Type Supplier'}
+                                  value={isLocked ? (item.indentItems?.[0]?.vendorName ?? '') : (itemVendors[item.id] ?? '')}
                                   onChange={(e) =>
                                     setItemVendors((prev) => ({
                                       ...prev,
                                       [item.id]: e.target.value,
                                     }))
                                   }
-                                  disabled={!isSelected}
-                                  className="h-7 text-xs bg-background border border-border rounded px-2 w-36 font-medium placeholder:text-muted-foreground/60 disabled:opacity-50 disabled:bg-muted/30 focus:outline-none focus:ring-1 focus:ring-foreground"
+                                  disabled={isLocked || !isSelected}
+                                  className="h-7 text-xs bg-background border border-border rounded px-2 w-36 font-medium placeholder:text-muted-foreground/60 disabled:opacity-50 disabled:bg-muted/30 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-foreground"
                                 />
                               </td>
 
@@ -1373,9 +1546,15 @@ export function RequisitionIndentWorkspace({
                                 <div className="text-muted-foreground text-[11px]">
                                   Req: {item.finalQuantity} {item.unit}
                                 </div>
-                                <div className="font-semibold text-foreground">
-                                  Rem: {remaining} {item.unit}
-                                </div>
+                                {isLocked ? (
+                                  <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                                    Billed: {item.finalQuantity} {item.unit}
+                                  </div>
+                                ) : (
+                                  <div className="font-semibold text-foreground">
+                                    Rem: {remaining} {item.unit}
+                                  </div>
+                                )}
                               </td>
 
                               {/* Bill Quantity input */}
@@ -1386,15 +1565,15 @@ export function RequisitionIndentWorkspace({
                                     min="0.001"
                                     max={remaining}
                                     step="any"
-                                    value={billQuantities[item.id] ?? String(remaining)}
+                                    value={isLocked ? '0' : (billQuantities[item.id] ?? String(remaining))}
                                     onChange={(e) =>
                                       setBillQuantities((prev) => ({
                                         ...prev,
                                         [item.id]: e.target.value,
                                       }))
                                     }
-                                    disabled={!isSelected}
-                                    className="h-7 text-xs font-mono bg-background border-border w-20"
+                                    disabled={isLocked || !isSelected}
+                                    className="h-7 text-xs font-mono bg-background border-border w-20 disabled:cursor-not-allowed"
                                   />
                                   <span className="text-[11px] text-muted-foreground font-mono">
                                     {item.unit}
@@ -1408,24 +1587,26 @@ export function RequisitionIndentWorkspace({
                                   type="number"
                                   min="0"
                                   step="any"
-                                  placeholder="Rate (৳)"
-                                  value={unitPrices[item.id] ?? ''}
+                                  placeholder={isLocked ? 'Locked' : 'Rate (৳)'}
+                                  value={isLocked ? '' : (unitPrices[item.id] ?? '')}
                                   onChange={(e) =>
                                     setUnitPrices((prev) => ({
                                       ...prev,
                                       [item.id]: e.target.value,
                                     }))
                                   }
-                                  disabled={!isSelected}
-                                  className="h-7 text-xs font-mono bg-background border-border text-right w-24 ml-auto"
+                                  disabled={isLocked || !isSelected}
+                                  className="h-7 text-xs font-mono bg-background border-border text-right w-24 ml-auto disabled:cursor-not-allowed"
                                 />
                               </td>
 
                               {/* Estimated Total */}
                               <td className="py-2.5 px-3 text-right font-mono font-semibold text-foreground">
-                                {isSelected && currentPrice > 0
-                                  ? `৳${lineTotal.toLocaleString('en-BD')}`
-                                  : '—'}
+                                {isLocked
+                                  ? `৳${(item.indentItems || []).reduce((s, r) => s + Number(r.total), 0).toLocaleString('en-BD')}`
+                                  : isSelected && currentPrice > 0
+                                    ? `৳${lineTotal.toLocaleString('en-BD')}`
+                                    : '—'}
                               </td>
                             </tr>
                           )
@@ -1465,15 +1646,66 @@ export function RequisitionIndentWorkspace({
                       <span>({indentPreview.selectedCount} material(s) chosen)</span>
                     </div>
 
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-foreground select-none pt-1">
-                      <input
-                        type="checkbox"
-                        checked={autoCreatePO}
-                        onChange={(e) => setAutoCreatePO(e.target.checked)}
-                        className="h-4 w-4 rounded border-border text-foreground focus:ring-foreground cursor-pointer"
-                      />
-                      <span>Auto-create Purchase Order and dispatch to Accounts for approval</span>
-                    </label>
+                    {requisition.indents.length > 0 && (
+                      <div className="pt-2 space-y-2 border-t border-border/60 mt-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-semibold text-foreground">Target Indent:</span>
+                          <button
+                            type="button"
+                            onClick={() => setIndentTargetMode('NEW')}
+                            className={`px-2.5 py-1 rounded text-xs font-medium border transition-colors ${
+                              indentTargetMode === 'NEW'
+                                ? 'bg-foreground text-background border-foreground'
+                                : 'bg-background text-muted-foreground border-border hover:text-foreground'
+                            }`}
+                          >
+                            + Create New Indent
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIndentTargetMode('EXISTING')
+                              if (!targetIndentId && requisition.indents[0]) {
+                                setTargetIndentId(requisition.indents[0].id)
+                              }
+                            }}
+                            className={`px-2.5 py-1 rounded text-xs font-medium border transition-colors ${
+                              indentTargetMode === 'EXISTING'
+                                ? 'bg-foreground text-background border-foreground'
+                                : 'bg-background text-muted-foreground border-border hover:text-foreground'
+                            }`}
+                          >
+                            Add to Existing Indent
+                          </button>
+                        </div>
+
+                        {indentTargetMode === 'EXISTING' && (
+                          <select
+                            value={targetIndentId}
+                            onChange={(e) => setTargetIndentId(e.target.value)}
+                            className="h-8 text-xs bg-background border border-border rounded px-2.5 w-full max-w-md font-medium focus:outline-none focus:ring-1 focus:ring-foreground"
+                          >
+                            {requisition.indents.map((ind) => (
+                              <option key={ind.id} value={ind.id}>
+                                {ind.indentNo} — {ind.vendorName || 'No Supplier'} (৳{Number(ind.total).toLocaleString('en-BD')})
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    )}
+
+                    {indentTargetMode === 'NEW' && (
+                      <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-foreground select-none pt-1">
+                        <input
+                          type="checkbox"
+                          checked={autoCreatePO}
+                          onChange={(e) => setAutoCreatePO(e.target.checked)}
+                          className="h-4 w-4 rounded border-border text-foreground focus:ring-foreground cursor-pointer"
+                        />
+                        <span>Auto-create Purchase Order and dispatch to Accounts for approval</span>
+                      </label>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2.5 shrink-0">
@@ -1491,23 +1723,24 @@ export function RequisitionIndentWorkspace({
                     <Button
                       type="button"
                       onClick={handleCreateIndent}
-                      disabled={indentPreview.selectedCount === 0 || actionBusy}
+                      disabled={indentPreview.selectedCount === 0 || actionBusy || (indentTargetMode === 'EXISTING' && !targetIndentId)}
                       className="h-10 px-5 gap-2 font-semibold shadow-xs bg-foreground text-background hover:bg-foreground/90"
                     >
                       <Receipt className="w-4 h-4" />
                       {actionBusy
-                        ? 'Generating & Dispatching...'
-                        : `Generate Indent & Dispatch (৳${indentPreview.total.toLocaleString('en-BD')})`}
+                        ? 'Saving...'
+                        : indentTargetMode === 'EXISTING'
+                          ? `Add to Existing Indent (+৳${indentPreview.total.toLocaleString('en-BD')})`
+                          : `Generate Indent & Dispatch (৳${indentPreview.total.toLocaleString('en-BD')})`}
                     </Button>
                   </div>
                 </div>
               </div>
             </>
-          )}
         </div>
       )}
 
-      {/* TAB 2: ISSUED INDENTS & SITE DISPATCHES */}
+      {/* TAB 2: ISSUED INDENTS & PROJECT INDENT MATERIALS */}
       {activeTab === 'indents' && (
         <div className="space-y-4">
           {!requisition.indents || requisition.indents.length === 0 ? (
@@ -1519,139 +1752,175 @@ export function RequisitionIndentWorkspace({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {requisition.indents.map((indent, idx) => {
-                const isExpanded = expandedIndentId === indent.id
+            <>
+              {/* Project-wise Total Indents Summary */}
+              <div className="rounded-lg border border-border bg-card p-4 shadow-xs flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Project Indent Summary — {requisition.lead.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {requisition.indents.length} indent{requisition.indents.length !== 1 ? 's' : ''} •{' '}
+                    {requisition.indents.reduce((s, ind) => s + (ind.items?.length || 0), 0)} total material items
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] text-muted-foreground font-medium">Total Project Indents Amount</p>
+                  <p className="text-xl font-bold font-mono text-foreground">
+                    ৳{requisition.indents.reduce((s, ind) => s + Number(ind.total || 0), 0).toLocaleString('en-BD')}
+                  </p>
+                </div>
+              </div>
 
-                return (
-                  <Card key={indent.id} className="shadow-xs border border-border bg-card overflow-hidden">
-                    <CardHeader className="p-3.5 pb-2.5 bg-muted/20 border-b border-border">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 font-mono font-bold text-xs text-foreground">
-                          <Receipt className="w-3.5 h-3.5" />
-                          <span>{indent.indentNo}</span>
-                        </div>
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground border border-border">
-                          Batch #{requisition.indents.length - idx}
-                        </span>
-                      </div>
-                      <CardDescription className="text-[11px] text-muted-foreground mt-1">
-                        Issued by <strong className="text-foreground">{indent.createdBy.fullName}</strong> on{' '}
-                        {new Date(indent.createdAt).toLocaleDateString('en-GB')}
-                      </CardDescription>
-                    </CardHeader>
-
-                    <CardContent className="p-3.5 space-y-2.5 text-xs">
-                      {/* Destination & Site Engineer Banner */}
-                      <div className="p-2 rounded bg-muted/30 border border-border space-y-1 text-[11px]">
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Delivery Site:</span>
-                          <span className="font-semibold text-foreground truncate max-w-[160px]">
-                            {requisition.lead.name}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-muted-foreground">
-                          <span>Site Receiver:</span>
-                          <span className="font-medium text-foreground">
-                            {siteEngineer?.fullName || 'Assigned Site Engineer'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between pt-1 border-t border-border/50 text-[10px]">
-                          <span className="text-muted-foreground">Status:</span>
-                          <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 dark:text-emerald-300">
-                            <Truck className="w-3 h-3" />
-                            Dispatched to Site
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Vendor:</span>
-                        <span className="font-semibold text-foreground">
-                          {indent.vendorName || 'Direct / Local Supplier'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Material Items:</span>
-                        <span className="font-medium text-foreground font-mono">
-                          {indent.items?.length || 0} line items
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Material Cost:</span>
-                        <span className="font-mono">
-                          ৳{Number(indent.subtotal).toLocaleString('en-BD')}
-                        </span>
-                      </div>
-
-                      {(Number(indent.transportCost) > 0 || Number(indent.otherCosts) > 0) && (
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>Transport &amp; Aux:</span>
-                          <span className="font-mono">
-                            +৳{(Number(indent.transportCost) + Number(indent.otherCosts)).toLocaleString('en-BD')}
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="flex items-center justify-between pt-2 border-t border-border font-semibold text-foreground">
-                        <span>Total Indent:</span>
-                        <span className="font-mono text-sm font-bold text-foreground">
-                          ৳{Number(indent.total).toLocaleString('en-BD')}
-                        </span>
-                      </div>
-
-                      {indent.notes && (
-                        <p className="text-[11px] text-muted-foreground italic pt-1 border-t border-border">
-                          &ldquo;{indent.notes}&rdquo;
-                        </p>
-                      )}
-
-                      {/* Expand line items */}
-                      {indent.items && indent.items.length > 0 && (
-                        <div className="pt-1">
-                          <button
-                            type="button"
-                            onClick={() => setExpandedIndentId(isExpanded ? null : indent.id)}
-                            className="w-full flex items-center justify-center gap-1 py-1 text-[11px] text-muted-foreground hover:text-foreground font-medium rounded hover:bg-muted/50 transition-colors"
-                          >
-                            <span>{isExpanded ? 'Hide Items' : `View ${indent.items.length} Items Breakdown`}</span>
-                            {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                          </button>
-
-                          {isExpanded && (
-                            <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1 text-[11px]">
-                              {indent.items.map((row) => {
-                                const original = requisition.items.find((i) => i.id === row.requisitionItemId)
-                                return (
-                                  <div
-                                    key={row.id}
-                                    className="p-1.5 rounded bg-muted/40 border border-border flex items-center justify-between"
-                                  >
-                                    <div className="truncate mr-2">
-                                      <div className="font-medium text-foreground truncate">
-                                        {original?.materialName || 'Material Item'}
-                                      </div>
-                                      <div className="text-[10px] text-muted-foreground font-mono">
-                                        {Number(row.quantity)} {original?.unit || 'units'} @ ৳{Number(row.unitPrice)}
-                                      </div>
-                                    </div>
-                                    <div className="font-mono font-semibold text-foreground shrink-0">
-                                      ৳{Number(row.total).toLocaleString('en-BD')}
-                                    </div>
-                                  </div>
-                                )
-                              })}
+              <div className="space-y-4">
+                {requisition.indents.map((indent, idx) => {
+                  const totalIndentAmount = Number(indent.total || 0)
+                  return (
+                    <Card key={indent.id} className="shadow-xs border border-border bg-card overflow-hidden">
+                      <CardHeader className="p-4 pb-3 bg-muted/20 border-b border-border">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div className="flex items-center gap-1.5 font-mono font-bold text-sm text-foreground">
+                                <Receipt className="w-4 h-4" />
+                                <span>{indent.indentNo}</span>
+                              </div>
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-muted text-foreground border border-border">
+                                Batch #{requisition.indents.length - idx}
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                                <Truck className="w-3 h-3" />
+                                Dispatched to Site
+                              </span>
                             </div>
-                          )}
+                            <CardDescription className="text-[11px] text-muted-foreground">
+                              Issued by <strong className="text-foreground">{indent.createdBy.fullName}</strong> on{' '}
+                              {new Date(indent.createdAt).toLocaleDateString('en-GB')} • Primary Supplier:{' '}
+                              <strong className="text-foreground">{indent.vendorName || 'Multiple / Direct'}</strong>
+                            </CardDescription>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="text-[10px] text-muted-foreground uppercase font-semibold">
+                                Total Indent Amount
+                              </p>
+                              <p className="font-mono text-base font-bold text-foreground">
+                                ৳{totalIndentAmount.toLocaleString('en-BD')}
+                              </p>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs gap-1.5"
+                              onClick={() => openEditIndentModal(indent)}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              Edit Indent
+                            </Button>
+                          </div>
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
+                      </CardHeader>
+
+                      <CardContent className="p-0">
+                        {/* 4-Column Material Table: Materials | Supplier Name | Unit Price | Total Price */}
+                        <div className="w-full overflow-x-auto">
+                          <table className="w-full text-xs text-left border-collapse">
+                            <thead className="bg-muted/40 text-muted-foreground font-semibold border-b border-border text-[11px]">
+                              <tr>
+                                <th className="py-2.5 px-4">Materials</th>
+                                <th className="py-2.5 px-3">Supplier Name</th>
+                                <th className="py-2.5 px-3 text-right">Qty</th>
+                                <th className="py-2.5 px-3 text-right">Unit Price</th>
+                                <th className="py-2.5 px-3 text-right">Total Price</th>
+                                <th className="py-2.5 px-3 text-center w-16">Action</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {(!indent.items || indent.items.length === 0) ? (
+                                <tr>
+                                  <td colSpan={6} className="py-6 text-center text-muted-foreground italic">
+                                    No products in this indent. Use &ldquo;Add to Existing Indent&rdquo; to add materials.
+                                  </td>
+                                </tr>
+                              ) : (
+                                indent.items.map((row) => {
+                                  const original = requisition.items.find((i) => i.id === row.requisitionItemId)
+                                  const matName = original ? getMaterialDisplayName(original) : 'Material Item'
+                                  const isRemoving = removingItemId === row.id
+                                  return (
+                                    <tr key={row.id} className="hover:bg-muted/20 transition-colors">
+                                      <td className="py-2.5 px-4">
+                                        <div className="font-semibold text-foreground">{matName}</div>
+                                        {original?.specifications && (
+                                          <div className="text-[11px] text-muted-foreground line-clamp-1">
+                                            {original.specifications}
+                                          </div>
+                                        )}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-foreground font-medium">
+                                        {row.vendorName || indent.vendorName || '—'}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-right font-mono">
+                                        {Number(row.quantity)} {original?.unit || ''}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-right font-mono">
+                                        ৳{Number(row.unitPrice).toLocaleString('en-BD')}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-right font-mono font-bold text-foreground">
+                                        ৳{Number(row.total).toLocaleString('en-BD')}
+                                      </td>
+                                      <td className="py-2.5 px-3 text-center">
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          disabled={isRemoving}
+                                          title="Remove product from indent (unlocks in requisition list)"
+                                          className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                          onClick={() => handleRemoveIndentItem(indent.id, row.id, matName)}
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </td>
+                                    </tr>
+                                  )
+                                })
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Footer Breakdown */}
+                        <div className="px-4 py-3 bg-muted/20 border-t border-border flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <div className="text-muted-foreground">
+                            {indent.notes ? (
+                              <span className="italic">Note: &ldquo;{indent.notes}&rdquo;</span>
+                            ) : (
+                              <span>Site Receiver: {siteEngineer?.fullName || 'Assigned Site Engineer'}</span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-4 font-mono">
+                            <span className="text-muted-foreground">
+                              Materials: <strong className="text-foreground">৳{Number(indent.subtotal).toLocaleString('en-BD')}</strong>
+                            </span>
+                            {(Number(indent.transportCost) > 0 || Number(indent.otherCosts) > 0) && (
+                              <span className="text-muted-foreground">
+                                Transport &amp; Other: <strong className="text-foreground">+৳{(Number(indent.transportCost) + Number(indent.otherCosts)).toLocaleString('en-BD')}</strong>
+                              </span>
+                            )}
+                            <span className="font-bold text-foreground text-sm">
+                              Total Indent Amount: ৳{totalIndentAmount.toLocaleString('en-BD')}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            </>
           )}
         </div>
       )}
@@ -1756,6 +2025,178 @@ export function RequisitionIndentWorkspace({
           </div>
         </div>
       )}
+
+      {/* Edit Indent Modal */}
+      <Dialog
+        open={Boolean(editingIndent && editForm)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingIndent(null)
+            setEditForm(null)
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-4 h-4" />
+              Edit Indent {editingIndent?.indentNo}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Update supplier names, quantities, unit prices, or transport/other costs. Total indent amount recalculates automatically.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editForm && (
+            <div className="space-y-4 overflow-y-auto pr-1 py-2 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Primary Supplier</Label>
+                  <Input
+                    list="registered-vendors-datalist"
+                    value={editForm.vendorName}
+                    onChange={(e) => setEditForm({ ...editForm, vendorName: e.target.value })}
+                    placeholder="Supplier Name"
+                    className="h-8 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Transport Cost (৳)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={editForm.transportCost}
+                    onChange={(e) => setEditForm({ ...editForm, transportCost: e.target.value })}
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Other Costs (৳)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={editForm.otherCosts}
+                    onChange={(e) => setEditForm({ ...editForm, otherCosts: e.target.value })}
+                    className="h-8 text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs">Notes</Label>
+                <Textarea
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  rows={2}
+                  className="text-xs"
+                />
+              </div>
+
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead className="bg-muted/50 border-b text-[11px]">
+                    <tr>
+                      <th className="py-2 px-3">Material</th>
+                      <th className="py-2 px-2">Supplier Name</th>
+                      <th className="py-2 px-2 w-24">Qty</th>
+                      <th className="py-2 px-2 w-28 text-right">Unit Price (৳)</th>
+                      <th className="py-2 px-3 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {editForm.items.map((item, iIdx) => {
+                      const lineTotal = (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0)
+                      return (
+                        <tr key={item.id}>
+                          <td className="py-2 px-3 font-medium">
+                            {item.materialName}
+                            <span className="text-[10px] text-muted-foreground ml-1">({item.unit})</span>
+                          </td>
+                          <td className="py-2 px-2">
+                            <Input
+                              list="registered-vendors-datalist"
+                              value={item.vendorName}
+                              onChange={(e) => {
+                                const next = [...editForm.items]
+                                next[iIdx] = { ...item, vendorName: e.target.value }
+                                setEditForm({ ...editForm, items: next })
+                              }}
+                              className="h-7 text-xs"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <Input
+                              type="number"
+                              min="0.001"
+                              step="any"
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const next = [...editForm.items]
+                                next[iIdx] = { ...item, quantity: e.target.value }
+                                setEditForm({ ...editForm, items: next })
+                              }}
+                              className="h-7 text-xs font-mono"
+                            />
+                          </td>
+                          <td className="py-2 px-2">
+                            <Input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={item.unitPrice}
+                              onChange={(e) => {
+                                const next = [...editForm.items]
+                                next[iIdx] = { ...item, unitPrice: e.target.value }
+                                setEditForm({ ...editForm, items: next })
+                              }}
+                              className="h-7 text-xs font-mono text-right"
+                            />
+                          </td>
+                          <td className="py-2 px-3 text-right font-mono font-semibold">
+                            ৳{lineTotal.toLocaleString('en-BD')}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end font-mono text-sm font-bold pt-1">
+                New Total Indent Amount: ৳
+                {(
+                  editForm.items.reduce(
+                    (s, i) => s + (Number(i.quantity) || 0) * (Number(i.unitPrice) || 0),
+                    0,
+                  ) +
+                  (Number(editForm.transportCost) || 0) +
+                  (Number(editForm.otherCosts) || 0)
+                ).toLocaleString('en-BD')}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setEditingIndent(null)
+                setEditForm(null)
+              }}
+              disabled={savingEdit}
+            >
+              Cancel
+            </Button>
+            <Button type="button" size="sm" onClick={handleSaveEditIndent} disabled={savingEdit}>
+              {savingEdit ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

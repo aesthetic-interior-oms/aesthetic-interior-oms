@@ -1,10 +1,81 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { requireDatabaseRoles } from '@/lib/authz'
-import { hasProcurementRole } from '@/lib/procurement-roles'
+import { hasProcurementLeaderRole, hasProcurementRole } from '@/lib/procurement-roles'
 import { Prisma } from '@/generated/prisma/client'
 
 export const dynamic = 'force-dynamic'
+
+export async function GET(request: Request) {
+  const auth = await requireDatabaseRoles([])
+  if (!auth.ok) return auth.response
+
+  const roles = auth.actorRoles ?? []
+  const departments = auth.actor.userDepartments ?? []
+  if (!hasProcurementRole(roles, departments)) {
+    return NextResponse.json({ error: 'Procurement access required' }, { status: 403 })
+  }
+
+  const isLeader =
+    hasProcurementLeaderRole(roles) ||
+    departments.some((d) => d.toUpperCase() === 'ADMIN') ||
+    roles.some((r) => r.toUpperCase() === 'ADMIN')
+
+  const { searchParams } = new URL(request.url)
+  const leadId = searchParams.get('leadId')
+  const requisitionId = searchParams.get('requisitionId')
+
+  const indents = await prisma.materialIndent.findMany({
+    where: {
+      ...(leadId ? { leadId } : {}),
+      ...(requisitionId ? { requisitionId } : {}),
+      ...(isLeader
+        ? {}
+        : {
+            OR: [
+              { createdById: auth.actorUserId },
+              { requisition: { procurementAssigneeId: auth.actorUserId } },
+            ],
+          }),
+    },
+    orderBy: { createdAt: 'desc' },
+    include: {
+      lead: {
+        select: { id: true, name: true, phone: true, location: true },
+      },
+      requisition: {
+        select: { id: true, requisitionNo: true, status: true },
+      },
+      createdBy: {
+        select: { id: true, fullName: true },
+      },
+      purchaseOrder: {
+        select: { id: true, poNo: true, status: true, totalAmount: true },
+      },
+      items: {
+        orderBy: { billedAt: 'asc' },
+        include: {
+          requisitionItem: {
+            select: {
+              id: true,
+              materialName: true,
+              specifications: true,
+              workCategory: true,
+              finalQuantity: true,
+              unit: true,
+              variantAttributes: true,
+            },
+          },
+          billedBy: {
+            select: { id: true, fullName: true },
+          },
+        },
+      },
+    },
+  })
+
+  return NextResponse.json({ success: true, data: indents })
+}
 
 export async function POST(request: Request) {
   const auth = await requireDatabaseRoles([])

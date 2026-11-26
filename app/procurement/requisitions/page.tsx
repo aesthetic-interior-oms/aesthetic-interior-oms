@@ -36,6 +36,8 @@ import {
   History,
   ShieldCheck,
   UserCheck,
+  Lock,
+  Trash2,
 } from 'lucide-react'
 
 type IndentBillingRecord = {
@@ -84,6 +86,7 @@ type IssuedIndent = {
     quantity: string
     unitPrice: string
     total: string
+    vendorName?: string | null
     requisitionItemId: string
   }>
 }
@@ -153,6 +156,9 @@ export default function ProcurementRequisitionsPage() {
 
   // Indent confirmation dialog
   const [confirmModalReq, setConfirmModalReq] = useState<Requisition | null>(null)
+  const [reqTargetIndentMode, setReqTargetIndentMode] = useState<Record<string, 'NEW' | 'EXISTING'>>({})
+  const [reqTargetIndentId, setReqTargetIndentId] = useState<Record<string, string>>({})
+  const [removingIndentItemId, setRemovingIndentItemId] = useState<string | null>(null)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -316,20 +322,38 @@ export default function ProcurementRequisitionsPage() {
         })),
       }
 
-      const response = await fetch('/api/procurement/indents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      const mode = reqTargetIndentMode[req.id] || 'NEW'
+      const existingIndentId = reqTargetIndentId[req.id] || req.indents?.[0]?.id
+      const isAddingToExisting = mode === 'EXISTING' && Boolean(existingIndentId)
+
+      const response = isAddingToExisting
+        ? await fetch(`/api/procurement/indents/${existingIndentId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'ADD_ITEMS',
+              ...payload,
+            }),
+          })
+        : await fetch('/api/procurement/indents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
 
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to generate Indent')
+        throw new Error(data.error || 'Failed to save Indent')
       }
 
-      toast.success(`Indent ${data.data?.indentNo || 'Bill'} Created Successfully!`, {
-        description: `${preview.selectedCount} item(s) billed for ৳${preview.total.toLocaleString()}`,
-      })
+      toast.success(
+        isAddingToExisting
+          ? `Added ${preview.selectedCount} item(s) to Indent ${data.data?.indentNo || ''}!`
+          : `Indent ${data.data?.indentNo || 'Bill'} Created Successfully!`,
+        {
+          description: `${preview.selectedCount} item(s) billed for ৳${preview.total.toLocaleString()}`,
+        },
+      )
 
       // Clean selection for this req
       setSelectedItems((prev) => {
@@ -346,6 +370,25 @@ export default function ProcurementRequisitionsPage() {
       toast.error(err instanceof Error ? err.message : 'Error creating indent')
     } finally {
       setActionBusy(null)
+    }
+  }
+
+  const handleRemoveIndentItem = async (indentId: string, itemId: string, matName: string) => {
+    setRemovingIndentItemId(itemId)
+    try {
+      const response = await fetch(`/api/procurement/indents/${indentId}/items/${itemId}`, {
+        method: 'DELETE',
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to remove product from indent')
+      }
+      toast.success(`Removed "${matName}" from indent and unlocked it in requisition list`)
+      await loadData()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to remove product')
+    } finally {
+      setRemovingIndentItemId(null)
     }
   }
 
@@ -731,21 +774,18 @@ export default function ProcurementRequisitionsPage() {
                       </button>
                     </div>
 
-                    {/* TAB 1: UNBILLED ITEMS & INDENT GENERATOR */}
+                    {/* TAB 1: REQUISITION ITEMS & INDENT GENERATOR */}
                     {activeTab === 'unbilled' && (
                       <div>
-                        {unbilledCount === 0 ? (
-                          <div className="p-8 text-center text-muted-foreground">
-                            <CheckCircle2 className="w-7 h-7 mx-auto mb-2 text-emerald-600" />
-                            <p className="text-sm font-semibold text-foreground">
-                              All materials have been fully billed!
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Check the &ldquo;Line-Item Audit&rdquo; or &ldquo;Indent Bills History&rdquo; tab to view issued indents.
-                            </p>
+                        {unbilledCount === 0 && (
+                          <div className="px-4 py-2.5 bg-emerald-50/50 dark:bg-emerald-950/20 border-b border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-xs">
+                            <span className="text-emerald-800 dark:text-emerald-300 font-medium flex items-center gap-1.5">
+                              <CheckCircle2 className="w-4 h-4" />
+                              All materials in this requisition have been added to indents and are locked below.
+                            </span>
                           </div>
-                        ) : (
-                          <div>
+                        )}
+                        <div>
                             {/* Indent Header Parameters */}
                             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 p-4 bg-muted/10 border-b text-xs">
                               <div>
@@ -866,34 +906,55 @@ export default function ProcurementRequisitionsPage() {
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y">
-                                  {req.items
-                                    .filter((item) => getRemainingQty(item) > 0)
+                                  {[...req.items]
+                                    .sort((a, b) => {
+                                      const aLocked = getRemainingQty(a) <= 0 ? 1 : 0
+                                      const bLocked = getRemainingQty(b) <= 0 ? 1 : 0
+                                      return aLocked - bLocked
+                                    })
                                     .map((item) => {
-                                      const isSelected = Boolean(selectedItems[item.id])
                                       const remaining = getRemainingQty(item)
+                                      const isLocked = remaining <= 0
+                                      const isSelected = !isLocked && Boolean(selectedItems[item.id])
                                       const currentQty = Number(
                                         billQuantities[item.id] || remaining,
                                       )
                                       const currentPrice = Number(unitPrices[item.id] || 0)
                                       const lineTotal = currentQty * currentPrice
+                                      const linkedIndentNos = Array.from(
+                                        new Set(item.indentItems.map((r) => r.indent.indentNo)),
+                                      )
 
                                       return (
                                         <tr
                                           key={item.id}
-                                          className={`hover:bg-muted/30 transition-colors ${
-                                            isSelected ? 'bg-primary/5' : ''
+                                          className={`transition-colors ${
+                                            isLocked
+                                              ? 'opacity-55 bg-muted/30 cursor-not-allowed'
+                                              : isSelected
+                                                ? 'bg-primary/5 hover:bg-muted/30'
+                                                : 'hover:bg-muted/30'
                                           }`}
                                         >
                                           <td className="py-3 px-4 text-center">
-                                            <input
-                                              type="checkbox"
-                                              aria-label={`Select ${item.materialName}`}
-                                              checked={isSelected}
-                                              onChange={() =>
-                                                toggleItemSelection(item.id, remaining)
-                                              }
-                                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-                                            />
+                                            {isLocked ? (
+                                              <span
+                                                title="Added to Indent (Locked)"
+                                                className="inline-flex items-center justify-center w-5 h-5 rounded bg-muted text-muted-foreground border"
+                                              >
+                                                <Lock className="w-3 h-3" />
+                                              </span>
+                                            ) : (
+                                              <input
+                                                type="checkbox"
+                                                aria-label={`Select ${item.materialName}`}
+                                                checked={isSelected}
+                                                onChange={() =>
+                                                  toggleItemSelection(item.id, remaining)
+                                                }
+                                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+                                              />
+                                            )}
                                           </td>
 
                                           <td className="py-3 px-4">
@@ -903,6 +964,14 @@ export default function ProcurementRequisitionsPage() {
                                             <div className="text-[11px] text-muted-foreground mt-0.5">
                                               {item.specifications || 'Standard specification'}
                                             </div>
+                                            {isLocked && (
+                                              <div className="mt-1">
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800">
+                                                  <Lock className="w-2.5 h-2.5" />
+                                                  Added to Indent{linkedIndentNos.length > 0 ? `: ${linkedIndentNos.join(', ')}` : ''}
+                                                </span>
+                                              </div>
+                                            )}
                                           </td>
 
                                           <td className="py-3 px-4">
@@ -916,9 +985,15 @@ export default function ProcurementRequisitionsPage() {
                                               <span className="text-muted-foreground">Req:</span>{' '}
                                               {item.finalQuantity} {item.unit}
                                             </div>
-                                            <div className="font-semibold text-amber-600">
-                                              <span>Rem:</span> {remaining} {item.unit}
-                                            </div>
+                                            {isLocked ? (
+                                              <div className="font-semibold text-emerald-600">
+                                                Billed: {item.finalQuantity} {item.unit}
+                                              </div>
+                                            ) : (
+                                              <div className="font-semibold text-amber-600">
+                                                <span>Rem:</span> {remaining} {item.unit}
+                                              </div>
+                                            )}
                                           </td>
 
                                           <td className="py-3 px-4">
@@ -928,14 +1003,14 @@ export default function ProcurementRequisitionsPage() {
                                                 min="0.001"
                                                 max={remaining}
                                                 step="any"
-                                                value={billQuantities[item.id] ?? String(remaining)}
+                                                value={isLocked ? '0' : (billQuantities[item.id] ?? String(remaining))}
                                                 onChange={(e) =>
                                                   setBillQuantities((prev) => ({
                                                     ...prev,
                                                     [item.id]: e.target.value,
                                                   }))
                                                 }
-                                                disabled={!isSelected}
+                                                disabled={isLocked || !isSelected}
                                                 className="h-8 text-xs font-mono bg-background"
                                               />
                                               <span className="text-[11px] text-muted-foreground">
@@ -950,24 +1025,26 @@ export default function ProcurementRequisitionsPage() {
                                                 type="number"
                                                 min="0"
                                                 step="any"
-                                                placeholder="Unit price"
-                                                value={unitPrices[item.id] ?? ''}
+                                                placeholder={isLocked ? 'Locked' : 'Unit price'}
+                                                value={isLocked ? '' : (unitPrices[item.id] ?? '')}
                                                 onChange={(e) =>
                                                   setUnitPrices((prev) => ({
                                                     ...prev,
                                                     [item.id]: e.target.value,
                                                   }))
                                                 }
-                                                disabled={!isSelected}
+                                                disabled={isLocked || !isSelected}
                                                 className="h-8 text-xs font-mono bg-background"
                                               />
                                             </div>
                                           </td>
 
                                           <td className="py-3 px-4 text-right font-mono font-semibold text-foreground">
-                                            {isSelected && currentPrice > 0
-                                              ? `৳${lineTotal.toLocaleString()}`
-                                              : '—'}
+                                            {isLocked
+                                              ? `৳${item.indentItems.reduce((s, r) => s + Number(r.total), 0).toLocaleString()}`
+                                              : isSelected && currentPrice > 0
+                                                ? `৳${lineTotal.toLocaleString()}`
+                                                : '—'}
                                           </td>
                                         </tr>
                                       )
@@ -994,20 +1071,60 @@ export default function ProcurementRequisitionsPage() {
                                 )}
                               </div>
 
-                              <Button
-                                type="button"
-                                onClick={() => handleCreateIndent(req)}
-                                disabled={preview.selectedCount === 0 || actionBusy === req.id}
-                                className="h-9 gap-1.5 font-medium shadow-sm"
-                              >
-                                <Receipt className="w-4 h-4" />
-                                {actionBusy === req.id
-                                  ? 'Generating Indent...'
-                                  : `Generate Indent (৳${preview.total.toLocaleString()})`}
-                              </Button>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {req.indents.length > 0 && (
+                                  <div className="flex flex-wrap items-center gap-1.5">
+                                    <select
+                                      value={reqTargetIndentMode[req.id] || 'NEW'}
+                                      onChange={(e) =>
+                                        setReqTargetIndentMode((prev) => ({
+                                          ...prev,
+                                          [req.id]: e.target.value as 'NEW' | 'EXISTING',
+                                        }))
+                                      }
+                                      className="h-9 text-xs bg-background border rounded px-2 font-medium"
+                                    >
+                                      <option value="NEW">+ New Indent</option>
+                                      <option value="EXISTING">Add to Existing Indent</option>
+                                    </select>
+
+                                    {(reqTargetIndentMode[req.id] || 'NEW') === 'EXISTING' && (
+                                      <select
+                                        value={reqTargetIndentId[req.id] || req.indents[0]?.id || ''}
+                                        onChange={(e) =>
+                                          setReqTargetIndentId((prev) => ({
+                                            ...prev,
+                                            [req.id]: e.target.value,
+                                          }))
+                                        }
+                                        className="h-9 text-xs bg-background border rounded px-2 font-medium max-w-[220px]"
+                                      >
+                                        {req.indents.map((ind) => (
+                                          <option key={ind.id} value={ind.id}>
+                                            {ind.indentNo} — {ind.vendorName || 'No Supplier'} (৳{Number(ind.total).toLocaleString()})
+                                          </option>
+                                        ))}
+                                      </select>
+                                    )}
+                                  </div>
+                                )}
+
+                                <Button
+                                  type="button"
+                                  onClick={() => handleCreateIndent(req)}
+                                  disabled={preview.selectedCount === 0 || actionBusy === req.id}
+                                  className="h-9 gap-1.5 font-medium shadow-sm"
+                                >
+                                  <Receipt className="w-4 h-4" />
+                                  {actionBusy === req.id
+                                    ? 'Saving...'
+                                    : (reqTargetIndentMode[req.id] || 'NEW') === 'EXISTING'
+                                      ? `Add to Indent (+৳${preview.total.toLocaleString()})`
+                                      : `Generate Indent (৳${preview.total.toLocaleString()})`}
+                                </Button>
+                              </div>
                             </div>
                           </div>
-                        )}
                       </div>
                     )}
 
@@ -1120,74 +1237,112 @@ export default function ProcurementRequisitionsPage() {
 
                     {/* TAB 3: INDENTS BILLS HISTORY */}
                     {activeTab === 'indents' && (
-                      <div className="p-4 space-y-3">
+                      <div className="p-4 space-y-4">
                         {req.indents.length === 0 ? (
                           <div className="p-6 text-center text-muted-foreground text-xs">
                             No indents have been issued for this requisition yet. Use the &ldquo;Unbilled Materials&rdquo; tab to price items and generate Indent #1.
                           </div>
                         ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                          <div className="space-y-4">
                             {req.indents.map((indent, idx) => (
-                              <Card key={indent.id} className="shadow-2xs border">
+                              <Card key={indent.id} className="shadow-2xs border overflow-hidden">
                                 <CardHeader className="p-3 pb-2 bg-muted/20 border-b">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-1.5 font-mono font-bold text-xs text-primary">
-                                      <Receipt className="w-3.5 h-3.5" />
-                                      {indent.indentNo}
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1.5 font-mono font-bold text-xs text-primary">
+                                          <Receipt className="w-3.5 h-3.5" />
+                                          {indent.indentNo}
+                                        </div>
+                                        <Badge variant="outline" className="text-[10px]">
+                                          Batch #{req.indents.length - idx}
+                                        </Badge>
+                                      </div>
+                                      <CardDescription className="text-[11px] mt-0.5">
+                                        Issued by {indent.createdBy.fullName} on{' '}
+                                        {new Date(indent.createdAt).toLocaleDateString('en-GB')} • Supplier:{' '}
+                                        <strong className="text-foreground">{indent.vendorName || 'Multiple / Direct'}</strong>
+                                      </CardDescription>
                                     </div>
-                                    <Badge variant="outline" className="text-[10px]">
-                                      Batch #{idx + 1}
-                                    </Badge>
+
+                                    <div className="flex items-center gap-3">
+                                      <div className="text-right">
+                                        <div className="text-[10px] text-muted-foreground">Total Indent Amount</div>
+                                        <div className="font-mono text-sm text-primary font-bold">
+                                          ৳{Number(indent.total).toLocaleString()}
+                                        </div>
+                                      </div>
+                                      <Link href={`/procurement/billing-center/${req.id}`}>
+                                        <Button type="button" size="sm" variant="outline" className="h-7 text-xs">
+                                          Open Billing Center
+                                        </Button>
+                                      </Link>
+                                    </div>
                                   </div>
-                                  <CardDescription className="text-[11px]">
-                                    Issued by {indent.createdBy.fullName} on{' '}
-                                    {new Date(indent.createdAt).toLocaleDateString('en-GB')}
-                                  </CardDescription>
                                 </CardHeader>
 
-                                <CardContent className="p-3 space-y-2 text-xs">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-muted-foreground">Vendor:</span>
-                                    <span className="font-medium text-foreground">
-                                      {indent.vendorName || 'Not specified'}
-                                    </span>
+                                <CardContent className="p-0">
+                                  <div className="w-full overflow-x-auto">
+                                    <table className="w-full text-xs text-left border-collapse">
+                                      <thead className="bg-muted/40 text-muted-foreground font-semibold border-b text-[11px]">
+                                        <tr>
+                                          <th className="py-2 px-3">Materials</th>
+                                          <th className="py-2 px-3">Supplier Name</th>
+                                          <th className="py-2 px-3 text-right">Qty</th>
+                                          <th className="py-2 px-3 text-right">Unit Price</th>
+                                          <th className="py-2 px-3 text-right">Total Price</th>
+                                          <th className="py-2 px-3 text-center w-14">Remove</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y">
+                                        {indent.items.length === 0 ? (
+                                          <tr>
+                                            <td colSpan={6} className="py-4 text-center text-muted-foreground italic">
+                                              No products in this indent.
+                                            </td>
+                                          </tr>
+                                        ) : (
+                                          indent.items.map((row) => {
+                                            const original = req.items.find((i) => i.id === row.requisitionItemId)
+                                            const matName = original?.materialName || 'Material Item'
+                                            const isRemoving = removingIndentItemId === row.id
+                                            return (
+                                              <tr key={row.id} className="hover:bg-muted/20">
+                                                <td className="py-2 px-3 font-medium text-foreground">
+                                                  {matName}
+                                                </td>
+                                                <td className="py-2 px-3 text-muted-foreground">
+                                                  {row.vendorName || indent.vendorName || '—'}
+                                                </td>
+                                                <td className="py-2 px-3 text-right font-mono">
+                                                  {Number(row.quantity)} {original?.unit || ''}
+                                                </td>
+                                                <td className="py-2 px-3 text-right font-mono">
+                                                  ৳{Number(row.unitPrice).toLocaleString()}
+                                                </td>
+                                                <td className="py-2 px-3 text-right font-mono font-semibold text-foreground">
+                                                  ৳{Number(row.total).toLocaleString()}
+                                                </td>
+                                                <td className="py-2 px-3 text-center">
+                                                  <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    disabled={isRemoving}
+                                                    title="Remove product from indent"
+                                                    className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    onClick={() => void handleRemoveIndentItem(indent.id, row.id, matName)}
+                                                  >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                  </Button>
+                                                </td>
+                                              </tr>
+                                            )
+                                          })
+                                        )}
+                                      </tbody>
+                                    </table>
                                   </div>
-
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-muted-foreground">Items in Indent:</span>
-                                    <span className="font-medium text-foreground font-mono">
-                                      {indent.items.length} items
-                                    </span>
-                                  </div>
-
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-muted-foreground">Subtotal:</span>
-                                    <span className="font-mono">
-                                      ৳{Number(indent.subtotal).toLocaleString()}
-                                    </span>
-                                  </div>
-
-                                  {(Number(indent.transportCost) > 0 || Number(indent.otherCosts) > 0) && (
-                                    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                                      <span>Auxiliary Costs:</span>
-                                      <span className="font-mono">
-                                        +৳{(Number(indent.transportCost) + Number(indent.otherCosts)).toLocaleString()}
-                                      </span>
-                                    </div>
-                                  )}
-
-                                  <div className="flex items-center justify-between pt-2 border-t font-semibold text-foreground">
-                                    <span>Total Amount:</span>
-                                    <span className="font-mono text-sm text-primary font-bold">
-                                      ৳{Number(indent.total).toLocaleString()}
-                                    </span>
-                                  </div>
-
-                                  {indent.notes && (
-                                    <p className="text-[11px] text-muted-foreground italic pt-1">
-                                      &ldquo;{indent.notes}&rdquo;
-                                    </p>
-                                  )}
                                 </CardContent>
                               </Card>
                             ))}

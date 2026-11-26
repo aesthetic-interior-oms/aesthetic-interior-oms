@@ -1209,6 +1209,11 @@ const navigationGroups: Record<string, NavGroup[]> = {
           href: '/procurement/requisitions',
         },
         {
+          icon: Package,
+          label: 'Project Indents',
+          href: '/procurement/indents',
+        },
+        {
           icon: FolderKanban,
           label: 'Project List',
           href: '/procurement/projects',
